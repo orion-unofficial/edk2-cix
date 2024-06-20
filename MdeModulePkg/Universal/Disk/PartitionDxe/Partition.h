@@ -61,6 +61,7 @@ typedef struct {
   BOOLEAN                        InStop;
 
   EFI_GUID                       TypeGuid;
+  EFI_PARTITION_ENTRY            PartEntry;
 } PARTITION_PRIVATE_DATA;
 
 typedef struct {
@@ -340,7 +341,8 @@ PartitionInstallChildHandle (
   IN  EFI_LBA                      Start,
   IN  EFI_LBA                      End,
   IN  UINT32                       BlockSize,
-  IN  EFI_GUID                     *TypeGuid
+  IN  EFI_GUID                     *TypeGuid,
+  IN  EFI_PARTITION_ENTRY          *PartEntry
   );
 
 /**
