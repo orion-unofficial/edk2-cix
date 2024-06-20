@@ -148,6 +148,14 @@ ASM_FUNC(ArmInvalidateTlb)
    isb
    ret
 
+ASM_FUNC(ArmWriteMdcr)
+  msr     mdcr_el2, x0           // Monitor Debug Configuration Register (MDCR)
+  ret
+
+ASM_FUNC(ArmReadMdcr)
+  mrs   x0, mdcr_el2             // Monitor Debug Configuration Register (MDCR)
+  ret
+
 ASM_FUNC(ArmWriteCptr)
   msr     cptr_el3, x0           // EL3 Coprocessor Trap Reg (CPTR)
   ret

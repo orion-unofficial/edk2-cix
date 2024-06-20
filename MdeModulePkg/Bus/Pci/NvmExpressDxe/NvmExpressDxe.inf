@@ -43,6 +43,7 @@
 
 [Packages]
   MdePkg/MdePkg.dec
+  ArmPkg/ArmPkg.dec
 
 [LibraryClasses]
   BaseMemoryLib
@@ -55,6 +56,7 @@
   UefiLib
   PrintLib
   ReportStatusCodeLib
+  ArmLib
 
 [Protocols]
   gEfiPciIoProtocolGuid                       ## TO_START
