@@ -4621,6 +4621,31 @@ RouteConfigRespForEfiVarStore (
     goto Done;
   }
 
+  if (StrCmp (VarStoreName, L"PlatformSetupVar") == 0) {
+    EFI_HANDLE  Handle;
+    EFI_GUID    Guid = {
+      0x6ea036ed, 0xdee0, 0x54b4, { 0x08, 0x22, 0x7c, 0x8a, 0x47, 0x3e, 0xa5, 0xaa }
+    };
+    EFI_GUID    VariableGuid = {
+      0x5E5B2ABF, 0x599A, 0x4329, { 0xBA, 0xA4, 0x6D, 0x6E, 0xAA, 0xAC, 0x8B, 0xC1 }
+    };
+    if (CompareGuid (&VariableGuid, &EfiVarStoreInfo->Guid)) {
+      DEBUG ((DEBUG_INFO, "Triger F10 save Callback\n"));
+      Handle = NULL;
+      gBS->InstallProtocolInterface (
+             &Handle,
+             &Guid,
+             EFI_NATIVE_INTERFACE,
+             NULL
+             );
+      gBS->UninstallProtocolInterface (
+             Handle,
+             &Guid,
+             NULL
+             );
+    }
+  }
+
 Done:
   if (VarStoreName != NULL) {
     FreePool (VarStoreName);

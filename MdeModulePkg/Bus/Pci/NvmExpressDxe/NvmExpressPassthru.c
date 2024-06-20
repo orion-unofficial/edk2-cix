@@ -9,6 +9,7 @@
 **/
 
 #include "NvmExpress.h"
+#include <Library/ArmLib.h>
 
 /**
   Dump the execution status from a given completion queue entry.
@@ -733,6 +734,7 @@ NvmExpressPassThru (
     Private->SqTdbl[QueueId].Sqt ^= 1;
   }
 
+  ArmDataSynchronizationBarrier ();
   Data   = ReadUnaligned32 ((UINT32 *)&Private->SqTdbl[QueueId]);
   Status = PciIo->Mem.Write (
                         PciIo,

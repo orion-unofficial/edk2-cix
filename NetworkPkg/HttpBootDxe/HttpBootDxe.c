@@ -7,7 +7,11 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #include "HttpBootDxe.h"
+#include <Guid/NetworkStackSetup.h>
 
+NETWORK_STACK  *pNetworkStack = NULL;
+UINT8          Ipv4HttpBoot;
+UINT8          Ipv6HttpBoot;
 ///
 /// Driver Binding Protocol instance
 ///
@@ -304,6 +308,10 @@ HttpBootIp4DxeDriverBindingSupported (
   )
 {
   EFI_STATUS  Status;
+
+  if (Ipv4HttpBoot == 0) {
+    return EFI_UNSUPPORTED;
+  }
 
   //
   // Try to open the DHCP4, HTTP4 and Device Path protocol.
@@ -794,6 +802,10 @@ HttpBootIp6DxeDriverBindingSupported (
   )
 {
   EFI_STATUS  Status;
+
+  if (Ipv6HttpBoot == 0) {
+    return EFI_UNSUPPORTED;
+  }
 
   //
   // Try to open the DHCP6, HTTP and Device Path protocol.
@@ -1295,6 +1307,41 @@ HttpBootDxeDriverEntryPoint (
   )
 {
   EFI_STATUS  Status;
+  UINTN       NetworkStackSize;
+
+  NetworkStackSize = sizeof (NETWORK_STACK);
+  pNetworkStack    = AllocateZeroPool (NetworkStackSize);
+  if (pNetworkStack == NULL) {
+    DEBUG ((EFI_D_ERROR, "(%a) AllocateZeroPool failed\n", __FUNCTION__));
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  Status = gRT->GetVariable (
+                  NETWORK_STACK_VAR,
+                  &gEfiNetworkStackSetupGuid,
+                  NULL,
+                  &NetworkStackSize,
+                  pNetworkStack
+                  );
+  if (!EFI_ERROR (Status)) {
+    if (pNetworkStack->Enable) {
+      Ipv4HttpBoot = pNetworkStack->Ipv4Http;
+      Ipv6HttpBoot = pNetworkStack->Ipv6Http;
+    } else {
+      Ipv4HttpBoot = 0;
+      Ipv6HttpBoot = 0;
+    }
+
+    if (pNetworkStack) {
+      FreePool (pNetworkStack);
+    }
+  } else {
+    Ipv4HttpBoot = FixedPcdGet8 (PcdIPv4HttpSupport);
+    Ipv6HttpBoot = FixedPcdGet8 (PcdIPv6HttpSupport);
+    if (pNetworkStack) {
+      FreePool (pNetworkStack);
+    }
+  }
 
   //
   // Install UEFI Driver Model protocol(s).

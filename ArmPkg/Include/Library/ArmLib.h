@@ -558,6 +558,18 @@ ArmWriteMVBar (
 
 UINT32
 EFIAPI
+ArmReadMdcr (
+  VOID
+  );
+
+VOID
+EFIAPI
+ArmWriteMdcr (
+  IN  UINT32  Value
+  );
+
+UINT32
+EFIAPI
 ArmReadSctlr (
   VOID
   );
