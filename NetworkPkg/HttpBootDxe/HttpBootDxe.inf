@@ -93,10 +93,13 @@
   gEfiVirtualCdGuid            ## SOMETIMES_CONSUMES ## GUID
   gEfiVirtualDiskGuid          ## SOMETIMES_CONSUMES ## GUID
   gEfiAdapterInfoUndiIpv6SupportGuid             ## SOMETIMES_CONSUMES ## GUID
+  gEfiNetworkStackSetupGuid
 
 [Pcd]
   gEfiNetworkPkgTokenSpaceGuid.PcdAllowHttpConnections       ## CONSUMES
   gEfiNetworkPkgTokenSpaceGuid.PcdHttpIoTimeout              ## CONSUMES
+  gEfiNetworkPkgTokenSpaceGuid.PcdIPv4HttpSupport
+  gEfiNetworkPkgTokenSpaceGuid.PcdIPv6HttpSupport
 
 [UserExtensions.TianoCore."ExtraFiles"]
   HttpBootDxeExtra.uni

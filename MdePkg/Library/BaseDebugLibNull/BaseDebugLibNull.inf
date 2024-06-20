@@ -29,3 +29,5 @@
 [Packages]
   MdePkg/MdePkg.dec
 
+[LibraryClasses]
+  PostCodeLib
