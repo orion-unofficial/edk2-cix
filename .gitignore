@@ -1,11 +1,6 @@
-# Object files
-*.o
-*.a
-*.dep
-
-#Build & install directories
-build/
-install/
-
-# Development friendly files
-tags
+.DS_Store
+*_extdep/
+*.pyc
+__pycache__/
+tags/
+.vscode/
