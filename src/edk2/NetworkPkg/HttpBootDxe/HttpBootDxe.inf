@@ -96,8 +96,10 @@
   gEfiNetworkStackSetupGuid
 
 [Pcd]
-  gEfiNetworkPkgTokenSpaceGuid.PcdAllowHttpConnections       ## CONSUMES
-  gEfiNetworkPkgTokenSpaceGuid.PcdHttpIoTimeout              ## CONSUMES
+  gEfiNetworkPkgTokenSpaceGuid.PcdAllowHttpConnections           ## CONSUMES
+  gEfiNetworkPkgTokenSpaceGuid.PcdHttpIoTimeout                  ## CONSUMES
+  gEfiNetworkPkgTokenSpaceGuid.PcdMaxHttpResumeRetries           ## CONSUMES
+  gEfiNetworkPkgTokenSpaceGuid.PcdHttpDelayBetweenResumeRetries  ## CONSUMES
   gEfiNetworkPkgTokenSpaceGuid.PcdIPv4HttpSupport
   gEfiNetworkPkgTokenSpaceGuid.PcdIPv6HttpSupport
 
