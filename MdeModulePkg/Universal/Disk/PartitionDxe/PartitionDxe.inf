@@ -80,7 +80,6 @@
   gEfiPartitionInfoProtocolGuid                 ## BY_START
   gEfiDiskIoProtocolGuid                        ## TO_START
   gEfiDiskIo2ProtocolGuid                       ## TO_START
-  gEfiPartitionRecordGuid
 
 [UserExtensions.TianoCore."ExtraFiles"]
   PartitionDxeExtra.uni

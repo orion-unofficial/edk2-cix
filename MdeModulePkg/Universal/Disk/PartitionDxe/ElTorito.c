@@ -266,7 +266,6 @@ PartitionInstallElToritoChildHandles (
                  Catalog->Boot.Lba * (SIZE_2KB / Media->BlockSize),
                  Catalog->Boot.Lba * (SIZE_2KB / Media->BlockSize) + CdDev.PartitionSize - 1,
                  SubBlockSize,
-                 NULL,
                  NULL
                  );
       if (!EFI_ERROR (Status)) {
