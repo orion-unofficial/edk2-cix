@@ -189,6 +189,12 @@
   # @Prompt The value of Retry Count,  Default value is 0.
   gEfiNetworkPkgTokenSpaceGuid.PcdHttpDnsRetryCount|0|UINT32|0x00000011
 
+  ## The default size of the HTTP transfer data buffer in bytes.
+  # This size is used for HTTP transfers, with a default value of 2MB.
+  # Increasing the buffer size can enhance performance for high-bandwidth connections.
+  # However, reducing the buffer size can reduce packet loss in low-bandwidth scenarios.
+  gEfiNetworkPkgTokenSpaceGuid.PcdHttpTransferBufferSize|0x200000|UINT32|0x00000014
+
   ## Network Stack support
   # 0x01 = Network Stack Enabled
   # 0x00 = Network Stack Disabled
