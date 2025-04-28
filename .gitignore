@@ -1,7 +1,24 @@
-Build/
-.DS_Store
-*_extdep/
-*.pyc
-__pycache__/
-tags/
-.vscode/
+# Devenv
+/.devenv*
+/devenv.local.nix
+
+# direnv
+/.direnv
+
+# pre-commit
+/.pre-commit-config.yaml
+
+# node.js
+/node_modules
+
+# Local VS Code configuration
+/.vscode*
+
+# mdbook build output
+/book
+
+# debuild work directory
+/.pc
+
+# intel-corporation.edk2code extension file
+/.edkCode

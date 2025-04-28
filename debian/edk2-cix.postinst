@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+case $1 in
+    configure)
+        rm -rf /boot/efi/edk2-cix /boot/efi/loader/entries/edk2-cix_*.conf
+        cp -r /usr/share/edk2 /boot/efi/edk2-cix
+        version="$(dpkg -s "$DPKG_MAINTSCRIPT_PACKAGE" | sed -n 's/^Version: //p')"
+        for i in /boot/efi/edk2-cix/radxa/*; do
+            product=$(basename "$i")
+            sed -i "s/set product ./set product \" for $product.\"/" "$i/startup.nsh"
+            cat << EOF > /boot/efi/loader/entries/edk2-cix_$product.conf
+title Install EDK2 $version for $product
+efi /edk2-cix/radxa/$product/Shell.efi
+EOF
+        done
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0
