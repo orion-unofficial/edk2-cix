@@ -56,6 +56,7 @@
   #
   # Control driver/library/pcd definition and instantiation
   #
+  DEFINE CIX_GPNV_ENABLE            = FALSE
   DEFINE PI_TEST_SUPPORT            = FALSE
   DEFINE SECURE_BOOT_ENABLE         = FALSE
   DEFINE DEFAULT_KEYS               = TRUE
@@ -72,6 +73,7 @@
   DEFINE SOC_GMAC_ENABLE            = FALSE
   DEFINE SOC_GPIO_INTR_ENABLE       = FALSE
   DEFINE DTB_UPDATE_ENABLE          = TRUE
+  DEFINE PLATFORM_DTB_UPDATE_ENABLE = FALSE
   DEFINE SMBIOS_ENABLE              = TRUE
   DEFINE ACPI_ENABLE                = TRUE
   DEFINE SHELL_EMBEDDED_ENABLE      = TRUE
