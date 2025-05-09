@@ -206,18 +206,16 @@
 
   ArmMtlLib|Silicon/CIX/Sky1/Library/CixMtlLib/CixMtlLib.inf
   DtbUpdateLib|Platform/CIX/Sky1/Library/DtbUpdateLib/DtbUpdateLib.inf
-
+!if $(PLATFORM_DTB_UPDATE_ENABLE) == TRUE
+  PlatformDtbUpdateLib|Platform/CIX/Sky1/Library/PlatformDtbUpdateLib/PlatformDtbUpdateLib.inf
+!endif
   ArmLib|ArmPkg/Library/ArmLib/ArmBaseLib.inf
   ArmMmuLib|ArmPkg/Library/ArmMmuLib/ArmMmuBaseLib.inf
   ArmPlatformLib|Platform/CIX/Sky1/Library/PlatformLib/PlatformLib.inf
   CapsuleLib|MdeModulePkg/Library/DxeCapsuleLibNull/DxeCapsuleLibNull.inf
   UefiBootManagerLib|MdeModulePkg/Library/UefiBootManagerLib/UefiBootManagerLib.inf
   BootLogoLib|MdeModulePkg/Library/BootLogoLib/BootLogoLib.inf
-!if $(COMPILE_SYSTEM_LOADER) == android
   PlatformBootManagerLib|Platform/CIX/Sky1/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf
-!else
-  PlatformBootManagerLib|Platform/CIX/Sky1/Library/CixPlatformBootManagerLib/PlatformBootManagerLib.inf
-!endif
   FileExplorerLib|MdeModulePkg/Library/FileExplorerLib/FileExplorerLib.inf
   AcpiLib|EmbeddedPkg/Library/AcpiLib/AcpiLib.inf
   SocInitLib|Silicon/CIX/Sky1/Library/SocInitLib/SocInitLib.inf
@@ -240,11 +238,9 @@
 #  PlatformFlashAccessLib|Platform/RaspberryPi/Library/PlatformFlashAccessLib/PlatformFlashAccessLib.inf
   DisplayUpdateProgressLib|MdeModulePkg/Library/DisplayUpdateProgressLibGraphics/DisplayUpdateProgressLibGraphics.inf
 !endif
-!if $(REBOOT_REASON_ENABLE)
-  #RebootReasonLib|Silicon/CIX/Sky1/Library/RebootReasonLib/RebootReasonLib.inf
-!else
-  #RebootReasonLib|Silicon/CIX/Sky1/Library/RebootReasonLib/RebootReasonLibNull.inf
-!endif
+
+  RebootReasonLib|Silicon/CIX/Sky1/Library/RebootReasonLib/RebootReasonLib.inf
+
   CsuPmIpcLib|Silicon/CIX/Sky1/Library/CsuPmIpcLib/CsuPmIpcLib.inf
 
   ShMemLib|Silicon/CIX/Sky1/Library/ShMemLib/ShMemLib.inf
@@ -272,6 +268,9 @@
   CixFwBootPerfLib|Platform/CIX/Sky1/Library/CixFwBootPerfLib/CixFwBootPerfLibNull.inf
 !endif
   EfiResetSystemLib|ArmPkg/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
+
+  # Library for Vendor Guid Variable Sync From Flash
+  CixGPNVLib|Platform/CIX/Sky1/Library/CixGPNVLib/CixGPNVLib.inf
 
 [LibraryClasses.common.SEC]
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
@@ -350,6 +349,13 @@
 
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS          = -fno-common
+!if $(PI_TEST_SUPPORT) == TRUE
+  GCC:*_*_*_CC_FLAGS          = -DPI_TEST_SUPPORT
+!endif
+!if $(CIX_GPNV_ENABLE) == TRUE
+  GCC:*_*_*_CC_FLAGS          = -DCIX_GPNV_ENABLE
+!endif
+
 [BuildOptions.common.EDKII.DXE_RUNTIME_DRIVER]
   GCC:*_*_AARCH64_DLINK_FLAGS = -z common-page-size=0x10000
 
@@ -550,12 +556,6 @@
   gCixTokenSpaceGuid.PcdNorFlashNvramAddr|$(SPI_VARIABLE_BASE)
   gCixTokenSpaceGuid.PcdNorFlashNvramSize|$(SPI_VARIABLE_SIZE)
 
-!if $(VARIABLE_SUPPORT) == "SPI" && $(STMM_SUPPORT) == FALSE
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize|$(SPI_VARIABLE_SIZE)
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize|$(SPI_VARIABLE_SIZE)
-  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize|$(SPI_VARIABLE_SIZE)
-!endif
-
 !if $(SOC_GPU_ENABLE) == TRUE
   gCixTokenSpaceGuid.PcdGpuEnable|TRUE
 !endif
@@ -595,12 +595,19 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdSetupVideoVerticalResolution|480
 
 !if $(VARIABLE_SUPPORT) == "SPI"
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize|$(SPI_VARIABLE_SIZE)
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize|$(SPI_VARIABLE_SIZE)
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize|$(SPI_VARIABLE_SIZE)
+!endif
+
+!if $(VARIABLE_SUPPORT) == "SPI"
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase64|$(SPI_VARIABLE_BASE)
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase64|($(SPI_VARIABLE_BASE) + $(SPI_VARIABLE_SIZE))
   gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase64|($(SPI_VARIABLE_BASE) + $(SPI_VARIABLE_SIZE) + $(SPI_VARIABLE_SIZE))
 !endif
 !if $(COMPILE_SYSTEM_LOADER) == android
   gEmbeddedTokenSpaceGuid.PcdDmaDeviceLimit|0x27fffffff
+  gCixPlatformTokenSpaceGuid.PcdAndroidBoot|TRUE
 !else
   gEmbeddedTokenSpaceGuid.PcdDmaDeviceLimit|0x17fffffff
 !endif
@@ -740,6 +747,9 @@
   FatPkg/EnhancedFatDxe/Fat.inf
 !if $(DTB_UPDATE_ENABLE) == TRUE
   Platform/CIX/Sky1/Drivers/DtbUpdateDxe/DtbUpdateDxe.inf
+!endif
+!if $(PLATFORM_DTB_UPDATE_ENABLE) == TRUE
+  Platform/CIX/Sky1/Drivers/PlatformDtbUpdateDxe/PlatformDtbUpdateDxe.inf
 !endif
 !if $(RLOG_DUMP_ENABLE) == TRUE
   Platform/CIX/Sky1/Drivers/RamLogDumpDxe/RamLogDumpDxe.inf
@@ -901,6 +911,7 @@
 !if $(SETUP_DEBUG_CFG_ENABLE) == TRUE
   Platform/CIX/Sky1/Drivers/DebugConfigDxe/DebugConfigDxe.inf
 !endif
+  Platform/CIX/Sky1/Drivers/RealtekLan/RealtekLanDxe.inf
 
   # Bds
   #
@@ -1002,10 +1013,7 @@ ShellPkg/DynamicCommand/HttpDynamicCommand/HttpDynamicCommand.inf {
   Silicon/CIX/Sky1/Drivers/I2sDxe/I2sDxe.inf
 !endif
 
-
-!if $(PI_TEST_SUPPORT) == TRUE
-  Platform/ARM/Drivers/ArmPsciMpServicesDxe/ArmPsciMpServicesDxe.inf
-!endif
+  Silicon/CIX/Sky1/Drivers/ArmPsciMpServicesDxe/ArmPsciMpServicesDxe.inf
 !if $(POWER_BUTTON_ENABLE) == TRUE
   Platform/CIX/Sky1/Drivers/PowerButtonDxe/PowerButtonDxe.inf
 !endif

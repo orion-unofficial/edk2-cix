@@ -152,6 +152,9 @@
 !if $(DTB_UPDATE_ENABLE) == TRUE
   INF Platform/CIX/Sky1/Drivers/DtbUpdateDxe/DtbUpdateDxe.inf
 !endif
+!if $(PLATFORM_DTB_UPDATE_ENABLE) == TRUE
+  INF Platform/CIX/Sky1/Drivers/PlatformDtbUpdateDxe/PlatformDtbUpdateDxe.inf
+!endif
 !if $(RLOG_DUMP_ENABLE) == TRUE
   INF Platform/CIX/Sky1/Drivers/RamLogDumpDxe/RamLogDumpDxe.inf
 !endif
@@ -215,10 +218,12 @@
 !endif
 
 !if $(REALTEK_LAN_DRIVER_SUPPORT) == TRUE
+ INF Platform/CIX/Sky1/Drivers/RealtekLan/RealtekLanDxe.inf
  FILE DRIVER = 785277C5-20B9-4940-8D9F-341AEAAB4DEF
  {
    SECTION PE32 = Platform/CIX/Sky1/Drivers/RealtekLan/RtkUndiDxe.efi
    SECTION UI = "Realtek"
+   SECTION DXE_DEPEX = Platform/CIX/Sky1/Drivers/RealtekLan/RealtekLan.depex
  }
 !endif
   INF MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
@@ -342,5 +347,5 @@
   INF Silicon/CIX/Sky1/Drivers/I2sDxe/I2sDxe.inf
 !endif
 !if $(PI_TEST_SUPPORT) == TRUE
-  INF Platform/ARM/Drivers/ArmPsciMpServicesDxe/ArmPsciMpServicesDxe.inf
+  INF  Silicon/CIX/Sky1/Drivers/ArmPsciMpServicesDxe/ArmPsciMpServicesDxe.inf
 !endif

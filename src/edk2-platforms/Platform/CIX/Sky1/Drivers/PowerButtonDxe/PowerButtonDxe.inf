@@ -12,7 +12,7 @@
   FILE_GUID                      = 55E0FA57-571D-6103-A9CD-32438D01AC71
   MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
-  ENTRY_POINT                    = PowerButtonDxeDxeEntryPoint
+  ENTRY_POINT                    = PowerButtonDxeEntryPoint
 
 [Sources.common]
   PowerButtonDxe.c
@@ -39,6 +39,7 @@
   EfiResetSystemLib
 
 [Protocols]
+  gCixPowerButtonProtocolGuid
 
 [Guids]
 
