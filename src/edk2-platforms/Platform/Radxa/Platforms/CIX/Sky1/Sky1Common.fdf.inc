@@ -15,6 +15,11 @@
   INF Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigDxe.inf
 !endif
 
+!if $(FW_CONFIG_UPDATE_SUPPORT) == TRUE
+  INF Platform/Radxa/Platforms/CIX/Sky1/Drivers/RadxaSetupVariableInitDxe/RadxaSetupVariableInitDxe.inf
+  INF Platform/Radxa/Platforms/CIX/Sky1/Drivers/FirmwareConfigUpdateDxe/FirmwareConfigUpdateDxe.inf
+!endif
+
   INF EmbeddedPkg/Drivers/DtPlatformDxe/DtPlatformDxe.inf
 
 !if $(VARIABLE_SUPPORT) == "SPI" && $(STMM_SUPPORT) == TRUE
@@ -23,4 +28,8 @@
 
 !if $(TOKEN_RAM_DISK_SUPPORT) == FALSE
   INF MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
+!endif
+
+!if $(ARCH) == AARCH64
+  INF Emulator/X86EmulatorDxe/X86EmulatorDxe.inf
 !endif

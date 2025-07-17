@@ -12,8 +12,8 @@
   "Radxa Computer (Shenzhen) Co., Ltd.\0"   /* Manufacturer */                           \
   "Radxa Orion O6\0"                        /* Product Name */                           \
   "1.0\0"                              /* Version */                                     \
-  "Base Board Serial Number\0"         /* Serial */                                      \
-  "Base Board Asset Tag\0"             /* Assert Tag */                                  \
+  "Radxa Board Serial Number\0"         /* Serial */                                      \
+  "Radxa Board Asset Tag\0"             /* Assert Tag */                                  \
   "Part Component\0"                   /* board location */
 #pragma pack(1)
 typedef struct {
@@ -29,7 +29,7 @@ STATIC PLATFORM_SMBIOS_TYPE2  mPlatformDefaultType2 = {
       // SMBIOS_STRUCTURE Hdr
       EFI_SMBIOS_TYPE_BASEBOARD_INFORMATION,       // UINT8 Type
       sizeof (SMBIOS_TABLE_TYPE2),                 // UINT8 Length
-      SMBIOS_HANDLE_MOTHERBOARD,
+      SMBIOS_HANDLE_BASE_BOARD,
     },
     1,     // Manufacturer
     2,     // Product Name
@@ -43,7 +43,7 @@ STATIC PLATFORM_SMBIOS_TYPE2  mPlatformDefaultType2 = {
     SMBIOS_HANDLE_CHASSIS,
     BaseBoardTypeMotherBoard,
     1,
-    { SMBIOS_HANDLE_CLUSTER },   // ,SMBIOS_HANDLE_CLUSTER,SMBIOS_HANDLE_MEMORY},
+    { SMBIOS_HANDLE_CLUSTER1 },   // ,SMBIOS_HANDLE_CLUSTER,SMBIOS_HANDLE_MEMORY},
   },
   TYPE2_STRINGS
 };
@@ -66,7 +66,7 @@ AddSmbiosType2 (
     DEBUG ((DEBUG_ERROR, "Fail to locate the handle of Smbios Type4 entry!\n"));
   }
 
-  SmbiosHandle = SMBIOS_HANDLE_MOTHERBOARD;
+  SmbiosHandle = SMBIOS_HANDLE_BASE_BOARD;
   Status       = Smbios->Add (
                            Smbios,
                            NULL,

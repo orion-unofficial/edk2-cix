@@ -134,7 +134,13 @@ InitializeHardwareInfo (
       pFmtStr = "12 GiB";
       break;
     case 10:
-      pFmtStr = "16 GiB";
+      pFmtStr = "16 GiB (Hynix)";
+      break;
+    case 11:
+      pFmtStr = "8 GiB";
+      break;
+    case 12:
+      pFmtStr = "16 GiB (Rayson)";
       break;
     default:
       pFmtStr = "Undefined";
