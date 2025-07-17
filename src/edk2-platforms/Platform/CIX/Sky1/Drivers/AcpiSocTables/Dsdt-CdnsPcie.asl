@@ -26,7 +26,7 @@ External (PCIE_X1_1_VCC_REGULATOR, DeviceObj)
 External (PCIE_X1_0_VCC_REGULATOR, DeviceObj)
 #endif
 
-Device (PRC0) { /* PCIE1 X8 */
+Device (PRC0) { /* PCIE0 X8 */
   Name (_HID, "CIXH2020")
   Name (_UID, 0x0)
   Name (_STR, Unicode ("PCIe 0 Device"))
@@ -95,10 +95,10 @@ Device (PRC0) { /* PCIE1 X8 */
       MinFixed, MaxFixed,
       Cacheable, ReadWrite,
       0x00000000,               // Granularity
-      0x1800000000,             // Min Base Address
-      0x1BFFFFFFFF,             // Max Base Address
+      0x2800000000,             // Min Base Address
+      0x2FFFFFFFFF,             // Max Base Address
       0x00000000,               // Translate
-      0x400000000               // Length 16G
+      0x800000000               // Length 32G
     )
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX1", 0, "pinctrl_pcie_x8_rc", ResourceConsumer,)
 #if PCIE_X8_PERST
@@ -119,7 +119,7 @@ Device (PRC0) { /* PCIE1 X8 */
           Package () { "sky1,pcie-ctrl-id", 0x0 },
           Package () { "sky1,aer-uncor-panic", 0 },
           Package () { "cdns,pcie-phy", \_SB.PCP0.PX8P },
-          Package () { "max-payload", 128 },
+          Package () { "max-payload", 512 },
 #if PCIE_X8_PERST
           Package () { "reset-gpios", Package () { ^PRC0, 0, 0, PERST_GPIO_ACTIVE_LEVEL } },
 #endif
@@ -219,7 +219,7 @@ Device (PCP0) //PCIE PHY1
   }
 }
 
-Device (PRC1) { /* PCIE1 X4 */
+Device (PRC1) { /* PCIE2 X4 */
   Name (_HID, "CIXH2020")
   Name (_UID, 0x1)
   Name (_STR, Unicode ("PCIe 1 Device"))
@@ -287,10 +287,10 @@ Device (PRC1) { /* PCIE1 X4 */
       MinFixed, MaxFixed,
       Cacheable, ReadWrite,
       0x00000000,               // Granularity
-      0x1400000000,             // Min Base Address
-      0x17FFFFFFFF,             // Max Base Address
+      0x2000000000,             // Min Base Address
+      0x27FFFFFFFF,             // Max Base Address
       0x00000000,               // Translate
-      0x400000000               // Length 16G
+      0x800000000               // Length 32G
     )
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX1", 0, "pinctrl_pcie_x4_rc", ResourceConsumer,)
 #if PCIE_X4_PERST
@@ -311,7 +311,7 @@ Device (PRC1) { /* PCIE1 X4 */
           Package () { "sky1,pcie-ctrl-id", 0x1 },
           Package () { "sky1,aer-uncor-panic", 0 },
           Package () { "cdns,pcie-phy", \_SB.PCP1.PX4P },
-          Package () { "max-payload", 128 },
+          Package () { "max-payload", 512 },
 #if PCIE_X4_PERST
           Package () { "reset-gpios", Package () { ^PRC1, 0, 0, PERST_GPIO_ACTIVE_LEVEL } },
 #endif
@@ -399,7 +399,7 @@ Device (PCP1) //PCIE PHY1
   }
 }
 
-Device (PRC2) { /* PCIE1 X2 */
+Device (PRC2) { /* PCIE3 X2 */
   Name (_HID, "CIXH2020")
   Name (_UID, 0x2)
   Name (_STR, Unicode ("PCIe 2 Device"))
@@ -467,10 +467,10 @@ Device (PRC2) { /* PCIE1 X2 */
       MinFixed, MaxFixed,
       Cacheable, ReadWrite,
       0x00000000,               // Granularity
-      0x1000000000,             // Min Base Address
-      0x13FFFFFFFF,             // Max Base Address
+      0x1800000000,             // Min Base Address
+      0x1FFFFFFFFF,             // Max Base Address
       0x00000000,               // Translate
-      0x400000000               // Length 16G
+      0x800000000               // Length 32G
     )
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX1", 0, "pinctrl_pcie_x2_rc", ResourceConsumer,)
 #if PCIE_X2_PERST
@@ -491,7 +491,7 @@ Device (PRC2) { /* PCIE1 X2 */
           Package () { "sky1,pcie-ctrl-id", 0x2 },
           Package () { "sky1,aer-uncor-panic", 0 },
           Package () { "cdns,pcie-phy", \_SB.PCP2.PX2P },
-          Package () { "max-payload", 128 },
+          Package () { "max-payload", 512 },
 #if PCIE_X2_PERST
           Package () { "reset-gpios", Package () { ^PRC2, 0, 0, PERST_GPIO_ACTIVE_LEVEL } },
 #endif
@@ -542,7 +542,7 @@ Device (PRC2) { /* PCIE1 X2 */
   })
 }
 
-Device (PRC3) { /* PCIE1 X1_1 */
+Device (PRC3) { /* PCIE4 X1_1 */
   Name (_HID, "CIXH2020")
   Name (_UID, 0x3)
   Name (_STR, Unicode ("PCIe 3 Device"))
@@ -610,10 +610,10 @@ Device (PRC3) { /* PCIE1 X1_1 */
       MinFixed, MaxFixed,
       Cacheable, ReadWrite,
       0x00000000,               // Granularity
-      0xC00000000,             // Min Base Address
-      0xFFFFFFFFF,             // Max Base Address
+      0x1000000000,             // Min Base Address
+      0x17FFFFFFFF,             // Max Base Address
       0x00000000,               // Translate
-      0x400000000               // Length 16G
+      0x800000000               // Length 32G
     )
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX1", 0, "pinctrl_pcie_x1_1_rc", ResourceConsumer,)
 #if PCIE_X1_1_PERST
@@ -634,7 +634,7 @@ Device (PRC3) { /* PCIE1 X1_1 */
           Package () { "sky1,pcie-ctrl-id", 0x3 },
           Package () { "sky1,aer-uncor-panic", 0 },
           Package () { "cdns,pcie-phy", \_SB.PCP2.PX11 },
-          Package () { "max-payload", 128 },
+          Package () { "max-payload", 512 },
 #if PCIE_X1_1_PERST
           Package () { "reset-gpios", Package () { ^PRC3, 0, 0, PERST_GPIO_ACTIVE_LEVEL } },
 #endif
@@ -658,9 +658,9 @@ Device (PRC3) { /* PCIE1 X1_1 */
   })
 
   Name (CLKT, Package() {
-    Package() {CLK_TREE_PCIE_CTRL1_CLK, "axi_clk", \_SB.PRC3},
-    Package() {CLK_TREE_PCIE_X4CTRL_APB, "apb_clk", \_SB.PRC3},
-    Package() {CLK_TREE_PCIE_REF_B1, "refclk_b", \_SB.PRC3},
+    Package() {CLK_TREE_PCIE_CTRL4_CLK, "axi_clk", \_SB.PRC3},
+    Package() {CLK_TREE_PCIE_X1_1CTRL_APB, "apb_clk", \_SB.PRC3},
+    Package() {CLK_TREE_PCIE_REF_B4, "refclk_b", \_SB.PRC3},
   })
   Name (RSTL, Package() {
     Package() {\_SB.RST0, SKY1_PCIE4_RESET_N, \_SB.PRC3, "pcie_reset"},
@@ -685,7 +685,7 @@ Device (PRC3) { /* PCIE1 X1_1 */
   })
 }
 
-Device (PRC4) { /* PCIE1 X1_0 */
+Device (PRC4) { /* PCIE3 X1_0 */
   Name (_HID, "CIXH2020")
   Name (_UID, 0x4)
   Name (_STR, Unicode ("PCIe 4 Device"))
@@ -753,10 +753,10 @@ Device (PRC4) { /* PCIE1 X1_0 */
       MinFixed, MaxFixed,
       Cacheable, ReadWrite,
       0x00000000,               // Granularity
-      0x800000000,             // Min Base Address
-      0xBFFFFFFFF,             // Max Base Address
+      0x0800000000,             // Min Base Address
+      0x0FFFFFFFFF,             // Max Base Address
       0x00000000,               // Translate
-      0x400000000               // Length 16G
+      0x800000000               // Length 32G
     )
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX1", 0, "pinctrl_pcie_x1_0_rc", ResourceConsumer,)
 #if PCIE_X1_0_PERST
@@ -777,7 +777,7 @@ Device (PRC4) { /* PCIE1 X1_0 */
           Package () { "sky1,pcie-ctrl-id", 0x4 },
           Package () { "sky1,aer-uncor-panic", 0 },
           Package () { "cdns,pcie-phy", \_SB.PCP2.PX10 },
-          Package () { "max-payload", 128 },
+          Package () { "max-payload", 512 },
 #if PCIE_X1_0_PERST
           Package () { "reset-gpios", Package () { ^PRC4, 0, 0, PERST_GPIO_ACTIVE_LEVEL } },
 #endif
@@ -801,9 +801,9 @@ Device (PRC4) { /* PCIE1 X1_0 */
   })
 
   Name (CLKT, Package() {
-    Package() {CLK_TREE_PCIE_CTRL1_CLK, "axi_clk", \_SB.PRC4},
-    Package() {CLK_TREE_PCIE_X4CTRL_APB, "apb_clk", \_SB.PRC4},
-    Package() {CLK_TREE_PCIE_REF_B1, "refclk_b", \_SB.PRC4},
+    Package() {CLK_TREE_PCIE_CTRL3_CLK, "axi_clk", \_SB.PRC4},
+    Package() {CLK_TREE_PCIE_X1_0CTRL_APB, "apb_clk", \_SB.PRC4},
+    Package() {CLK_TREE_PCIE_REF_B3, "refclk_b", \_SB.PRC4},
   })
   Name (RSTL, Package() {
     Package() {\_SB.RST0, SKY1_PCIE3_RESET_N, \_SB.PRC4, "pcie_reset"},
@@ -863,11 +863,7 @@ Device (PCP2) //PCIE PHY1
   Device(PX10)
   {
     Method (_STA, 0x0, Serialized) {
-      If(\_SB.GETV(ARV_PCIE_RP_04_LINK_STS_OFFSET)) {
-        Return (0xF)
-      } else {
-        Return (0x0)
-      }
+      Return (0xF)
     }
     Name (_ADR, 0x00)
     Name (_DSD, Package () {
@@ -881,11 +877,7 @@ Device (PCP2) //PCIE PHY1
   Device(PX11)
   {
     Method (_STA, 0x0, Serialized) {
-      If(\_SB.GETV(ARV_PCIE_RP_03_LINK_STS_OFFSET)) {
-        Return (0xF)
-      } else {
-        Return (0x0)
-      }
+      Return (0xF)
     }
     Name (_ADR, 0x01)
     Name (_DSD, Package () {
@@ -899,11 +891,7 @@ Device (PCP2) //PCIE PHY1
   Device(PX2P)
   {
     Method (_STA, 0x0, Serialized) {
-      If(\_SB.GETV(ARV_PCIE_RP_02_LINK_STS_OFFSET)) {
-        Return (0xF)
-      } else {
-        Return (0x0)
-      }
+      Return (0xF)
     }
     Name (_ADR, 0x02)
     Name (_DSD, Package () {

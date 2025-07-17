@@ -12,6 +12,10 @@
   # SPCR use UART2
   gArmPlatformTokenSpaceGuid.PcdSerialDbgRegisterBase|0x040D0000
   gArmPlatformTokenSpaceGuid.PcdSerialDbgInterrupt|330
+  gCixPlatformTokenSpaceGuid.PcdAcpiSpcrEnable|TRUE
+
+  # Default hardware description should be ACPI
+  gEmbeddedTokenSpaceGuid.PcdDefaultDtPref|FALSE
 
 [Components.common]
 
@@ -31,6 +35,11 @@
 !if $(TOKEN_SETUP_SUPPORT) == FALSE
   Platform/CIX/Sky1/Drivers/PlatformSetupVariableInitDxe/PlatformSetupVariableInitDxe.inf
   Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigDxe.inf
+!endif
+
+!if $(FW_CONFIG_UPDATE_SUPPORT) == TRUE
+  Platform/Radxa/Platforms/CIX/Sky1/Drivers/RadxaSetupVariableInitDxe/RadxaSetupVariableInitDxe.inf
+  Platform/Radxa/Platforms/CIX/Sky1/Drivers/FirmwareConfigUpdateDxe/FirmwareConfigUpdateDxe.inf
 !endif
 
   EmbeddedPkg/Drivers/DtPlatformDxe/DtPlatformDxe.inf {
