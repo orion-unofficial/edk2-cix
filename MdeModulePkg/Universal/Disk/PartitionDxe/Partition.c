@@ -1144,8 +1144,7 @@ PartitionInstallChildHandle (
   IN  EFI_LBA                      Start,
   IN  EFI_LBA                      End,
   IN  UINT32                       BlockSize,
-  IN  EFI_GUID                     *TypeGuid,
-  IN  EFI_PARTITION_ENTRY          *PartEntry
+  IN  EFI_GUID                     *TypeGuid
   )
 {
   EFI_STATUS              Status;
@@ -1239,11 +1238,6 @@ PartitionInstallChildHandle (
   //
   CopyMem (&Private->PartitionInfo, PartitionInfo, sizeof (EFI_PARTITION_INFO_PROTOCOL));
 
-  if (PartEntry)
-    CopyMem (&Private->PartEntry, PartEntry, sizeof(*PartEntry));
-  else
-    SetMem (&Private->PartEntry, sizeof (Private->PartEntry), 0);
-
   if (TypeGuid != NULL) {
     CopyGuid (&(Private->TypeGuid), TypeGuid);
   } else {
@@ -1265,8 +1259,6 @@ PartitionInstallChildHandle (
                     &Private->BlockIo2,
                     &gEfiPartitionInfoProtocolGuid,
                     &Private->PartitionInfo,
-                    &gEfiPartitionRecordGuid,
-                    &Private->PartEntry,
                     TypeGuid,
                     NULL,
                     NULL
@@ -1280,8 +1272,6 @@ PartitionInstallChildHandle (
                     &Private->BlockIo,
                     &gEfiPartitionInfoProtocolGuid,
                     &Private->PartitionInfo,
-                    &gEfiPartitionRecordGuid,
-                    &Private->PartEntry,
                     TypeGuid,
                     NULL,
                     NULL

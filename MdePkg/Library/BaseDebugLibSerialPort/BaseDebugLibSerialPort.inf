@@ -36,7 +36,6 @@
   PrintLib
   BaseLib
   DebugPrintErrorLevelLib
-  PostCodeLib
 
 [Pcd]
   gEfiMdePkgTokenSpaceGuid.PcdDebugClearMemoryValue  ## SOMETIMES_CONSUMES

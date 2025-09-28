@@ -257,8 +257,7 @@ PartitionInstallMbrChildHandles (
                  HdDev.PartitionStart,
                  HdDev.PartitionStart + HdDev.PartitionSize - 1,
                  MBR_SIZE,
-                 ((Mbr->Partition[Index].OSIndicator == EFI_PARTITION) ? &gEfiPartTypeSystemPartGuid : NULL),
-                 NULL
+                 ((Mbr->Partition[Index].OSIndicator == EFI_PARTITION) ? &gEfiPartTypeSystemPartGuid : NULL)
                  );
 
       if (!EFI_ERROR (Status)) {
@@ -340,8 +339,7 @@ PartitionInstallMbrChildHandles (
                  HdDev.PartitionStart - ParentHdDev.PartitionStart,
                  HdDev.PartitionStart - ParentHdDev.PartitionStart + HdDev.PartitionSize - 1,
                  MBR_SIZE,
-                 ((Mbr->Partition[0].OSIndicator == EFI_PARTITION) ? &gEfiPartTypeSystemPartGuid : NULL),
-                 NULL
+                 ((Mbr->Partition[0].OSIndicator == EFI_PARTITION) ? &gEfiPartTypeSystemPartGuid : NULL)
                  );
       if (!EFI_ERROR (Status)) {
         Found = EFI_SUCCESS;

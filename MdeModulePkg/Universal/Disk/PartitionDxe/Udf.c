@@ -817,7 +817,6 @@ PartitionInstallUdfChildHandles (
              StartingLBA,
              EndingLBA,
              Media->BlockSize,
-             NULL,
              NULL
              );
   if (EFI_ERROR (Status)) {
