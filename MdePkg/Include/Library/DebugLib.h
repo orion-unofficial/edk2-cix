@@ -15,7 +15,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 #ifndef __DEBUG_LIB_H__
 #define __DEBUG_LIB_H__
-#include <Library/PostCodeLib.h>
+
 //
 // Declare bits for PcdDebugPropertyMask
 //

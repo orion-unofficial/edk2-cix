@@ -12,55 +12,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #define POST_CODE_PROPERTY_POST_CODE_ENABLED              0x00000008
 #define POST_CODE_PROPERTY_POST_CODE_DESCRIPTION_ENABLED  0x00000010
 
-typedef enum {
-  PrePiStart = 1,
-  PrePiEnd,
-  DxeMainStart,
-  DxeCoreDispatcherStart = 20,
-  SerialDxeStart,
-  SerialDxeEnd,
-  ArmGicDxeStart,
-  ArmGicDxeEnd,
-  ArmCpuDxeStart,
-  ArmCpuDxeEnd,
-  ArmTimerDxeStart,
-  ArmTimerDxeEnd,
-  BdsDxeStart,
-  BdsDxeEnd,
-  ConSplitterDxeStart,
-  ConSplitterDxeEnd,
-  PlatformDxeStart,
-  PlatformDxeEnd,
-  PlatformConfigParamsManageDxeStart,
-  PlatformConfigParamsManageDxeEnd,
-  ConfigParamsManageDxeStart,
-  ConfigParamsManageDxeEnd,
-  PcieInitDxeStart,
-  PcieInitDxeEnd,
-  GmacInitDxeStart,
-  GmacInitDxeEnd,
-  I2cInitDxeStart,
-  I2cInitDxeEnd,
-  SpiInitDxeStart,
-  SpiInitDxeEnd,
-  XspiInitDxeStart,
-  XspiInitDxeEnd,
-  HdaInitDxeStart,
-  HdaInitDxeEnd,
-  GpioInterruptDxeStart,
-  GpioInterruptDxeEnd,
-  UsbStart,
-  CdnspDxeStart,
-  CdnspDxeEnd,
-  UsbDeviceControlDxeStart,
-  UsbDeviceControlDxeEnd,
-  UsbEnd,
-  DxeCoreDispatcherEnd = 120,
-  DxeMainEnd,
-
-  DxeReadyToBoot
-} POST_CODE_KEY;
-
 /**
   Sends a 32-bit value to a POST card.
 
@@ -82,7 +33,7 @@ typedef enum {
 UINT32
 EFIAPI
 PostCode (
-  IN POST_CODE_KEY  Value
+  IN UINT32  Value
   );
 
 /**
@@ -187,6 +138,3 @@ PostCodeDescriptionEnabled (
     Value
 
 #endif
-
-VOID
-TimeStampPrint();
