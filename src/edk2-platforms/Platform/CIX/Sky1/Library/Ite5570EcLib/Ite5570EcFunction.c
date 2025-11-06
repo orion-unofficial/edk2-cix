@@ -58,7 +58,7 @@ GetEcInfo (
   RequestPacket->Operation[1].LengthInBytes = sizeof (EC_HOST_RESPONSE_I2C) + *ResponseSize;
   RequestPacket->Operation[1].Buffer        = (UINT8 *)EcResponseBuffer;
 
-  Status = I2cMasterXfer (mHost, FixedPcdGet8 (PcdEcI2cSlaveAddress), RequestPacket);
+  Status = I2cMasterXfer (mHost, EC_DEVICE_ADDRESS, RequestPacket);
 
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a: fail to get EC info, status %r\n", __FUNCTION__, Status));
@@ -357,6 +357,8 @@ SetGpio (
   UINT8       OutBuf[2];
   UINTN       InSize;
   UINTN       InBuf;
+  UINTN       RetryCount    = 0;
+  UINTN       MaxRetryCount = 100;
 
   if (Info == NULL) {
     return EFI_INVALID_PARAMETER;
@@ -366,14 +368,20 @@ SetGpio (
   OutBuf[1] = Info->GpioVal;
   OutSize   = sizeof (EC_PARAMS_GPIO);
   InSize    = 0;
+  do {
+    Status = GetEcInfo (SwapBytes16 (EC_CMD_INT_WRITE_GPIO), (VOID *)OutBuf, OutSize, (VOID *)(&InBuf), &InSize);
+    if (!EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_INFO, "EC request set gpio info:\n"));
+      DEBUG ((DEBUG_INFO, "\tLen       : 0x%x\n", OutSize));
+      DEBUG ((DEBUG_INFO, "\tNum       : 0x%x\n", Info->GpioNum));
+      return Status;
+    }
 
-  Status = GetEcInfo (SwapBytes16 (EC_CMD_INT_WRITE_GPIO), (VOID *)OutBuf, OutSize, (VOID *)(&InBuf), &InSize);
-  if (!EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_INFO, "EC request set gpio info:\n"));
-    DEBUG ((DEBUG_INFO, "\tLen       : 0x%x\n", OutSize));
-    DEBUG ((DEBUG_INFO, "\tNum       : 0x%x\n", Info->GpioNum));
-  }
+    RetryCount++;
+    MicroSecondDelay (10 * 1000);
+  } while (Status != EFI_SUCCESS && RetryCount < MaxRetryCount);
 
+  DebugPrint (DEBUG_ERROR, "Set Ec Gpio%d failed, Status:%r\n", Info->GpioNum, Status);
   return Status;
 }
 
@@ -385,20 +393,29 @@ GetGpio (
 {
   EFI_STATUS  Status = EFI_SUCCESS;
   UINTN       ResponseSize;
+  UINTN       RetryCount    = 0;
+  UINTN       MaxRetryCount = 100;
 
   if (Info == NULL) {
     return EFI_INVALID_PARAMETER;
   }
 
-  ResponseSize = 1;
+  do {
+    ResponseSize = 1;
 
-  Status = GetEcInfo (SwapBytes16 (EC_CMD_INT_READ_GPIO), &(Info->GpioNum), 1, (VOID *)(&(Info->GpioVal)), &ResponseSize);
-  if (!EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_INFO, "EC request get gpio info:\n"));
-    DEBUG ((DEBUG_INFO, "\tNum       : 0x%x\n", Info->GpioNum));
-    DEBUG ((DEBUG_INFO, "\tVal       : 0x%x\n", Info->GpioVal));
-  }
+    Status = GetEcInfo (SwapBytes16 (EC_CMD_INT_READ_GPIO), &(Info->GpioNum), 1, (VOID *)(&(Info->GpioVal)), &ResponseSize);
+    if (!EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_INFO, "EC request get gpio info:\n"));
+      DEBUG ((DEBUG_INFO, "\tNum       : 0x%x\n", Info->GpioNum));
+      DEBUG ((DEBUG_INFO, "\tVal       : 0x%x\n", Info->GpioVal));
+      return Status;
+    }
 
+    RetryCount++;
+    MicroSecondDelay (10 * 1000);
+  } while (Status != EFI_SUCCESS && RetryCount < MaxRetryCount);
+
+  DebugPrint (DEBUG_ERROR, "GetGpio failed, Status:%r\n", Status);
   return Status;
 }
 

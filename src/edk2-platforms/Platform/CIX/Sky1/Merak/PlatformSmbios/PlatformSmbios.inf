@@ -38,6 +38,7 @@
   MemoryAllocationLib
 
 [Guids]
+  gCixGPNVGuid
 
 [Protocols]
   gEfiSmbiosProtocolGuid

@@ -11,8 +11,7 @@ Device (I2S0) {
   Name (_UID, 0x0)
 
   Method (_STA, 0x0, Serialized) {
-    Return (0x0)
-    If(\_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
+    If(FixedPcdGetBool(PcdAcpiI2s0Enable) && \_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
         Return (0xF)
     } else {
         Return (0x0)
@@ -22,8 +21,8 @@ Device (I2S0) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (ReadWrite, AUDIO_I2S0_BASE, AUDIO_I2S0_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_SC0_INTERRUPT_ID }
-    FixedDMA (32, 0, Width32Bit, ) // 0 + CSRT_AUD_REQUEST_BASE(32), idx 0 as tx
-    FixedDMA (33, 1, Width32Bit, ) // 1 + CSRT_AUD_REQUEST_BASE(32), idx 1 as rx
+    FixedDMA (32, 255, Width32Bit, ) // 0 + CSRT_AUD_REQUEST_BASE(32), idx 0 as tx
+    FixedDMA (33, 255, Width32Bit, ) // 1 + CSRT_AUD_REQUEST_BASE(32), idx 1 as rx
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s0", ResourceConsumer,)
   })
 
@@ -56,8 +55,7 @@ Device (I2S1) {
   Name (_UID, 0x1)
 
   Method (_STA, 0x0, Serialized) {
-    Return (0x0)
-    If(\_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
+    If(FixedPcdGetBool(PcdAcpiI2s1Enable) && \_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
         Return (0xF)
     } else {
         Return (0x0)
@@ -67,8 +65,8 @@ Device (I2S1) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (ReadWrite, AUDIO_I2S1_BASE, AUDIO_I2S1_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_SC1_INTERRUPT_ID }
-    FixedDMA (34, 2, Width32Bit, ) // 2 + CSRT_AUD_REQUEST_BASE(32), idx 0 as tx
-    FixedDMA (35, 3, Width32Bit, ) // 3 + CSRT_AUD_REQUEST_BASE(32), idx 1 as rx
+    FixedDMA (34, 255, Width32Bit, ) // 2 + CSRT_AUD_REQUEST_BASE(32), idx 0 as tx
+    FixedDMA (35, 255, Width32Bit, ) // 3 + CSRT_AUD_REQUEST_BASE(32), idx 1 as rx
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s1", ResourceConsumer,)
   })
 
@@ -100,8 +98,7 @@ Device (I2S2) {
   Name (_UID, 0x2)
 
   Method (_STA, 0x0, Serialized) {
-    Return (0x0)
-    If(\_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
+    If(FixedPcdGetBool(PcdAcpiI2s2Enable) && \_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
         Return (0xF)
     } else {
         Return (0x0)
@@ -111,7 +108,8 @@ Device (I2S2) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (ReadWrite, AUDIO_I2S2_BASE, AUDIO_I2S2_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_SC2_INTERRUPT_ID }
-    FixedDMA (37, 4, Width32Bit, ) // 5 + CSRT_AUD_REQUEST_BASE(32), idx 0 as rx
+    FixedDMA (36, 255, Width32Bit, ) // 5 + CSRT_AUD_REQUEST_BASE(32), idx 0 as tx
+    FixedDMA (37, 255, Width32Bit, ) // 5 + CSRT_AUD_REQUEST_BASE(32), idx 1 as rx
   })
 
   Name (_DSD, Package () {
@@ -142,8 +140,7 @@ Device (I2S3) {
   Name (_UID, 0x3)
 
   Method (_STA, 0x0, Serialized) {
-    Return (0x0)
-    If(\_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
+    If(FixedPcdGetBool(PcdAcpiI2s3Enable) && \_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
         Return (0xF)
     } else {
         Return (0x0)
@@ -153,7 +150,7 @@ Device (I2S3) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (ReadWrite, AUDIO_I2S3_BASE, AUDIO_I2S3_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC2A_INTERRUPT_ID }
-    FixedDMA (38, 5, Width32Bit, )  // 6 + CSRT_AUD_REQUEST_BASE(32)
+    FixedDMA (38, 255, Width32Bit, )  // 6 + CSRT_AUD_REQUEST_BASE(32)
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s2", ResourceConsumer,)
   })
 
@@ -190,8 +187,7 @@ Device (I2S4) {
   Name (_UID, 0x4)
 
   Method (_STA, 0x0, Serialized) {
-    Return (0x0)
-    If(\_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
+    If(FixedPcdGetBool(PcdAcpiI2s4Enable) && \_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
         Return (0xF)
     } else {
         Return (0x0)
@@ -201,7 +197,7 @@ Device (I2S4) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (ReadWrite, AUDIO_I2S4_BASE, AUDIO_I2S4_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC2B_INTERRUPT_ID }
-    FixedDMA (41, 6, Width32Bit, )  // 9 + CSRT_AUD_REQUEST_BASE(32)
+    FixedDMA (41, 255, Width32Bit, )  // 9 + CSRT_AUD_REQUEST_BASE(32)
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s3", ResourceConsumer,)
   })
 
@@ -238,8 +234,7 @@ Device (I2S5) {
   Name (_UID, 0x5)
 
   Method (_STA, 0x0, Serialized) {
-    Return (0x0)
-    If(\_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
+    If(FixedPcdGetBool(PcdAcpiI2s5Enable) && \_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
         Return (0xF)
     } else {
         Return (0x0)
@@ -249,7 +244,7 @@ Device (I2S5) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (ReadWrite, AUDIO_I2S5_BASE, AUDIO_I2S5_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC5A_INTERRUPT_ID }
-    FixedDMA (42, 7, Width32Bit, )  // 10 + CSRT_AUD_REQUEST_BASE(32)
+    FixedDMA (42, 255, Width32Bit, )  // 10 + CSRT_AUD_REQUEST_BASE(32)
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s5_dbg", ResourceConsumer,)
   })
 
@@ -284,8 +279,7 @@ Device (I2S6) {
   Name (_UID, 0x6)
 
   Method (_STA, 0x0, Serialized) {
-    Return (0x0)
-    If(\_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
+    If(FixedPcdGetBool(PcdAcpiI2s6Enable) && \_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
         Return (0xF)
     } else {
         Return (0x0)
@@ -295,7 +289,7 @@ Device (I2S6) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (ReadWrite, AUDIO_I2S6_BASE, AUDIO_I2S6_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC5B_INTERRUPT_ID }
-    FixedDMA (44, 7, Width32Bit, )  // 12 + CSRT_AUD_REQUEST_BASE(32)
+    FixedDMA (44, 255, Width32Bit, )  // 12 + CSRT_AUD_REQUEST_BASE(32)
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s6_dbg", ResourceConsumer,)
   })
 
@@ -330,8 +324,7 @@ Device (I2S7) {
   Name (_UID, 0x7)
 
   Method (_STA, 0x0, Serialized) {
-    Return (0x0)
-    If(\_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
+    If(FixedPcdGetBool(PcdAcpiI2s7Enable) && \_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
         Return (0xF)
     } else {
         Return (0x0)
@@ -341,7 +334,7 @@ Device (I2S7) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (ReadWrite, AUDIO_I2S7_BASE, AUDIO_I2S7_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC5C_INTERRUPT_ID }
-    FixedDMA (46, 7, Width32Bit, )  // 14 + CSRT_AUD_REQUEST_BASE(32)
+    FixedDMA (46, 255, Width32Bit, )  // 14 + CSRT_AUD_REQUEST_BASE(32)
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s7_dbg", ResourceConsumer,)
   })
 
@@ -376,8 +369,7 @@ Device (I2S8) {
   Name (_UID, 0x8)
 
   Method (_STA, 0x0, Serialized) {
-    Return (0x0)
-    If(\_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
+    If(FixedPcdGetBool(PcdAcpiI2s8Enable) && \_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
         Return (0xF)
     } else {
         Return (0x0)
@@ -387,7 +379,7 @@ Device (I2S8) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (ReadWrite, AUDIO_I2S8_BASE, AUDIO_I2S8_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC5D_INTERRUPT_ID }
-    FixedDMA (48, 7, Width32Bit, )  // 16 + CSRT_AUD_REQUEST_BASE(32)
+    FixedDMA (48, 255, Width32Bit, )  // 16 + CSRT_AUD_REQUEST_BASE(32)
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s8_dbg", ResourceConsumer,)
   })
 
@@ -422,8 +414,7 @@ Device (I2S9) {
   Name (_UID, 0x9)
 
   Method (_STA, 0x0, Serialized) {
-    Return (0x0)
-    If(\_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
+    If(FixedPcdGetBool(PcdAcpiI2s9Enable) && \_SB.GETV(ARV_AUDIO_SUPPORT_OFFSET)){
         Return (0xF)
     } else {
         Return (0x0)
@@ -433,7 +424,7 @@ Device (I2S9) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (ReadWrite, AUDIO_I2S9_BASE, AUDIO_I2S9_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC5E_INTERRUPT_ID }
-    FixedDMA (50, 7, Width32Bit, )  // 18 + CSRT_AUD_REQUEST_BASE(32)
+    FixedDMA (50, 255, Width32Bit, )  // 18 + CSRT_AUD_REQUEST_BASE(32)
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s9_dbg", ResourceConsumer,)
   })
 

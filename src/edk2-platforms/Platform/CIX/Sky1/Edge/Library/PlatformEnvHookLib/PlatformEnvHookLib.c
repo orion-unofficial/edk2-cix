@@ -679,7 +679,7 @@ STATIC PLATFORM_ENV_INIT_TABLE  mPlatformEnvInitTable[] = {
   { NULL,                        NULL,                 InitGpio                        },
   { NULL,                        NULL,                 InitPinmux                      },
   // { NULL,                        NULL,                 PciePowerOffWith4sPowerOverride },
-  // { NULL,                        NULL,                 UpdatePcdDmaDeviceLimit         },
+  { NULL,                        NULL,                 UpdatePcdDmaDeviceLimit         },
   // { NULL,                        NULL,                 WakeupSourceInit                },
   // { NULL,                        NULL,                 OnboardDevicePowerOff           },
   // { NULL,                        NULL,                 SetStateAfterG3                 },

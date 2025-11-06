@@ -14,7 +14,6 @@
 typedef enum {
   DefaultException         = 0x01,
   WatchDogInterruptTrigger = 0x02,
-  RebootReasonWarmReset    = 0x04,
   RebootReasonMax          = 0xFF
 } REBOOT_REASON;
 

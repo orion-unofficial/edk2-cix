@@ -36,6 +36,7 @@
   ShellPkg/ShellPkg.dec
   Silicon/CIX/Sky1/CixPkg.dec
 	Platform/CIX/Sky1/Sky1.dec
+  SecurityPkg/SecurityPkg.dec
 
 [LibraryClasses]
   BaseLib
@@ -54,6 +55,7 @@
   UefiLib
   UefiRuntimeServicesTableLib
   PostCodeLib
+  Tcg2PhysicalPresenceLib
 
 [FeaturePcd]
   gEfiMdePkgTokenSpaceGuid.PcdUgaConsumeSupport
@@ -66,6 +68,7 @@
   gEfiMdePkgTokenSpaceGuid.PcdUartDefaultParity
   gEfiMdePkgTokenSpaceGuid.PcdUartDefaultStopBits
   gEfiMdePkgTokenSpaceGuid.PcdDefaultTerminalType
+  gCixPlatformTokenSpaceGuid.PcdRegisterBootShellSupport
 
 [Pcd]
   gEfiMdePkgTokenSpaceGuid.PcdPlatformBootTimeOut
@@ -89,6 +92,7 @@
   gCixAndroidLoaderGuid
   gCixAbselectGuid
   gCixExitConsoleCallBackGuid
+  gCixFarmEnableFlagGuid
 
 [Protocols]
   gEdkiiNonDiscoverableDeviceProtocolGuid

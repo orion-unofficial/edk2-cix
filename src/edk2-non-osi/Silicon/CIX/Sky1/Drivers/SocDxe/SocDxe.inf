@@ -38,6 +38,7 @@
   GpioLib
   PinMuxLib
   ShMemLib
+  MailBoxLib
 
 [Guids]
 

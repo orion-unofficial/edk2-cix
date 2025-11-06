@@ -63,12 +63,15 @@ AddSmbiosType1 (
   UINT32                   FwVerSize;
   EC_RESPONSE_BOARD_ID     *pBoardId;
   UINT16                   Sku;
+  UINTN                    StringNumber, SysSnSize, SysUuidSize;
+  CHAR16                   *SysSnPtr;
+  CHAR8                    *SysSnBuf, *SysUuidPtr;
 
   Status = gBS->LocateProtocol (
-                  &gCixFwVersionProtocolGuid,
-                  NULL,
-                  (VOID **)&pFwVerProtocol
-                  );
+                                &gCixFwVersionProtocolGuid,
+                                NULL,
+                                (VOID **)&pFwVerProtocol
+                                );
 
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a: fw ver protocol not found\n", __FUNCTION__));
@@ -92,24 +95,59 @@ AddSmbiosType1 (
     }
   }
 
+  // Update UUID
+  Status = GetVariable2 (
+                         L"SystemUUID",
+                         &gCixGPNVGuid,
+                         (VOID **)&SysUuidPtr,
+                         &SysUuidSize
+                         );
+  if (!EFI_ERROR (Status)) {
+    CopyMem ((CHAR8 *)&(mPlatformDefaultType1.Base.Uuid), SysUuidPtr, 16);
+    FreePool (SysSnPtr);
+  }
+
   SmbiosHandle = SMBIOS_HANDLE_PI_RESERVED;
   Status       = Smbios->Add (
-                           Smbios,
-                           NULL,
-                           &SmbiosHandle,
-                           (EFI_SMBIOS_TABLE_HEADER *)&mPlatformDefaultType1
-                           );
+                              Smbios,
+                              NULL,
+                              &SmbiosHandle,
+                              (EFI_SMBIOS_TABLE_HEADER *)&mPlatformDefaultType1
+                              );
 
   if (EFI_ERROR (Status)) {
     DEBUG (
-      (
-       DEBUG_ERROR,
-       "[%a]:[%dL] Smbios Type1 Table Log Failed! %r \n",
-       __FUNCTION__,
-       DEBUG_LINE_NUMBER,
-       Status
-      )
-      );
+           (
+            DEBUG_ERROR,
+            "[%a]:[%dL] Smbios Type1 Table Log Failed! %r \n",
+            __FUNCTION__,
+            DEBUG_LINE_NUMBER,
+            Status
+           )
+           );
+  }
+
+  // update serial number
+  Status = GetVariable2 (
+                         L"SystemSN",
+                         &gCixGPNVGuid,
+                         (VOID **)&SysSnPtr,
+                         &SysSnSize
+                         );
+  if (!EFI_ERROR (Status)) {
+    SysSnBuf = AllocateZeroPool (SysSnSize+1);
+    // DebugPrint (DEBUG_ERROR, "SN:%s\n",SysSnPtr);
+    UnicodeToAscii (SysSnPtr, SysSnSize, SysSnBuf);
+    SysSnBuf[SysSnSize] = 0;
+    StringNumber        = 4;
+    // DebugPrint (DEBUG_ERROR, "SN:%a\n",SysSnBuf);
+    Status = Smbios->UpdateString (Smbios, &SmbiosHandle, &StringNumber, SysSnBuf);
+    if (EFI_ERROR (Status)) {
+      DebugPrint (DEBUG_ERROR, "Fail to update serial number.\n");
+    }
+
+    FreePool (SysSnBuf);
+    FreePool (SysSnPtr);
   }
 
   return EFI_SUCCESS;

@@ -52,6 +52,7 @@ typedef struct {
             uint8_t i2c_ctrl;       // 0/1/2/3 is valid
             uint8_t i2c_addr;
             uint8_t sensor_type;
+            uint8_t reg_addr;
         };
     };
 } board_sensor_config_t;
@@ -171,6 +172,7 @@ typedef struct {
     pm_config_noc_idle_t    noc_idle_config;
     pm_config_spt_t         spt_config;
     config_data_t           wdt_timeout;
+    config_data_t           opp_100M_enable;
     uint8_t                 reserved[111];
 } pm_export_config_t;
 

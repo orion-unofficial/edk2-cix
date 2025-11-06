@@ -29,7 +29,6 @@
 [Packages]
   MdePkg/MdePkg.dec
   ArmPkg/ArmPkg.dec
-  Silicon/CIX/Sky1/CixPkg.dec
 
 [LibraryClasses]
   UefiLib
@@ -40,7 +39,6 @@
   ArmDisassemblerLib
   SerialPortLib
   UefiBootServicesTableLib
-  RebootReasonLib
 
 [Guids]
   gEfiDebugImageInfoTableGuid

@@ -58,15 +58,45 @@
 #define USBH8_OC_EN  1
 #define USBH9_OC_EN  1
 
-// PCIe
-#define PCIE_X2_PERST            0
-#define PCIE_X2_PERST_GPIO_CTR   "\\_SB.GPI4"
-#define PCIE_X2_PERST_GPIO       4
+/* PCIE reset and power */
 #define PERST_GPIO_ACTIVE_LEVEL  GPIO_ACTIVE_HIGH
 
-#define PCIE_X2_EP_VBAT           0
-#define PCIE_X2_EP_VBAT_GPIO_CTR  "\\_SB.GPI4"
-#define PCIE_X2_EP_VBAT_GPIO      12
-#define VBAT_GPIO_ACTIVE_LEVEL    GPIO_ACTIVE_HIGH
+#define PCIE_X8_PERST           1
+#define PCIE_X8_PERST_GPIO_CTR  "\\_SB.GPI4"
+#define PCIE_X8_PERST_GPIO      1
+
+#define PCIE_X4_PERST           1
+#define PCIE_X4_PERST_GPIO_CTR  "\\_SB.GPI4"
+#define PCIE_X4_PERST_GPIO      3
+
+#define PCIE_X2_PERST           1
+#define PCIE_X2_PERST_GPIO_CTR  "\\_SB.GPI4"
+#define PCIE_X2_PERST_GPIO      2
+
+#define PCIE_X1_1_PERST           1
+#define PCIE_X1_1_PERST_GPIO_CTR  "\\_SB.GPI4"
+#define PCIE_X1_1_PERST_GPIO      5
+
+#define PCIE_X1_0_PERST           1
+#define PCIE_X1_0_PERST_GPIO_CTR  "\\_SB.GPI4"
+#define PCIE_X1_0_PERST_GPIO      4
+
+#define PCIE_X8_VCC_SUPPLY       0
+#define PCIE_X4_VCC_SUPPLY       0
+#define PCIE_X2_VCC_SUPPLY       0
+#define PCIE_X1_1_VCC_SUPPLY     0
+#define PCIE_X1_0_VCC_SUPPLY     1
+#define PCIE_X1_0_VCC_REGULATOR  \_SB.PVC4
+
+#define PCIE_X1_0_STR_PWRON  1
+#define PCIE_X1_0_STD_PWRON  1
+
+/* HDA */
+#define HDA_EXT_CRS \
+    GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionOutputOnly, "\\_SB.GPI3", 0, ResourceConsumer) { 5 }
+
+#define HDA_EXT_DSD_PROPERTY \
+      Package () { "cix,model", "CIX SKY1 EVB HDA" }, \
+      Package () { "pdb-gpios", Package () { ^HDA, 0, 0, 0 } }
 
 #endif

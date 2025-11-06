@@ -14,6 +14,7 @@
   MODULE_TYPE                    = BASE
   VERSION_STRING                 = 1.0
   LIBRARY_CLASS                  = CixS3IoLib
+  CONSTRUCTOR                    = CixS3IoLibConstructor
 
 [Sources.common]
   CixS3IoLib.c

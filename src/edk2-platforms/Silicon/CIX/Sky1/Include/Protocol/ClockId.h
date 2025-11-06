@@ -36,11 +36,19 @@ typedef
   OUT UINT64    *Rate
   );
 
+typedef
+  EFI_STATUS
+(EFIAPI *CLOCK_ATTRIBUTE_GET)(
+  IN  UINT32   ClockId,
+  OUT BOOLEAN  *Enabled
+  );
+
 typedef struct {
-  CLOCK_ENABLE      ClockEnable;
-  CLOCK_DISABLE     ClockDisable;
-  CLOCK_RATE_SET    RateSet;
-  CLOCK_RATE_GET    RateGet;
+  CLOCK_ENABLE           ClockEnable;
+  CLOCK_DISABLE          ClockDisable;
+  CLOCK_RATE_SET         RateSet;
+  CLOCK_RATE_GET         RateGet;
+  CLOCK_ATTRIBUTE_GET    ClockAttributeGet;
 } CIX_CLOCK_PROTOCOL;
 
 #define CLK_TREE_CPU_GICxCLK      0

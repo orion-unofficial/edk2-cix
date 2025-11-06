@@ -14,6 +14,7 @@
 #include <Pi/PiI2c.h>
 #include "IoConfig.h"
 #include "MemoryMap.h"
+#include "HwMutexLib.h"
 
 #define I2C0_MMIO_BASE  I2C0_BASE
 #define I2C1_MMIO_BASE  I2C1_BASE
@@ -42,6 +43,8 @@ typedef struct _I2C_HOST_DESCRIPTOR {
   UINT32    SendCount;
   UINT32    RecvCount;
   UINT32    BusClk;
+  UINT8     MutexId;
+  UINT8     DevInsId;
 } I2C_HOST_DESCRIPTOR;
 
 EFI_STATUS

@@ -68,5 +68,8 @@ DefinitionBlock("DsdtTable.aml", "DSDT", 2, "CIXTEK", "SKY1EDK2", 1) {
     include("Dsdt-AcpiRam.asl")
     include("Dsdt-Tee.asl")
     include("Dsdt-Misc.asl")
+    include("Dsdt-Dtpm.asl")
+    include("Dsdt-TrEE.asl")
+    include("Dsdt-PEP.asl")
   }
 }

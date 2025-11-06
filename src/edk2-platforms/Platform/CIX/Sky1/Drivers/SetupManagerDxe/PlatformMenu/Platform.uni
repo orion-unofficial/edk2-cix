@@ -123,11 +123,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #string STR_S5_AFTER_G3_STRING                           #language en-US "Power Off"
 #string STR_LASTSTATE_AFTER_G3_STRING                    #language en-US "Last State"
 
-#string STR_PRIMARY_DISPLAY_PROMPT                       #language en-US "Display Output Device"
-#string STR_PRIMARY_DISPLAY_PROMPT_HELP                  #language en-US "Select Display output between Internal DPU and External PCIE GPU Card"
-
-#string STR_INTERNAL_DPU                                 #language en-US "Internal DPU"
-
 #string STR_DTB_MEMU_ENTRY_PROMPT                        #language en-US "DTB Menu Entry"
 #string STR_DTB_MEMU_ENTRY_PROMPT_HELP                   #language en-US "Select Grub DTB Menu Entry for Linux DT OS\nIt is only valid when CIX Linux DT OS is installed"
 #string STR_TABLE_0                                      #language en-US "Table 0"
@@ -142,3 +137,6 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #string STR_EC_FAN_MODE_PROMPT_HELP                      #language en-US "Select the default EC fan mode."
 #string STR_AUTO_MODE                                    #language en-US "Auto Mode"
 #string STR_PERF_MODE                                    #language en-US "Performance Mode"
+
+#string STR_DEBUG_MODE_PROMPT                            #language en-US "Debug Mode"
+#string STR_DEBUG_MODE_HELP                              #language en-US "Enable Debug Mode"

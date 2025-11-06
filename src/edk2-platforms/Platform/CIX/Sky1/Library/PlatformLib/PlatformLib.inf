@@ -53,6 +53,7 @@
   gArmTokenSpaceGuid.PcdSystemMemorySize
   gArmPlatformTokenSpaceGuid.PcdArmLcdDdrFrameBufferBase
   gArmPlatformTokenSpaceGuid.PcdArmLcdDdrFrameBufferSize
+  gCixPlatformTokenSpaceGuid.PcdDebugModeFlagAddress
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdSerialClockRate

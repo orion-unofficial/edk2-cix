@@ -9,7 +9,7 @@
   FILE_GUID                      = 71AD205B-5169-CF70-898C-470085AE6A65
   MODULE_TYPE                    = UEFI_DRIVER
   VERSION_STRING                 = 1.0
-  LIBRARY_CLASS                  = LaunchEfiLib | UEFI_APPLICATION
+  LIBRARY_CLASS                  = LaunchEfiLib | UEFI_APPLICATION DXE_DRIVER
 
 
 [Binaries.AARCH64]

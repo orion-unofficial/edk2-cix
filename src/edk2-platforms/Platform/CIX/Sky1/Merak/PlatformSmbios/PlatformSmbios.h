@@ -15,6 +15,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Protocol/Smbios.h>
 #include <IndustryStandard/SmBios.h>
+#include <Library/UefiLib.h>
 
 #define PLATFORM_SMBIOS_TABLE_HOOK  AddSmbiosType0,AddSmbiosType1,AddSmbiosType2,AddSmbiosType3,AddSmbiosType32
 #define PLATFORM_SMBIOS_TABLE_NAME  "AddSmbiosType0","AddSmbiosType1","AddSmbiosType2","AddSmbiosType3","AddSmbiosType32"
@@ -59,4 +60,10 @@ AddSmbiosType32 (
   IN EFI_SMBIOS_PROTOCOL  *Smbios
   );
 
+UINTN
+UnicodeToAscii (
+  IN CONST CHAR16  *UStr,
+  IN CONST UINTN   Length,
+  OUT CHAR8        *AStr
+  );
 #endif

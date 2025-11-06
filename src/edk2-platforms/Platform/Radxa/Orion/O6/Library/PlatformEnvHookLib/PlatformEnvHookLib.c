@@ -16,7 +16,6 @@
 #include <Protocol/I2cDevicePath.h>
 #include <Library/CixSipLib.h>
 #include <Library/EcLib.h>
-#include <Library/MailBoxLib.h>
 #include <Guid/NetworkStackSetup.h>
 #include <PlatformSetupVar.h>
 
@@ -718,25 +717,6 @@ FarmFunctionControl (
   return Status;
 }
 
-#ifdef STMM_SUPPORT
-EFI_STATUS
-EFIAPI
-FenceFchXspiHost (
-  IN OUT ENV_HOOK_PARAMS_DATA_BLOCK  *ConfigData
-  )
-{
-  EFI_STATUS                     Status;
-  MBOX_GASKET_FENCING_PARAMETER  Params;
-  MBOX_GASKET_FENCING_RESPONSE   Respon;
-
-  Params.Id = FCH_XSPI_RANGE_ID;
-  Status    = MboxEnableGasketFencing (&Params, &Respon);
-  DEBUG ((DEBUG_INFO, "[%a] enable FCH XSPI gasket fencing status %r, response error code %d\n", __FUNCTION__, Status, Respon.ErrCode));
-
-  return Status;
-}
-#endif
-
 VOID
 EFIAPI
 InitEcDefaultSetting (
@@ -783,10 +763,7 @@ STATIC PLATFORM_ENV_INIT_TABLE  mPlatformEnvInitTable[] = {
   { NULL,                        NULL,                 RtcWakupEnable          },
   { NULL,                        NULL,                 FarmFunctionControl     },
   { &gEfiI2cMasterProtocolGuid,  InstallRtcProtocol,   NULL                    },
-  { &gCixEcPlatformProtocolGuid, InitEcDefaultSetting, NULL                    },
-#ifdef STMM_SUPPORT
-  { NULL,                        NULL,                 FenceFchXspiHost        },
- #endif
+  { &gCixEcPlatformProtocolGuid, InitEcDefaultSetting, NULL                            },
   // add platform initialization routines on ENV phase BEFORE this line, and they were invoked from top to down.
   { NULL,                        NULL,                 NULL                    }
 };

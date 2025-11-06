@@ -26,6 +26,7 @@
   SKUID_IDENTIFIER               = DEFAULT
   FLASH_DEFINITION               = Platform/CIX/Sky1/$(PLATFORM_NAME)/$(PLATFORM_NAME).fdf
   PCD_DYNAMIC_AS_DYNAMICEX       = TRUE
+  BUILD_NUMBER                   = 0x00000005
 
 !include  Platform/CIX/Sky1/Sky1Define.dsc.inc
 
@@ -49,6 +50,7 @@
   DEFINE WATCH_DOG_ENABLE           = FALSE
   DEFINE NO_GIC_NO_TIMER            = FALSE
   DEFINE SOC_I2C_ENABLE             = TRUE
+  DEFINE SOC_XSPI_ENABLE            = TRUE
   DEFINE I2C_EC_ENABLE              = TRUE
   DEFINE I2C_HID_ENABLE             = TRUE
   DEFINE FW_UPDATE_ENABLE           = TRUE
@@ -65,6 +67,7 @@
   DEFINE STMM_SUPPORT               = $(COMPILE_STMM_SUPPORT)
   DEFINE REALTEK_LAN_DRIVER_SUPPORT = TRUE
   DEFINE PM_CONFIG_UPDATE_SUPPORT   = FALSE
+  DEFINE SE_CONFIG_UPDATE_SUPPORT   = FALSE
   DEFINE DYNAMIC_ACPI_CPU_ENABLE    = TRUE
   DEFINE SOC_SPI_ENABLE             = TRUE
   # DEFINE SOC_GPIO_INTR_ENABLE       = TRUE
@@ -75,23 +78,25 @@
   DEFINE DEFAULT_KEYS               = TRUE
   DEFINE UEFI_FW_STAGE              = Beta2
   DEFINE BOOT_LOGO_ENABLE           = TRUE
-  DEFINE GLOBAL_WATCHDOG_ENABLE     = TRUE
   DEFINE FUNC_BOOT_PERF_ENABLE      = TRUE
-  DEFINE CAPSULE_ENABLE             = TRUE
   DEFINE POWER_BUTTON_ENABLE        = TRUE
+  DEFINE DEBUG_MODE_SUPPORT         = TRUE
 
 !if $(COMPILE_FASTBOOT_LOAD) == nvme
   DEFINE PCIE_HOST_ENABLE           = TRUE
+  DEFINE SOC_XSPI_ENABLE            = TRUE
   DEFINE FW_UPDATE_ENABLE           = TRUE
   DEFINE SOC_USB_DEVICE_ENABLE      = TRUE
   DEFINE SOC_CDNSP_ENABLE           = TRUE
 !elseif $(COMPILE_FASTBOOT_LOAD) == ddr
   DEFINE PCIE_HOST_ENABLE           = FALSE
+  DEFINE SOC_XSPI_ENABLE            = TRUE
   DEFINE FW_UPDATE_ENABLE           = TRUE
   DEFINE SOC_USB_DEVICE_ENABLE      = TRUE
   DEFINE SOC_CDNSP_ENABLE           = TRUE
 !elseif $(COMPILE_FASTBOOT_LOAD) == usb
   DEFINE SOC_CDNSP_HOST_ENABLE      = TRUE
+  DEFINE SOC_XSPI_ENABLE            = TRUE
   DEFINE FW_UPDATE_ENABLE           = TRUE
   DEFINE SOC_USB_DEVICE_ENABLE      = TRUE
   DEFINE SOC_CDNSP_ENABLE           = TRUE
@@ -124,6 +129,9 @@
 
   DEFINE SPI_VARIABLE_BASE          = 0x00380000
   DEFINE SPI_VARIABLE_SIZE          = 0x28000
+
+  DEFINE DTPM_SUPPORT               = FALSE
+  DEFINE FTPM_SUPPORT               = FALSE
 
 !include Platform/CIX/Sky1/Sky1Common.dsc.inc
 !include NetworkPkg/NetworkDefines.dsc.inc
@@ -183,7 +191,6 @@
       BcfgCommandLib|ShellPkg/Library/UefiShellBcfgCommandLib/UefiShellBcfgCommandLib.inf
 
     <PcdsFixedAtBuild>
-      gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0xFF
       gEfiShellPkgTokenSpaceGuid.PcdShellLibAutoInitialize|FALSE
       gEfiMdePkgTokenSpaceGuid.PcdUefiLibMaxPrintBufferSize|8000
       gEfiShellPkgTokenSpaceGuid.PcdShellFileOperationSize|0x200000
@@ -206,7 +213,14 @@
 ###################################################################################################
 [BuildOptions]
   GCC:DEBUG_*_*_CC_FLAGS          = -DDEBUG_MODE
+!if $(DEBUG_MODE_SUPPORT) == TRUE
+  GCC:RELEASE_*_*_CC_FLAGS        = -DDEBUG_MODE
+  GCC:*_*_*_CC_FLAGS              = -DDEBUG_MODE_SUPPORT
+  GCC:*_*_*_VFRPP_FLAGS           = -DDEBUG_MODE_SUPPORT
+!else
   GCC:RELEASE_*_*_CC_FLAGS        = -DMDEPKG_NDEBUG -DNDEBUG
+!endif
+
 !if $(TARGET) == RELEASE
   GCC:*_*_*_CC_FLAGS              = -DUEFI_FW_VERSION=$(UEFI_FW_STAGE)"-W"$(COMPILE_BUILD_DATE)
 !else
@@ -333,6 +347,7 @@
 
   # USB3_A
   gCixTokenSpaceGuid.PcdUsb3Control0Enable|TRUE
+  gCixTokenSpaceGuid.PcdUsb3Control0DataRole|FALSE
   gCixTokenSpaceGuid.PcdUsb3Control1Enable|TRUE
 
   # USBC0
@@ -349,6 +364,12 @@
   gCixTokenSpaceGuid.PcdUsb2Control1Enable|TRUE
   gCixTokenSpaceGuid.PcdUsb2Control2Enable|TRUE
   gCixTokenSpaceGuid.PcdUsb2Control3Enable|TRUE
+
+  gCixTokenSpaceGuid.PcdAcpiI2s5Enable|TRUE
+  gCixTokenSpaceGuid.PcdAcpiI2s6Enable|TRUE
+  gCixTokenSpaceGuid.PcdAcpiI2s7Enable|TRUE
+  gCixTokenSpaceGuid.PcdAcpiI2s8Enable|TRUE
+  gCixTokenSpaceGuid.PcdAcpiI2s9Enable|TRUE
 
   gArmTokenSpaceGuid.PcdSystemMemorySize|0x400000000
 
@@ -372,10 +393,16 @@
 
   gCixTokenSpaceGuid.PcdGmac0Enable|TRUE
   gCixTokenSpaceGuid.PcdGmac1Enable|FALSE
-  
+
   gCixTokenSpaceGuid.PcdCixProcessorVersion|L"CIX P1 CP8180"
+  # Platform Flash Region for Save Vendor Defined Variable
   gCixPlatformTokenSpaceGuid.PcdNorFlashVarSyncRegionBase|0x7F0000   # SIZE_8MB-64KB
   gCixPlatformTokenSpaceGuid.PcdNorFlashVarSyncRegionSize|0x10000    # SIZE_64KB
+
+  gCixPlatformTokenSpaceGuid.PcdDTPMSupport|$(DTPM_SUPPORT)
+  gCixPlatformTokenSpaceGuid.PcdFTPMSupport|$(FTPM_SUPPORT)
+  gCixPlatformTokenSpaceGuid.PcdDTPMSpiBus|0x0          # 0:SPI1=0x04090000  1:SPI2=0x040A0000
+  gCixPlatformTokenSpaceGuid.PcdDTPMSpiChipSelect|0x1   # 1:Slave Select 0   2:Slave Select 1
 
 [PcdsDynamicDefault.common]
 
@@ -387,4 +414,10 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdSetupVideoVerticalResolution|600
 
   gCixPlatformTokenSpaceGuid.PcdDynamicUint64Test|0x11111111
+!if $(COMPILE_SYSTEM_LOADER) == android
+  gCixPlatformTokenSpaceGuid.AndroidFastboot|TRUE
+!endif
+  gEfiSecurityPkgTokenSpaceGuid.PcdTpmInstanceGuid|{0x5a, 0xf2, 0x6b, 0x28, 0xc3, 0xc2, 0x8c, 0x40, 0xb3, 0xb4, 0x25, 0xe6, 0x75, 0x8b, 0x73, 0x17}
+  gEfiSecurityPkgTokenSpaceGuid.PcdActiveTpmInterfaceType|0x01
+
 [PcdsDynamicHii.common.DEFAULT]

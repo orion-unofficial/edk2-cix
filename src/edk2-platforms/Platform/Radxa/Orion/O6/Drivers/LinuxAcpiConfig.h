@@ -60,7 +60,7 @@
 
 #define PCIE_X8_VCC_SUPPLY 1
 #define PCIE_X8_VCC_REGULATOR \_SB.PVC0
-#define PCIE_X4_VCC_SUPPLY 0
+#define PCIE_X4_VCC_SUPPLY 1
 #define PCIE_X4_VCC_REGULATOR \_SB.PVC1
 #define PCIE_X2_VCC_SUPPLY 1
 #define PCIE_X2_VCC_REGULATOR \_SB.PVC2
@@ -68,5 +68,13 @@
 #define PCIE_X1_1_VCC_REGULATOR \_SB.PVC3
 #define PCIE_X1_0_VCC_SUPPLY 1
 #define PCIE_X1_0_VCC_REGULATOR \_SB.PVC4
+
+/* HDA */
+#define HDA_EXT_CRS \
+    GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionOutputOnly, "\\_SB.GPI3", 0, ResourceConsumer) { 5 }
+
+#define HDA_EXT_DSD_PROPERTY \
+      Package () { "cix,model", "CIX SKY1 ORION O6 HDA" }, \
+      Package () { "pdb-gpios", Package () { ^HDA, 0, 0, 0 } }
 
 #endif

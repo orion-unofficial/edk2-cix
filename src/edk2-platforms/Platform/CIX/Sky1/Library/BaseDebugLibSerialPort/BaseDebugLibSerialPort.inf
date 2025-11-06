@@ -29,6 +29,7 @@
 
 [Packages]
   MdePkg/MdePkg.dec
+  Platform/CIX/Sky1/Sky1.dec
 
 [LibraryClasses]
   SerialPortLib
@@ -38,9 +39,11 @@
   BaseLib
   DebugPrintErrorLevelLib
   PostCodeLib
+  IoLib
 
 [Pcd]
   gEfiMdePkgTokenSpaceGuid.PcdDebugClearMemoryValue  ## SOMETIMES_CONSUMES
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask      ## CONSUMES
   gEfiMdePkgTokenSpaceGuid.PcdFixedDebugPrintErrorLevel ## CONSUMES
+  gCixPlatformTokenSpaceGuid.PcdDebugModeFlagAddress
 

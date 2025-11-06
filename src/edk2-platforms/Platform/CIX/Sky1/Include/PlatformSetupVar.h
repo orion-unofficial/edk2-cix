@@ -16,6 +16,10 @@
 #define MAX_USB_PORT_NUM    10
 #define MAX_GMAC_PORT_NUM   2
 #define MAX_DPU_PORT_NUM    5
+
+#define CIX_PLATFORM_SETUP_VARIABLE_GUID   \
+    {0x5E5B2ABF, 0x599A, 0x4329, {0xBA, 0xA4, 0x6D, 0x6E, 0xAA, 0xAC, 0x8B, 0xC1}}
+
 #pragma pack(1)
 typedef struct {
   UINT8     PcieRpEnable[MAX_PCIE_PORT_NUM];
@@ -72,10 +76,10 @@ typedef struct {
   UINT8     MemWPriorityP1;
   UINT8     MemBdwOvflowP1;
   UINT8     MemIEcc;
+  UINT8     MemWrDbi;
+  UINT8     MemRdDbi;
   UINT8     StateAfterG3;
-  UINT8     PrimaryDisplay;
   UINT8     DtbMenuEntry;
-  UINT8     BiosReset;
   UINT8     SocWatchdogTimer;
   UINT16    VddSocVoltage;
   UINT16    VddGpuVoltage;
@@ -123,6 +127,8 @@ typedef struct {
   UINT8     CpuFMax;
   UINT8     EcFanMode;
   UINT8     CpuCppcType;
+  UINT8     DebugMode;
+  UINT8     TPMDeviceSelect;
 } PLATFORM_SETUP_DATA;
 
 typedef struct {

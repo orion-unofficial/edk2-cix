@@ -19,6 +19,8 @@
 #define ANDROID_VAR_CFG           L"AndroidVarCfg"
 #define MAX_EXTENDED_CMDLINE_LEN  128
 
+#define FASTBOOT_TEXT_ID  0x1000
+
 #pragma pack(1)
 typedef struct {
   CHAR16    Cmdline[MAX_EXTENDED_CMDLINE_LEN];

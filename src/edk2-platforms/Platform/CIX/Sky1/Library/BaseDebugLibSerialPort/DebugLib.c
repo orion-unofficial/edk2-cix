@@ -21,6 +21,7 @@
 #include <Library/BaseMemoryLib.h>
 #include <Library/SerialPortLib.h>
 #include <Library/DebugPrintErrorLevelLib.h>
+#include <Library/IoLib.h>
 
 //
 // Define the maximum debug and assert message length that this library supports
@@ -109,14 +110,14 @@ DebugPrintMarker (
   // If Format is NULL, then ASSERT().
   //
   ASSERT (Format != NULL);
-
   //
   // Check driver debug mask value and global mask
   //
   if ((ErrorLevel & GetDebugPrintErrorLevel ()) == 0) {
     return;
   }
-  TimeStampPrint();
+
+  // TimeStampPrint();
   //
   // Convert the DEBUG() message to an ASCII String
   //
@@ -305,6 +306,12 @@ DebugPrintEnabled (
   VOID
   )
 {
+ #ifdef DEBUG_MODE_SUPPORT
+  if (MmioRead32(PcdGet32(PcdDebugModeFlagAddress)) != 0) {
+    PatchPcdSet8 (PcdDebugPropertyMask, 0x2F);
+  }
+
+ #endif
   return (BOOLEAN)((PcdGet8 (PcdDebugPropertyMask) & DEBUG_PROPERTY_DEBUG_PRINT_ENABLED) != 0);
 }
 

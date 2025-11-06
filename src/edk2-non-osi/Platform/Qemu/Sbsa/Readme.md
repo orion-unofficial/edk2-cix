@@ -4,12 +4,11 @@ Qemu SBSA TF-A binaries
 These binaries have been created from the mainline TF-A
 code checked out at the following commit ID:
 
-commit f2735ebccf5173f74c0458736ec526276106097e (tag: v2.11.0, tag: v2.11)
-Merge: 6370f2cbb 669e2b159
-Author: Manish Pandey <manish.pandey2@arm.com>
-Date:   Thu May 23 13:51:22 2024 +0200
+commit 4ec2948fe3f65dba2f19e691e702f7de2949179c (tag: v2.12.0, tag: v2.12)
+Author: Govindraj Raja <govindraj.raja@arm.com>
+Date:   Wed Nov 20 23:30:24 2024 +0100
 
-    Merge "docs(changelog): changelog for v2.11 release" into integration
+    Merge "docs(changelog): changelog for v2.12 release" into integration
 
 
 NOTE: No modifications to the source code have been done.

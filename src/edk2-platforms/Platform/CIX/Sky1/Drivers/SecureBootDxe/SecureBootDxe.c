@@ -23,7 +23,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 VOID
 EFIAPI
-OnReadyToBoot (
+EnroolKeysFromDefault (
   IN EFI_EVENT  Event,
   IN VOID       *Context
   )
@@ -124,14 +124,19 @@ SecureBootDxeEntry (
   )
 {
   EFI_STATUS  Status;
-  EFI_EVENT   ReadyToBootEvent;
+  EFI_EVENT   EndOfDxeEvent;
 
-  Status = EfiCreateEventReadyToBootEx (
-             TPL_CALLBACK,
-             OnReadyToBoot,
-             NULL,
-             &ReadyToBootEvent
-             );
+  //
+  // Register EFI_END_OF_DXE_EVENT_GROUP_GUID event.
+  //
+  Status = gBS->CreateEventEx (
+                  EVT_NOTIFY_SIGNAL,
+                  TPL_CALLBACK,
+                  EnroolKeysFromDefault,
+                  NULL,
+                  &gEfiEndOfDxeEventGroupGuid,
+                  &EndOfDxeEvent
+                  );
   ASSERT_EFI_ERROR (Status);
 
   return Status;

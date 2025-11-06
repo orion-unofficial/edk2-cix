@@ -159,7 +159,7 @@ static pm_config_fan_t fan_config[MAX_FAN_NUM] = {
         .pwm_freq = {
             .fields = {
                 .valid = PM_CONFIG_VALID,
-                .raw_data = 100, // the pwm frequence. depending on the fan's characteristic, 50~1000 is recommended.
+                .raw_data = 25000, // the pwm frequence. depending on the fan's characteristic, 1K~100K is recommended.
             }
         }
     },
@@ -232,14 +232,14 @@ static pm_config_vmin_t vmin_config = {
 #endif
 
 #ifndef PM_NOC_IDLE_CONFIG
-#define PM_NOC_IDLE_CONFIG 0
+#define PM_NOC_IDLE_CONFIG 1
 #endif
 #if PM_NOC_IDLE_CONFIG
 static pm_config_noc_idle_t noc_idle_config = {
     .noc_idle_enable = {
         .fields = {
             .valid    = PM_CONFIG_VALID,
-            .raw_data = 3,  // BIT0: ddr-dfs/ci/mm dfs; BIT1: dsu dfs
+            .raw_data = 2,  // BIT0: ddr-dfs/ci/mm dfs; BIT1: dsu dfs
         }
     },
     /* default threshold are loaded if not specificed below */
@@ -329,13 +329,24 @@ static pm_config_spt_t spt_config = {
 #endif
 
 #ifndef PM_WDT_CONFIG
-#define PM_WDT_CONFIG 0
+#define PM_WDT_CONFIG 1
 #endif
 #if PM_WDT_CONFIG
 static config_data_t wdt_timeout = {
     .fields = {
         .valid    = PM_CONFIG_VALID,
         .raw_data = 5000000,
+    }
+};
+#endif
+
+#ifndef PM_OPP_100M_CONFIG
+#define PM_OPP_100M_CONFIG 0
+#endif
+#if PM_OPP_100M_CONFIG
+static config_data_t opp_100M_enable = {
+    .fields = {
+        .valid    = PM_CONFIG_VALID,
     }
 };
 #endif

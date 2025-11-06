@@ -30,7 +30,7 @@ EFI_ACPI_TABLE_PROTOCOL         *AcpiTableProtocol = NULL;
 static EFI_ACPI_SDT_PROTOCOL    *mAcpiSdt          = NULL;
 static EFI_ACPI_TABLE_PROTOCOL  *mAcpiTable        = NULL;
 
-ACPI_FUNCTION_ON_READ_TO_BOOT_HOOK  mAcpiFunctionOReadyToBootHook[] = { InstallAcpiOnReadyToBoot, SpcrDisable, NULL };
+ACPI_FUNCTION_ON_READ_TO_BOOT_HOOK  mAcpiFunctionOReadyToBootHook[] = { InstallAcpiOnReadyToBoot, SpcrDisable, UpdateAcpiGpnv, NULL };
 
 EFI_ACPI_MEMORY_MAPPED_CONFIGURATION_BASE_ADDRESS_TABLE_HEADER  McfgHeader = {
   {
@@ -409,31 +409,31 @@ AcpiInstallMcfgTable (
   return Status;
 }
 
-VOID
+EFI_STATUS
 EFIAPI
-UpdateAcpiOnExitBootServices (
-  IN EFI_EVENT  Event,
-  IN VOID       *Context
+UpdateAcpiGpnv (
+  VOID
   )
 {
   EFI_STATUS  Status;
   UINT32      Address;
   UINT16      Length;
 
-  DEBUG ((DEBUG_INFO, "Update ACPI table on exit boot services\n"));
-  //
-  // Close the event, so it will not be signalled again.
-  //
-  if (Event != NULL) {
-    gBS->CloseEvent (Event);
-    Address = (UINT32)(UINTN)(pPlatformAcpiConfigProtocol->pAcpiRamAddress);
-    Length  = pPlatformAcpiConfigProtocol->AcpiRamSize;
-    DEBUG ((DEBUG_INFO, "System Gpnv Area Address %x Length %x\n", Address, Length));
-    Status = pPlatformAcpiConfigProtocol->UpdateNameAslCode (pPlatformAcpiConfigProtocol, SIGNATURE_32 ('G', 'N', 'V', 'A'), &Address, sizeof (UINT32));
-    // ASSERT_EFI_ERROR (Status);
-    Status = pPlatformAcpiConfigProtocol->UpdateNameAslCode (pPlatformAcpiConfigProtocol, SIGNATURE_32 ('G', 'N', 'V', 'L'), &Length, sizeof (UINT16));
-    // ASSERT_EFI_ERROR (Status);
+  Address = (UINT32)(UINTN)(pPlatformAcpiConfigProtocol->pAcpiRamAddress);
+  Length  = pPlatformAcpiConfigProtocol->AcpiRamSize;
+  DEBUG ((DEBUG_INFO, "System Gpnv Area Address %x Length %x\n", Address, Length));
+  Status = pPlatformAcpiConfigProtocol->UpdateNameAslCode (pPlatformAcpiConfigProtocol, SIGNATURE_32 ('G', 'N', 'V', 'A'), &Address, sizeof (UINT32));
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Update DSDT GNVA failed, Status=%r\n", Status));
+    return Status;
   }
+
+  Status = pPlatformAcpiConfigProtocol->UpdateNameAslCode (pPlatformAcpiConfigProtocol, SIGNATURE_32 ('G', 'N', 'V', 'L'), &Length, sizeof (UINT16));
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Update DSDT GNVL failed, Status=%r\n", Status));
+  }
+
+  return Status;
 }
 
 /** Initialise the serial port for SPCR table.
@@ -763,7 +763,6 @@ AcpiSocDxeEntryPoint (
   UINTN                 Pages;
   EFI_PHYSICAL_ADDRESS  Address;
   EFI_EVENT             ReadyToBootEvent;
-  EFI_EVENT             ExitBootServicesEvent;
 
   // VOID                     *Registration;
   // EFI_ACPI_TABLE_PROTOCOL  *AcpiTableProtocol = NULL;
@@ -832,15 +831,6 @@ AcpiSocDxeEntryPoint (
 
   Status = LocateAndInstallAcpiFromFv (&gEfiAcpiTableStorageGuid);
   DEBUG ((DEBUG_INFO, "Install Acpi table status:%r\n", Status));
-
-  Status = gBS->CreateEvent (
-                  EVT_SIGNAL_EXIT_BOOT_SERVICES,
-                  TPL_CALLBACK,
-                  UpdateAcpiOnExitBootServices,
-                  NULL,
-                  &ExitBootServicesEvent
-                  );
-  ASSERT_EFI_ERROR (Status);
 
   Status = gBS->CreateEventEx (
                   EVT_NOTIFY_SIGNAL,

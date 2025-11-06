@@ -13,12 +13,22 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PcdLib.h>
 #include <PlatformSetupVar.h>
+#include <PlatformSetupVarEntry.h>
 #include <Library/ConfigParamsDataBlockLib.h>
 #include <Library/PlatformConfigParamsDataBlockLib.h>
 #include <Library/CpuInfoLib.h>
 #include <Protocol/ConfigParamsManageProtocol.h>
 #include <Protocol/PlatformConfigParamsManageProtocol.h>
+#include <Protocol/PlatformSetupDataInfoProtocol.h>
 #include <Guid/NetworkStackSetup.h>
+
+PLATFORM_SETUP_DATA_INFO_TABLE  mPlatformSetupDataInfoTable = {
+  PLATFORM_SETUP_VAR,
+  sizeof (PLATFORM_SETUP_DATA),
+  CIX_PLATFORM_SETUP_VARIABLE_GUID,
+  PlatformSetupDataEntry,
+  (sizeof (PlatformSetupDataEntry)/ sizeof (PLATFORM_SETUP_DATA_ENTRY))
+};
 
 EFI_STATUS
 EFIAPI
@@ -168,7 +178,64 @@ UpdateConfigParams (
     ConfigData->Cpu.CoreEnable[9]  = PlatformSetupVar.CpuCoreEnable[9];
     ConfigData->Cpu.CoreEnable[10] = PlatformSetupVar.CpuCoreEnable[10];
     ConfigData->Cpu.CoreEnable[11] = PlatformSetupVar.CpuCoreEnable[11];
-    ConfigData->Misc.CpuCppcType   = PlatformSetupVar.CpuCppcType;
+
+    ConfigData->Mem.MemFreq                = PlatformSetupVar.MemFreq;
+    ConfigData->Mem.MemBreakPoint          = PlatformSetupVar.MemBreakPoint;
+    ConfigData->Mem.MemEyeScan             = PlatformSetupVar.MemEyeScan;
+    ConfigData->Mem.MemHarvesting          = PlatformSetupVar.MemHarvesting;
+    ConfigData->Mem.WckAlwaysOn            = PlatformSetupVar.WckAlwaysOn;
+    ConfigData->Mem.DataMask               = PlatformSetupVar.DataMask;
+    ConfigData->Mem.RfmEn                  = PlatformSetupVar.RfmEn;
+    ConfigData->Mem.AutoPrechargeEn        = PlatformSetupVar.AutoPrechargeEn;
+    ConfigData->Mem.PbrEn                  = PlatformSetupVar.PbrEn;
+    ConfigData->Mem.MbistEn                = PlatformSetupVar.MbistEn;
+    ConfigData->Mem.MbistMode              = PlatformSetupVar.MbistMode;
+    ConfigData->Mem.MemWrLEcc              = PlatformSetupVar.MemWrLEcc;
+    ConfigData->Mem.MemRdLEcc              = PlatformSetupVar.MemRdLEcc;
+    ConfigData->Mem.PortPriority           = PlatformSetupVar.PortPriority;
+    ConfigData->Mem.BdwP0Override          = PlatformSetupVar.BdwP0Override;
+    ConfigData->Mem.BdwP0                  = PlatformSetupVar.BdwP0;
+    ConfigData->Mem.BdwP1Override          = PlatformSetupVar.BdwP1Override;
+    ConfigData->Mem.BdwP1                  = PlatformSetupVar.BdwP1;
+    ConfigData->Mem.MemRPriorityP0Override = PlatformSetupVar.MemRPriorityP0Override;
+    ConfigData->Mem.MemRPriorityP0         = PlatformSetupVar.MemRPriorityP0;
+    ConfigData->Mem.MemWPriorityP0Override = PlatformSetupVar.MemWPriorityP0Override;
+    ConfigData->Mem.MemWPriorityP0         = PlatformSetupVar.MemWPriorityP0;
+    ConfigData->Mem.MemBdwOvflowP0         = PlatformSetupVar.MemBdwOvflowP0;
+    ConfigData->Mem.MemRPriorityP1Override = PlatformSetupVar.MemRPriorityP1Override;
+    ConfigData->Mem.MemRPriorityP1         = PlatformSetupVar.MemRPriorityP1;
+    ConfigData->Mem.MemWPriorityP1Override = PlatformSetupVar.MemWPriorityP1Override;
+    ConfigData->Mem.MemWPriorityP1         = PlatformSetupVar.MemWPriorityP1;
+    ConfigData->Mem.MemBdwOvflowP1         = PlatformSetupVar.MemBdwOvflowP1;
+    ConfigData->Mem.MemIEcc                = PlatformSetupVar.MemIEcc;
+    ConfigData->Mem.MemWrDbi               = PlatformSetupVar.MemWrDbi;
+    ConfigData->Mem.MemRdDbi               = PlatformSetupVar.MemRdDbi;
+
+    ConfigData->Pm.VddSocVoltage         = PlatformSetupVar.VddSocVoltage;
+    ConfigData->Pm.VddGpuVoltage         = PlatformSetupVar.VddGpuVoltage;
+    ConfigData->Pm.VddDpuVoltage         = PlatformSetupVar.VddDpuVoltage;
+    ConfigData->Pm.VddCpuBigCore0Voltage = PlatformSetupVar.VddCpuBigCore0Voltage;
+    ConfigData->Pm.VddCpuBigCore1Voltage = PlatformSetupVar.VddCpuBigCore1Voltage;
+    ConfigData->Pm.VddCpuMidCore0Voltage = PlatformSetupVar.VddCpuMidCore0Voltage;
+    ConfigData->Pm.VddCpuMidCore1Voltage = PlatformSetupVar.VddCpuMidCore1Voltage;
+    ConfigData->Pm.VddCpuLitCoreVoltage  = PlatformSetupVar.VddCpuLitCoreVoltage;
+    ConfigData->Pm.CpuCoreClkGating      = PlatformSetupVar.CpuCoreClkGating;
+    ConfigData->Pm.DsuClkGating          = PlatformSetupVar.DsuClkGating;
+    ConfigData->Pm.GicdClkGating         = PlatformSetupVar.GicdClkGating;
+    ConfigData->Pm.Ci700ClkGating        = PlatformSetupVar.Ci700ClkGating;
+    ConfigData->Pm.SysNi700ClkGating     = PlatformSetupVar.SysNi700ClkGating;
+    ConfigData->Pm.MmNi700ClkGating      = PlatformSetupVar.MmNi700ClkGating;
+    ConfigData->Pm.PcieNi700ClkGating    = PlatformSetupVar.PcieNi700ClkGating;
+    ConfigData->Pm.SmnNi700ClkGating     = PlatformSetupVar.SmnNi700ClkGating;
+    ConfigData->Pm.GpuClkGating          = PlatformSetupVar.GpuClkGating;
+    ConfigData->Pm.Dpu0ClkGating         = PlatformSetupVar.Dpu0ClkGating;
+    ConfigData->Pm.Dpu1ClkGating         = PlatformSetupVar.Dpu1ClkGating;
+    ConfigData->Pm.Dpu2ClkGating         = PlatformSetupVar.Dpu2ClkGating;
+    ConfigData->Pm.Dpu3ClkGating         = PlatformSetupVar.Dpu3ClkGating;
+    ConfigData->Pm.Dpu4ClkGating         = PlatformSetupVar.Dpu4ClkGating;
+    ConfigData->Pm.VpuClkGating          = PlatformSetupVar.VpuClkGating;
+    ConfigData->Misc.CpuCppcType         = PlatformSetupVar.CpuCppcType;
+    ConfigData->Spi.TPMDeviceSelect      = PlatformSetupVar.TPMDeviceSelect;
   }
 }
 
@@ -391,15 +458,13 @@ ConstructSetupVariable (
   PlatformSetupVar->MemRPriorityP1  = FixedPcdGet8 (PcdMemRPriorityP1);
   PlatformSetupVar->MemWPriorityP1  = FixedPcdGet8 (PcdMemWPriorityP1);
   PlatformSetupVar->MemBdwOvflowP1  = FixedPcdGet8 (PcdMemBdwOvflowP1);
-  PlatformSetupVar->MemBreakPoint   = FixedPcdGet8 (PcdMemBreakPoint);
-  PlatformSetupVar->MemEyeScan      = FixedPcdGet8 (PcdMemEyeScan);
   PlatformSetupVar->MemIEcc         = FixedPcdGet8 (PcdMemIEcc);
+  PlatformSetupVar->MemWrDbi        = FixedPcdGet8 (PcdMemWrDbi);
+  PlatformSetupVar->MemRdDbi        = FixedPcdGet8 (PcdMemRdDbi);
 
-  PlatformSetupVar->StateAfterG3   = FixedPcdGet8 (PcdStateAfterG3);
-  PlatformSetupVar->PrimaryDisplay = FixedPcdGet8 (PcdPrimaryDisplay);
-  PlatformSetupVar->DtbMenuEntry   = FixedPcdGet8 (PcdDtbMenuEntry);
+  PlatformSetupVar->StateAfterG3 = FixedPcdGet8 (PcdStateAfterG3);
+  PlatformSetupVar->DtbMenuEntry = FixedPcdGet8 (PcdDtbMenuEntry);
 
-  PlatformSetupVar->BiosReset             = FixedPcdGet8 (PcdBiosReset);
   PlatformSetupVar->SocWatchdogTimer      = FixedPcdGet8 (PcdSocWatchdogTimer);
   PlatformSetupVar->VddSocVoltage         = FixedPcdGet16 (PcdVddSocVoltage);
   PlatformSetupVar->VddGpuVoltage         = FixedPcdGet16 (PcdVddGpuVoltage);
@@ -469,6 +534,7 @@ ConstructSetupVariable (
   PlatformSetupVar->CpuShareInfo            = CpuShareInfo;
   PlatformSetupVar->CpuLpiState             = FixedPcdGet8 (PcdAcpiCpuLpiState);
   PlatformSetupVar->CpuCppcType             = FixedPcdGet8 (PcdAcpiCppcType);
+  PlatformSetupVar->TPMDeviceSelect         = FixedPcdGet8 (PcdDefaultTpmDeviceSelect);
 }
 
 EFI_STATUS
@@ -611,6 +677,7 @@ PlatformSetupVariableInitDxeEntry (
   CIX_CONFIG_PARAMS_MANAGE_PROTOCOL           *ConfigManage;
   PLATFORM_CONFIG_PARAMS_DATA_BLOCK           *PlatformConfigData = NULL;
   CIX_PLATFORM_CONFIG_PARAMS_MANAGE_PROTOCOL  *PlatformConfigManage;
+  CIX_PLATFORM_SETUP_DATA_INFO_PROTOCOL       *PlatformSetupDataInfoProtocol;
   VOID                                        *Registration;
   EFI_HANDLE                                  Handle;
 
@@ -682,6 +749,17 @@ PlatformSetupVariableInitDxeEntry (
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_INFO, "%a: CheckCpuShareInfo failed - %r\n", __FUNCTION__, Status));
   }
+
+  PlatformSetupDataInfoProtocol          = AllocateZeroPool (sizeof (CIX_PLATFORM_SETUP_DATA_INFO_PROTOCOL));
+  PlatformSetupDataInfoProtocol->Version = CIX_PLATFORM_SETUP_DATA_INFO_PROTOCOL_VERSION;
+  CopyMem (&PlatformSetupDataInfoProtocol->Table, &mPlatformSetupDataInfoTable, sizeof (PLATFORM_SETUP_DATA_INFO_TABLE));
+
+  Status = gBS->InstallProtocolInterface (
+                  &ImageHandle,
+                  &gCixPlatformSetupDataInfoProtocolGuid,
+                  EFI_NATIVE_INTERFACE,
+                  PlatformSetupDataInfoProtocol
+                  );
 
   Handle = NULL;
   Status = gBS->InstallProtocolInterface (

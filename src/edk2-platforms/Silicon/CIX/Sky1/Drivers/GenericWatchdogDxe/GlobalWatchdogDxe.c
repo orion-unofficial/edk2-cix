@@ -66,7 +66,7 @@ GlobalWatchdogDxeEntry (
 
 
   if(!IsApWatchdogEnable()){
-    DebugPrint (DEBUG_INFO, "Glocal Watchdog is disabled.\n");
+    DebugPrint (DEBUG_INFO, "Global Watchdog is disabled.\n");
     return Status;
   }
 
@@ -78,7 +78,7 @@ GlobalWatchdogDxeEntry (
                                 );
 
   if (Status != EFI_SUCCESS) {
-    DebugPrint (DEBUG_INFO, "Glocal Watchdog set failed.\n");
+    DebugPrint (DEBUG_INFO, "Global Watchdog set failed.\n");
     return Status;
   }
 
@@ -87,18 +87,18 @@ GlobalWatchdogDxeEntry (
                                  WatchdogTimerTestHandler
                                  );
   if (Status != EFI_SUCCESS) {
-    DebugPrint (DEBUG_INFO, "Glocal Watchdog set failed.\n");
+    DebugPrint (DEBUG_INFO, "Global Watchdog set failed.\n");
     return Status;
   }
 
   /* Set watchdog timer to 3 seconds */
   Status = WDT->SetTimerPeriod (WDT, GLOBAL_WDT_DEFAULT_TIME*10000000);
   if (Status != EFI_SUCCESS) {
-    DebugPrint (DEBUG_INFO, "Glocal Watchdog set failed.\n");
+    DebugPrint (DEBUG_INFO, "Global Watchdog set failed.\n");
     return Status;
   }
   TimeStampPrint();
-  DebugPrint (DEBUG_INFO, "Glocal Watchdog %d(s) set success\n",GLOBAL_WDT_DEFAULT_TIME);
+  DebugPrint (DEBUG_INFO, "Global Watchdog %d(s) set success\n",GLOBAL_WDT_DEFAULT_TIME);
 
 
   //ready to boot disable global watchdog

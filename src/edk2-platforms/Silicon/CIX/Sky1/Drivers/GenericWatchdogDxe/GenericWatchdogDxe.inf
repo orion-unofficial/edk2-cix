@@ -38,7 +38,6 @@
   UefiRuntimeServicesTableLib
   HwHarvestLib
   ArmSmcLib
-  RebootReasonLib
 
 [Pcd.common]
   gArmTokenSpaceGuid.PcdGenericWatchdogControlBase

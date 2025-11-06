@@ -51,12 +51,12 @@ CreatPowerButtonCallBack (
   EFI_STATUS  Status;
 
   Status = gBS->CreateEvent (
-                  EVT_NOTIFY_SIGNAL | EVT_TIMER,
-                  TPL_CALLBACK,
-                  PowerButtonCallback,
-                  NULL,
-                  &PwrBtnEvent
-                  );
+                             EVT_NOTIFY_SIGNAL | EVT_TIMER,
+                             TPL_CALLBACK,
+                             PowerButtonCallback,
+                             NULL,
+                             &PwrBtnEvent
+                             );
   if (EFI_ERROR (Status)) {
     goto Exit;
   }
@@ -73,10 +73,10 @@ EnablePowerButtonDetect (
   VOID
   )
 {
-  EFI_STATUS                  Status;
+  EFI_STATUS  Status;
   EC_RESPONSE_ACPI_INT_EVENT  AcpiIntEvent;
 
-  GetAcpiIntEvent (&AcpiIntEvent); // clear
+  GetAcpiIntEvent (&AcpiIntEvent); //clear
 
   Status = gBS->SetTimer (PwrBtnEvent, TimerPeriodic, POWER_BUTTON_POLLING_INTERVAL);
   DEBUG ((DEBUG_INFO, "[PBTN] Enable Power Button Detect %r\n", Status));
@@ -104,21 +104,21 @@ PowerButtonDxeEntryPoint (
   IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  EFI_STATUS                  Status;
+  EFI_STATUS  Status;
   EC_RESPONSE_ACPI_INT_EVENT  AcpiIntEvent;
 
-  GetAcpiIntEvent (&AcpiIntEvent); // clear
+  GetAcpiIntEvent (&AcpiIntEvent); //clear
   Status = CreatPowerButtonCallBack ();
   if (EFI_ERROR (Status)) {
     return Status;
   }
 
   Status = gBS->InstallProtocolInterface (
-                  &ImageHandle,
-                  &gCixPowerButtonProtocolGuid,
-                  EFI_NATIVE_INTERFACE,
-                  &CixPowerButtonProtocol
-                  );
+    &ImageHandle,
+    &gCixPowerButtonProtocolGuid,
+    EFI_NATIVE_INTERFACE,
+    &CixPowerButtonProtocol
+    );
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a: failed to install power button protocol %r\n", __FUNCTION__, Status));
     return Status;
