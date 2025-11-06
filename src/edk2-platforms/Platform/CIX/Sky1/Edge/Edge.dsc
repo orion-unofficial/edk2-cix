@@ -48,6 +48,7 @@ DEFINE SOC_PWR_CLK_RST_ENABLE     = TRUE
 DEFINE WATCH_DOG_ENABLE           = FALSE
 DEFINE NO_GIC_NO_TIMER            = FALSE
 DEFINE SOC_I2C_ENABLE             = TRUE
+DEFINE SOC_XSPI_ENABLE            = TRUE
 # DEFINE I2C_EC_ENABLE              = TRUE
 # DEFINE I2C_HID_ENABLE             = TRUE
 DEFINE FW_UPDATE_ENABLE           = TRUE
@@ -115,7 +116,7 @@ DEFINE FUNC_BOOT_PERF_ENABLE      = TRUE
 !endif
 
 #ACPI Boot
-  DEFINE ACPI_ENABLE                = TRUE
+  # DEFINE ACPI_ENABLE                = TRUE
   DEFINE SMBIOS_ENABLE              = TRUE
 
 
@@ -138,9 +139,8 @@ DEFINE FUNC_BOOT_PERF_ENABLE      = TRUE
 
   PinMuxTableLib|Platform/CIX/Sky1/Edge/Library/PinMuxTableLib/PinMuxTableLib.inf
   GpioTableLib|Platform/CIX/Sky1/Edge/Library/GpioTableLib/GpioTableLib.inf
-  PlatformConfigParamsHookLib|Platform/CIX/Sky1/Library/PlatformConfigParamsHookLib/PlatformConfigParamsHookLib.inf
+  PlatformConfigParamsHookLib|Platform/CIX/Sky1/Library/PlatformConfigParamsHookNullLib/PlatformConfigParamsHookNullLib.inf
   PlatformEnvHookLib|Platform/CIX/Sky1/Edge/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf
-  RealTimeClockLib|Platform/CIX/Sky1/Library/Ra8900ceRealTimeClockLib/Ra8900ceRealTimeClockLib.inf
 
   PlatformBootHookLib|Platform/CIX/Sky1/Edge/Library/PlatformBootHookLib/PlatformBootHookLib.inf
 
@@ -149,8 +149,8 @@ DEFINE FUNC_BOOT_PERF_ENABLE      = TRUE
   DtbUpdateLibSi|Platform/CIX/Sky1/Library/DtbUpdateLibSi/DtbUpdateLib.inf
 
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
-  EfiResetSystemLib|Platform/CIX/Sky1/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
-  EcLib|Platform/CIX/Sky1/Library/Ite5570EcLib/Ite5570EcRuntimeLib.inf
+  EfiResetSystemLib|Platform/CIX/Sky1/Edge/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
+  EcLib|Platform/CIX/Library/EcLibNull/EcLibNull.inf
 
 ################################################################################
 #
@@ -180,17 +180,12 @@ DEFINE FUNC_BOOT_PERF_ENABLE      = TRUE
       BcfgCommandLib|ShellPkg/Library/UefiShellBcfgCommandLib/UefiShellBcfgCommandLib.inf
 
     <PcdsFixedAtBuild>
-      gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0xFF
       gEfiShellPkgTokenSpaceGuid.PcdShellLibAutoInitialize|FALSE
       gEfiMdePkgTokenSpaceGuid.PcdUefiLibMaxPrintBufferSize|8000
       gEfiShellPkgTokenSpaceGuid.PcdShellFileOperationSize|0x200000
   }
 !endif
   Platform/CIX/Sky1/Drivers/DtbUpdateDxeSi/DtbUpdateDxe.inf
-!if $(ACPI_ENABLE) == TRUE
-  Platform/CIX/Sky1/Edge/ACPI/AcpiPlatfomTables/AcpiPlatfomTables.inf
-  Platform/CIX/Sky1/Edge/ACPI/AcpiPlatformDxe/AcpiPlatformDxe.inf
-!endif
 !if $(SMBIOS_ENABLE) == TRUE
   Platform/CIX/Sky1/Edge/PlatformSmbios/PlatformSmbios.inf
 !endif
@@ -283,11 +278,8 @@ DEFINE FUNC_BOOT_PERF_ENABLE      = TRUE
   gCixPlatformTokenSpaceGuid.PcdSiliconDtbUpdateFileName|L"SKY1-EVB.DTB"
   gCixPlatformTokenSpaceGuid.PcdSiliconDtbUpdateEnable|TRUE
 
-  gCixTokenSpaceGuid.PcdPcieRootPort0Enable|FALSE
   gCixTokenSpaceGuid.PcdPcieRootPort1Enable|TRUE
-  gCixTokenSpaceGuid.PcdPcieRootPort2Enable|FALSE
   gCixTokenSpaceGuid.PcdPcieRootPort3Enable|TRUE
-  gCixTokenSpaceGuid.PcdPcieRootPort4Enable|FALSE
   gCixTokenSpaceGuid.PcdPcieRootPort0MaxSpeed|0x03
   gCixTokenSpaceGuid.PcdPcieRootPort1MaxSpeed|0x03
   gCixTokenSpaceGuid.PcdPcieRootPort2MaxSpeed|0x03
@@ -298,52 +290,49 @@ DEFINE FUNC_BOOT_PERF_ENABLE      = TRUE
   gCixTokenSpaceGuid.PcdPcieRootPort2LaneNum|0x01
   gCixTokenSpaceGuid.PcdPcieRootPort3LaneNum|0x00
   gCixTokenSpaceGuid.PcdPcieRootPort4LaneNum|0x00
-  gCixTokenSpaceGuid.PcdPcieRootPort0PeResetPin|2
   gCixTokenSpaceGuid.PcdPcieRootPort1PeResetPin|4
-  gCixTokenSpaceGuid.PcdPcieRootPort2PeResetPin|3
   gCixTokenSpaceGuid.PcdPcieRootPort3PeResetPin|6
-  gCixTokenSpaceGuid.PcdPcieRootPort4PeResetPin|5
 
-  gCixTokenSpaceGuid.PcdI2c0En|TRUE
+  gCixTokenSpaceGuid.PcdI2c0En|FALSE
   gCixTokenSpaceGuid.PcdI2c0BusFreq|400000
-  gCixTokenSpaceGuid.PcdI2c2En|TRUE
+  gCixTokenSpaceGuid.PcdI2c2En|FALSE
   gCixTokenSpaceGuid.PcdI2c2BusFreq|100000
-  gCixTokenSpaceGuid.PcdI2c3En|TRUE
+  gCixTokenSpaceGuid.PcdI2c3En|FALSE
   gCixTokenSpaceGuid.PcdI2c3BusFreq|100000
-  gCixTokenSpaceGuid.PcdI2c4En|TRUE
+  gCixTokenSpaceGuid.PcdI2c4En|FALSE
   gCixTokenSpaceGuid.PcdI2c4BusFreq|100000
-  gCixTokenSpaceGuid.PcdI2c5En|TRUE
+  gCixTokenSpaceGuid.PcdI2c5En|FALSE
   gCixTokenSpaceGuid.PcdI2c5BusFreq|100000
-  gCixTokenSpaceGuid.PcdI2c6En|TRUE
+  gCixTokenSpaceGuid.PcdI2c6En|FALSE
   gCixTokenSpaceGuid.PcdI2c6BusFreq|50000
 
   # RTC I2C canot be controlled in setup
   gCixTokenSpaceGuid.PcdI2cCtrlEn|0xF7
 
   # PD
-  gCixTokenSpaceGuid.PcdI2c1En|TRUE
+  gCixTokenSpaceGuid.PcdI2c1En|FALSE
   gCixTokenSpaceGuid.PcdI2c1BusFreq|100000
-  gCixTokenSpaceGuid.PcdI2c7En|TRUE
+  gCixTokenSpaceGuid.PcdI2c7En|FALSE
   gCixTokenSpaceGuid.PcdI2c7BusFreq|100000
 
   # USB3_A
-  gCixTokenSpaceGuid.PcdUsb3Control0Enable|TRUE
-  gCixTokenSpaceGuid.PcdUsb3Control1Enable|TRUE
+  gCixTokenSpaceGuid.PcdUsb3Control0Enable|FALSE
+  gCixTokenSpaceGuid.PcdUsb3Control1Enable|FALSE
 
   # USBC0
   gCixTokenSpaceGuid.PcdUsbCDrdControl0Enable|TRUE
   gCixTokenSpaceGuid.PcdUsbCDrdControl0DataRole|TRUE
   # USBC1
-  gCixTokenSpaceGuid.PcdUsbCControl0Enable|TRUE
+  gCixTokenSpaceGuid.PcdUsbCControl0Enable|FALSE
   # USBC2
-  gCixTokenSpaceGuid.PcdUsbCControl1Enable|TRUE
+  gCixTokenSpaceGuid.PcdUsbCControl1Enable|FALSE
   # USBC3
-  gCixTokenSpaceGuid.PcdUsbCControl2Enable|TRUE
+  gCixTokenSpaceGuid.PcdUsbCControl2Enable|FALSE
 
-  gCixTokenSpaceGuid.PcdUsb2Control0Enable|TRUE
-  gCixTokenSpaceGuid.PcdUsb2Control1Enable|TRUE
-  gCixTokenSpaceGuid.PcdUsb2Control2Enable|TRUE
-  gCixTokenSpaceGuid.PcdUsb2Control3Enable|TRUE
+  gCixTokenSpaceGuid.PcdUsb2Control0Enable|FALSE
+  gCixTokenSpaceGuid.PcdUsb2Control1Enable|FALSE
+  gCixTokenSpaceGuid.PcdUsb2Control2Enable|FALSE
+  gCixTokenSpaceGuid.PcdUsb2Control3Enable|FALSE
 
   gArmTokenSpaceGuid.PcdSystemMemorySize|0x400000000
 
@@ -364,6 +353,10 @@ DEFINE FUNC_BOOT_PERF_ENABLE      = TRUE
   gCixPlatformTokenSpaceGuid.PcdAcpiGpio3IoMask|0x00018000 # pwm/edp en pin output
 
   gCixTokenSpaceGuid.PcdSocWatchdogTimer|0x01
+  gCixPlatformTokenSpaceGuid.PcdPdDevI2cBuses|{ 0xFF, 0xFF, 0xFF, 0xFF }|VOID*|0x00000140 # 0xFF: not actual pd device
+  gCixPlatformTokenSpaceGuid.PcdPdDevI2cSlaveAddresses|{ 0xFF, 0xFF, 0xFF, 0xFF }|VOID*|0x00000141  # 0xFF: not actual pd device
+
+  gArmTokenSpaceGuid.PcdProcessorVersion|L"CIX P1 CS8180"
 [PcdsDynamicDefault.common]
 
   gEmbeddedTokenSpaceGuid.PcdDmaDeviceLimit|0x47fffffff

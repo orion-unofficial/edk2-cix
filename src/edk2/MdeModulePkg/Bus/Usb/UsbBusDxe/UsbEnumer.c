@@ -875,6 +875,68 @@ ON_ERROR:
   return Status;
 }
 
+UINT8
+hub_port_warm_reset_required (
+  IN UINT8   Port,
+  IN UINT32  portstatus
+  )
+{
+  UINT16  link_state;
+
+  // Definitions for PORT_LINK_STATE values
+  // (bits 5-8) in wPortStatus
+  // if status is inactive or compliance mode,need warm reset
+  #define USB_PORT_STAT_LINK_STATE    0x01e0
+  #define USB_SS_PORT_LS_SS_INACTIVE  0x00c0
+  #define USB_SS_PORT_LS_COMP_MOD     0x0140
+  link_state = portstatus & USB_PORT_STAT_LINK_STATE;
+  return link_state == USB_SS_PORT_LS_SS_INACTIVE || link_state == USB_SS_PORT_LS_COMP_MOD;
+}
+
+EFI_STATUS
+UsbHubWarmResetPort (
+  IN USB_INTERFACE  *HubIf,
+  IN UINT8          Port
+  )
+{
+  EFI_USB_PORT_STATUS  PortState;
+  UINTN                Index;
+  EFI_STATUS           Status;
+  USB_HUB_API          *HubApi;
+
+  HubApi = HubIf->HubApi;
+  Status = HubApi->SetPortFeature (HubIf, Port, EfiUsbPortBhReset);
+  if (EFI_ERROR (Status)) {
+    DebugPrint (DEBUG_ERROR, "%a: %d,status=%d\n", __FUNCTION__, __LINE__, Status);
+    return Status;
+  }
+
+  //
+  // Drive the reset signal for worst 20ms. Check USB 2.0 Spec
+  // section 7.1.7.5 for timing requirements.
+  //
+  gBS->Stall (USB_SET_PORT_RESET_STALL);
+
+  ZeroMem (&PortState, sizeof (EFI_USB_PORT_STATUS));
+
+  for (Index = 0; Index < USB_WAIT_PORT_STS_CHANGE_LOOP; Index++) {
+    Status = HubApi->GetPortStatus (HubIf, Port, &PortState);
+    if (EFI_ERROR (Status)) {
+      return Status;
+    }
+
+    if (!(PortState.PortStatus & USB_PORT_STAT_RESET) &&
+        (PortState.PortStatus & USB_PORT_STAT_CONNECTION))
+    {
+      return EFI_SUCCESS;
+    }
+
+    gBS->Stall (USB_WAIT_PORT_STS_CHANGE_STALL);
+  }
+
+  return EFI_TIMEOUT;
+}
+
 /**
   Process the events on the port.
 
@@ -899,6 +961,9 @@ UsbEnumeratePort (
 
   Child  = NULL;
   HubApi = HubIf->HubApi;
+  UINT16        portstatus = 0;
+  UINT32        retry_num  = 0;
+  const UINT16  RESET_NUM  = 3;
 
   //
   // Host learns of the new device by polling the hub for port changes.
@@ -915,7 +980,38 @@ UsbEnumeratePort (
   // Usb super speed hub may report other changes, such as warm reset change. Ignore them.
   //
   if ((PortState.PortChangeStatus & (USB_PORT_STAT_C_CONNECTION | USB_PORT_STAT_C_ENABLE | USB_PORT_STAT_C_OVERCURRENT | USB_PORT_STAT_C_RESET)) == 0) {
-    return EFI_SUCCESS;
+    portstatus = PortState.PortRawStatus;
+    if ((hub_port_warm_reset_required (Port, portstatus)) &&  (!(portstatus & USB_PORT_STAT_C_CONNECTION))) {
+      //
+      // send warm reset,try to resume the port state to link, in some abnormal case,
+      // the link status is not right, so do this,retry several times, if port
+      // status's CONNECTION bit not set, we think that there is no device connnet, so return
+      //
+      while (retry_num < RESET_NUM) {
+        Status = UsbHubWarmResetPort (HubIf, Port);
+        if (EFI_ERROR (Status)) {
+          DEBUG ((DEBUG_ERROR, "failed to warm reset %d\n", Status));
+        }
+
+        Status = HubApi->GetPortStatus (HubIf, Port, &PortState);
+        if (EFI_ERROR (Status)) {
+          DEBUG ((DEBUG_ERROR, "failed to get status %d\n", Status));
+        }
+
+        portstatus = PortState.PortRawStatus;
+        if (portstatus & USB_PORT_STAT_C_CONNECTION) {
+          break;
+        }
+
+        retry_num++;
+      }
+
+      if (retry_num == RESET_NUM) {
+        return EFI_SUCCESS;
+      }
+    } else {
+      return EFI_SUCCESS;
+    }
   }
 
   DEBUG ((

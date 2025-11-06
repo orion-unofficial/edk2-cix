@@ -53,6 +53,15 @@ SetPmuCounter (
   return RETURN_SUCCESS;
 }
 
+EFI_STATUS
+DebugModeConfigInitialize (
+  VOID
+  )
+{
+  MmioWrite32 (PcdGet32(PcdDebugModeFlagAddress),0);
+  return RETURN_SUCCESS;
+}
+
 /**
   This function is called by PrePeiCore, in the SEC phase.
 **/
@@ -63,6 +72,7 @@ ArmPlatformInitialize (
 {
   SetPmuCounter ();
   SetSocFchIpClockAndReset ();
+  DebugModeConfigInitialize();
  #ifdef CONFIG_RLOG_ENABLE
   CopyMem ((VOID *)FixedPcdGet64 (PcdRamLogLastBootSaveAddress), (VOID *)FixedPcdGet64 (PcdRamLogBaseAddress), FixedPcdGet32 (PcdRamLogSize)/2);
   rlog_init_printf ((char *)FixedPcdGet64 (PcdRamLogBaseAddress), FixedPcdGet32 (PcdRamLogSize));

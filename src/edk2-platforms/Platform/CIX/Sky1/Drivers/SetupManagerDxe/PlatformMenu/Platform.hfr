@@ -58,13 +58,6 @@ endif;
         option text = STRING_TOKEN(STR_S0_AFTER_G3_STRING),        value = 1, flags = RESET_REQUIRED;
       endoneof;
 suppressif TRUE;
-      oneof varid   = PlatformSetupVar.PrimaryDisplay,
-        prompt      = STRING_TOKEN(STR_PRIMARY_DISPLAY_PROMPT),
-        help        = STRING_TOKEN(STR_PRIMARY_DISPLAY_PROMPT_HELP),
-        option text = STRING_TOKEN(STR_AUTO), value = 0, flags = DEFAULT | RESET_REQUIRED;
-        option text = STRING_TOKEN(STR_INTERNAL_DPU),  value = 1, flags = RESET_REQUIRED;
-      endoneof;
-
       oneof varid   = PlatformSetupVar.DtbMenuEntry,
         prompt      = STRING_TOKEN(STR_DTB_MEMU_ENTRY_PROMPT),
         help        = STRING_TOKEN(STR_DTB_MEMU_ENTRY_PROMPT_HELP),
@@ -113,6 +106,15 @@ endif;
         option text = STRING_TOKEN(STR_AUTO_MODE), value = 0, flags = RESET_REQUIRED;
         option text = STRING_TOKEN(STR_PERF_MODE), value = 1, flags = RESET_REQUIRED;
       endoneof;
+#ifdef DEBUG_MODE_SUPPORT
+      oneof varid   = PlatformSetupVar.DebugMode,
+        prompt      = STRING_TOKEN(STR_DEBUG_MODE_PROMPT),
+        help        = STRING_TOKEN(STR_DEBUG_MODE_HELP),
+        default     = 0,
+        option text = STRING_TOKEN(STR_DISABLED), value = 0, flags = RESET_REQUIRED;
+        option text = STRING_TOKEN(STR_ENABLED), value = 1, flags = RESET_REQUIRED;
+      endoneof;
+#endif
 
 suppressif ideqval SystemTableVar.SystemTableSelect == 0x01;
       goto DEVICE_POWER_CONTROL_FORM_ID,

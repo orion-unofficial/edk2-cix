@@ -23,6 +23,7 @@
   SecurityPkg/SecurityPkg.dec
 
 [Guids]
+  gEfiEndOfDxeEventGroupGuid
 
 [Protocols]
 

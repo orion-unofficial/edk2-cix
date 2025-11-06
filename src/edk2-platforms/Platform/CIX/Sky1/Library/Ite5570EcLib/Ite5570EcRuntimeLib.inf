@@ -42,10 +42,12 @@
 
 [Protocols]
   gEfiCpuArchProtocolGuid
+  gCixConfigParamsManageProtocolGuid
 
 [FixedPcd]
   gCixPlatformTokenSpaceGuid.PcdEcI2cBus
   gCixPlatformTokenSpaceGuid.PcdEcI2cSlaveAddress
+  gCixPlatformTokenSpaceGuid.PcdEcI2cDeviceInstanceId
   gCixTokenSpaceGuid.PcdI2c0BusFreq
   gCixTokenSpaceGuid.PcdI2c1BusFreq
   gCixTokenSpaceGuid.PcdI2c2BusFreq

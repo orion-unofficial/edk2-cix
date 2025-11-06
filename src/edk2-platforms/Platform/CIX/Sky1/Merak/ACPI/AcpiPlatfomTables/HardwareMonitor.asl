@@ -26,10 +26,8 @@ Device(HWMN){
     // Output: None
     //
     Method(SFAT, 0, Serialized){
-        // Set the fan auto mode through EC
-        \_SB.EC0.SFAT()
-        // Set the fan auto mode through PM
-        // \_SB.SPFA()
+        // \_SB.EC0.SFAT()
+        \_SB.SPFA()
     }
 
     //
@@ -39,10 +37,8 @@ Device(HWMN){
     // Output: None
     //
     Method(SFMT, 0, Serialized){
-        // Set the fan mute mode through EC
-        \_SB.EC0.SFMT()
-        // Set the fan mute mode through PM
-        // \_SB.SPFM()
+        // \_SB.EC0.SFMT()
+        \_SB.SPFM()
     }
 
     //
@@ -52,9 +48,7 @@ Device(HWMN){
     // Output: None
     //
     Method(SFPF, 0, Serialized){
-        // Set the fan performance mode through EC
-        \_SB.EC0.SFPF()
-        // Set the fan performance mode through PM
-        // \_SB.SPFP()
+        // \_SB.EC0.SFPF()
+        \_SB.SPFP()
     }
 }

@@ -26,6 +26,7 @@
   DebugLib
   UefiBootServicesTableLib
   CixS3IoLib
+  HwMutexLib
 
 [Packages]
   MdePkg/MdePkg.dec

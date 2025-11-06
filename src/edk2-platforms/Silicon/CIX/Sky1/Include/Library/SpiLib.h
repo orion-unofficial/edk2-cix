@@ -40,6 +40,18 @@ GetMmioBaseAddress (
   IN UINT8  Bus
   );
 
+VOID
+EFIAPI
+LibSpiChipSelect (
+  IN SPI_DEVICE  *Spi
+  );
+
+VOID
+EFIAPI
+LibSpiChipUnselect (
+  IN SPI_DEVICE  *Spi
+  );
+
 EFI_STATUS
 EFIAPI
 SpiTransfer (

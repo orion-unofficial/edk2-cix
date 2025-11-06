@@ -13,9 +13,6 @@
 !endif
 
   INF MdeModulePkg/Universal/PCD/Dxe/Pcd.inf
-!if $(GLOBAL_WATCHDOG_ENABLE) == TRUE
-  INF Silicon/CIX/Sky1/Drivers/GenericWatchdogDxe/GlobalWatchdogDxe.inf
-!endif
   #
   # PI DXE Drivers producing Architectural Protocols (EFI Services)
   #
@@ -32,6 +29,7 @@
   INF Silicon/CIX/Sky1/Drivers/SocDxe/SocDxe.inf
   INF Platform/CIX/Sky1/Drivers/PlatformDxe/PlatformDxe.inf
   INF MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe.inf
+  INF Silicon/CIX/Sky1/Drivers/RngDxe/RngDxe.inf
   INF MdeModulePkg/Universal/CapsuleRuntimeDxe/CapsuleRuntimeDxe.inf
 !if $(SOC_PWR_CLK_RST_ENABLE) == TRUE
   # SCMI Driver
@@ -86,10 +84,12 @@
 !if $(STMM_SUPPORT) == TRUE
   INF Platform/CIX/Sky1/Drivers/MmCommunicationDxe/ArmMmCommunication.inf
 !endif
+!if $(SOC_XSPI_ENABLE) == TRUE
 !if $(STMM_SUPPORT) == TRUE
-  INF Silicon/CIX/Sky1/Drivers/NorFlashDxe/NorFlashSmmRuntimeDxe.inf
+  INF Silicon/CIX/Sky1/Drivers/NorFlashStmmRuntimeDxe/NorFlashStmmRuntimeDxe.inf
 !else
   INF Silicon/CIX/Sky1/Drivers/NorFlashDxe/NorFlashDxe.inf
+!endif
 !endif
 !if $(VARIABLE_SUPPORT) == "SPI" && $(STMM_SUPPORT) == FALSE
   INF MdeModulePkg/Universal/FaultTolerantWriteDxe/FaultTolerantWriteDxe.inf
@@ -137,9 +137,6 @@
   INF ArmPkg/Drivers/TimerDxe/TimerDxe.inf
 !if $(POWER_BUTTON_ENABLE) == TRUE
   INF Platform/CIX/Sky1/Drivers/PowerButtonDxe/PowerButtonDxe.inf
-!endif
-!if $(GPIO_POWER_BUTTON_ENABLE) == TRUE
-  INF Platform/CIX/Sky1/Drivers/PowerButtonDxe/GpioPowerButtonDxe.inf
 !endif
 
 #  INF MdeModulePkg/Universal/WatchdogTimerDxe/WatchdogTimer.inf
@@ -316,6 +313,9 @@
 !if $(PM_CONFIG_UPDATE_SUPPORT) == TRUE
   INF Platform/CIX/Sky1/Drivers/PmConfigUpdateDxe/PmConfigUpdateDxe.inf
 !endif
+!if $(SE_CONFIG_UPDATE_SUPPORT) == TRUE
+  INF Platform/CIX/Sky1/Drivers/SeConfigUpdateDxe/SeConfigUpdateDxe.inf
+!endif
 !if $(MEM_CONFIG_UPDATE_SUPPORT) == TRUE
   INF Platform/CIX/Sky1/Drivers/MemConfigUpdateDxe/MemConfigUpdateDxe.inf
 !endif
@@ -353,6 +353,20 @@
 !if $(I2S_MC_SUPPORT) == TRUE
   INF Silicon/CIX/Sky1/Drivers/I2sDxe/I2sDxe.inf
 !endif
+  # INF Platform/CIX/Sky1/Drivers/ScmiRuntimeDxe/ScmiRuntimeDxe.inf
 !if $(PI_TEST_SUPPORT) == TRUE
-  INF  Silicon/CIX/Sky1/Drivers/ArmPsciMpServicesDxe/ArmPsciMpServicesDxe.inf
+  INF Silicon/CIX/Sky1/Drivers/ArmPsciMpServicesDxe/ArmPsciMpServicesDxe.inf
+!endif
+
+!if $(DTPM_SUPPORT) == TRUE || $(FTPM_SUPPORT) == TRUE
+  !if $(FTPM_SUPPORT) == TRUE
+    FILE FREEFORM = BC50D971-D4C9-42C4-82CB-343FB7F37896 {
+      SECTION RAW = Platform/CIX/Sky1/Bin/fTPM.bin
+    }
+    INF Platform/CIX/Sky1/Drivers/FTPMDxe/FTPMProtocol.inf
+  !endif
+  INF Platform/CIX/Sky1/Drivers/TPMVariableDxe/TPMVariableDxe.inf
+  INF SecurityPkg/Tcg/Tcg2Dxe/Tcg2Dxe.inf
+  INF Platform/CIX/Sky1/Drivers/Tcg2Acpi/Tcg2Acpi.inf
+  INF Platform/CIX/Sky1/Drivers/Tcg2Config/Tcg2ConfigDxe.inf
 !endif

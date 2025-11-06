@@ -119,15 +119,18 @@
   gCixTokenSpaceGuid.PcdUsb3Control0Enable|FALSE|BOOLEAN|0x0000030b
   gCixTokenSpaceGuid.PcdUsb3Control0MaxSpeed|5|UINT32|0x0000030c
   gCixTokenSpaceGuid.PcdUsb3Control0DataRole|FALSE|BOOLEAN|0x0000030d
+  gCixTokenSpaceGuid.PcdUsb3Control0VbusDetect|FALSE|BOOLEAN|0x00000325
 
   gCixTokenSpaceGuid.PcdUsb3Control1Enable|FALSE|BOOLEAN|0x0000030e
   gCixTokenSpaceGuid.PcdUsb3Control1MaxSpeed|5|UINT8|0x0000030f
   gCixTokenSpaceGuid.PcdUsb3Control1DataRole|FALSE|BOOLEAN|0x00000311
+  gCixTokenSpaceGuid.PcdUsb3Control1VbusDetect|FALSE|BOOLEAN|0x00000326
 
   #USB TypeC drd
   gCixTokenSpaceGuid.PcdUsbCDrdControl0Enable|TRUE|BOOLEAN|0x00000312
   gCixTokenSpaceGuid.PcdUsbCDrdControl0DataRole|0|BOOLEAN|0x00000314
   gCixTokenSpaceGuid.PcdUsbCDrdControl0MaxSpeed|5|UINT8|0x00000313
+  gCixTokenSpaceGuid.PcdUsbCDrdControl0VbusDetect|FALSE|BOOLEAN|0x00000327
 
   #USB Typec Host
   gCixTokenSpaceGuid.PcdUsbCControl0Enable|FALSE|BOOLEAN|0x00000315
@@ -315,9 +318,7 @@
   # Setup variable default define
   gCixTokenSpaceGuid.PcdStateAfterG3|0x00|UINT8|0x00002001
   gCixTokenSpaceGuid.PcdSystemTableSelect|0x01|UINT8|0x00002002 #0x1-DT 0-ACPI
-  gCixTokenSpaceGuid.PcdPrimaryDisplay|0x00|UINT8|0x00002003
   gCixTokenSpaceGuid.PcdDtbMenuEntry|0x00|UINT8|0x00002004
-  gCixTokenSpaceGuid.PcdBiosReset|0x00|UINT8|0x00002005
   gCixTokenSpaceGuid.PcdSocWatchdogTimer|0x00|UINT8|0x00002006
   gCixTokenSpaceGuid.PcdVddSocVoltage|750|UINT16|0x00002007
   gCixTokenSpaceGuid.PcdVddGpuVoltage|800|UINT16|0x00002008
@@ -396,11 +397,6 @@
   gCixTokenSpaceGuid.PcdGpuReservedMemoryBase|0xBCE00000|UINT32|0x000004C2
   gCixTokenSpaceGuid.PcdGpuReservedMemorySize|0x1000000|UINT32|0x000004C3
 
-  # NPU
-  gCixTokenSpaceGuid.PcdNpuEnable|FALSE|BOOLEAN|0x00000481
-  gCixTokenSpaceGuid.PcdNpuReservedMemoryBase|0x90000000|UINT32|0x00000482
-  gCixTokenSpaceGuid.PcdNpuReservedMemorySize|0x2000000|UINT32|0x00000483
-
   #Memory config
   gCixTokenSpaceGuid.PcdMemBreakPoint|0xFF|UINT8|0x00005C1
   gCixTokenSpaceGuid.PcdMemEyeScan|0xFF|UINT8|0x00005C2
@@ -425,20 +421,34 @@
   gCixTokenSpaceGuid.PcdMemMbistEn|0xFF|UINT8|0x00005D5
   gCixTokenSpaceGuid.PcdMemMbistMode|0xFF|UINT8|0x00005D6
   gCixTokenSpaceGuid.PcdMemIEcc|0xFF|UINT8|0x00005D7
+  gCixTokenSpaceGuid.PcdMemWrDbi|0xFF|UINT8|0x00005D8
+  gCixTokenSpaceGuid.PcdMemRdDbi|0xFF|UINT8|0x00005D9
 
-  gCixTokenSpaceGuid.PcdAcpiCpuLpiState|0x01|UINT8|0x0000A001             # ACPI CPU LPI State, 0-disable, 1-LPI0, 2-LPI1, 3-LPI2
+  #Misc
+  gCixTokenSpaceGuid.PcdCixProcessorVersion|L"CIX P1"|VOID*|0x0003001
+
+  gCixTokenSpaceGuid.PcdAcpiCpuLpiState|0x03|UINT8|0x0000A001             # ACPI CPU LPI State, 0-disable, 1-LPI0, 2-LPI1, 3-LPI2
   gCixTokenSpaceGuid.PcdAcpiCppcType|0x01|UINT8|0x0000A002                # CPPC Interface Type, 0-disable, 1-fastchannel, 2-pcc
   gCixTokenSpaceGuid.PcdAcpiCsiDmaEnable|TRUE|BOOLEAN|0x0000A003
   gCixTokenSpaceGuid.PcdAcpiUart0Enable|TRUE|BOOLEAN|0x0000A004
   gCixTokenSpaceGuid.PcdAcpiUart1Enable|TRUE|BOOLEAN|0x0000A005
   gCixTokenSpaceGuid.PcdAcpiUart2Enable|TRUE|BOOLEAN|0x0000A006
   gCixTokenSpaceGuid.PcdAcpiUart3Enable|FALSE|BOOLEAN|0x0000A007
-
-  #Misc
-  gCixTokenSpaceGuid.PcdCixProcessorVersion|L"CIX P1"|VOID*|0x0003001
+  gCixTokenSpaceGuid.PcdAcpiI2s0Enable|FALSE|BOOLEAN|0x0000A008
+  gCixTokenSpaceGuid.PcdAcpiI2s1Enable|FALSE|BOOLEAN|0x0000A009
+  gCixTokenSpaceGuid.PcdAcpiI2s2Enable|FALSE|BOOLEAN|0x0000A00A
+  gCixTokenSpaceGuid.PcdAcpiI2s3Enable|FALSE|BOOLEAN|0x0000A00B
+  gCixTokenSpaceGuid.PcdAcpiI2s4Enable|FALSE|BOOLEAN|0x0000A00C
+  gCixTokenSpaceGuid.PcdAcpiI2s5Enable|FALSE|BOOLEAN|0x0000A00D
+  gCixTokenSpaceGuid.PcdAcpiI2s6Enable|FALSE|BOOLEAN|0x0000A00E
+  gCixTokenSpaceGuid.PcdAcpiI2s7Enable|FALSE|BOOLEAN|0x0000A00F
+  gCixTokenSpaceGuid.PcdAcpiI2s8Enable|FALSE|BOOLEAN|0x0000A010
+  gCixTokenSpaceGuid.PcdAcpiI2s9Enable|FALSE|BOOLEAN|0x0000A011
+  gCixTokenSpaceGuid.PcdAcpiHdaEnable|TRUE|BOOLEAN|0x0000A012
 
 [PcdsFixedAtBuild, PcdsPatchableInModule, PcdsDynamic, PcdsDynamicEx]
 
 [PcdsDynamic]
   gCixTokenSpaceGuid.PcdMailbox0Initialized|FALSE|BOOLEAN|0x00000161
+  gCixTokenSpaceGuid.PcdEdpDIGONDelay|120|UINT64|0x00000401
 

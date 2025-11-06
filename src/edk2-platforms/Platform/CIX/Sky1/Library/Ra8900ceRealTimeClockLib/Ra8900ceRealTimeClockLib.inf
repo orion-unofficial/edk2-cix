@@ -20,6 +20,7 @@
   Ra8900ceRealTimeClockLib.c
 
 [Packages]
+  ArmPkg/ArmPkg.dec
   EmbeddedPkg/EmbeddedPkg.dec
   MdePkg/MdePkg.dec
   Silicon/CIX/Sky1/CixPkg.dec
@@ -35,6 +36,8 @@
   UefiLib
   UefiRuntimeLib
   DxeServicesTableLib
+  ArmScmiLib
+  TimerLib
 
 [Guids]
   gEfiEventVirtualAddressChangeGuid
@@ -48,6 +51,8 @@
 
 [FixedPcd]
   gCixPlatformTokenSpaceGuid.PcdRa8900ceI2cSlaveAddress
+  gCixPlatformTokenSpaceGuid.PcdRa8900ceI2cDeviceInstanceId
+  gCixPlatformTokenSpaceGuid.PcdRa8900ceI2cClockControlEn
 
 [Depex]
   gRa8900ceRealTimeClockLibI2cMasterProtocolGuid

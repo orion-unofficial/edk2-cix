@@ -21,9 +21,11 @@ typedef enum {
 #define VR_FIXED    0
 #define VR_MP5475   1
 #define VR_MP2845   2   // SVI
+#define VR_AU4683   3
+#define VR_MAX      4
 
 typedef struct {
-    uint32_t vr_type  :  3;    // 0: VR (fixed voltage); 1: mp5475; 2: mp2845b; all others: reserved
+    uint32_t vr_type  :  3;    // 0: VR (fixed voltage); 1: mp5475; 2: mp2845b; 3: au4683; all others: reserved
     uint32_t pwr_cap  : 16;    // mW; set to 0 to disable the domain
     uint32_t i2c_port :  3;    // 0: i2c0, 1: i2c1, 2: i2c2, 3: i2c3
     uint32_t i2c_addr :  7;    // 7-bit address

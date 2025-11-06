@@ -26,6 +26,7 @@
   ArmLib
   DebugLib
   IoLib
+  TimerLib
   UefiBootServicesTableLib
 
 [FixedPcd.common]

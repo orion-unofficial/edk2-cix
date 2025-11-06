@@ -56,13 +56,12 @@
   gCixTokenSpaceGuid.PcdGpuEnable
   gCixTokenSpaceGuid.PcdGpuReservedMemoryBase
   gCixTokenSpaceGuid.PcdGpuReservedMemorySize
-  gCixTokenSpaceGuid.PcdNpuEnable
-  gCixTokenSpaceGuid.PcdNpuReservedMemoryBase
-  gCixTokenSpaceGuid.PcdNpuReservedMemorySize
   gCixPlatformTokenSpaceGuid.PcdReservedSecureMemoryBase
   gCixPlatformTokenSpaceGuid.PcdReservedSecureMemorySize
   gCixPlatformTokenSpaceGuid.PcdReservedShareMemoryBase
   gCixPlatformTokenSpaceGuid.PcdReservedShareMemorySize
+  gCixPlatformTokenSpaceGuid.PcdReservedFwShareMemoryBase
+  gCixPlatformTokenSpaceGuid.PcdReservedFwShareMemorySize
 
 [Depex]
   TRUE

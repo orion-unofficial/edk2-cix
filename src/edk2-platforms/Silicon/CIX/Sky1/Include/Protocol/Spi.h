@@ -41,6 +41,20 @@ typedef struct {
 
 typedef
 EFI_STATUS
+(EFIAPI *SPI_CHIP_SELECT)(
+  IN SPI_HOST_PROTOCOL  *This,
+  IN SPI_DEVICE         *Device
+  );
+
+typedef
+EFI_STATUS
+(EFIAPI *SPI_CHIP_UNSELECT)(
+  IN SPI_HOST_PROTOCOL  *This,
+  IN SPI_DEVICE         *Device
+  );
+
+typedef
+EFI_STATUS
 (EFIAPI *SPI_TRANSFER)(
   IN SPI_HOST_PROTOCOL  *This,
   IN SPI_DEVICE         *Device
@@ -63,6 +77,8 @@ EFI_STATUS
   );
 
 struct _SPI_HOST_PROTOCOL {
+  SPI_CHIP_SELECT     ChipSelect;
+  SPI_CHIP_UNSELECT   ChipUnselect;
   SPI_TRANSFER        Transfer;
   SPI_SETUP_DEVICE    Setup;
   SPI_FREE_DEVICE     Free;

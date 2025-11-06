@@ -62,6 +62,24 @@
             option text = STRING_TOKEN(STR_AUTO),       value = 0xFF,  flags = RESET_REQUIRED;
         endoneof;
 
+        oneof varid = PlatformSetupVar.MemWrDbi,
+            prompt  = STRING_TOKEN(STR_MEM_WRDBI_PROMPT),
+            help    = STRING_TOKEN(STR_MEM_WRDBI_PROMPT_HELP),
+            default     = FixedPcdGet8 (PcdMemWrDbi),
+            option text = STRING_TOKEN(STR_DISABLE),    value = 0x0,   flags = RESET_REQUIRED;
+            option text = STRING_TOKEN(STR_ENABLE),     value = 0x1,   flags = RESET_REQUIRED;
+            option text = STRING_TOKEN(STR_AUTO),       value = 0xFF,  flags = RESET_REQUIRED;
+        endoneof;
+
+        oneof varid = PlatformSetupVar.MemRdDbi,
+            prompt  = STRING_TOKEN(STR_MEM_RDDBI_PROMPT),
+            help    = STRING_TOKEN(STR_MEM_RDDBI_PROMPT_HELP),
+            default     = FixedPcdGet8 (PcdMemRdDbi),
+            option text = STRING_TOKEN(STR_DISABLE),    value = 0x0,   flags = RESET_REQUIRED;
+            option text = STRING_TOKEN(STR_ENABLE),     value = 0x1,   flags = RESET_REQUIRED;
+            option text = STRING_TOKEN(STR_AUTO),       value = 0xFF,  flags = RESET_REQUIRED;
+        endoneof;
+
         oneof varid = PlatformSetupVar.WckAlwaysOn,
             prompt  = STRING_TOKEN(STR_MEM_WCKALWAYSON_PROMPT),
             help    = STRING_TOKEN(STR_MEM_WCKALWAYSON_PROMPT_HELP),

@@ -61,6 +61,60 @@ SpiSetupTransfer (
 
 EFI_STATUS
 EFIAPI
+SpiChipSelect (
+  IN SPI_HOST_PROTOCOL  *This,
+  IN SPI_DEVICE         *Device
+  )
+{
+  SPI_HOST  *Host;
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  if (Device == NULL) {
+    Status = EFI_INVALID_PARAMETER;
+    DEBUG ((DEBUG_ERROR, "%a: invalid SPI device %r\n", __FUNCTION__, Status));
+    return Status;
+  }
+
+  Host = SPI_HOST_FROM_SPI_HOST_PROTOCOL (This);
+
+  EfiAcquireLock (&Host->Lock);
+
+  LibSpiChipSelect (Device);
+
+  EfiReleaseLock (&Host->Lock);
+
+  return Status;
+}
+
+EFI_STATUS
+EFIAPI
+SpiChipUnselect (
+  IN SPI_HOST_PROTOCOL  *This,
+  IN SPI_DEVICE         *Device
+  )
+{
+  SPI_HOST  *Host;
+  EFI_STATUS Status = EFI_SUCCESS;
+
+  if (Device == NULL) {
+    Status = EFI_INVALID_PARAMETER;
+    DEBUG ((DEBUG_ERROR, "%a: invalid SPI device %r\n", __FUNCTION__, Status));
+    return Status;
+  }
+
+  Host = SPI_HOST_FROM_SPI_HOST_PROTOCOL (This);
+
+  EfiAcquireLock (&Host->Lock);
+
+  LibSpiChipUnselect (Device);
+
+  EfiReleaseLock (&Host->Lock);
+
+  return Status;
+}
+
+EFI_STATUS
+EFIAPI
 SpiTransferData (
   IN SPI_HOST_PROTOCOL  *This,
   IN SPI_DEVICE         *Device
@@ -159,11 +213,13 @@ SpiHostInit (
 
   EfiInitializeLock (&Host->Lock, TPL_NOTIFY);
 
-  Host->Signature             = SPI_HOST_SIGNATURE;
-  Host->BaseAddr              = GetMmioBaseAddress (Bus);
-  Host->HostProtocol.Setup    = SpiSetupDevice;
-  Host->HostProtocol.Free     = SpiFreeDevice;
-  Host->HostProtocol.Transfer = SpiTransferData;
+  Host->Signature                 = SPI_HOST_SIGNATURE;
+  Host->BaseAddr                  = GetMmioBaseAddress (Bus);
+  Host->HostProtocol.Setup        = SpiSetupDevice;
+  Host->HostProtocol.Free         = SpiFreeDevice;
+  Host->HostProtocol.Transfer     = SpiTransferData;
+  Host->HostProtocol.ChipSelect   = SpiChipSelect;
+  Host->HostProtocol.ChipUnselect = SpiChipUnselect;
 
   CopyMem ((VOID *)(UINTN)&(Host->DevicePath), (VOID *)(UINTN)&mSpiDevicePathProtocolTemplate, sizeof (SPI_DEVICE_PATH));
   CopyGuid (&Host->DevicePath.Vendor.Guid, &gCixSpiDevicePathGuid);

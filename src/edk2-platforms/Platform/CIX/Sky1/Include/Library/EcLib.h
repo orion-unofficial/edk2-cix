@@ -19,6 +19,9 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Protocol/I2cMaster.h>
 
+#define EC_DEVICE_ADDRESS      (FixedPcdGet8 (PcdEcI2cSlaveAddress))
+#define EC_DEVICE_INSTANCE_ID  (FixedPcdGet8 (PcdEcI2cDeviceInstanceId))
+
 #define I2C_FLAG_WRITE           0
 #define I2C_WR_THEN_RD_OP_COUNT  2
 

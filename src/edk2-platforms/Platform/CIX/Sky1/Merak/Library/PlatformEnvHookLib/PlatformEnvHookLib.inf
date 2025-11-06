@@ -45,6 +45,7 @@
   CixFwBootPerfLib
   PostCodeLib
   CixGPNVLib
+  IoLib
 
 [Guids]
   gCixI2cDevicePathGuid
@@ -52,6 +53,7 @@
   gPlatformSetupVariableGuid
   gEfiEventReadyToBootGuid
   gCixGPNVGuid
+  gCixFarmEnableFlagGuid
 
 [Protocols]
   gEfiI2cMasterProtocolGuid
@@ -76,3 +78,4 @@
   gEmbeddedTokenSpaceGuid.PcdDmaDeviceLimit
   gCixPlatformTokenSpaceGuid.PcdNorFlashVarSyncRegionBase
   gCixPlatformTokenSpaceGuid.PcdNorFlashVarSyncRegionSize
+  gCixPlatformTokenSpaceGuid.PcdDebugModeFlagAddress

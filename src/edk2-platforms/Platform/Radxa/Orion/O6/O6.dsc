@@ -45,7 +45,7 @@
   DEFINE DTB_UPDATE_ENABLE          = FALSE
   DEFINE SMBIOS_ENABLE              = FALSE
   DEFINE ACPI_ENABLE                = FALSE
-  DEFINE TOKEN_CONSOLE_PREF_SUPPORT = FALSE
+  DEFINE TOKEN_CONSOLE_PREF_SUPPORT = TRUE
   DEFINE FW_VERSION_ENABLE          = TRUE
   DEFINE SOC_PWR_CLK_RST_ENABLE     = TRUE
   DEFINE WATCH_DOG_ENABLE           = FALSE
@@ -76,6 +76,7 @@
   DEFINE DYNAMIC_GET_MEM_SIZE       = TRUE
   DEFINE SECURE_BOOT_ENABLE         = TRUE
   DEFINE DEFAULT_KEYS               = TRUE
+  DEFINE SOC_XSPI_ENABLE            = TRUE
   DEFINE FW_CONFIG_UPDATE_SUPPORT   = TRUE
   DEFINE UEFI_FW_STAGE              = Beta2
   DEFINE BOOT_LOGO_ENABLE           = FALSE
@@ -146,7 +147,7 @@
 [LibraryClasses.common]
   PlatformConfigParamsHookLib|Platform/Radxa/Orion/O6/Library/PlatformConfigParamsHookLib/PlatformConfigParamsHookLib.inf
   PlatformEnvHookLib|Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf
-  RealTimeClockLib|Platform/Radxa/Orion/O6/Library/Hym8563RealTimeClockLib/Hym8563RealTimeClockLib.inf
+  RealTimeClockLib|Platform/Radxa/Library/Hym8563RealTimeClockLib/Hym8563RealTimeClockLib.inf
 
   PlatformBootHookLib|Platform/CIX/Sky1/Merak/Library/PlatformBootHookLib/PlatformBootHookLib.inf
 
@@ -186,7 +187,6 @@
       BcfgCommandLib|ShellPkg/Library/UefiShellBcfgCommandLib/UefiShellBcfgCommandLib.inf
 
     <PcdsFixedAtBuild>
-      gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0xFF
       gEfiShellPkgTokenSpaceGuid.PcdShellLibAutoInitialize|FALSE
       gEfiMdePkgTokenSpaceGuid.PcdUefiLibMaxPrintBufferSize|8000
       gEfiShellPkgTokenSpaceGuid.PcdShellFileOperationSize|0x200000
@@ -195,7 +195,7 @@
   Platform/CIX/Sky1/Drivers/DtbUpdateDxeSi/DtbUpdateDxe.inf
 !if $(ACPI_ENABLE) == TRUE
   Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/AcpiPlatfomTables.inf
-  Platform/Radxa/Orion/O6//Drivers/AcpiPlatformDxe/AcpiPlatformDxe.inf
+  Platform/Radxa/Drivers/AcpiPlatformDxe/AcpiPlatformDxe.inf
 !endif
 !if $(SMBIOS_ENABLE) == TRUE
   Platform/Radxa/Orion/O6/Drivers/PlatformSmbios/PlatformSmbios.inf
@@ -344,7 +344,7 @@
 
   # USBC0
   gCixTokenSpaceGuid.PcdUsbCDrdControl0Enable|TRUE
-  gCixTokenSpaceGuid.PcdUsbCDrdControl0DataRole|FALSE
+  gCixTokenSpaceGuid.PcdUsbCDrdControl0DataRole|TRUE
   # USBC1
   gCixTokenSpaceGuid.PcdUsbCControl0Enable|TRUE
   # USBC2
@@ -356,6 +356,17 @@
   gCixTokenSpaceGuid.PcdUsb2Control1Enable|TRUE
   gCixTokenSpaceGuid.PcdUsb2Control2Enable|TRUE
   gCixTokenSpaceGuid.PcdUsb2Control3Enable|TRUE
+
+  gCixTokenSpaceGuid.PcdAcpiUart0Enable|FALSE
+  gCixTokenSpaceGuid.PcdAcpiUart1Enable|FALSE
+  gCixTokenSpaceGuid.PcdAcpiUart2Enable|TRUE
+  gCixTokenSpaceGuid.PcdAcpiUart3Enable|FALSE
+
+  gCixTokenSpaceGuid.PcdAcpiI2s5Enable|TRUE
+  gCixTokenSpaceGuid.PcdAcpiI2s6Enable|TRUE
+  gCixTokenSpaceGuid.PcdAcpiI2s7Enable|TRUE
+  gCixTokenSpaceGuid.PcdAcpiI2s8Enable|TRUE
+  gCixTokenSpaceGuid.PcdAcpiI2s9Enable|TRUE
 
   gArmTokenSpaceGuid.PcdSystemMemorySize|0x400000000
   gEfiNetworkPkgTokenSpaceGuid.PcdNetworkStackSupport|FALSE
@@ -409,4 +420,8 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdSetupVideoVerticalResolution|600
 
   gCixPlatformTokenSpaceGuid.PcdDynamicUint64Test|0x11111111
+
+!if $(COMPILE_SYSTEM_LOADER) == android
+  gCixPlatformTokenSpaceGuid.AndroidFastboot|TRUE
+!endif
 [PcdsDynamicHii.common.DEFAULT]

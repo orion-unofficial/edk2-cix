@@ -162,7 +162,8 @@ StartRequest (
 EFI_STATUS
 I2cHostInit (
   IN UINT32  I2cBus,
-  IN UINT32  Clock
+  IN UINT32  Clock,
+  IN UINT8   MutexId
   )
 {
   EFI_STATUS              Status = EFI_SUCCESS;
@@ -174,6 +175,7 @@ I2cHostInit (
     I2c->Descriptor.Bus                      = I2cBus;
     I2c->Descriptor.MemBase                  = I2cGetMemBase (I2cBus);
     I2c->Descriptor.BusClk                   = Clock;
+    I2c->Descriptor.MutexId                  = MutexId;
     I2c->I2cMaster.SetBusFrequency           = SetBusFrequency;
     I2c->I2cMaster.Reset                     = Reset;
     I2c->I2cMaster.StartRequest              = StartRequest;
@@ -326,7 +328,7 @@ I2cDxeEntryPoint (
     }
 
     I2cEnvInit (I2cBus);
-    Status = I2cHostInit (I2cBus, ConfigData->Fch.I2c[I2cBus].BusFreq);
+    Status = I2cHostInit (I2cBus, ConfigData->Fch.I2c[I2cBus].BusFreq, ConfigData->Fch.I2c[I2cBus].MutexId);
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "Failed to initialize I2C[%d], status: %r\n", I2cBus, Status));
       // ASSERT_EFI_ERROR(Status);
