@@ -26,6 +26,9 @@ WORKAROUND_CVE_2018_3639		?=1
 DYNAMIC_WORKAROUND_CVE_2018_3639	?=0
 WORKAROUND_CVE_2022_23960		?=1
 
+# Flag to enable dsu pmu counter access.
+DSU_PMU_SECURITY_ACCESS_ENABLE		?=0
+
 # Flags to indicate internal or external Last level cache
 # By default internal
 NEOVERSE_Nx_EXTERNAL_LLC		?=0

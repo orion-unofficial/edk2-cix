@@ -11,6 +11,10 @@
 #include <cpu_macros.S>
 #include <plat_macros.S>
 
+#if DSU_PMU_SECURITY_ACCESS_ENABLE
+#include "dsu_def.h"
+#endif
+
 /* Hardware handled coherency */
 #if HW_ASSISTED_COHERENCY == 0
 #error "Cortex Hayes must be compiled with HW_ASSISTED_COHERENCY enabled"
@@ -49,6 +53,16 @@ endfunc cortex_hayes_errata_report
 func cortex_hayes_reset_func
 	/* Disable speculative loads */
 	msr	SSBS, xzr
+
+#if DSU_PMU_SECURITY_ACCESS_ENABLE
+	mrs x0, actlr_el3
+	orr x0, x0, #CLUSTER_DSU_MASKING
+	msr actlr_el3, x0
+
+	mrs x0, actlr_el2
+	orr x0, x0, #CLUSTER_DSU_MASKING
+	msr actlr_el2, x0
+#endif
 	isb
 	ret
 endfunc cortex_hayes_reset_func

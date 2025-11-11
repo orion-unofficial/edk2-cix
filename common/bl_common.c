@@ -170,6 +170,7 @@ static int load_auth_image_recursive(unsigned int image_id,
 		return rc;
 	}
 
+	#ifndef DISABLE_IMG_AUTH
 	/* Authenticate it */
 	rc = auth_mod_verify_img(image_id,
 				 (void *)image_data->image_base,
@@ -180,9 +181,18 @@ static int load_auth_image_recursive(unsigned int image_id,
 			       image_data->image_size);
 		flush_dcache_range(image_data->image_base,
 				   image_data->image_size);
+		if (image_id == NON_TRUSTED_KEY_CERT_ID) {
+			ERROR("########################################################################\n");
+			ERROR("Verify trusted_key_no.crt fail, please double check bootloader3.img, make sure it was packaging with right cert file\n");
+			ERROR("########################################################################\n");
+		} else {
+			ERROR("########################################################################\n");
+			ERROR("Verify image: %d fail\n", image_id);
+			ERROR("########################################################################\n");
+		}
 		return -EAUTH;
 	}
-
+	#endif
 	return 0;
 }
 #endif /* TRUSTED_BOARD_BOOT */

@@ -477,7 +477,9 @@ void __init ehf_init(void)
 
 	/* Route EL3 interrupts when in Secure and Non-secure. */
 	set_interrupt_rm_flag(flags, NON_SECURE);
+#if !SKY1_EL3_EXCEPTION_HANDLING
 	set_interrupt_rm_flag(flags, SECURE);
+#endif
 
 	/* Register handler for EL3 interrupts */
 	ret = register_interrupt_type_handler(INTR_TYPE_EL3,

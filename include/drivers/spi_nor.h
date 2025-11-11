@@ -34,6 +34,11 @@
 #define SPI_NOR_USE_FSR		BIT(0)
 #define SPI_NOR_USE_BANK	BIT(1)
 
+#define READ_INDEX_1_1_1        0
+#define READ_INDEX_1_1_2        1
+#define READ_INDEX_1_1_4        2
+#define JEDEC_ID_LEN            6
+
 struct nor_device {
 	struct spi_mem_op read_op;
 	uint32_t size;
@@ -54,5 +59,23 @@ int spi_nor_init(unsigned long long *device_size, unsigned int *erase_size);
  * Return 0 on success, negative value otherwise.
  */
 int plat_get_nor_data(struct nor_device *device);
+
+/*
+ *four line read nor flash
+ * @dummy_nbytes:dummy byte number
+ * @offset:start address
+ * @buffer:data buffer
+ * @length:read length
+ * Return 0 on success, negative value otherwise.
+ */
+int spi_nor_quad_read(uint8_t dummy_nbytes,unsigned int offset, uintptr_t buffer,size_t length);
+
+/*
+ *get config from nor flash
+ * @dummy_nbytes:dummy byte number
+ * @op_mode: 1/2/4 line read
+ * Return 0 on success, negative value otherwise.
+ */
+int spi_nor_get_config(int *dummy_nbytes,int *op_mode,uint8_t *clk_index);
 
 #endif /* DRIVERS_SPI_NOR_H */

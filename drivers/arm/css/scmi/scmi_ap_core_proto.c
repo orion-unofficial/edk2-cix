@@ -22,9 +22,13 @@ int scmi_ap_core_set_reset_addr(void *p, uint64_t reset_addr, uint32_t attr)
 	int ret;
 	scmi_channel_t *ch = (scmi_channel_t *)p;
 
-	validate_scmi_channel(ch);
+	ret = validate_scmi_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
-	scmi_get_channel(ch);
+	ret = scmi_get_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
 	mbx_mem = (mailbox_mem_t *)(ch->info->scmi_mbx_mem);
 	mbx_mem->msg_header = SCMI_MSG_CREATE(SCMI_AP_CORE_PROTO_ID,
@@ -57,9 +61,13 @@ int scmi_ap_core_get_reset_addr(void *p, uint64_t *reset_addr, uint32_t *attr)
 	scmi_channel_t *ch = (scmi_channel_t *)p;
 	uint32_t lo_addr, hi_addr;
 
-	validate_scmi_channel(ch);
+	ret = validate_scmi_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
-	scmi_get_channel(ch);
+	ret = scmi_get_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
 	mbx_mem = (mailbox_mem_t *)(ch->info->scmi_mbx_mem);
 	mbx_mem->msg_header = SCMI_MSG_CREATE(SCMI_AP_CORE_PROTO_ID,

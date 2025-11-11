@@ -37,14 +37,11 @@ void arm_gicv3_distif_pre_save(unsigned int rdist_proc_num)
 	 * GICR_WAKER.ChildrenAsleep and GICR_WAKER.ProcessorSleep are set on
 	 * all the Redistributors.
 	 */
-	for (unsigned int i = 0; i < gicv3_driver_data->rdistif_num; i++) {
-		gicr_base = gicv3_driver_data->rdistif_base_addrs[i];
-		assert(gicr_base);
-		assert(gicr_read_waker(gicr_base) & WAKER_CA_BIT);
-		assert(gicr_read_waker(gicr_base) & WAKER_PS_BIT);
-	}
-
 	gicr_base = gicv3_driver_data->rdistif_base_addrs[rdist_proc_num];
+	assert(gicr_base);
+	assert(gicr_read_waker(gicr_base) & WAKER_CA_BIT);
+	assert(gicr_read_waker(gicr_base) & WAKER_PS_BIT);
+
 	/*
 	 * According to the TRM, there is only one instance of the
 	 * GICR_WAKER.Sleep and GICR_WAKER.Quiescent bits that can be accessed

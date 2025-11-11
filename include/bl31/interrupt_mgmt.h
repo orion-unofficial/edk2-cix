@@ -107,7 +107,7 @@ static inline int32_t validate_ns_interrupt_rm(uint32_t x)
 
 static inline int32_t validate_el3_interrupt_rm(uint32_t x)
 {
-#if EL3_EXCEPTION_HANDLING
+#if EL3_EXCEPTION_HANDLING && !SKY1_EL3_EXCEPTION_HANDLING
 	/*
 	 * With EL3 exception handling, EL3 interrupts are always routed to EL3
 	 * from both Secure and Non-secure, and therefore INTR_EL3_VALID_RM1 is
@@ -140,6 +140,9 @@ int32_t register_interrupt_type_handler(uint32_t type,
 					interrupt_type_handler_t handler,
 					uint32_t flags);
 interrupt_type_handler_t get_interrupt_type_handler(uint32_t type);
+#if CIX_DST_SUPPORT
+uint32_t record_interrupt(uint32_t type);
+#endif
 int disable_intr_rm_local(uint32_t type, uint32_t security_state);
 int enable_intr_rm_local(uint32_t type, uint32_t security_state);
 

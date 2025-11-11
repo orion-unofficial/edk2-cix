@@ -550,10 +550,20 @@ DEFINE_RENAME_SYSREG_RW_FUNCS(hcrx_el2, HCRX_EL2)
 
 /* DynamIQ Shared Unit power management */
 DEFINE_RENAME_SYSREG_RW_FUNCS(clusterpwrdn_el1, CLUSTERPWRDN_EL1)
+DEFINE_RENAME_SYSREG_RW_FUNCS(clusterpwrctlr_el1, S3_0_C15_C3_5)
+DEFINE_RENAME_SYSREG_RW_FUNCS(clusterl3dnth0_el1, S3_0_C15_C4_0)
+DEFINE_RENAME_SYSREG_RW_FUNCS(clusterl3dnth1_el1, S3_0_C15_C4_1)
+DEFINE_RENAME_SYSREG_RW_FUNCS(clusterl3upth0_el1, S3_0_C15_C4_2)
+DEFINE_RENAME_SYSREG_RW_FUNCS(clusterl3upth1_el1, S3_0_C15_C4_3)
+DEFINE_RENAME_SYSREG_RW_FUNCS(clusterl3upth2_el1, S3_0_C15_C9_3)
+DEFINE_RENAME_SYSREG_RW_FUNCS(clusterl3hit_el1, S3_0_C15_C4_5)
+DEFINE_RENAME_SYSREG_RW_FUNCS(clusterl3miss_el1, S3_0_C15_C4_6)
 
 /* CPU Power/Performance Management registers */
+DEFINE_RENAME_SYSREG_RW_FUNCS(cpupwrctrl_el1, CPUPWRCTRL_EL1)
 DEFINE_RENAME_SYSREG_RW_FUNCS(cpuppmcr_el3, CPUPPMCR_EL3)
 DEFINE_RENAME_SYSREG_RW_FUNCS(cpumpmmcr_el3, CPUMPMMCR_EL3)
+DEFINE_RENAME_SYSREG_RW_FUNCS(cpumpmmtune_el3, CPUMPMMTUNE_EL3)
 
 /* Armv9.2 RME Registers */
 DEFINE_RENAME_SYSREG_RW_FUNCS(gptbr_el3, GPTBR_EL3)
@@ -624,25 +634,52 @@ void gpt_tlbi_by_pa_ll(uint64_t pa, size_t size);
 
 /* Previously defined accessor functions with incomplete register names  */
 
-#define read_current_el()	read_CurrentEl()
+#define read_current_el()		read_CurrentEl()
 
-#define dsb()			dsbsy()
+#define dsb()				dsbsy()
 
-#define read_midr()		read_midr_el1()
+#define read_midr()			read_midr_el1()
 
-#define read_mpidr()		read_mpidr_el1()
+#define read_mpidr()			read_mpidr_el1()
 
-#define read_scr()		read_scr_el3()
-#define write_scr(_v)		write_scr_el3(_v)
+#define read_scr()			read_scr_el3()
+#define write_scr(_v)			write_scr_el3(_v)
 
-#define read_hcr()		read_hcr_el2()
-#define write_hcr(_v)		write_hcr_el2(_v)
+#define read_hcr()			read_hcr_el2()
+#define write_hcr(_v)			write_hcr_el2(_v)
 
-#define read_cpacr()		read_cpacr_el1()
-#define write_cpacr(_v)		write_cpacr_el1(_v)
+#define read_cpacr()			read_cpacr_el1()
+#define write_cpacr(_v)			write_cpacr_el1(_v)
 
-#define read_clusterpwrdn()	read_clusterpwrdn_el1()
-#define write_clusterpwrdn(_v)	write_clusterpwrdn_el1(_v)
+#define read_clusterpwrdn()		read_clusterpwrdn_el1()
+#define write_clusterpwrdn(_v)		write_clusterpwrdn_el1(_v)
+
+#define read_clusterpwrctlr()		read_clusterpwrctlr_el1()
+#define write_clusterpwrctlr(_v)	write_clusterpwrctlr_el1(_v)
+
+#define read_clusterl3dnth0()		read_clusterl3dnth0_el1()
+#define write_clusterl3dnth0(_v)	write_clusterl3dnth0_el1(_v)
+
+#define read_clusterl3dnth1()		read_clusterl3dnth1_el1()
+#define write_clusterl3dnth1(_v)	write_clusterl3dnth1_el1(_v)
+
+#define read_clusterl3upth0()		read_clusterl3upth0_el1()
+#define write_clusterl3upth0(_v)	write_clusterl3upth0_el1(_v)
+
+#define read_clusterl3upth1()		read_clusterl3upth1_el1()
+#define write_clusterl3upth1(_v)	write_clusterl3upth1_el1(_v)
+
+#define read_clusterl3upth2()		read_clusterl3upth2_el1()
+#define write_clusterl3upth2(_v)	write_clusterl3upth2_el1(_v)
+
+#define read_clusterl3hit()		read_clusterl3hit_el1()
+#define write_clusterl3hit(_v)		write_clusterl3hit_el1(_v)
+
+#define read_clusterl3miss()		read_clusterl3miss_el1()
+#define write_clusterl3miss(_v)		write_clusterl3miss_el1(_v)
+
+#define read_cpupwrctrl()		read_cpupwrctrl_el1()
+#define write_cpupwrctrl(_v)		write_cpupwrctrl_el1(_v)
 
 #if ERRATA_SPECULATIVE_AT
 /*

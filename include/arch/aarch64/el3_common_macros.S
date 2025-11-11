@@ -34,12 +34,23 @@
 	 *  being accessed.
 	 * ---------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x171
 	mov	x1, #(SCTLR_I_BIT | SCTLR_A_BIT | SCTLR_SA_BIT)
 	mrs	x0, sctlr_el3
 	orr	x0, x0, x1
 	msr	sctlr_el3, x0
 	isb
 
+	mrs	x0, actlr_el3
+	mov	x1, #(ACTLR_CLUSTER_PMU_EN_BIT)
+	orr	x0, x0, x1
+	msr	actlr_el3, x0
+
+	mrs	x0, actlr_el2
+	mov	x1, #(ACTLR_CLUSTER_PMU_EN_BIT)
+	orr	x0, x0, x1
+	msr	actlr_el2, x0
+	isb
 #ifdef IMAGE_BL31
 	/* ---------------------------------------------------------------------
 	 * Initialise the per-cpu cache pointer to the CPU.
@@ -49,6 +60,7 @@
 	 * due to a NULL TPIDR_EL3.
 	 * ---------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x172
 	bl	init_cpu_data_ptr
 #endif /* IMAGE_BL31 */
 
@@ -79,6 +91,7 @@
 	 * authentication instructions from lower ELs.
 	 * ---------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x173
 	mov_imm	x0, ((SCR_RESET_VAL | SCR_EA_BIT | SCR_SIF_BIT) \
 			& ~(SCR_TWE_BIT | SCR_TWI_BIT | SCR_SMD_BIT))
 #if CTX_INCLUDE_PAUTH_REGS
@@ -148,6 +161,7 @@
 	 *  When FEAT_TRF is not implemented, this bit is RES0.
 	 * ---------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x174
 	mov_imm	x0, ((MDCR_EL3_RESET_VAL | MDCR_SDD_BIT | \
 		      MDCR_SPD32(MDCR_SPD32_DISABLE) | MDCR_SCCD_BIT | \
 		      MDCR_MCCD_BIT) & ~(MDCR_SPME_BIT | MDCR_TDOSA_BIT | \
@@ -185,6 +199,7 @@
 	 *  counts on every clock cycle.
 	 * ---------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x175
 	mov_imm	x0, ((PMCR_EL0_RESET_VAL | PMCR_EL0_LP_BIT | \
 		      PMCR_EL0_LC_BIT | PMCR_EL0_DP_BIT) & \
 		    ~(PMCR_EL0_X_BIT | PMCR_EL0_D_BIT))
@@ -196,6 +211,7 @@
 	 * vectors have been setup.
 	 * ---------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x176
 	msr	daifclr, #DAIF_ABT_BIT
 
 	/* ---------------------------------------------------------------------
@@ -227,7 +243,7 @@
 	 * CPTR_EL3.ESM: Set to zero so that all SME functionality is trapped
 	 *  to EL3 by default.
 	 */
-
+	cix_postcode_debug_asm _code=0x177
 	mov_imm x0, (CPTR_EL3_RESET_VAL & ~(TCPAC_BIT | TTA_BIT | TFP_BIT))
 	mrs	x1, id_aa64dfr0_el1
 	ubfx	x1, x1, #ID_AA64DFR0_TRACEVER_SHIFT, #ID_AA64DFR0_TRACEVER_LENGTH
@@ -252,6 +268,25 @@
 	mov	x0, #DIT_BIT
 	msr	DIT, x0
 #endif
+	/* ---------------------------------------------------------------------
+	 * Initialise CPTR_EL2, setting all fields rather than relying on hw.
+	 * All fields are architecturally UNKNOWN on reset.
+	 *
+	 * CPTR_EL2.TCPAC: Set to zero so that any accesses to CPACR_EL1 do
+	 * not trap to EL2.
+	 *
+	 * CPTR_EL2.TTA: Set to zero so that System register accesses to the
+	 *  trace registers do not trap to EL2.
+	 *
+	 * CPTR_EL2.TFP: Set to zero so that accesses to the V- or Z- registers
+	 *  by Advanced SIMD, floating-point or SVE instructions (if implemented)
+	 *  do not trap to EL2.
+	 * CPTR_EL2.TZ:  Set to zero so that accesses ZCR_EL2 and ZCR_EL1 do
+	 * not trap to EL2.
+	 */
+	mov_imm x0, (CPTR_EL2_RESET_VAL & ~(TCPAC_BIT | TTA_BIT | TFP_BIT | CPTR_EL2_TZ_BIT))
+	msr	cptr_el2, x0
+	cix_postcode_debug_asm _code=0x178
 	.endm
 
 /* -----------------------------------------------------------------------------
@@ -304,6 +339,7 @@
 		_init_memory, _init_c_runtime, _exception_vectors,	\
 		_pie_fixup_size
 
+	cix_postcode_debug_asm _code=0x110
 	.if \_init_sctlr
 		/* -------------------------------------------------------------
 		 * This is the initialisation of SCTLR_EL3 and so must ensure
@@ -328,6 +364,7 @@
 		 *  safe behaviour upon exception entry to EL3.
 		 * -------------------------------------------------------------
 		 */
+		cix_postcode_debug_asm _code=0x120
 		mov_imm	x0, (SCTLR_RESET_VAL & ~(SCTLR_EE_BIT | SCTLR_WXN_BIT \
 				| SCTLR_SA_BIT | SCTLR_A_BIT | SCTLR_DSSBS_BIT))
 		msr	sctlr_el3, x0
@@ -335,6 +372,7 @@
 	.endif /* _init_sctlr */
 
 #if DISABLE_MTPMU
+		cix_postcode_debug_asm _code=0x130
 		bl	mtpmu_disable
 #endif
 
@@ -346,6 +384,7 @@
 		 * then it means it is a warm boot so jump to this address.
 		 * -------------------------------------------------------------
 		 */
+		cix_postcode_debug_asm _code=0x140
 		bl	plat_get_my_entrypoint
 		cbz	x0, do_cold_boot
 		br	x0
@@ -377,6 +416,7 @@
 	 * Set the exception vectors.
 	 * ---------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x150
 	adr	x0, \_exception_vectors
 	msr	vbar_el3, x0
 	isb
@@ -388,9 +428,11 @@
 	 * invalidations etc.
 	 * ---------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x160
 	bl	reset_handler
 #endif
 
+	cix_postcode_debug_asm _code=0x170
 	el3_arch_init_common
 
 	.if \_secondary_cold_boot
@@ -420,6 +462,7 @@
 	 */
 
 	.if \_init_memory
+		cix_postcode_debug_asm _code=0x180
 		bl	platform_mem_init
 	.endif /* _init_memory */
 
@@ -445,6 +488,7 @@
 		 * the entire image region if PIE is enabled.
 		 * -------------------------------------------------------------
 		 */
+		cix_postcode_debug_asm _code=0x190
 #if ENABLE_PIE
 #if SEPARATE_CODE_AND_RODATA
 		adrp	x0, __TEXT_START__
@@ -484,6 +528,7 @@
 		adrp	x1, __BSS_END__
 		add	x1, x1, :lo12:__BSS_END__
 		sub	x1, x1, x0
+		cix_postcode_debug_asm _code=0x1a0
 		bl	zeromem
 
 #if USE_COHERENT_MEM
@@ -496,6 +541,7 @@
 #endif
 
 #if defined(IMAGE_BL1) || (defined(IMAGE_BL2) && BL2_AT_EL3 && BL2_IN_XIP_MEM)
+		cix_postcode_debug_asm _code=0x1b0
 		adrp	x0, __DATA_RAM_START__
 		add	x0, x0, :lo12:__DATA_RAM_START__
 		adrp	x1, __DATA_ROM_START__
@@ -511,6 +557,7 @@
 	 * Use SP_EL0 for the C runtime stack.
 	 * ---------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x1c0
 	msr	spsel, #0
 
 	/* ---------------------------------------------------------------------
@@ -520,10 +567,12 @@
 	 * moment.
 	 * ---------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x1d0
 	bl	plat_set_my_stack
 
 #if STACK_PROTECTOR_ENABLED
 	.if \_init_c_runtime
+	cix_postcode_debug_asm _code=0x1e0
 	bl	update_stack_protector_canary
 	.endif /* _init_c_runtime */
 #endif

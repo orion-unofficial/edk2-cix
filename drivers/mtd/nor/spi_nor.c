@@ -26,6 +26,7 @@
 #define BANK_SIZE		0x1000000U
 
 #define SPI_READY_TIMEOUT_US	40000U
+#define QSPI_FLASH_CONFIG       0x188800
 
 static struct nor_device nor_dev;
 
@@ -54,6 +55,11 @@ static int spi_nor_reg(uint8_t reg, uint8_t *buf, size_t len,
 static inline int spi_nor_read_id(uint8_t *id)
 {
 	return spi_nor_reg(SPI_NOR_OP_READ_ID, id, 1U, SPI_MEM_DATA_IN);
+}
+
+static inline int spi_nor_read_jedec(uint8_t *id)
+{
+	return spi_nor_reg(SPI_NOR_OP_READ_ID, id, 3U, SPI_MEM_DATA_IN);
 }
 
 static inline int spi_nor_read_cr(uint8_t *cr)
@@ -286,6 +292,16 @@ int spi_nor_read(unsigned int offset, uintptr_t buffer, size_t length,
 
 	VERBOSE("%s offset %u length %zu\n", __func__, offset, length);
 
+	if ( nor_dev.read_op.data.buswidth == SPI_MEM_BUSWIDTH_4_LINE) {
+		ret = spi_nor_quad_read(nor_dev.read_op.dummy.nbytes, offset, buffer, length);
+		if(ret == 0) {
+			*length_read = length;
+		} else {
+			*length_read = 0;
+		}
+		return ret;
+	}
+
 	while (length != 0U) {
 		if ((nor_dev.flags & SPI_NOR_USE_BANK) != 0U) {
 			ret = spi_nor_write_bar(nor_dev.read_op.addr.val);
@@ -384,4 +400,106 @@ int spi_nor_init(unsigned long long *size, unsigned int *erase_size)
 	}
 
 	return ret;
+}
+
+
+int spi_nor_get_config(int *dummy_nbytes,int *op_mode, uint8_t *clk_index)
+{
+	int ret = 0;
+	int num = 0;
+	uint8_t exp_jedec_id[6];
+	uint8_t actual_jedec_id[6];
+	uint8_t config_num;
+	uint8_t buffer[1024];
+	uint32_t offset = 0;
+	unsigned int len = 0;
+
+	/*read jedec id to match json config*/
+        ret = spi_nor_read_jedec(actual_jedec_id);
+
+	/*use one line read to get config from flash*/
+	zeromem(buffer, sizeof(buffer));
+	zeromem(&nor_dev.read_op, sizeof(struct spi_mem_op));
+	offset = QSPI_FLASH_CONFIG;
+	len = 1;
+	nor_dev.read_op.cmd.opcode = SPI_NOR_OP_READ;
+	nor_dev.read_op.cmd.buswidth = SPI_MEM_BUSWIDTH_1_LINE;
+
+	nor_dev.read_op.addr.nbytes = 3U;
+	nor_dev.read_op.addr.val = offset;
+	nor_dev.read_op.addr.buswidth = SPI_MEM_BUSWIDTH_1_LINE;
+
+	nor_dev.read_op.data.buswidth = SPI_MEM_BUSWIDTH_1_LINE;
+	nor_dev.read_op.data.dir = SPI_MEM_DATA_IN;
+	nor_dev.read_op.data.buf = buffer;
+	nor_dev.read_op.data.nbytes = len;
+	ret += spi_mem_exec_op(&nor_dev.read_op);
+	if(!ret)
+		config_num = buffer[0];
+	else{
+		INFO("%s error\n", __func__);
+	        goto one_line_read;
+	}
+	/*config para start at offset 4,and each flash para size is 16 */
+	offset += 4;
+        len = 16 * config_num;
+	nor_dev.read_op.data.nbytes = len;
+	nor_dev.read_op.addr.val = offset;
+	ret += spi_mem_exec_op(&nor_dev.read_op);
+	if(ret) {
+		INFO("read config fail\n");
+	        goto one_line_read;
+	}
+	while(num < config_num)
+	{
+		exp_jedec_id[0] = buffer[2 + 16 * num];
+		exp_jedec_id[1] = buffer[1 + 16 * num];
+		exp_jedec_id[2] = buffer[0 + 16 * num];
+		if(!memcmp(actual_jedec_id, exp_jedec_id, 3)){
+			*dummy_nbytes = buffer[6 + 16 * num] / 8;
+			*op_mode = buffer[5 + 16 * num];
+			*clk_index = buffer[4 + 16 * num];
+			return 0;
+		}
+		num++;
+	}
+
+one_line_read:
+	*op_mode = READ_INDEX_1_1_1;
+	return 0;
+}
+
+
+int spi_nor_quad_read(uint8_t dummy_nbytes,unsigned int offset, uintptr_t buffer,size_t length)
+{
+	int ret;
+	struct spi_mem_op read_op;
+
+	/* cmd */
+	read_op.cmd.buswidth = SPI_MEM_BUSWIDTH_1_LINE;
+	read_op.cmd.opcode = SPI_NOR_OP_READ_1_1_4;
+
+	/* addr */
+	read_op.addr.val = offset;
+	read_op.addr.nbytes = 3;
+	read_op.addr.buswidth = SPI_MEM_BUSWIDTH_1_LINE;
+
+	/* dummy */
+	read_op.dummy.buswidth = SPI_MEM_BUSWIDTH_1_LINE;
+	read_op.dummy.nbytes = dummy_nbytes;
+
+	/* data */
+	read_op.data.buswidth = SPI_MEM_BUSWIDTH_4_LINE;
+	read_op.data.buf = (void *)buffer;
+	read_op.data.nbytes = length;
+	read_op.data.dir = SPI_MEM_DATA_IN;
+
+	VERBOSE("%s offset %u length %zu\n", __func__, offset, length);
+	ret = spi_mem_exec_op(&read_op);
+	if (ret != 0) {
+		spi_nor_clean_bar();
+		return ret;
+	}
+
+	return 0;
 }

@@ -12,6 +12,10 @@
 #include <plat_macros.S>
 #include "wa_cve_2022_23960_bhb_vector.S"
 
+#if DSU_PMU_SECURITY_ACCESS_ENABLE
+#include "dsu_def.h"
+#endif
+
 /* Hardware handled coherency */
 #if HW_ASSISTED_COHERENCY == 0
 #error "Cortex Hunter must be compiled with HW_ASSISTED_COHERENCY enabled"
@@ -39,6 +43,16 @@ func cortex_hunter_reset_func
 	/* Disable speculative loads */
 	msr	SSBS, xzr
 
+#if DSU_PMU_SECURITY_ACCESS_ENABLE
+	mrs x0, actlr_el3
+	orr x0, x0, #CLUSTER_DSU_MASKING
+	msr actlr_el3, x0
+
+	mrs x0, actlr_el2
+	orr x0, x0, #CLUSTER_DSU_MASKING
+	msr actlr_el2, x0
+#endif
+
 #if IMAGE_BL31 && WORKAROUND_CVE_2022_23960
 	/*
 	 * The Cortex Hunter generic vectors are overridden to apply errata
@@ -47,7 +61,9 @@ func cortex_hunter_reset_func
 	adr	x0, wa_cve_vbar_cortex_hunter
 	msr	vbar_el3, x0
 #endif /* IMAGE_BL31 && WORKAROUND_CVE_2022_23960 */
-
+	mrs x0, S3_0_C15_C3_3
+	orr x0, x0, #(0x3 << 20)
+	msr S3_0_C15_C3_3, x0
 	isb
 	ret
 endfunc cortex_hunter_reset_func

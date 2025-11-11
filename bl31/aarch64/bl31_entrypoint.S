@@ -23,6 +23,7 @@
 	 */
 
 func bl31_entrypoint
+	cix_postcode_debug_asm _code=0x000
 	/* ---------------------------------------------------------------
 	 * Stash the previous bootloader arguments x0 - x3 for later use.
 	 * ---------------------------------------------------------------
@@ -42,6 +43,7 @@ func bl31_entrypoint
 	 * SCTLR_EL3, including the endianness, and has initialised the memory.
 	 * ---------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x100
 	el3_entrypoint_common					\
 		_init_sctlr=0					\
 		_warm_boot_mailbox=0				\
@@ -85,6 +87,7 @@ func bl31_entrypoint
 	 * Perform BL31 setup
 	 * --------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x200
 	mov	x0, x20
 	mov	x1, x21
 	mov	x2, x22
@@ -103,6 +106,7 @@ func bl31_entrypoint
 	 * Jump to main function
 	 * --------------------------------------------------------------------
 	 */
+	cix_postcode_debug_asm _code=0x300
 	bl	bl31_main
 
 	/* --------------------------------------------------------------------
@@ -125,6 +129,12 @@ func bl31_entrypoint
 	add	x1, x1, :lo12:__BSS_END__
 	sub	x1, x1, x0
 	bl	clean_dcache_range
+	cix_postcode_debug_asm _code=0x400
+
+#ifdef FW_BOOT_PERF_SUPPORT
+	/* for boot perf */
+	bl	cix_set_boot_tfa_end
+#endif
 
 	b	el3_exit
 endfunc bl31_entrypoint

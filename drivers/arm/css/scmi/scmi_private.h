@@ -140,16 +140,70 @@ typedef struct mailbox_mem {
 	uint32_t payload[];
 } mailbox_mem_t;
 
+#define SCMI_MEM_EXT_PAYLOAD_LEN (25)
+#define SCP_PM_MSG_TYPE (0x0c)
+#define SCP_PM_MSG_LEN (0x7f)
+#define SCP_PM_MSG_OFFSET (8)
+#define PM_MSG_MAX_LEN_TX (12)
+#define PM_MSG_MAX_LEN_RX (13)
+typedef struct {
+	uint8_t msg_id;
+	uint32_t tx_data[PM_MSG_MAX_LEN_TX];
+	uint8_t tx_len;
+	uint32_t rx_data[PM_MSG_MAX_LEN_RX];
+	uint8_t rx_len;
+} scp_pm_msg;
+
+typedef struct {
+	union {
+		uint32_t msgAttr;    // was reserved0, reuse as 'attr'
+		struct {
+			uint32_t buf_len     : 7;  // required by OS SHM driver, set to 0x7F to stand for length 128
+			uint32_t rsvd0       : 1;
+			uint32_t msg_route   : 8;  // filed to differentiate scmi or pm message
+			uint32_t rsvd1       : 16;
+		} msg_info;
+	};
+	volatile uint32_t status;         // MBox status: (Err,Free) See
+				 //    - MOD_IPC_ARBITER_MAILBOX_STATUS_ERROR_MASK;
+				 //    - MOD_IPC_ARBITER_MAILBOX_STATUS_FREE_MASK
+	uint32_t statusCode;     // was low field of uint64_t reserved1
+	uint32_t traceCode;      // was high field of uint64_t reserved1
+	volatile uint32_t flags; // MBox flags: (IntrEn) See MOD_SMT_MAILBOX_FLAGS_IENABLED_MASK
+	uint32_t length;         /* message_header + actual payload, in bytes */
+	union {
+		uint32_t message_header;
+
+		struct {
+			uint32_t message_id   : 8;
+			uint32_t message_type : 2;
+			uint32_t protocol_id  : 8;
+			uint32_t token        : 10;
+			uint32_t rsvd         : 4;
+		} scmi_header;
+
+		struct {
+			uint32_t msgId       : 16;
+			uint32_t rsvd0       : 2;
+			uint32_t token       : 10;
+			uint32_t rsvd1       : 4;
+		} pm_header;
+	};
+	uint32_t payload[SCMI_MEM_EXT_PAYLOAD_LEN];
+} scmi_mem_ext;
 
 /* Private APIs for use within SCMI driver */
-void scmi_get_channel(scmi_channel_t *ch);
+int scmi_get_channel(scmi_channel_t *ch);
 void scmi_send_sync_command(scmi_channel_t *ch);
 void scmi_put_channel(scmi_channel_t *ch);
+int scmi_send_msg_to_pm(void *p, scp_pm_msg *msg);
 
-static inline void validate_scmi_channel(scmi_channel_t *ch)
+static inline int validate_scmi_channel(scmi_channel_t *ch)
 {
-	assert(ch && ch->is_initialized);
-	assert(ch->info && ch->info->scmi_mbx_mem);
+	if (!ch || !ch->is_initialized
+		|| !ch->info || !ch->info->scmi_mbx_mem)
+		return SCMI_E_NOT_SUPPORTED;
+	return SCMI_E_SUCCESS;
 }
 
 /*

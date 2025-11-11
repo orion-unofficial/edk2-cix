@@ -432,6 +432,9 @@
 #define SCTLR_TCF0_MASK		ULL(3)
 #define SCTLR_ENTP2_BIT		(ULL(1) << 60)
 
+
+
+#define ACTLR_CLUSTER_PMU_EN_BIT		(ULL(1) << 12)
 /* Tag Check Faults in EL0 have no effect on the PE */
 #define	SCTLR_TCF0_NO_EFFECT	U(0)
 /* Tag Check Faults in EL0 cause a synchronous exception */
@@ -1288,12 +1291,17 @@
  * Definitions for CPU Power/Performance Management registers
  ******************************************************************************/
 
+#define CPUPWRCTRL_EL1		S3_0_c15_c2_7
+
 #define CPUPPMCR_EL3			S3_6_C15_C2_0
 #define CPUPPMCR_EL3_MPMMPINCTL_SHIFT	UINT64_C(0)
 #define CPUPPMCR_EL3_MPMMPINCTL_MASK	UINT64_C(0x1)
+#define CPUPPMCR_EL3_PDP_PINCTL_SHIFT	UINT64_C(1)
+#define CPUPPMCR_EL3_PDP_PINCTL_MASK	UINT64_C(0x1)
 
 #define CPUMPMMCR_EL3			S3_6_C15_C2_1
 #define CPUMPMMCR_EL3_MPMM_EN_SHIFT	UINT64_C(0)
 #define CPUMPMMCR_EL3_MPMM_EN_MASK	UINT64_C(0x1)
 
+#define CPUMPMMTUNE_EL3			S3_6_C15_C2_6
 #endif /* ARCH_H */

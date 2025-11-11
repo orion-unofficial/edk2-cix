@@ -43,3 +43,13 @@ tags
 
 # Node.js
 node_modules/
+build_sky1_1.log
+build_sky1_2.log
+build_sky1_3.log
+cix_tc0_atf.code-workspace
+sky1_porting.rst
+.gitignore
+build_tc0_atf.log
+build.log
+arm-trusted-firmware.code-workspace
+.gitignore

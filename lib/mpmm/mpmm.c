@@ -16,12 +16,6 @@
 #	include <lib/fconf/fconf_mpmm_getter.h>
 #endif
 
-static uint64_t read_cpuppmcr_el3_mpmmpinctl(void)
-{
-	return (read_cpuppmcr_el3() >> CPUPPMCR_EL3_MPMMPINCTL_SHIFT) &
-		CPUPPMCR_EL3_MPMMPINCTL_MASK;
-}
-
 static void write_cpumpmmcr_el3_mpmm_en(uint64_t mpmm_en)
 {
 	uint64_t value = read_cpumpmmcr_el3();
@@ -31,6 +25,17 @@ static void write_cpumpmmcr_el3_mpmm_en(uint64_t mpmm_en)
 		CPUMPMMCR_EL3_MPMM_EN_SHIFT;
 
 	write_cpumpmmcr_el3(value);
+}
+
+static void write_cpuppmcr_el3_mpmmpinctl(uint64_t pinctrl_en)
+{
+	uint64_t value = read_cpuppmcr_el3();
+
+	value &= ~(CPUPPMCR_EL3_MPMMPINCTL_MASK << CPUPPMCR_EL3_MPMMPINCTL_SHIFT);
+	value |= (pinctrl_en & CPUPPMCR_EL3_MPMMPINCTL_MASK) <<
+		CPUPPMCR_EL3_MPMMPINCTL_SHIFT;
+
+	write_cpuppmcr_el3(value);
 }
 
 static bool mpmm_supported(void)
@@ -52,9 +57,7 @@ static bool mpmm_supported(void)
 
 	if (topology != NULL) {
 		unsigned int core_pos = plat_my_core_pos();
-
-		supported = topology->cores[core_pos].supported &&
-			(read_cpuppmcr_el3_mpmmpinctl() == 0U);
+		supported = topology->cores[core_pos].supported;
 	} else {
 		ERROR("MPMM: failed to generate MPMM topology\n");
 	}
@@ -73,6 +76,8 @@ void mpmm_enable(void)
 			return;
 		}
 		write_cpumpmmcr_el3_mpmm_en(1U);
+		write_cpuppmcr_el3_mpmmpinctl(1U);
+		write_cpumpmmtune_el3(MAPMM_THRESHOLD);
 	}
 }
 

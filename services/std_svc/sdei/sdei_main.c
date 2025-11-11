@@ -559,9 +559,9 @@ static int64_t sdei_event_get_info(int ev_num, int info)
 
 	/* Check if valid event number */
 	map = find_event_map(ev_num);
-	if (map == NULL)
+	if (map == NULL) {
 		return SDEI_EINVAL;
-
+	}
 	se = get_event_entry(map);
 
 	if (is_event_shared(map))

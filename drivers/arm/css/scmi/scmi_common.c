@@ -9,7 +9,7 @@
 #include <arch_helpers.h>
 #include <common/debug.h>
 #include <drivers/arm/css/scmi.h>
-
+#include <drivers/delay_timer.h>
 #include "scmi_private.h"
 
 #if HW_ASSISTED_COHERENCY
@@ -26,14 +26,18 @@
 /*
  * Private helper function to get exclusive access to SCMI channel.
  */
-void scmi_get_channel(scmi_channel_t *ch)
+int scmi_get_channel(scmi_channel_t *ch)
 {
 	assert(ch->lock);
 	scmi_lock_get(ch->lock);
 
 	/* Make sure any previous command has finished */
-	assert(SCMI_IS_CHANNEL_FREE(
-			((mailbox_mem_t *)(ch->info->scmi_mbx_mem))->status));
+	if (SCMI_IS_CHANNEL_FREE(
+			((mailbox_mem_t *)(ch->info->scmi_mbx_mem))->status))
+		return SCMI_E_SUCCESS;
+
+	scmi_lock_release(ch->lock);
+	return SCMI_E_BUSY;
 }
 
 /*
@@ -94,9 +98,13 @@ int scmi_proto_version(void *p, uint32_t proto_id, uint32_t *version)
 	int ret;
 	scmi_channel_t *ch = (scmi_channel_t *)p;
 
-	validate_scmi_channel(ch);
+	ret = validate_scmi_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
-	scmi_get_channel(ch);
+	ret = scmi_get_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
 	mbx_mem = (mailbox_mem_t *)(ch->info->scmi_mbx_mem);
 	mbx_mem->msg_header = SCMI_MSG_CREATE(proto_id, SCMI_PROTO_VERSION_MSG,
@@ -127,9 +135,13 @@ int scmi_proto_msg_attr(void *p, uint32_t proto_id,
 	int ret;
 	scmi_channel_t *ch = (scmi_channel_t *)p;
 
-	validate_scmi_channel(ch);
+	ret = validate_scmi_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
-	scmi_get_channel(ch);
+	ret = scmi_get_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
 	mbx_mem = (mailbox_mem_t *)(ch->info->scmi_mbx_mem);
 	mbx_mem->msg_header = SCMI_MSG_CREATE(proto_id,
@@ -158,6 +170,8 @@ void *scmi_init(scmi_channel_t *ch)
 {
 	uint32_t version;
 	int ret;
+	int wait_cnt = 0;
+#define MAX_WAIT_CNT (1000)
 
 	assert(ch && ch->info);
 	assert(ch->info->db_reg_addr);
@@ -171,7 +185,19 @@ void *scmi_init(scmi_channel_t *ch)
 
 	ch->is_initialized = 1;
 
-	ret = scmi_proto_version(ch, SCMI_PWR_DMN_PROTO_ID, &version);
+	while (wait_cnt < MAX_WAIT_CNT) {
+		ret = scmi_proto_version(ch, SCMI_PWR_DMN_PROTO_ID, &version);
+		if (ret == SCMI_E_SUCCESS) {
+			break;
+		} else {
+#ifndef CIX_BOARD_EMU
+			mdelay(1);
+#endif
+			wait_cnt++;
+			if (wait_cnt % 20 == 0)
+				WARN("Waiting for csu_pm...\n");
+		}
+	}
 	if (ret != SCMI_E_SUCCESS) {
 		WARN("SCMI power domain protocol version message failed\n");
 		goto error;
@@ -207,4 +233,48 @@ void *scmi_init(scmi_channel_t *ch)
 error:
 	ch->is_initialized = 0;
 	return NULL;
+}
+
+int scmi_send_msg_to_pm(void *p, scp_pm_msg *msg)
+{
+	scmi_mem_ext *mbx_mem;
+	int ret = SCMI_E_SUCCESS;
+	scmi_channel_t *ch = (scmi_channel_t *)p;
+	int i;
+
+	ret = validate_scmi_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
+
+	ret = scmi_get_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
+
+	if (msg->tx_len > PM_MSG_MAX_LEN_TX)
+		return SCMI_E_INVALID_PARAM;
+
+	mbx_mem = (scmi_mem_ext *)(ch->info->scmi_mbx_mem);
+	mbx_mem->message_header &= ~0xFFFFL;
+	mbx_mem->message_header |= msg->msg_id;
+	mbx_mem->msgAttr = 0;
+	mbx_mem->msgAttr |= (SCP_PM_MSG_LEN & 0x3fL);
+	mbx_mem->msgAttr |= ((SCP_PM_MSG_TYPE & 0xffL) << SCP_PM_MSG_OFFSET);
+	mbx_mem->flags = SCMI_FLAG_RESP_POLL;
+	mbx_mem->length = msg->tx_len *sizeof(uint32_t) +
+		sizeof(mbx_mem->pm_header);
+	for (i = 0; i < msg->tx_len; i++) {
+		mbx_mem->payload[i] = msg->tx_data[i];
+	}
+	scmi_send_sync_command(ch);
+
+	/* Get the return values */
+	if (mbx_mem->statusCode != SCMI_E_SUCCESS)
+		return mbx_mem->statusCode;
+
+	for (i = 0; i < PM_MSG_MAX_LEN_RX; i++) {
+		msg->rx_data[i] = mbx_mem->payload[i+PM_MSG_MAX_LEN_TX];
+	}
+	scmi_put_channel(ch);
+
+	return ret;
 }

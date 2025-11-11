@@ -30,6 +30,9 @@
 #include "opteed_private.h"
 #include "teesmc_opteed.h"
 #include "teesmc_opteed_macros.h"
+#include "drivers/mailbox.h"
+#include "cix_opteed_private.h"
+#include "plat_cix.h"
 
 /*******************************************************************************
  * Address of the entrypoint vector table in OPTEE. It is
@@ -179,6 +182,34 @@ static int32_t opteed_init(void)
 	return rc;
 }
 
+void cix_dispatch_ipc_req(uint32_t offset, uint32_t len, uint8_t *rsp, uint32_t *rlen, u_register_t flag)
+{
+	struct mbox_msg_t buf_rsp = { 0 };
+	cix_req_data_info req_info;
+	cix_ipc_respon *ipc_rsp = NULL;
+	int ret = -1;
+
+	/** 1) Init ipc request info */
+	req_info.secure_flag = flag;
+	req_info.offset = offset;
+	req_info.len = len;
+
+	/** 2) Send request to SE by mailbox */
+	ret = mbox_send_cmd_sync(FFA_GET_FUSE_BY_ID, &req_info, sizeof(cix_req_data_info), &buf_rsp);
+	if (0 != ret) {
+		*rlen = 0U;
+		ERROR("Send command failed!\n");
+		return;
+	} else {
+		ipc_rsp = (cix_ipc_respon*)(&(buf_rsp.data));
+		//ERROR("Got Fuse RSP, size %d\n", buf_rsp.size);
+		//for (int i = 0; i < ROUNDUP(buf_rsp.size, 4); i++)
+		//	ERROR("0x%08x\n", buf_rsp.data[i]);
+		memcpy(rsp, ipc_rsp->data, buf_rsp.size - MBOX_HEADER_SIZE - sizeof(int32_t));
+		*rlen = buf_rsp.size - MBOX_HEADER_SIZE - sizeof(int32_t);
+	}
+}
+
 
 /*******************************************************************************
  * This function is responsible for handling all SMCs in the Trusted OS/App
@@ -197,10 +228,16 @@ static uintptr_t opteed_smc_handler(uint32_t smc_fid,
 			 void *handle,
 			 u_register_t flags)
 {
-	cpu_context_t *ns_cpu_context;
+	cpu_context_t *ns_cpu_context = NULL;
+	cpu_context_t *s_cpu_context = NULL;
 	uint32_t linear_id = plat_my_core_pos();
 	optee_context_t *optee_ctx = &opteed_sp_context[linear_id];
 	uint64_t rc;
+	optee_ser_num_result ser_num_data;
+	uint8_t tmp_sn_data[16] = {0};
+	cix_tee_req_info* req_info = NULL;
+	uint8_t *point_rsp = NULL;
+	uint32_t rsp_len = 0U;
 
 	/*
 	 * Determine which security state this SMC originated from
@@ -217,6 +254,25 @@ static uintptr_t opteed_smc_handler(uint32_t smc_fid,
 
 		cm_el1_sysregs_context_save(NON_SECURE);
 
+		if (TEESMC_OPTEED_REQUEST_TO_SE_DONE == smc_fid) {
+			/* Get a reference to the non-secure context */
+			ns_cpu_context = cm_get_context(NON_SECURE);
+			assert(ns_cpu_context);
+
+			/* Send request to SE by mailbox */
+			cix_dispatch_ipc_req(x1, x2, tmp_sn_data, &rsp_len, flags);
+			ser_num_data.x0 = rsp_len;
+			memcpy(&(ser_num_data.x1), tmp_sn_data, 8U);
+			memcpy(&(ser_num_data.x2), &(tmp_sn_data[8]), 8U);
+			//hexdump("SN", tmp_sn_data, 16);
+			//ERROR("Rsp: 0x%lx, 0x%lx, 0x%lx, 0x%lx\n", ser_num_data.x0, ser_num_data.x1, ser_num_data.x2, ser_num_data.x3);
+
+			/* Restore non-secure state */
+			cm_el1_sysregs_context_restore(NON_SECURE);
+			cm_set_next_eret_context(NON_SECURE);
+
+			SMC_RET4(ns_cpu_context, ser_num_data.x0, ser_num_data.x1, ser_num_data.x2, ser_num_data.x3);
+		}
 		/*
 		 * We are done stashing the non-secure context. Ask the
 		 * OPTEE to do the work now.
@@ -391,6 +447,44 @@ static uintptr_t opteed_smc_handler(uint32_t smc_fid,
 		cm_set_next_eret_context(NON_SECURE);
 
 		SMC_RET0((uint64_t) ns_cpu_context);
+
+	/*
+	 * OPTEE is returning from a call or being preempted from a call, in
+	 * either case execution should resume in the normal world.
+	 */
+	case TEESMC_OPTEED_REQUEST_TO_SE_DONE:
+		/*
+		 * This is the result from the secure client of an
+		 * earlier request. The results are in x0-x3. Copy it
+		 * into the non-secure context, save the secure state
+		 * and return to the non-secure state.
+		 */
+		assert(handle == cm_get_context(SECURE));
+		cm_el1_sysregs_context_save(SECURE);
+
+		req_info = (cix_tee_req_info*)(SKY1_ATF_TEE_SHM_BASE);
+		point_rsp = (uint8_t *)(SKY1_ATF_TEE_SHM_BASE + sizeof(cix_tee_req_info));
+		cix_dispatch_ipc_req(req_info->offset, req_info->len, point_rsp, &(req_info->data_len), flags);
+		if (0U == req_info->data_len) {
+			req_info->result = IPC_RESULT_FAIL;
+		} else {
+			req_info->result = IPC_RESULT_SUCCESS;
+		}
+
+		/* Get a reference to the non-secure context */
+		s_cpu_context = cm_get_context(SECURE);
+		assert(s_cpu_context);
+
+		/* Restore non-secure state */
+		cm_el1_sysregs_context_restore(SECURE);
+		cm_set_next_eret_context(SECURE);
+
+		SMC_RET4(s_cpu_context, x1, x2, x3, x4);
+	case TEESMC_OPTEED_TEE_PANIC_DONE:
+		ERROR("Receive TEESMC_OPTEED_TEE_PANIC_DONE\n");
+#if SDEI_TEE_EXCEPTION_SUPPORT
+		sdei_tee_exception_handler(x1);
+#endif
 
 	default:
 		panic();

@@ -10,9 +10,38 @@
 
 #include <common/debug.h>
 #include <plat/common/platform.h>
+#if RAM_LOG_SUPPORT
+#include <lib/rlog.h>
+#endif
 
 /* Set the default maximum log level to the `LOG_LEVEL` build flag */
-static unsigned int max_log_level = LOG_LEVEL;
+unsigned int max_log_level = LOG_LEVEL;
+
+#if RAM_LOG_SUPPORT
+enum RLOG_LEVEL switch_log_level(unsigned level)
+{
+	enum RLOG_LEVEL rlog_level;
+
+	switch (level) {
+		case LOG_LEVEL_INFO:
+			rlog_level = RLOGLEVEL_INFO;
+			break;
+		case LOG_LEVEL_WARNING:
+			rlog_level = RLOGLEVEL_WARNING;
+			break;
+		case LOG_LEVEL_NOTICE:
+			rlog_level = RLOGLEVEL_INFO;
+			break;
+		case LOG_LEVEL_ERROR:
+			rlog_level = RLOGLEVEL_ERR;
+			break;
+		default:
+			rlog_level = RLOGLEVEL_DEBUG;
+			break;
+	}
+	return rlog_level;
+}
+#endif
 
 /*
  * The common log function which is invoked by TF-A code.
@@ -33,6 +62,12 @@ void tf_log(const char *fmt, ...)
 	/* Verify that log_level is one of LOG_MARKER_* macro defined in debug.h */
 	assert((log_level > 0U) && (log_level <= LOG_LEVEL_VERBOSE));
 	assert((log_level % 10U) == 0U);
+
+#if RAM_LOG_SUPPORT
+	va_start(args, fmt);
+	rlog_printf_va(switch_log_level(log_level), fmt + 1, args);
+	va_end(args);
+#endif
 
 	if (log_level > max_log_level)
 		return;

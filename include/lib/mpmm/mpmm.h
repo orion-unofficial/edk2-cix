@@ -11,6 +11,8 @@
 
 #include <platform_def.h>
 
+#define MAPMM_THRESHOLD 0x43704280437
+
 /*
  * Enable the Maximum Power Mitigation Mechanism.
  *

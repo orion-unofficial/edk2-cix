@@ -30,9 +30,13 @@ int scmi_get_draminfo(void *p, struct draminfo *info)
 	scmi_channel_t *ch = (scmi_channel_t *)p;
 	struct dram_info_resp response;
 
-	validate_scmi_channel(ch);
+	ret = validate_scmi_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
-	scmi_get_channel(ch);
+	ret = scmi_get_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
 	mbx_mem = (mailbox_mem_t *)(ch->info->scmi_mbx_mem);
 	mbx_mem->msg_header = SCMI_MSG_CREATE(SCMI_SYS_VENDOR_EXT_PROTO_ID,

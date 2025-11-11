@@ -225,3 +225,20 @@ interrupt_type_handler_t get_interrupt_type_handler(uint32_t type)
 	return intr_type_descs[type].handler;
 }
 
+#if CIX_DST_SUPPORT
+extern void fiq_push(uint32_t intr);
+uint32_t record_interrupt(uint32_t type)
+{
+	uint64_t flag = read_scr_el3() & 0x01;
+	uint64_t ss = get_interrupt_src_ss(flag);
+	uint32_t bit_pos = 0, intr_raw, intr;
+
+	bit_pos = plat_interrupt_type_to_line(type, ss);
+	if (bit_pos == __builtin_ctz(SCR_FIQ_BIT)) {
+		intr_raw = plat_ic_get_pending_interrupt_id();
+		intr = plat_ic_get_interrupt_id(intr_raw);
+		fiq_push(intr);
+	}
+	return type;
+}
+#endif

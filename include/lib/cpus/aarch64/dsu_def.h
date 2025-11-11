@@ -34,6 +34,8 @@
 #define CLUSTERACTLR_EL1_DISABLE_CLOCK_GATING	(ULL(1) << 15)
 #define CLUSTERACTLR_EL1_DISABLE_SCLK_GATING	(ULL(3) << 15)
 
+
+#define CLUSTER_DSU_MASKING (ULL(1) << 12)
 /********************************************************************
  * Masks applied for DSU errata workarounds
  ********************************************************************/

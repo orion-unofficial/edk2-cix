@@ -10,6 +10,10 @@
 #include <stdint.h>
 
 #include <common/debug.h>
+#if RAM_LOG_SUPPORT
+#include <lib/rlog.h>
+#endif
+
 
 #define get_num_va_args(_args, _lcount)				\
 	(((_lcount) > 1)  ? va_arg(_args, long long int) :	\
@@ -191,6 +195,12 @@ int printf(const char *fmt, ...)
 {
 	int count;
 	va_list va;
+
+#if RAM_LOG_SUPPORT
+	va_start(va, fmt);
+	rlog_printf_va(RLOGLEVEL_INFO, fmt, va);
+	va_end(va);
+#endif
 
 	va_start(va, fmt);
 	count = vprintf(fmt, va);

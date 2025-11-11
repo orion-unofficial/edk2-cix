@@ -260,6 +260,9 @@ exp_from_EL3:
 	 * It makes sense to return from this exception instead of reporting an
 	 * error.
 	 */
+#if CIX_DST_SUPPORT
+	bl record_interrupt
+#endif
 	bl	get_interrupt_type_handler
 	cbz	x0, interrupt_exit_\label
 	mov	x21, x0

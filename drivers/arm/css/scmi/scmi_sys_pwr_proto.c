@@ -9,6 +9,7 @@
 #include <arch_helpers.h>
 #include <common/debug.h>
 #include <drivers/arm/css/scmi.h>
+#include <sky1_plat.h>
 
 #include "scmi_private.h"
 
@@ -22,9 +23,13 @@ int scmi_sys_pwr_state_set(void *p, uint32_t flags, uint32_t system_state)
 	int ret;
 	scmi_channel_t *ch = (scmi_channel_t *)p;
 
-	validate_scmi_channel(ch);
+	ret = validate_scmi_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
-	scmi_get_channel(ch);
+	ret = scmi_get_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
 	mbx_mem = (mailbox_mem_t *)(ch->info->scmi_mbx_mem);
 	mbx_mem->msg_header = SCMI_MSG_CREATE(SCMI_SYS_PWR_PROTO_ID,
@@ -55,9 +60,13 @@ int scmi_sys_pwr_state_get(void *p, uint32_t *system_state)
 	int ret;
 	scmi_channel_t *ch = (scmi_channel_t *)p;
 
-	validate_scmi_channel(ch);
+	ret = validate_scmi_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
-	scmi_get_channel(ch);
+	ret = scmi_get_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
 	mbx_mem = (mailbox_mem_t *)(ch->info->scmi_mbx_mem);
 	mbx_mem->msg_header = SCMI_MSG_CREATE(SCMI_SYS_PWR_PROTO_ID,
@@ -75,4 +84,26 @@ int scmi_sys_pwr_state_get(void *p, uint32_t *system_state)
 	scmi_put_channel(ch);
 
 	return ret;
+}
+
+/*
+ * API to notify the SCMI cpu power state to pm
+ */
+int scmi_core_pwr_state_notify(void *p, uint32_t flags, uint32_t core_id)
+{
+       scp_pm_msg pm_msg;
+       void *ch = sky1_get_scmi_handle();
+       int ret;
+
+       pm_msg.msg_id = flags;
+       pm_msg.tx_len = 1;
+       pm_msg.tx_data[0] = core_id;
+
+       ret = scmi_send_msg_to_pm(ch, &pm_msg);
+       if (ret) {
+               INFO("scmi_send_msg_to_pm failed!\n");
+               return ret;
+       }
+
+       return ret;
 }

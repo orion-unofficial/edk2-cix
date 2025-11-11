@@ -332,6 +332,11 @@ static inline void gicr_write_waker(uintptr_t base, uint32_t val)
 	mmio_write_32(base + GICR_WAKER, val);
 }
 
+static inline void gicr_write_mpidr(uintptr_t base, uint32_t val)
+{
+	mmio_write_32(base + GICR_MPIDR, val);
+}
+
 /*
  * Wait for updates to:
  * GICR_ICENABLER0

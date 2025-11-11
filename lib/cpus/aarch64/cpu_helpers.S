@@ -26,9 +26,11 @@ func reset_handler
 	mov	x19, x30
 
 	/* The plat_reset_handler can clobber x0 - x18, x30 */
+	cix_postcode_debug_asm _code=0x161
 	bl	plat_reset_handler
 
 	/* Get the matching cpu_ops pointer */
+	cix_postcode_debug_asm _code=0x162
 	bl	get_cpu_ops_ptr
 #if ENABLE_ASSERTIONS
 	cmp	x0, #0

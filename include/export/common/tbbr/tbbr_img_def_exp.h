@@ -104,7 +104,13 @@
 /* Realm Monitor Manager (RMM) */
 #define RMM_IMAGE_ID			U(34)
 
+/* Firmware Image Package For UEFI */
+#define FIP_UEFI_IMAGE_ID		U(35)
+
+/* Certificates For UEFI*/
+#define NON_TRUSTED_KEY_CERT_ID		U(36)
+
 /* Max Images */
-#define MAX_IMAGE_IDS			U(35)
+#define MAX_IMAGE_IDS			U(37)
 
 #endif /* ARM_TRUSTED_FIRMWARE_EXPORT_COMMON_TBBR_TBBR_IMG_DEF_EXP_H */

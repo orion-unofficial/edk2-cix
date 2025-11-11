@@ -20,6 +20,11 @@
 
 #include <plat/common/platform.h>
 
+#ifdef CONFIG_CIX_HW_SPINLOCK
+#include  "hwspinlock.h"
+#define MAPMM_THRESHOLD 0x43704280437
+#endif
+
 #if ENABLE_AMU_FCONF
 #	include <lib/fconf/fconf.h>
 #	include <lib/fconf/fconf_amu_getter.h>
@@ -492,6 +497,9 @@ static void *amu_context_save(const void *arg)
 	 * Disable all AMU counters.
 	 */
 
+#ifdef CONFIG_CIX_HW_SPINLOCK
+	sky1_hwspinlock_trylock(CORE_MUTEX_IDX + core_pos, 20000);
+#endif
 	ctx->group0_enable = read_amcntenset0_el0_px();
 	write_amcntenclr0_el0_px(ctx->group0_enable);
 
@@ -648,6 +656,9 @@ static void *amu_context_restore(const void *arg)
 	mpmm_enable();
 #endif
 
+#ifdef CONFIG_CIX_HW_SPINLOCK
+	sky1_hwspinlock_unlock(CORE_MUTEX_IDX + core_pos);
+#endif
 	return (void *)0;
 }
 

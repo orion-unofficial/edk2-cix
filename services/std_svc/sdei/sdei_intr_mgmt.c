@@ -20,6 +20,8 @@
 #include <services/sdei.h>
 
 #include "sdei_private.h"
+#include <platform_def.h>
+#include <plat_cix.h>
 
 /* x0-x17 GPREGS context */
 #define SDEI_SAVED_GPREGS	18U
@@ -573,8 +575,14 @@ int sdei_intr_handler(uint32_t intr_raw, uint32_t flags, void *handle,
 		ERROR("Invalid SDEI mapping: ev=0x%x\n", map->ev_num);
 		panic();
 	}
-	plat_ic_end_of_interrupt(intr_raw);
 
+#if SDEI_WDT_SUPPORT
+	if (intr_raw == CIX_AP_WDT_INTR) {
+		INFO("%s,%d disable sdei wdt int%d ... \n", __func__, __LINE__, intr_raw);
+		plat_ic_disable_interrupt(intr_raw);
+	}
+#endif
+	plat_ic_end_of_interrupt(intr_raw);
 	return 0;
 }
 

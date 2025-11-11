@@ -332,6 +332,13 @@ func el3_panic
 	 * ------------------------------------------------------------
 	 */
 do_crash_reporting:
+#ifdef RAM_LOG_SUPPORT
+	save_regs
+	/* ebable crash for rlog, level RLOGLEVEL_ERR */
+	mov x0, #1
+	bl rlog_enable_putc
+	restore_regs
+#endif
 	/* Retrieve the crash buf from tpidr_el3 */
 	mrs	x0, tpidr_el3
 	/* Store x2 - x6, x30 in the crash buffer */

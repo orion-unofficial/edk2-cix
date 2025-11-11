@@ -37,6 +37,12 @@ DEFINE_SVC_UUID2(trusty_uuid,
 /* length of Trusty's input parameters (in bytes) */
 #define TRUSTY_PARAMS_LEN_BYTES	(4096U * 2)
 
+#define	SMC_ENTITY_PLATFORM_MONITOR	61
+/*
+ * Write character in r1 to debug console
+ */
+#define SMC_FC_DEBUG_PUTC	SMC_FASTCALL_NR(SMC_ENTITY_PLATFORM_MONITOR, 0x0)
+
 struct trusty_stack {
 	uint8_t space[PLATFORM_STACK_SIZE] __aligned(16);
 	uint32_t end;
@@ -85,6 +91,33 @@ static bool is_hypervisor_mode(void)
 	uint64_t hcr = read_hcr();
 
 	return ((hcr & HYP_ENABLE_FLAG) != 0U) ? true : false;
+}
+
+struct dputc_state {
+	char linebuf[128];
+	unsigned l;
+};
+
+static struct dputc_state dputc_state[2];
+
+static void trusty_dputc(char ch, int secure)
+{
+	unsigned i;
+	struct dputc_state *s = &dputc_state[!secure];
+	s->linebuf[s->l++] = ch;
+	if (s->l == sizeof(s->linebuf) || ch == '\n') {
+		if (secure)
+			printf("secure os: ");
+		else
+			printf("non-secure os: ");
+		for (i = 0; i < s->l; i++) {
+			putchar(s->linebuf[i]);
+		}
+		if (ch != '\n') {
+			printf(" <...>\n");
+		}
+		s->l = 0;
+	}
 }
 
 static struct smc_args trusty_context_switch(uint32_t security_state, uint64_t r0,
@@ -254,16 +287,21 @@ static uintptr_t trusty_smc_handler(uint32_t smc_fid,
 	}
 
 	if (is_caller_secure(flags)) {
-		if (smc_fid == SMC_YC_NS_RETURN) {
+		switch (smc_fid) {
+		case SMC_YC_NS_RETURN:
 			ret = trusty_context_switch(SECURE, x1, 0, 0, 0);
 			SMC_RET8(handle, ret.r0, ret.r1, ret.r2, ret.r3,
 				 ret.r4, ret.r5, ret.r6, ret.r7);
+		case SMC_FC_DEBUG_PUTC:
+			trusty_dputc(x1, is_caller_secure(flags));
+			SMC_RET1(handle, 0);
+		default:
+			INFO("%s (0x%x, 0x%lx, 0x%lx, 0x%lx, 0x%lx, %p, %p, 0x%lx) \
+			     cpu %d, unknown smc\n",
+			     __func__, smc_fid, x1, x2, x3, x4, cookie, handle, flags,
+			     plat_my_core_pos());
+			SMC_RET1(handle, SMC_UNK);
 		}
-		INFO("%s (0x%x, 0x%lx, 0x%lx, 0x%lx, 0x%lx, %p, %p, 0x%lx) \
-		     cpu %d, unknown smc\n",
-		     __func__, smc_fid, x1, x2, x3, x4, cookie, handle, flags,
-		     plat_my_core_pos());
-		SMC_RET1(handle, SMC_UNK);
 	} else {
 		switch (smc_fid) {
 		case SMC_FC64_GET_UUID:

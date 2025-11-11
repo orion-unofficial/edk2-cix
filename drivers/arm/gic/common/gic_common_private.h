@@ -35,6 +35,16 @@ static inline void gicd_write_ctlr(uintptr_t base, unsigned int val)
 	mmio_write_32(base + GICD_CTLR, val);
 }
 
+static inline unsigned int gicd_read_rdoffr(uintptr_t base)
+{
+	return mmio_read_32(base + 0xc800);
+}
+
+static inline void gicd_write_rdoffr(uintptr_t base, unsigned int val)
+{
+	mmio_write_32(base + 0xc800, val);
+}
+
 /*******************************************************************************
  * GIC Distributor function prototypes for accessing entire registers.
  * Note: The raw register values correspond to multiple interrupt IDs and

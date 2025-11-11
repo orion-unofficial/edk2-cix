@@ -320,9 +320,15 @@ endif
 
 # Default build string (git branch and commit)
 ifeq (${BUILD_STRING},)
-        BUILD_STRING  :=  $(shell git describe --always --dirty --tags 2> /dev/null)
+ifeq ($(CIX_VERSION), )
+        BUILD_STRING  :=  $(shell git describe --always --dirty --tags --long 2> /dev/null)
+else
+        BUILD_STRING  :=  $(CIX_VERSION)
+endif
+        COMMIT_HASH   :=  $(shell git rev-parse --short=12 HEAD 2> /dev/null)
 endif
 VERSION_STRING    :=  v${VERSION_MAJOR}.${VERSION_MINOR}(${BUILD_TYPE}):${BUILD_STRING}
+SHMEM_VERSION_STRING := v${VERSION_MAJOR}.${VERSION_MINOR}-${COMMIT_HASH}
 
 ifeq (${AARCH32_INSTRUCTION_SET},A32)
 TF_CFLAGS_aarch32	+=	-marm
@@ -472,6 +478,23 @@ endif
 
 ifeq (${SANITIZE_UB},on)
 BL_COMMON_SOURCES	+=	plat/common/ubsan.c
+endif
+
+RAM_LOG_SUPPORT		:=	1
+
+ifeq (${RAM_LOG_SUPPORT}, 1)
+BL_COMMON_SOURCES	+=      common/rlog.c
+$(eval $(call add_define,RAM_LOG_SUPPORT))
+endif
+
+###################################################################
+#
+# TZC_ENABLE :=1, control whether to protect memory by tzc400 or tzc500
+#
+###################################################################
+TZC_ENABLE		:=	1
+ifeq (${TZC_ENABLE}, 1)
+$(eval $(call add_define,TZC_ENABLE))
 endif
 
 INCLUDES		+=	-Iinclude				\
@@ -705,9 +728,9 @@ endif
 
 # For RAS_EXTENSION, require that EAs are handled in EL3 first
 ifeq ($(RAS_EXTENSION),1)
-    ifneq ($(HANDLE_EA_EL3_FIRST),1)
-        $(error For RAS_EXTENSION, HANDLE_EA_EL3_FIRST must also be 1)
-    endif
+     ifneq ($(HANDLE_EA_EL3_FIRST),1)
+         $(error For RAS_EXTENSION, HANDLE_EA_EL3_FIRST must also be 1)
+     endif
 endif
 
 # When FAULT_INJECTION_SUPPORT is used, require that RAS_EXTENSION is enabled

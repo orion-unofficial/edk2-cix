@@ -146,7 +146,7 @@ static int spi_mem_check_bus_ops(const struct spi_bus_ops *ops)
  *
  * Return: 0 in case of success, a negative error code otherwise.
  */
-int spi_mem_exec_op(const struct spi_mem_op *op)
+int spi_mem_exec_op(struct spi_mem_op *op)
 {
 	const struct spi_bus_ops *ops = spi_slave.ops;
 	int ret;
@@ -156,9 +156,8 @@ int spi_mem_exec_op(const struct spi_mem_op *op)
 		op->dummy.buswidth, op->data.buswidth,
 		op->addr.val, op->data.nbytes);
 
+	/*no need to check, because we get config from spi nor flash*/
 	if (!spi_mem_supports_op(op)) {
-		WARN("Error in spi_mem_support\n");
-		return -ENOTSUP;
 	}
 
 	ret = ops->claim_bus(spi_slave.cs);
@@ -287,3 +286,10 @@ int spi_mem_init_slave(void *fdt, int bus_node, const struct spi_bus_ops *ops)
 
 	return spi_mem_set_speed_mode();
 }
+
+int spi_mem_init(const struct spi_bus_ops *ops)
+{
+	spi_slave.ops = ops;
+	return 0;
+}
+

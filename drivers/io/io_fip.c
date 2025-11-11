@@ -18,6 +18,7 @@
 #include <drivers/io/io_storage.h>
 #include <lib/utils.h>
 #include <plat/common/platform.h>
+#include <plat_cix.h>
 #include <tools_share/firmware_image_package.h>
 #include <tools_share/uuid.h>
 
@@ -384,6 +385,8 @@ static int fip_file_read(io_entity_t *entity, uintptr_t buffer, size_t length,
 	size_t file_offset;
 	size_t bytes_read;
 	uintptr_t backend_handle;
+	csec_km_meta_t *meta = (csec_km_meta_t *)OEM_ROTPK_DDR_BASE_ADDRESS_AP;
+	uint32_t tfa_bde = 0;
 
 	assert(entity != NULL);
 	assert(length_read != NULL);
@@ -410,6 +413,16 @@ static int fip_file_read(io_entity_t *entity, uintptr_t buffer, size_t length,
 		goto fip_file_read_close;
 	}
 
+	result = btcfg_get_value(meta->boot_cfg, "pb.tfabde", &tfa_bde);
+	if (result != 0) {
+		WARN("Get boot time config failed:(%i)\n", result);
+	}
+
+	if (!cix_bl_mode_is_backdoor()) {
+		INFO("Flash load BL3X!\n");
+	} else {
+		INFO("Backdoor load BL3X!\n");
+	}
 	result = io_read(backend_handle, buffer, length, &bytes_read);
 	if (result != 0) {
 		/* We cannot read our data. Fail. */

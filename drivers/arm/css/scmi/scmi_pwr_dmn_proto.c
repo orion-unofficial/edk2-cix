@@ -29,9 +29,13 @@ int scmi_pwr_state_set(void *p, uint32_t domain_id,
 	uint32_t pwr_state_set_msg_flag = SCMI_PWR_STATE_SET_FLAG_ASYNC;
 	scmi_channel_t *ch = (scmi_channel_t *)p;
 
-	validate_scmi_channel(ch);
+	ret = validate_scmi_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
-	scmi_get_channel(ch);
+	ret = scmi_get_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
 	mbx_mem = (mailbox_mem_t *)(ch->info->scmi_mbx_mem);
 	mbx_mem->msg_header = SCMI_MSG_CREATE(SCMI_PWR_DMN_PROTO_ID,
@@ -64,9 +68,13 @@ int scmi_pwr_state_get(void *p, uint32_t domain_id,
 	int ret;
 	scmi_channel_t *ch = (scmi_channel_t *)p;
 
-	validate_scmi_channel(ch);
+	ret = validate_scmi_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
-	scmi_get_channel(ch);
+	ret = scmi_get_channel(ch);
+	if (ret != SCMI_E_SUCCESS)
+		return ret;
 
 	mbx_mem = (mailbox_mem_t *)(ch->info->scmi_mbx_mem);
 	mbx_mem->msg_header = SCMI_MSG_CREATE(SCMI_PWR_DMN_PROTO_ID,

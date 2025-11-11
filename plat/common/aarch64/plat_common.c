@@ -53,7 +53,7 @@ unsigned int platform_core_pos_helper(unsigned long mpidr)
  */
 void plat_sdei_handle_masked_trigger(uint64_t mpidr, unsigned int intr)
 {
-	WARN("Spurious SDEI interrupt %u on masked PE %" PRIx64 "\n", intr, mpidr);
+	VERBOSE("Spurious SDEI interrupt %u on masked PE %" PRIx64 "\n", intr, mpidr);
 }
 
 /*

@@ -107,6 +107,31 @@ void __dead2 do_panic(void);
 		do_panic();		\
 	} while (false)
 
+static inline void hexdump(const char *tag, const uint8_t *pbuf, const uint32_t size)
+{
+	uint32_t i;
+	char format[] = "%s %08d:";
+
+	printf("0x%x:\n", (unsigned int)(unsigned long)pbuf);
+	for (i = 0; i < size; i += 16) {
+		uint32_t j, Limit;
+
+		if (i + 16 > size)
+		    Limit = size - i;
+		else
+		    Limit = 16;
+
+		printf(format, tag, i);
+
+		for (j = 0; j < Limit; j++)
+		    printf(" 0x%x,", pbuf[i + j]);
+
+		printf("\n");
+	}
+}
+
+extern unsigned int max_log_level;
+
 /* Function called when stack protection check code detects a corrupted stack */
 void __dead2 __stack_chk_fail(void);
 

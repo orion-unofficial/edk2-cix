@@ -22,10 +22,31 @@
 #include <lib/runtime_instr.h>
 #include <plat/common/platform.h>
 #include <services/std_svc.h>
+#if RAM_LOG_SUPPORT
+#include <lib/rlog.h>
+#endif
+#ifdef FW_BOOT_PERF_SUPPORT
+#include <cix_fw_boot_perf.h>
+#endif
 
 #if ENABLE_RUNTIME_INSTRUMENTATION
 PMF_REGISTER_SERVICE_SMC(rt_instr_svc, PMF_RT_INSTR_SVC_ID,
 	RT_INSTR_TOTAL_IDS, PMF_STORE_ENABLE)
+#endif
+
+#if RAM_LOG_SUPPORT
+
+static unsigned long long rlog_get_tick(void)
+{
+	return read_cntpct_el0();
+}
+
+static ramlog_ops g_r_ops = {
+	.flush = flush_dcache_range,
+	.get_tick = rlog_get_tick,
+	.lock = NULL,
+	.unlock = NULL,
+};
 #endif
 
 /*******************************************************************************
@@ -88,6 +109,11 @@ void bl31_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
 		u_register_t arg3)
 {
 	/* Perform early platform-specific setup */
+#ifdef FW_BOOT_PERF_SUPPORT
+	cix_boot_perf_init(TFA_PHASE);
+	cix_set_boot_phase(TFA_PHASE, RECORD_START);
+#endif
+	cix_postcode_debug(0x201);
 	bl31_early_platform_setup2(arg0, arg1, arg2, arg3);
 
 	/* Perform late platform-specific setup */
@@ -111,6 +137,25 @@ void bl31_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
 #endif /* CTX_INCLUDE_PAUTH_REGS */
 }
 
+int cdns_xspi_init(void);
+
+int cix_qspi_init(){
+        uint32_t i = 0;
+        int rc = 0;
+        INFO("cix_qspi_init start...\n");
+        // IOMUX config, switch to fch xspi
+        for(i = 0; i<6; i++) {
+                mmio_write_32(CIX_IOMUX_S5_BASE + 0xf0 + 0x4*i, 0xdc);
+        }
+        rc = cdns_xspi_init();
+        if (rc < 0) {
+                ERROR("CIX: xspi init failed\n");
+                return rc;
+        }
+        INFO("cix_qspi_init end...\n");
+        return 0;
+}
+
 /*******************************************************************************
  * BL31 is responsible for setting up the runtime services for the primary cpu
  * before passing control to the bootloader or an Operating System. This
@@ -121,6 +166,11 @@ void bl31_setup(u_register_t arg0, u_register_t arg1, u_register_t arg2,
  ******************************************************************************/
 void bl31_main(void)
 {
+#if RAM_LOG_SUPPORT
+	rlog_init_printf((char *)RAM_LOG_BL31_ADDR, RAM_LOG_BL31_SIZE,
+			 &g_r_ops);
+#endif
+
 	NOTICE("BL31: %s\n", version_string);
 	NOTICE("BL31: %s\n", build_message);
 
@@ -137,6 +187,10 @@ void bl31_main(void)
 
 	/* Perform platform setup in BL31 */
 	bl31_platform_setup();
+
+#ifdef BOOT_SPI_NOR
+	cix_qspi_init();
+#endif
 
 	/* Initialise helper libraries */
 	bl31_lib_init();

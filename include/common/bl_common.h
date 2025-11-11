@@ -178,6 +178,7 @@ void dyn_disable_auth(void);
 
 extern const char build_message[];
 extern const char version_string[];
+extern const char shmem_version_string[];
 
 void print_entry_point_info(const entry_point_info_t *ep_info);
 uintptr_t page_align(uintptr_t value, unsigned dir);
@@ -188,6 +189,11 @@ void setup_page_tables(const struct mmap_region *bl_regions,
 			   const struct mmap_region *plat_regions);
 
 void bl_handle_pauth(void);
+
+/* write post code register */
+void cix_postcode_debug(uint32_t val);
+
+void get_stack_status();
 
 #endif /*__ASSEMBLER__*/
 

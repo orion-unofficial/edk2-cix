@@ -9,6 +9,7 @@
 #include <arch.h>
 #include <common/asm_macros_common.S>
 #include <lib/spinlock.h>
+#include <platform_def.h>
 
 /*
  * TLBI instruction with type specifier that implements the workaround for
@@ -227,5 +228,62 @@
 	isb
 #endif
 	.endm
+
+	.macro cix_postcode_debug_asm _code
+#ifdef CONFIG_CIX_POSTDEBUG_DEBUG
+		mov x23, x0
+		mov x24, x1
+		mov x0, #(\_code)
+		ldr x1, =POSTCODE_REGISTER_BASE
+		add w0, w0, #(POSTCODE_RANGE>>12), lsl #12
+		str w0, [x1]
+		mov x0, x23
+		mov x1, x24
+#endif
+	.endm
+
+#ifdef RAM_LOG_SUPPORT
+	.macro save_regs
+		/* restore sp to MODE_SP_EL0 */
+		msr spsel, #MODE_SP_EL0
+		/* save x1~x30 regs */
+		stp x29, x30, [sp, #-REGSZ * 30]!
+		stp x27, x28, [sp, #REGSZ * 2]
+		stp x25, x26, [sp, #REGSZ * 4]
+		stp x23, x24, [sp, #REGSZ * 6]
+		stp x21, x22, [sp, #REGSZ * 8]
+		stp x19, x20, [sp, #REGSZ * 10]
+		stp x17, x18, [sp, #REGSZ * 12]
+		stp x15, x16, [sp, #REGSZ * 14]
+		stp x13, x14, [sp, #REGSZ * 16]
+		stp x11, x12, [sp, #REGSZ * 18]
+		stp x9, x10, [sp, #REGSZ * 20]
+		stp x7, x8, [sp, #REGSZ * 22]
+		stp x5, x6, [sp, #REGSZ * 24]
+		stp x3, x4, [sp, #REGSZ * 26]
+		stp x1, x2, [sp, #REGSZ * 28]
+	.endm
+
+	.macro restore_regs
+		/* restore x1~x30 regs */
+		ldp x27, x28, [sp, #REGSZ * 2]
+		ldp x25, x26, [sp, #REGSZ * 4]
+		ldp x23, x24, [sp, #REGSZ * 6]
+		ldp x21, x22, [sp, #REGSZ * 8]
+		ldp x19, x20, [sp, #REGSZ * 10]
+		ldp x17, x18, [sp, #REGSZ * 12]
+		ldp x15, x16, [sp, #REGSZ * 14]
+		ldp x13, x14, [sp, #REGSZ * 16]
+		ldp x11, x12, [sp, #REGSZ * 18]
+		ldp x9, x10, [sp, #REGSZ * 20]
+		ldp x7, x8, [sp, #REGSZ * 22]
+		ldp x5, x6, [sp, #REGSZ * 24]
+		ldp x3, x4, [sp, #REGSZ * 26]
+		ldp x1, x2, [sp, #REGSZ * 28]
+		ldp x29, x30, [sp], #REGSZ * 30
+		/* restore sp to MODE_SP_ELX */
+		msr spsel, #MODE_SP_ELX
+	.endm
+#endif
 
 #endif /* ASM_MACROS_S */
