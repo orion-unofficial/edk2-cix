@@ -138,7 +138,6 @@ static void spi_test_with_manual_cs_control(void)
 	spi_set_cs_mux(PINMUX_SPI);
 	tee_time_busy_wait(2);
 	for (j = 20; j < 30; j++) {
-		DMSG("SPI test loop: %zu", j);
 		res = pd.chip.ops->txrx8(&pd.chip, tx, rx, len);
 		if (res) {
 			EMSG("SPI transceive error %d", res);

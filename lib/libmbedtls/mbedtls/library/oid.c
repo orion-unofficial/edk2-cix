@@ -527,6 +527,12 @@ static const oid_ecp_grp_t oid_ecp_grp[] =
         MBEDTLS_ECP_DP_BP512R1,
     },
 #endif /* MBEDTLS_ECP_DP_BP512R1_ENABLED */
+#if defined(MBEDTLS_ECP_DP_SM2P256V1_ENABLED)
+    {
+        { ADD_LEN( MBEDTLS_OID_EC_GRP_SM2P256V1 ),   "SM2","sm2" },
+        MBEDTLS_ECP_DP_SM2P256V1,
+    },
+#endif /* MBEDTLS_ECP_DP_SM2P256V1_ENABLED */
     {
         { NULL, 0, NULL, NULL },
         MBEDTLS_ECP_DP_NONE,
@@ -620,6 +626,12 @@ static const oid_md_alg_t oid_md_alg[] =
     {
         { ADD_LEN( MBEDTLS_OID_DIGEST_ALG_SHA512 ),    "id-sha512",    "SHA-512" },
         MBEDTLS_MD_SHA512,
+    },
+#endif /* MBEDTLS_SHA512_C */
+#if defined(MBEDTLS_SM3_C)
+    {
+        { ADD_LEN( MBEDTLS_OID_DIGEST_ALG_SM3 ),    "sm3",    "SM3" },
+        MBEDTLS_MD_SM3,
     },
 #endif /* MBEDTLS_SHA512_C */
 #if defined(MBEDTLS_RIPEMD160_C)

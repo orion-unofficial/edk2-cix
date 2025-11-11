@@ -78,7 +78,6 @@ int mbedtls_hardclock_poll( void *data,
                     unsigned char *output, size_t len, size_t *olen );
 #endif
 
-#if defined(MBEDTLS_ENTROPY_HARDWARE_ALT)
 /**
  * \brief           Entropy poll callback for a hardware source
  *
@@ -89,7 +88,6 @@ int mbedtls_hardclock_poll( void *data,
  */
 int mbedtls_hardware_poll( void *data,
                            unsigned char *output, size_t len, size_t *olen );
-#endif
 
 #if defined(MBEDTLS_ENTROPY_NV_SEED)
 /**

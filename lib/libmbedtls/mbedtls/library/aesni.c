@@ -41,6 +41,7 @@
 #endif
 
 #if defined(MBEDTLS_HAVE_X86_64)
+#if !defined(MBEDTLS_AES_ALT)
 
 /*
  * AES-NI support detection routine
@@ -460,5 +461,5 @@ int mbedtls_aesni_setkey_enc( unsigned char *rk,
 }
 
 #endif /* MBEDTLS_HAVE_X86_64 */
-
+#endif /* MBEDTLS_AES_ALT */
 #endif /* MBEDTLS_AESNI_C */

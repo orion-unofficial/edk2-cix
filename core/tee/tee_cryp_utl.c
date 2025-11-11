@@ -57,6 +57,36 @@ out:
 	return res;
 }
 
+TEE_Result tee_mac_get_digest_size(uint32_t algo, size_t *size)
+{
+	switch (algo) {
+	case TEE_ALG_HMAC_MD5:
+	case TEE_ALG_HMAC_SHA224:
+	case TEE_ALG_HMAC_SHA1:
+	case TEE_ALG_HMAC_SHA256:
+	case TEE_ALG_HMAC_SHA384:
+	case TEE_ALG_HMAC_SHA512:
+	case TEE_ALG_HMAC_SM3:
+		return tee_alg_get_digest_size(algo, size);
+	case TEE_ALG_AES_CBC_MAC_NOPAD:
+	case TEE_ALG_AES_CBC_MAC_PKCS5:
+	case TEE_ALG_AES_CMAC:
+		*size = TEE_AES_BLOCK_SIZE;
+		return TEE_SUCCESS;
+	case TEE_ALG_DES_CBC_MAC_NOPAD:
+	case TEE_ALG_DES_CBC_MAC_PKCS5:
+	case TEE_ALG_DES3_CBC_MAC_NOPAD:
+	case TEE_ALG_DES3_CBC_MAC_PKCS5:
+		*size = TEE_DES_BLOCK_SIZE;
+		return TEE_SUCCESS;
+	case TEE_ALG_SM4_CMAC:
+		*size = TEE_SM4_BLOCK_SIZE;
+		return TEE_SUCCESS;
+	default:
+		return TEE_ERROR_NOT_SUPPORTED;
+	}
+}
+
 TEE_Result tee_cipher_get_block_size(uint32_t algo, size_t *size)
 {
 	switch (algo) {
@@ -73,6 +103,9 @@ TEE_Result tee_cipher_get_block_size(uint32_t algo, size_t *size)
 	case TEE_ALG_SM4_ECB_NOPAD:
 	case TEE_ALG_SM4_CBC_NOPAD:
 	case TEE_ALG_SM4_CTR:
+	case TEE_ALG_SM4_XTS:
+	case TEE_ALG_SM4_CCM:
+	case TEE_ALG_SM4_GCM:
 		*size = 16;
 		break;
 
@@ -130,6 +163,7 @@ TEE_Result tee_do_cipher_update(void *ctx, uint32_t algo,
 		case TEE_ALG_AES_CTR:
 		case TEE_ALG_AES_XTS:
 		case TEE_ALG_AES_CTS:
+		case TEE_ALG_SM4_XTS:
 			/*
 			 * These modes doesn't require padding for the last
 			 * block.

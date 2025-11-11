@@ -18,6 +18,8 @@
 #include <mm/core_mmu_arch.h>
 #include <platform_config.h>
 
+#define DEFAULT_PHY_TO_VIRT_SIZE 4
+
 /* A small page is the smallest unit of memory that can be mapped */
 #define SMALL_PAGE_SIZE			BIT(SMALL_PAGE_SHIFT)
 #define SMALL_PAGE_MASK			((paddr_t)SMALL_PAGE_SIZE - 1)

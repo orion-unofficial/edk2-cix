@@ -54,6 +54,8 @@
 #define mbedtls_free       free
 #endif
 
+#if !defined(MBEDTLS_BIGNUM_ALT)
+
 #include <mempool.h>
 #include <util.h>
 
@@ -3285,6 +3287,28 @@ cleanup:
 }
 
 #endif /* MBEDTLS_GENPRIME */
+
+int mbedtls_mpi_get_sign( const mbedtls_mpi *X )
+{
+    MPI_VALIDATE_RET(X != NULL);
+
+    return (int)(X->s);
+}
+
+int mbedtls_mpi_set_sign( mbedtls_mpi *X, int sign )
+{
+    MPI_VALIDATE_RET(X != NULL);
+    MPI_VALIDATE_RET((sign == 1) || (sign == -1));
+
+    X->s = (short)(sign);
+    return 0;
+}
+
+#else /* MBEDTLS_BIGNUM_ALT */
+
+void *mbedtls_mpi_mempool;
+
+#endif /* !MBEDTLS_BIGNUM_ALT */
 
 #if defined(MBEDTLS_SELF_TEST)
 

@@ -55,11 +55,16 @@
 
 #include "mbedtls/cipher.h"
 
+#define MBEDTLS_CCM_ENCRYPT     0 /**< CCM encryption. */
+#define MBEDTLS_CCM_DECRYPT     1 /**< CCM decryption. */
+
 #define MBEDTLS_ERR_CCM_BAD_INPUT       -0x000D /**< Bad input parameters to the function. */
 #define MBEDTLS_ERR_CCM_AUTH_FAILED     -0x000F /**< Authenticated decryption failed. */
 
 /* MBEDTLS_ERR_CCM_HW_ACCEL_FAILED is deprecated and should not be used. */
 #define MBEDTLS_ERR_CCM_HW_ACCEL_FAILED -0x0011 /**< CCM hardware accelerator failed. */
+
+#define MBEDTLS_ERR_CCM_FEATURE_UNAVAILABLE               -0x0023  /**< Feature not available. For example, an unsupported AES key size. */
 
 #ifdef __cplusplus
 extern "C" {
@@ -82,6 +87,46 @@ mbedtls_ccm_context;
 #else  /* MBEDTLS_CCM_ALT */
 #include "ccm_alt.h"
 #endif /* MBEDTLS_CCM_ALT */
+
+/**
+* Trust engine key ladder root key selection enumeration
+*/
+typedef enum mbedtls_ccm_key_sel {
+    MBEDTLS_CCM_KL_KEY_MODEL = 0,         /**< model key */
+    MBEDTLS_CCM_KL_KEY_ROOT               /**< device root key */
+} mbedtls_ccm_key_sel_t;
+
+/**
+ * secure key structure
+ */
+typedef struct mbedtls_ccm_sec_key {
+    mbedtls_ccm_key_sel_t sel;   /**< key ladder root key selection */
+    uint32_t ek3bits;            /**< ek3 length in bits, 128 or 256 */
+    union {
+        struct {
+            uint8_t ek1[16];     /**< encrypted key1 (fixed to 128-bit) */
+            uint8_t ek2[16];     /**< encrypted key2 (fixed to 128-bit) */
+            uint8_t ek3[32];     /**< encrypted key3 */
+        };
+        uint8_t eks[64];         /**< ek1 || ek2 || ek3 */
+    };
+} mbedtls_ccm_sec_key_t;
+
+/**
+ * secure key structure of key-ladder 256
+ */
+typedef struct mbedtls_ccm_sec_key_v2 {
+    mbedtls_ccm_key_sel_t sel;   /**< key ladder root key selection */
+    uint32_t ek3bits;            /**< ek3 length in bits, fixed to 256 */
+    union {
+        struct {
+            uint8_t ek1[32];     /**< encrypted key1 (fixed to 256-bit) */
+            uint8_t ek2[32];     /**< encrypted key2 (fixed to 256-bit) */
+            uint8_t ek3[32];     /**< encrypted key3 */
+        };
+        uint8_t eks[96];         /**< ek1 || ek2 || ek3 */
+    };
+} mbedtls_ccm_sec_key_v2_t;
 
 /**
  * \brief           This function initializes the specified CCM context,
@@ -109,6 +154,135 @@ int mbedtls_ccm_setkey( mbedtls_ccm_context *ctx,
                         mbedtls_cipher_id_t cipher,
                         const unsigned char *key,
                         unsigned int keybits );
+
+/**
+ * \brief          This function initializes the CCM context set in the
+ *                  \p ctx parameter and sets the secure key.
+ *
+ * \param ctx      The CCM context to which the key should be bound.
+ *                 It must be initialized.
+ * \param cipher   The 128-bit block cipher to use.
+ * \param key      The encryption/decryption secure key.
+ *                 including ek1 ek2 ek3.
+ * \return         \c 0 on success.
+ * \return          A CCM or cipher-specific error code on failure.
+ */
+int mbedtls_ccm_setseckey( mbedtls_ccm_context *ctx,
+                        mbedtls_cipher_id_t cipher,
+                        mbedtls_ccm_sec_key_t *key );
+
+/**
+ * \brief          This function initializes the CCM context set in the
+ *                  \p ctx parameter and sets the secure key of key-ladder 255.
+ *
+ * \param ctx      The CCM context to which the key should be bound.
+ *                 It must be initialized.
+ * \param cipher   The 128-bit block cipher to use, \c MBEDTLS_CIPHER_ID_AES only.
+ * \param key      The encryption/decryption secure key of key-ladder 256.
+ *                 including ek1 ek2 ek3.
+ * \return         \c 0 on success.
+ * \return          A CCM or cipher-specific error code on failure.
+ */
+int mbedtls_ccm_setseckey_v2( mbedtls_ccm_context *ctx,
+                              mbedtls_cipher_id_t cipher,
+                              mbedtls_ccm_sec_key_v2_t *key );
+
+/**
+ * \brief             This function starts a CCM encryption or decryption
+ *                    operation.
+ *
+ * \param ctx         The CCM context.
+ * \param mode        The operation to perform: #MBEDTLS_CCM_ENCRYPT or
+ *                    #MBEDTLS_CCM_DECRYPT.
+ * \param iv          The initialization vector.
+ * \param iv_len      The length of the IV.
+ * \param tag_len     The length of the authentication field to generate in Bytes:
+ *                    4, 6, 8, 10, 12, 14 or 16.
+ * \param add_len     The length of the additional data in Bytes.
+ * \param payload_len The length of the input data in Bytes.
+ *
+ * \return          \c 0 on success.
+ */
+int mbedtls_ccm_starts( mbedtls_ccm_context *ctx,
+                        int mode,
+                        const unsigned char *iv,
+                        size_t iv_len,
+                        size_t tag_len,
+                        size_t add_len,
+                        size_t payload_len );
+
+/**
+ * \brief           This function feeds an associated data buffer into an
+ *                  ongoing CCM encryption or decryption operation.
+ *
+ * \note            This function could be called zero, or multiple times.
+ *                  It is allowed only in between the mbedtls_ccm_starts()
+ *                  and the mbedtls_ccm_update() calls. The length of the
+ *                  accumulated associated data shall be exactly equal to the
+ *                  add_len specified on mbedtls_ccm_starts() call.
+ *
+ * \param ctx       The CCM context.
+ * \param add_len   The length of the associated data.
+ * \param add       The buffer holding the associated data.
+ *
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_CCM_BAD_INPUT on failure.
+ */
+int mbedtls_ccm_update_aad( mbedtls_ccm_context *ctx,
+                            size_t add_len,
+                            const unsigned char *add);
+
+/**
+ * \brief           This function feeds an input buffer into an ongoing CCM
+ *                  encryption or decryption operation.
+ *
+ * \note            This function could be called zero, or one, or even more
+ *                  times. The length of the accumulated payload data shall be
+ *                  exactly equal to the payload_len specified on
+ *                  mbedtls_ccm_starts() call.
+ *
+ * \param ctx       The CCM context.
+ * \param length    The length of the input data.
+ * \param input     The buffer holding the input data.
+ * \param output    The buffer for holding the output data.
+ *
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_GCM_BAD_INPUT on failure.
+ */
+int mbedtls_ccm_update( mbedtls_ccm_context *ctx,
+                        size_t length,
+                        const unsigned char *input,
+                        unsigned char *output );
+
+/**
+ * \brief           This function finishes the CCM operation, and generates
+ *                  the authentication tag on encryption, or authenticates the
+ *                  tag on decryption.
+ *
+ * \note            The supplied tag_len shall be exactly equal to that
+ *                  specified on mbedtls_ccm_starts() call.
+ *
+ * \param ctx       The CCM context.
+ * \param tag       The buffer for holding the tag.
+ * \param tag_len   The length of the tag in Bytes.
+ *                  4, 6, 8, 10, 12, 14 or 16.
+ *
+ * \return          \c 0 on success.
+ * \return          #MBEDTLS_ERR_GCM_BAD_INPUT on failure.
+ */
+int mbedtls_ccm_finish( mbedtls_ccm_context *ctx,
+                        unsigned char *tag,
+                        size_t tag_len );
+
+/**
+ * \brief          This function clones the state of a CCM context.
+ *
+ * \param dst      The CCM context to clone to.
+ * \param src      The CCM context to clone from.
+ * \return          \c 0 on success.
+ */
+int mbedtls_ccm_clone( mbedtls_ccm_context *dst,
+                       const mbedtls_ccm_context *src );
 
 /**
  * \brief   This function releases and clears the specified CCM context

@@ -17,6 +17,8 @@ CFG_CRYPTO_PBKDF2 ?= y
 
 endif
 
+cflags-y += -Wno-unused-parameter
+cflags-y += -Wno-declaration-after-statement
 srcs-y += entry_std.c
 srcs-y += tee_cryp_utl.c
 srcs-$(CFG_CRYPTO_HKDF) += tee_cryp_hkdf.c
@@ -36,6 +38,7 @@ srcs-y += tee_ta_enc_manager.c
 endif #CFG_WITH_USER_TA,y
 
 srcs-$(_CFG_WITH_SECURE_STORAGE) += tee_fs_key_manager.c
+srcs-$(CFG_NOR_FS) += tee_nor_fs.c
 srcs-$(CFG_RPMB_FS) += tee_rpmb_fs.c
 srcs-$(CFG_REE_FS) += tee_ree_fs.c
 srcs-$(CFG_REE_FS) += fs_dirfile.c

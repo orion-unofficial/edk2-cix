@@ -176,6 +176,16 @@ TEE_Result crypto_sha512_alloc_ctx(struct crypto_hash_ctx **ctx)
 }
 #endif
 
+// TODO check SM3's difference between optee 3.5.0 & 3.17.0
+#if 0
+#if defined(CFG_CRYPTO_SM3) && defined(CFG_CRYPTO_SM3_FROM_CRYPTOLIB)
+TEE_Result crypto_sm3_alloc_ctx(struct crypto_hash_ctx **ctx)
+{
+	return mbed_hash_alloc_ctx(ctx, MBEDTLS_MD_SM3);
+}
+#endif
+#endif
+
 #if defined(CFG_CRYPTO_SHA256)
 TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 			     size_t data_size)
@@ -196,7 +206,7 @@ TEE_Result hash_sha256_check(const uint8_t *hash, const uint8_t *data,
 }
 #endif
 
-#if defined(MBEDTLS_SHA1_PROCESS_ALT)
+#if defined(MBEDTLS_SHA1_PROCESS_ALT) && defined(CFG_CRYPTO_SHA1_ARM_CE)
 int mbedtls_internal_sha1_process(mbedtls_sha1_context *ctx,
 				  const unsigned char data[64])
 {
@@ -211,7 +221,7 @@ int mbedtls_internal_sha1_process(mbedtls_sha1_context *ctx,
 }
 #endif /*MBEDTLS_SHA1_PROCESS_ALT*/
 
-#if defined(MBEDTLS_SHA256_PROCESS_ALT)
+#if defined(MBEDTLS_SHA256_PROCESS_ALT) && defined(CFG_CRYPTO_SHA256_ARM_CE)
 int mbedtls_internal_sha256_process(mbedtls_sha256_context *ctx,
 				    const unsigned char data[64])
 {

@@ -39,6 +39,9 @@
 #define MBEDTLS_DES_ENCRYPT     1
 #define MBEDTLS_DES_DECRYPT     0
 
+/* MBEDTLS_ERR_DES_FEATURE_UNAVAILABLE is deprecated and should not be used. */
+#define MBEDTLS_ERR_DES_FEATURE_UNAVAILABLE               -0x0031  /**< Feature not available. For example, an unsupported DES key size. */
+
 #define MBEDTLS_ERR_DES_INVALID_INPUT_LENGTH              -0x0032  /**< The data input has an invalid length. */
 
 /* MBEDTLS_ERR_DES_HW_ACCEL_FAILED is deprecated and should not be used. */
@@ -92,6 +95,16 @@ mbedtls_des3_context;
 void mbedtls_des_init( mbedtls_des_context *ctx );
 
 /**
+ * \brief          This function clones the state of the specified DES context.
+ *
+ * \param dst      The DES context to clone to.
+ * \param src      The DES context to clone from.
+ * \return          \c 0 on success.
+ */
+int mbedtls_des_clone( mbedtls_des_context *dst ,
+                       const mbedtls_des_context *src );
+
+/**
  * \brief          Clear DES context
  *
  * \param ctx      DES context to be cleared
@@ -108,6 +121,16 @@ void mbedtls_des_free( mbedtls_des_context *ctx );
  * \param ctx      DES3 context to be initialized
  */
 void mbedtls_des3_init( mbedtls_des3_context *ctx );
+
+/**
+ * \brief          This function clones the state of the specified Triple-DES context.
+ *
+ * \param dst      The Triple-DES context to clone to.
+ * \param src      The Triple-DES context to clone from.
+ * \return          \c 0 on success.
+ */
+int mbedtls_des3_clone( mbedtls_des3_context *dst ,
+                        const mbedtls_des3_context *src );
 
 /**
  * \brief          Clear Triple-DES context

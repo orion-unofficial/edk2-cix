@@ -155,6 +155,22 @@ static TEE_Result ree_fs_ta_open(const TEE_UUID *uuid,
 		goto error_free_payload;
 	}
 
+	if (get_ta_configuration()) {
+		EMSG("SE enable TA encrypt\n");
+		if (shdr->img_type != SHDR_ENCRYPTED_TA) {
+			res = TEE_ERROR_SECURITY;
+			EMSG("TA type mismatch configuration from SE(Need ciphertext TA)\n");
+			goto error_free_payload;
+		}
+	} else {
+		EMSG("SE disable TA encrypt\n");
+		if (shdr->img_type == SHDR_ENCRYPTED_TA) {
+			res = TEE_ERROR_SECURITY;
+			EMSG("TA type mismatch configuration from SE(Need plaintext TA)\n");
+			goto error_free_payload;
+		}
+	}
+
 	/* Validate header signature */
 	res = shdr_verify_signature(shdr);
 	if (res != TEE_SUCCESS)
@@ -444,6 +460,18 @@ static TEE_Result ree_fs_ta_read(struct ts_store_handle *h, void *data,
 	if (ADD_OVERFLOW(handle->offs, len, &next_offs) ||
 	    next_offs > handle->nw_ta_size)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (get_ta_configuration()) {
+		if (handle->shdr->img_type != SHDR_ENCRYPTED_TA) {
+			EMSG("TA type mismatch configuration from SE(Need ciphertext TA)\n");
+			return TEE_ERROR_SECURITY;
+		}
+	} else {
+		if (handle->shdr->img_type == SHDR_ENCRYPTED_TA) {
+			EMSG("TA type mismatch configuration from SE(Need plaintext TA)\n");
+			return TEE_ERROR_SECURITY;
+		}
+	}
 
 	if (handle->shdr->img_type == SHDR_ENCRYPTED_TA) {
 		if (data) {

@@ -251,4 +251,40 @@ FUNC thread_foreign_intr_exit , :
 	panic_at_smc_return
 END_FUNC thread_foreign_intr_exit
 
+/*
+ * void request_to_tf_a(uint32_t cmd_id)
+ *
+ * This function is jumped to at tf-a for a request.
+ */
+FUNC request_to_tf_a , :
+	/* Mask all maskable exceptions before switching to temporary stack */
+	msr	daifset, #DAIFBIT_ALL
+
+	ldr	x0, =TEESMC_OPTEED_REQUEST_TO_SE_DONE
+	mov	x1, #0
+	mov	x2, #0
+	mov	x3, #0
+	smc	#0
+
+	ret
+	/* SMC should not return */
+	/*panic_at_smc_return*/
+END_FUNC request_to_tf_a
+
+FUNC tee_panic_smc , :
+	/* Mask all maskable exceptions before switching to temporary stack */
+	msr	daifset, #DAIFBIT_ALL
+
+	mov	x1, x0
+	ldr	x0, =TEESMC_OPTEED_TEE_PANIC_DONE
+	mov	x2, #0
+	mov	x3, #0
+	smc	#0
+
+	ret
+	/* SMC should not return */
+	/*panic_at_smc_return*/
+END_FUNC tee_panic_smc
+
+
 BTI(emit_aarch64_feature_1_and     GNU_PROPERTY_AARCH64_FEATURE_1_BTI)

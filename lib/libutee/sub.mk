@@ -4,6 +4,7 @@ srcs-y += abort.c
 srcs-y += assert.c
 srcs-y += tee_uuid_from_str.c
 srcs-y += trace_ext.c
+srcs-y += tee_cix_ipc.c
 
 ifneq ($(sm),ldelf)
 srcs-y += base64.c

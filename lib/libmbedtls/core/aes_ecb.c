@@ -62,6 +62,39 @@ static TEE_Result mbed_aes_ecb_init(struct crypto_cipher_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
+#if defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_CIX_ENG)
+#include <mbed_impl.h>
+
+DEFINE_TO_MBED_SEC_KEY(aes, AES)
+
+static TEE_Result mbed_aes_ecb_init2(struct crypto_cipher_ctx *ctx,
+				     TEE_OperationMode mode,
+				     const crypto_sec_key_t *key1,
+				     const crypto_sec_key_t *key2 __unused,
+				     const uint8_t *iv __unused,
+				     size_t iv_len  __unused)
+{
+	struct mbed_aes_ecb_ctx *c = to_aes_ecb_ctx(ctx);
+	int mbed_res = 0;
+	mbedtls_aes_sec_key_t skey = {0};
+
+	TO_MBED_SEC_KEY(aes, key1, &skey);
+
+	if (mode == TEE_MODE_ENCRYPT) {
+		c->mbed_mode = MBEDTLS_AES_ENCRYPT;
+		mbed_res = mbedtls_aes_setseckey_enc(&c->aes_ctx, &skey);
+	} else {
+		c->mbed_mode = MBEDTLS_AES_DECRYPT;
+		mbed_res = mbedtls_aes_setseckey_dec(&c->aes_ctx, &skey);
+	}
+
+	if (mbed_res)
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
+}
+#endif
+
 static TEE_Result mbed_aes_ecb_update(struct crypto_cipher_ctx *ctx,
 				      bool last_block __unused,
 				      const uint8_t *data, size_t len,
@@ -100,7 +133,11 @@ static void mbed_aes_ecb_copy_state(struct crypto_cipher_ctx *dst_ctx,
 	struct mbed_aes_ecb_ctx *dst = to_aes_ecb_ctx(dst_ctx);
 
 	dst->mbed_mode = src->mbed_mode;
+#if defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_CIX_ENG)
+	assert(mbedtls_aes_clone(&dst->aes_ctx, &src->aes_ctx) == 0);
+#else
 	mbed_copy_mbedtls_aes_context(&dst->aes_ctx, &src->aes_ctx);
+#endif
 }
 
 static const struct crypto_cipher_ops mbed_aes_ecb_ops = {
@@ -109,6 +146,9 @@ static const struct crypto_cipher_ops mbed_aes_ecb_ops = {
 	.final = mbed_aes_ecb_final,
 	.free_ctx = mbed_aes_ecb_free_ctx,
 	.copy_state = mbed_aes_ecb_copy_state,
+#if defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_CIX_ENG)
+	.init2 = mbed_aes_ecb_init2,
+#endif
 };
 
 TEE_Result crypto_aes_ecb_alloc_ctx(struct crypto_cipher_ctx **ctx_ret)
@@ -125,7 +165,7 @@ TEE_Result crypto_aes_ecb_alloc_ctx(struct crypto_cipher_ctx **ctx_ret)
 	return TEE_SUCCESS;
 }
 
-#if defined(MBEDTLS_AES_ALT)
+#if defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_ARM_CE)
 int mbedtls_aes_crypt_ecb(mbedtls_aes_context *ctx, int mode,
 			  const unsigned char input[16],
 			  unsigned char output[16])
@@ -140,4 +180,4 @@ int mbedtls_aes_crypt_ecb(mbedtls_aes_context *ctx, int mode,
 
 	return 0;
 }
-#endif /*MBEDTLS_AES_ALT*/
+#endif

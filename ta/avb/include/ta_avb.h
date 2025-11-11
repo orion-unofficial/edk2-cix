@@ -61,4 +61,8 @@
  */
 #define TA_AVB_CMD_WRITE_PERSIST_VALUE	5
 
+#define TA_AVB_CMD_READ_VBMETA_PK 6
+
+#define TA_AVB_CMD_WRITE_VBMETA_PK 7
+
 #endif /*__TA_AVB_H*/

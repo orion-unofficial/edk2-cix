@@ -323,6 +323,10 @@ struct thread_param {
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 		struct thread_param *params);
 
+void request_to_tf_a(void);
+
+void tee_panic_smc(uint32_t data_len);
+
 /**
  * Allocate data for payload buffers.
  * Buffer is exported to user mode applications.

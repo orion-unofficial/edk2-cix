@@ -39,6 +39,23 @@ static TEE_Result mbed_hmac_init(struct crypto_mac_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
+#if defined(CFG_MBEDTLS_TE)
+#include <mbed_impl.h>
+
+DEFINE_TO_MBED_SEC_KEY(hmac, HMAC)
+
+static TEE_Result mbed_hmac_init2(struct crypto_mac_ctx *ctx,
+				  const crypto_sec_key_t *key)
+{
+	mbedtls_hmac_sec_key_t skey = {0};
+	TO_MBED_SEC_KEY(hmac, key, &skey);
+	if (mbedtls_md_hmac_starts_with_seckey(&to_hmac_ctx(ctx)->md_ctx, &skey))
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
+}
+#endif /* CFG_MBEDTLS_TE */
+
 static TEE_Result mbed_hmac_update(struct crypto_mac_ctx *ctx,
 				   const uint8_t *data, size_t len)
 {
@@ -100,6 +117,9 @@ static const struct crypto_mac_ops mbed_hmac_ops = {
 	.final = mbed_hmac_final,
 	.free_ctx = mbed_hmac_free_ctx,
 	.copy_state = mbed_hmac_copy_state,
+#if defined(CFG_MBEDTLS_TE)
+	.init2 = mbed_hmac_init2,
+#endif
 };
 
 static TEE_Result mbed_hmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret,
@@ -170,4 +190,14 @@ TEE_Result crypto_hmac_sha512_alloc_ctx(struct crypto_mac_ctx **ctx)
 {
 	return mbed_hmac_alloc_ctx(ctx, MBEDTLS_MD_SHA512);
 }
+#endif
+
+// TODO check SM3's difference between optee 3.5.0 & 3.17.0
+#if 0
+#if defined(CFG_CRYPTO_SM3) && defined(CFG_CRYPTO_HMAC_SM3_FROM_CRYPTOLIB)
+TEE_Result crypto_hmac_sm3_alloc_ctx(struct crypto_mac_ctx **ctx)
+{
+	return mbed_hmac_alloc_ctx(ctx, MBEDTLS_MD_SM3);
+}
+#endif
 #endif

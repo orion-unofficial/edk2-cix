@@ -440,6 +440,10 @@ static TEE_Result authenc_init(void **ctx_ret, TEE_OperationMode mode,
 			       struct tee_fs_htree_node_image *ni,
 			       size_t payload_len)
 {
+#if (!defined(CFG_CRYPTO_CCM) && !defined(CFG_CRYPTO_GCM))
+	return TEE_SUCCESS;
+#endif
+
 	TEE_Result res = TEE_SUCCESS;
 	const uint32_t alg = TEE_FS_HTREE_AUTH_ENC_ALG;
 	void *ctx;
@@ -505,6 +509,10 @@ static TEE_Result authenc_decrypt_final(void *ctx, const uint8_t *tag,
 					const void *crypt, size_t len,
 					void *plain)
 {
+#if (!defined(CFG_CRYPTO_CCM) && !defined(CFG_CRYPTO_GCM))
+	return TEE_SUCCESS;
+#endif
+
 	TEE_Result res;
 	size_t out_size = len;
 
@@ -525,6 +533,10 @@ static TEE_Result authenc_encrypt_final(void *ctx, uint8_t *tag,
 					const void *plain, size_t len,
 					void *crypt)
 {
+#if (!defined(CFG_CRYPTO_CCM) && !defined(CFG_CRYPTO_GCM))
+	return TEE_SUCCESS;
+#endif
+
 	TEE_Result res;
 	size_t out_size = len;
 	size_t out_tag_size = TEE_FS_HTREE_TAG_SIZE;
@@ -579,6 +591,10 @@ static TEE_Result verify_node(struct traverse_arg *targ,
 
 static TEE_Result verify_tree(struct tee_fs_htree *ht)
 {
+#if (!defined(CFG_CRYPTO_CCM) && !defined(CFG_CRYPTO_GCM))
+	return TEE_SUCCESS;
+#endif
+
 	TEE_Result res;
 	void *ctx;
 

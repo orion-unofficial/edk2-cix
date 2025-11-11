@@ -91,6 +91,8 @@
 #define TEE_STORAGE_PRIVATE_RPMB 0x80000100
 /* Was TEE_STORAGE_PRIVATE_SQL, which isn't supported any longer */
 #define TEE_STORAGE_PRIVATE_SQL_RESERVED  0x80000200
+/* Secrue Storage Using W77Q NOR Flash */
+#define TEE_STORAGE_PRIVATE_NOR 0x80000300
 
 /*
  * Extension of "Memory Access Rights Constants"

@@ -3,7 +3,7 @@ link-script-pp$(sm) = $(link-out-dir$(sm))/ta.lds
 link-script-dep$(sm) = $(link-out-dir$(sm))/.ta.ld.d
 
 SIGN_ENC ?= $(PYTHON3) $(ta-dev-kit-dir$(sm))/scripts/sign_encrypt.py
-TA_SIGN_KEY ?= $(ta-dev-kit-dir$(sm))/keys/default_ta.pem
+TA_SIGN_KEY ?= $(ta-dev-kit-dir$(sm))/keys/oem_privatekey.pem
 
 ifeq ($(CFG_ENCRYPT_TA),y)
 # Default TA encryption key is a dummy key derived from default
@@ -13,7 +13,8 @@ ifeq ($(CFG_ENCRYPT_TA),y)
 # Note that a user of this TA encryption feature needs to provide
 # encryption key and its handling corresponding to their security
 # requirements.
-TA_ENC_KEY ?= 'b64d239b1f3c7d3b06506229cd8ff7c8af2bb4db2168621ac62c84948468c4f4'
+#TA_ENC_KEY ?= 'b64d239b1f3c7d3b06506229cd8ff7c8af2bb4db2168621ac62c84948468c4f4'
+TA_ENC_KEY ?= $(ta-dev-kit-dir$(sm))/keys/ta_enc.key
 endif
 
 all: $(link-out-dir$(sm))/$(user-ta-uuid).dmp \

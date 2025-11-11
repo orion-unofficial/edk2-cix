@@ -148,18 +148,23 @@ version-o-cflags = $(filter-out -g3,$(core-platform-cflags) \
 ifneq ($(SOURCE_DATE_EPOCH),)
 date-opts = -d @$(SOURCE_DATE_EPOCH)
 endif
-DATE_STR = `LANG=C date -u $(date-opts)`
+DATE_STR = `LANG=en_US date -R $(date-opts)`
 BUILD_COUNT_STR = `cat $(link-out-dir)/.buildcount`
 CORE_CC_VERSION = `$(CCcore) -v 2>&1 | grep "version " | sed 's/ *$$//'`
+CIX_TEE_IMPL_GIT_SHA1 := $(shell git rev-parse --short=12 HEAD 2>/dev/null)
 define gen-version-o
 	$(call update-buildcount,$(link-out-dir)/.buildcount)
 	@$(cmd-echo-silent) '  GEN     $(link-out-dir)/version.o'
 	$(q)echo -e "const char core_v_str[] =" \
 		"\"$(TEE_IMPL_VERSION) \"" \
-		"\"($(CORE_CC_VERSION)) \"" \
 		"\"#$(BUILD_COUNT_STR) \"" \
 		"\"$(DATE_STR) \"" \
 		"\"$(CFG_KERN_LINKER_ARCH)\";\n" \
+		"const char core_cix_tee_str[] =" \
+		"\"$(TEE_IMPL_VERSION)\"" \
+		"\"-$(CFG_OPTEE_REVISION_MAJOR)\"" \
+		"\".$(CFG_OPTEE_REVISION_MINOR)\"" \
+		"\"-$(CIX_TEE_IMPL_GIT_SHA1)\";\n" \
 		| $(CCcore) $(version-o-cflags) \
 			-xc - -c -o $(link-out-dir)/version.o
 endef
@@ -187,7 +192,7 @@ all: $(link-out-dir)/tee.dmp
 cleanfiles += $(link-out-dir)/tee.dmp
 $(link-out-dir)/tee.dmp: $(link-out-dir)/tee.elf
 	@$(cmd-echo-silent) '  OBJDUMP $@'
-	$(q)$(OBJDUMPcore) -l -x -d $< > $@
+	$(q)$(OBJDUMPcore) -d $< > $@
 
 cleanfiles += $(link-out-dir)/tee-pager.bin
 $(link-out-dir)/tee-pager.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
@@ -242,6 +247,8 @@ $(link-out-dir)/tee.mem_usage: $(link-out-dir)/tee.elf
 	$(q)$(PYTHON3) ./scripts/mem_usage.py $< > $@
 endif
 
+
+all: $(link-out-dir)/tee-raw.bin
 cleanfiles += $(link-out-dir)/tee-raw.bin
 $(link-out-dir)/tee-raw.bin: $(link-out-dir)/tee.elf scripts/gen_tee_bin.py
 	@$(cmd-echo-silent) '  GEN     $@'

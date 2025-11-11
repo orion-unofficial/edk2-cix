@@ -226,9 +226,26 @@ def main():
     shdr_uuid = args.uuid.bytes
     shdr_version = struct.pack('<I', hdr_version)
 
+    def is_hex(s):
+        try:
+            bytes.fromhex(s)
+            return True
+        except ValueError:
+            return False
+
     if args.enc_key:
+        file = open(args.enc_key, "r")
+        tmp_str = file.read()
+        file.close()
+        content = tmp_str[:-1]
+        if len(content) % 2 == 0 and is_hex(content):
+            print("Valic ta encrypted key")
+        else:
+            print("Length of key data in ta_enc.ta invalid")
+            sys.exit(1)
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-        cipher = AESGCM(bytes.fromhex(args.enc_key))
+        #cipher = AESGCM(bytes.fromhex(args.enc_key))
+        cipher = AESGCM(bytes.fromhex(content))
         # Use 12 bytes for nonce per recommendation
         nonce = os.urandom(12)
         out = cipher.encrypt(nonce, img, None)

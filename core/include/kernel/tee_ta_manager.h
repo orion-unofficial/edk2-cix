@@ -166,4 +166,8 @@ static inline struct tee_ta_ctx *to_ta_ctx(struct ts_ctx *ctx)
 	assert(is_ta_ctx(ctx));
 	return container_of(ctx, struct tee_ta_ctx, ts_ctx);
 }
+
+TEE_Result boot_ta_type_init(void);
+uint32_t get_ta_configuration(void);
+
 #endif

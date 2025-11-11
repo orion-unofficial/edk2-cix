@@ -24,6 +24,27 @@
 
 #include <tee_api_types.h>
 
+#if defined(CFG_MBEDTLS_TE)
+/**
+ * trust engine key ladder root key selection enumeration.
+ */
+typedef enum crypto_klad_rk_sel {
+	CRYPTO_KLAD_MODEL_KEY = 0,	/**< model key */
+	CRYPTO_KLAD_ROOT_KEY		/**< device root key */
+} crypto_klad_rk_sel_t;
+
+/**
+ * crypto key ladder secure key structure
+ */
+typedef struct crypto_sec_key {
+	crypto_klad_rk_sel_t sel;	/**< root key selection */
+	unsigned int ek3len;		/**< ek3 length in bytes, 16 or 32 */
+	unsigned char ek1[16];		/**< encrypted key1 */
+	unsigned char ek2[16];		/**< encrypted key2 */
+	unsigned char ek3[32];		/**< encrypted key3 */
+} crypto_sec_key_t;
+#endif	/* CFG_MBEDTLS_TE */
+
 TEE_Result crypto_init(void);
 
 /* Message digest functions */
@@ -40,6 +61,12 @@ TEE_Result crypto_cipher_init(void *ctx, TEE_OperationMode mode,
 			      const uint8_t *key1, size_t key1_len,
 			      const uint8_t *key2, size_t key2_len,
 			      const uint8_t *iv, size_t iv_len);
+#if defined(CFG_MBEDTLS_TE)
+TEE_Result crypto_cipher_init2(void *ctx, TEE_OperationMode mode,
+			       const crypto_sec_key_t *key1,
+			       const crypto_sec_key_t *key2,
+			       const uint8_t *iv, size_t iv_len);
+#endif
 TEE_Result crypto_cipher_update(void *ctx, TEE_OperationMode mode,
 				bool last_block, const uint8_t *data,
 				size_t len, uint8_t *dst);
@@ -51,6 +78,9 @@ void crypto_cipher_copy_state(void *dst_ctx, void *src_ctx);
 /* Message Authentication Code functions */
 TEE_Result crypto_mac_alloc_ctx(void **ctx, uint32_t algo);
 TEE_Result crypto_mac_init(void *ctx, const uint8_t *key, size_t len);
+#if defined(CFG_MBEDTLS_TE)
+TEE_Result crypto_mac_init2(void *ctx, const crypto_sec_key_t *key);
+#endif
 TEE_Result crypto_mac_update(void *ctx, const uint8_t *data, size_t len);
 TEE_Result crypto_mac_final(void *ctx, uint8_t *digest, size_t digest_len);
 void crypto_mac_free_ctx(void *ctx);
@@ -63,6 +93,13 @@ TEE_Result crypto_authenc_init(void *ctx, TEE_OperationMode mode,
 			       const uint8_t *nonce, size_t nonce_len,
 			       size_t tag_len, size_t aad_len,
 			       size_t payload_len);
+#if defined(CFG_MBEDTLS_TE)
+TEE_Result crypto_authenc_init2(void *ctx, TEE_OperationMode mode,
+			        const crypto_sec_key_t *key,
+			        const uint8_t *nonce, size_t nonce_len,
+			        size_t tag_len, size_t aad_len,
+			        size_t payload_len);
+#endif
 TEE_Result crypto_authenc_update_aad(void *ctx, TEE_OperationMode mode,
 				     const uint8_t *data, size_t len);
 TEE_Result crypto_authenc_update_payload(void *ctx, TEE_OperationMode mode,
@@ -252,6 +289,13 @@ TEE_Result crypto_acipher_sm2_pke_decrypt(struct ecc_keypair *key,
 TEE_Result crypto_acipher_sm2_pke_encrypt(struct ecc_public_key *key,
 					  const uint8_t *src, size_t src_len,
 					  uint8_t *dst, size_t *dst_len);
+TEE_Result crypto_acipher_sm2_dsa_sign(uint32_t algo, struct ecc_keypair *key,
+				       const uint8_t *msg, size_t msg_len,
+				       uint8_t *sig, size_t *sig_len);
+TEE_Result crypto_acipher_sm2_dsa_verify(uint32_t algo,
+					 struct ecc_public_key *key,
+					 const uint8_t *msg, size_t msg_len,
+					 const uint8_t *sig, size_t sig_len);
 
 struct sm2_kep_parms {
 	uint8_t *out;

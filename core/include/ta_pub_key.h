@@ -7,9 +7,15 @@
 
 #include <types_ext.h>
 
-extern const uint32_t ta_pub_key_exponent;
-extern const uint8_t ta_pub_key_modulus[];
-extern const size_t ta_pub_key_modulus_size;
+typedef struct {
+	uint32_t key_exponent;
+	size_t module_size;
+	uint8_t key_module[512];
+}ta_pub_key_info;
+
+extern uint32_t ta_pub_key_exponent;
+extern uint8_t ta_pub_key_modulus[];
+extern size_t ta_pub_key_modulus_size;
 
 #endif /*KERNEL_TA_PUB_KEY_H*/
 

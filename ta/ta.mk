@@ -39,6 +39,7 @@ ta-mk-file-export-vars-$(sm) += CFG_CORE_TPM_EVENT_LOG
 ta-mk-file-export-add-$(sm) += CFG_TEE_TA_LOG_LEVEL ?= $(CFG_TEE_TA_LOG_LEVEL)_nl_
 ta-mk-file-export-vars-$(sm) += CFG_TA_BGET_TEST
 ta-mk-file-export-vars-$(sm) += CFG_ATTESTATION_PTA
+ta-mk-file-export-vars-$(sm) += CFG_ENCRYPT_TA
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
@@ -174,7 +175,8 @@ $(foreach f, $(ta-srcfiles), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/src)))
 
 # Copy keys
-ta-keys = keys/default_ta.pem
+ta-keys = $(TA_SIGN_KEY)
+ta-keys += $(TA_ENC_KEY)
 $(foreach f, $(ta-keys), \
 	$(eval $(call copy-file, $(f), $(out-dir)/export-$(sm)/keys)))
 

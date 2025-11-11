@@ -43,6 +43,7 @@
 #define MBEDTLS_ERR_MPI_DIVISION_BY_ZERO                  -0x000C  /**< The input argument for division is zero, which is not allowed. */
 #define MBEDTLS_ERR_MPI_NOT_ACCEPTABLE                    -0x000E  /**< The input arguments are not acceptable. */
 #define MBEDTLS_ERR_MPI_ALLOC_FAILED                      -0x0010  /**< Memory allocation failed. */
+#define MBEDTLS_ERR_MPI_HW_FAILED                         -0x0011  /**< There is HW error in calling TE driver. */
 
 #define MBEDTLS_MPI_CHK(f)       \
     do                           \
@@ -103,6 +104,8 @@
 #define MBEDTLS_MPI_MAX_BITS_SCALE100          ( 100 * MBEDTLS_MPI_MAX_BITS )
 #define MBEDTLS_LN_2_DIV_LN_10_SCALE100                 332
 #define MBEDTLS_MPI_RW_BUFFER_SIZE             ( ((MBEDTLS_MPI_MAX_BITS_SCALE100 + MBEDTLS_LN_2_DIV_LN_10_SCALE100 - 1) / MBEDTLS_LN_2_DIV_LN_10_SCALE100) + 10 + 6 )
+
+#if !defined(MBEDTLS_BIGNUM_ALT)
 
 /*
  * Define the base integer type, architecture-wise.
@@ -190,6 +193,9 @@ typedef struct mbedtls_mpi
 }
 mbedtls_mpi;
 
+#else /* MBEDTLS_BIGNUM_ALT */
+#include "bignum_alt.h"
+#endif /* MBEDTLS_BIGNUM_ALT */
 extern void *mbedtls_mpi_mempool;
 
 /**
@@ -1070,6 +1076,27 @@ void mbedtls_mpi_montmul( mbedtls_mpi *A, const mbedtls_mpi *B,
  */
 void mbedtls_mpi_montred( mbedtls_mpi *A, const mbedtls_mpi *N,
                           mbedtls_mpi_uint mm, const mbedtls_mpi *T );
+
+/**
+ * \brief          Get the sign of one MPI.
+ *
+ * \param X        The MPI to query. This must be initialized.
+ *
+ * \return         \c -1 or \c 1 on success, depending on the sign of \c X.
+ * \return         Other negative error code on failure.
+ */
+int mbedtls_mpi_get_sign( const mbedtls_mpi *X );
+
+/**
+ * \brief          Set the sign of one MPI.
+ *
+ * \param X        The MPI to set. This must be initialized.
+ *
+ * \return         \c 0 on success.
+ * \return         A negative error code on failure.
+ */
+int mbedtls_mpi_set_sign( mbedtls_mpi *X, int sign );
+
 
 #if defined(MBEDTLS_SELF_TEST)
 

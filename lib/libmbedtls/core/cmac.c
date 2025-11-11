@@ -56,6 +56,38 @@ static TEE_Result mbed_cmac_init(struct crypto_mac_ctx *ctx,
 
 	return TEE_SUCCESS;
 }
+#if defined(CFG_MBEDTLS_TE)
+#include <mbed_impl.h>
+
+DEFINE_TO_MBED_SEC_KEY(cmac, CMAC)
+
+static TEE_Result mbed_cmac_init2(struct crypto_mac_ctx *ctx,
+				  const crypto_sec_key_t *key)
+{
+	struct mbed_cmac_ctx *c = to_cmac_ctx(ctx);
+	const mbedtls_cipher_info_t *cipher_info = NULL;
+	mbedtls_cmac_sec_key_t skey = {0};
+
+	cipher_info = mbedtls_cipher_info_from_values(c->cipher_id,
+						      key->ek3len * 8,
+						      MBEDTLS_MODE_ECB);
+	if (!cipher_info)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (mbedtls_cipher_setup_info(&c->cipher_ctx, cipher_info))
+		return TEE_ERROR_BAD_STATE;
+
+	if (mbedtls_cipher_cmac_reset(&c->cipher_ctx))
+		return TEE_ERROR_BAD_STATE;
+
+
+	TO_MBED_SEC_KEY(cmac, key, &skey);
+	if (mbedtls_cipher_cmac_starts_with_seckey(&c->cipher_ctx, &skey))
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
+}
+#endif /* CFG_MBEDTLS_TE */
 
 static TEE_Result mbed_cmac_update(struct crypto_mac_ctx *ctx,
 				   const uint8_t *data, size_t len)
@@ -122,12 +154,26 @@ static const struct crypto_mac_ops mbed_cmac_ops = {
 	.final = mbed_cmac_final,
 	.free_ctx = mbed_cmac_free_ctx,
 	.copy_state = mbed_cmac_copy_state,
+#if defined(CFG_MBEDTLS_TE)
+	.init2 = mbed_cmac_init2,
+#endif
 };
 
 static TEE_Result crypto_cmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret,
 					const mbedtls_cipher_id_t cipher_id,
 					int key_bitlen)
 {
+#if defined(CFG_MBEDTLS_TE)
+	struct mbed_cmac_ctx *c = NULL;
+
+	c = calloc(1, sizeof(*c));
+	if (!c)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	c->mac_ctx.ops = &mbed_cmac_ops;
+	mbedtls_cipher_init(&c->cipher_ctx);
+	c->cipher_id = cipher_id;
+#else
 	int mbed_res = 0;
 	struct mbed_cmac_ctx *c = NULL;
 	const mbedtls_cipher_info_t *cipher_info = NULL;
@@ -165,11 +211,13 @@ static TEE_Result crypto_cmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret,
 		free(c);
 		return TEE_ERROR_NOT_SUPPORTED;
 	}
+#endif
 
 	*ctx_ret = &c->mac_ctx;
 
 	return TEE_SUCCESS;
 }
+
 
 TEE_Result crypto_des3_cmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret)
 {
@@ -180,3 +228,14 @@ TEE_Result crypto_aes_cmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret)
 {
 	return crypto_cmac_alloc_ctx(ctx_ret, MBEDTLS_CIPHER_ID_AES, 128);
 }
+
+// TODO check SM4's difference between optee 3.5.0 & 3.17.0
+#if 0
+#if defined(CFG_CRYPTO_CMAC) && defined(CFG_CRYPTO_SM4) && \
+    defined(CFG_CRYPTOLIB_NAME_mbedtls)
+TEE_Result crypto_sm4_cmac_alloc_ctx(struct crypto_mac_ctx **ctx_ret)
+{
+	return crypto_cmac_alloc_ctx(ctx_ret, MBEDTLS_CIPHER_ID_SM4, 128);
+}
+#endif
+#endif

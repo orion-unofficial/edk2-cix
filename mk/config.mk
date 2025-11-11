@@ -67,13 +67,13 @@ CFG_TEE_CORE_DEBUG ?= y
 # 2: error + warning
 # 3: error + warning + debug
 # 4: error + warning + debug + flow
-CFG_TEE_CORE_LOG_LEVEL ?= 1
+CFG_TEE_CORE_LOG_LEVEL ?= 2
 
 # TA log level
 # If user-mode library libutils.a is built with CFG_TEE_TA_LOG_LEVEL=0,
 # TA tracing is disabled regardless of the value of CFG_TEE_TA_LOG_LEVEL
 # when the TA is built.
-CFG_TEE_TA_LOG_LEVEL ?= 1
+CFG_TEE_TA_LOG_LEVEL ?= 4
 
 # TA enablement
 # When defined to "y", TA traces are output according to
@@ -110,7 +110,7 @@ CFG_MSG_LONG_PREFIX_MASK ?= 0x1a
 CFG_WITH_SOFTWARE_PRNG ?= y
 
 # Number of threads
-CFG_NUM_THREADS ?= 2
+CFG_NUM_THREADS ?= 6
 
 # API implementation version
 CFG_TEE_API_VERSION ?= GPD-1.1-dev
@@ -130,8 +130,13 @@ CFG_OPTEE_REVISION_MAJOR ?= 3
 CFG_OPTEE_REVISION_MINOR ?= 17
 
 # Trusted OS implementation version
+ifeq ($(CIX_VERSION), )
 TEE_IMPL_VERSION ?= $(shell git describe --always --dirty=-dev 2>/dev/null || \
-		      echo Unknown_$(CFG_OPTEE_REVISION_MAJOR).$(CFG_OPTEE_REVISION_MINOR))
+		echo Unknown_$(CFG_OPTEE_REVISION_MAJOR).$(CFG_OPTEE_REVISION_MINOR))
+else
+TEE_IMPL_VERSION ?= $(CIX_VERSION)
+endif
+
 ifeq ($(CFG_OS_REV_REPORTS_GIT_SHA1),y)
 TEE_IMPL_GIT_SHA1 := 0x$(shell git rev-parse --short=8 HEAD 2>/dev/null || echo 0)
 else
@@ -153,6 +158,20 @@ CFG_TEE_FW_MANUFACTURER ?= FW_MAN_UNDEF
 # TEE_STORAGE_PRIVATE is passed to the trusted storage API)
 CFG_REE_FS ?= y
 
+# Secure SPI NOR Flash (W77Q) support
+# For W25Q, set to false
+# For W77Q, set to true
+CFG_SECURE_NOR_FLASH ?= false
+
+# Only For W77Q, 8m set to true, 16m set to false
+CFG_FLASH_SIZE_8M ?= false
+
+# SPI NOR FLASH file system support
+CFG_NOR_FS ?= y
+
+# SPI NOR driver support
+CFG_SPI_NOR ?= y
+
 # RPMB file system support
 CFG_RPMB_FS ?= n
 
@@ -160,6 +179,13 @@ CFG_RPMB_FS ?= n
 # The exact meaning of this value is platform-dependent. On Linux, the
 # tee-supplicant process will open /dev/mmcblk<id>rpmb
 CFG_RPMB_FS_DEV_ID ?= 0
+
+#Section identifier used when CFG_NOR_FS = y.
+CFG_NOR_FS_SECTION_ID ?= 1
+
+# Max blocks of NOR Secure storage section, 4KB per block.
+# 0xFF000 for secure storage size
+CFG_NOR_FS_MAX_BLOCKS ?= 255
 
 # This config variable determines the number of entries read in from RPMB at
 # once whenever a function traverses the RPMB FS. Increasing the default value
@@ -173,6 +199,10 @@ CFG_RPMB_FS_DEV_ID ?= 0
 # dependent (potential number of FAT fs entries), so overwrite in platform
 # config files
 CFG_RPMB_FS_RD_ENTRIES ?= 8
+
+# This config variable determines the number of entries read in from NOR Flash
+# at once whenever a function traverses the NOR FS.
+CFG_NOR_FS_RD_ENTRIES ?= 2
 
 # Enables caching of FAT FS entries when set to a value greater than zero.
 # When enabled, the cache stores the first 'CFG_RPMB_FS_CACHE_ENTRIES' FAT FS
@@ -194,14 +224,32 @@ CFG_RPMB_FS_RD_ENTRIES ?= 8
 # in case the cache is too small to hold all elements when traversing.
 CFG_RPMB_FS_CACHE_ENTRIES ?= 0
 
+# Enables caching of NOR FAT FS entries
+CFG_NOR_FS_CACHE_ENTRIES ?= 0
+
 # Print RPMB data frames sent to and received from the RPMB device
 CFG_RPMB_FS_DEBUG_DATA ?= n
+
+# Print RPMB data frames sent to and received from the NOR Flash device
+CFG_NOR_FS_DEBUG_DATA ?= y
 
 # Clear RPMB content at cold boot
 CFG_RPMB_RESET_FAT ?= n
 
+# Clear NOR Flash content at cold boot
+CFG_NOR_RESET_FAT ?= n
+
 # Use a hard coded RPMB key instead of deriving it from the platform HUK
 CFG_RPMB_TESTKEY ?= n
+
+# config nor fs start address base for different case:
+# case1: 8m flash or 16m flash
+# case2: Don't need secure storage feature
+ifeq ($(CFG_TEE_NORFS_BASE_ADDRESS),y)
+CFG_NOR_FS_OFFSET ?= 0x600000
+else
+CFG_NOR_FS_OFFSET ?= 0x800000
+endif
 
 # Enables RPMB key programming by the TEE, in case the RPMB partition has not
 # been configured yet.
@@ -213,7 +261,7 @@ CFG_RPMB_TESTKEY ?= n
 # - RPMB key provisioning in a controlled environment (factory setup)
 CFG_RPMB_WRITE_KEY ?= n
 
-_CFG_WITH_SECURE_STORAGE := $(call cfg-one-enabled,CFG_REE_FS CFG_RPMB_FS)
+_CFG_WITH_SECURE_STORAGE := $(call cfg-one-enabled,CFG_REE_FS CFG_NOR_FS CFG_RPMB_FS)
 
 # Signing key for OP-TEE TA's
 # When performing external HSM signing for TA's TA_SIGN_KEY can be set to dummy
@@ -496,7 +544,7 @@ CFG_DRIVERS_DT_RECURSIVE_PROBE ?= n
 CFG_BOOT_SECONDARY_REQUEST ?= n
 
 # Default heap size for Core, 64 kB
-CFG_CORE_HEAP_SIZE ?= 65536
+CFG_CORE_HEAP_SIZE ?= 262144
 
 # Default size of nexus heap. 16 kB. Used only if CFG_VIRTUALIZATION
 # is enabled
@@ -671,7 +719,7 @@ CFG_CRYPTOLIB_DIR ?= core/lib/libtomcrypt
 
 # Not used since libmpa was removed. Force the value to catch build scripts
 # that would set = n.
-$(call force,CFG_CORE_MBEDTLS_MPI,y)
+CFG_CORE_MBEDTLS_MPI ?= y
 
 # Enable virtualization support. OP-TEE will not work without compatible
 # hypervisor if this option is enabled.

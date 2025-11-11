@@ -3,7 +3,6 @@ global-incdirs-y += mbedtls/include
 
 # OBJS_CRYPTO from make file
 SRCS_CRYPTO :=
-ifneq ($(sm),core)
 SRCS_CRYPTO += aes.c
 SRCS_CRYPTO += aesni.c
 SRCS_CRYPTO += arc4.c
@@ -64,35 +63,14 @@ SRCS_CRYPTO += timing.c
 SRCS_CRYPTO += version.c
 SRCS_CRYPTO += version_features.c
 SRCS_CRYPTO += xtea.c
-else
-SRCS_CRYPTO += aes.c
-SRCS_CRYPTO += aesni.c
-SRCS_CRYPTO += asn1parse.c
-SRCS_CRYPTO += asn1write.c
-SRCS_CRYPTO += bignum.c
-SRCS_CRYPTO += cipher.c
-SRCS_CRYPTO += cipher_wrap.c
-SRCS_CRYPTO += cmac.c
-SRCS_CRYPTO += ctr_drbg.c
-SRCS_CRYPTO += des.c
-SRCS_CRYPTO += dhm.c
-SRCS_CRYPTO += ecdh.c
-SRCS_CRYPTO += ecdsa.c
-SRCS_CRYPTO += ecp.c
-SRCS_CRYPTO += ecp_curves.c
-SRCS_CRYPTO += md.c
-SRCS_CRYPTO += md5.c
-SRCS_CRYPTO += oid.c
-SRCS_CRYPTO += pk.c
-SRCS_CRYPTO += pk_wrap.c
-SRCS_CRYPTO += platform.c
-SRCS_CRYPTO += platform_util.c
-SRCS_CRYPTO += rsa_internal.c
-SRCS_CRYPTO += rsa.c
-SRCS_CRYPTO += sha1.c
-SRCS_CRYPTO += sha256.c
-SRCS_CRYPTO += sha512.c
-endif
+SRCS_CRYPTO += sm3.c
+SRCS_CRYPTO += sm4.c
+SRCS_CRYPTO += sm2dsa.c
+SRCS_CRYPTO += sm2_internal.c
+SRCS_CRYPTO += sm2kep.c
+SRCS_CRYPTO += sm2pke.c
+SRCS_CRYPTO += dsa.c
+SRCS_CRYPTO += otp.c
 
 # OBJS_X509
 SRCS_X509 :=
@@ -118,9 +96,13 @@ SRCS_TLS += ssl_srv.c
 SRCS_TLS += ssl_ticket.c
 SRCS_TLS += ssl_tls.c
 
+# OBJS_TEST
+SRCS_TEST += selftest.c
+
 srcs-y += $(addprefix mbedtls/library/, $(SRCS_CRYPTO))
 srcs-$(sm-$(ta-target)) += $(addprefix mbedtls/library/, $(SRCS_X509))
 srcs-$(sm-$(ta-target)) += $(addprefix mbedtls/library/, $(SRCS_TLS))
+srcs-$(CFG_MBEDTLS_SELFTEST) += $(addprefix mbedtls/test/, $(SRCS_TEST))
 
 cflags-lib-y += -Wno-redundant-decls
 cflags-lib-y += -Wno-switch-default

@@ -208,6 +208,8 @@ TEE_Result TEE_AllocateOperation(TEE_OperationHandle *operation,
 
 void TEE_FreeOperation(TEE_OperationHandle operation);
 
+void TEE_GetOperationBufferOffs(TEE_OperationHandle operation,size_t* buffer_offs);
+
 void TEE_GetOperationInfo(TEE_OperationHandle operation,
 			  TEE_OperationInfo *operationInfo);
 

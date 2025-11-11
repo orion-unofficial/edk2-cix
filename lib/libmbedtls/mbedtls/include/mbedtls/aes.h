@@ -115,6 +115,45 @@ typedef struct mbedtls_aes_xts_context
 #endif /* MBEDTLS_AES_ALT */
 
 /**
+* Trust engine key ladder root key selection enumeration
+*/
+typedef enum mbedtls_aes_key_sel {
+    MBEDTLS_AES_KL_KEY_MODEL = 0,         /**< model key */
+    MBEDTLS_AES_KL_KEY_ROOT               /**< device root key */
+} mbedtls_aes_key_sel_t;
+
+/**
+ * secure key structure
+ */
+typedef struct mbedtls_aes_sec_key {
+    mbedtls_aes_key_sel_t sel;   /**< key ladder root key selection */
+    uint32_t ek3bits;            /**< ek3 length in bits, 128 or 256 */
+    union {
+        struct {
+            uint8_t ek1[16];     /**< encrypted key1 (fixed to 128-bit) */
+            uint8_t ek2[16];     /**< encrypted key2 (fixed to 128-bit) */
+            uint8_t ek3[32];     /**< encrypted key3 */
+        };
+        uint8_t eks[64];         /**< ek1 || ek2 || ek3 */
+    };
+} mbedtls_aes_sec_key_t;
+/**
+ * secure key structure of key-ladder 256
+ */
+typedef struct mbedtls_aes_sec_key_v2 {
+    mbedtls_aes_key_sel_t sel;   /**< key ladder root key selection */
+    uint32_t ek3bits;            /**< ek3 length in bits, 256-bit only */
+    union {
+        struct {
+            uint8_t ek1[32];     /**< encrypted key1 (fixed to 256-bit) */
+            uint8_t ek2[32];     /**< encrypted key2 (fixed to 256-bit) */
+            uint8_t ek3[32];     /**< encrypted key3 */
+        };
+        uint8_t eks[96];         /**< ek1 || ek2 || ek3 */
+    };
+} mbedtls_aes_sec_key_v2_t;
+
+/**
  * \brief          This function initializes the specified AES context.
  *
  *                 It must be the first API called before using
@@ -123,6 +162,16 @@ typedef struct mbedtls_aes_xts_context
  * \param ctx      The AES context to initialize. This must not be \c NULL.
  */
 void mbedtls_aes_init( mbedtls_aes_context *ctx );
+
+/**
+ * \brief          This function clones the state of the specified AES context.
+ *
+ * \param dst      The AES context to clone to.
+ * \param src      The AES context to clone from.
+ * \return          \c 0 on success.
+ */
+int mbedtls_aes_clone( mbedtls_aes_context *dst,
+                       const mbedtls_aes_context *src );
 
 /**
  * \brief          This function releases and clears the specified AES context.
@@ -143,6 +192,16 @@ void mbedtls_aes_free( mbedtls_aes_context *ctx );
  * \param ctx      The AES XTS context to initialize. This must not be \c NULL.
  */
 void mbedtls_aes_xts_init( mbedtls_aes_xts_context *ctx );
+
+/**
+ * \brief          This function clones the state of the specified AES XTS context.
+ *
+ * \param dst      The AES XTS context to clone to.
+ * \param src      The AES XTS context to clone from.
+ * \return          \c 0 on success.
+ */
+int mbedtls_aes_xts_clone( mbedtls_aes_xts_context *dst,
+                           const mbedtls_aes_xts_context *src );
 
 /**
  * \brief          This function releases and clears the specified AES XTS context.
@@ -173,6 +232,32 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
                     unsigned int keybits );
 
 /**
+ * \brief          This function sets the encryption key.
+ *
+ * \param ctx      The AES context to which the key should be bound.
+ *                 It must be initialized.
+ * \param key      The encryption secure key.
+ *                 including ek1 ek2 ek3.
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_AES_INVALID_KEY_LENGTH on failure.
+ */
+int mbedtls_aes_setseckey_enc(mbedtls_aes_context *ctx,
+                              mbedtls_aes_sec_key_t *key);
+
+/**
+ * \brief          This function sets the encryption key of key-ladder 256.
+ *
+ * \param ctx      The AES context to which the key should be bound.
+ *                 It must be initialized.
+ * \param key      The encryption secure key of key-ladder 256.
+ *                 including ek1 ek2 ek3.
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_AES_INVALID_KEY_LENGTH on failure.
+ */
+int mbedtls_aes_setseckey_v2_enc(mbedtls_aes_context *ctx,
+                                 mbedtls_aes_sec_key_v2_t *key);
+
+/**
  * \brief          This function sets the decryption key.
  *
  * \param ctx      The AES context to which the key should be bound.
@@ -190,6 +275,31 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
 int mbedtls_aes_setkey_dec( mbedtls_aes_context *ctx, const unsigned char *key,
                     unsigned int keybits );
 
+/**
+ * \brief          This function sets the decryption key.
+ *
+ * \param ctx      The AES context to which the key should be bound.
+ *                 It must be initialized.
+ * \param key      The decryption secure key.
+ *                 including ek1 ek2 ek3.
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_AES_INVALID_KEY_LENGTH on failure.
+ */
+int mbedtls_aes_setseckey_dec( mbedtls_aes_context *ctx,
+                               mbedtls_aes_sec_key_t *key );
+
+/**
+ * \brief          This function sets the decryption key of key-ladder 256.
+ *
+ * \param ctx      The AES context to which the key should be bound.
+ *                 It must be initialized.
+ * \param key      The decryption secure key of key-ladder 256.
+ *                 including ek1 ek2 ek3.
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_AES_INVALID_KEY_LENGTH on failure.
+ */
+int mbedtls_aes_setseckey_v2_dec( mbedtls_aes_context *ctx,
+                                  mbedtls_aes_sec_key_v2_t *key );
 #if defined(MBEDTLS_CIPHER_MODE_XTS)
 /**
  * \brief          This function prepares an XTS context for encryption and
@@ -212,6 +322,38 @@ int mbedtls_aes_xts_setkey_enc( mbedtls_aes_xts_context *ctx,
                                 unsigned int keybits );
 
 /**
+ * \brief          This function prepares an XTS context for encryption and
+ *                 sets the encryption key.
+ *
+ * \param ctx      The AES XTS context to which the key should be bound.
+ *                 It must be initialized.
+ * \param key1      The encryption secure key. This is the XTS key1.
+ * \param key2      The encryption secure key. This is the XTS key2.
+ *
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_AES_INVALID_KEY_LENGTH on failure.
+ */
+int mbedtls_aes_xts_setseckey_enc( mbedtls_aes_xts_context *ctx,
+                                   mbedtls_aes_sec_key_t *key1,
+                                   mbedtls_aes_sec_key_t *key2);
+
+/**
+ * \brief          This function prepares an XTS context for encryption and
+ *                 sets the encryption key of key-ladder 256.
+ *
+ * \param ctx      The AES XTS context to which the key should be bound.
+ *                 It must be initialized.
+ * \param key1      The encryption secure key of key-ladder 256. This is the XTS key1.
+ * \param key2      The encryption secure key of key-ladder 256. This is the XTS key2.
+ *
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_AES_INVALID_KEY_LENGTH on failure.
+ */
+int mbedtls_aes_xts_setseckey_v2_enc( mbedtls_aes_xts_context *ctx,
+                                      mbedtls_aes_sec_key_v2_t *key1,
+                                      mbedtls_aes_sec_key_v2_t *key2);
+
+/**
  * \brief          This function prepares an XTS context for decryption and
  *                 sets the decryption key.
  *
@@ -230,6 +372,38 @@ int mbedtls_aes_xts_setkey_enc( mbedtls_aes_xts_context *ctx,
 int mbedtls_aes_xts_setkey_dec( mbedtls_aes_xts_context *ctx,
                                 const unsigned char *key,
                                 unsigned int keybits );
+
+/**
+ * \brief          This function prepares an XTS context for decryption and
+ *                 sets the decryption key.
+ *
+ * \param ctx      The AES XTS context to which the key should be bound.
+ *                 It must be initialized.
+ * \param key1     The decryption secure key. This is the XTS key1.
+ * \param key2     The decryption secure key. This is the XTS key2.
+ *
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_AES_INVALID_KEY_LENGTH on failure.
+ */
+int mbedtls_aes_xts_setseckey_dec( mbedtls_aes_xts_context *ctx,
+                                       mbedtls_aes_sec_key_t *key1,
+                                       mbedtls_aes_sec_key_t *key2);
+
+/**
+ * \brief          This function prepares an XTS context for decryption and
+ *                 sets the decryption key of key-ladder 256.
+ *
+ * \param ctx      The AES XTS context to which the key should be bound.
+ *                 It must be initialized.
+ * \param key1     The decryption secure key of key-ladder 256. This is the XTS key1.
+ * \param key2     The decryption secure key of key-ladder 256. This is the XTS key2.
+ *
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_AES_INVALID_KEY_LENGTH on failure.
+ */
+int mbedtls_aes_xts_setseckey_v2_dec( mbedtls_aes_xts_context *ctx,
+                                       mbedtls_aes_sec_key_v2_t *key1,
+                                       mbedtls_aes_sec_key_v2_t *key2);
 #endif /* MBEDTLS_CIPHER_MODE_XTS */
 
 /**

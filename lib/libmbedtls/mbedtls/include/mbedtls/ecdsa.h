@@ -619,6 +619,16 @@ void mbedtls_ecdsa_restart_init( mbedtls_ecdsa_restart_ctx *ctx );
 void mbedtls_ecdsa_restart_free( mbedtls_ecdsa_restart_ctx *ctx );
 #endif /* MBEDTLS_ECP_RESTARTABLE */
 
+#if defined(MBEDTLS_SELF_TEST)
+/**
+ * \brief          Checkup routine.
+ *
+ * \return         \c 0 on success.
+ * \return         \c 1 on failure.
+ */
+int mbedtls_ecdsa_self_test( int verbose );
+#endif
+
 #ifdef __cplusplus
 }
 #endif

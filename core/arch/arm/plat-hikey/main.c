@@ -79,7 +79,6 @@ void spi_init(void)
 	} while (read_val & shifted_val);
 	DMSG("PERI_SC_PERIPH_RSTSTAT3: 0x%x\n", read_val);
 
-	DMSG("enable SPI clock\n");
 	/*
 	 * no need to read PERI_SC_PERIPH_CLKEN3 first
 	 * as all the bits are processed and cleared after writing

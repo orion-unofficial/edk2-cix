@@ -9,19 +9,47 @@ ifeq (y,$(CFG_CRYPTO))
 # Ciphers
 CFG_CRYPTO_AES ?= y
 CFG_CRYPTO_DES ?= y
-CFG_CRYPTO_SM4 ?= y
 
 # Cipher block modes
 CFG_CRYPTO_ECB ?= y
 CFG_CRYPTO_CBC ?= y
 CFG_CRYPTO_CTR ?= y
+
+ifeq ($(CFG_MBEDTLS_TE),y)
+CFG_CRYPTO_SM4 ?= n
+CFG_CRYPTO_CTS ?= n
+CFG_CRYPTO_XTS ?= n
+
+# Authenticated encryption
+CFG_CRYPTO_CCM ?= n
+CFG_CRYPTO_GCM ?= n
+
+# Message authentication codes
+CFG_CRYPTO_HMAC ?= y
+CFG_CRYPTO_CMAC ?= n
+CFG_CRYPTO_CBC_MAC ?= n
+
+CFG_CRYPTO_SM2_DSA ?= n
+else #CFG_MBEDTLS_TE
+CFG_CRYPTO_SM4 ?= y
 CFG_CRYPTO_CTS ?= y
 CFG_CRYPTO_XTS ?= y
+
+# Authenticated encryption
+CFG_CRYPTO_CCM ?= y
+CFG_CRYPTO_GCM ?= y
 
 # Message authentication codes
 CFG_CRYPTO_HMAC ?= y
 CFG_CRYPTO_CMAC ?= y
 CFG_CRYPTO_CBC_MAC ?= y
+
+CFG_CRYPTO_SM2_DSA ?= y
+endif #CFG_MBEDTLS_TE
+
+# Default uses the OP-TEE internal AES-GCM implementation
+CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB ?= n
+
 # Instead of calling the AES CBC encryption function for each 16 byte block of
 # input, bundle a maximum of N blocks when possible. A maximum of N*16 bytes of
 # temporary data are allocated on the heap.
@@ -38,6 +66,9 @@ CFG_CRYPTO_SHA512 ?= y
 CFG_CRYPTO_SHA512_256 ?= y
 CFG_CRYPTO_SM3 ?= y
 
+# Stream
+CFG_CRYPTO_ZUC ?= y
+
 # Asymmetric ciphers
 CFG_CRYPTO_DSA ?= y
 CFG_CRYPTO_RSA ?= y
@@ -45,15 +76,7 @@ CFG_CRYPTO_DH ?= y
 # ECC includes ECDSA and ECDH
 CFG_CRYPTO_ECC ?= y
 CFG_CRYPTO_SM2_PKE ?= y
-CFG_CRYPTO_SM2_DSA ?= y
 CFG_CRYPTO_SM2_KEP ?= y
-
-# Authenticated encryption
-CFG_CRYPTO_CCM ?= y
-CFG_CRYPTO_GCM ?= y
-# Default uses the OP-TEE internal AES-GCM implementation
-CFG_CRYPTO_AES_GCM_FROM_CRYPTOLIB ?= n
-
 endif
 
 ifeq ($(CFG_WITH_PAGER),y)
@@ -104,9 +127,19 @@ ifeq ($(CFG_CRYPTO_AES_ARM_CE),y)
 $(call force,CFG_WITH_VFP,y,required by CFG_CRYPTO_AES_ARM_CE)
 endif
 
+
+ifeq ($(CFG_MBEDTLS_TE),y)
+cryp-enable-all-depends = $(call cfg-enable-all-depends,$(strip $(1)),$(foreach v,$(2),CFG_CRYPTO_$(v)))
+$(eval $(call cryp-enable-all-depends,CFG_REE_FS, AES ECB CTR SHA256))
+$(eval $(call cryp-enable-all-depends,CFG_NOR_FS, AES ECB CTR SHA256))
+$(eval $(call cryp-enable-all-depends,CFG_RPMB_FS, AES ECB CTR SHA256))
+else
 cryp-enable-all-depends = $(call cfg-enable-all-depends,$(strip $(1)),$(foreach v,$(2),CFG_CRYPTO_$(v)))
 $(eval $(call cryp-enable-all-depends,CFG_REE_FS, AES ECB CTR HMAC SHA256 GCM))
+$(eval $(call cryp-enable-all-depends,CFG_NOR_FS, AES ECB CTR HMAC SHA256 GCM))
 $(eval $(call cryp-enable-all-depends,CFG_RPMB_FS, AES ECB CTR HMAC SHA256 GCM))
+endif
+
 
 # Dependency checks: warn and disable some features if dependencies are not met
 
@@ -176,6 +209,7 @@ endif
 ###############################################################
 
 ifeq ($(CFG_CRYPTOLIB_NAME),mbedtls)
+ifneq ($(CFG_MBEDTLS_TE),y)
 # mbedtls has to be complemented with some algorithms by LTC
 # Specify the algorithms here
 _CFG_CORE_LTC_DSA := $(CFG_CRYPTO_DSA)
@@ -186,6 +220,7 @@ _CFG_CORE_LTC_SHA512_DESC := $(CFG_CRYPTO_DSA)
 _CFG_CORE_LTC_XTS := $(CFG_CRYPTO_XTS)
 _CFG_CORE_LTC_CCM := $(CFG_CRYPTO_CCM)
 _CFG_CORE_LTC_AES_DESC := $(call cfg-one-enabled, CFG_CRYPTO_XTS CFG_CRYPTO_CCM)
+endif # CFG_MBEDTLS_TE
 endif
 
 ###############################################################

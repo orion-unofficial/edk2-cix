@@ -1,4 +1,8 @@
 srcs-$(CFG_CDNS_UART) += cdns_uart.c
+srcs-$(CFG_CIX_UART) += cix_uart_pl011.c
+srcs-$(CFG_CIX_DP_HDCP_TX) += cix_hdcp2_hw_tx.c
+srcs-$(CFG_CIX_DP_HDCP_TX) += cix_hdcp2_key_drvn_tx.c
+srcs-$(CFG_CIX_DP_HDCP_TX) += cix_hdcp2_tx_state.c
 srcs-$(CFG_PL011) += pl011.c
 srcs-$(CFG_TZC400) += tzc400.c
 srcs-$(CFG_TZC380) += tzc380.c
@@ -51,6 +55,7 @@ srcs-$(CFG_ZYNQMP_CSUDMA) += zynqmp_csudma.c
 srcs-$(CFG_ZYNQMP_CSU_AES) += zynqmp_csu_aes.c
 srcs-$(CFG_ZYNQMP_PM) += zynqmp_pm.c
 srcs-$(CFG_ZYNQMP_HUK) += zynqmp_huk.c
+srcs-$(CFG_IPC_ENABLE) += ipc.c
 
 subdirs-y += crypto
 subdirs-$(CFG_BNXT_FW) += bnxt
@@ -62,3 +67,4 @@ subdirs-y += pm
 subdirs-y += wdt
 subdirs-y += rtc
 subdirs-y += tpm2
+subdirs-y += spi-nor

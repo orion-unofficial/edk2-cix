@@ -94,6 +94,10 @@ struct crypto_mac_ops {
 	void (*free_ctx)(struct crypto_mac_ctx *ctx);
 	void (*copy_state)(struct crypto_mac_ctx *dst_ctx,
 			   struct crypto_mac_ctx *src_ctx);
+#if defined(CFG_MBEDTLS_TE)
+	TEE_Result (*init2)(struct crypto_mac_ctx *ctx,
+			    const crypto_sec_key_t *key);
+#endif
 };
 
 #if defined(CFG_CRYPTO_HMAC)
@@ -142,6 +146,13 @@ CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(aes_cmac, mac)
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(des3_cmac, mac)
 #endif
 
+#if defined(CFG_CRYPTO_CMAC) && defined(CFG_CRYPTO_SM4) && \
+    defined(CFG_CRYPTOLIB_NAME_mbedtls)
+TEE_Result crypto_sm4_cmac_alloc_ctx(struct crypto_mac_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_cmac, mac)
+#endif
+
 /*
  * The crypto context used by the crypto_cipher_*() functions is defined by
  * struct crypto_cipher_ctx.
@@ -163,6 +174,13 @@ struct crypto_cipher_ops {
 	void (*free_ctx)(struct crypto_cipher_ctx *ctx);
 	void (*copy_state)(struct crypto_cipher_ctx *dst_ctx,
 			   struct crypto_cipher_ctx *src_ctx);
+#if defined(CFG_MBEDTLS_TE)
+	TEE_Result (*init2)(struct crypto_cipher_ctx *ctx,
+			    TEE_OperationMode mode,
+			    const crypto_sec_key_t *key1,
+			    const crypto_sec_key_t *key2,
+			    const uint8_t *iv, size_t iv_len);
+#endif
 };
 
 #if defined(CFG_CRYPTO_AES) && defined(CFG_CRYPTO_ECB)
@@ -229,6 +247,13 @@ TEE_Result crypto_sm4_ctr_alloc_ctx(struct crypto_cipher_ctx **ctx);
 CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_ctr, cipher)
 #endif
 
+#if defined(CFG_CRYPTO_SM4) && defined(CFG_CRYPTO_XTS) && \
+    defined(CFG_CRYPTOLIB_NAME_mbedtls) && defined(CFG_MBEDTLS_TE)
+TEE_Result crypto_sm4_xts_alloc_ctx(struct crypto_cipher_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_xts, cipher)
+#endif
+
 /*
  * The crypto context used by the crypto_authen_*() functions below is
  * defined by struct crypto_authenc_ctx.
@@ -262,10 +287,32 @@ struct crypto_authenc_ops {
 	void (*free_ctx)(struct crypto_authenc_ctx *ctx);
 	void (*copy_state)(struct crypto_authenc_ctx *dst_ctx,
 			   struct crypto_authenc_ctx *src_ctx);
+#if defined(CFG_MBEDTLS_TE)
+	TEE_Result (*init2)(struct crypto_authenc_ctx *ctx,
+			   TEE_OperationMode mode,
+			   const crypto_sec_key_t *key,
+			   const uint8_t *nonce, size_t nonce_len,
+			   size_t tag_len, size_t aad_len,
+			   size_t payload_len);
+#endif
 };
 
 TEE_Result crypto_aes_ccm_alloc_ctx(struct crypto_authenc_ctx **ctx);
 TEE_Result crypto_aes_gcm_alloc_ctx(struct crypto_authenc_ctx **ctx);
+
+#if defined(CFG_CRYPTO_SM4) && defined(CFG_CRYPTO_CCM) && \
+    defined(CFG_CRYPTOLIB_NAME_mbedtls) && defined(CFG_MBEDTLS_TE)
+TEE_Result crypto_sm4_ccm_alloc_ctx(struct crypto_authenc_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_ccm, authenc)
+#endif
+
+#if defined(CFG_CRYPTO_SM4) && defined(CFG_CRYPTO_GCM) && \
+    defined(CFG_CRYPTOLIB_NAME_mbedtls) && defined(CFG_MBEDTLS_TE)
+TEE_Result crypto_sm4_gcm_alloc_ctx(struct crypto_authenc_ctx **ctx);
+#else
+CRYPTO_ALLOC_CTX_NOT_IMPLEMENTED(sm4_gcm, authenc)
+#endif
 
 #ifdef CFG_CRYPTO_DRV_HASH
 TEE_Result drvcrypt_hash_alloc_ctx(struct crypto_hash_ctx **ctx, uint32_t algo);

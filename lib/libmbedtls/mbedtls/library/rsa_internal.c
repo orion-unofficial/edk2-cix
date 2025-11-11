@@ -85,8 +85,13 @@ int mbedtls_rsa_deduce_primes( mbedtls_mpi const *N,
 
     const size_t num_primes = sizeof( primes ) / sizeof( *primes );
 
+#if !defined(MBEDTLS_BIGNUM_ALT)
     if( P == NULL || Q == NULL || P->p != NULL || Q->p != NULL )
         return( MBEDTLS_ERR_MPI_BAD_INPUT_DATA );
+#else
+    if( P == NULL || Q == NULL )
+        return( MBEDTLS_ERR_MPI_BAD_INPUT_DATA );
+#endif
 
     if( mbedtls_mpi_cmp_int( N, 0 ) <= 0 ||
         mbedtls_mpi_cmp_int( D, 1 ) <= 0 ||
@@ -123,8 +128,16 @@ int mbedtls_rsa_deduce_primes( mbedtls_mpi const *N,
 
     /* Skip trying 2 if N == 1 mod 8 */
     attempt = 0;
+#if !defined(MBEDTLS_BIGNUM_ALT)
     if( N->p[0] % 8 == 1 )
         attempt = 1;
+#else
+    mbedtls_mpi_uint t;
+    MBEDTLS_MPI_CHK(mbedtls_mpi_mod_int(&t, N, 8));
+    if (t == 1) {
+        attempt = 1;
+    }
+#endif
 
     for( ; attempt < num_primes; ++attempt )
     {

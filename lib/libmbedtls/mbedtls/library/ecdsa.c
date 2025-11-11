@@ -39,7 +39,9 @@
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
 #else
+#include <stdio.h>
 #include <stdlib.h>
+#define mbedtls_printf printf
 #define mbedtls_calloc    calloc
 #define mbedtls_free       free
 #endif
@@ -1008,5 +1010,162 @@ void mbedtls_ecdsa_restart_free( mbedtls_ecdsa_restart_ctx *ctx )
 #endif
 }
 #endif /* MBEDTLS_ECP_RESTARTABLE */
+
+#if defined(MBEDTLS_SELF_TEST)
+
+#include "mbedtls/sha1.h"
+
+/*
+ * Automatically generated from NIST-186-2ecdsatestvectors-SigGen.txt
+ */
+/* [P-192] */
+#define ECDSA_P192_D  "0017899949d02b55f9556846411cc9de512c6f16ecdeb1c4"
+
+#define ECDSA_P192_QX "14f69738599689f5706ab71343becc886ef1569a2d1137fe"
+
+#define ECDSA_P192_QY "0cf5a433909e33217fb4df6b9593f71d43fb1c2a5653b763"
+
+#define ECDSA_MSG     "In cryptography, the ECDSA offers a variant of "  \
+                      "the Digital Signature Algorithm (DSA) which uses" \
+                      " elliptic curve cryptography"
+
+static int myrand( void *rng_state, unsigned char *output, size_t len )
+{
+#if !defined(__OpenBSD__)
+    size_t i;
+
+    if( rng_state != NULL )
+        rng_state  = NULL;
+
+    for( i = 0; i < len; ++i )
+        output[i] = rand();
+#else
+    if( rng_state != NULL )
+        rng_state = NULL;
+
+    arc4random_buf( output, len );
+#endif /* !OpenBSD */
+
+    return( 0 );
+}
+
+/*
+ * Checkup routine
+ */
+int mbedtls_ecdsa_self_test( int verbose )
+{
+    int ret = 0, i = 0;
+    mbedtls_ecp_group_id gid = MBEDTLS_ECP_DP_SECP192R1;
+    mbedtls_ecdsa_context ecdsa;
+#if defined(MBEDTLS_SHA1_C)
+    unsigned char sha1sum[20];
+    unsigned char sig[MBEDTLS_ECDSA_MAX_LEN];
+    size_t siglen = sizeof(sig);
+#endif
+
+    mbedtls_ecdsa_init( &ecdsa );
+
+    for (i = 0; i < 2; i++)
+    {
+        if( verbose != 0 )
+            mbedtls_printf( "  ECDSA key validation #%d: ", i + 1 );
+
+        if (i & 1)
+        {
+            /* load keypair */
+            if( mbedtls_ecp_group_load( &ecdsa.grp, gid ) != 0 )
+            {
+                ret = 1;
+                goto fail;
+            }
+            MBEDTLS_MPI_CHK( mbedtls_mpi_read_string( &ecdsa.d, 16, ECDSA_P192_D ) );
+            if( mbedtls_ecp_point_read_string( &ecdsa.Q,
+                                               16,
+                                               ECDSA_P192_QX,
+                                               ECDSA_P192_QY ) != 0 )
+            {
+                ret = 1;
+                goto fail;
+            }
+        }
+        else
+        {
+            /* generate keypair */
+            if( mbedtls_ecdsa_genkey( &ecdsa, gid, myrand, NULL ) != 0 )
+            {
+                ret = 1;
+                goto fail;
+            }
+        }
+
+        /*
+         * validate keypair
+         */
+        if( mbedtls_ecp_check_pubkey( &ecdsa.grp, &ecdsa.Q ) ||
+            mbedtls_ecp_check_privkey( &ecdsa.grp, &ecdsa.d ) )
+        {
+            ret = 1;
+            goto fail;
+        }
+
+        if( verbose != 0 )
+            mbedtls_printf( "passed\n" );
+
+#if defined(MBEDTLS_SHA1_C)
+        if( verbose != 0 )
+            mbedtls_printf( "  ECDSA data sign      #%d: ", i + 1 );
+
+        if( mbedtls_sha1_ret( (const unsigned char *)ECDSA_MSG,
+                              strlen(ECDSA_MSG), sha1sum ) != 0 )
+        {
+            ret = 1;
+            goto fail;
+        }
+
+        siglen = sizeof(sig);
+        if( mbedtls_ecdsa_write_signature( &ecdsa,
+                                           MBEDTLS_MD_SHA1,
+                                           sha1sum,
+                                           sizeof(sha1sum),
+                                           sig,
+                                           &siglen,
+                                           myrand,
+                                           NULL ) != 0 )
+        {
+            ret = 1;
+            goto fail;
+        }
+
+        if( verbose != 0 )
+            mbedtls_printf( "passed\n  ECDSA sig. verify    #%d: ", i + 1 );
+
+        if( mbedtls_ecdsa_read_signature( &ecdsa,
+                                          sha1sum,
+                                          sizeof(sha1sum),
+                                          sig,
+                                          siglen ) != 0 )
+        {
+            ret = 1;
+            goto fail;
+        }
+
+        if( verbose != 0 )
+            mbedtls_printf( "passed\n" );
+#endif /* MBEDTLS_SHA1_C */
+    }
+
+    goto cleanup;
+
+fail:
+    if ( verbose != 0 )
+        mbedtls_printf( "failed\n" );
+
+cleanup:
+    mbedtls_ecdsa_free( &ecdsa );
+    return( ret );
+
+}
+
+#endif /* MBEDTLS_SELF_TEST */
 
 #endif /* MBEDTLS_ECDSA_C */

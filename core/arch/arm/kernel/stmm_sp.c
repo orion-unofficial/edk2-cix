@@ -66,10 +66,13 @@ static const uint16_t stmm_pta_id = 2U;
 static const uint16_t mem_mgr_id = 3U;
 static const uint16_t ffa_storage_id = 4U;
 
+static const uint16_t ffa_debug_message_id = 100U;
+static const uint16_t ffa_nor_flash_id = 101U;
+
 static const unsigned int stmm_stack_size = 4 * SMALL_PAGE_SIZE;
-static const unsigned int stmm_heap_size = 398 * SMALL_PAGE_SIZE;
+static const unsigned int stmm_heap_size = 900 * SMALL_PAGE_SIZE;
 static const unsigned int stmm_sec_buf_size = 4 * SMALL_PAGE_SIZE;
-static const unsigned int stmm_ns_comm_buf_size = 4 * SMALL_PAGE_SIZE;
+static const unsigned int stmm_ns_comm_buf_size = 20 * SMALL_PAGE_SIZE;
 
 extern unsigned char stmm_image[];
 extern const unsigned int stmm_image_size;
@@ -214,10 +217,12 @@ static void uncompress_image(void *dst, size_t dst_size, void *src,
 		panic("inflateEnd");
 }
 
-static TEE_Result load_stmm(struct stmm_ctx *spc)
+static TEE_Result load_stmm(struct stmm_ctx *spc, struct tee_ta_param *param)
 {
 	struct stmm_boot_info *boot_info = NULL;
 	struct stmm_mp_info *mp_info = NULL;
+	struct stmm_flash_nvram_storage_info *flash_nvram_storage_info = NULL;
+	struct tee_ta_param *params_virt_addr;
 	TEE_Result res = TEE_SUCCESS;
 	vaddr_t sp_addr = 0;
 	vaddr_t image_addr = 0;
@@ -280,6 +285,7 @@ static TEE_Result load_stmm(struct stmm_ctx *spc)
 
 	boot_info = (struct stmm_boot_info *)sec_buf_addr;
 	mp_info = (struct stmm_mp_info *)(boot_info + 1);
+	flash_nvram_storage_info = (struct stmm_flash_nvram_storage_info *)(mp_info + 1);
 	*boot_info = (struct stmm_boot_info){
 		.h.type = STMM_PARAM_SP_IMAGE_BOOT_INFO,
 		.h.version = STMM_PARAM_VERSION_1,
@@ -304,17 +310,25 @@ static TEE_Result load_stmm(struct stmm_ctx *spc)
 	mp_info->mpidr = read_mpidr();
 	mp_info->linear_id = 0;
 	mp_info->flags = MP_INFO_FLAG_PRIMARY_CPU;
+
+	flash_nvram_storage_info->variable_base    = (param->u[0].val.a & ~0xFFFF) >> 4;
+	flash_nvram_storage_info->ftw_working_base = (param->u[1].val.a & ~0xFFFF) >> 4;
+	flash_nvram_storage_info->ftw_spare_base   = (param->u[1].val.b & ~0xFFFF) >> 4;
+	flash_nvram_storage_info->variable_size    = (param->u[0].val.a & 0xFFFF) << 12;
+	flash_nvram_storage_info->ftw_working_size = (param->u[1].val.a & 0xFFFF) << 12;
+	flash_nvram_storage_info->ftw_spare_size   = (param->u[1].val.b & 0xFFFF) << 12;
+
 	spc->ns_comm_buf_addr = comm_buf_addr;
 	spc->ns_comm_buf_size = stmm_ns_comm_buf_size;
 
 	init_stmm_regs(spc, sec_buf_addr,
-		       (vaddr_t)(mp_info + 1) - sec_buf_addr,
+		       (vaddr_t)(flash_nvram_storage_info + 1) - sec_buf_addr,
 		       stack_addr + stmm_stack_size, image_addr);
 
 	return stmm_enter_user_mode(spc);
 }
 
-TEE_Result stmm_init_session(const TEE_UUID *uuid, struct tee_ta_session *sess)
+TEE_Result stmm_init_session(const TEE_UUID *uuid, struct tee_ta_session *sess, struct tee_ta_param *param)
 {
 	struct stmm_ctx *spc = NULL;
 	TEE_Result res = TEE_SUCCESS;
@@ -334,7 +348,9 @@ TEE_Result stmm_init_session(const TEE_UUID *uuid, struct tee_ta_session *sess)
 	mutex_unlock(&tee_ta_mutex);
 
 	ts_push_current_session(&sess->ts_sess);
-	res = load_stmm(spc);
+
+	sess->param = param;
+	res = load_stmm(spc, sess->param);
 	ts_pop_current_session();
 	vm_set_ctx(NULL);
 	if (res) {
@@ -356,10 +372,16 @@ static TEE_Result stmm_enter_open_session(struct ts_session *s)
 {
 	struct stmm_ctx *spc = to_stmm_ctx(s->ctx);
 	struct tee_ta_session *ta_sess = to_ta_session(s);
-	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_NONE,
+	uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE);
+
+	if (!memcmp(&spc->ta_ctx.ts_ctx.uuid, &stmm_uuid, sizeof(stmm_uuid)))
+		exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+								TEE_PARAM_TYPE_VALUE_INPUT,
+								TEE_PARAM_TYPE_NONE,
+								TEE_PARAM_TYPE_NONE);
 
 	if (ta_sess->param->types != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -382,7 +404,7 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 	unsigned int ns_buf_size = 0;
 	struct param_mem *mem = NULL;
 	void *va = NULL;
-	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INOUT,
 						TEE_PARAM_TYPE_VALUE_OUTPUT,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE);
@@ -393,18 +415,15 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 	if (ta_sess->param->types != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	mem = &ta_sess->param->u[0].mem;
-	ns_buf_size = mem->size;
+	ns_buf_size = ta_sess->param->u[0].val.b;
+
 	if (ns_buf_size > spc->ns_comm_buf_size) {
-		mem->size = spc->ns_comm_buf_size;
+		ns_buf_size = spc->ns_comm_buf_size;
 		return TEE_ERROR_EXCESS_DATA;
 	}
 
-	res = mobj_inc_map(mem->mobj);
-	if (res)
-		return res;
+	va = phys_to_virt(ta_sess->param->u[0].val.a, MEM_AREA_RAM_NSEC, ns_buf_size);
 
-	va = mobj_get_va(mem->mobj, mem->offs, mem->size);
 	if (!va) {
 		EMSG("Can't get a valid VA for NS buffer");
 		res = TEE_ERROR_BAD_PARAMETERS;
@@ -455,8 +474,6 @@ static TEE_Result stmm_enter_invoke_cmd(struct ts_session *s, uint32_t cmd)
 out_session:
 	ts_pop_current_session();
 out_va:
-	tmp_res = mobj_dec_map(mem->mobj);
-	assert(!tmp_res);
 
 	return res;
 }
@@ -788,13 +805,11 @@ static void stmm_handle_storage_service(struct thread_svc_regs *regs)
 
 	switch (action) {
 	case __FFA_SVC_RPMB_READ:
-		DMSG("RPMB read");
 		res = sec_storage_obj_read(TEE_STORAGE_PRIVATE_RPMB, obj_id,
 					   obj_id_len, va, len, offset, flags);
 		stmm_rc = tee2stmm_ret_val(res);
 		break;
 	case __FFA_SVC_RPMB_WRITE:
-		DMSG("RPMB write");
 		res = sec_storage_obj_write(TEE_STORAGE_PRIVATE_RPMB, obj_id,
 					    obj_id_len, va, len, offset, flags);
 		stmm_rc = tee2stmm_ret_val(res);
@@ -805,6 +820,52 @@ static void stmm_handle_storage_service(struct thread_svc_regs *regs)
 	}
 
 	service_compose_direct_resp(regs, stmm_rc);
+}
+
+static void stmm_handle_debug_message_service(struct thread_svc_regs *regs)
+{
+	void *va = (void *)SVC_REGS_A4(regs);
+	unsigned long len = SVC_REGS_A5(regs);
+
+	uint32_t stmm_rc = STMM_RET_SUCCESS;
+
+	if((*((char *)va + len - 2) == '\n') || (*((char *)va + len - 2) == '\r')) {
+		*((char *)va + len - 2) = '\0';
+	}
+
+	if((*((char *)va + len - 1) == '\n') || (*((char *)va + len - 1) == '\r')) {
+		*((char *)va + len - 1) = '\0';
+	}
+
+	DMSG_RAW("[StMM] %s", (char *)va);
+
+	service_compose_direct_resp(regs, stmm_rc);
+}
+
+#define CIX_SIP_NOR_STORAGE  0xC200000B
+
+static void stmm_handle_nor_flash_service(struct thread_svc_regs *regs)
+{
+	uint32_t stmm_rc = STMM_RET_SUCCESS;
+	struct thread_smc_args args = {
+		.a0 = CIX_SIP_NOR_STORAGE,
+		.a1 = SVC_REGS_A2(regs),
+		.a2 = SVC_REGS_A3(regs),
+		.a3 = SVC_REGS_A4(regs),
+		.a4 = SVC_REGS_A5(regs) & GENMASK_64(63, 32) | \
+				virt_to_phys((void *)(SVC_REGS_A5(regs) & GENMASK_64(31, 0))),
+	};
+
+	DMSG_RAW("%s enter\n", __func__);
+
+	DMSG_RAW("a0: %lx, a1: %lx, a2: %lx, a3: %lx, a4: %lx\n", \
+				args.a0, args.a1, args.a2, args.a3, args.a4);
+
+	thread_smccc(&args);
+
+	DMSG_RAW("%s exit\n", __func__);
+
+   service_compose_direct_resp(regs, stmm_rc);
 }
 
 static void spm_eret_error(int32_t error_code, struct thread_svc_regs *regs)
@@ -827,6 +888,10 @@ static void spm_handle_direct_req(struct thread_svc_regs *regs)
 		stmm_handle_mem_mgr_service(regs);
 	} else if (dst_id == ffa_storage_id) {
 		stmm_handle_storage_service(regs);
+	} else if (dst_id == ffa_debug_message_id) {
+		stmm_handle_debug_message_service(regs);
+	} else if (dst_id == ffa_nor_flash_id) {
+		stmm_handle_nor_flash_service(regs);
 	} else {
 		EMSG("Undefined endpoint id %#"PRIx16, dst_id);
 		spm_eret_error(STMM_RET_INVALID_PARAM, regs);
@@ -845,15 +910,12 @@ static bool spm_handle_svc(struct thread_svc_regs *regs)
 
 	switch (*a0) {
 	case FFA_VERSION:
-		DMSG("Received FFA version");
 		*a0 = MAKE_FFA_VERSION(FFA_VERSION_MAJOR, FFA_VERSION_MINOR);
 		return true;
 	case __FFA_MSG_SEND_DIRECT_RESP:
-		DMSG("Received FFA direct response");
 		return_from_sp_helper(false, 0, regs);
 		return false;
 	case __FFA_MSG_SEND_DIRECT_REQ:
-		DMSG("Received FFA direct request");
 		spm_handle_direct_req(regs);
 		return true;
 	default:

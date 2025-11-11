@@ -198,8 +198,12 @@ void mbedtls_cipher_free( mbedtls_cipher_context_t *ctx )
 #if defined(MBEDTLS_CMAC_C)
     if( ctx->cmac_ctx )
     {
+#if defined(MBEDTLS_CMAC_ALT)
+        mbedtls_cmac_free(ctx->cmac_ctx);
+#else
        mbedtls_platform_zeroize( ctx->cmac_ctx,
                                  sizeof( mbedtls_cmac_context_t ) );
+#endif
        mbedtls_free( ctx->cmac_ctx );
     }
 #endif

@@ -62,6 +62,11 @@ endif
 
 cppflags$(sm)	+= -Ildelf/include
 cppflags$(sm)	+= -Ilib/libutee/include
+cppflags$(sm)   += -Icore/drivers/spi-nor/qlib/platform
+cppflags$(sm)   += -Icore/drivers/spi-nor/qlib/samples
+cppflags$(sm)   += -Icore/drivers/spi-nor/qlib/src
+cppflags$(sm)   += -Icore/drivers/spi-nor/qlib/utils
+cppflags$(sm)   += -Icore/drivers/spi-nor/qlib/qconf
 
 ifeq ($(filter y, $(CFG_CORE_DYN_SHM) $(CFG_CORE_RESERVED_SHM)),)
 $(error error: No shared memory configured)
@@ -99,6 +104,15 @@ libname = utils
 libdir = lib/libutils
 include mk/lib.mk
 
+# HOSAL library
+ifeq ($(CFG_HOSAL),y)
+HOSAL_ENV_OPTEE_OS := y
+libname = hosal
+libdir = lib/libhosal
+include mk/lib.mk
+HOSAL_ENV_OPTEE_OS := n
+endif
+
 # CFG_CRYPTOLIB_NAME must not be changed beyond this line
 CFG_CRYPTOLIB_NAME_$(CFG_CRYPTOLIB_NAME) := y
 
@@ -112,11 +126,13 @@ endif #tomcrypt
 
 ifeq ($(CFG_CRYPTOLIB_NAME),mbedtls)
 $(call force,CFG_CRYPTO_RSASSA_NA1,n,not supported by mbedtls)
+ifneq ($(CFG_MBEDTLS_TE),y)
 libname = tomcrypt
 libdir = core/lib/libtomcrypt
 base-prefix :=
 include mk/lib.mk
 base-prefix := $(sm)-
+endif
 endif
 
 ifeq ($(firstword $(subst /, ,$(CFG_CRYPTOLIB_DIR))),core)

@@ -90,8 +90,11 @@ static void mbed_des_ecb_copy_state(struct crypto_cipher_ctx *dst_ctx,
 {
 	struct mbed_des_ecb_ctx *src = to_des_ecb_ctx(src_ctx);
 	struct mbed_des_ecb_ctx *dst = to_des_ecb_ctx(dst_ctx);
-
+#if defined(CFG_MBEDTLS_TE)
+	assert(mbedtls_des_clone(&dst->des_ctx, &src->des_ctx) == 0);
+#else
 	dst->des_ctx = src->des_ctx;
+#endif
 }
 
 static const struct crypto_cipher_ops mbed_des_ecb_ops = {

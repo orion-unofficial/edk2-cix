@@ -37,6 +37,7 @@
 #include "mbedtls/sha1.h"
 #include "mbedtls/sha256.h"
 #include "mbedtls/sha512.h"
+#include "mbedtls/sm3.h"
 
 #if defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
@@ -131,10 +132,24 @@ const mbedtls_md_info_t mbedtls_sha512_info = {
 };
 #endif
 
+#if defined(MBEDTLS_SM3_C)
+const mbedtls_md_info_t mbedtls_sm3_info = {
+    "SM3",
+    MBEDTLS_MD_SM3,
+    32,
+    64,
+};
+#endif
+
+
 /*
  * Reminder: update profiles in x509_crt.c when adding a new hash!
  */
 static const int supported_digests[] = {
+
+#if defined(MBEDTLS_SM3_C)
+        MBEDTLS_MD_SM3,
+#endif
 
 #if defined(MBEDTLS_SHA512_C)
         MBEDTLS_MD_SHA512,
@@ -216,6 +231,10 @@ const mbedtls_md_info_t *mbedtls_md_info_from_string( const char *md_name )
     if( !strcmp( "SHA512", md_name ) )
         return mbedtls_md_info_from_type( MBEDTLS_MD_SHA512 );
 #endif
+#if defined(MBEDTLS_SM3_C)
+    if( !strcmp( "SM3", md_name ) )
+        return mbedtls_md_info_from_type( MBEDTLS_MD_SM3 );
+#endif
     return( NULL );
 }
 
@@ -256,6 +275,10 @@ const mbedtls_md_info_t *mbedtls_md_info_from_type( mbedtls_md_type_t md_type )
 #endif
         case MBEDTLS_MD_SHA512:
             return( &mbedtls_sha512_info );
+#endif
+#if defined(MBEDTLS_SM3_C)
+        case MBEDTLS_MD_SM3:
+            return( &mbedtls_sm3_info );
 #endif
         default:
             return( NULL );
@@ -315,6 +338,11 @@ void mbedtls_md_free( mbedtls_md_context_t *ctx )
                 mbedtls_sha512_free( ctx->md_ctx );
                 break;
 #endif
+#if defined(MBEDTLS_SM3_C)
+            case MBEDTLS_MD_SM3:
+                mbedtls_sm3_free( ctx->md_ctx );
+                break;
+#endif
             default:
                 /* Shouldn't happen */
                 break;
@@ -324,8 +352,12 @@ void mbedtls_md_free( mbedtls_md_context_t *ctx )
 
     if( ctx->hmac_ctx != NULL )
     {
+#if defined(MBEDTLS_HMAC_C) && defined(MBEDTLS_HMAC_ALT)
+        mbedtls_hmac_free((mbedtls_hmac_context*)ctx->hmac_ctx);
+#else
         mbedtls_platform_zeroize( ctx->hmac_ctx,
                                   2 * ctx->md_info->block_size );
+#endif
         mbedtls_free( ctx->hmac_ctx );
     }
 
@@ -381,6 +413,11 @@ int mbedtls_md_clone( mbedtls_md_context_t *dst,
 #endif
         case MBEDTLS_MD_SHA512:
             mbedtls_sha512_clone( dst->md_ctx, src->md_ctx );
+            break;
+#endif
+#if defined(MBEDTLS_SM3_C)
+        case MBEDTLS_MD_SM3:
+            mbedtls_sm3_clone( dst->md_ctx, src->md_ctx );
             break;
 #endif
         default:
@@ -459,6 +496,11 @@ int mbedtls_md_setup( mbedtls_md_context_t *ctx, const mbedtls_md_info_t *md_inf
             ALLOC( sha512 );
             break;
 #endif
+#if defined(MBEDTLS_SM3_C)
+        case MBEDTLS_MD_SM3:
+            ALLOC( sm3 );
+            break;
+#endif
         default:
             return( MBEDTLS_ERR_MD_BAD_INPUT_DATA );
     }
@@ -518,6 +560,11 @@ int mbedtls_md_starts( mbedtls_md_context_t *ctx )
         case MBEDTLS_MD_SHA512:
             return( mbedtls_sha512_starts_ret( ctx->md_ctx, 0 ) );
 #endif
+#if defined(MBEDTLS_SM3_C)
+        case MBEDTLS_MD_SM3:
+            return( mbedtls_sm3_starts_ret( ctx->md_ctx ) );
+            break;
+#endif
         default:
             return( MBEDTLS_ERR_MD_BAD_INPUT_DATA );
     }
@@ -562,6 +609,11 @@ int mbedtls_md_update( mbedtls_md_context_t *ctx, const unsigned char *input, si
         case MBEDTLS_MD_SHA512:
             return( mbedtls_sha512_update_ret( ctx->md_ctx, input, ilen ) );
 #endif
+#if defined(MBEDTLS_SM3_C)
+        case MBEDTLS_MD_SM3:
+            return( mbedtls_sm3_update_ret( ctx->md_ctx, input, ilen ) );
+            break;
+#endif
         default:
             return( MBEDTLS_ERR_MD_BAD_INPUT_DATA );
     }
@@ -605,6 +657,11 @@ int mbedtls_md_finish( mbedtls_md_context_t *ctx, unsigned char *output )
 #endif
         case MBEDTLS_MD_SHA512:
             return( mbedtls_sha512_finish_ret( ctx->md_ctx, output ) );
+#endif
+#if defined(MBEDTLS_SM3_C)
+        case MBEDTLS_MD_SM3:
+            return( mbedtls_sm3_finish_ret( ctx->md_ctx, output ) );
+            break;
 #endif
         default:
             return( MBEDTLS_ERR_MD_BAD_INPUT_DATA );
@@ -653,6 +710,11 @@ int mbedtls_md( const mbedtls_md_info_t *md_info, const unsigned char *input, si
         case MBEDTLS_MD_SHA512:
             return( mbedtls_sha512_ret( input, ilen, output, 0 ) );
 #endif
+#if defined(MBEDTLS_SM3_C)
+        case MBEDTLS_MD_SM3:
+            return( mbedtls_sm3_ret( input, ilen, output ) );
+            break;
+#endif
         default:
             return( MBEDTLS_ERR_MD_BAD_INPUT_DATA );
     }
@@ -699,6 +761,7 @@ cleanup:
 }
 #endif /* MBEDTLS_FS_IO */
 
+#if !defined(MBEDTLS_HMAC_ALT)
 int mbedtls_md_hmac_starts( mbedtls_md_context_t *ctx, const unsigned char *key, size_t keylen )
 {
     int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
@@ -744,6 +807,14 @@ cleanup:
     mbedtls_platform_zeroize( sum, sizeof( sum ) );
 
     return( ret );
+}
+
+int mbedtls_md_hmac_starts_with_seckey( mbedtls_md_context_t *ctx,
+                                        mbedtls_hmac_sec_key_t *key )
+{
+    (void)ctx;
+    (void)key;
+    return MBEDTLS_ERR_MD_FEATURE_UNAVAILABLE;
 }
 
 int mbedtls_md_hmac_update( mbedtls_md_context_t *ctx, const unsigned char *input, size_t ilen )
@@ -792,6 +863,7 @@ int mbedtls_md_hmac_reset( mbedtls_md_context_t *ctx )
         return( ret );
     return( mbedtls_md_update( ctx, ipad, ctx->md_info->block_size ) );
 }
+#endif
 
 int mbedtls_md_hmac( const mbedtls_md_info_t *md_info,
                      const unsigned char *key, size_t keylen,
@@ -810,6 +882,35 @@ int mbedtls_md_hmac( const mbedtls_md_info_t *md_info,
         goto cleanup;
 
     if( ( ret = mbedtls_md_hmac_starts( &ctx, key, keylen ) ) != 0 )
+        goto cleanup;
+    if( ( ret = mbedtls_md_hmac_update( &ctx, input, ilen ) ) != 0 )
+        goto cleanup;
+    if( ( ret = mbedtls_md_hmac_finish( &ctx, output ) ) != 0 )
+        goto cleanup;
+
+cleanup:
+    mbedtls_md_free( &ctx );
+
+    return( ret );
+}
+
+int mbedtls_md_hmac2( const mbedtls_md_info_t *md_info,
+                      mbedtls_hmac_sec_key_t *key,
+                      const unsigned char *input, size_t ilen,
+                      unsigned char *output )
+{
+    mbedtls_md_context_t ctx;
+    int ret;
+
+    if( md_info == NULL )
+        return( MBEDTLS_ERR_MD_BAD_INPUT_DATA );
+
+    mbedtls_md_init( &ctx );
+
+    if( ( ret = mbedtls_md_setup( &ctx, md_info, 1 ) ) != 0 )
+        goto cleanup;
+
+    if( ( ret = mbedtls_md_hmac_starts_with_seckey( &ctx, key ) ) != 0 )
         goto cleanup;
     if( ( ret = mbedtls_md_hmac_update( &ctx, input, ilen ) ) != 0 )
         goto cleanup;
@@ -860,6 +961,11 @@ int mbedtls_md_process( mbedtls_md_context_t *ctx, const unsigned char *data )
 #endif
         case MBEDTLS_MD_SHA512:
             return( mbedtls_internal_sha512_process( ctx->md_ctx, data ) );
+#endif
+#if defined(MBEDTLS_SM3_C)
+        case MBEDTLS_MD_SM3:
+            return( mbedtls_internal_sm3_process( ctx->md_ctx, data ) );
+            break;
 #endif
         default:
             return( MBEDTLS_ERR_MD_BAD_INPUT_DATA );

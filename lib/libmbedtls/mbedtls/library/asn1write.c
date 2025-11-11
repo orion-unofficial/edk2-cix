@@ -142,7 +142,11 @@ int mbedtls_asn1_write_mpi( unsigned char **p, unsigned char *start, const mbedt
     // DER format assumes 2s complement for numbers, so the leftmost bit
     // should be 0 for positive numbers and 1 for negative numbers.
     //
+#if !defined(MBEDTLS_BIGNUM_ALT)
     if( X->s ==1 && **p & 0x80 )
+#else
+    if( mbedtls_mpi_get_sign(X) == 1 && **p & 0x80 )
+#endif
     {
         if( *p - start < 1 )
             return( MBEDTLS_ERR_ASN1_BUF_TOO_SMALL );

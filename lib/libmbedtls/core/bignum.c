@@ -97,5 +97,9 @@ void crypto_bignum_clear(struct bignum *s)
 {
 	mbedtls_mpi *bn = (mbedtls_mpi *)s;
 
+#if !defined(MBEDTLS_BIGNUM_ALT)
 	memset(bn->p, 0, mbedtls_mpi_size((const mbedtls_mpi *)bn));
+#else
+	mbedtls_mpi_lset(bn, 0);
+#endif
 }

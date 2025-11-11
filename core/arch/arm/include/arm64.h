@@ -294,6 +294,14 @@ static __always_inline __noprof uint64_t read_fp(void)
 	return val;
 }
 
+static __always_inline __noprof uint64_t read_lr(void)
+{
+	uint64_t val;
+
+	asm volatile ("mov %0, x30" : "=r" (val));
+	return val;
+}
+
 static inline __noprof uint64_t read_pmu_ccnt(void)
 {
 	uint64_t val;

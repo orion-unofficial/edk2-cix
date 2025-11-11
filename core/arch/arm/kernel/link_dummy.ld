@@ -102,4 +102,5 @@ __vcore_unpg_rx_size = .;
 __vcore_unpg_rx_start = .;
 PROVIDE(core_v_str = 0);
 PROVIDE(tee_entry_std = 0);
+PROVIDE(core_cix_tee_str = 0);
 PROVIDE(init_teecore = 0);

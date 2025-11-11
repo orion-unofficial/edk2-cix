@@ -232,6 +232,60 @@ void mbedtls_debug_print_mpi( const mbedtls_ssl_context *ssl, int level,
         return;
     }
 
+#if !defined(MBEDTLS_BIGNUM_ALT)
+    int j, k, zeros = 1;
+    size_t i, n = 0;
+
+    for( n = X->n - 1; n > 0; n-- )
+        if( X->p[n] != 0 )
+            break;
+
+    for( j = ( sizeof(mbedtls_mpi_uint) << 3 ) - 1; j >= 0; j-- )
+        if( ( ( X->p[n] >> j ) & 1 ) != 0 )
+            break;
+
+    mbedtls_snprintf( str + idx, sizeof( str ) - idx, "value of '%s' (%d bits) is:\n",
+              text, (int) ( ( n * ( sizeof(mbedtls_mpi_uint) << 3 ) ) + j + 1 ) );
+
+    debug_send_line( ssl, level, file, line, str );
+
+    idx = 0;
+    for( i = n + 1, j = 0; i > 0; i-- )
+    {
+        if( zeros && X->p[i - 1] == 0 )
+            continue;
+
+        for( k = sizeof( mbedtls_mpi_uint ) - 1; k >= 0; k-- )
+        {
+            if( zeros && ( ( X->p[i - 1] >> ( k << 3 ) ) & 0xFF ) == 0 )
+                continue;
+            else
+                zeros = 0;
+
+            if( j % 16 == 0 )
+            {
+                if( j > 0 )
+                {
+                    mbedtls_snprintf( str + idx, sizeof( str ) - idx, "\n" );
+                    debug_send_line( ssl, level, file, line, str );
+                    idx = 0;
+                }
+            }
+
+            idx += mbedtls_snprintf( str + idx, sizeof( str ) - idx, " %02x", (unsigned int)
+                             ( X->p[i - 1] >> ( k << 3 ) ) & 0xFF );
+
+            j++;
+        }
+
+    }
+
+    if( zeros == 1 )
+        idx += mbedtls_snprintf( str + idx, sizeof( str ) - idx, " 00" );
+
+#else /* MBEDTLS_BIGNUM_ALT */
+
+
     bitlen = mbedtls_mpi_bitlen( X );
 
     mbedtls_snprintf( str, sizeof( str ), "value of '%s' (%u bits) is:\n",
@@ -263,7 +317,7 @@ void mbedtls_debug_print_mpi( const mbedtls_ssl_context *ssl, int level,
             }
         }
     }
-
+#endif /* MBEDTLS_BIGNUM_ALT */
     if( idx != 0 )
     {
         mbedtls_snprintf( str + idx, sizeof( str ) - idx, "\n" );

@@ -131,6 +131,15 @@ struct stmm_boot_info {
 	struct stmm_mp_info	*mp_info;
 };
 
+struct stmm_flash_nvram_storage_info {
+	uint64_t variable_base;
+	uint64_t ftw_working_base;
+	uint64_t ftw_spare_base;
+	uint32_t variable_size;
+	uint32_t ftw_working_size;
+	uint32_t ftw_spare_size;
+};
+
 struct stmm_ctx {
 	struct user_mode_ctx uctx;
 	struct tee_ta_ctx ta_ctx;
@@ -155,11 +164,13 @@ static inline struct stmm_ctx *to_stmm_ctx(struct ts_ctx *ctx)
 
 #ifdef CFG_WITH_STMM_SP
 TEE_Result stmm_init_session(const TEE_UUID *uuid,
-			     struct tee_ta_session *s);
+			     struct tee_ta_session *s,
+				 struct tee_ta_param *param);
 #else
 static inline TEE_Result
 stmm_init_session(const TEE_UUID *uuid __unused,
-		  struct tee_ta_session *s __unused)
+		  struct tee_ta_session *s __unused,
+		  struct tee_ta_param *param __unused)
 {
 	return TEE_ERROR_ITEM_NOT_FOUND;
 }

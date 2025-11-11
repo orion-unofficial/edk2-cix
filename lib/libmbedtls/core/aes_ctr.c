@@ -57,6 +57,34 @@ static TEE_Result mbed_aes_ctr_init(struct crypto_cipher_ctx *ctx,
 	return TEE_SUCCESS;
 }
 
+#if defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_CIX_ENG)
+#include <mbed_impl.h>
+
+DEFINE_TO_MBED_SEC_KEY(aes, AES)
+
+static TEE_Result mbed_aes_ctr_init2(struct crypto_cipher_ctx *ctx,
+				     TEE_OperationMode mode __unused,
+				     const crypto_sec_key_t *key1,
+				     const crypto_sec_key_t *key2 __unused,
+				     const uint8_t *iv, size_t iv_len)
+{
+	struct mbed_aes_ctr_ctx *c = to_aes_ctr_ctx(ctx);
+	mbedtls_aes_sec_key_t skey = {0};
+
+	if (iv_len != sizeof(c->counter))
+		return TEE_ERROR_BAD_PARAMETERS;
+	memcpy(c->counter, iv, sizeof(c->counter));
+
+	TO_MBED_SEC_KEY(aes, key1, &skey);
+	c->nc_off = 0;
+
+	if (mbedtls_aes_setseckey_enc(&c->aes_ctx, &skey))
+		return TEE_ERROR_BAD_STATE;
+
+	return TEE_SUCCESS;
+}
+#endif
+
 static TEE_Result mbed_aes_ctr_update(struct crypto_cipher_ctx *ctx,
 				      bool last_block __unused,
 				      const uint8_t *data, size_t len,
@@ -93,7 +121,11 @@ static void mbed_aes_ctr_copy_state(struct crypto_cipher_ctx *dst_ctx,
 	memcpy(dst->counter, src->counter, sizeof(dst->counter));
 	memcpy(dst->block, src->block, sizeof(dst->block));
 	dst->nc_off = src->nc_off;
+#if defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_CIX_ENG)
+	assert(mbedtls_aes_clone(&dst->aes_ctx, &src->aes_ctx) == 0);
+#else
 	mbed_copy_mbedtls_aes_context(&dst->aes_ctx, &src->aes_ctx);
+#endif
 }
 
 static const struct crypto_cipher_ops mbed_aes_ctr_ops = {
@@ -102,6 +134,9 @@ static const struct crypto_cipher_ops mbed_aes_ctr_ops = {
 	.final = mbed_aes_ctr_final,
 	.free_ctx = mbed_aes_ctr_free_ctx,
 	.copy_state = mbed_aes_ctr_copy_state,
+#if defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_CIX_ENG)
+	.init2 = mbed_aes_ctr_init2,
+#endif
 };
 
 TEE_Result crypto_aes_ctr_alloc_ctx(struct crypto_cipher_ctx **ctx_ret)
@@ -118,7 +153,7 @@ TEE_Result crypto_aes_ctr_alloc_ctx(struct crypto_cipher_ctx **ctx_ret)
 	return TEE_SUCCESS;
 }
 
-#if defined(MBEDTLS_AES_ALT)
+#if defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_ARM_CE)
 static void next_ctr(unsigned char stream_block[16], mbedtls_aes_context *ctx,
 		     unsigned char nonce_counter[16])
 {
@@ -169,4 +204,4 @@ int mbedtls_aes_crypt_ctr(mbedtls_aes_context *ctx, size_t length,
 
 	return 0;
 }
-#endif /*MBEDTLS_AES_ALT*/
+#endif

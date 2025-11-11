@@ -57,6 +57,17 @@
 
 #define ENTROPY_MAX_LOOP    256     /**< Maximum amount to loop before error */
 
+static unsigned long int next = 1;
+
+/* Return next random integer */
+
+int rand(void)
+{
+	int rc, olen;
+	mbedtls_hardware_poll(NULL, &rc, sizeof(rc), &olen);
+	return rc;
+}
+
 void mbedtls_entropy_init( mbedtls_entropy_context *ctx )
 {
     ctx->source_count = 0;
@@ -616,7 +627,7 @@ int mbedtls_entropy_source_self_test( int verbose )
     unsigned char buf1[2 * sizeof( unsigned long long int )];
 
     if( verbose != 0 )
-        mbedtls_printf( "  ENTROPY_BIAS test: " );
+        mbedtls_printf( "\n  ENTROPY_BIAS test: " );
 
     memset( buf0, 0x00, sizeof( buf0 ) );
     memset( buf1, 0x00, sizeof( buf1 ) );
@@ -643,8 +654,6 @@ cleanup:
             mbedtls_printf( "failed\n" );
         else
             mbedtls_printf( "passed\n" );
-
-        mbedtls_printf( "\n" );
     }
 
     return( ret != 0 );
@@ -712,7 +721,7 @@ int mbedtls_entropy_self_test( int verbose )
     }
 
 #if defined(MBEDTLS_ENTROPY_HARDWARE_ALT)
-    if( ( ret = mbedtls_entropy_source_self_test( 0 ) ) != 0 )
+    if( ( ret = mbedtls_entropy_source_self_test( 1 ) ) != 0 )
         goto cleanup;
 #endif
 
@@ -723,9 +732,9 @@ cleanup:
     if( verbose != 0 )
     {
         if( ret != 0 )
-            mbedtls_printf( "failed\n" );
+            mbedtls_printf( "  failed\n" );
         else
-            mbedtls_printf( "passed\n" );
+            mbedtls_printf( "  passed\n" );
 
         mbedtls_printf( "\n" );
     }

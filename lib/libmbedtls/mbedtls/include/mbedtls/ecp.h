@@ -58,6 +58,8 @@
 #define MBEDTLS_ERR_ECP_HW_ACCEL_FAILED                   -0x4B80  /**< The ECP hardware accelerator failed. */
 
 #define MBEDTLS_ERR_ECP_IN_PROGRESS                       -0x4B00  /**< Operation in progress, call again with the same parameters to continue. */
+#define MBEDTLS_ERR_ECP_HW_FAILED                         -0x4A80  /**< There is HW error in calling TE driver. */
+#define MBEDTLS_ERR_ECP_SM_DECRYPT_FAILED                 -0x4A00  /**< SM2 decrypt failed. */
 
 /* Flags indicating whether to include code that is specific to certain
  * types of curves. These flags are for internal library use only. */
@@ -125,6 +127,7 @@ typedef enum
     MBEDTLS_ECP_DP_SECP256K1,      /*!< Domain parameters for 256-bit "Koblitz" curve. */
     MBEDTLS_ECP_DP_CURVE448,       /*!< Domain parameters for Curve448. */
     MBEDTLS_ECP_DP_SM2,            /*!< Domain parameters for SM2. */
+    MBEDTLS_ECP_DP_SM2P256V1,      /*!< Domain parameters for SM2 curve. */
 } mbedtls_ecp_group_id;
 
 /**

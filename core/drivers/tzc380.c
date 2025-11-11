@@ -341,7 +341,6 @@ void tzc_dump_state(void)
 		if (!(temp_32reg & TZC_ATTR_REGION_EN_MASK))
 			continue;
 
-		DMSG("");
 		DMSG("region %d", n);
 		temp_32reg = tzc_read_region_base_low(tzc.base, n);
 		temp_32reg_h = tzc_read_region_base_high(tzc.base, n);

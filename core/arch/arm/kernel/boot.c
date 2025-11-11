@@ -33,6 +33,7 @@
 #include <trace.h>
 #include <utee_defines.h>
 #include <util.h>
+#include <ta_pub_key.h>
 
 #include <platform_config.h>
 
@@ -1281,6 +1282,30 @@ static void init_primary(unsigned long pageable_part, unsigned long nsec_entry)
 	init_sec_mon(nsec_entry);
 }
 
+extern void set_cix_version_str(void);
+#if defined(CFG_MBEDTLS_SELFTEST)
+extern int mbedtls_te_selftest(void);
+#endif
+
+void signed_key_init(void)
+{
+	void *point_shm = NULL;
+	ta_pub_key_info *share_ta_key_info = NULL;
+
+	point_shm = phys_to_virt(TZ_TFA_SHM_BASE, MEM_AREA_RAM_SEC, 1);
+	share_ta_key_info = (ta_pub_key_info*)point_shm;
+	if (384 == share_ta_key_info->module_size) {
+		ta_pub_key_exponent = share_ta_key_info->key_exponent;
+		assert(ta_pub_key_modulus_size >= share_ta_key_info->module_size);
+		ta_pub_key_modulus_size = share_ta_key_info->module_size;
+		memcpy(ta_pub_key_modulus, share_ta_key_info->key_module, ta_pub_key_modulus_size);
+		IMSG("Dump ta public key\n");
+		IMSG("size: %d; Exponent: %d\n", ta_pub_key_modulus_size, ta_pub_key_exponent);
+		DHEXDUMP(ta_pub_key_modulus, ta_pub_key_modulus_size);
+	}
+}
+
+
 /*
  * Note: this function is weak just to make it possible to exclude it from
  * the unpaged area.
@@ -1292,8 +1317,10 @@ void __weak boot_init_primary_late(unsigned long fdt)
 	discover_nsec_memory();
 	update_external_dt();
 	configure_console_from_dt();
+	set_cix_version_str();
 
 	IMSG("OP-TEE version: %s", core_v_str);
+	IMSG("OP-TEE cix version: %s", core_cix_tee_str);
 	if (IS_ENABLED(CFG_WARN_INSECURE)) {
 		IMSG("WARNING: This OP-TEE configuration might be insecure!");
 		IMSG("WARNING: Please check https://optee.readthedocs.io/en/latest/architecture/porting_guidelines.html");
@@ -1303,6 +1330,8 @@ void __weak boot_init_primary_late(unsigned long fdt)
 	DMSG("Executing at offset %#lx with virtual load address %#"PRIxVA,
 	     (unsigned long)boot_mmu_config.load_offset, VCORE_START_VA);
 #endif
+	signed_key_init();
+	boot_ta_type_init();
 
 	main_init_gic();
 	init_vfp_nsec();
@@ -1314,6 +1343,10 @@ void __weak boot_init_primary_late(unsigned long fdt)
 	}
 	call_finalcalls();
 	IMSG("Primary CPU switching to normal world boot");
+
+#if defined(CFG_MBEDTLS_SELFTEST)
+    mbedtls_te_selftest();
+#endif
 }
 
 static void init_secondary_helper(unsigned long nsec_entry)

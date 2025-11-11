@@ -17,9 +17,13 @@ TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
 				     void *enc_key, size_t enc_keylen,
 				     unsigned int *rounds)
 {
-#if defined(MBEDTLS_AES_ALT)
+#if defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_ARM_CE)
 	return crypto_accel_aes_expand_keys(key, key_len, enc_key, NULL,
 					    enc_keylen, rounds);
+#elif defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_CIX_ENG)
+	// TODO need test(jiayu expend key? rounds?)
+	memcpy(enc_key, key, key_len);
+	return TEE_SUCCESS;
 #else
 	mbedtls_aes_context ctx;
 
@@ -40,8 +44,18 @@ TEE_Result crypto_aes_expand_enc_key(const void *key, size_t key_len,
 void crypto_aes_enc_block(const void *enc_key, size_t enc_keylen __maybe_unused,
 			  unsigned int rounds, const void *src, void *dst)
 {
-#if defined(MBEDTLS_AES_ALT)
+#if defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_ARM_CE)
 	crypto_accel_aes_ecb_enc(dst, src, enc_key, rounds, 1);
+#elif defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_CIX_ENG)
+	// TODO need test(jiayu expend key? rounds?)
+	mbedtls_aes_context ctx;
+
+	memset(&ctx, 0, sizeof(ctx));
+	// FIX ME rootkey bits don't know, fix 128
+	mbedtls_aes_setkey_enc(&ctx, enc_key, 128);
+	mbedtls_aes_init(&ctx);
+	mbedtls_aes_encrypt(&ctx, src, dst);
+	mbedtls_aes_free(&ctx);
 #else
 	mbedtls_aes_context ctx;
 
@@ -57,7 +71,7 @@ void crypto_aes_enc_block(const void *enc_key, size_t enc_keylen __maybe_unused,
 #endif
 }
 
-#if defined(MBEDTLS_AES_ALT)
+#if defined(MBEDTLS_AES_ALT) && defined(CFG_CRYPTO_AES_ARM_CE)
 void mbedtls_aes_init(mbedtls_aes_context *ctx)
 {
 	assert(ctx);
@@ -101,4 +115,4 @@ int mbedtls_aes_setkey_dec(mbedtls_aes_context *ctx, const unsigned char *key,
 
 	return 0;
 }
-#endif /*MBEDTLS_AES_ALT*/
+#endif

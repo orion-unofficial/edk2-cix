@@ -95,7 +95,11 @@ static void mbed_des_cbc_copy_state(struct crypto_cipher_ctx *dst_ctx,
 
 	memcpy(dst->iv, src->iv, sizeof(dst->iv));
 	dst->mbed_mode = src->mbed_mode;
+#if defined(CFG_MBEDTLS_TE)
+	assert(mbedtls_des_clone(&dst->des_ctx, &src->des_ctx) == 0);
+#else
 	dst->des_ctx = src->des_ctx;
+#endif
 }
 
 static const struct crypto_cipher_ops mbed_des_cbc_ops = {

@@ -51,6 +51,8 @@
 
 #define MBEDTLS_ERR_GCM_BAD_INPUT                         -0x0014  /**< Bad input parameters to function. */
 
+#define MBEDTLS_ERR_GCM_FEATURE_UNAVAILABLE               -0x0023  /**< Feature not available. For example, an unsupported AES key size. */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -79,6 +81,46 @@ mbedtls_gcm_context;
 #else  /* !MBEDTLS_GCM_ALT */
 #include "gcm_alt.h"
 #endif /* !MBEDTLS_GCM_ALT */
+
+/**
+* Trust engine key ladder root key selection enumeration
+*/
+typedef enum mbedtls_gcm_key_sel {
+    MBEDTLS_GCM_KL_KEY_MODEL = 0,         /**< model key */
+    MBEDTLS_GCM_KL_KEY_ROOT               /**< device root key */
+} mbedtls_gcm_key_sel_t;
+
+/**
+ * secure key structure
+ */
+typedef struct mbedtls_gcm_sec_key {
+    mbedtls_gcm_key_sel_t sel;   /**< key ladder root key selection */
+    uint32_t ek3bits;            /**< ek3 length in bits, 128 or 256 */
+    union {
+        struct {
+            uint8_t ek1[16];     /**< encrypted key1 (fixed to 128-bit) */
+            uint8_t ek2[16];     /**< encrypted key2 (fixed to 128-bit) */
+            uint8_t ek3[32];     /**< encrypted key3 */
+        };
+        uint8_t eks[64];         /**< ek1 || ek2 || ek3 */
+    };
+} mbedtls_gcm_sec_key_t;
+
+/**
+ * secure key structure of key-ladder 256
+ */
+typedef struct mbedtls_gcm_sec_key_v2 {
+    mbedtls_gcm_key_sel_t sel;   /**< key ladder root key selection */
+    uint32_t ek3bits;            /**< ek3 length in bits, fixed to 256 */
+    union {
+        struct {
+            uint8_t ek1[32];     /**< encrypted key1 (fixed to 256-bit) */
+            uint8_t ek2[32];     /**< encrypted key2 (fixed to 256-bit) */
+            uint8_t ek3[32];     /**< encrypted key3 */
+        };
+        uint8_t eks[96];         /**< ek1 || ek2 || ek3 */
+    };
+} mbedtls_gcm_sec_key_v2_t;
 
 /**
  * \brief           This function initializes the specified GCM context,
@@ -113,6 +155,38 @@ int mbedtls_gcm_setkey( mbedtls_gcm_context *ctx,
                         mbedtls_cipher_id_t cipher,
                         const unsigned char *key,
                         unsigned int keybits );
+
+/**
+ * \brief           This function associates a GCM context with a
+ *                  cipher algorithm and a secure key.
+ *
+ * \param ctx      The GCM context to which the key should be bound.
+ *                 It must be initialized.
+ * \param cipher   The 128-bit block cipher to use.
+ * \param key      The encryption/decryption secure key.
+ *                 including ek1 ek2 ek3.
+ * \return         \c 0 on success.
+ * \return          A GCM or cipher-specific error code on failure.
+ */
+int mbedtls_gcm_setseckey( mbedtls_gcm_context *ctx,
+                           mbedtls_cipher_id_t cipher,
+                           mbedtls_gcm_sec_key_t *key );
+
+/**
+ * \brief           This function associates a GCM context with a
+ *                  cipher algorithm and a secure key of key-ladder 256.
+ *
+ * \param ctx      The GCM context to which the key should be bound.
+ *                 It must be initialized.
+ * \param cipher   The 128-bit block cipher to use. \c MBEDTLS_CIPHER_ID_AES only.
+ * \param key      The encryption/decryption secure key of key-ladder 256.
+ *                 including ek1 ek2 ek3.
+ * \return         \c 0 on success.
+ * \return          A GCM or cipher-specific error code on failure.
+ */
+int mbedtls_gcm_setseckey_v2( mbedtls_gcm_context *ctx,
+                           mbedtls_cipher_id_t cipher,
+                           mbedtls_gcm_sec_key_v2_t *key );
 
 /**
  * \brief           This function performs GCM encryption or decryption of a buffer.
@@ -246,6 +320,23 @@ int mbedtls_gcm_starts( mbedtls_gcm_context *ctx,
                 size_t add_len );
 
 /**
+ * \brief           This function feeds an associated data buffer into an
+ *                   ongoing GCM encryption or decryption operation.
+ *
+ * \param ctx       The GCM context. This must be initialized.
+ * \param add_len   The length of the additional data.
+ * \param add       The buffer holding the input data. If \p length is greater
+ *                  than zero, this must be a readable buffer of at least that
+ *                  size in Bytes.
+ *
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_GCM_BAD_INPUT on failure.
+ */
+int mbedtls_gcm_update_aad( mbedtls_gcm_context *ctx,
+                            size_t add_len,
+                            const unsigned char *add );
+
+/**
  * \brief           This function feeds an input buffer into an ongoing GCM
  *                  encryption or decryption operation.
  *
@@ -294,6 +385,16 @@ int mbedtls_gcm_update( mbedtls_gcm_context *ctx,
 int mbedtls_gcm_finish( mbedtls_gcm_context *ctx,
                 unsigned char *tag,
                 size_t tag_len );
+
+/**
+ * \brief          This function clones the state of the specified GCM context.
+ *
+ * \param dst      The GCM context to clone to.
+ * \param src      The GCM context to clone from.
+ * \return          \c 0 on success.
+ */
+int mbedtls_gcm_clone( mbedtls_gcm_context *dst,
+                       const mbedtls_gcm_context *src );
 
 /**
  * \brief           This function clears a GCM context and the underlying

@@ -1046,6 +1046,16 @@ out:
 	return res;
 }
 
+void TEE_GetOperationBufferOffs(TEE_OperationHandle operation,size_t* buffer_offs)
+{
+	if (operation == TEE_HANDLE_NULL)
+                TEE_Panic(0);
+
+        __utee_check_out_annotation(operation, sizeof(*operation));
+	buffer_offs = operation->buffer_offs;
+}
+
+
 TEE_Result TEE_CipherDoFinal(TEE_OperationHandle operation,
 			     const void *srcData, uint32_t srcLen,
 			     void *destData, uint32_t *destLen)
@@ -1825,6 +1835,7 @@ void TEE_GenerateRandom(void *randomBuffer, uint32_t randomBufferLen)
 		TEE_Panic(res);
 }
 
+#if 0
 int rand(void)
 {
 	int rc;
@@ -1837,7 +1848,7 @@ int rand(void)
 	 */
 	return rc & RAND_MAX;
 }
-
+#endif
 TEE_Result TEE_IsAlgorithmSupported(uint32_t alg, uint32_t element)
 {
 	if (IS_ENABLED(CFG_CRYPTO_AES)) {

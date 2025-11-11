@@ -288,4 +288,7 @@ TEE_Result _utee_cache_operation(void *va, size_t l, unsigned long op);
 
 TEE_Result _utee_gprof_send(void *buf, size_t size, uint32_t *id);
 
+TEE_Result _utee_get_cix_efuse(uint32_t offset, uint32_t len, uint8_t* fuse_data, uint32_t* fuse_len);
+
+
 #endif /* UTEE_SYSCALLS_H */

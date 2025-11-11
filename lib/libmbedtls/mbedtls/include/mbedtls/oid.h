@@ -78,6 +78,7 @@
  * ISO Member bodies OID parts
  */
 #define MBEDTLS_OID_COUNTRY_US                  "\x86\x48"      /* {us(840)} */
+#define MBEDTLS_OID_COUNTRY_CN                  "\x81\x1c"      /* {cn(156)} */
 #define MBEDTLS_OID_ORG_RSA_DATA_SECURITY       "\x86\xf7\x0d"  /* {rsadsi(113549)} */
 #define MBEDTLS_OID_RSA_COMPANY                 MBEDTLS_OID_ISO_MEMBER_BODIES MBEDTLS_OID_COUNTRY_US \
                                         MBEDTLS_OID_ORG_RSA_DATA_SECURITY /* {iso(1) member-body(2) us(840) rsadsi(113549)} */
@@ -85,6 +86,14 @@
 #define MBEDTLS_OID_ANSI_X9_62                  MBEDTLS_OID_ISO_MEMBER_BODIES MBEDTLS_OID_COUNTRY_US \
                                         MBEDTLS_OID_ORG_ANSI_X9_62
 
+#define MBEDTLS_OID_CCSTC                       "\xcf\x55"      /* Chinese Cryptography Standardization Technology Committee (CCSTC) */
+#define MBEDTLS_OID_CCSTC_SM                    "\x01"          /* SM Cryptographic algorithms */
+#define MBEDTLS_OID_CCSTC_SM_SM2                MBEDTLS_OID_ISO_MEMBER_BODIES MBEDTLS_OID_COUNTRY_CN \
+                                        MBEDTLS_OID_CCSTC MBEDTLS_OID_CCSTC_SM "\x82\x2d"
+                                                                /* "SM2" elliptic curve cryptography */
+#define MBEDTLS_OID_CCSTC_SM_SM3                MBEDTLS_OID_ISO_MEMBER_BODIES MBEDTLS_OID_COUNTRY_CN \
+                                        MBEDTLS_OID_CCSTC MBEDTLS_OID_CCSTC_SM "\x83\x11"
+                                                                /* "SM3" hash algorithm */
 /*
  * ISO Identified organization OID parts
  */
@@ -260,6 +269,8 @@
 
 #define MBEDTLS_OID_DIGEST_ALG_SHA512           MBEDTLS_OID_NIST_ALG "\x02\x03" /**< id-mbedtls_sha512 OBJECT IDENTIFIER ::= { joint-iso-itu-t(2) country(16) us(840) organization(1) gov(101) csor(3) nistalgorithm(4) hashalgs(2) 3 } */
 
+#define MBEDTLS_OID_DIGEST_ALG_SM3              MBEDTLS_OID_CCSTC_SM_SM3        /**< CCSTC "SM3" hash algorithm */
+
 #define MBEDTLS_OID_DIGEST_ALG_RIPEMD160        MBEDTLS_OID_TELETRUST "\x03\x02\x01" /**< id-ripemd160 OBJECT IDENTIFIER :: { iso(1) identified-organization(3) teletrust(36) algorithm(3) hashAlgorithm(2) ripemd160(1) } */
 
 #define MBEDTLS_OID_HMAC_SHA1                   MBEDTLS_OID_RSA_COMPANY "\x02\x07" /**< id-hmacWithSHA1 OBJECT IDENTIFIER ::= { iso(1) member-body(2) us(840) rsadsi(113549) digestAlgorithm(2) 7 } */
@@ -390,6 +401,11 @@
 
 /* brainpoolP512r1 OBJECT IDENTIFIER ::= {versionOne 13} */
 #define MBEDTLS_OID_EC_GRP_BP512R1          MBEDTLS_OID_EC_BRAINPOOL_V1 "\x0D"
+
+/*
+ * ECParameters namedCurve identifiers, from ccstc
+ */
+#define MBEDTLS_OID_EC_GRP_SM2P256V1        MBEDTLS_OID_CCSTC_SM_SM2
 
 /*
  * SEC1 C.1

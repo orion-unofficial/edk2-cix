@@ -50,9 +50,9 @@ def main():
     with open(args.out, 'w') as f:
         f.write("#include <stdint.h>\n")
         f.write("#include <stddef.h>\n\n")
-        f.write("const uint32_t " + args.prefix + "_exponent = " +
+        f.write("uint32_t " + args.prefix + "_exponent = " +
                 str(key.public_numbers().e) + ";\n\n")
-        f.write("const uint8_t " + args.prefix + "_modulus[] = {\n")
+        f.write("uint8_t " + args.prefix + "_modulus[] = {\n")
         i = 0
         nbuf = key.public_numbers().n.to_bytes(key.key_size >> 3, 'big')
         for x in array.array("B", nbuf):
@@ -63,7 +63,7 @@ def main():
             else:
                 f.write(" ")
         f.write("};\n")
-        f.write("const size_t " + args.prefix + "_modulus_size = sizeof(" +
+        f.write("size_t " + args.prefix + "_modulus_size = sizeof(" +
                 args.prefix + "_modulus);\n")
 
 

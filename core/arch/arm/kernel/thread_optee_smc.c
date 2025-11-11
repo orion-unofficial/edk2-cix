@@ -15,6 +15,7 @@
 #include <kernel/virtualization.h>
 #include <mm/core_mmu.h>
 #include <optee_msg.h>
+#include <kernel/tee_misc.h>
 #include <optee_rpc_cmd.h>
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
@@ -133,6 +134,74 @@ static uint32_t get_msg_arg(struct mobj *mobj, size_t offset,
 	return OPTEE_SMC_RETURN_OK;
 }
 
+static uint32_t get_fw_stmm_msg_arg(size_t offset,
+			    size_t *num_params, struct optee_msg_arg **arg,
+			    struct optee_msg_arg **rpc_arg)
+{
+	void *p = NULL;
+	size_t sz = 0;
+
+	p = phys_to_virt(CFG_FW_STMM_SHMEM_START + offset, MEM_AREA_RAM_NSEC, sizeof(struct optee_msg_arg));
+	if (!p || !IS_ALIGNED_WITH_TYPE(p, struct optee_msg_arg))
+		return OPTEE_SMC_RETURN_EBADADDR;
+
+	*arg = p;
+	*num_params = READ_ONCE((*arg)->num_params);
+
+	if (*num_params > OPTEE_MSG_MAX_NUM_PARAMS)
+		return OPTEE_SMC_RETURN_EBADADDR;
+
+	sz = OPTEE_MSG_GET_ARG_SIZE(*num_params);
+
+	if (rpc_arg) {
+		size_t rpc_sz = 0;
+
+		rpc_sz = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
+
+		p = phys_to_virt(CFG_FW_STMM_SHMEM_START + offset + sz, MEM_AREA_RAM_NSEC, rpc_sz);
+
+		if (!p)
+			return OPTEE_SMC_RETURN_EBADADDR;
+		*rpc_arg = p;
+	}
+
+	return OPTEE_SMC_RETURN_OK;
+}
+
+static uint32_t get_os_stmm_msg_arg(size_t offset,
+	size_t *num_params, struct optee_msg_arg **arg,
+	struct optee_msg_arg **rpc_arg)
+{
+	void *p = NULL;
+	size_t sz = 0;
+
+	p = phys_to_virt(CFG_OS_STMM_SHMEM_START + offset, MEM_AREA_RAM_NSEC, sizeof(struct optee_msg_arg));
+	if (!p || !IS_ALIGNED_WITH_TYPE(p, struct optee_msg_arg))
+		return OPTEE_SMC_RETURN_EBADADDR;
+
+	*arg = p;
+	*num_params = READ_ONCE((*arg)->num_params);
+
+	if (*num_params > OPTEE_MSG_MAX_NUM_PARAMS)
+		return OPTEE_SMC_RETURN_EBADADDR;
+
+	sz = OPTEE_MSG_GET_ARG_SIZE(*num_params);
+
+	if (rpc_arg) {
+		size_t rpc_sz = 0;
+
+		rpc_sz = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
+
+		p = phys_to_virt(CFG_OS_STMM_SHMEM_START + offset + sz, MEM_AREA_RAM_NSEC, rpc_sz);
+
+		if (!p)
+			return OPTEE_SMC_RETURN_EBADADDR;
+		*rpc_arg = p;
+	}
+
+	return OPTEE_SMC_RETURN_OK;
+}
+
 static void maybe_clear_prealloc_rpc_cache(struct thread_ctx *thr)
 {
 	if (IS_ENABLED(CFG_PREALLOC_RPC_CACHE) && thread_prealloc_rpc_cache) {
@@ -210,6 +279,26 @@ static uint32_t std_entry_with_parg(paddr_t parg, bool with_rpc_arg)
 			goto bad_addr;
 
 		return call_entry_std(arg, num_params, rpc_arg);
+	} else if (core_is_buffer_inside(parg, sz, CFG_FW_STMM_SHMEM_START, CFG_FW_STMM_SHMEM_SIZE)) {
+		if (parg & SMALL_PAGE_MASK)
+			goto bad_addr;
+		if (with_rpc_arg)
+			rv = get_fw_stmm_msg_arg(0, &num_params, &arg, &rpc_arg);
+		else
+			rv = get_fw_stmm_msg_arg(0, &num_params, &arg, NULL);
+		if (!rv)
+			rv = call_entry_std(arg, num_params, rpc_arg);
+		return rv;
+	} else if (core_is_buffer_inside(parg, sz, CFG_OS_STMM_SHMEM_START, CFG_OS_STMM_SHMEM_SIZE)) {
+		if (parg & SMALL_PAGE_MASK)
+			goto bad_addr;
+		if (with_rpc_arg)
+			rv = get_os_stmm_msg_arg(0, &num_params, &arg, &rpc_arg);
+		else
+			rv = get_os_stmm_msg_arg(0, &num_params, &arg, NULL);
+		if (!rv)
+			rv = call_entry_std(arg, num_params, rpc_arg);
+		return rv;
 	} else {
 		if (parg & SMALL_PAGE_MASK)
 			goto bad_addr;

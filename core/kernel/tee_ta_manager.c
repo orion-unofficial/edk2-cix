@@ -33,6 +33,7 @@
 #include <user_ta_header.h>
 #include <utee_types.h>
 #include <util.h>
+#include "drivers/ipc.h"
 
 /* This mutex protects the critical section in tee_ta_init_session */
 struct mutex tee_ta_mutex = MUTEX_INITIALIZER;
@@ -640,7 +641,8 @@ static uint32_t new_session_id(struct tee_ta_session_head *open_sessions)
 static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 				struct tee_ta_session_head *open_sessions,
 				const TEE_UUID *uuid,
-				struct tee_ta_session **sess)
+				struct tee_ta_session **sess,
+				struct tee_ta_param *param)
 {
 	TEE_Result res;
 	struct tee_ta_session *s = calloc(1, sizeof(struct tee_ta_session));
@@ -671,7 +673,7 @@ static TEE_Result tee_ta_init_session(TEE_ErrorOrigin *err,
 		goto out;
 
 	/* Look for secure partition */
-	res = stmm_init_session(uuid, s);
+	res = stmm_init_session(uuid, s, param);
 	if (res == TEE_SUCCESS || res != TEE_ERROR_ITEM_NOT_FOUND)
 		goto out;
 
@@ -712,7 +714,7 @@ TEE_Result tee_ta_open_session(TEE_ErrorOrigin *err,
 	bool panicked = false;
 	bool was_busy = false;
 
-	res = tee_ta_init_session(err, open_sessions, uuid, &s);
+	res = tee_ta_init_session(err, open_sessions, uuid, &s, param);
 	if (res != TEE_SUCCESS) {
 		DMSG("init session failed 0x%x", res);
 		return res;
@@ -977,3 +979,19 @@ bool is_ta_ctx(struct ts_ctx *ctx)
 {
 	return is_user_ta_ctx(ctx) || is_pseudo_ta_ctx(ctx);
 }
+
+static uint32_t se_ta_enc_flag = 0U;
+
+TEE_Result boot_ta_type_init(void)
+{
+	uint32_t rsp_len = 0U;
+	cix_get_key_info(KEY_ID_TA_CONFIG_ENABLE, 4U, &se_ta_enc_flag, &rsp_len);
+
+	return TEE_SUCCESS;
+}
+
+uint32_t get_ta_configuration(void)
+{
+	return se_ta_enc_flag;
+}
+

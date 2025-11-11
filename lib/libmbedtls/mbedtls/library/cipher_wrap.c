@@ -38,6 +38,10 @@
 #include "mbedtls/aes.h"
 #endif
 
+#if defined(MBEDTLS_SM4_C)
+#include "mbedtls/sm4.h"
+#endif
+
 #if defined(MBEDTLS_ARC4_C)
 #include "mbedtls/arc4.h"
 #endif
@@ -468,6 +472,11 @@ static void *xts_aes_ctx_alloc( void )
     return( xts_ctx );
 }
 
+static void xts_aes_ctx_clone( void *dst, const void *src )
+{
+    memcpy( dst, src, sizeof( mbedtls_aes_xts_context ) ); /* FIXME */
+}
+
 static void xts_aes_ctx_free( void *ctx )
 {
     mbedtls_aes_xts_context *xts_ctx = ctx;
@@ -503,6 +512,7 @@ static const mbedtls_cipher_base_t xts_aes_info = {
     xts_aes_setkey_enc_wrap,
     xts_aes_setkey_dec_wrap,
     xts_aes_ctx_alloc,
+    xts_aes_ctx_clone,
     xts_aes_ctx_free
 };
 
@@ -2102,6 +2112,385 @@ static const mbedtls_cipher_info_t chachapoly_info = {
 };
 #endif /* MBEDTLS_CHACHAPOLY_C */
 
+
+#if defined(MBEDTLS_SM4_C)
+
+static int sm4_crypt_ecb_wrap( void *ctx, mbedtls_operation_t operation,
+        const unsigned char *input, unsigned char *output )
+{
+    return mbedtls_sm4_crypt_ecb( (mbedtls_sm4_context *) ctx, operation, input, output );
+}
+
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+static int sm4_crypt_cbc_wrap( void *ctx, mbedtls_operation_t operation, size_t length,
+        unsigned char *iv, const unsigned char *input, unsigned char *output )
+{
+    return mbedtls_sm4_crypt_cbc( (mbedtls_sm4_context *) ctx, operation, length, iv, input,
+                          output );
+}
+#endif /* MBEDTLS_CIPHER_MODE_CBC */
+
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+static int sm4_crypt_cfb128_wrap( void *ctx, mbedtls_operation_t operation,
+        size_t length, size_t *iv_off, unsigned char *iv,
+        const unsigned char *input, unsigned char *output )
+{
+    return mbedtls_sm4_crypt_cfb128( (mbedtls_sm4_context *) ctx, operation, length, iv_off, iv,
+                             input, output );
+}
+#endif /* MBEDTLS_CIPHER_MODE_CFB */
+
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+static int sm4_crypt_ofb_wrap( void *ctx, size_t length, size_t *iv_off,
+        unsigned char *iv, const unsigned char *input, unsigned char *output )
+{
+    return mbedtls_sm4_crypt_ofb( (mbedtls_sm4_context *) ctx, length, iv_off,
+                                    iv, input, output );
+}
+#endif /* MBEDTLS_CIPHER_MODE_OFB */
+
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+static int sm4_crypt_ctr_wrap( void *ctx, size_t length, size_t *nc_off,
+        unsigned char *nonce_counter, unsigned char *stream_block,
+        const unsigned char *input, unsigned char *output )
+{
+    return mbedtls_sm4_crypt_ctr( (mbedtls_sm4_context *) ctx, length, nc_off, nonce_counter,
+                          stream_block, input, output );
+}
+#endif /* MBEDTLS_CIPHER_MODE_CTR */
+
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+static int sm4_crypt_xts_wrap( void *ctx, mbedtls_operation_t operation,
+                               size_t length,
+                               const unsigned char data_unit[16],
+                               const unsigned char *input,
+                               unsigned char *output )
+{
+    mbedtls_sm4_xts_context *xts_ctx = ctx;
+    int mode;
+
+    switch( operation )
+    {
+        case MBEDTLS_ENCRYPT:
+            mode = MBEDTLS_SM4_ENCRYPT;
+            break;
+        case MBEDTLS_DECRYPT:
+            mode = MBEDTLS_SM4_DECRYPT;
+            break;
+        default:
+            return MBEDTLS_ERR_CIPHER_BAD_INPUT_DATA;
+    }
+
+    return mbedtls_sm4_crypt_xts( xts_ctx, mode, length,
+                                  data_unit, input, output );
+}
+#endif /* MBEDTLS_CIPHER_MODE_XTS */
+
+static int sm4_setkey_dec_wrap( void *ctx, const unsigned char *key,
+                                unsigned int key_bitlen )
+{
+    return mbedtls_sm4_setkey_dec( (mbedtls_sm4_context *) ctx, key, key_bitlen );
+}
+
+static int sm4_setkey_enc_wrap( void *ctx, const unsigned char *key,
+                                unsigned int key_bitlen )
+{
+    return mbedtls_sm4_setkey_enc( (mbedtls_sm4_context *) ctx, key, key_bitlen );
+}
+
+static void * sm4_ctx_alloc( void )
+{
+    mbedtls_sm4_context *sm4 = mbedtls_calloc( 1, sizeof( mbedtls_sm4_context ) );
+
+    if( sm4 == NULL )
+        return( NULL );
+
+    mbedtls_sm4_init( sm4 );
+
+    return( sm4 );
+}
+
+static void sm4_ctx_clone( void *dst, const void *src )
+{
+    memcpy( dst, src, sizeof( mbedtls_sm4_context ) ); /* FIXME */
+}
+
+static void sm4_ctx_free( void *ctx )
+{
+    mbedtls_sm4_free( (mbedtls_sm4_context *) ctx );
+    mbedtls_free( ctx );
+}
+
+static const mbedtls_cipher_base_t sm4_info = {
+    MBEDTLS_CIPHER_ID_SM4,
+    sm4_crypt_ecb_wrap,
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+    sm4_crypt_cbc_wrap,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+    sm4_crypt_cfb128_wrap,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+    sm4_crypt_ofb_wrap,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+    sm4_crypt_ctr_wrap,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_STREAM)
+    NULL,
+#endif
+    sm4_setkey_enc_wrap,
+    sm4_setkey_dec_wrap,
+    sm4_ctx_alloc,
+    sm4_ctx_clone,
+    sm4_ctx_free
+};
+
+static const mbedtls_cipher_info_t sm4_128_ecb_info = {
+    MBEDTLS_CIPHER_SM4_128_ECB,
+    MBEDTLS_MODE_ECB,
+    128,
+    "SM4-128-ECB",
+    0,
+    0,
+    16,
+    &sm4_info
+};
+
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+static const mbedtls_cipher_info_t sm4_128_cbc_info = {
+    MBEDTLS_CIPHER_SM4_128_CBC,
+    MBEDTLS_MODE_CBC,
+    128,
+    "SM4-128-CBC",
+    16,
+    0,
+    16,
+    &sm4_info
+};
+#endif /* MBEDTLS_CIPHER_MODE_CBC */
+
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+static const mbedtls_cipher_info_t sm4_128_cfb128_info = {
+    MBEDTLS_CIPHER_SM4_128_CFB128,
+    MBEDTLS_MODE_CFB,
+    128,
+    "SM4-128-CFB128",
+    16,
+    0,
+    16,
+    &sm4_info
+};
+#endif /* MBEDTLS_CIPHER_MODE_CFB */
+
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+static const mbedtls_cipher_info_t sm4_128_ofb_info = {
+    MBEDTLS_CIPHER_SM4_128_OFB,
+    MBEDTLS_MODE_OFB,
+    128,
+    "SM4-128-OFB",
+    16,
+    0,
+    16,
+    &sm4_info
+};
+#endif /* MBEDTLS_CIPHER_MODE_OFB */
+
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+static const mbedtls_cipher_info_t sm4_128_ctr_info = {
+    MBEDTLS_CIPHER_SM4_128_CTR,
+    MBEDTLS_MODE_CTR,
+    128,
+    "SM4-128-CTR",
+    16,
+    0,
+    16,
+    &sm4_info
+};
+#endif /* MBEDTLS_CIPHER_MODE_CTR */
+
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+static int xts_sm4_setkey_enc_wrap( void *ctx, const unsigned char *key,
+                                    unsigned int key_bitlen )
+{
+    mbedtls_sm4_xts_context *xts_ctx = ctx;
+    return( mbedtls_sm4_xts_setkey_enc( xts_ctx, key, key_bitlen ) );
+}
+
+static int xts_sm4_setkey_dec_wrap( void *ctx, const unsigned char *key,
+                                    unsigned int key_bitlen )
+{
+    mbedtls_sm4_xts_context *xts_ctx = ctx;
+    return( mbedtls_sm4_xts_setkey_dec( xts_ctx, key, key_bitlen ) );
+}
+
+static void *xts_sm4_ctx_alloc( void )
+{
+    mbedtls_sm4_xts_context *xts_ctx = mbedtls_calloc( 1, sizeof( *xts_ctx ) );
+
+    if( xts_ctx != NULL )
+        mbedtls_sm4_xts_init( xts_ctx );
+
+    return( xts_ctx );
+}
+
+static void xts_sm4_ctx_clone( void *dst, const void *src )
+{
+    memcpy( dst, src, sizeof( mbedtls_sm4_xts_context ) ); /* FIXME */
+}
+
+static void xts_sm4_ctx_free( void *ctx )
+{
+    mbedtls_sm4_xts_context *xts_ctx = ctx;
+
+    if( xts_ctx == NULL )
+        return;
+
+    mbedtls_sm4_xts_free( xts_ctx );
+    mbedtls_free( xts_ctx );
+}
+
+static const mbedtls_cipher_base_t xts_sm4_info = {
+    MBEDTLS_CIPHER_ID_SM4,
+    NULL,
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+    sm4_crypt_xts_wrap,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_STREAM)
+    NULL,
+#endif
+    xts_sm4_setkey_enc_wrap,
+    xts_sm4_setkey_dec_wrap,
+    xts_sm4_ctx_alloc,
+    xts_sm4_ctx_clone,
+    xts_sm4_ctx_free
+};
+
+static const mbedtls_cipher_info_t sm4_128_xts_info = {
+    MBEDTLS_CIPHER_SM4_128_XTS,
+    MBEDTLS_MODE_XTS,
+    256,
+    "SM4-128-XTS",
+    16,
+    0,
+    16,
+    &xts_sm4_info
+};
+#endif /* MBEDTLS_CIPHER_MODE_XTS */
+
+#if defined(MBEDTLS_GCM_C)
+static int gcm_sm4_setkey_wrap( void *ctx, const unsigned char *key,
+                                unsigned int key_bitlen )
+{
+    return mbedtls_gcm_setkey( (mbedtls_gcm_context *) ctx, MBEDTLS_CIPHER_ID_SM4,
+                     key, key_bitlen );
+}
+
+static const mbedtls_cipher_base_t gcm_sm4_info = {
+    MBEDTLS_CIPHER_ID_SM4,
+    NULL,
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_STREAM)
+    NULL,
+#endif
+    gcm_sm4_setkey_wrap,
+    gcm_sm4_setkey_wrap,
+    gcm_ctx_alloc,
+    gcm_ctx_clone,
+    gcm_ctx_free
+};
+
+static const mbedtls_cipher_info_t sm4_128_gcm_info = {
+    MBEDTLS_CIPHER_SM4_128_GCM,
+    MBEDTLS_MODE_GCM,
+    128,
+    "SM4-128-GCM",
+    12,
+    MBEDTLS_CIPHER_VARIABLE_IV_LEN,
+    16,
+    &gcm_sm4_info
+};
+#endif /* MBEDTLS_GCM_C */
+
+#if defined(MBEDTLS_CCM_C)
+static int ccm_sm4_setkey_wrap( void *ctx, const unsigned char *key,
+                                unsigned int key_bitlen )
+{
+    return mbedtls_ccm_setkey( (mbedtls_ccm_context *) ctx, MBEDTLS_CIPHER_ID_SM4,
+                     key, key_bitlen );
+}
+
+static const mbedtls_cipher_base_t ccm_sm4_info = {
+    MBEDTLS_CIPHER_ID_SM4,
+    NULL,
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_STREAM)
+    NULL,
+#endif
+    ccm_sm4_setkey_wrap,
+    ccm_sm4_setkey_wrap,
+    ccm_ctx_alloc,
+    ccm_ctx_clone,
+    ccm_ctx_free
+};
+
+static const mbedtls_cipher_info_t sm4_128_ccm_info = {
+    MBEDTLS_CIPHER_SM4_128_CCM,
+    MBEDTLS_MODE_CCM,
+    128,
+    "SM4-128-CCM",
+    12,
+    MBEDTLS_CIPHER_VARIABLE_IV_LEN,
+    16,
+    &ccm_sm4_info
+};
+#endif /* MBEDTLS_CCM_C */
+
+#endif /* MBEDTLS_SM4_C */
+
 #if defined(MBEDTLS_CIPHER_NULL_CIPHER)
 static int null_crypt_stream( void *ctx, size_t length,
                               const unsigned char *input,
@@ -2455,6 +2844,31 @@ const mbedtls_cipher_definition_t mbedtls_cipher_definitions[] =
 #if defined(MBEDTLS_CIPHER_NULL_CIPHER)
     { MBEDTLS_CIPHER_NULL,                 &null_cipher_info },
 #endif /* MBEDTLS_CIPHER_NULL_CIPHER */
+
+#if defined(MBEDTLS_SM4_C)
+    { MBEDTLS_CIPHER_SM4_128_ECB,          &sm4_128_ecb_info },
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+    { MBEDTLS_CIPHER_SM4_128_CBC,          &sm4_128_cbc_info },
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+    { MBEDTLS_CIPHER_SM4_128_CFB128,       &sm4_128_cfb128_info },
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+    { MBEDTLS_CIPHER_SM4_128_OFB,          &sm4_128_ofb_info },
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+    { MBEDTLS_CIPHER_SM4_128_CTR,          &sm4_128_ctr_info },
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+    { MBEDTLS_CIPHER_SM4_128_XTS,          &sm4_128_xts_info },
+#endif
+#if defined(MBEDTLS_GCM_C)
+    { MBEDTLS_CIPHER_SM4_128_GCM,          &sm4_128_gcm_info },
+#endif
+#if defined(MBEDTLS_CCM_C)
+    { MBEDTLS_CIPHER_SM4_128_CCM,          &sm4_128_ccm_info },
+#endif
+#endif /* MBEDTLS_SM4_C */
 
     { MBEDTLS_CIPHER_NONE, NULL }
 };

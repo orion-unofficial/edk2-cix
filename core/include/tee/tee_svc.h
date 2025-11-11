@@ -74,4 +74,7 @@ TEE_Result syscall_wait(unsigned long timeout);
 TEE_Result syscall_get_time(unsigned long cat, TEE_Time *time);
 TEE_Result syscall_set_ta_time(const TEE_Time *time);
 
+TEE_Result syscall_get_cix_efuse(uint32_t offset, uint32_t len, uint8_t* fuse_data, uint32_t* fuse_len);
+
+
 #endif /* TEE_SVC_H */

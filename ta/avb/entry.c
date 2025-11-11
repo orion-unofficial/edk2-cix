@@ -10,9 +10,10 @@
 
 #define DEFAULT_LOCK_STATE	0
 
-static const uint32_t storageid = TEE_STORAGE_PRIVATE_RPMB;
+static const uint32_t storageid = TEE_STORAGE_PRIVATE_NOR;
 static const char rb_obj_name[] = "rb_state";
 static const char *named_value_prefix = "named_value_";
+static const char vbmeta_pk_obj_name[] = "vbmeta_pk";
 
 static TEE_Result get_slot_offset(size_t slot, size_t *offset)
 {
@@ -77,9 +78,9 @@ static TEE_Result read_rb_idx(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE);
 	size_t slot_offset;
-	uint64_t idx;
+	uint64_t idx = 0;
 	uint32_t count;
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	TEE_ObjectHandle h;
 
 	if (pt != exp_pt)
@@ -135,7 +136,7 @@ static TEE_Result write_rb_idx(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
 	uint64_t widx;
 	uint64_t idx;
 	uint32_t count;
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	TEE_ObjectHandle h;
 
 	if (pt != exp_pt)
@@ -181,9 +182,9 @@ static TEE_Result read_lock_state(uint32_t pt, TEE_Param params[TEE_NUM_PARAMS])
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE,
 						TEE_PARAM_TYPE_NONE);
-	uint32_t lock_state;
+	uint32_t lock_state = 0;
 	uint32_t count;
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	TEE_ObjectHandle h;
 
 	if (pt != exp_pt)
@@ -239,7 +240,11 @@ static TEE_Result write_lock_state(uint32_t pt,
 	if (count == sizeof(lock_state) && lock_state == wlock_state)
 		goto out;
 
-	res = create_rb_state(wlock_state, &h);
+	res = TEE_SeekObjectData(h, 0, TEE_DATA_SEEK_SET);
+	if (res)
+		goto out;
+
+	res = TEE_WriteObjectData(h, &wlock_state, sizeof(wlock_state));
 out:
 	TEE_CloseObject(h);
 	return res;
@@ -354,6 +359,93 @@ out_free:
 	return res;
 }
 
+static TEE_Result write_vbmeta_public_key(uint32_t pt,
+                                      TEE_Param params[TEE_NUM_PARAMS])
+{
+        const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INPUT,
+                                                TEE_PARAM_TYPE_NONE,
+                                                TEE_PARAM_TYPE_NONE,
+                                                TEE_PARAM_TYPE_NONE);
+        const uint32_t flags = TEE_DATA_FLAG_ACCESS_READ |
+                               TEE_DATA_FLAG_ACCESS_WRITE |
+                               TEE_DATA_FLAG_OVERWRITE;
+        TEE_ObjectHandle h = TEE_HANDLE_NULL;
+        TEE_Result res = TEE_SUCCESS;
+        uint32_t value_sz = 0;
+        char *value = NULL;
+
+        if (pt != exp_pt)
+                return TEE_ERROR_BAD_PARAMETERS;
+
+        value_sz = params[0].memref.size;
+        value = TEE_Malloc(value_sz, 0);
+        if (!value)
+                return TEE_ERROR_OUT_OF_MEMORY;
+
+        TEE_MemMove(value, params[0].memref.buffer, value_sz);
+
+        res = TEE_CreatePersistentObject(storageid, vbmeta_pk_obj_name,
+                                         sizeof(vbmeta_pk_obj_name),
+                                         flags, NULL, value,
+                                         value_sz, &h);
+        if (res)
+                EMSG("Can't create vbmeta public key, res = 0x%x", res);
+
+        TEE_CloseObject(h);
+out:
+        TEE_Free(value);
+
+        return res;
+}
+
+static TEE_Result read_vbmeta_public_key(uint32_t pt,
+				      TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_MEMREF_INOUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+	uint32_t flags = TEE_DATA_FLAG_ACCESS_READ |
+			 TEE_DATA_FLAG_ACCESS_WRITE;
+	TEE_Result res = TEE_SUCCESS;
+	TEE_ObjectHandle h = TEE_HANDLE_NULL;
+	uint32_t value_sz = 0;
+	char *value = NULL;
+	size_t count = 0;
+
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	value_sz = params[0].memref.size;
+	value = TEE_Malloc(value_sz, 0);
+	if (!value)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = TEE_OpenPersistentObject(storageid, vbmeta_pk_obj_name,
+				       sizeof(vbmeta_pk_obj_name), flags, &h);
+	if (res) {
+		EMSG("Can't open vbmeta public key object, res = 0x%x", res);
+		goto out_free;
+	}
+
+	res =  TEE_ReadObjectData(h, value, value_sz, &count);
+	if (res) {
+		EMSG("Can't read vbmeta public key, res = 0x%x", res);
+		goto out;
+	}
+
+	TEE_MemMove(params[0].memref.buffer, value,
+		    value_sz);
+
+	params[0].memref.size = count;
+out:
+	TEE_CloseObject(h);
+out_free:
+	TEE_Free(value);
+
+	return res;
+}
+
 TEE_Result TA_CreateEntryPoint(void)
 {
 	return TEE_SUCCESS;
@@ -391,6 +483,10 @@ TEE_Result TA_InvokeCommandEntryPoint(void *sess __unused, uint32_t cmd,
 		return read_persist_value(pt, params);
 	case TA_AVB_CMD_WRITE_PERSIST_VALUE:
 		return write_persist_value(pt, params);
+	case TA_AVB_CMD_READ_VBMETA_PK:
+		return read_vbmeta_public_key(pt, params);
+	case TA_AVB_CMD_WRITE_VBMETA_PK:
+                return write_vbmeta_public_key(pt, params);
 	default:
 		EMSG("Command ID 0x%x is not supported", cmd);
 		return TEE_ERROR_NOT_SUPPORTED;

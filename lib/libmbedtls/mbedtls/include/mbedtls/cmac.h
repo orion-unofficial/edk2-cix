@@ -33,6 +33,7 @@
 #endif
 
 #include "mbedtls/cipher.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -73,6 +74,45 @@ struct mbedtls_cmac_context_t
 #endif /* !MBEDTLS_CMAC_ALT */
 
 /**
+* Trust engine key ladder root key selection enumeration
+*/
+typedef enum mbedtls_cmac_key_sel {
+    MBEDTLS_CMAC_KL_KEY_MODEL = 0,         /**< model key */
+    MBEDTLS_CMAC_KL_KEY_ROOT               /**< device root key */
+} mbedtls_cmac_key_sel_t;
+/**
+ * secure key structure
+ */
+typedef struct mbedtls_cmac_sec_key {
+    mbedtls_cmac_key_sel_t sel;   /**< key ladder root key selection */
+    uint32_t ek3bits;            /**< ek3 length in bits, 128 or 256 */
+    union {
+        struct {
+            uint8_t ek1[16];     /**< encrypted key1 (fixed to 128-bit) */
+            uint8_t ek2[16];     /**< encrypted key2 (fixed to 128-bit) */
+            uint8_t ek3[32];     /**< encrypted key3 */
+        };
+        uint8_t eks[64];         /**< ek1 || ek2 || ek3 */
+    };
+} mbedtls_cmac_sec_key_t;
+
+/**
+ * secure key structure of key-ladder 256
+ */
+typedef struct mbedtls_cmac_sec_key_v2 {
+    mbedtls_cmac_key_sel_t sel;   /**< key ladder root key selection */
+    uint32_t ek3bits;            /**< ek3 length in bits, fixed to 256 */
+    union {
+        struct {
+            uint8_t ek1[32];     /**< encrypted key1 (fixed to 256-bit) */
+            uint8_t ek2[32];     /**< encrypted key2 (fixed to 256-bit) */
+            uint8_t ek3[32];     /**< encrypted key3 (fixed to 256-bit) */
+        };
+        uint8_t eks[96];         /**< ek1 || ek2 || ek3 */
+    };
+} mbedtls_cmac_sec_key_v2_t;
+
+/**
  * \brief               Initialises and allocat cmac context memory
  *                      Must be called with an initialized cipher context.
  *
@@ -109,6 +149,37 @@ int mbedtls_cipher_cmac_setup(mbedtls_cipher_context_t *ctx);
  */
 int mbedtls_cipher_cmac_starts( mbedtls_cipher_context_t *ctx,
                                 const unsigned char *key, size_t keybits );
+
+/**
+ * \brief               This function sets the CMAC key, and prepares to authenticate
+ *                      the input data.
+ *                      Must be called with an initialized cipher context.
+ *
+ * \param ctx           The cipher context used for the CMAC operation, initialized
+ *                      as one of the following types: MBEDTLS_CIPHER_AES_128_ECB,
+ *                      MBEDTLS_CIPHER_AES_256_ECB, MBEDTLS_CIPHER_SM4_128_ECB.
+ * \param key           The encryption secure key.
+ *                      including ek1 ek2 ek3.
+ * \return              \c 0 on success.
+ * \return              A cipher-specific error code on failure.
+ */
+int mbedtls_cipher_cmac_starts_with_seckey( mbedtls_cipher_context_t *ctx,
+                                            mbedtls_cmac_sec_key_t *key );
+
+/**
+ * \brief               This function sets the CMAC key, and prepares to authenticate
+ *                      the input data.
+ *                      Must be called with an initialized cipher context.
+ *
+ * \param ctx           The cipher context used for the CMAC operation, initialized
+ *                      as one of the following types: MBEDTLS_CIPHER_AES_256_ECB,
+ * \param key           The encryption secure key.
+ *                      including ek1 ek2 ek3.
+ * \return              \c 0 on success.
+ * \return              A cipher-specific error code on failure.
+ */
+int mbedtls_cipher_cmac_starts_with_seckey_v2( mbedtls_cipher_context_t *ctx,
+                                               mbedtls_cmac_sec_key_v2_t *key );
 
 /**
  * \brief               This function feeds an input buffer into an ongoing CMAC
@@ -194,6 +265,19 @@ int mbedtls_cipher_cmac( const mbedtls_cipher_info_t *cipher_info,
                          const unsigned char *key, size_t keylen,
                          const unsigned char *input, size_t ilen,
                          unsigned char *output );
+
+/**
+ * \brief               This function clones the state of the specified cipher context
+ *                      for CMAC operation.
+ *
+ * \param dst           The cipher context for CMAC operation to clone to.
+ * \param src           The cipher context for CMAC operation to clone from.
+ *
+ * \return              \c 0 on success.
+ * \return              \c <0 on failure.
+ */
+int mbedtls_cipher_cmac_clone( mbedtls_cipher_context_t *dst,
+                               const mbedtls_cipher_context_t *src );
 
 #if defined(MBEDTLS_AES_C)
 /**

@@ -46,6 +46,11 @@
 #define TEE_ERROR_SIGNATURE_INVALID       0xFFFF3072
 #define TEE_ERROR_TIME_NOT_SET            0xFFFF5000
 #define TEE_ERROR_TIME_NEEDS_RESET        0xFFFF5001
+#define TEE_ERROR_IPC_FAIL                0xFFFF5002
+
+/* Extended Error Codes*/
+#define TEE_ERROR_AGAIN                   0XFFFF8000
+#define TEE_ERROR_TIMEOUT                 0XFFFF8001
 
 /* Parameter Type Constants */
 #define TEE_PARAM_TYPE_NONE             0
@@ -113,6 +118,7 @@
 #define TEE_OPERATION_ASYMMETRIC_CIPHER    6
 #define TEE_OPERATION_ASYMMETRIC_SIGNATURE 7
 #define TEE_OPERATION_KEY_DERIVATION       8
+#define TEE_OPERATION_EXTENSION		   0xF
 #define TEE_OPERATION_STATE_INITIAL        0x00000000
 #define TEE_OPERATION_STATE_ACTIVE         0x00000001
 
@@ -138,6 +144,10 @@
 #define TEE_ALG_SM4_ECB_NOPAD                   0x10000014
 #define TEE_ALG_SM4_CBC_NOPAD                   0x10000114
 #define TEE_ALG_SM4_CTR                         0x10000214
+#define TEE_ALG_SM4_XTS                         0x10000414
+#define TEE_ALG_SM4_CMAC                        0x30000614
+#define TEE_ALG_SM4_CCM                         0x40000714
+#define TEE_ALG_SM4_GCM                         0x40000814
 #define TEE_ALG_RSASSA_PKCS1_V1_5_MD5           0x70001830
 #define TEE_ALG_RSASSA_PKCS1_V1_5_SHA1          0x70002830
 #define TEE_ALG_RSASSA_PKCS1_V1_5_SHA224        0x70003830

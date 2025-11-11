@@ -26,6 +26,7 @@
 #define MBEDTLS_MD_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #if !defined(MBEDTLS_CONFIG_FILE)
 #include "mbedtls/config.h"
@@ -64,6 +65,7 @@ typedef enum {
     MBEDTLS_MD_SHA384,    /**< The SHA-384 message digest. */
     MBEDTLS_MD_SHA512,    /**< The SHA-512 message digest. */
     MBEDTLS_MD_RIPEMD160, /**< The RIPEMD-160 message digest. */
+    MBEDTLS_MD_SM3,       /**< The SM3 message digest. */
 } mbedtls_md_type_t;
 
 #if defined(MBEDTLS_SHA512_C)
@@ -359,6 +361,63 @@ int mbedtls_md_file( const mbedtls_md_info_t *md_info, const char *path,
 #endif /* MBEDTLS_FS_IO */
 
 /**
+* Trust engine key ladder root key selection enumeration
+*/
+typedef enum mbedtls_hmac_key_sel {
+    MBEDTLS_HMAC_KL_KEY_MODEL = 0,         /**< model key */
+    MBEDTLS_HMAC_KL_KEY_ROOT               /**< device root key */
+} mbedtls_hmac_key_sel_t;
+
+/**
+ * secure key structure
+ */
+typedef struct mbedtls_hmac_sec_key {
+    mbedtls_hmac_key_sel_t sel;  /**< key ladder root key selection */
+    uint32_t ek3bits;            /**< ek3 length in bits, 128 or 256 */
+    union {
+        struct {
+            uint8_t ek1[16];     /**< encrypted key1 (fixed to 128-bit) */
+            uint8_t ek2[16];     /**< encrypted key2 (fixed to 128-bit) */
+            uint8_t ek3[32];     /**< encrypted key3 */
+        };
+        uint8_t eks[64];         /**< ek1 || ek2 || ek3 */
+    };
+} mbedtls_hmac_sec_key_t;
+
+/**
+ * secure key structure of key-ladder 256
+ */
+typedef struct mbedtls_hmac_sec_key_v2 {
+    mbedtls_hmac_key_sel_t sel;  /**< key ladder root key selection */
+    uint32_t ek3bits;            /**< ek3 length in bits, 256 only */
+    union {
+        struct {
+            uint8_t ek1[32];     /**< encrypted key1 (fixed to 256-bit) */
+            uint8_t ek2[32];     /**< encrypted key2 (fixed to 256-bit) */
+            uint8_t ek3[32];     /**< encrypted key3 (fixed to 256-bit) */
+        };
+        uint8_t eks[96];         /**< ek1 || ek2 || ek3 */
+    };
+} mbedtls_hmac_sec_key_v2_t;
+
+/**
+ * \brief           This function initialize the private HMAC context in a
+ *                  message digest context.
+ *
+ *                  This function is called within the mbedtls_md_setup().
+ *                  Do not call this function elsewhere if unsure.
+ *
+ * \param ctx       The message digest context intended for an embedded HMAC
+ *                  context.
+ *
+ * \return          \c 0 on success.
+ * \return          #MBEDTLS_ERR_MD_ALLOC_FAILED on out of memory.
+ * \return          #MBEDTLS_ERR_MD_BAD_INPUT_DATA on parameter-verification
+ *                  failure.
+ */
+int mbedtls_md_hmac_init( mbedtls_md_context_t *ctx );
+
+/**
  * \brief           This function sets the HMAC key and prepares to
  *                  authenticate a new message.
  *
@@ -378,6 +437,49 @@ int mbedtls_md_file( const mbedtls_md_info_t *md_info, const char *path,
  */
 int mbedtls_md_hmac_starts( mbedtls_md_context_t *ctx, const unsigned char *key,
                     size_t keylen );
+
+/**
+ * \brief           This function sets the HMAC key and prepares to
+ *                  authenticate a new message.
+ *
+ *                  Call this function after mbedtls_md_setup(), to use
+ *                  the MD context for an HMAC calculation, then call
+ *                  mbedtls_md_hmac_update() to provide the input data, and
+ *                  mbedtls_md_hmac_finish() to get the HMAC value.
+ *
+ * \param ctx       The message digest context containing an embedded HMAC
+ *                  context.
+ * \param key       The encrypted secure key for HMAC.
+ *
+ * \return          \c 0 on success.
+ * \return          #MBEDTLS_ERR_MD_BAD_INPUT_DATA on parameter-verification
+ *                  failure.
+ */
+int mbedtls_md_hmac_starts_with_seckey( mbedtls_md_context_t *ctx,
+                                        mbedtls_hmac_sec_key_t *key );
+
+/**
+ * \brief           This function sets the HMAC key of key-ladder 256 and
+ *                  prepares to authenticate a new message.
+ *
+ *                  Call this function after mbedtls_md_setup(), to use
+ *                  the MD context for an HMAC calculation, then call
+ *                  mbedtls_md_hmac_update() to provide the input data, and
+ *                  mbedtls_md_hmac_finish() to get the HMAC value.
+ *
+ * \note            Only support below MD types: MBEDTLS_MD_MD5, MBEDTLS_MD_SHA1,
+ *                  MBEDTLS_MD_SHA224, MBEDTLS_MD_SHA256, MBEDTLS_MD_SHA284,
+ *                  MBEDTLS_MD_SHA512.
+ * \param ctx       The message digest context containing an embedded HMAC
+ *                  context.
+ * \param key       The encrypted secure key of key-ladder 256 for HMAC.
+ *
+ * \return          \c 0 on success.
+ * \return          #MBEDTLS_ERR_MD_BAD_INPUT_DATA on parameter-verification
+ *                  failure.
+ */
+int mbedtls_md_hmac_starts_with_seckey_v2( mbedtls_md_context_t *ctx,
+                                           mbedtls_hmac_sec_key_v2_t *key );
 
 /**
  * \brief           This function feeds an input buffer into an ongoing HMAC
@@ -464,8 +566,37 @@ int mbedtls_md_hmac( const mbedtls_md_info_t *md_info, const unsigned char *key,
                 const unsigned char *input, size_t ilen,
                 unsigned char *output );
 
+/**
+ * \brief          This function calculates the full generic HMAC
+ *                 on the input buffer with the provided secure key.
+ *
+ *                 The function allocates the context, performs the
+ *                 calculation, and frees the context.
+ *
+ *                 The HMAC result is calculated as
+ *                 output = generic HMAC(hmac key, input buffer).
+ *
+ * \param md_info  The information structure of the message-digest algorithm
+ *                 to use.
+ * \param key      The HMAC secure secret key.
+ * \param input    The buffer holding the input data.
+ * \param ilen     The length of the input data.
+ * \param output   The generic HMAC result.
+ *
+ * \return         \c 0 on success.
+ * \return         #MBEDTLS_ERR_MD_BAD_INPUT_DATA on parameter-verification
+ *                 failure.
+ */
+int mbedtls_md_hmac2( const mbedtls_md_info_t *md_info, mbedtls_hmac_sec_key_t *key,
+                const unsigned char *input, size_t ilen,
+                unsigned char *output );
+
 /* Internal use */
 int mbedtls_md_process( mbedtls_md_context_t *ctx, const unsigned char *data );
+
+#ifdef MBEDTLS_HMAC_ALT
+#include "hmac_alt.h"
+#endif
 
 #ifdef __cplusplus
 }

@@ -112,6 +112,7 @@ static TEE_Result ecc_get_keysize(uint32_t curve, uint32_t algo,
  */
 static void ecc_clear_precomputed(mbedtls_ecp_group *grp)
 {
+#if !defined(MBEDTLS_ECP_ALT)
 	size_t i = 0;
 
 	if (grp->T) {
@@ -121,6 +122,9 @@ static void ecc_clear_precomputed(mbedtls_ecp_group *grp)
 	}
 	grp->T = NULL;
 	grp->T_size = 0;
+#else
+    (void)(grp);
+#endif /* !MBEDTLS_ECP_ALT */
 }
 
 static mbedtls_ecp_group_id curve_to_group_id(uint32_t curve)

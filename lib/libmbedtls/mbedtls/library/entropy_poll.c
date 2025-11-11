@@ -288,4 +288,27 @@ int mbedtls_nv_seed_poll( void *data,
 }
 #endif /* MBEDTLS_ENTROPY_NV_SEED */
 
+/**
+ * TODO: Should modify this after merak driver enabled
+ *
+ * Currently the mbedtls hardware poll calls TEE internal API to get random
+ * entropy
+ */
+#if !defined(MBEDTLS_ENTROPY_HARDWARE_ALT)
+extern void TEE_GenerateRandom(void *randomBuffer, uint32_t randomBufferLen);
+int mbedtls_hardware_poll(void *data,
+                          unsigned char *output,
+                          size_t len,
+                          size_t *olen)
+{
+    (void)data;
+
+    TEE_GenerateRandom((void *)output, len);
+    *olen = len;
+
+    return 0;
+}
+
+#endif
+
 #endif /* MBEDTLS_ENTROPY_C */

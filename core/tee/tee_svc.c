@@ -25,6 +25,7 @@
 #include <user_ta_header.h>
 #include <utee_types.h>
 #include <util.h>
+#include "drivers/ipc.h"
 
 vaddr_t tee_svc_uref_base;
 
@@ -85,7 +86,7 @@ static const bool crypto_ecc_en;
  * 100: Antirollback enforced at REE level
  * 1000: Antirollback TEE-controlled hardware
  */
-#ifdef CFG_RPMB_FS
+#if defined(CFG_RPMB_FS) || defined(CFG_NOR_FS)
 static const uint32_t ts_antiroll_prot_lvl = 1000;
 #else
 static const uint32_t ts_antiroll_prot_lvl;
@@ -356,7 +357,32 @@ const struct tee_props tee_propset_tee[] = {
 
 __weak const struct tee_vendor_props vendor_props_client;
 __weak const struct tee_vendor_props vendor_props_ta;
-__weak const struct tee_vendor_props vendor_props_tee;
+
+static TEE_Result
+get_prop_cpu_id_implemented(struct ts_session *sess __unused, void *buf,
+				size_t *blen)
+{
+	TEE_Result ret;
+	uint8_t tmp_data[16] = {0};
+	uint32_t tmp_len = 0U;
+	ret = cix_get_efuse(576, 16, tmp_data, &tmp_len);
+	if (TEE_SUCCESS != ret) {
+		*blen = 0U;
+		return ret;
+	} else {
+		*blen = tmp_len;
+	}
+
+	return copy_to_user(buf, tmp_data, tmp_len);
+}
+
+const struct tee_props vendor_props_tee[] = {
+	{
+		.name = "com.cix.tee.cpuID",
+		.prop_type = USER_TA_PROP_TYPE_STRING,
+		.get_prop_func = get_prop_cpu_id_implemented
+	}
+};
 
 static void get_prop_set(unsigned long prop_set,
 			 const struct tee_props **props,
@@ -378,8 +404,8 @@ static void get_prop_set(unsigned long prop_set,
 		   TEE_PROPSET_TEE_IMPLEMENTATION) {
 		*props = tee_propset_tee;
 		*size = ARRAY_SIZE(tee_propset_tee);
-		*vendor_props = vendor_props_tee.props;
-		*vendor_size = vendor_props_tee.len;
+		*vendor_props = vendor_props_tee;
+		*vendor_size = ARRAY_SIZE(vendor_props_tee);
 	} else {
 		*props = NULL;
 		*size = 0;
@@ -1066,3 +1092,12 @@ TEE_Result syscall_set_ta_time(const TEE_Time *mytime)
 
 	return tee_time_set_ta_time((const void *)&s->ctx->uuid, &t);
 }
+
+TEE_Result syscall_get_cix_efuse(uint32_t offset, uint32_t len, uint8_t* fuse_data, uint32_t* fuse_len)
+{
+	TEE_Result ret = TEE_SUCCESS;
+	EMSG("Entry call get cix efuse syscall");
+	ret = cix_get_efuse(offset, len, fuse_data, fuse_len);
+	return ret;
+}
+
