@@ -622,9 +622,11 @@ Device (MUX1) {
         RawDataBuffer ()
         {
             0x00, 0xd4, 0x00, 0x44,
+            0x00, 0xe4, 0x00, 0x24,
         })
         {
             SKY1_IOMUXC_USB_OC6_L,
+            SKY1_IOMUXC_DRIVE_VBUS0,
         }
     PinGroup ("pinctrl_usb1", ResourceProducer, ,
         RawDataBuffer ()
@@ -654,7 +656,7 @@ Device (MUX1) {
         RawDataBuffer ()
         {
             0x00, 0xcc, 0x00, 0x44,
-            0x00, 0xe8, 0x00, 0xa4,
+            0x00, 0xe8, 0x00, 0x24,
         })
         {
             SKY1_IOMUXC_USB_OC4_L,
@@ -664,7 +666,7 @@ Device (MUX1) {
         RawDataBuffer ()
         {
             0x00, 0xd0, 0x00, 0x44,
-            0x00, 0xec, 0x00, 0xa4,
+            0x00, 0xec, 0x00, 0x24,
         })
         {
             SKY1_IOMUXC_USB_OC5_L,
@@ -792,6 +794,24 @@ Device (MUX1) {
         })
         {
             SKY1_IOMUXC_SFI_GPIO0,
+        }
+
+    PinGroup ("wl_radio_disable_l", ResourceProducer, ,
+        RawDataBuffer ()
+        {
+            0x00, 0x90, 0x00, 0xD4,
+        })
+        {
+            SKY1_IOMUXC_SFI_GPIO4,
+        }
+
+    PinGroup ("bt_radio_disable_l", ResourceProducer, ,
+        RawDataBuffer ()
+        {
+            0x00, 0x94, 0x00, 0xD4,
+        })
+        {
+            SKY1_IOMUXC_SFI_GPIO5,
         }
   })
 }
