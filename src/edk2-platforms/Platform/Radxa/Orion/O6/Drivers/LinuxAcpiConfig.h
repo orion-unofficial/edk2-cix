@@ -58,6 +58,17 @@
 #define PCIE_X1_0_PERST_GPIO_CTR  "\\_SB.GPI4"
 #define PCIE_X1_0_PERST_GPIO      5
 
+#define PEWAKE_GPIO_ACTIVE_LEVEL GPIO_ACTIVE_HIGH
+#define PCIE_X1_0_STR_PWRON       1
+#define PCIE_X1_0_PEWAKE          1
+#define PCIE_X1_0_PEWAKE_GPIO_CTR  "\\_SB.GPI4"
+#define PCIE_X1_0_PEWAKE_GPIO     19
+
+#define PCIE_X1_1_STR_PWRON       1
+#define PCIE_X1_1_PEWAKE          1
+#define PCIE_X1_1_PEWAKE_GPIO_CTR  "\\_SB.GPI4"
+#define PCIE_X1_1_PEWAKE_GPIO     22
+
 #define PCIE_X8_VCC_SUPPLY 1
 #define PCIE_X8_VCC_REGULATOR \_SB.PVC0
 #define PCIE_X4_VCC_SUPPLY 1

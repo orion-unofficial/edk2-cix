@@ -44,6 +44,7 @@
   UefiBootServicesTableLib
   UefiDriverEntryPoint
   UefiRuntimeServicesTableLib
+  CsuPmIpcLib
   GpioLib
   PdEcLib
 
