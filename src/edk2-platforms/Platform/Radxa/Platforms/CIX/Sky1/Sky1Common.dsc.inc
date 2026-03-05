@@ -27,6 +27,10 @@
 
   # Default hardware description should be ACPI
   gEmbeddedTokenSpaceGuid.PcdDefaultDtPref|FALSE
+  gCixPlatformTokenSpaceGuid.PcdAcpiSpcrEnable|TRUE
+
+  # Default hardware description should be ACPI
+  gEmbeddedTokenSpaceGuid.PcdDefaultDtPref|FALSE
 
   # Enable performance measurment
   gEfiMdePkgTokenSpaceGuid.PcdPerformanceLibraryPropertyMask|1

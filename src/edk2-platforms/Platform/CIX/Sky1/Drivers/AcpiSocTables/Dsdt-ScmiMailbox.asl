@@ -109,6 +109,7 @@ Device (SHM0) {
     ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
     Package () {
         Package () {"compatible", "arm,scmi-shmem"},
+        Package () { "reg-io-width", 4 },
     }
   })
 }
@@ -127,9 +128,12 @@ Device (SHM1) {
     ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
     Package () {
         Package () {"compatible", "arm,scmi-shmem"},
+        Package () { "reg-io-width", 4 },
     }
   })
 }
+
+Name (SCMS, 0)  // SCMI STA
 
 Device (SCMI) {
   Name (_HID, "CIXHA006")
@@ -150,7 +154,13 @@ Device (SCMI) {
   Device (DVFS) {
     Name (_HID, "CIXHA008")
     Name (_UID, 0x0)
-    Name (_STA, 0x0)
+    Method (_STA, 0x0, Serialized) {
+      if (SCMS == 0x1) {
+        Return (0xB)
+      } else {
+        Return (0x0)
+      }
+    }
 
     Name (_DSD, Package () {
       ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
@@ -162,7 +172,13 @@ Device (SCMI) {
   Device (CLKS) {
     Name (_HID, "CIXHA009")
     Name (_UID, 0x0)
-    Name (_STA, 0x0)
+    Method (_STA, 0x0, Serialized) {
+      if (SCMS == 0x1) {
+        Return (0xB)
+      } else {
+        Return (0x0)
+      }
+    }
 
     Name (_DSD, Package () {
       ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),

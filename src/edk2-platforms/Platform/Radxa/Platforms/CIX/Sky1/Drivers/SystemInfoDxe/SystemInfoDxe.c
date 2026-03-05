@@ -76,7 +76,7 @@ Decode4BitMemType (
   CHAR8   DateBuf[128]   = { 0 };
   CHAR16  NewString[128] = { 0 };
   CHAR8   *pFmtStr = NULL;
-  
+
   switch (MemType) {
     case 0:
       pFmtStr = "4 GiB";
@@ -144,7 +144,7 @@ Decode2BitMemType (
   CHAR8   DateBuf[128]   = { 0 };
   CHAR16  NewString[128] = { 0 };
   CHAR8   *pFmtStr = NULL;
-  
+
   switch (MemType) {
     case 3:
       pFmtStr = "Development Sample";
@@ -172,6 +172,8 @@ InitializeHardwareInfoWithEC (
   EC_RESPONSE                EcResponse;
   CHAR8                      DateBuf[128]   = { 0 };
   CHAR16                     NewString[128] = { 0 };
+  PMIC_VERSION_INFO          PmicVerInfo;
+  UINT8                      Index;
 
   Status = gBS->LocateProtocol (&gCixEcPlatformProtocolGuid, NULL, (VOID **)&pEcPlatformProtocol);
   if (EFI_ERROR (Status)) {
@@ -226,10 +228,12 @@ InitializeHardwareInfoWithEC (
     HiiSetString (HiiHandle, STRING_TOKEN (STR_PD_VER_VALUE), L"Undefined", NULL);
   }
 
-  Status = pEcPlatformProtocol->Transfer(pEcPlatformProtocol, EC_COMMAND_GET_PMIC_VERSION, NULL, &EcResponse);
+  Status = CsuPmMsgGetPmicVersion (&PmicVerInfo);
   if (!EFI_ERROR (Status)) {
-    AsciiSPrint ((CHAR8 *)DateBuf, sizeof (DateBuf), "%d %d %d", EcResponse.PmicVer.Pmic3Ver, EcResponse.PmicVer.Pmic2Ver, EcResponse.PmicVer.Pmic1Ver);
-    AsciiToUnicode (DateBuf, NewString);
+    ZeroMem (NewString, sizeof (NewString));
+    for (Index = 0; Index < PmicVerInfo.Count; Index++) {
+      UnicodeSPrint ((CHAR16 *)NewString, sizeof (NewString), L"%s%x.%x ", NewString, (PmicVerInfo.Version[Index] >> 8) & 0xFF, PmicVerInfo.Version[Index] & 0xFF);
+    }
     HiiSetString (HiiHandle, STRING_TOKEN (STR_PMIC_VER_VALUE), NewString, NULL);
   } else {
     HiiSetString (HiiHandle, STRING_TOKEN (STR_PMIC_VER_VALUE), L"Undefined", NULL);
@@ -348,6 +352,11 @@ InitializeHardwareInfo (
   AsciiSPrint ((CHAR8 *)DateBuf, sizeof (DateBuf), "%d GiB", pCixSocInfoProtocol->MemInfo->TotalSize/1024);
   AsciiToUnicode (DateBuf, NewString);
   HiiSetString (HiiHandle, STRING_TOKEN (STR_MEMORY_SIZE_VALUE), NewString, NULL);
+
+  // Double Data Rate so we x2 the frequency
+  AsciiSPrint ((CHAR8 *)DateBuf, sizeof (DateBuf), "%d MT/s", pCixSocInfoProtocol->MemInfo->MaxFreq * 2);
+  AsciiToUnicode (DateBuf, NewString);
+  HiiSetString (HiiHandle, STRING_TOKEN (STR_MEMORY_FREQ_VALUE), NewString, NULL);
 
   if (FixedPcdGetBool (PcdEcAcpiI2cEn)) {
     InitializeHardwareInfoWithEC (HiiHandle);
