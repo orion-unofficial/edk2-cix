@@ -30,7 +30,7 @@ BL2_AT_EL3              :=      1
 
 FW_BOOT_PERF_SUPPORT	:=	1
 
-HANDLE_EA_EL3_FIRST	:=	1
+HANDLE_EA_EL3_FIRST	:=	0
 
 # CPU will start executing code directly at programmable reset address, both
 # on a cold and warm reset

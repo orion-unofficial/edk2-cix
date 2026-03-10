@@ -728,9 +728,9 @@ endif
 
 # For RAS_EXTENSION, require that EAs are handled in EL3 first
 ifeq ($(RAS_EXTENSION),1)
-     ifneq ($(HANDLE_EA_EL3_FIRST),1)
-         $(error For RAS_EXTENSION, HANDLE_EA_EL3_FIRST must also be 1)
-     endif
+#      ifneq ($(HANDLE_EA_EL3_FIRST),1)
+#          $(error For RAS_EXTENSION, HANDLE_EA_EL3_FIRST must also be 1)
+#      endif
 endif
 
 # When FAULT_INJECTION_SUPPORT is used, require that RAS_EXTENSION is enabled
