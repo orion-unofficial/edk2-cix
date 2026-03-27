@@ -28,6 +28,26 @@ inputs independently:
   `__TIME__` uses
 - `PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>` for `csu_pm_config.bin`
 
+To extract those values automatically from an upstream O6 release artefact and
+generate ready-to-run replay wrappers, use:
+
+```bash
+python3 src/scripts/replay_o6_release.py <edk2-cix_*.deb>
+```
+
+If you only have `cix_flash_all.bin`, pair it with `BuildOptions` when
+available:
+
+```bash
+python3 src/scripts/replay_o6_release.py \
+  cix_flash_all.bin \
+  --build-options BuildOptions
+```
+
+The generated `rebuild-o6-docker.sh` wrapper recreates the upstream
+`/workspaces/edk2-cix` path layout so that `ARTEFACT_MODE=upstream` can
+reproduce the vendor release payloads byte-for-byte.
+
 Release builds default to `ARTEFACT_MODE=custom`, which strips embedded
 PE/COFF debug path records from the final firmware images. Use
 `ARTEFACT_MODE=upstream` when you specifically want replay-compatible output
