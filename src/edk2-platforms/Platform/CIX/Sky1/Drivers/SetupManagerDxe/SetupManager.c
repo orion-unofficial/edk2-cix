@@ -7,6 +7,9 @@
 
 #include "SetupManager.h"
 
+#define STR(x)   XSTR (x)
+#define XSTR(x)  #x
+
 SETUP_MANAGER_CALLBACK_DATA  gSetupManagerPrivate = {
   SETUP_MANAGER_CALLBACK_DATA_SIGNATURE,
   NULL,
@@ -394,7 +397,34 @@ ConstructBuildDate (
   OUT CHAR8  *DateBuf
   )
 {
+#ifdef COMPILE_BUILD_DATE
+  STATIC CONST CHAR8  IsoBuildDate[] = XSTR (COMPILE_BUILD_DATE);
+#endif
   UINTN  i;
+
+#ifdef COMPILE_BUILD_DATE
+  if ((AsciiStrLen (IsoBuildDate) >= 10) &&
+      (IsoBuildDate[4] == '-') &&
+      (IsoBuildDate[7] == '-') &&
+      (IsoBuildDate[5] >= '0') &&
+      (IsoBuildDate[5] <= '1') &&
+      (IsoBuildDate[6] >= '0') &&
+      (IsoBuildDate[6] <= '9'))
+  {
+    CHAR8  SmbiosDateStr[sizeof (RELEASE_DATE_TEMPLATE)] = { 0 };
+
+    SmbiosDateStr[sizeof (RELEASE_DATE_TEMPLATE) - 1] = '\0';
+    SmbiosDateStr[0] = IsoBuildDate[5];
+    SmbiosDateStr[1] = IsoBuildDate[6];
+    SmbiosDateStr[2] = '/';
+    SmbiosDateStr[3] = IsoBuildDate[8];
+    SmbiosDateStr[4] = IsoBuildDate[9];
+    SmbiosDateStr[5] = '/';
+    CopyMem (&SmbiosDateStr[6], &IsoBuildDate[0], 4);
+    CopyMem (DateBuf, SmbiosDateStr, AsciiStrLen (RELEASE_DATE_TEMPLATE));
+    return;
+  }
+#endif
 
   // GCC __DATE__ format is "Feb  2 1996"
   // If the day of the month is less than 10, it is padded with a space on the left
