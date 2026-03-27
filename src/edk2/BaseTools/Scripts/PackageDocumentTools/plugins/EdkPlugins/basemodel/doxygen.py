@@ -31,9 +31,9 @@ class Section(BaseDoxygeItem):
     def Generate(self):
         """This interface need to be override"""
         if len(self.mTag) != 0:
-            self.mText.append(' \section %s %s' % (self.mName, self.mTag))
+            self.mText.append(' \\section %s %s' % (self.mName, self.mTag))
         else:
-            self.mText.append(' \section %s' % self.mName)
+            self.mText.append(' \\section %s' % self.mName)
 
         self.mText.append(self.mDescription)
         return self.mText
@@ -65,10 +65,10 @@ class Page(BaseDoxygeItem):
 
     def Generate(self):
         if self.mIsMainPage:
-            self.mText.append('/** \mainpage %s' % self.mName)
+            self.mText.append('/** \\mainpage %s' % self.mName)
             self.mIsSort = False
         else:
-            self.mText.append('/** \page %s %s' % (self.mTag, self.mName))
+            self.mText.append('/** \\page %s %s' % (self.mTag, self.mName))
 
         if len(self.mDescription) != 0:
             self.mText.append(self.mDescription)
@@ -81,14 +81,14 @@ class Page(BaseDoxygeItem):
         endIndex = len(self.mText)
 
         if len(self.mSubPages) != 0:
-            self.mText.insert(endIndex, "<p> \section content_index INDEX")
+            self.mText.insert(endIndex, "<p> \\section content_index INDEX")
             endIndex = len(self.mText)
             self.mText.insert(endIndex, '<ul>')
             endIndex += 1
             if self.mIsSort:
                 self.mSubPages.sort(key=lambda x: x.mName.lower())
             for page in self.mSubPages:
-                self.mText.insert(endIndex, '<li>\subpage %s \"%s\" </li>' % (page.mTag, page.mName))
+                self.mText.insert(endIndex, '<li>\\subpage %s \"%s\" </li>' % (page.mTag, page.mName))
                 endIndex += 1
                 self.mText += page.Generate()
             self.mText.insert(endIndex, '</ul>')

@@ -67,7 +67,7 @@ class Symbols:
         linefile.close()
 
         # 000113ca T AllocatePool  c:\home\edk-ii\MdePkg\Library\UefiMemoryAllocationLib\MemoryAllocationLib.c:399
-        patchLineFileMatchString = "([0-9a-fA-F]*)\s+[T|D|t|d]\s+(\w+)\s*((?:[a-zA-Z]:)?[\w+\-./_a-zA-Z0-9\\\\]*):?([0-9]*)"
+        patchLineFileMatchString = r"([0-9a-fA-F]*)\s+[T|D|t|d]\s+(\w+)\s*((?:[a-zA-Z]:)?[\w+\-./_a-zA-Z0-9\\\\]*):?([0-9]*)"
 
         for reportLine in reportLines:
             #print "check - " + reportLine
@@ -125,8 +125,8 @@ class Symbols:
         #  line 36 at [0000C793][0001:0000B793], len = 0x5
         #  line 37 at [0000C798][0001:0000B798], len = 0x2
 
-        patchLineFileMatchString = "\s+line ([0-9]+) at \[([0-9a-fA-F]{8})\]\[[0-9a-fA-F]{4}\:[0-9a-fA-F]{8}\], len = 0x[0-9a-fA-F]+\s*([\w+\-\:./_a-zA-Z0-9\\\\]*)\s*"
-        patchLineFileMatchStringFunc = "\*\*\s+(\w+)\s*"
+        patchLineFileMatchString = r"\s+line ([0-9]+) at \[([0-9a-fA-F]{8})\]\[[0-9a-fA-F]{4}\:[0-9a-fA-F]{8}\], len = 0x[0-9a-fA-F]+\s*([\w+\-\:./_a-zA-Z0-9\\\\]*)\s*"
+        patchLineFileMatchStringFunc = r"\*\*\s+(\w+)\s*"
 
         for reportLine in reportLines:
             #print "check line - " + reportLine
@@ -191,7 +191,7 @@ def processLine(newline):
         #print "Checking : ", driverName
 
         # EDKII application output
-        pdbMatchString = "Driver - \w* \(Usage - 0x[0-9a-fA-F]+\) \(Pdb - ([:\-.\w\\\\/]*)\)\s*"
+        pdbMatchString = r"Driver - \w* \(Usage - 0x[0-9a-fA-F]+\) \(Pdb - ([:\-.\w\\\\/]*)\)\s*"
         pdbName = ""
         match = re.match(pdbMatchString, newline)
         if match is not None:

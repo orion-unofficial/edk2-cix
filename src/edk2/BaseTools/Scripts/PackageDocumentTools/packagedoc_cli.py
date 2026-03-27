@@ -29,7 +29,7 @@ def parseCmdArgs():
     parser.add_option('-p', '--decfile', action='store', dest='PackagePath',
                       help='Specify the absolute path for package DEC file. For example: c:\\tianocore\\MdePkg\\MdePkg.dec')
     parser.add_option('-x', '--doxygen', action='store', dest='DoxygenPath',
-                      help='Specify the absolute path of doxygen tools installation. For example: C:\\Program Files\\doxygen\bin\doxygen.exe')
+                      help='Specify the absolute path of doxygen tools installation. For example: C:\\Program Files\\doxygen\\bin\\doxygen.exe')
     parser.add_option('-o', '--output', action='store', dest='OutputPath',
                       help='Specify the document output path. For example: c:\\docoutput')
     parser.add_option('-a', '--arch', action='store', dest='Arch', choices=list(gArchMarcoDict.keys()),

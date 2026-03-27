@@ -528,7 +528,7 @@ class EfiSectionHeader(BinaryItem):
 
 
 
-rMapEntry = re.compile('^(\w+)[ \(\w\)]* \(BaseAddress=([0-9a-fA-F]+), EntryPoint=([0-9a-fA-F]+), GUID=([0-9a-fA-F\-]+)')
+rMapEntry = re.compile(r'^(\w+)[ \(\w\)]* \(BaseAddress=([0-9a-fA-F]+), EntryPoint=([0-9a-fA-F]+), GUID=([0-9a-fA-F\-]+)')
 class EfiFvMapFile(object):
     def __init__(self):
         self._mapentries = {}

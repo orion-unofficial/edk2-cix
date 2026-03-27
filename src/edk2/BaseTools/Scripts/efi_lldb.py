@@ -932,7 +932,7 @@ def lldb_type_formaters(debugger, mod_name):
 
     # W605 this is the correct escape sequence for the lldb command
     debugger.HandleCommand(
-        f'type summary add --regex "CHAR16 \[[0-9]+\]" '  # noqa: W605
+        f'type summary add --regex "CHAR16 \\[[0-9]+\\]" '
         f'--python-function {mod_name}.CHAR16_TypeSummary')
 
     debugger.HandleCommand(
@@ -941,7 +941,7 @@ def lldb_type_formaters(debugger, mod_name):
 
     # W605 this is the correct escape sequence for the lldb command
     debugger.HandleCommand(
-        f'type summary add --regex "CHAR8 \[[0-9]+\]"  '  # noqa: W605
+        f'type summary add --regex "CHAR8 \\[[0-9]+\\]"  '
         f'--python-function {mod_name}.CHAR8_TypeSummary')
 
 

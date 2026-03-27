@@ -8,6 +8,9 @@
 2. Open in [`devcontainer`](https://code.visualstudio.com/docs/devcontainers/containers)
 3. `make deb`
 
+Before a longer build, run `make -C src preflight` to fail early if the
+expected package-tool binaries or cross-compiler are missing.
+
 For reproducible metadata on `main-monorepo`, the build uses the nearest
 mapped upstream `main` commit as its default source identity. In the default
 `ARTEFACT_MODE=custom`, that commit identity also supplies the default
@@ -47,6 +50,17 @@ python3 src/scripts/replay_o6_release.py \
 The generated `rebuild-o6-docker.sh` wrapper recreates the upstream
 `/workspaces/edk2-cix` path layout so that `ARTEFACT_MODE=upstream` can
 reproduce the vendor release payloads byte-for-byte.
+
+For host-side Python maintenance checks without entering the devcontainer, run:
+
+```bash
+python3 -W default -m compileall -q -f \
+  src/edk2/BaseTools/Source/Python \
+  src/edk2/BaseTools/Scripts \
+  scripts
+python3 -W default -m py_compile \
+  src/edk2/ArmPlatformPkg/Scripts/Ds5/build_report.py
+```
 
 Release builds default to `ARTEFACT_MODE=custom`, which strips embedded
 PE/COFF debug path records from the final firmware images. Use

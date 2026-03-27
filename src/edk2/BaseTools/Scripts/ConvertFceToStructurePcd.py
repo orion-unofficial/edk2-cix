@@ -89,12 +89,12 @@ class parser_lst(object):
     return structs_file
 
   def struct(self):#struct:{offset:name}
-    unit_num = re.compile('(\d+)')
-    offset1_re = re.compile('(\d+)\[')
-    pcdname_num_re = re.compile('\w+\[(\S+)\]')
-    pcdname_re = re.compile('\](.*)\<')
-    pcdname2_re = re.compile('(\w+)\[')
-    uint_re = re.compile('\<(\S+)\>')
+    unit_num = re.compile(r'(\d+)')
+    offset1_re = re.compile(r'(\d+)\[')
+    pcdname_num_re = re.compile(r'\w+\[(\S+)\]')
+    pcdname_re = re.compile(r'\](.*)\<')
+    pcdname2_re = re.compile(r'(\w+)\[')
+    uint_re = re.compile(r'\<(\S+)\>')
     name_format = re.compile(r'(?<!typedef)\s+struct (\w+) {.*?;', re.S)
     name=name_format.findall(self.text)
     info={}
@@ -214,8 +214,8 @@ class Config(object):
 
   #Parser .config file,return list[offset,name,guid,value,help]
   def config_parser(self):
-    ids_re =re.compile('_ID:(\d+)',re.S)
-    id_re= re.compile('\s+')
+    ids_re =re.compile(r'_ID:(\d+)',re.S)
+    id_re= re.compile(r'\s+')
     info = []
     info_dict={}
     with open(self.config, 'r') as text:

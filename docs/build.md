@@ -4,6 +4,10 @@ We use devcontainer to maintain a consistent build environment.
 
 To build all supported EDK2 variants, please run `make deb` within devcontainer.
 
+Before a longer build, run `make -C src preflight` to fail early if the
+expected package-tool binaries, source directories, or cross-compiler are
+missing.
+
 Set `BUILD_TARGET` to `DEBUG` in `src/Makefile` to build for debug artifacts.
 
 Edit `DSC` in `src/Makefile` to reduce amount of variants that will be built.
@@ -110,3 +114,22 @@ packages first and skips the `apt` work when the environment is already ready.
 If you need to refresh the monorepo from the untouched upstream mirror,
 use the automation and runbooks on the separate `main-monorepo-meta`
 branch rather than running `git submodule` commands in this checkout.
+
+## Host-side Python checks
+
+The maintained Python helpers now run cleanly on recent host Python versions
+without the previous `SyntaxWarning` noise from invalid escape sequences. To
+re-check that set outside the devcontainer, run:
+
+```bash
+python3 -W default -m compileall -q -f \
+  src/edk2/BaseTools/Source/Python \
+  src/edk2/BaseTools/Scripts \
+  scripts
+python3 -W default -m py_compile \
+  src/edk2/ArmPlatformPkg/Scripts/Ds5/build_report.py
+```
+
+This intentionally excludes dormant legacy Python 2 tooling in unrelated
+vendor directories, which would require a broader port rather than a warning
+cleanup.

@@ -91,6 +91,8 @@ clean: localClean
 
 localClean:
 	rm -f $(MAKEROOT)/bin/*
-	-rmdir $(MAKEROOT)/libs $(MAKEROOT)/bin
+	@if [ -d "$(MAKEROOT)/libs" ] || [ -d "$(MAKEROOT)/bin" ]; then \
+		rmdir $(MAKEROOT)/libs $(MAKEROOT)/bin 2>/dev/null || true; \
+	fi
 
 include Makefiles/footer.makefile

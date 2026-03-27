@@ -112,8 +112,8 @@ class BaseINIFile(object):
             templine = self._lines[index].strip()
             # skip comments
             if len(templine) == 0: continue
-            if re.match("^\[=*\]", templine) or re.match("^#", templine) or \
-               re.match("\*+/", templine):
+            if re.match(r"^\[=*\]", templine) or re.match("^#", templine) or \
+               re.match(r"\*+/", templine):
                 continue
 
             m = section_re.match(templine)
@@ -298,7 +298,7 @@ class BaseINISection(object):
         iniObj = None
         while (visit <= self._end):
             line = self.GetLine(visit).strip()
-            if re.match("^\[=*\]", line) or re.match("^#", line) or len(line) == 0:
+            if re.match(r"^\[=*\]", line) or re.match("^#", line) or len(line) == 0:
                 visit += 1
                 continue
             line = line.split('#')[0].strip()

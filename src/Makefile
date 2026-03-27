@@ -9,6 +9,7 @@ all: build
 .ONESHELL:
 .DELETE_ON_ERROR:
 SHELL := bash
+MAKEFLAGS += --no-print-directory
 UNAME := $(shell uname -m)
 UPSTREAM_SOURCE_REF ?= refs/upstream-source/main
 BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
@@ -52,13 +53,14 @@ DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name 
 CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_all.bin) \
 			 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
 .PHONY: build
-build: $(CIX_FLASH)
+build: preflight $(CIX_FLASH)
 
-.SILENT: help
+.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools
 .PHONY: help
 help:
 	echo "Supported targets:"
 	echo "$(CIX_FLASH)"
+	echo "preflight"
 
 .PHONY: print-build-metadata
 print-build-metadata:
@@ -72,8 +74,51 @@ print-build-metadata:
 	echo "EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH)"
 	echo "EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH)"
 
-Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
-	export CFG="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/spi_flash_config_ota.json" -type f)" && \
+.PHONY: preflight preflight-%
+preflight: preflight-tools
+
+preflight-%: preflight-tools
+	@dsc_path="$(filter %/$*.dsc,$(DSC))" && \
+	if [[ -z "$$dsc_path" ]]; then \
+		echo "[preflight/$*] No matching DSC found under edk2-platforms/Platform/Radxa" >&2; \
+		exit 1; \
+	fi
+
+.PHONY: preflight-tools
+preflight-tools:
+	@missing=0; \
+	for required_dir in edk2 edk2-platforms edk2-non-osi "$(PACKAGE_TOOL)"; do \
+		if [[ ! -e "$$required_dir" ]]; then \
+			echo "[preflight] Missing required path: $$required_dir" >&2; \
+			missing=1; \
+		fi; \
+	done; \
+	for required_cmd in bash find grep head realpath tr dd python3; do \
+		if ! command -v "$$required_cmd" >/dev/null 2>&1; then \
+			echo "[preflight] Missing required host tool: $$required_cmd" >&2; \
+			missing=1; \
+		fi; \
+	done; \
+	if [[ -n "$(GCC5_AARCH64_PREFIX)" ]] && ! command -v "$(GCC5_AARCH64_PREFIX)gcc" >/dev/null 2>&1; then \
+		echo "[preflight] Missing cross-compiler: $(GCC5_AARCH64_PREFIX)gcc" >&2; \
+		missing=1; \
+	fi; \
+	for required_bin in \
+		"$(PACKAGE_TOOL)/$(PACKAGE_TOOL_ARCH)/cix_package_tool" \
+		"$(PACKAGE_TOOL)/$(PACKAGE_TOOL_ARCH)/fiptool" \
+		"$(PACKAGE_TOOL)/$(PACKAGE_TOOL_ARCH)/cert_uefi_create_rsa"; do \
+		if [[ ! -x "$$required_bin" ]]; then \
+			echo "[preflight] Missing required package-tool binary: $$required_bin" >&2; \
+			missing=1; \
+		fi; \
+	done; \
+	if [[ "$$missing" -ne 0 ]]; then \
+		exit 1; \
+	fi
+
+.SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin
+Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
+	@export CFG="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/spi_flash_config_ota.json" -type f)" && \
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	if [[ -f "$$CFG" ]]; then \
 		echo "Found custom flash config."; \
@@ -94,13 +139,14 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: Build/%/$(UEFI_TARGET)_GCC5/Firmw
 # MEM_CFG_MEMFREQ ?= 2750
 MEM_CFG_MEMFREQ ?= 3000
 
-Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
-	export MEM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/mem_config" -type d)" && \
+.SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin
+Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
+	@export MEM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/mem_config" -type d)" && \
 	if [[ -d "$$MEM" ]]; then \
 		printf '[build/%s] Regenerating memory configuration\n' "$*" && \
 		echo "Found custom memory configuration."; \
 		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/memory_config.bin; \
-		make -C "$$MEM" -j$(shell nproc) -e CFLAG:="-DMEM_CFG_MEMFREQ=$(MEM_CFG_MEMFREQ)" clean main; \
+		$(MAKE) -C "$$MEM" -j$(shell nproc) -e CFLAG:="-DMEM_CFG_MEMFREQ=$(MEM_CFG_MEMFREQ)" clean main; \
 		mv "$$MEM/memory_config.bin" Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
 	fi
 	export PM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/pm_config" -type d)" && \
@@ -108,7 +154,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: Build/%/$(UEFI_TARGET)_GCC5/Firmw
 		printf '[build/%s] Regenerating PM configuration\n' "$*" && \
 		echo "Found custom PM configuration."; \
 		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/csu_pm_config.bin; \
-		PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)" make -C "$$PM" -j$(shell nproc); \
+		PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)" $(MAKE) -C "$$PM" -j$(shell nproc); \
 		mv "$$PM/csu_pm_config.bin" Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
 	fi
 
@@ -134,12 +180,13 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: Build/%/$(UEFI_TARGET)_GCC5/Firmw
 	dd if="Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.raw" of="$$tmp_all" conv=notrunc status=none && \
 	mv -f "$$tmp_all" "Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.bin"
 
+.SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
 Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 	Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd \
 	Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin \
 	Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt
 
-	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
+	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" && \
 	select_cert_source() { \
 		local dir="$$1"; \
@@ -187,8 +234,9 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		--nt-fw "$(shell realpath "$<")" \
 		$@
 
+.SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin
 Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
-	cp -aR $(PACKAGE_TOOL)/Firmwares/ Build/$*/$(UEFI_TARGET)_GCC5/
+	@cp -aR $(PACKAGE_TOOL)/Firmwares/ Build/$*/$(UEFI_TARGET)_GCC5/
 	# \377 = 0xFF
 	head -c 8192 < /dev/zero | tr '\000' '\377' > $@
 
@@ -202,8 +250,9 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
 		ln -sf dummy.bin Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/ec_fw.bin; \
 	fi
 
+.SILENT: Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt
 Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
-	cp -aR $(PACKAGE_TOOL)/Keys/ $(PACKAGE_TOOL)/certs/ Build/$*/$(UEFI_TARGET)_GCC5/
+	@cp -aR $(PACKAGE_TOOL)/Keys/ $(PACKAGE_TOOL)/certs/ Build/$*/$(UEFI_TARGET)_GCC5/
 	if [[ -f "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" ]]; then \
     	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" \
 			-p Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
@@ -211,8 +260,9 @@ Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
 			-o $@; \
 	fi
 
-Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd:
-	make -C edk2/BaseTools -j$(shell nproc) Source/C
+.SILENT: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd tools/acpica/generate/unix/bin/iasl
+Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
+	@$(MAKE) -C edk2/BaseTools -j$(shell nproc) Source/C
 	export WORKSPACE="$(shell pwd)"
 	export PACKAGES_PATH="$$WORKSPACE/edk2:$$WORKSPACE/edk2-platforms:$$WORKSPACE/edk2-non-osi:$$WORKSPACE/edk2-platforms/Silicon/Intel/"
 	export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_PREFIX)"
@@ -247,17 +297,20 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd:
 		-D DEB_VERSION=$(shell cd .. && dpkg-parsechangelog -S Version)
 
 tools/acpica/generate/unix/bin/iasl:
-	make -C tools/acpica -j$(shell nproc)
+	@$(MAKE) -C tools/acpica -j$(shell nproc)
 
 .PHONY: clean
 clean:
+	printf '[clean] Removing build output\n'
 	rm -rf Build
-	make -C edk2/BaseTools -j$(shell nproc) clean
+	printf '[clean] Cleaning BaseTools\n'
+	$(MAKE) -s -C edk2/BaseTools -j$(shell nproc) clean
 	if [[ -f tools/acpica/Makefile ]] && grep -Eq '^[[:space:]]*veryclean:' tools/acpica/Makefile; then \
-		make -C tools/acpica -j$(shell nproc) veryclean; \
+		printf '[clean] Cleaning tools/acpica (veryclean)\n'; \
+		$(MAKE) -s -C tools/acpica -j$(shell nproc) veryclean; \
 	elif [[ -f tools/acpica/Makefile ]] && grep -Eq '^[[:space:]]*clean:' tools/acpica/Makefile; then \
 		printf '[clean] tools/acpica has no veryclean target; using clean instead\n'; \
-		make -C tools/acpica -j$(shell nproc) clean; \
+		$(MAKE) -s -C tools/acpica -j$(shell nproc) clean; \
 	else \
 		printf '[clean] tools/acpica has no clean target; skipping extra cleanup\n'; \
 	fi

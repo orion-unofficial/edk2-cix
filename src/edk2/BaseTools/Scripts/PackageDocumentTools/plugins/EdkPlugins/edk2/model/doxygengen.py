@@ -269,7 +269,7 @@ class PackageDocumentAction(DoxygenAction):
                 fullpath = os.path.join(path, file)
                 if os.path.isfile(fullpath):
                     self.ProcessSourceFileForInclude(fullpath, pObj, configFile)
-                    topPage.AddDescription('<li> \link %s\endlink </li>\n' % self._ConvertPathToDoxygen(fullpath, pObj))
+                    topPage.AddDescription('<li> \\link %s\\endlink </li>\n' % self._ConvertPathToDoxygen(fullpath, pObj))
                 else:
                     if file.lower() in ['library', 'protocol', 'guid', 'ppi', 'ia32', 'x64', 'ipf', 'ebc', 'arm', 'pi', 'uefi', 'aarch64']:
                         continue
@@ -281,7 +281,7 @@ class PackageDocumentAction(DoxygenAction):
                         bNeedAddSubPage = True
                         subfullpath = os.path.join(fullpath, subfile)
                         self.ProcessSourceFileForInclude(subfullpath, pObj, configFile)
-                        subpage.AddDescription('<li> \link %s \endlink </li>\n' % self._ConvertPathToDoxygen(subfullpath, pObj))
+                        subpage.AddDescription('<li> \\link %s \\endlink </li>\n' % self._ConvertPathToDoxygen(subfullpath, pObj))
                     subpage.AddDescription('</ul>\n')
                     if bNeedAddSubPage:
                         bNeedAddIncludePage = True
@@ -319,10 +319,10 @@ class PackageDocumentAction(DoxygenAction):
                 path = os.path.join(pObj.GetFileObj().GetPackageRootPath(), obj.GetHeaderFile())
                 path = path[len(pObj.GetWorkspace()) + 1:]
                 if len(comments) == 0:
-                    classPage.AddDescription('\copydoc %s<p>' % obj.GetHeaderFile())
+                    classPage.AddDescription('\\copydoc %s<p>' % obj.GetHeaderFile())
                 section = doxygen.Section('ref', 'Refer to Header File')
-                section.AddDescription('\link %s\n' % obj.GetHeaderFile())
-                section.AddDescription(' \endlink<p>\n')
+                section.AddDescription('\\link %s\n' % obj.GetHeaderFile())
+                section.AddDescription(' \\endlink<p>\n')
                 classPage.AddSection(section)
                 fullPath = os.path.join(pObj.GetFileObj().GetPackageRootPath(), obj.GetHeaderFile())
                 self.ProcessSourceFileForInclude(fullPath, pObj, configFile)
@@ -343,10 +343,10 @@ class PackageDocumentAction(DoxygenAction):
                 path = os.path.join(pObj.GetFileObj().GetPackageRootPath(), obj.GetHeaderFile())
                 path = path[len(pObj.GetWorkspace()) + 1:]
                 if len(comments) == 0:
-                    classPage.AddDescription('\copydoc %s<p>' % obj.GetHeaderFile())
+                    classPage.AddDescription('\\copydoc %s<p>' % obj.GetHeaderFile())
                 section = doxygen.Section('ref', 'Refer to Header File')
-                section.AddDescription('\link %s\n' % obj.GetHeaderFile())
-                section.AddDescription(' \endlink<p>\n')
+                section.AddDescription('\\link %s\n' % obj.GetHeaderFile())
+                section.AddDescription(' \\endlink<p>\n')
                 classPage.AddSection(section)
                 fullPath = os.path.join(pObj.GetFileObj().GetPackageRootPath(), obj.GetHeaderFile())
 
@@ -553,8 +553,8 @@ class PackageDocumentAction(DoxygenAction):
                 guidPage.AddDescription(' \\copydoc %s <br>' % relPath)
 
             section = doxygen.Section('ref', 'Refer to Header File')
-            section.AddDescription('\link %s\n' % relPath)
-            section.AddDescription('\endlink\n')
+            section.AddDescription('\\link %s\n' % relPath)
+            section.AddDescription('\\endlink\n')
             self.ProcessSourceFileForInclude(refFile, pObj, configFile)
             guidPage.AddSection(section)
         return guidPage
@@ -605,8 +605,8 @@ class PackageDocumentAction(DoxygenAction):
             if len(comments) == 0:
                 guidPage.AddDescription(' \\copydoc %s <br>' % relPath)
             section = doxygen.Section('ref', 'Refer to Header File')
-            section.AddDescription('\link %s\n' % relPath)
-            section.AddDescription('\endlink\n')
+            section.AddDescription('\\link %s\n' % relPath)
+            section.AddDescription('\\endlink\n')
             self.ProcessSourceFileForInclude(refFile, pObj, configFile)
             guidPage.AddSection(section)
 
@@ -659,8 +659,8 @@ class PackageDocumentAction(DoxygenAction):
             if len(comments) == 0:
                 guidPage.AddDescription(' \\copydoc %s <br>' % relPath)
             section = doxygen.Section('ref', 'Refer to Header File')
-            section.AddDescription('\link %s\n' % relPath)
-            section.AddDescription('\endlink\n')
+            section.AddDescription('\\link %s\n' % relPath)
+            section.AddDescription('\\endlink\n')
             self.ProcessSourceFileForInclude(refFile, pObj, configFile)
             guidPage.AddSection(section)
 
@@ -936,7 +936,7 @@ class PackageDocumentAction(DoxygenAction):
                 hPath   = 'NULL'
             desc += '<TD>%s</TD>' % pkgname
             if hPath != "NULL":
-                desc += '<TD>\link %s \endlink</TD>' % hPath
+                desc += '<TD>\\link %s \\endlink</TD>' % hPath
             else:
                 desc += '<TD>%s</TD>' % hPath
             desc += '</TR>'
@@ -954,7 +954,7 @@ class PackageDocumentAction(DoxygenAction):
                 hPath   = 'NULL'
             desc += '<TD>Consume</TD>'
             desc += '<TD>%s</TD>' % pkgname
-            desc += '<TD>\link %s \endlink</TD>' % hPath
+            desc += '<TD>\\link %s \\endlink</TD>' % hPath
             desc += '</TR>'
         desc += "</TABLE>"
         section.AddDescription(desc)
@@ -969,11 +969,11 @@ class PackageDocumentAction(DoxygenAction):
                 newPath = self.TranslateUniFile(sPath)
                 configFile.AddFile(newPath)
                 newPath = newPath[len(pObj.GetWorkspace()) + 1:]
-                section.AddDescription('<li> \link %s \endlink </li>' %  newPath)
+                section.AddDescription('<li> \\link %s \\endlink </li>' %  newPath)
             else:
                 self.ProcessSourceFileForInclude(sPath, pObj, configFile, infObj)
                 sPath = sPath[len(pObj.GetWorkspace()) + 1:]
-                section.AddDescription('<li>\link %s \endlink </li>' % sPath)
+                section.AddDescription('<li>\\link %s \\endlink </li>' % sPath)
         section.AddDescription('</ul>\n')
         modPage.AddSection(section)
 

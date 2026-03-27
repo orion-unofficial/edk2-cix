@@ -13,11 +13,11 @@ class BuildReport:
         pass
 
     def parse_pcd_report(self, report_file):
-        pcd_reg = re.compile(" (\*P|\*F|\*M|  ) (\w+)(\ +)\: (.*) \((\w+)\) = (.*)\n")
+        pcd_reg = re.compile(r" (\*P|\*F|\*M|  ) (\w+)(\ +)\: (.*) \((\w+)\) = (.*)\n")
 
         for line in report_file.xreadlines():
             stripped_line = line.strip()
-            if re.match("\<=+\>", stripped_line):
+            if re.match(r"\<=+\>", stripped_line):
                 return
             elif re.match("g.*Guid", stripped_line):
                 guid = stripped_line
