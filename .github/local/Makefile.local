@@ -19,3 +19,19 @@ clean: clean-edk2
 .PHONY: clean-edk2
 clean-edk2:
 	make -C src clean
+
+.PHONY: buildbox-up
+buildbox-up:
+	./scripts/run_in_buildbox.sh true
+
+.PHONY: buildbox-deb
+buildbox-deb:
+	./scripts/run_in_buildbox.sh make deb
+
+.PHONY: buildbox-o6
+buildbox-o6:
+	./scripts/run_in_buildbox.sh make -C src Build/O6/RELEASE_GCC5/cix_flash_all.bin Build/O6/RELEASE_GCC5/cix_flash_ota.bin
+
+.PHONY: buildbox-metadata
+buildbox-metadata:
+	./scripts/run_in_buildbox.sh make -C src print-build-metadata

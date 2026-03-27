@@ -21,16 +21,14 @@ pre_build_dep:
 
 .PHONY: main_build_dep
 main_build_dep:
-	sudo dpkg --add-architecture arm64
-	sudo apt-get update
-	sudo apt-get install -y crossbuild-essential-arm64 binfmt-support qemu-user-static
-	sudo apt-get build-dep . -y
+	./scripts/ensure_build_deps.sh
 
 .PHONY: post_build_dep
 post_build_dep:
 
 .PHONY: arm64_crossbuild_dep
 arm64_crossbuild_dep:
+	./scripts/ensure_build_deps.sh
 	sudo apt-get build-dep . -y --host-architecture arm64
 
 #

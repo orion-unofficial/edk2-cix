@@ -5,8 +5,9 @@ UEFI_TARGET ?= RELEASE
 .PHONY: all
 all: build
 
-.SHELLFLAGS := -ec
+.SHELLFLAGS := -eo pipefail -c
 .ONESHELL:
+.DELETE_ON_ERROR:
 SHELL := bash
 UNAME := $(shell uname -m)
 UPSTREAM_SOURCE_REF ?= refs/upstream-source/main
@@ -82,8 +83,12 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: Build/%/$(UEFI_TARGET)_GCC5/Firmw
 	fi
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
+	printf '[build/%s] Packaging OTA flash image\n' "$*" && \
 	pushd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
-	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_package_tool" -c "./spi_flash_config_ota.json" -O "./cix_flash_ota.bin" && \
+	tmp_ota="./cix_flash_ota.bin.tmp" && \
+	rm -f "$$tmp_ota" && \
+	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_package_tool" -c "./spi_flash_config_ota.json" -O "$$tmp_ota" && \
+	mv -f "$$tmp_ota" "./cix_flash_ota.bin" && \
 	popd
 
 # MEM_CFG_MEMFREQ ?= 2750
@@ -92,6 +97,7 @@ MEM_CFG_MEMFREQ ?= 3000
 Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
 	export MEM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/mem_config" -type d)" && \
 	if [[ -d "$$MEM" ]]; then \
+		printf '[build/%s] Regenerating memory configuration\n' "$*" && \
 		echo "Found custom memory configuration."; \
 		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/memory_config.bin; \
 		make -C "$$MEM" -j$(shell nproc) -e CFLAG:="-DMEM_CFG_MEMFREQ=$(MEM_CFG_MEMFREQ)" clean main; \
@@ -99,6 +105,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: Build/%/$(UEFI_TARGET)_GCC5/Firmw
 	fi
 	export PM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/pm_config" -type d)" && \
 	if [[ -d "$$PM" ]]; then \
+		printf '[build/%s] Regenerating PM configuration\n' "$*" && \
 		echo "Found custom PM configuration."; \
 		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/csu_pm_config.bin; \
 		PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)" make -C "$$PM" -j$(shell nproc); \
@@ -115,13 +122,17 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: Build/%/$(UEFI_TARGET)_GCC5/Firmw
 	fi
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
+	printf '[build/%s] Packaging full flash image\n' "$*" && \
 	pushd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
 	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_package_tool" -c "./spi_flash_config_all.json" -o "./cix_flash_all.raw" && \
 	popd
 
 	# \377 = 0xFF
-	head -c 8M < /dev/zero | tr '\000' '\377' > "Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.bin"
-	dd if="Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.raw" of="Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.bin" conv=notrunc
+	tmp_all="Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.bin.tmp" && \
+	rm -f "$$tmp_all" && \
+	head -c 8M < /dev/zero | tr '\000' '\377' > "$$tmp_all" && \
+	dd if="Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.raw" of="$$tmp_all" conv=notrunc status=none && \
+	mv -f "$$tmp_all" "Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.bin"
 
 Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 	Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd \
@@ -242,7 +253,14 @@ tools/acpica/generate/unix/bin/iasl:
 clean:
 	rm -rf Build
 	make -C edk2/BaseTools -j$(shell nproc) clean
-	make -C tools/acpica -j$(shell nproc) veryclean || true
+	if [[ -f tools/acpica/Makefile ]] && grep -Eq '^[[:space:]]*veryclean:' tools/acpica/Makefile; then \
+		make -C tools/acpica -j$(shell nproc) veryclean; \
+	elif [[ -f tools/acpica/Makefile ]] && grep -Eq '^[[:space:]]*clean:' tools/acpica/Makefile; then \
+		printf '[clean] tools/acpica has no veryclean target; using clean instead\n'; \
+		make -C tools/acpica -j$(shell nproc) clean; \
+	else \
+		printf '[clean] tools/acpica has no clean target; skipping extra cleanup\n'; \
+	fi
 
 .PHONY: distclean
 distclean: clean

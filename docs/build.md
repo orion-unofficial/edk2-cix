@@ -87,9 +87,25 @@ python3 src/scripts/replay_o6_release.py \
 
 To start the replay build immediately in the current shell, add
 `--run-build`. If you are not already in a working build environment, run the
-generated `rebuild-o6-docker.sh` wrapper instead. That wrapper mounts the
-checkout at `/workspaces/edk2-cix` to match the upstream release build paths,
-which matters when `ARTEFACT_MODE=upstream` preserves embedded debug paths.
+generated `rebuild-o6-docker.sh` wrapper instead. That wrapper reuses the
+persistent `edk2-cix-buildbox` container, mounts the checkout at
+`/workspaces/edk2-cix`, and therefore preserves the same embedded build paths
+as the upstream release.
+
+## Reuse the build container
+
+For repeat local builds, keep a prepared amd64 build container around instead
+of paying the full dependency bootstrap cost every time:
+
+```bash
+make buildbox-up
+make buildbox-metadata
+make buildbox-o6
+make buildbox-deb
+```
+
+`make devcontainer_setup` is now idempotent: it checks for the required Debian
+packages first and skips the `apt` work when the environment is already ready.
 
 If you need to refresh the monorepo from the untouched upstream mirror,
 use the automation and runbooks on the separate `main-monorepo-meta`
