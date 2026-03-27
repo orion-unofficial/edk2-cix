@@ -16,6 +16,17 @@ On `main-monorepo`, the imported `edk2`, `edk2-platforms`, and
 `edk2-non-osi` trees are regular directories inside this repo. There are
 no Git submodules to initialize or update.
 
+The monorepo build resolves its displayed top-level source hash and default
+timestamp from the nearest mapped upstream `main` commit in history, so
+monorepo-only build-system commits do not change the firmware's reported
+source identity. Run `make -C src print-build-metadata` to inspect the
+resolved values.
+
+If you need to force a specific reproducible timestamp, export
+`SOURCE_DATE_EPOCH=<unix-seconds>` before running the build. The same value is
+also passed into the O6 `pm_config` generator so that `csu_pm_config.bin`
+stops depending on wall-clock time.
+
 If you need to refresh the monorepo from the untouched upstream mirror,
 use the automation and runbooks on the separate `main-monorepo-meta`
 branch rather than running `git submodule` commands in this checkout.
