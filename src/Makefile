@@ -12,18 +12,17 @@ UNAME := $(shell uname -m)
 UPSTREAM_SOURCE_REF ?= refs/upstream-source/main
 BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
 MONOREPO_EDK2_COMMIT_HASH ?= 898a41ed09
-MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= 50f168f2dc
-MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 918cb36f24
+MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= 50f168f
+MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 918cb36f
+ARTEFACT_MODE ?= custom
 
-resolve-ref = $(strip $(shell git -C .. rev-parse --short $(1) 2>/dev/null))
-
-# On main-monorepo, the imported component trees are regular directories rather
-# than nested Git repositories. Prefer the preserved upstream-source gitlinks
-# when they exist locally and otherwise fall back to the recorded component SHAs
-# for the current imported branch state.
-EDK2_COMMIT_HASH := $(or $(call resolve-ref,$(UPSTREAM_SOURCE_REF):src/edk2),$(MONOREPO_EDK2_COMMIT_HASH))
-EDK2_NON_OSI_COMMIT_HASH := $(or $(call resolve-ref,$(UPSTREAM_SOURCE_REF):src/edk2-non-osi),$(MONOREPO_EDK2_NON_OSI_COMMIT_HASH))
-EDK2_PLATFORMS_COMMIT_HASH := $(or $(call resolve-ref,$(UPSTREAM_SOURCE_REF):src/edk2-platforms),$(MONOREPO_EDK2_PLATFORMS_COMMIT_HASH))
+# The firmware UI historically displayed the abbreviated hashes emitted by the
+# original upstream superproject and its submodule repos. Recomputing
+# `git rev-parse --short` inside the monorepo can produce different lengths, so
+# keep the recorded upstream abbreviations unless the caller overrides them.
+EDK2_COMMIT_HASH ?= $(MONOREPO_EDK2_COMMIT_HASH)
+EDK2_NON_OSI_COMMIT_HASH ?= $(MONOREPO_EDK2_NON_OSI_COMMIT_HASH)
+EDK2_PLATFORMS_COMMIT_HASH ?= $(MONOREPO_EDK2_PLATFORMS_COMMIT_HASH)
 SOURCE_COMMIT := $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit 2>/dev/null || git rev-parse HEAD))
 SOURCE_COMMIT_HASH := $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit-short 2>/dev/null || git rev-parse --short=10 HEAD))
 SOURCE_DATE_EPOCH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-date-epoch 2>/dev/null || git log -1 --format=%ct HEAD))
@@ -62,6 +61,7 @@ help:
 
 .PHONY: print-build-metadata
 print-build-metadata:
+	echo "ARTEFACT_MODE=$(ARTEFACT_MODE)"
 	echo "SOURCE_COMMIT=$(SOURCE_COMMIT)"
 	echo "SOURCE_COMMIT_HASH=$(SOURCE_COMMIT_HASH)"
 	echo "SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)"
@@ -130,10 +130,38 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" && \
+	select_cert_source() { \
+		local dir="$$1"; \
+		shift; \
+		local candidate; \
+		for candidate in "$$@"; do \
+			if [[ -f "$$dir/$$candidate" ]]; then \
+				printf '%s\n' "$$dir/$$candidate"; \
+				return 0; \
+			fi; \
+		done; \
+		return 1; \
+	}; \
 	if [[ -n "$$SIGNING_CERT_SOURCE_DIR" ]]; then \
-		cp "$$SIGNING_CERT_SOURCE_DIR/nt_fw_cert.crt" Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt; \
-		cp "$$SIGNING_CERT_SOURCE_DIR/nt_fw_key.crt" Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt; \
-	else \
+		trusted_key_cert_src="$$(select_cert_source "$$SIGNING_CERT_SOURCE_DIR" trusted_key_no.crt trusted-key-cert.bin || true)"; \
+		nt_fw_cert_src="$$(select_cert_source "$$SIGNING_CERT_SOURCE_DIR" nt_fw_cert.crt nt-fw-cert.bin || true)"; \
+		nt_fw_key_cert_src="$$(select_cert_source "$$SIGNING_CERT_SOURCE_DIR" nt_fw_key.crt nt-fw-key-cert.bin || true)"; \
+		if [[ -n "$$trusted_key_cert_src" ]]; then \
+			echo "Reusing trusted-key cert from $$trusted_key_cert_src"; \
+			cp "$$trusted_key_cert_src" Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt; \
+		fi; \
+		if [[ -n "$$nt_fw_cert_src" && -n "$$nt_fw_key_cert_src" ]]; then \
+			echo "Reusing non-trusted FIP certs from $$SIGNING_CERT_SOURCE_DIR"; \
+			cp "$$nt_fw_cert_src" Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt; \
+			cp "$$nt_fw_key_cert_src" Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt; \
+		elif [[ -n "$$nt_fw_cert_src" || -n "$$nt_fw_key_cert_src" ]]; then \
+			echo "SIGNING_CERT_SOURCE_DIR must provide both nt-fw cert blobs together" >&2; \
+			exit 1; \
+		else \
+			echo "SIGNING_CERT_SOURCE_DIR does not provide nt-fw cert blobs; generating them"; \
+		fi; \
+	fi; \
+	if [[ ! -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt || ! -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt ]]; then \
 		"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cert_uefi_create_rsa" --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
 			--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
 			--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
@@ -182,7 +210,23 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd:
 	fi
 	unset MAKEFLAGS
 	source edk2/edksetup.sh --reconfig
+	build_extra_defines=()
+	if [[ "$(UEFI_TARGET)" == "RELEASE" ]]; then
+		case "$(ARTEFACT_MODE)" in \
+			custom) \
+				printf '\nRELEASE_*_*_GENFW_FLAGS          = --zero\n' >> edk2/Conf/tools_def.txt; \
+				build_extra_defines=(-D REPRODUCIBLE_BUILD_METADATA=TRUE); \
+				;; \
+			upstream) \
+				;; \
+			*) \
+				echo "Unsupported ARTEFACT_MODE=$(ARTEFACT_MODE); expected custom or upstream" >&2; \
+				exit 1; \
+				;; \
+		esac
+	fi
 	build -a AARCH64 -t GCC5 -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
+		"$${build_extra_defines[@]}" \
 		-b $(UEFI_TARGET) -D BOARD_NAME=$(word 2, $(subst /,, $@)) -D BUILD_DATE=$(BUILD_DATE) \
 		-D SMP_ENABLE=1 -D ACPI_BOOT_ENABLE=1 -D FASTBOOT_LOAD= -D VARIABLE_TYPE=SPI -D STANDARD_MM=TRUE \
 		-D COMMIT_HASH=$(SOURCE_COMMIT_HASH) \
