@@ -42,7 +42,10 @@ time_t CixEpoch ()
 
 static time_t ResolveBuildTime(void)
 {
-    const char *source_date_epoch = getenv("SOURCE_DATE_EPOCH");
+    const char *pm_config_source_date_epoch = getenv("PM_CONFIG_SOURCE_DATE_EPOCH");
+    const char *source_date_epoch =
+        (pm_config_source_date_epoch && pm_config_source_date_epoch[0]) ?
+        pm_config_source_date_epoch : getenv("SOURCE_DATE_EPOCH");
     char *end = NULL;
     unsigned long long epoch = 0;
     time_t build_time;
@@ -56,7 +59,7 @@ static time_t ResolveBuildTime(void)
     build_time = (time_t)epoch;
     if (errno != 0 || end == source_date_epoch || *end != '\0' ||
         (unsigned long long)build_time != epoch) {
-        fprintf(stderr, "Invalid SOURCE_DATE_EPOCH: %s\n", source_date_epoch);
+        fprintf(stderr, "Invalid PM_CONFIG_SOURCE_DATE_EPOCH/SOURCE_DATE_EPOCH: %s\n", source_date_epoch);
         exit(EXIT_FAILURE);
     }
 
