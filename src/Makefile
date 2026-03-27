@@ -9,6 +9,20 @@ all: build
 .ONESHELL:
 SHELL := bash
 UNAME := $(shell uname -m)
+UPSTREAM_SOURCE_REF ?= refs/upstream-source/main
+MONOREPO_EDK2_COMMIT_HASH ?= 898a41ed09
+MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= 50f168f2dc
+MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 918cb36f24
+
+resolve-ref = $(strip $(shell git -C .. rev-parse --short $(1) 2>/dev/null))
+
+# On main-monorepo, the imported component trees are regular directories rather
+# than nested Git repositories. Prefer the preserved upstream-source gitlinks
+# when they exist locally and otherwise fall back to the recorded component SHAs
+# for the current imported branch state.
+EDK2_COMMIT_HASH := $(or $(call resolve-ref,$(UPSTREAM_SOURCE_REF):src/edk2),$(MONOREPO_EDK2_COMMIT_HASH))
+EDK2_NON_OSI_COMMIT_HASH := $(or $(call resolve-ref,$(UPSTREAM_SOURCE_REF):src/edk2-non-osi),$(MONOREPO_EDK2_NON_OSI_COMMIT_HASH))
+EDK2_PLATFORMS_COMMIT_HASH := $(or $(call resolve-ref,$(UPSTREAM_SOURCE_REF):src/edk2-platforms),$(MONOREPO_EDK2_PLATFORMS_COMMIT_HASH))
 
 # The first GCC5_AARCH64_PREFIX value uses distro-supplied cross compiler
 # The second GCC5_AARCH64_PREFIX value uses CIX-verified cross compiler
@@ -146,9 +160,9 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd:
 		-b $(UEFI_TARGET) -D BOARD_NAME=$(word 2, $(subst /,, $@)) -D BUILD_DATE=$(shell date -Is) \
 		-D SMP_ENABLE=1 -D ACPI_BOOT_ENABLE=1 -D FASTBOOT_LOAD= -D VARIABLE_TYPE=SPI -D STANDARD_MM=TRUE \
 		-D COMMIT_HASH=$(shell git rev-parse --short HEAD) \
-		-D EDK2_COMMIT_HASH=$(shell cd edk2 && git rev-parse --short HEAD) \
-		-D EDK2_NON_OSI_COMMIT_HASH=$(shell cd edk2-non-osi && git rev-parse --short HEAD) \
-		-D EDK2_PLATFORMS_COMMIT_HASH=$(shell cd edk2-platforms && git rev-parse --short HEAD) \
+		-D EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH) \
+		-D EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH) \
+		-D EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH) \
 		-D DEB_VERSION=$(shell cd .. && dpkg-parsechangelog -S Version)
 
 tools/acpica/generate/unix/bin/iasl:
