@@ -115,6 +115,45 @@ Trixie. That newer toolchain generation does change the compiled firmware
 already at `SKY1_BL33_UEFI.fd`, even though `BuildOptions` remains identical
 to the Bookworm replay baseline.
 
+If you do not want a Debian package, the local Makefile extensions now provide
+three direct payload workflows based on the same `O6` files that the `.deb`
+ships:
+
+```bash
+make firmware-stage
+make install
+make zip
+make targz
+```
+
+By default those targets work on the `O6` payload and:
+
+- stage files under `dist/firmware/orion-o6/<version>/`
+- install them under `/boot/efi/firmware/radxa/<version>/`
+- write archives under `dist/`
+
+The staged payload includes:
+
+- top-level `startup.nsh` from `welcome.nsh`
+- `BuildOptions`
+- `cix_flash_all.bin`
+- `cix_flash_ota.bin`
+- `BurnImage.efi`
+- `FlashUpdate.efi`
+- `EnrollFromDefaultKeysApp.efi`
+- `VariableInfo.efi`
+- `Shell.efi`
+- product-local `startup.nsh`
+
+Override these knobs if needed:
+
+- `FIRMWARE_BOARD=O6N`
+- `FIRMWARE_PRODUCT=orion-o6n`
+- `FIRMWARE_VERSION=<version>`
+- `FIRMWARE_STAGE_ROOT=<path>`
+- `FIRMWARE_INSTALL_ROOT=<path>`
+- `FIRMWARE_ARCHIVE_ROOT=<path>`
+
 The vendor `cix_package_tool` binary still emits ANSI colour escapes
 unconditionally. The packaging rules now normalise that tool's output only, so
 captured logs stay readable without globally rewriting unrelated command
