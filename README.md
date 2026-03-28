@@ -17,6 +17,10 @@ You can inspect the resolved values with
 Before a longer build, run `make -C src preflight` to fail early if the
 expected package-tool binaries or cross-compiler are missing.
 
+To capture a full build transcript plus a warning summary under `build-logs/`,
+use `make buildbox-o6-log` or wrap any command with
+`./scripts/capture_build_log.sh build-logs <command ...>`.
+
 For reproducible metadata on `main-monorepo`, the build uses the nearest
 mapped upstream `main` commit as its default source identity. In the default
 `ARTEFACT_MODE=custom`, that commit identity also supplies the default
