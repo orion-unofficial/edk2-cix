@@ -33,11 +33,11 @@ resolve-path-head = $(strip $(shell git -C .. log -1 --format=%h $(1) -- $(2) 2>
 EDK2_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2),$(MONOREPO_EDK2_COMMIT_HASH))
 EDK2_NON_OSI_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2-non-osi),$(MONOREPO_EDK2_NON_OSI_COMMIT_HASH))
 EDK2_PLATFORMS_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2-platforms),$(MONOREPO_EDK2_PLATFORMS_COMMIT_HASH))
-SOURCE_COMMIT := $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit 2>/dev/null || git rev-parse HEAD))
-SOURCE_COMMIT_HASH := $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit-short 2>/dev/null || git rev-parse --short=10 HEAD))
-SOURCE_DATE_EPOCH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-date-epoch 2>/dev/null || git log -1 --format=%ct HEAD))
+SOURCE_COMMIT ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit 2>/dev/null || true))
+SOURCE_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit-short 2>/dev/null || true))
+SOURCE_DATE_EPOCH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-date-epoch 2>/dev/null || true))
 PM_CONFIG_SOURCE_DATE_EPOCH ?= $(SOURCE_DATE_EPOCH)
-BUILD_DATE := $(strip $(shell SOURCE_DATE_EPOCH="$(SOURCE_DATE_EPOCH)" $(BUILD_METADATA_SCRIPT) source-date-iso 2>/dev/null || git log -1 --format=%cI HEAD))
+BUILD_DATE ?= $(strip $(shell SOURCE_DATE_EPOCH="$(SOURCE_DATE_EPOCH)" $(BUILD_METADATA_SCRIPT) source-date-iso 2>/dev/null || true))
 export SOURCE_DATE_EPOCH
 export PM_CONFIG_SOURCE_DATE_EPOCH
 
