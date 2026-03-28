@@ -51,6 +51,11 @@ inputs independently:
   `__TIME__` uses
 - `PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>` for `csu_pm_config.bin`
 
+When those explicit replay inputs are provided, the build no longer needs a
+usable Git checkout in order to resolve source metadata. This keeps replay
+wrappers and containerized builds quiet and deterministic even when they run
+from a plain copied tree rather than a live Git worktree.
+
 To extract those values automatically from an upstream O6 release artefact and
 generate ready-to-run replay wrappers, use:
 
@@ -96,6 +101,9 @@ You can build it explicitly with:
 ```bash
 make -C src host-fiptool
 ```
+
+That source build depends on the normal OpenSSL development headers, so the
+host dependency bootstrap now includes `libssl-dev`.
 
 If you are specifically trying to recreate the published vendor release
 payloads byte-for-byte, the currently validated replay path remains the amd64

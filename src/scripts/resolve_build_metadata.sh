@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+script_dir="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
 src_dir="$(dirname -- "$script_dir")"
 repo_root="$(dirname -- "$src_dir")"
 
@@ -11,15 +11,27 @@ usage() {
     exit 2
 }
 
+git_repo_usable() {
+    git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1
+}
+
 extract_trailer() {
     local commit="$1"
     local key="$2"
+
+    if ! git_repo_usable; then
+        return 1
+    fi
 
     git -C "$repo_root" show -s --format=%B "$commit" | sed -n "s/^${key}: //p" | head -n 1
 }
 
 resolve_anchor_commit() {
     local mapped_commit
+
+    if ! git_repo_usable; then
+        return 1
+    fi
 
     mapped_commit="$(git -C "$repo_root" log --format=%H -n 1 --all-match \
         --grep='^Origin-Repo: radxa-pkg/edk2-cix$' \
@@ -37,7 +49,19 @@ resolve_source_commit() {
     local anchor_commit
     local source_commit
 
-    anchor_commit="$(resolve_anchor_commit)"
+    if [[ -n "${SOURCE_COMMIT:-}" ]]; then
+        printf '%s\n' "${SOURCE_COMMIT}"
+        return
+    fi
+    if [[ -n "${SOURCE_COMMIT_HASH:-}" ]]; then
+        printf '%s\n' "${SOURCE_COMMIT_HASH}"
+        return
+    fi
+
+    anchor_commit="$(resolve_anchor_commit 2>/dev/null || true)"
+    if [[ -z "$anchor_commit" ]]; then
+        return 1
+    fi
     source_commit="$(extract_trailer "$anchor_commit" 'Origin-Commit')"
     if [[ -n "$source_commit" ]]; then
         printf '%s\n' "$source_commit"
@@ -62,7 +86,11 @@ case "$command" in
         resolve_source_commit
         ;;
     source-commit-short)
-        resolve_source_commit | cut -c1-10
+        if [[ -n "${SOURCE_COMMIT_HASH:-}" ]]; then
+            printf '%s\n' "${SOURCE_COMMIT_HASH}"
+        else
+            resolve_source_commit | cut -c1-10
+        fi
         ;;
     source-date-epoch)
         if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
@@ -74,6 +102,8 @@ case "$command" in
     source-date-iso)
         if [[ -n "${SOURCE_DATE_EPOCH:-}" ]]; then
             format_epoch_as_iso "${SOURCE_DATE_EPOCH}"
+        elif [[ -n "${BUILD_DATE:-}" ]]; then
+            printf '%s\n' "${BUILD_DATE}"
         else
             git -C "$repo_root" show -s --format=%cI "$(resolve_anchor_commit)"
         fi

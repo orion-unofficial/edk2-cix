@@ -84,6 +84,11 @@ The helper extracts:
   `BuildOptions` when they are available
 - a reusable FIP cert bundle for `SIGNING_CERT_SOURCE_DIR`
 
+When those explicit replay inputs are provided, the build no longer needs a
+usable Git checkout just to resolve metadata. That keeps copied trees and
+containerized replay wrappers quiet and deterministic instead of probing a
+host-side worktree that may not exist inside the container.
+
 It also writes:
 
 - `replay.env`
@@ -174,6 +179,8 @@ So:
   newer GCC 14 / binutils 2.44 toolchain
 - use `make -C src host-fiptool` if you want to prebuild the vendored TF-A
   `fiptool` before the first packaging run
+- the dependency bootstrap now includes `libssl-dev`, because the source-built
+  `fiptool` needs the OpenSSL development headers
 
 The vendor `cix_package_tool` still writes ANSI colour escapes even when it is
 not attached to a terminal and even when `NO_COLOR`, `CLICOLOR=0`, and
