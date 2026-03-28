@@ -87,6 +87,15 @@ If you only have a standalone `cix_flash_all.bin`, the helper can
 still recover the compiler and PM-config timestamps plus the cert
 bundle. Supply a matching `BuildOptions` file, or pass
 `--build-date <iso8601>`, if you want a complete replay build:
+If you want to keep the full transcript from a replay or local build, wrap the
+command with `./scripts/capture_build_log.sh build-logs <command ...>`. The
+convenience target `make buildbox-o6-log` does this for the standard local O6
+build.
+
+If you only have a standalone `cix_flash_all.bin`, the helper can still
+recover the compiler and PM-config timestamps plus the cert bundle. Supply a
+matching `BuildOptions` file, or pass `--build-date <iso8601>`, if you want a
+complete replay build:
 
 ```bash
 python3 src/scripts/replay_o6_release.py \
@@ -110,6 +119,7 @@ instead of paying the full dependency bootstrap cost every time:
 make buildbox-up
 make buildbox-metadata
 make buildbox-o6
+make buildbox-o6-log
 make buildbox-deb
 ```
 

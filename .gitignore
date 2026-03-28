@@ -26,3 +26,6 @@ __pycache__/
 
 # intel-corporation.edk2code extension file
 /.edkCode
+
+# Local captured build logs
+/build-logs/
