@@ -29,7 +29,8 @@ post_build_dep:
 .PHONY: arm64_crossbuild_dep
 arm64_crossbuild_dep:
 	./scripts/ensure_build_deps.sh
-	sudo apt-get build-dep . -y --host-architecture arm64
+	sudo env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true DEBCONF_NOWARNINGS=yes DEBIAN_PRIORITY=critical TERM=dumb \
+		apt-get -o APT::Install-Recommends=false -o APT::Install-Suggests=false -o Dpkg::Use-Pty=0 build-dep . -y --no-install-recommends --host-architecture arm64
 
 #
 # Test
