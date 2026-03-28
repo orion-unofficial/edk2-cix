@@ -1,0 +1,16 @@
+{
+  "repo": "https://github.com/ARM-software/arm-trusted-firmware.git",
+  "tag": "v2.14.0",
+  "commit": "1d5aa939bc8d3d892e2ed9945fa50e36a1a924cc",
+  "license": "BSD-3-Clause",
+  "imported_paths": [
+    "tools/fiptool/fiptool.c",
+    "tools/fiptool/fiptool.h",
+    "tools/fiptool/fiptool_platform.h",
+    "tools/fiptool/tbbr_config.c",
+    "tools/fiptool/tbbr_config.h",
+    "include/tools_share/firmware_image_package.h",
+    "include/tools_share/uuid.h",
+    "license.rst"
+  ]
+}
