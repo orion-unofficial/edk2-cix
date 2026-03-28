@@ -5,8 +5,56 @@
 ## Build
 
 1. `git clone -b main-monorepo-edk2 https://github.com/radxa-pkg/edk2-cix.git`
-2. Open in [`devcontainer`](https://code.visualstudio.com/docs/devcontainers/containers)
-3. `make deb`
+2. Choose one of the supported build paths below
+3. Run the top-level `make` target you need
+
+### Without `devcontainer`
+
+If you are building on a headless Linux host over SSH, you do not need VS Code
+or any IDE integration.
+
+On a supported Debian host:
+
+- `x86_64`: prefer Debian `bookworm`
+- `arm64` / `aarch64`: use Debian `trixie`
+
+To install the required host packages directly on the machine, run:
+
+```bash
+make devcontainer_setup
+```
+
+That target is just the repo's dependency bootstrap; it works fine outside a
+devcontainer.
+
+Then build either the Debian package or the direct firmware payloads:
+
+```bash
+make deb
+make firmware-build
+make firmware-stage
+make zip
+make targz
+```
+
+If you would rather keep the host cleaner and reuse a prepared amd64 container,
+use the buildbox helpers instead:
+
+```bash
+make buildbox-up
+make buildbox-o6
+make buildbox-deb
+```
+
+### With `devcontainer`
+
+If you do want the full containerized developer environment, open the repo in a
+[`devcontainer`](https://code.visualstudio.com/docs/devcontainers/containers)
+and then run:
+
+```bash
+make deb
+```
 
 For reproducible metadata on `main-monorepo-edk2`, the build uses the
 merge-base with `main-monorepo-upstream-edk2` as its default source
