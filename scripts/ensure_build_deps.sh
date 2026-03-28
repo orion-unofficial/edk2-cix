@@ -56,6 +56,7 @@ required_packages=(
     bison
     flex
     curl
+    libssl-dev
 )
 
 missing_packages=()
