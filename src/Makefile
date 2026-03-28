@@ -62,6 +62,7 @@ FIPTOOL_SOURCE_INPUTS := \
 	$(FIPTOOL_SOURCE_DIR)/include/tools_share/uuid.h \
 	$(FIPTOOL_SOURCE_DIR)/upstream.json
 SIGNING_CERT_SOURCE_DIR ?=
+REQUIRE_SIGNING_CERT_SOURCE ?= $(if $(and $(filter upstream,$(ARTEFACT_MODE)),$(strip $(SIGNING_CERT_SOURCE_DIR))),1,0)
 DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f") \
 	#    $(shell find edk2-platforms/Platform/CIX -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f")
 
@@ -166,6 +167,10 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET
 	tmp_ota="./cix_flash_ota.bin.tmp" && \
 	rm -f "$$tmp_ota" && \
 	TERM=dumb "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_package_tool" -c "./spi_flash_config_ota.json" -O "$$tmp_ota" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
+	if [[ ! -s "$$tmp_ota" ]]; then \
+		echo "[build/$*] Expected OTA image $$tmp_ota was not created" >&2; \
+		exit 1; \
+	fi && \
 	mv -f "$$tmp_ota" "./cix_flash_ota.bin" && \
 	popd
 
@@ -180,6 +185,10 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 		echo "Found custom memory configuration."; \
 		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/memory_config.bin; \
 		$(MAKE) -C "$$MEM" -j$(shell nproc) -e CFLAG:="-DMEM_CFG_MEMFREQ=$(MEM_CFG_MEMFREQ)" clean main; \
+		if [[ ! -s "$$MEM/memory_config.bin" ]]; then \
+			echo "[build/$*] Expected memory_config.bin was not generated in $$MEM" >&2; \
+			exit 1; \
+		fi; \
 		mv "$$MEM/memory_config.bin" Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
 	fi
 	export PM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/pm_config" -type d)" && \
@@ -188,6 +197,10 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 		echo "Found custom PM configuration."; \
 		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/csu_pm_config.bin; \
 		PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)" $(MAKE) -C "$$PM" -j$(shell nproc); \
+		if [[ ! -s "$$PM/csu_pm_config.bin" ]]; then \
+			echo "[build/$*] Expected csu_pm_config.bin was not generated in $$PM" >&2; \
+			exit 1; \
+		fi; \
 		mv "$$PM/csu_pm_config.bin" Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
 	fi
 
@@ -204,6 +217,10 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 	printf '[build/%s] Packaging full flash image\n' "$*" && \
 	pushd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
 	TERM=dumb "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_package_tool" -c "./spi_flash_config_all.json" -o "./cix_flash_all.raw" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
+	if [[ ! -s "./cix_flash_all.raw" ]]; then \
+		echo "[build/$*] Expected cix_flash_all.raw was not created" >&2; \
+		exit 1; \
+	fi && \
 	popd
 
 	# \377 = 0xFF
@@ -211,6 +228,10 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 	rm -f "$$tmp_all" && \
 	head -c 8M < /dev/zero | tr '\000' '\377' > "$$tmp_all" && \
 	dd if="Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.raw" of="$$tmp_all" conv=notrunc status=none && \
+	if [[ ! -s "$$tmp_all" ]]; then \
+		echo "[build/$*] Expected full flash image $$tmp_all was not created" >&2; \
+		exit 1; \
+	fi && \
 	mv -f "$$tmp_all" "Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.bin"
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
@@ -222,6 +243,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 
 	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" && \
+	export REQUIRE_SIGNING_CERT_SOURCE="$(REQUIRE_SIGNING_CERT_SOURCE)" && \
 	select_cert_source() { \
 		local dir="$$1"; \
 		shift; \
@@ -235,9 +257,19 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		return 1; \
 	}; \
 	if [[ -n "$$SIGNING_CERT_SOURCE_DIR" ]]; then \
+		if [[ ! -d "$$SIGNING_CERT_SOURCE_DIR" ]]; then \
+			echo "SIGNING_CERT_SOURCE_DIR=$$SIGNING_CERT_SOURCE_DIR does not exist" >&2; \
+			exit 1; \
+		fi; \
 		trusted_key_cert_src="$$(select_cert_source "$$SIGNING_CERT_SOURCE_DIR" trusted_key_no.crt trusted-key-cert.bin || true)"; \
 		nt_fw_cert_src="$$(select_cert_source "$$SIGNING_CERT_SOURCE_DIR" nt_fw_cert.crt nt-fw-cert.bin || true)"; \
 		nt_fw_key_cert_src="$$(select_cert_source "$$SIGNING_CERT_SOURCE_DIR" nt_fw_key.crt nt-fw-key-cert.bin || true)"; \
+		if [[ "$$REQUIRE_SIGNING_CERT_SOURCE" == "1" ]]; then \
+			if [[ -z "$$trusted_key_cert_src" || -z "$$nt_fw_cert_src" || -z "$$nt_fw_key_cert_src" ]]; then \
+				echo "ARTEFACT_MODE=upstream requires SIGNING_CERT_SOURCE_DIR to provide trusted_key_no.crt|trusted-key-cert.bin, nt_fw_cert.crt|nt-fw-cert.bin, and nt_fw_key.crt|nt-fw-key-cert.bin" >&2; \
+				exit 1; \
+			fi; \
+		fi; \
 		if [[ -n "$$trusted_key_cert_src" ]]; then \
 			echo "Reusing trusted-key cert from $$trusted_key_cert_src"; \
 			cp "$$trusted_key_cert_src" Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt; \
@@ -266,7 +298,11 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
 		--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
 		--nt-fw "$(shell realpath "$<")" \
-		$@
+		$@ && \
+	if [[ ! -s "$@" ]]; then \
+		echo "[build/$*] Expected bootloader image $@ was not created" >&2; \
+		exit 1; \
+	fi
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin
 Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
@@ -287,7 +323,9 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt
 Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
 	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
-	cp -aR $(PACKAGE_TOOL)/Keys/ $(PACKAGE_TOOL)/certs/ Build/$*/$(UEFI_TARGET)_GCC5/ && \
+	mkdir -p Build/$*/$(UEFI_TARGET)_GCC5/Keys Build/$*/$(UEFI_TARGET)_GCC5/certs && \
+	cp -a $(PACKAGE_TOOL)/Keys/. Build/$*/$(UEFI_TARGET)_GCC5/Keys/ && \
+	cp -a $(PACKAGE_TOOL)/certs/. Build/$*/$(UEFI_TARGET)_GCC5/certs/ && \
 	if [[ -f "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" ]]; then \
     	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" \
 			-p Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
@@ -331,6 +369,10 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
 		-D EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH) \
 		-D EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH) \
 		-D DEB_VERSION=$(shell cd .. && dpkg-parsechangelog -S Version)
+	if [[ ! -s "$@" ]]; then
+		echo "[build/$*] Expected firmware image $@ was not produced" >&2
+		exit 1
+	fi
 
 tools/acpica/generate/unix/bin/iasl:
 	@$(MAKE) -C tools/acpica -j$(shell nproc)

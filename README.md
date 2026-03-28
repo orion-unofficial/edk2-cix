@@ -38,6 +38,10 @@ extracted FIP cert bundle via `SIGNING_CERT_SOURCE_DIR=<path>`. The directory
 may contain either the build-tree filenames `trusted_key_no.crt`,
 `nt_fw_cert.crt`, and `nt_fw_key.crt` or the extracted FIP filenames
 `trusted-key-cert.bin`, `nt-fw-cert.bin`, and `nt-fw-key-cert.bin`.
+When `ARTEFACT_MODE=upstream` is combined with
+`SIGNING_CERT_SOURCE_DIR=<path>`, that cert bundle is treated as required
+replay input and the build now fails immediately if the directory is missing
+or does not provide all three cert blobs.
 
 Replay-compatible builds can also override the three historical timestamp
 inputs independently:
@@ -97,7 +101,9 @@ If you are specifically trying to recreate the published vendor release
 payloads byte-for-byte, the currently validated replay path remains the amd64
 Bookworm buildbox. If you want identical local outputs across `x86_64` and
 `arm64`, pin both hosts to the same newer distro/toolchain generation such as
-Trixie.
+Trixie. That newer toolchain generation does change the compiled firmware
+already at `SKY1_BL33_UEFI.fd`, even though `BuildOptions` remains identical
+to the Bookworm replay baseline.
 
 The vendor `cix_package_tool` binary still emits ANSI colour escapes
 unconditionally. The packaging rules now normalise that tool's output only, so
