@@ -4,6 +4,13 @@ We use devcontainer to maintain a consistent build environment.
 
 To build all supported EDK2 variants, please run `make deb` within devcontainer.
 
+On Linux `aarch64`, `src/Makefile` correctly switches to the vendor AARCH64
+package-tool binaries. Today that is still not enough for a full native
+Bookworm build, because the vendor AARCH64 `cert_uefi_create_rsa` and
+`fiptool` binaries require `GLIBC_2.38` while Bookworm ships glibc `2.36`.
+Use the amd64 buildbox path for complete local builds until those helpers are
+rebuilt or replaced.
+
 Before a longer build, run `make -C src preflight` to fail early if the
 expected package-tool binaries, source directories, or cross-compiler are
 missing.
@@ -131,6 +138,18 @@ packages first and skips the `apt` work when the environment is already ready.
 When it does need to provision packages, it uses noninteractive `apt-get`
 settings and suppresses recommends/suggests to keep the first-time bootstrap
 output much cleaner.
+
+Native arm64 packaging is currently blocked by the shipped vendor helpers, not
+by the firmware compile itself. On Bookworm-class arm64 userspaces:
+
+- `AARCH64/cix_package_tool` only needs `GLIBC_2.34`
+- `AARCH64/cert_uefi_create_rsa` needs `GLIBC_2.38`
+- `AARCH64/fiptool` also needs `GLIBC_2.38`
+
+If you reuse existing cert blobs, that skips `cert_uefi_create_rsa`, but the
+final `bootloader3.img` packaging step still needs a newer-enough `fiptool`.
+Until those helpers are replaced or rebuilt, use the amd64 buildbox path for
+full replay and release packaging.
 
 The vendor `cix_package_tool` still writes ANSI colour escapes even when it is
 not attached to a terminal and even when `NO_COLOR`, `CLICOLOR=0`, and
