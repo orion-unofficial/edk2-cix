@@ -103,6 +103,18 @@ validate-firmware-strict:
 		--strict \
 		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
 
+.PHONY: capture-validation-profile
+capture-validation-profile:
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	python3 scripts/validate_firmware_outputs.py \
+		--repo-root "$(CURDIR)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--target "$(FIRMWARE_TARGET)" \
+		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json" \
+		--emit-profile "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-profile.json" \
+		--emit-profile-name "$(FIRMWARE_VALIDATION_PROFILE)"
+
 clean: clean-edk2
 
 .PHONY: clean-edk2
