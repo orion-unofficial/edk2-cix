@@ -72,7 +72,7 @@ static bool double_check_sum(void * start, uint32_t length, uint64_t * sum64, bo
 static void dump_valid_flag(config_data_t data)
 {
     if (data.fields.valid == PM_CONFIG_INVALID) {
-        printf("INVALID\n");
+        printf("UNSET (PM_CONFIG_INVALID)\n");
     } else {
         printf("VALID, data: 0x%08X (%0d)\n", data.fields.raw_data, data.fields.raw_data);
     }
@@ -244,7 +244,7 @@ static void dump_fan_config(pm_config_fan_t* config, uint32_t num)
 static void dump_board_sensor(board_sensor_config_t* config)
 {
     if (config->sensor_valid.fields.valid == PM_CONFIG_INVALID) {
-        printf("\tINVALID\n");
+        printf("\tUNSET (PM_CONFIG_INVALID)\n");
     } else {
         if (config->sensor_valid.fields.raw_data == 0) {
             printf("\tconnect to EC, reg:0x%x\n", config->reg_id);
@@ -278,7 +278,7 @@ static void dump_pvt_config(pm_config_pvt_t *config)
             printf("\t  - %-18s: %d\n", name[i], config->weight[i]);
         }
     } else {
-        printf("\tsensor weight: INVALID\n");
+        printf("\tsensor weight: UNSET (PM_CONFIG_INVALID)\n");
     }
 
     printf("\tboard sensor 1:\n");
