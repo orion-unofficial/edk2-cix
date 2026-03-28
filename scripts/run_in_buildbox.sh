@@ -4,9 +4,15 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
-workspace_parent="/workspaces"
+workspace_parent="${EDK2_CIX_WORKSPACE_PARENT:-/workspaces}"
 workspace_path="${workspace_parent}/$(basename -- "$repo_root")"
 host_workspace_parent="$(dirname -- "$repo_root")"
+container_tmpdir="${EDK2_CIX_CONTAINER_TMPDIR:-/hosttmp}"
+host_tmpdir="${EDK2_CIX_HOST_TMPDIR:-${TMPDIR:-/tmp}}"
+host_tmpdir="${host_tmpdir%/}"
+if [[ -z "$host_tmpdir" ]]; then
+    host_tmpdir="/tmp"
+fi
 
 container_name="${EDK2_CIX_BUILDBOX_NAME:-edk2-cix-buildbox}"
 container_image="${EDK2_CIX_BUILDBOX_IMAGE:-mcr.microsoft.com/devcontainers/base:bookworm}"
@@ -18,8 +24,9 @@ status() {
 ensure_container() {
     if docker container inspect "$container_name" >/dev/null 2>&1; then
         local mounts
-        mounts="$(docker inspect -f '{{range .Mounts}}{{println .Destination}}{{end}}' "$container_name")"
-        if ! grep -qx '/workspaces' <<<"$mounts" || ! grep -qx '/hosttmp' <<<"$mounts"; then
+        mounts="$(docker inspect -f '{{range .Mounts}}{{printf "%s=%s\n" .Destination .Source}}{{end}}' "$container_name")"
+        if ! grep -Fxq "${workspace_parent}=${host_workspace_parent}" <<<"$mounts" || \
+            ! grep -Fxq "${container_tmpdir}=${host_tmpdir}" <<<"$mounts"; then
             status "Recreating ${container_name} with the expected workspace mounts"
             docker rm -f "$container_name" >/dev/null
         elif [[ "$(docker inspect -f '{{.State.Running}}' "$container_name")" != "true" ]]; then
@@ -37,7 +44,7 @@ ensure_container() {
         --platform linux/amd64 \
         --ulimit nofile=1024:524288 \
         -v "${host_workspace_parent}:${workspace_parent}" \
-        -v /private/tmp:/hosttmp \
+        -v "${host_tmpdir}:${container_tmpdir}" \
         -w "$workspace_path" \
         "$container_image" \
         sleep infinity >/dev/null
