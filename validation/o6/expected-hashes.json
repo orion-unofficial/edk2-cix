@@ -94,6 +94,83 @@
           }
         ]
       }
+    },
+    "modern-o6-trixie-structural": {
+      "description": "Structural baseline for the current Trixie-era O6 build family. This profile checks stable metadata plus EFI section layout without requiring byte-identical replay.",
+      "board": "O6",
+      "target": "RELEASE_GCC5",
+      "artefacts": {
+        "BuildOptions": {
+          "path": "BuildOptions",
+          "sha256": "abff6d823593a2259c449d626052ca94a2575be1913d7b85f19df52064c4426c",
+          "size": 617
+        },
+        "AARCH64/Shell.efi": {
+          "path": "AARCH64/Shell.efi",
+          "size": 978944
+        },
+        "AARCH64/VariableInfo.efi": {
+          "path": "AARCH64/VariableInfo.efi",
+          "size": 16384
+        },
+        "AARCH64/EnrollFromDefaultKeysApp.efi": {
+          "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+          "size": 20480
+        }
+      },
+      "build_options": {
+        "gCommandLineDefines": {
+          "BUILD_DATE": "2026-03-19T10:41:29+00:00",
+          "SMP_ENABLE": "1",
+          "ACPI_BOOT_ENABLE": "1",
+          "VARIABLE_TYPE": "SPI",
+          "STANDARD_MM": "TRUE",
+          "COMMIT_HASH": "dadc5b1",
+          "EDK2_COMMIT_HASH": "898a41ed09",
+          "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
+          "EDK2_PLATFORMS_COMMIT_HASH": "918cb36f",
+          "DEB_VERSION": "1.2.1",
+          "ARCH": "AARCH64"
+        },
+        "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+        "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf"
+      },
+      "pe_sections": {
+        "AARCH64/Shell.efi": [
+          {
+            "name": ".text",
+            "size": 544768
+          },
+          {
+            "name": ".data",
+            "size": 417792
+          },
+          {
+            "name": ".reloc",
+            "size": 12288
+          }
+        ],
+        "AARCH64/VariableInfo.efi": [
+          {
+            "name": ".text",
+            "size": 8192
+          },
+          {
+            "name": ".data",
+            "size": 4096
+          }
+        ],
+        "AARCH64/EnrollFromDefaultKeysApp.efi": [
+          {
+            "name": ".text",
+            "size": 12288
+          },
+          {
+            "name": ".data",
+            "size": 4096
+          }
+        ]
+      }
     }
   }
 }
