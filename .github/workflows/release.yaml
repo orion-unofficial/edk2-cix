@@ -21,8 +21,8 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y git-buildpackage
-          export DEBEMAIL="dev@radxa.com"
-          export DEBFULLNAME='"Radxa Computer Co., Ltd"'
+          export DEBEMAIL="41898282+github-actions[bot]@users.noreply.github.com"
+          export DEBFULLNAME='"GitHub Actions"'
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git branch -m GITHUB_RUNNER || true
@@ -116,11 +116,6 @@ jobs:
           ## Changelog for ${{ env.version }}
           ${{ env.changes }}
         tag_name: "${{ env.version }}"
-    - name: "Update Test repos"
-      uses: "RadxaOS-SDK/rsdk/.github/actions/infra-repo-update@main"
-      with:
-        test-repo: true
-        token: "${{ secrets.RADXA_APT_TEST_REPO_TOKEN }}"
 name: "Build & Release"
 "on":
   merge_group: {}
