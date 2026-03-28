@@ -40,6 +40,7 @@ package_installed() {
 }
 
 required_packages=(
+    git
     crossbuild-essential-arm64
     binfmt-support
     qemu-user-static
