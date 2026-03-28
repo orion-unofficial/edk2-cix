@@ -1,4 +1,15 @@
 PROJECT ?= edk2-cix
+FIRMWARE_BOARD ?= O6
+FIRMWARE_PRODUCT ?= orion-o6
+FIRMWARE_TARGET ?= RELEASE_GCC5
+FIRMWARE_VERSION ?= $(shell dpkg-parsechangelog -S Version 2>/dev/null || sed -n '1s/^[^(]*(\([^)]*\)).*/\1/p' debian/changelog)
+FIRMWARE_STAGE_ROOT ?= $(CURDIR)/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)
+FIRMWARE_INSTALL_ROOT ?= /boot/efi/firmware/radxa
+FIRMWARE_ARCHIVE_ROOT ?= $(CURDIR)/dist
+FIRMWARE_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)
+FIRMWARE_SRC_BUILD_TARGETS = \
+	Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)/cix_flash_all.bin \
+	Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)/cix_flash_ota.bin
 
 src/tools/gcc/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf.tar.xz:
 	mkdir -p src/tools/gcc
@@ -13,6 +24,50 @@ build: build-edk2
 .PHONY: build-edk2
 build-edk2:
 	make --no-print-directory -C src
+
+.PHONY: firmware-build
+firmware-build:
+	make --no-print-directory -C src $(FIRMWARE_SRC_BUILD_TARGETS)
+
+.PHONY: firmware-stage
+firmware-stage: firmware-build
+	python3 scripts/export_firmware_payload.py stage \
+		--repo-root "$(CURDIR)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--product "$(FIRMWARE_PRODUCT)" \
+		--target "$(FIRMWARE_TARGET)" \
+		--version "$(FIRMWARE_VERSION)" \
+		--output-dir "$(FIRMWARE_STAGE_ROOT)"
+
+.PHONY: install
+install: firmware-stage
+	python3 scripts/export_firmware_payload.py install \
+		--repo-root "$(CURDIR)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--product "$(FIRMWARE_PRODUCT)" \
+		--target "$(FIRMWARE_TARGET)" \
+		--version "$(FIRMWARE_VERSION)" \
+		--install-root "$(FIRMWARE_INSTALL_ROOT)"
+
+.PHONY: zip
+zip: firmware-build
+	python3 scripts/export_firmware_payload.py zip \
+		--repo-root "$(CURDIR)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--product "$(FIRMWARE_PRODUCT)" \
+		--target "$(FIRMWARE_TARGET)" \
+		--version "$(FIRMWARE_VERSION)" \
+		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
+
+.PHONY: targz
+targz: firmware-build
+	python3 scripts/export_firmware_payload.py targz \
+		--repo-root "$(CURDIR)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--product "$(FIRMWARE_PRODUCT)" \
+		--target "$(FIRMWARE_TARGET)" \
+		--version "$(FIRMWARE_VERSION)" \
+		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
 
 clean: clean-edk2
 
@@ -35,6 +90,14 @@ buildbox-o6:
 .PHONY: buildbox-o6-log
 buildbox-o6-log:
 	./scripts/capture_build_log.sh build-logs ./scripts/run_in_buildbox.sh make --no-print-directory -C src Build/O6/RELEASE_GCC5/cix_flash_all.bin Build/O6/RELEASE_GCC5/cix_flash_ota.bin
+
+.PHONY: buildbox-zip
+buildbox-zip:
+	./scripts/run_in_buildbox.sh make --no-print-directory zip
+
+.PHONY: buildbox-targz
+buildbox-targz:
+	./scripts/run_in_buildbox.sh make --no-print-directory targz
 
 .PHONY: buildbox-metadata
 buildbox-metadata:
