@@ -58,6 +58,10 @@ set -e
             'warning:|^warning[[:space:]][0-9]+|error:|^error[[:space:]]|failed|missing|ambiguous upon|LOAD segment with RWX permissions|^Traceback ' \
             "$log_file" || true
     fi
+    printf '\n'
+    if [[ -f "./scripts/summarize_build_warnings.py" ]]; then
+        python3 ./scripts/summarize_build_warnings.py "$log_file" || true
+    fi
 } >"$summary_file"
 
 printf '[log] Summary written to %s\n' "$summary_file"
