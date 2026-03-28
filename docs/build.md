@@ -221,6 +221,30 @@ So:
 - the dependency bootstrap now includes `libssl-dev`, because the source-built
   `fiptool` needs the OpenSSL development headers
 
+`bookworm` and `bookworm-backports` do not currently expose `gcc-13` or
+`gcc-14` for the Debian `aarch64-linux-gnu` cross compiler in the default
+repositories, so the practical toolchain matrix for this work is currently:
+
+- `bookworm + gcc-12 + binutils 2.40`
+- `trixie + gcc-12 + binutils 2.44`
+- `trixie + gcc-14 + binutils 2.44`
+
+To compare a local build against the checked-in exact-replay baseline, run:
+
+```bash
+make validate-firmware ARTEFACT_MODE=upstream
+```
+
+That loads the `upstream-o6-1.2.1-bookworm` profile from
+[validation/o6/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/o6/expected-hashes.json),
+checks the key shipped artefacts plus a few structural markers from the EFI
+utility binaries, and writes a JSON report under `build-validation/`.
+
+The top-level `firmware-build`, `firmware-stage`, `zip`, and `targz` targets
+now run that validation automatically when `ARTEFACT_MODE=upstream`, so a
+local build that drifts away from the stored Bookworm replay baseline emits a
+very obvious warning even if the build itself completed successfully.
+
 The vendor `cix_package_tool` still writes ANSI colour escapes even when it is
 not attached to a terminal and even when `NO_COLOR`, `CLICOLOR=0`, and
 `TERM=dumb` are set. The packaging rules therefore normalise that binary's

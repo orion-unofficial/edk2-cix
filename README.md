@@ -113,6 +113,31 @@ Trixie. That newer toolchain generation does change the compiled firmware
 already at `SKY1_BL33_UEFI.fd`, even though `BuildOptions` remains identical
 to the Bookworm replay baseline.
 
+`bookworm` and `bookworm-backports` do not currently expose `gcc-13` or
+`gcc-14` for the `aarch64-linux-gnu` cross toolchain in the default Debian
+repositories, so the practical comparison matrix is currently:
+
+- `bookworm + gcc-12 + binutils 2.40`
+- `trixie + gcc-12 + binutils 2.44`
+- `trixie + gcc-14 + binutils 2.44`
+
+To check a local build against the stored exact-replay baseline without
+re-running the whole release replay workflow, use:
+
+```bash
+make validate-firmware ARTEFACT_MODE=upstream
+```
+
+That compares the built `O6` outputs against the checked-in
+`upstream-o6-1.2.1-bookworm` profile under
+[validation/o6/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/o6/expected-hashes.json)
+and writes a structural report under `build-validation/`.
+
+When you use the top-level `firmware-build`, `firmware-stage`, `zip`, or
+`targz` targets with `ARTEFACT_MODE=upstream`, that validation now runs
+automatically and emits a loud warning if the local artefacts drift away from
+the stored Bookworm replay baseline.
+
 If you do not want a Debian package, the local Makefile extensions now provide
 three direct payload workflows based on the same `O6` files that the `.deb`
 ships:
@@ -122,6 +147,7 @@ make firmware-stage
 make install
 make zip
 make targz
+make validate-firmware
 ```
 
 By default those targets work on the `O6` payload and:
