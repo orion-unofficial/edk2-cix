@@ -17,6 +17,23 @@ as_root() {
     fi
 }
 
+apt_env=(
+    env
+    DEBIAN_FRONTEND=noninteractive
+    DEBCONF_NONINTERACTIVE_SEEN=true
+    DEBCONF_NOWARNINGS=yes
+    DEBIAN_PRIORITY=critical
+    TERM=dumb
+)
+
+apt_get() {
+    as_root "${apt_env[@]}" apt-get \
+        -o APT::Install-Recommends=false \
+        -o APT::Install-Suggests=false \
+        -o Dpkg::Use-Pty=0 \
+        "$@"
+}
+
 package_installed() {
     local package="$1"
     dpkg-query -W -f='${Status}\n' "$package" 2>/dev/null | grep -qx 'install ok installed'
@@ -63,7 +80,7 @@ if (( need_arm64_arch != 0 )); then
 fi
 
 status "Refreshing apt metadata"
-as_root apt-get update
+apt_get update
 
 bootstrap_packages=()
 for package in crossbuild-essential-arm64 binfmt-support qemu-user-static; do
@@ -74,13 +91,13 @@ done
 
 if (( ${#bootstrap_packages[@]} > 0 )); then
     status "Installing bootstrap packages: ${bootstrap_packages[*]}"
-    as_root apt-get install -y "${bootstrap_packages[@]}"
+    apt_get install -y --no-install-recommends "${bootstrap_packages[@]}"
 fi
 
 status "Installing Debian build dependencies"
 (
     cd "$repo_root"
-    as_root apt-get build-dep . -y
+    apt_get build-dep . -y --no-install-recommends
 )
 
 status "Build dependencies ready."
