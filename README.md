@@ -17,6 +17,11 @@ You can inspect the resolved values with
 Before a longer build, run `make -C src preflight` to fail early if the
 expected package-tool binaries or cross-compiler are missing.
 
+For the firmware build itself, `make -C src` now defaults to EDK2 silent mode
+so the transcript keeps the higher-level `Building ...` progress lines without
+the full compiler-command firehose. Use `V=1` to restore the raw EDK2 command
+output.
+
 To capture a full build transcript plus a warning summary under `build-logs/`,
 use `make buildbox-o6-log` or wrap any command with
 `./scripts/capture_build_log.sh build-logs <command ...>`.
@@ -66,22 +71,15 @@ into the build container automatically. If you want to stage those helper
 files somewhere else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
 `EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper.
 
-For host-side Python maintenance checks without entering the
-devcontainer, run:
+The first `make devcontainer_setup` run now drives `apt-get` in noninteractive
+mode and suppresses recommends/suggests so the initial dependency bootstrap is
+less noisy.
 
-```bash
-python3 -W default -m compileall -q -f \
-  src/edk2/BaseTools/Source/Python \
-  src/edk2/BaseTools/Scripts \
-  scripts
-python3 -W default -m py_compile \
-  src/edk2/ArmPlatformPkg/Scripts/Ds5/build_report.py
-```
+The vendor `cix_package_tool` binary still emits ANSI colour escapes
+unconditionally. The packaging rules now normalise that tool's output only, so
+captured logs stay readable without globally rewriting unrelated command
+output.
 
-Release builds default to `ARTEFACT_MODE=custom`, which strips
-embedded PE/COFF debug path records from the final firmware images.
-Use `ARTEFACT_MODE=upstream` when you specifically want
-replay-compatible output instead.
 For host-side Python maintenance checks without entering the devcontainer, run:
 
 ```bash
