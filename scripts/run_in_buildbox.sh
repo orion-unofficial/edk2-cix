@@ -21,6 +21,24 @@ status() {
     printf '[buildbox] %s\n' "$*"
 }
 
+verify_workspace() {
+    if ! docker exec -w "$workspace_path" "$container_name" test -f Makefile; then
+        cat >&2 <<EOF
+[buildbox] Expected the repo root to be mounted at ${workspace_path}, but Makefile is missing there.
+[buildbox] Check EDK2_CIX_WORKSPACE_PARENT, the host workspace bind mount, and the checkout path.
+EOF
+        exit 1
+    fi
+
+    if ! docker exec -w "$workspace_path" "$container_name" test -f src/Makefile; then
+        cat >&2 <<EOF
+[buildbox] Expected src/Makefile inside ${workspace_path}, but it was not found.
+[buildbox] This usually means the wrong host directory was mounted into the build container.
+EOF
+        exit 1
+    fi
+}
+
 ensure_container() {
     if docker container inspect "$container_name" >/dev/null 2>&1; then
         local mounts
@@ -58,6 +76,8 @@ EOF
 fi
 
 ensure_container
+mkdir -p "$host_tmpdir"
+verify_workspace
 
 status "Ensuring build dependencies are present"
 docker exec -w "$workspace_path" "$container_name" bash -lc './scripts/ensure_build_deps.sh'
