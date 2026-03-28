@@ -60,9 +60,10 @@ The build also supports two output modes:
 
 ## Replay published O6 firmware
 
-To recover the replay settings from a published O6 release artefact
-and write helper files under a fresh `/private/tmp/o6-replay-*`
-directory, run:
+To recover the replay settings from a published O6 release artefact and write
+helper files under a fresh temp directory, run:
+To recover the replay settings from a published O6 release artefact and write
+helper files under a fresh temp directory, run:
 
 ```bash
 python3 src/scripts/replay_o6_release.py <edk2-cix_*.deb>
@@ -83,10 +84,6 @@ It also writes:
 - `rebuild-o6.sh`
 - `rebuild-o6-docker.sh`
 
-If you only have a standalone `cix_flash_all.bin`, the helper can
-still recover the compiler and PM-config timestamps plus the cert
-bundle. Supply a matching `BuildOptions` file, or pass
-`--build-date <iso8601>`, if you want a complete replay build:
 If you want to keep the full transcript from a replay or local build, wrap the
 command with `./scripts/capture_build_log.sh build-logs <command ...>`. The
 convenience target `make buildbox-o6-log` does this for the standard local O6
@@ -104,11 +101,14 @@ python3 src/scripts/replay_o6_release.py \
 ```
 
 To start the replay build immediately in the current shell, add
-`--run-build`. If you are not already in a working build environment,
-run the generated `rebuild-o6-docker.sh` wrapper instead. That
-wrapper reuses the persistent `edk2-cix-buildbox` container, mounts
-the checkout at `/workspaces/edk2-cix`, and therefore preserves the
-same embedded build paths as the upstream release.
+`--run-build`. If you are not already in a working build environment, run the
+generated `rebuild-o6-docker.sh` wrapper instead. That wrapper reuses the
+persistent `edk2-cix-buildbox` container, mounts the checkout at
+`/workspaces/edk2-cix`, and therefore preserves the same embedded build paths
+as the upstream release. By default it also mounts the helper's temp directory
+into the container automatically. If you need a different host/container temp
+mapping, set `EDK2_CIX_HOST_TMPDIR` and `EDK2_CIX_CONTAINER_TMPDIR` before
+running the wrapper.
 
 ## Reuse the build container
 
