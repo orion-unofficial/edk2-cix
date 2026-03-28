@@ -16,7 +16,12 @@ BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
 MONOREPO_EDK2_COMMIT_HASH ?= 971cfbc5fa
 MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= c051ce622f
 MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 971cfbc5fa
+V ?= 0
+MONOREPO_EDK2_COMMIT_HASH ?= 898a41ed09
+MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= 50f168f
+MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 918cb36f
 ARTEFACT_MODE ?= custom
+EDK2_BUILD_SILENT_FLAG := $(if $(filter 1,$(V)),,-s)
 
 resolve-path-head = $(strip $(shell git -C .. log -1 --format=%h $(1) -- $(2) 2>/dev/null))
 
@@ -63,6 +68,7 @@ help:
 	echo "Supported targets:"
 	echo "$(CIX_FLASH)"
 	echo "preflight"
+	echo "Use V=1 for verbose EDK2 build commands"
 
 .PHONY: print-build-metadata
 print-build-metadata:
@@ -134,7 +140,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET
 	pushd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
 	tmp_ota="./cix_flash_ota.bin.tmp" && \
 	rm -f "$$tmp_ota" && \
-	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_package_tool" -c "./spi_flash_config_ota.json" -O "$$tmp_ota" && \
+	TERM=dumb "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_package_tool" -c "./spi_flash_config_ota.json" -O "$$tmp_ota" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
 	mv -f "$$tmp_ota" "./cix_flash_ota.bin" && \
 	popd
 
@@ -172,7 +178,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	printf '[build/%s] Packaging full flash image\n' "$*" && \
 	pushd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
-	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_package_tool" -c "./spi_flash_config_all.json" -o "./cix_flash_all.raw" && \
+	TERM=dumb "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_package_tool" -c "./spi_flash_config_all.json" -o "./cix_flash_all.raw" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
 	popd
 
 	# \377 = 0xFF
@@ -289,6 +295,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
 		esac
 	fi
 	build -a AARCH64 -t GCC5 -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
+		$(EDK2_BUILD_SILENT_FLAG) \
 		"$${build_extra_defines[@]}" \
 		-b $(UEFI_TARGET) -D BOARD_NAME=$(word 2, $(subst /,, $@)) -D BUILD_DATE=$(BUILD_DATE) \
 		-D SMP_ENABLE=1 -D ACPI_BOOT_ENABLE=1 -D FASTBOOT_LOAD= -D VARIABLE_TYPE=SPI -D STANDARD_MM=TRUE \
