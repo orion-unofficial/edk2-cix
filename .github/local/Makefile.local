@@ -7,6 +7,9 @@ FIRMWARE_STAGE_ROOT ?= $(CURDIR)/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VE
 FIRMWARE_INSTALL_ROOT ?= /boot/efi/firmware/radxa
 FIRMWARE_ARCHIVE_ROOT ?= $(CURDIR)/dist
 FIRMWARE_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)
+FIRMWARE_VALIDATION_PROFILE ?= upstream-o6-1.2.1-bookworm
+FIRMWARE_VALIDATION_REPORT_ROOT ?= $(CURDIR)/build-validation
+FIRMWARE_VALIDATE_ON_BUILD ?= $(if $(filter upstream,$(ARTEFACT_MODE)),1,0)
 FIRMWARE_SRC_BUILD_TARGETS = \
 	Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)/cix_flash_all.bin \
 	Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)/cix_flash_ota.bin
@@ -28,6 +31,16 @@ build-edk2:
 .PHONY: firmware-build
 firmware-build:
 	make --no-print-directory -C src $(FIRMWARE_SRC_BUILD_TARGETS)
+	@if [[ "$(FIRMWARE_VALIDATE_ON_BUILD)" == "1" ]]; then \
+		printf '\n[validate] Checking artefacts against %s\n' "$(FIRMWARE_VALIDATION_PROFILE)"; \
+		mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"; \
+		python3 scripts/validate_firmware_outputs.py \
+			--repo-root "$(CURDIR)" \
+			--board "$(FIRMWARE_BOARD)" \
+			--target "$(FIRMWARE_TARGET)" \
+			--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+			--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"; \
+	fi
 
 .PHONY: firmware-stage
 firmware-stage: firmware-build
@@ -69,6 +82,27 @@ targz: firmware-build
 		--version "$(FIRMWARE_VERSION)" \
 		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
 
+.PHONY: validate-firmware
+validate-firmware:
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	python3 scripts/validate_firmware_outputs.py \
+		--repo-root "$(CURDIR)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--target "$(FIRMWARE_TARGET)" \
+		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
+
+.PHONY: validate-firmware-strict
+validate-firmware-strict:
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	python3 scripts/validate_firmware_outputs.py \
+		--repo-root "$(CURDIR)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--target "$(FIRMWARE_TARGET)" \
+		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+		--strict \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
+
 clean: clean-edk2
 
 .PHONY: clean-edk2
@@ -85,11 +119,16 @@ buildbox-deb:
 
 .PHONY: buildbox-o6
 buildbox-o6:
-	./scripts/run_in_buildbox.sh make --no-print-directory -C src Build/O6/RELEASE_GCC5/cix_flash_all.bin Build/O6/RELEASE_GCC5/cix_flash_ota.bin
+	./scripts/run_in_buildbox.sh make --no-print-directory firmware-build \
+		ARTEFACT_MODE="$(ARTEFACT_MODE)" \
+		FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="/workspaces/edk2-cix/build-validation"
 
 .PHONY: buildbox-o6-log
 buildbox-o6-log:
-	./scripts/capture_build_log.sh build-logs ./scripts/run_in_buildbox.sh make --no-print-directory -C src Build/O6/RELEASE_GCC5/cix_flash_all.bin Build/O6/RELEASE_GCC5/cix_flash_ota.bin
+	./scripts/capture_build_log.sh build-logs ./scripts/run_in_buildbox.sh make --no-print-directory firmware-build ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" FIRMWARE_VALIDATION_REPORT_ROOT="/workspaces/edk2-cix/build-validation"
 
 .PHONY: buildbox-zip
 buildbox-zip:
