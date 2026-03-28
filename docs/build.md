@@ -184,8 +184,13 @@ When it does need to provision packages, it uses noninteractive `apt-get`
 settings and suppresses recommends/suggests to keep the first-time bootstrap
 output much cleaner.
 
+The preferred local distribution for `x86_64` builds remains Debian
+`bookworm`.
+
 Native arm64 packaging is now viable on newer userspaces, but the distro
-generation matters. On Bookworm-class arm64 userspaces:
+generation matters. Native `arm64` / `aarch64` builds require Debian
+`trixie`, because the remaining closed-source vendor helpers cannot run on
+Bookworm-class arm64 userspaces:
 
 - `AARCH64/cix_package_tool` only needs `GLIBC_2.34`
 - `AARCH64/cert_uefi_create_rsa` needs `GLIBC_2.38`
@@ -197,25 +202,10 @@ existing cert blobs, that step is skipped and Bookworm arm64 can get
 significantly further; a native arm64 Trixie userspace can complete the full
 `O6` replay build.
 
-The current replay matrix now shows:
-
-- `amd64 + bookworm` reproduces the published upstream `O6` release payloads
-  byte-for-byte
-- `amd64 + trixie` and `arm64 + trixie` match each other byte-for-byte for
-  `cix_flash_all.bin`, `cix_flash_ota.bin`, `BuildOptions`, and
-  `csu_pm_config.bin`
-- the remaining difference is therefore distro/toolchain generation rather
-  than host CPU architecture
-
 So:
 
 - use the amd64 Bookworm buildbox when you need exact upstream replay
-- use a matched Trixie-class userspace on both hosts when you want identical
-  local outputs across `x86_64` and `arm64`
-- expect `amd64 + trixie` to diverge from the Bookworm replay baseline at the
-  compiled firmware stage already: `BuildOptions` still matches, but
-  `SKY1_BL33_UEFI.fd` and much of the AARCH64 build tree differ under the
-  newer GCC 14 / binutils 2.44 toolchain
+- use Trixie for native `arm64` / `aarch64` builds
 - use `make -C src host-fiptool` if you want to prebuild the vendored TF-A
   `fiptool` before the first packaging run
 - the dependency bootstrap now includes `libssl-dev`, because the source-built
@@ -223,11 +213,7 @@ So:
 
 `bookworm` and `bookworm-backports` do not currently expose `gcc-13` or
 `gcc-14` for the Debian `aarch64-linux-gnu` cross compiler in the default
-repositories, so the practical toolchain matrix for this work is currently:
-
-- `bookworm + gcc-12 + binutils 2.40`
-- `trixie + gcc-12 + binutils 2.44`
-- `trixie + gcc-14 + binutils 2.44`
+repositories.
 
 To compare a local build against the checked-in exact-replay baseline, run:
 
@@ -239,6 +225,24 @@ That loads the `upstream-o6-1.2.1-bookworm` profile from
 [validation/o6/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/o6/expected-hashes.json),
 checks the key shipped artefacts plus a few structural markers from the EFI
 utility binaries, and writes a JSON report under `build-validation/`.
+
+For the current Trixie-era local build family there is also a structural-only
+profile in the same file:
+
+```bash
+make validate-firmware FIRMWARE_VALIDATION_PROFILE=modern-o6-trixie-structural
+```
+
+That profile keeps `BuildOptions` exact, but checks the EFI utility binaries by
+size and PE section layout rather than by whole-file hash.
+
+To snapshot the current build into a fresh profile JSON for later review or to
+seed a future validation baseline, run:
+
+```bash
+make capture-validation-profile \
+  FIRMWARE_VALIDATION_PROFILE=modern-o6-trixie-structural
+```
 
 The top-level `firmware-build`, `firmware-stage`, `zip`, and `targz` targets
 now run that validation automatically when `ARTEFACT_MODE=upstream`, so a
