@@ -1,8 +1,54 @@
 # Build
 
-We use devcontainer to maintain a consistent build environment.
+You can build this repo either directly on a supported Debian host or inside a
+containerized environment.
 
-To build all supported EDK2 variants, please run `make deb` within devcontainer.
+## Supported host environments
+
+- Debian `bookworm` on `x86_64` for the preferred exact-upstream replay path
+- Debian `trixie` on `arm64` / `aarch64` for native local builds
+
+We still support `devcontainer`, but it is optional.
+
+## Build directly on a host
+
+For a headless SSH session or any other non-IDE workflow, bootstrap the build
+dependencies directly on the machine:
+
+```bash
+make devcontainer_setup
+```
+
+That installs the same core build dependencies the devcontainer path uses.
+
+Then build whatever output you need:
+
+```bash
+make deb
+make firmware-build
+make firmware-stage
+make zip
+make targz
+```
+
+If you prefer to reuse a warmed amd64 container instead of installing the
+dependencies onto the host, use:
+
+```bash
+make buildbox-up
+make buildbox-o6
+make buildbox-deb
+```
+
+## Build inside a devcontainer
+
+We still use devcontainers to keep one known-good amd64 environment around.
+
+To build all supported EDK2 variants inside that environment, run:
+
+```bash
+make deb
+```
 
 `main-monorepo` only supports Linux build hosts now. The old vendor
 `WinBuildTool` tree and its Windows-only helper makefiles were removed from
