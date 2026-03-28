@@ -6,6 +6,8 @@
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
+MAKEFLAGS += --no-print-directory
+
 ifndef HOST_ARCH
   #
   # If HOST_ARCH is not defined, then we use 'uname -m' to attempt
