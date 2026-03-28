@@ -62,8 +62,6 @@ The build also supports two output modes:
 
 To recover the replay settings from a published O6 release artefact and write
 helper files under a fresh temp directory, run:
-To recover the replay settings from a published O6 release artefact and write
-helper files under a fresh temp directory, run:
 
 ```bash
 python3 src/scripts/replay_o6_release.py <edk2-cix_*.deb>
@@ -88,6 +86,11 @@ If you want to keep the full transcript from a replay or local build, wrap the
 command with `./scripts/capture_build_log.sh build-logs <command ...>`. The
 convenience target `make buildbox-o6-log` does this for the standard local O6
 build.
+
+For direct firmware builds, `make -C src` now defaults to EDK2 silent mode so
+you see the higher-level `Building ...` progress without the full compiler
+command flood. Use `make -C src V=1 ...` if you want the raw EDK2 command
+lines.
 
 If you only have a standalone `cix_flash_all.bin`, the helper can still
 recover the compiler and PM-config timestamps plus the cert bundle. Supply a
@@ -123,9 +126,16 @@ make buildbox-o6-log
 make buildbox-deb
 ```
 
-`make devcontainer_setup` is now idempotent: it checks for the
-required Debian packages first and skips the `apt` work when the
-environment is already ready.
+`make devcontainer_setup` is now idempotent: it checks for the required Debian
+packages first and skips the `apt` work when the environment is already ready.
+When it does need to provision packages, it uses noninteractive `apt-get`
+settings and suppresses recommends/suggests to keep the first-time bootstrap
+output much cleaner.
+
+The vendor `cix_package_tool` still writes ANSI colour escapes even when it is
+not attached to a terminal and even when `NO_COLOR`, `CLICOLOR=0`, and
+`TERM=dumb` are set. The packaging rules therefore normalise that binary's
+output locally, rather than post-processing the whole build transcript.
 
 If you need to refresh the monorepo from the authoritative uplifted source-model,
 use the automation and runbooks on the separate `main-monorepo-meta`
