@@ -11,6 +11,7 @@ all: build
 SHELL := bash
 MAKEFLAGS += --no-print-directory
 UNAME := $(shell uname -m)
+HOST_ARCH := $(if $(filter arm64,$(UNAME)),aarch64,$(UNAME))
 UPSTREAM_SOURCE_REF ?= refs/upstream-source/main
 BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
 V ?= 0
@@ -48,22 +49,40 @@ GCC5_AARCH64_PREFIX := aarch64-linux-gnu-
 endif
 
 PACKAGE_TOOL := edk2-non-osi/Platform/CIX/Sky1/PackageTool
+FIPTOOL_SOURCE_DIR := tools/arm-trusted-firmware-fiptool
+FIPTOOL_BIN := $(FIPTOOL_SOURCE_DIR)/build/$(HOST_ARCH)/fiptool
+FIPTOOL_SOURCE_INPUTS := \
+	$(FIPTOOL_SOURCE_DIR)/Makefile \
+	$(FIPTOOL_SOURCE_DIR)/src/fiptool.c \
+	$(FIPTOOL_SOURCE_DIR)/src/fiptool.h \
+	$(FIPTOOL_SOURCE_DIR)/src/fiptool_platform.h \
+	$(FIPTOOL_SOURCE_DIR)/src/tbbr_config.c \
+	$(FIPTOOL_SOURCE_DIR)/src/tbbr_config.h \
+	$(FIPTOOL_SOURCE_DIR)/include/tools_share/firmware_image_package.h \
+	$(FIPTOOL_SOURCE_DIR)/include/tools_share/uuid.h \
+	$(FIPTOOL_SOURCE_DIR)/upstream.json
 SIGNING_CERT_SOURCE_DIR ?=
 DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f") \
 	#    $(shell find edk2-platforms/Platform/CIX -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f")
 
 CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_all.bin) \
 			 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
-.PHONY: build
+.PHONY: build host-fiptool
 build: preflight $(CIX_FLASH)
 
-.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools
+host-fiptool: $(FIPTOOL_BIN)
+
+.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools host-fiptool
 .PHONY: help
 help:
 	echo "Supported targets:"
 	echo "$(CIX_FLASH)"
+	echo "host-fiptool"
 	echo "preflight"
 	echo "Use V=1 for verbose EDK2 build commands"
+
+$(FIPTOOL_BIN): $(FIPTOOL_SOURCE_INPUTS)
+	$(MAKE) -C "$(FIPTOOL_SOURCE_DIR)" HOST_ARCH="$(HOST_ARCH)" all
 
 .PHONY: print-build-metadata
 print-build-metadata:
@@ -102,13 +121,24 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
+	for required_cmd in make cc perl; do \
+		if ! command -v "$$required_cmd" >/dev/null 2>&1; then \
+			echo "[preflight] Missing required host tool: $$required_cmd" >&2; \
+			missing=1; \
+		fi; \
+	done; \
 	if [[ -n "$(GCC5_AARCH64_PREFIX)" ]] && ! command -v "$(GCC5_AARCH64_PREFIX)gcc" >/dev/null 2>&1; then \
 		echo "[preflight] Missing cross-compiler: $(GCC5_AARCH64_PREFIX)gcc" >&2; \
 		missing=1; \
 	fi; \
+	for required_file in $(FIPTOOL_SOURCE_INPUTS); do \
+		if [[ ! -f "$$required_file" ]]; then \
+			echo "[preflight] Missing fiptool source input: $$required_file" >&2; \
+			missing=1; \
+		fi; \
+	done; \
 	for required_bin in \
 		"$(PACKAGE_TOOL)/$(PACKAGE_TOOL_ARCH)/cix_package_tool" \
-		"$(PACKAGE_TOOL)/$(PACKAGE_TOOL_ARCH)/fiptool" \
 		"$(PACKAGE_TOOL)/$(PACKAGE_TOOL_ARCH)/cert_uefi_create_rsa"; do \
 		if [[ ! -x "$$required_bin" ]]; then \
 			echo "[preflight] Missing required package-tool binary: $$required_bin" >&2; \
@@ -187,7 +217,8 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 	Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd \
 	Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin \
-	Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt
+	Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
+	| $(FIPTOOL_BIN)
 
 	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" && \
@@ -230,7 +261,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 			--non-trusted-world-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
 			--nt-fw "$(shell realpath "$<")"; \
 	fi && \
-	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/fiptool" create \
+	"$(FIPTOOL_BIN)" create \
 		--trusted-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
 		--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
 		--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
@@ -255,7 +286,8 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt
 Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
-	@cp -aR $(PACKAGE_TOOL)/Keys/ $(PACKAGE_TOOL)/certs/ Build/$*/$(UEFI_TARGET)_GCC5/
+	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
+	cp -aR $(PACKAGE_TOOL)/Keys/ $(PACKAGE_TOOL)/certs/ Build/$*/$(UEFI_TARGET)_GCC5/ && \
 	if [[ -f "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" ]]; then \
     	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" \
 			-p Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \

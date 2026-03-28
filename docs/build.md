@@ -140,12 +140,13 @@ generation matters. On Bookworm-class arm64 userspaces:
 
 - `AARCH64/cix_package_tool` only needs `GLIBC_2.34`
 - `AARCH64/cert_uefi_create_rsa` needs `GLIBC_2.38`
-- `AARCH64/fiptool` also needs `GLIBC_2.38`
 
-If you reuse existing cert blobs, that skips `cert_uefi_create_rsa`, but the
-final `bootloader3.img` packaging step still needs a newer-enough `fiptool`.
-That means native arm64 Bookworm is still blocked at packaging time, while a
-native arm64 Trixie userspace can complete the full `O6` replay build.
+`fiptool` is now built from the vendored upstream Arm Trusted Firmware-A source
+snapshot, so that old AARCH64 `fiptool` ABI problem no longer applies. The
+remaining native arm64 Bookworm blocker is `cert_uefi_create_rsa`. If you reuse
+existing cert blobs, that step is skipped and Bookworm arm64 can get
+significantly further; a native arm64 Trixie userspace can complete the full
+`O6` replay build.
 
 The current replay matrix now shows:
 
@@ -162,6 +163,8 @@ So:
 - use the amd64 Bookworm buildbox when you need exact upstream replay
 - use a matched Trixie-class userspace on both hosts when you want identical
   local outputs across `x86_64` and `arm64`
+- use `make -C src host-fiptool` if you want to prebuild the vendored TF-A
+  `fiptool` before the first packaging run
 
 The vendor `cix_package_tool` still writes ANSI colour escapes even when it is
 not attached to a terminal and even when `NO_COLOR`, `CLICOLOR=0`, and

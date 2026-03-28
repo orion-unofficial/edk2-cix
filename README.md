@@ -79,11 +79,19 @@ Native arm64 packaging is now viable on Debian Trixie-class userspaces, and
 the current `O6` replay work has already shown that `amd64+trixie` and
 `arm64+trixie` produce identical `cix_flash_*.bin`, `BuildOptions`, and
 `csu_pm_config.bin` outputs. Native arm64 Bookworm is still too old for the
-vendored AARCH64 helpers because:
+remaining vendored AARCH64 helpers because:
 
 - `AARCH64/cix_package_tool` only needs `GLIBC_2.34`
 - `AARCH64/cert_uefi_create_rsa` needs `GLIBC_2.38`
-- `AARCH64/fiptool` needs `GLIBC_2.38`
+
+`fiptool` is now built from the vendored Arm Trusted Firmware-A source snapshot
+under [src/tools/arm-trusted-firmware-fiptool](/Users/Stuart/src/edk2-cix/src/tools/arm-trusted-firmware-fiptool),
+so the packaging path no longer depends on the old shipped `fiptool` binaries.
+You can build it explicitly with:
+
+```bash
+make -C src host-fiptool
+```
 
 If you are specifically trying to recreate the published vendor release
 payloads byte-for-byte, the currently validated replay path remains the amd64
