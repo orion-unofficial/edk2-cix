@@ -104,6 +104,24 @@ static void dump_valid_flag(config_data_t data)
     }
 }
 
+static void dump_invalid_reason(const char *reason)
+{
+    printf("UNSET (PM_CONFIG_INVALID");
+    if (reason && reason[0] != '\0') {
+        printf("; %s", reason);
+    }
+    printf(")\n");
+}
+
+static void dump_valid_flag_with_reason(config_data_t data, const char *invalid_reason)
+{
+    if (data.fields.valid == PM_CONFIG_INVALID) {
+        dump_invalid_reason(invalid_reason);
+    } else {
+        printf("VALID, data: 0x%08X (%0d)\n", data.fields.raw_data, data.fields.raw_data);
+    }
+}
+
 #if PM_OPP_TABLE_CONFIG
 static uint32_t volt_abs(uint32_t a, uint32_t b)
 {
@@ -179,6 +197,11 @@ static void dump_pmic_config(pm_config_pmic_t* config)
     char tmpbuf[16];
     size_t i;
 
+#if !PM_PMIC_CONFIG
+    printf("\tfeature disabled by board config; using firmware PMIC and EDP defaults\n");
+    return;
+#endif
+
     printf("\tpmic scheme: ");dump_valid_flag(config->pmic_scheme);
     if (PM_CONFIG_VALID != config->pmic_scheme.fields.valid ||
         CONFIG_EDP_CFG_CUSTOM != config->pmic_scheme.fields.raw_data) {
@@ -245,10 +268,20 @@ static void dump_opp_config(pm_config_opp_t * opp_config)
 
 static void dump_fan_config(pm_config_fan_t* config, uint32_t num)
 {
+#if !PM_FAN_TABLE_CONFIG
+    (void)config;
+    (void)num;
+    printf("\tfeature disabled by board config; O6 uses the EC-managed single-fan path without PM fan-table overrides\n");
+    return;
+#else
     for (uint32_t i = 0; i < num; i++) {
         printf("  fan[%d]:\n", i);
         if (config[i].fan_valid.fields.valid == PM_CONFIG_INVALID) {
-            printf("\tNULL\n");
+            if (i == 0) {
+                printf("\tUNSET (PM_CONFIG_INVALID; board did not provide fan-table data)\n");
+            } else {
+                printf("\tUNSET (PM_CONFIG_INVALID; fan slot unused or hardware not present on this board)\n");
+            }
         } else {
             for (uint32_t j = 0; j < FAN_MODE_MAX; j++) {
                 if (config[i]. rpm_table_valid[j] == 0) {
@@ -265,12 +298,14 @@ static void dump_fan_config(pm_config_fan_t* config, uint32_t num)
             printf("\tpwm_freq:\t");dump_valid_flag(config[i].pwm_freq);
         }
     }
+#endif
 }
 
+#if PM_PVT_SENSOR_CONFIG
 static void dump_board_sensor(board_sensor_config_t* config)
 {
     if (config->sensor_valid.fields.valid == PM_CONFIG_INVALID) {
-        printf("\tUNSET (PM_CONFIG_INVALID)\n");
+        printf("\tUNSET (PM_CONFIG_INVALID; optional board sensor not present or not configured)\n");
     } else {
         if (config->sensor_valid.fields.raw_data == 0) {
             printf("\tconnect to EC, reg:0x%x\n", config->reg_id);
@@ -279,9 +314,15 @@ static void dump_board_sensor(board_sensor_config_t* config)
         }
     }
 }
+#endif
 
 static void dump_pvt_config(pm_config_pvt_t *config)
 {
+#if !PM_PVT_SENSOR_CONFIG
+    (void)config;
+    printf("\tfeature disabled by board config; using firmware thermal-sensor defaults\n");
+    return;
+#else
     char* name[] = {
         "vpu_sensor",
         "gpu_bottom_sensor",
@@ -304,25 +345,36 @@ static void dump_pvt_config(pm_config_pvt_t *config)
             printf("\t  - %-18s: %d\n", name[i], config->weight[i]);
         }
     } else {
-        printf("\tsensor weight: UNSET (PM_CONFIG_INVALID)\n");
+        printf("\tsensor weight: UNSET (PM_CONFIG_INVALID; using firmware default sensor weights)\n");
     }
 
     printf("\tboard sensor 1:\n");
     dump_board_sensor(&config->board_sensor1);
     printf("\tboard sensor 2:\n");
     dump_board_sensor(&config->board_sensor2);
+#endif
 }
 
 static void dump_log_config(pm_config_log_t * log_config)
 {
+#if !PM_LOG_CONFIG
+    (void)log_config;
+    printf("\tfeature disabled by board config; using firmware logging defaults\n");
+#else
     printf("\tlog flag: "); dump_valid_flag(log_config->log_enable);
     printf("\tbaudrate: "); dump_valid_flag(log_config->uart_baudrate);
+#endif
 }
 
 static void dump_vmin_config(pm_config_vmin_t * vmin_config)
 {
+#if !PM_VMIN_CONFIG
+    (void)vmin_config;
+    printf("\tfeature disabled by board config; no board-specific Vmin tuning is applied\n");
+#else
     printf("\tvmin disable: "); dump_valid_flag(vmin_config->vmin_disable);
     printf("\tvmin profile: "); dump_valid_flag(vmin_config->vmin_profile);
+#endif
 }
 
 static void dump_noc_idle_config(pm_config_noc_idle_t * noc_idle_config)
@@ -334,14 +386,19 @@ static void dump_noc_idle_config(pm_config_noc_idle_t * noc_idle_config)
         return;
     }
 
-    printf("\tamu1 thro0  : "); dump_valid_flag(noc_idle_config->noc_idle_amu1_thro0);
-    printf("\tamu1 thro1  : "); dump_valid_flag(noc_idle_config->noc_idle_amu1_thro1);
-    printf("\tddr_dym_pwr : "); dump_valid_flag(noc_idle_config->noc_idle_ddr_dym_pwr_thro);
-    printf("\thysteresis  : "); dump_valid_flag(noc_idle_config->noc_idle_hysteresis);
+    printf("\tamu1 thro0  : "); dump_valid_flag_with_reason(noc_idle_config->noc_idle_amu1_thro0, "using firmware default threshold");
+    printf("\tamu1 thro1  : "); dump_valid_flag_with_reason(noc_idle_config->noc_idle_amu1_thro1, "using firmware default threshold");
+    printf("\tddr_dym_pwr : "); dump_valid_flag_with_reason(noc_idle_config->noc_idle_ddr_dym_pwr_thro, "using firmware default threshold");
+    printf("\thysteresis  : "); dump_valid_flag_with_reason(noc_idle_config->noc_idle_hysteresis, "using firmware default threshold");
 }
 
 static void dump_spt_config(pm_config_spt_t * spt_config)
 {
+#if !PM_SPT_CONFIG
+    (void)spt_config;
+    printf("\tfeature disabled by board config; skin-power tuning is not enabled for this board\n");
+    return;
+#else
     printf("\t Enable mask: "); dump_valid_flag(spt_config->spt_enable_mask);
     if (spt_config->spt_enable_mask.fields.valid == PM_CONFIG_INVALID) {
         return;
@@ -352,11 +409,12 @@ static void dump_spt_config(pm_config_spt_t * spt_config)
         dump_valid_flag(spt_config->spt_setpoints[i]);
     }
 
-    printf("\tspt skin margin: "); dump_valid_flag(spt_config->spt_skin_margin);
+    printf("\tspt skin margin: "); dump_valid_flag_with_reason(spt_config->spt_skin_margin, "using firmware default skin-margin value");
     printf("\t       coeff-kh: "); dump_valid_flag(spt_config->spt_skin_coeff_kh);
     printf("\t       coeff-ka: "); dump_valid_flag(spt_config->spt_skin_coeff_ka);
     printf("\t        coeff-c: "); dump_valid_flag(spt_config->spt_skin_coeff_c);
-    printf("\t    coeff-alpha: "); dump_valid_flag(spt_config->spt_skin_coeff_alpha);
+    printf("\t    coeff-alpha: "); dump_valid_flag_with_reason(spt_config->spt_skin_coeff_alpha, "using firmware default alpha coefficient");
+#endif
 }
 
 static void dump_config()
