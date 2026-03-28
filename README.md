@@ -75,6 +75,13 @@ The first `make devcontainer_setup` run now drives `apt-get` in noninteractive
 mode and suppresses recommends/suggests so the initial dependency bootstrap is
 less noisy.
 
+An arm64-native Bookworm container is not yet sufficient for the full package
+step: the vendor AARCH64 `cert_uefi_create_rsa` and `fiptool` binaries require
+`GLIBC_2.38`, while the AARCH64 `cix_package_tool` itself only needs
+`GLIBC_2.34`. If you are reusing existing cert blobs, that narrows the native
+arm64 blocker to `fiptool`, but for now the amd64 buildbox path remains the
+supported route for complete replay or release builds.
+
 The vendor `cix_package_tool` binary still emits ANSI colour escapes
 unconditionally. The packaging rules now normalise that tool's output only, so
 captured logs stay readable without globally rewriting unrelated command
