@@ -14,6 +14,14 @@ identity. In the default `ARTEFACT_MODE=custom`, that commit identity
 also supplies the default timestamp used for reproducible metadata.
 You can inspect the resolved values with
 `make -C src print-build-metadata`.
+
+`main-monorepo-edk2` only supports Linux build hosts now. The old vendor
+`WinBuildTool` tree and its Windows-only helper makefiles were removed from
+this branch, so the supported local host environments are:
+
+- Linux `x86_64`
+- Linux `aarch64` / `arm64`
+
 Before a longer build, run `make -C src preflight` to fail early if the
 expected package-tool binaries or cross-compiler are missing.
 
@@ -25,12 +33,6 @@ output.
 To capture a full build transcript plus a warning summary under `build-logs/`,
 use `make buildbox-o6-log` or wrap any command with
 `./scripts/capture_build_log.sh build-logs <command ...>`.
-
-For reproducible metadata on `main-monorepo`, the build uses the nearest
-mapped upstream `main` commit as its default source identity. In the default
-`ARTEFACT_MODE=custom`, that commit identity also supplies the default
-timestamp used for reproducible metadata. You can inspect the resolved values
-with `make -C src print-build-metadata`.
 
 For exact replay of a published O6 image, `main-monorepo-edk2` can
 also reuse an extracted FIP cert bundle via
@@ -75,12 +77,21 @@ The first `make devcontainer_setup` run now drives `apt-get` in noninteractive
 mode and suppresses recommends/suggests so the initial dependency bootstrap is
 less noisy.
 
-An arm64-native Bookworm container is not yet sufficient for the full package
-step: the vendor AARCH64 `cert_uefi_create_rsa` and `fiptool` binaries require
-`GLIBC_2.38`, while the AARCH64 `cix_package_tool` itself only needs
-`GLIBC_2.34`. If you are reusing existing cert blobs, that narrows the native
-arm64 blocker to `fiptool`, but for now the amd64 buildbox path remains the
-supported route for complete replay or release builds.
+Native arm64 packaging is now viable on Debian Trixie-class userspaces, and
+the current `O6` replay work has already shown that `amd64+trixie` and
+`arm64+trixie` produce identical `cix_flash_*.bin`, `BuildOptions`, and
+`csu_pm_config.bin` outputs. Native arm64 Bookworm is still too old for the
+vendored AARCH64 helpers because:
+
+- `AARCH64/cix_package_tool` only needs `GLIBC_2.34`
+- `AARCH64/cert_uefi_create_rsa` needs `GLIBC_2.38`
+- `AARCH64/fiptool` needs `GLIBC_2.38`
+
+If you are specifically trying to recreate the published vendor release
+payloads byte-for-byte, the currently validated replay path remains the amd64
+Bookworm buildbox. If you want identical local outputs across `x86_64` and
+`arm64`, pin both hosts to the same newer distro/toolchain generation such as
+Trixie.
 
 The vendor `cix_package_tool` binary still emits ANSI colour escapes
 unconditionally. The packaging rules now normalise that tool's output only, so
