@@ -101,4 +101,16 @@ status "Installing Debian build dependencies"
     apt_get build-dep . -y --no-install-recommends
 )
 
+remaining_packages=()
+for package in "${required_packages[@]}"; do
+    if ! package_installed "$package"; then
+        remaining_packages+=("$package")
+    fi
+done
+
+if (( ${#remaining_packages[@]} > 0 )); then
+    status "Installing required host tools: ${remaining_packages[*]}"
+    apt_get install -y --no-install-recommends "${remaining_packages[@]}"
+fi
+
 status "Build dependencies ready."

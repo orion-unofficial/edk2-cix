@@ -57,6 +57,11 @@ at either:
 - an extracted FIP cert bundle containing `trusted-key-cert.bin`,
   `nt-fw-cert.bin`, and `nt-fw-key-cert.bin`
 
+When `ARTEFACT_MODE=upstream` is combined with
+`SIGNING_CERT_SOURCE_DIR=<path>`, that cert bundle is treated as required
+replay input and the build now fails immediately if the directory is missing
+or does not provide all three cert blobs.
+
 The build also supports two output modes:
 
 - `ARTEFACT_MODE=custom` is the default on `main-monorepo-edk2` and
@@ -167,6 +172,10 @@ So:
 - use the amd64 Bookworm buildbox when you need exact upstream replay
 - use a matched Trixie-class userspace on both hosts when you want identical
   local outputs across `x86_64` and `arm64`
+- expect `amd64 + trixie` to diverge from the Bookworm replay baseline at the
+  compiled firmware stage already: `BuildOptions` still matches, but
+  `SKY1_BL33_UEFI.fd` and much of the AARCH64 build tree differ under the
+  newer GCC 14 / binutils 2.44 toolchain
 - use `make -C src host-fiptool` if you want to prebuild the vendored TF-A
   `fiptool` before the first packaging run
 
