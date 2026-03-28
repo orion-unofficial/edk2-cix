@@ -109,6 +109,45 @@ you see the higher-level `Building ...` progress without the full compiler
 command flood. Use `make -C src V=1 ...` if you want the raw EDK2 command
 lines.
 
+If you want deployable firmware files without creating a Debian package, the
+top-level Makefile extensions now provide:
+
+```bash
+make firmware-stage
+make install
+make zip
+make targz
+```
+
+Those targets reuse the same deployable `O6` payload that the package ships:
+
+- top-level `startup.nsh`
+- `orion-o6/BuildOptions`
+- `orion-o6/cix_flash_all.bin`
+- `orion-o6/cix_flash_ota.bin`
+- `orion-o6/BurnImage.efi`
+- `orion-o6/FlashUpdate.efi`
+- `orion-o6/EnrollFromDefaultKeysApp.efi`
+- `orion-o6/VariableInfo.efi`
+- `orion-o6/Shell.efi`
+- `orion-o6/startup.nsh`
+
+By default:
+
+- `make firmware-stage` writes to `dist/firmware/orion-o6/<version>/`
+- `make install` writes to `/boot/efi/firmware/radxa/<version>/`
+- `make zip` writes `dist/edk2-cix-orion-o6-<version>.zip`
+- `make targz` writes `dist/edk2-cix-orion-o6-<version>.tar.gz`
+
+Use these variables to change the defaults:
+
+- `FIRMWARE_BOARD`
+- `FIRMWARE_PRODUCT`
+- `FIRMWARE_VERSION`
+- `FIRMWARE_STAGE_ROOT`
+- `FIRMWARE_INSTALL_ROOT`
+- `FIRMWARE_ARCHIVE_ROOT`
+
 If you only have a standalone `cix_flash_all.bin`, the helper can still
 recover the compiler and PM-config timestamps plus the cert bundle. Supply a
 matching `BuildOptions` file, or pass `--build-date <iso8601>`, if you want a
