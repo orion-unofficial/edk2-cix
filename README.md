@@ -86,11 +86,12 @@ The first `make devcontainer_setup` run now drives `apt-get` in noninteractive
 mode and suppresses recommends/suggests so the initial dependency bootstrap is
 less noisy.
 
-Native arm64 packaging is now viable on Debian Trixie-class userspaces, and
-the current `O6` replay work has already shown that `amd64+trixie` and
-`arm64+trixie` produce identical `cix_flash_*.bin`, `BuildOptions`, and
-`csu_pm_config.bin` outputs. Native arm64 Bookworm is still too old for the
-remaining vendored AARCH64 helpers because:
+The preferred distribution for local `x86_64` builds remains Debian
+`bookworm`.
+
+Native `arm64` / `aarch64` builds require Debian `trixie`, because the
+remaining closed-source vendor AARCH64 helpers cannot run on Bookworm. In
+particular:
 
 - `AARCH64/cix_package_tool` only needs `GLIBC_2.34`
 - `AARCH64/cert_uefi_create_rsa` needs `GLIBC_2.38`
@@ -109,21 +110,13 @@ host dependency bootstrap now includes `libssl-dev`.
 
 If you are specifically trying to recreate the published vendor release
 payloads byte-for-byte, the currently validated replay path remains the amd64
-Bookworm buildbox. If you want identical local outputs across `x86_64` and
-`arm64`, pin both hosts to the same newer distro/toolchain generation such as
-Trixie. That newer toolchain generation does change the compiled firmware
-already at `SKY1_BL33_UEFI.fd`, even though `BuildOptions` remains identical
-to the Bookworm replay baseline.
+Bookworm buildbox.
 
 `bookworm` and `bookworm-backports` do not currently expose `gcc-13` or
 `gcc-14` for the `aarch64-linux-gnu` cross toolchain in the default Debian
-repositories, so the practical comparison matrix is currently:
+repositories.
 
-- `bookworm + gcc-12 + binutils 2.40`
-- `trixie + gcc-12 + binutils 2.44`
-- `trixie + gcc-14 + binutils 2.44`
-
-To check a local build against the stored exact-replay baseline without
+To check a build against the stored exact-replay baseline without
 re-running the whole release replay workflow, use:
 
 ```bash
@@ -134,6 +127,22 @@ That compares the built `O6` outputs against the checked-in
 `upstream-o6-1.2.1-bookworm` profile under
 [validation/o6/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/o6/expected-hashes.json)
 and writes a structural report under `build-validation/`.
+
+For the current Trixie-era local build family, the same file also carries a
+`modern-o6-trixie-structural` profile. That profile checks stable metadata and
+EFI section layout without requiring byte-identical output:
+
+```bash
+make validate-firmware FIRMWARE_VALIDATION_PROFILE=modern-o6-trixie-structural
+```
+
+To snapshot the current build into a fresh profile JSON for later review or to
+seed a new validation baseline, use:
+
+```bash
+make capture-validation-profile \
+  FIRMWARE_VALIDATION_PROFILE=modern-o6-trixie-structural
+```
 
 When you use the top-level `firmware-build`, `firmware-stage`, `zip`, or
 `targz` targets with `ARTEFACT_MODE=upstream`, that validation now runs

@@ -44,6 +44,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--profile-file", type=pathlib.Path, default=DEFAULT_PROFILE_FILE)
     parser.add_argument("--profile", default=DEFAULT_PROFILE)
     parser.add_argument("--report-json", type=pathlib.Path)
+    parser.add_argument("--emit-profile", type=pathlib.Path)
+    parser.add_argument("--emit-profile-name")
     parser.add_argument("--strict", action="store_true")
     return parser.parse_args()
 
@@ -142,6 +144,10 @@ def compare_expected(actual: dict[str, Any], expected: dict[str, Any]) -> tuple[
     for key in ("size", "sha256"):
         if key in expected and actual.get(key) != expected[key]:
             mismatches.append(f"{key}: expected {expected[key]}, got {actual.get(key)}")
+    if "min_size" in expected and actual.get("size", 0) < expected["min_size"]:
+        mismatches.append(f"min_size: expected at least {expected['min_size']}, got {actual.get('size')}")
+    if "max_size" in expected and actual.get("size", 0) > expected["max_size"]:
+        mismatches.append(f"max_size: expected at most {expected['max_size']}, got {actual.get('size')}")
     return (not mismatches, mismatches)
 
 
@@ -310,6 +316,49 @@ def main() -> int:
         "objdump": objdump,
         "fiptool": fiptool,
     }
+
+    if args.emit_profile:
+        generated_profile_name = args.emit_profile_name or args.profile
+        generated_profile: dict[str, Any] = {
+            "profiles": {
+                generated_profile_name: {
+                    "description": f"Generated from {build_dir}",
+                    "board": args.board,
+                    "target": args.target,
+                    "artefacts": {},
+                    "build_options": {},
+                    "pe_sections": {},
+                }
+            }
+        }
+        profile_entry = generated_profile["profiles"][generated_profile_name]
+        for label, entry in report["artefacts"].items():
+            if entry.get("exists"):
+                profile_entry["artefacts"][label] = {
+                    "path": entry["path"],
+                    "size": entry.get("size"),
+                    "sha256": entry.get("sha256"),
+                }
+        if build_options_actual:
+            profile_entry["build_options"] = {
+                "gCommandLineDefines": build_options_actual.get("gCommandLineDefines", {}),
+            }
+            if build_options_actual.get("active_platform"):
+                profile_entry["build_options"]["active_platform_suffix"] = build_options_actual["active_platform"]
+            if build_options_actual.get("flash_definition"):
+                profile_entry["build_options"]["flash_definition_suffix"] = build_options_actual["flash_definition"]
+        for relative_name, entry in report["pe_sections"].items():
+            if entry.get("sections"):
+                profile_entry["pe_sections"][relative_name] = [
+                    {"name": section["name"], "size": section["size"]}
+                    for section in entry["sections"]
+                ]
+        args.emit_profile.parent.mkdir(parents=True, exist_ok=True)
+        args.emit_profile.write_text(
+            json.dumps(generated_profile, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"Generated profile: {args.emit_profile}")
 
     print(f"Validation profile: {args.profile}")
     print(f"Build directory: {build_dir}")
