@@ -273,8 +273,8 @@ def write_rebuild_wrapper(
 set -euo pipefail
 
 cd {shlex.quote(str(REPO_ROOT))}
-make -C src clean
-make -C src {' '.join(make_vars)} {quoted_targets}
+make --no-print-directory -C src clean
+make --no-print-directory -C src {' '.join(make_vars)} {quoted_targets}
 """
     wrapper_path.write_text(wrapper, encoding="utf-8")
     wrapper_path.chmod(0o755)
@@ -306,8 +306,8 @@ def write_docker_rebuild_wrapper(
 set -euo pipefail
 
 cd {shlex.quote(str(REPO_ROOT))}
-./scripts/run_in_buildbox.sh make -C src clean
-./scripts/run_in_buildbox.sh make -C src {' '.join(make_vars)} {quoted_targets}
+./scripts/run_in_buildbox.sh make --no-print-directory -C src clean
+./scripts/run_in_buildbox.sh make --no-print-directory -C src {' '.join(make_vars)} {quoted_targets}
 """
     wrapper_path.write_text(wrapper, encoding="utf-8")
     wrapper_path.chmod(0o755)
