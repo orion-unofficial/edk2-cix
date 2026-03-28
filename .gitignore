@@ -29,3 +29,6 @@ __pycache__/
 
 # Local captured build logs
 /build-logs/
+
+# Local firmware validation reports
+/build-validation/
