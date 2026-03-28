@@ -53,7 +53,11 @@ python3 src/scripts/replay_o6_release.py \
 
 The generated `rebuild-o6-docker.sh` wrapper recreates the upstream
 `/workspaces/edk2-cix` path layout so that `ARTEFACT_MODE=upstream` can
-reproduce the vendor release payloads byte-for-byte.
+reproduce the vendor release payloads byte-for-byte. By default it writes its
+helper directory under the current system temp root and mounts that directory
+into the build container automatically. If you want to stage those helper
+files somewhere else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
+`EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper.
 
 For host-side Python maintenance checks without entering the devcontainer, run:
 

@@ -8,6 +8,7 @@ import datetime as dt
 import hashlib
 import io
 import json
+import os
 import pathlib
 import re
 import shlex
@@ -26,6 +27,12 @@ PM_CONFIG_DIR = SRC_DIR / "edk2-platforms" / "Platform" / "Radxa" / "Orion" / "O
 FLASH_CONFIG_ALL = PACKAGE_TOOL_DIR / "spi_flash_config_all.json"
 PACKAGE_TOOL_BIN = PACKAGE_TOOL_DIR / "X86_64" / "cix_package_tool"
 FIPTOOL_BIN = PACKAGE_TOOL_DIR / "X86_64" / "fiptool"
+DEFAULT_TMP_ROOT = pathlib.Path(
+    os.environ.get("EDK2_CIX_HOST_TMPDIR", tempfile.gettempdir())
+).resolve()
+DEFAULT_CONTAINER_TMPDIR = pathlib.PurePosixPath(
+    os.environ.get("EDK2_CIX_CONTAINER_TMPDIR", "/hosttmp")
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,7 +56,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output-dir",
-        help="Directory to write replay.env, certs/, and helper scripts into (defaults to a fresh /private/tmp directory)",
+        help=(
+            "Directory to write replay.env, certs/, and helper scripts into "
+            "(defaults to a fresh directory under the current temp root)"
+        ),
     )
     parser.add_argument(
         "--run-build",
@@ -92,12 +102,15 @@ def iso_to_epoch(text: str) -> int:
     return int(dt.datetime.fromisoformat(text).timestamp())
 
 
-def to_hosttmp_path(path: pathlib.Path) -> str:
-    path_str = str(path.resolve())
-    for prefix in ("/private/tmp/", "/tmp/"):
-        if path_str.startswith(prefix):
-            return f"/hosttmp/{path_str[len(prefix):]}"
-    raise ValueError(f"Path is not visible inside the helper container: {path}")
+def to_container_tmp_path(
+    path: pathlib.Path,
+    host_mount_root: pathlib.Path,
+    container_mount_root: pathlib.PurePosixPath = DEFAULT_CONTAINER_TMPDIR,
+) -> str:
+    resolved = path.resolve()
+    host_root = host_mount_root.resolve()
+    relative = resolved.relative_to(host_root)
+    return str(container_mount_root / pathlib.PurePosixPath(relative.as_posix()))
 
 
 def run(argv: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
@@ -185,6 +198,8 @@ def extract_flash_details(flash_image: pathlib.Path, work_dir: pathlib.Path) -> 
     input_dir = ensure_clean_dir(work_dir / "input")
     flash_dir = ensure_clean_dir(work_dir / "flash")
     pm_parse_path = work_dir / "pm_parse.txt"
+    host_tmp_root = work_dir.parent.resolve()
+    container_tmp_root = DEFAULT_CONTAINER_TMPDIR
 
     staged_flash = input_dir / "cix_flash_all.bin"
     shutil.copy2(flash_image, staged_flash)
@@ -193,7 +208,7 @@ def extract_flash_details(flash_image: pathlib.Path, work_dir: pathlib.Path) -> 
 set -euo pipefail
 pkg={shlex.quote('/workspace/' + str(PACKAGE_TOOL_DIR.relative_to(REPO_ROOT)))}
 pm={shlex.quote('/workspace/' + str(PM_CONFIG_DIR.relative_to(REPO_ROOT)))}
-work={shlex.quote(to_hosttmp_path(work_dir))}
+work={shlex.quote(to_container_tmp_path(work_dir, host_tmp_root, container_tmp_root))}
 mkdir -p "$work/flash"
 cd "$work/flash"
 "$pkg/X86_64/cix_package_tool" -d "$work/input/cix_flash_all.bin" -c "$pkg/spi_flash_config_all.json" >/dev/null
@@ -213,9 +228,9 @@ make -C "$pm" csupm_bin_config >/dev/null
             "-v",
             f"{REPO_ROOT}:/workspace",
             "-v",
-            "/private/tmp:/hosttmp",
+            f"{host_tmp_root}:{container_tmp_root}",
             "-w",
-            "/hosttmp",
+            str(container_tmp_root),
             "mcr.microsoft.com/devcontainers/base:bookworm",
             "bash",
             "-lc",
@@ -285,7 +300,10 @@ def write_docker_rebuild_wrapper(
     env_values: dict[str, str],
     build_targets: Iterable[str],
 ) -> None:
-    cert_dir_hosttmp = to_hosttmp_path(pathlib.Path(env_values["SIGNING_CERT_SOURCE_DIR"]))
+    cert_dir = pathlib.Path(env_values["SIGNING_CERT_SOURCE_DIR"]).resolve()
+    host_tmp_root = cert_dir.parent
+    container_tmp_root = DEFAULT_CONTAINER_TMPDIR
+    cert_dir_hosttmp = to_container_tmp_path(cert_dir, host_tmp_root, container_tmp_root)
     quoted_targets = " ".join(shlex.quote(target) for target in build_targets)
     make_vars = [
         f"BUILD_DATE={shlex.quote(env_values['BUILD_DATE'])}",
@@ -306,7 +324,11 @@ def write_docker_rebuild_wrapper(
 set -euo pipefail
 
 cd {shlex.quote(str(REPO_ROOT))}
+EDK2_CIX_HOST_TMPDIR={shlex.quote(str(host_tmp_root))} \\
+EDK2_CIX_CONTAINER_TMPDIR={shlex.quote(str(container_tmp_root))} \\
 ./scripts/run_in_buildbox.sh make --no-print-directory -C src clean
+EDK2_CIX_HOST_TMPDIR={shlex.quote(str(host_tmp_root))} \\
+EDK2_CIX_CONTAINER_TMPDIR={shlex.quote(str(container_tmp_root))} \\
 ./scripts/run_in_buildbox.sh make --no-print-directory -C src {' '.join(make_vars)} {quoted_targets}
 """
     wrapper_path.write_text(wrapper, encoding="utf-8")
@@ -340,7 +362,7 @@ def main() -> int:
     output_dir = (
         pathlib.Path(args.output_dir).resolve()
         if args.output_dir
-        else pathlib.Path(tempfile.mkdtemp(prefix="o6-replay-", dir="/private/tmp"))
+        else pathlib.Path(tempfile.mkdtemp(prefix="o6-replay-", dir=str(DEFAULT_TMP_ROOT)))
     )
     ensure_clean_dir(output_dir)
 
@@ -348,7 +370,9 @@ def main() -> int:
     if args.keep_workdir:
         work_dir = ensure_clean_dir(output_dir / "work")
     else:
-        work_dir_obj = tempfile.TemporaryDirectory(prefix="o6-replay-work-", dir="/private/tmp")
+        work_dir_obj = tempfile.TemporaryDirectory(
+            prefix="o6-replay-work-", dir=str(DEFAULT_TMP_ROOT)
+        )
         work_dir = pathlib.Path(work_dir_obj.name)
 
     reference_files: dict[str, pathlib.Path] = {}

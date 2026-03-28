@@ -57,7 +57,7 @@ The build also supports two output modes:
 ## Replay published O6 firmware
 
 To recover the replay settings from a published O6 release artefact and write
-helper files under a fresh `/private/tmp/o6-replay-*` directory, run:
+helper files under a fresh temp directory, run:
 
 ```bash
 python3 src/scripts/replay_o6_release.py <edk2-cix_*.deb>
@@ -99,7 +99,10 @@ To start the replay build immediately in the current shell, add
 generated `rebuild-o6-docker.sh` wrapper instead. That wrapper reuses the
 persistent `edk2-cix-buildbox` container, mounts the checkout at
 `/workspaces/edk2-cix`, and therefore preserves the same embedded build paths
-as the upstream release.
+as the upstream release. By default it also mounts the helper's temp directory
+into the container automatically. If you need a different host/container temp
+mapping, set `EDK2_CIX_HOST_TMPDIR` and `EDK2_CIX_CONTAINER_TMPDIR` before
+running the wrapper.
 
 ## Reuse the build container
 
