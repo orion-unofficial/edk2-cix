@@ -137,11 +137,21 @@ exec_cix_mkimage() {
     export PATH_PACKAGE_TOOL="${WORKSPACE}/edk2-non-osi/Platform/CIX/Sky1/PackageTool"
     export PATH_FIRMARES="${PATH_OUT}/Firmwares"
     export PATH_PROJECT="${WORKSPACE}/${UEFI_PROJECT_FOLDER}/${UEFI_PROJECT_PATH}/${UEFI_PROJECT}"
+    local host_arch
+    local host_fiptool_dir="${WORKSPACE}/tools/arm-trusted-firmware-fiptool"
+    local host_fiptool_bin
 
     if [ $# != 1 ]; then
         echo "Error input parameter for mkimage"
 		exit 1
 	fi
+
+    host_arch="$(uname -m)"
+    if [[ "${host_arch}" == "arm64" ]]; then
+        host_arch="aarch64"
+    fi
+    host_fiptool_bin="${host_fiptool_dir}/build/${host_arch}/fiptool"
+    make -C "${host_fiptool_dir}" HOST_ARCH="${host_arch}" >/dev/null
 
     local build_key_type=$1
     local path_out_temp
@@ -206,11 +216,11 @@ exec_cix_mkimage() {
     if [ "$(uname -m)" = "aarch64" ]; then
       cp  "${PATH_PACKAGE_TOOL}/AARCH64/cert_uefi_create_rsa" "${path_out_temp}"
       cp  "${PATH_PACKAGE_TOOL}/AARCH64/cix_package_tool" "${path_out_temp}"
-      cp  "${PATH_PACKAGE_TOOL}/AARCH64/fiptool" "${path_out_temp}"
+      cp  "${host_fiptool_bin}" "${path_out_temp}/fiptool"
     else
       cp  "${PATH_PACKAGE_TOOL}/X86_64/cert_uefi_create_rsa" "${path_out_temp}"
       cp  "${PATH_PACKAGE_TOOL}/X86_64/cix_package_tool" "${path_out_temp}"
-      cp  "${PATH_PACKAGE_TOOL}/X86_64/fiptool" "${path_out_temp}"
+      cp  "${host_fiptool_bin}" "${path_out_temp}/fiptool"
 	  cp  "${PATH_PACKAGE_TOOL}/cix_regen_trusted_key_cert" "${path_out_temp}"
     fi
     cp ${PATH_PACKAGE_TOOL}/spi_flash_config_all.json ${path_out_temp}
