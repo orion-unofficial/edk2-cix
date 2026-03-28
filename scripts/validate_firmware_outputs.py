@@ -1,0 +1,353 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import ast
+import hashlib
+import json
+import pathlib
+import re
+import shutil
+import subprocess
+import sys
+from typing import Any
+
+
+SCRIPT_PATH = pathlib.Path(__file__).resolve()
+REPO_ROOT = SCRIPT_PATH.parent.parent
+DEFAULT_PROFILE_FILE = REPO_ROOT / "validation" / "o6" / "expected-hashes.json"
+DEFAULT_PROFILE = "upstream-o6-1.2.1-bookworm"
+DEFAULT_PE_FILES = (
+    "AARCH64/Shell.efi",
+    "AARCH64/VariableInfo.efi",
+    "AARCH64/EnrollFromDefaultKeysApp.efi",
+)
+DEFAULT_OPTIONAL_FILES = (
+    "FV/SKY1_BL33_UEFI.fd",
+    "Firmwares/bootloader3.img",
+)
+SECTION_RE = re.compile(r"^\s*\d+\s+(\S+)\s+([0-9A-Fa-f]+)\s+[0-9A-Fa-f]+\s+(\S+)")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Validate built firmware artefacts against a stored baseline and "
+            "capture structural metadata for later comparison."
+        )
+    )
+    parser.add_argument("--repo-root", type=pathlib.Path, default=REPO_ROOT)
+    parser.add_argument("--build-dir", type=pathlib.Path)
+    parser.add_argument("--board", default="O6")
+    parser.add_argument("--target", default="RELEASE_GCC5")
+    parser.add_argument("--profile-file", type=pathlib.Path, default=DEFAULT_PROFILE_FILE)
+    parser.add_argument("--profile", default=DEFAULT_PROFILE)
+    parser.add_argument("--report-json", type=pathlib.Path)
+    parser.add_argument("--strict", action="store_true")
+    return parser.parse_args()
+
+
+def sha256_file(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def load_profiles(profile_file: pathlib.Path) -> dict[str, Any]:
+    data = json.loads(profile_file.read_text(encoding="utf-8"))
+    return data.get("profiles", {})
+
+
+def resolve_build_dir(args: argparse.Namespace) -> pathlib.Path:
+    if args.build_dir:
+        return args.build_dir.resolve()
+    return args.repo_root.resolve() / "src" / "Build" / args.board / args.target
+
+
+def parse_build_options(path: pathlib.Path) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    if not path.is_file():
+        return result
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("gCommandLineDefines: "):
+            payload = line.partition(": ")[2]
+            result["gCommandLineDefines"] = ast.literal_eval(payload)
+        elif line.startswith("Active Platform: "):
+            result["active_platform"] = line.partition(": ")[2].strip()
+        elif line.startswith("Flash Image Definition: "):
+            result["flash_definition"] = line.partition(": ")[2].strip()
+    return result
+
+
+def find_objdump() -> str | None:
+    for candidate in ("aarch64-linux-gnu-objdump", "llvm-objdump", "objdump", "gobjdump"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+    return None
+
+
+def parse_pe_sections(path: pathlib.Path, objdump: str | None) -> list[dict[str, Any]] | None:
+    if not objdump or not path.is_file():
+        return None
+    result = subprocess.run(
+        [objdump, "-h", str(path)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    sections: list[dict[str, Any]] = []
+    for line in result.stdout.splitlines():
+        match = SECTION_RE.match(line)
+        if not match:
+            continue
+        name, size_hex, section_type = match.groups()
+        sections.append(
+            {
+                "name": name,
+                "size": int(size_hex, 16),
+                "type": section_type,
+            }
+        )
+    return sections
+
+
+def find_fiptool(repo_root: pathlib.Path) -> str | None:
+    for candidate in (
+        repo_root / "src" / "tools" / "arm-trusted-firmware-fiptool" / "build" / "aarch64" / "fiptool",
+        repo_root / "src" / "tools" / "arm-trusted-firmware-fiptool" / "build" / "x86_64" / "fiptool",
+    ):
+        if candidate.is_file():
+            return str(candidate)
+    return shutil.which("fiptool")
+
+
+def gather_fip_info(path: pathlib.Path, fiptool: str | None) -> list[str] | None:
+    if not fiptool or not path.is_file():
+        return None
+    result = subprocess.run(
+        [fiptool, "info", str(path)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return [line.rstrip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def compare_expected(actual: dict[str, Any], expected: dict[str, Any]) -> tuple[bool, list[str]]:
+    mismatches: list[str] = []
+    for key in ("size", "sha256"):
+        if key in expected and actual.get(key) != expected[key]:
+            mismatches.append(f"{key}: expected {expected[key]}, got {actual.get(key)}")
+    return (not mismatches, mismatches)
+
+
+def suffix_matches(actual: str | None, expected_suffix: str | None) -> bool | None:
+    if expected_suffix is None:
+        return None
+    if actual is None:
+        return False
+    return actual.endswith(expected_suffix)
+
+
+def main() -> int:
+    args = parse_args()
+    repo_root = args.repo_root.resolve()
+    build_dir = resolve_build_dir(args)
+    profiles = load_profiles(args.profile_file.resolve())
+    profile = profiles.get(args.profile)
+    if profile is None:
+        print(
+            f"Unknown profile '{args.profile}' in {args.profile_file}",
+            file=sys.stderr,
+        )
+        return 2
+
+    artefact_specs = dict(profile.get("artefacts", {}))
+    objdump = find_objdump()
+    fiptool = find_fiptool(repo_root)
+
+    report: dict[str, Any] = {
+        "profile": args.profile,
+        "description": profile.get("description"),
+        "repo_root": str(repo_root),
+        "build_dir": str(build_dir),
+        "artefacts": {},
+        "build_options": {},
+        "pe_sections": {},
+        "fip_info": {},
+        "summary": {},
+    }
+
+    matched = 0
+    mismatched = 0
+    missing = 0
+
+    for label, spec in artefact_specs.items():
+        relative_path = pathlib.Path(spec["path"])
+        actual_path = build_dir / relative_path
+        entry: dict[str, Any] = {
+            "path": str(relative_path),
+            "exists": actual_path.is_file(),
+        }
+        if actual_path.is_file():
+            entry["size"] = actual_path.stat().st_size
+            entry["sha256"] = sha256_file(actual_path)
+            ok, reasons = compare_expected(entry, spec)
+            entry["status"] = "match" if ok else "mismatch"
+            if reasons:
+                entry["mismatches"] = reasons
+            if ok:
+                matched += 1
+            else:
+                mismatched += 1
+        else:
+            entry["status"] = "missing"
+            missing += 1
+        report["artefacts"][label] = entry
+
+    build_options_path = build_dir / "BuildOptions"
+    build_options_actual = parse_build_options(build_options_path)
+    build_options_expected = profile.get("build_options", {})
+    build_options_report: dict[str, Any] = {
+        "path": "BuildOptions",
+        "exists": build_options_path.is_file(),
+        "actual": build_options_actual,
+        "status": "skipped",
+        "mismatches": [],
+    }
+    if build_options_actual:
+        build_options_report["status"] = "match"
+        expected_defines = build_options_expected.get("gCommandLineDefines", {})
+        actual_defines = build_options_actual.get("gCommandLineDefines", {})
+        define_mismatches = []
+        for key, expected_value in expected_defines.items():
+            actual_value = actual_defines.get(key)
+            if actual_value != expected_value:
+                define_mismatches.append(
+                    f"gCommandLineDefines[{key}]: expected {expected_value}, got {actual_value}"
+                )
+        active_match = suffix_matches(
+            build_options_actual.get("active_platform"),
+            build_options_expected.get("active_platform_suffix"),
+        )
+        if active_match is False:
+            build_options_report["mismatches"].append(
+                "active_platform suffix mismatch"
+            )
+        flash_match = suffix_matches(
+            build_options_actual.get("flash_definition"),
+            build_options_expected.get("flash_definition_suffix"),
+        )
+        if flash_match is False:
+            build_options_report["mismatches"].append(
+                "flash_definition suffix mismatch"
+            )
+        build_options_report["mismatches"].extend(define_mismatches)
+        if build_options_report["mismatches"]:
+            build_options_report["status"] = "mismatch"
+    report["build_options"] = build_options_report
+
+    pe_expected = profile.get("pe_sections", {})
+    for relative_name in sorted(set(DEFAULT_PE_FILES) | set(pe_expected)):
+        path = build_dir / relative_name
+        sections = parse_pe_sections(path, objdump)
+        entry: dict[str, Any] = {
+            "path": relative_name,
+            "exists": path.is_file(),
+            "objdump": objdump,
+            "status": "skipped" if not sections else "match",
+            "sections": sections,
+            "mismatches": [],
+        }
+        expected_sections = pe_expected.get(relative_name)
+        if sections is None and path.is_file():
+            entry["status"] = "skipped"
+            entry["mismatches"].append("No objdump tool available")
+        elif sections is None:
+            entry["status"] = "missing"
+        elif expected_sections is not None:
+            actual_min = [{"name": section["name"], "size": section["size"]} for section in sections]
+            if actual_min != expected_sections:
+                entry["status"] = "mismatch"
+                entry["mismatches"].append(
+                    f"Expected sections {expected_sections}, got {actual_min}"
+                )
+        report["pe_sections"][relative_name] = entry
+
+    for relative_name in DEFAULT_OPTIONAL_FILES:
+        path = build_dir / relative_name
+        if relative_name.endswith("bootloader3.img"):
+            report["fip_info"][relative_name] = {
+                "path": relative_name,
+                "exists": path.is_file(),
+                "tool": fiptool,
+                "lines": gather_fip_info(path, fiptool),
+            }
+        else:
+            report["fip_info"][relative_name] = {
+                "path": relative_name,
+                "exists": path.is_file(),
+                "sha256": sha256_file(path) if path.is_file() else None,
+                "size": path.stat().st_size if path.is_file() else None,
+            }
+
+    build_option_status = report["build_options"]["status"]
+    section_mismatches = sum(
+        1
+        for entry in report["pe_sections"].values()
+        if entry["status"] == "mismatch"
+    )
+    report["summary"] = {
+        "matched_hashes": matched,
+        "mismatched_hashes": mismatched,
+        "missing_hashes": missing,
+        "build_options_status": build_option_status,
+        "section_mismatches": section_mismatches,
+        "objdump": objdump,
+        "fiptool": fiptool,
+    }
+
+    print(f"Validation profile: {args.profile}")
+    print(f"Build directory: {build_dir}")
+    print(
+        "Hash results: "
+        f"{matched} matched, {mismatched} mismatched, {missing} missing"
+    )
+    if build_option_status == "match":
+        print("BuildOptions structure: match")
+    elif build_option_status == "mismatch":
+        print("BuildOptions structure: mismatch")
+        for mismatch in report["build_options"]["mismatches"]:
+            print(f"  - {mismatch}")
+    else:
+        print("BuildOptions structure: skipped")
+
+    if section_mismatches:
+        print(f"PE/COFF section mismatches: {section_mismatches}")
+
+    if args.report_json:
+        args.report_json.parent.mkdir(parents=True, exist_ok=True)
+        args.report_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(f"Structural report: {args.report_json}")
+
+    failed = mismatched or missing or build_option_status == "mismatch" or section_mismatches
+    if failed:
+        sys.stdout.flush()
+        print(
+            "WARNING: built artefacts differ from the stored validation profile.",
+            file=sys.stderr,
+        )
+        print(
+            "         Review the hash and structural report above before treating this build as replay-identical.",
+            file=sys.stderr,
+        )
+
+    return 1 if args.strict and failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
