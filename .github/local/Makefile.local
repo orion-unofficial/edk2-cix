@@ -12,13 +12,13 @@ build: build-edk2
 
 .PHONY: build-edk2
 build-edk2:
-	make -C src
+	make --no-print-directory -C src
 
 clean: clean-edk2
 
 .PHONY: clean-edk2
 clean-edk2:
-	make -C src clean
+	make --no-print-directory -C src clean
 
 .PHONY: buildbox-up
 buildbox-up:
@@ -26,12 +26,16 @@ buildbox-up:
 
 .PHONY: buildbox-deb
 buildbox-deb:
-	./scripts/run_in_buildbox.sh make deb
+	./scripts/run_in_buildbox.sh make --no-print-directory deb
 
 .PHONY: buildbox-o6
 buildbox-o6:
-	./scripts/run_in_buildbox.sh make -C src Build/O6/RELEASE_GCC5/cix_flash_all.bin Build/O6/RELEASE_GCC5/cix_flash_ota.bin
+	./scripts/run_in_buildbox.sh make --no-print-directory -C src Build/O6/RELEASE_GCC5/cix_flash_all.bin Build/O6/RELEASE_GCC5/cix_flash_ota.bin
+
+.PHONY: buildbox-o6-log
+buildbox-o6-log:
+	./scripts/capture_build_log.sh build-logs ./scripts/run_in_buildbox.sh make --no-print-directory -C src Build/O6/RELEASE_GCC5/cix_flash_all.bin Build/O6/RELEASE_GCC5/cix_flash_ota.bin
 
 .PHONY: buildbox-metadata
 buildbox-metadata:
-	./scripts/run_in_buildbox.sh make -C src print-build-metadata
+	./scripts/run_in_buildbox.sh make --no-print-directory -C src print-build-metadata
