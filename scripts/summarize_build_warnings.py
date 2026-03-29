@@ -37,8 +37,10 @@ WARNING_CLASSES = (
         pattern=re.compile(r"DevicePathUtilities\.c:.*-Wstringop-overflow"),
         disposition="triaged-upstream",
         note=(
-            "Imported upstream edk2 warning in UefiDevicePathLib. Worth "
-            "tracking, but not yet patched on the upstream-preserving path."
+            "Imported upstream edk2 warning from the host-side BaseTools "
+            "DevicePath utility build, not the AARCH64 firmware image build. "
+            "Worth tracking, but not yet patched on the upstream-preserving "
+            "path."
         ),
     ),
     WarningClass(

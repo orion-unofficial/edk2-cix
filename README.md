@@ -149,6 +149,11 @@ The first `make devcontainer_setup` run now drives `apt-get` in noninteractive
 mode and suppresses recommends/suggests so the initial dependency bootstrap is
 less noisy.
 
+The firmware build also records the userspace and toolchain context used for
+the EDK2 `BaseTools/Source/C` helpers. If that context changes, the next build
+rebuilds those helper binaries automatically instead of reusing stale
+host-built copies.
+
 The preferred distribution for local `x86_64` builds remains Debian
 `bookworm`.
 
