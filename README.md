@@ -193,16 +193,19 @@ host-built copies.
 The preferred distribution for local `x86_64` builds remains Debian
 `bookworm`.
 
-Native `arm64` / `aarch64` builds require Debian `trixie`, because the
-remaining closed-source vendor AARCH64 helpers cannot run on Bookworm. In
-particular:
+Native `arm64` / `aarch64` work no longer depends on the old closed-source
+`cert_uefi_create_rsa` helper. The local build now compiles both that tool and
+`fiptool` from source, so the remaining shipped AARCH64 ABI sensitivity is the
+vendor `cix_package_tool` binary:
 
 - `AARCH64/cix_package_tool` only needs `GLIBC_2.34`
-- `AARCH64/cert_uefi_create_rsa` needs `GLIBC_2.38`
 
-`fiptool` is now built from the vendored Arm Trusted Firmware-A source snapshot
+`fiptool` is built from the vendored Arm Trusted Firmware-A source snapshot
 under [src/tools/arm-trusted-firmware-fiptool](/Users/Stuart/src/edk2-cix/src/tools/arm-trusted-firmware-fiptool),
-so the packaging path no longer depends on the old shipped `fiptool` binaries.
+and `cert_uefi_create_rsa` is built from the in-tree source helper under
+[src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cert_uefi_create_rsa](/Users/Stuart/src/edk2-cix/src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cert_uefi_create_rsa),
+so the self-generated FIP-cert path no longer depends on shipped opaque
+binaries.
 You can build it explicitly with:
 
 ```bash
@@ -213,8 +216,10 @@ That source build depends on the normal OpenSSL development headers, so the
 host dependency bootstrap now includes `libssl-dev`.
 
 If you are specifically trying to recreate the published vendor release
-payloads byte-for-byte, the currently validated replay path remains the amd64
-Bookworm buildbox. On `arm64` / `aarch64`, force that path with
+payloads byte-for-byte, the validated replay paths remain the Bookworm
+buildboxes with the extracted cert bundle reused. Freshly generated certs are
+compatible but not byte-identical because they inherently carry signing-time
+entropy. On `arm64` / `aarch64`, you can still force the amd64 replay path with
 `BUILDBOX_PLATFORM=linux/amd64` or `EDK2_CIX_BUILDBOX_PLATFORM=linux/amd64`
 once your container runtime has x86_64 emulation configured.
 
