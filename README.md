@@ -65,19 +65,23 @@ The local container helpers prefer `podman` when it is installed and usable,
 and otherwise fall back to `docker`. Set
 `EDK2_CIX_CONTAINER_RUNTIME=docker` or
 `EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
+
 By default the buildbox now follows the host architecture: `linux/amd64` with
 the Bookworm base image on `x86_64`, and `linux/arm64` with the Trixie base
 image on `arm64` / `aarch64`. Override that with
 `EDK2_CIX_BUILDBOX_PLATFORM`, `EDK2_CIX_BUILDBOX_IMAGE`,
 `BUILDBOX_PLATFORM=...`, or `BUILDBOX_IMAGE=...` when you need a specific
 container environment.
+
 The `buildbox-*` targets keep their host-side scratch space under
 `.buildbox/`, write staged/archive outputs under `dist/`, and copy Debian
-package artefacts into `dist/deb/`. The firmware-oriented `buildbox-*` targets
-install the slimmer firmware dependency profile by default; `buildbox-deb`
-switches the same reusable container to the fuller packaging profile when it
-needs Debian packaging tools. You can also invoke them from another working
-directory with `make -C /path/to/checkout buildbox-...`.
+package artefacts into `dist/deb/`.
+
+The firmware-oriented `buildbox-*` targets install the slimmer firmware
+dependency profile by default; `buildbox-deb` switches the same reusable
+container to the fuller packaging profile when it needs Debian packaging
+tools. You can also invoke them from another working directory with
+`make -C /path/to/checkout buildbox-...`.
 
 ### With `devcontainer`
 
@@ -163,15 +167,19 @@ reproduce the vendor release payloads byte-for-byte. By default it writes its
 helper directory under the current system temp root and mounts that directory
 into the build container automatically. If you want to stage those helper
 files somewhere else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
-`EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper. Despite the retained
-filename, the local helper scripts also prefer `podman` over `docker` when it
-is available and usable. The generated wrapper now also pins the buildbox back
-to the validated amd64 Bookworm replay environment explicitly.
+`EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper.
+
+Despite the retained filename, the local helper scripts also prefer `podman`
+over `docker` when it is available and usable. The generated wrapper now also
+pins the buildbox back to the validated amd64 Bookworm replay environment
+explicitly.
 
 The first `make devcontainer_setup` run now drives `apt-get` in noninteractive
 mode and suppresses recommends/suggests so the initial dependency bootstrap is
-less noisy. The buildbox helpers use the slimmer firmware dependency profile
-by default and only switch to the fuller packaging profile for `buildbox-deb`.
+less noisy.
+
+The buildbox helpers use the slimmer firmware dependency profile by default
+and only switch to the fuller packaging profile for `buildbox-deb`.
 
 The firmware build also records the userspace and toolchain context used for
 the EDK2 `BaseTools/Source/C` helpers. If that context changes, the next build
@@ -244,7 +252,7 @@ automatically and emits a loud warning if the local artefacts drift away from
 the stored Bookworm replay baseline.
 
 If you do not want a Debian package, the local Makefile extensions now provide
-three direct payload workflows based on the same `O6` files that the `.deb`
+several direct payload targets based on the same `O6` files that the `.deb`
 ships:
 
 ```bash
