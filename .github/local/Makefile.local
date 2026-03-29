@@ -1,6 +1,14 @@
 LOCAL_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
 REPO_ROOT ?= $(patsubst %/,%,$(abspath $(dir $(LOCAL_MAKEFILE))/../..))
 REPO_NAME ?= $(notdir $(REPO_ROOT))
+V ?= 0
+ifeq ($(V),1)
+Q :=
+else
+Q := @
+endif
+WITH_REPO_LOCK := "$(REPO_ROOT)/scripts/with_repo_lock.sh"
+LOCKED_MAKE = $(if $(filter 1,$(EDK2_CIX_REPO_LOCK_HELD)),$(MAKE) --no-print-directory,$(WITH_REPO_LOCK) $(MAKE) --no-print-directory)
 BUILDBOX_WORKSPACE_PARENT ?= /workspaces
 BUILDBOX_WORKSPACE_ROOT ?= $(BUILDBOX_WORKSPACE_PARENT)/$(REPO_NAME)
 BUILDBOX_HOST_TMPDIR ?= $(REPO_ROOT)/.buildbox/tmp
@@ -45,12 +53,12 @@ BUILDBOX_FIRMWARE_ARGS = \
 	FIRMWARE_VALIDATION_REPORT_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/build-validation"
 
 src/tools/gcc/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf.tar.xz:
-	mkdir -p src/tools/gcc
-	wget -O $@ \
+	$(Q)mkdir -p src/tools/gcc
+	$(Q)wget -O $@ \
 	"https://developer.arm.com/-/media/files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf.tar.xz"
 
 src/tools/gcc/%: src/tools/gcc/%.tar.xz
-	tar xvf $< -C src/tools/gcc/
+	$(Q)tar xvf $< -C src/tools/gcc/
 
 build: build-edk2
 
@@ -108,13 +116,19 @@ help:
 	print_help_line '  BUILDBOX_IMAGE=<image>' 'Override the buildbox base image'; \
 	printf '\n%s\n' 'For lower-level firmware targets, run: make -C src help'
 
-.PHONY: build-edk2
+.PHONY: build-edk2 __build-edk2
 build-edk2:
-	$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src"
+	$(Q)$(LOCKED_MAKE) __build-edk2 V="$(V)"
 
-.PHONY: firmware-build
+__build-edk2:
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)"
+
+.PHONY: firmware-build __firmware-build
 firmware-build:
-	$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" $(FIRMWARE_SRC_BUILD_TARGETS)
+	$(Q)$(LOCKED_MAKE) __firmware-build V="$(V)"
+
+__firmware-build:
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" $(FIRMWARE_SRC_BUILD_TARGETS)
 	@if [ "$(FIRMWARE_VALIDATE_ON_BUILD)" = "1" ]; then \
 		printf '\n[validate] Checking artefacts against %s\n' "$(FIRMWARE_VALIDATION_PROFILE)"; \
 		mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"; \
@@ -123,12 +137,15 @@ firmware-build:
 			--board "$(FIRMWARE_BOARD)" \
 			--target "$(FIRMWARE_TARGET)" \
 			--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
-			--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"; \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"; \
 	fi
 
-.PHONY: firmware-stage
-firmware-stage: firmware-build
-	python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" stage \
+.PHONY: firmware-stage __firmware-stage
+firmware-stage:
+	$(Q)$(LOCKED_MAKE) __firmware-stage V="$(V)"
+
+__firmware-stage: __firmware-build
+	$(Q)python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" stage \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
@@ -136,9 +153,12 @@ firmware-stage: firmware-build
 		--version "$(FIRMWARE_VERSION)" \
 		--output-dir "$(FIRMWARE_STAGE_ROOT)"
 
-.PHONY: install
-install: firmware-stage
-	python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" install \
+.PHONY: install __install
+install:
+	$(Q)$(LOCKED_MAKE) __install V="$(V)"
+
+__install: __firmware-stage
+	$(Q)python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" install \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
@@ -146,9 +166,12 @@ install: firmware-stage
 		--version "$(FIRMWARE_VERSION)" \
 		--install-root "$(FIRMWARE_INSTALL_ROOT)"
 
-.PHONY: zip
-zip: firmware-build
-	python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" zip \
+.PHONY: zip __zip
+zip:
+	$(Q)$(LOCKED_MAKE) __zip V="$(V)"
+
+__zip: __firmware-build
+	$(Q)python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" zip \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
@@ -156,9 +179,12 @@ zip: firmware-build
 		--version "$(FIRMWARE_VERSION)" \
 		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
 
-.PHONY: targz
-targz: firmware-build
-	python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" targz \
+.PHONY: targz __targz
+targz:
+	$(Q)$(LOCKED_MAKE) __targz V="$(V)"
+
+__targz: __firmware-build
+	$(Q)python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" targz \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
@@ -166,20 +192,26 @@ targz: firmware-build
 		--version "$(FIRMWARE_VERSION)" \
 		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
 
-.PHONY: validate-firmware
+.PHONY: validate-firmware __validate-firmware
 validate-firmware:
+	$(Q)$(LOCKED_MAKE) __validate-firmware V="$(V)"
+
+__validate-firmware:
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
-	python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
+	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--target "$(FIRMWARE_TARGET)" \
 		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
 		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
 
-.PHONY: validate-firmware-strict
+.PHONY: validate-firmware-strict __validate-firmware-strict
 validate-firmware-strict:
+	$(Q)$(LOCKED_MAKE) __validate-firmware-strict V="$(V)"
+
+__validate-firmware-strict:
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
-	python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
+	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--target "$(FIRMWARE_TARGET)" \
@@ -187,10 +219,13 @@ validate-firmware-strict:
 		--strict \
 		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
 
-.PHONY: capture-validation-profile
+.PHONY: capture-validation-profile __capture-validation-profile
 capture-validation-profile:
+	$(Q)$(LOCKED_MAKE) __capture-validation-profile V="$(V)"
+
+__capture-validation-profile:
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
-	python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
+	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--target "$(FIRMWARE_TARGET)" \
@@ -199,21 +234,33 @@ capture-validation-profile:
 		--emit-profile "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-profile.json" \
 		--emit-profile-name "$(FIRMWARE_VALIDATION_PROFILE)"
 
-clean: clean-edk2
-clean: clean-buildbox
+.PHONY: clean __clean
+clean:
+	$(Q)$(LOCKED_MAKE) __clean V="$(V)"
 
-.PHONY: clean-edk2
+__clean: __clean-edk2 __clean-buildbox
+
+.PHONY: clean-edk2 __clean-edk2
 clean-edk2:
-	$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" clean
+	$(Q)$(LOCKED_MAKE) __clean-edk2 V="$(V)"
 
-.PHONY: buildbox-down
+__clean-edk2:
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" clean
+
+.PHONY: buildbox-down __buildbox-down
 buildbox-down:
+	$(Q)$(LOCKED_MAKE) __buildbox-down V="$(V)"
+
+__buildbox-down:
 	@container_name="$${EDK2_CIX_BUILDBOX_NAME:-edk2-cix-buildbox}"; \
 	requested_runtime="$${EDK2_CIX_CONTAINER_RUNTIME:-}"; \
+	host_os="$$(uname -s 2>/dev/null || echo unknown)"; \
 	removed=0; \
 	found_runtime=0; \
 	if [ -n "$$requested_runtime" ]; then \
 		runtimes="$$requested_runtime podman docker"; \
+	elif [ "$$host_os" = "Darwin" ]; then \
+		runtimes="docker podman"; \
 	else \
 		runtimes="podman docker"; \
 	fi; \
@@ -235,66 +282,102 @@ buildbox-down:
 		fi; \
 	fi
 
-.PHONY: clean-buildbox
-clean-buildbox: buildbox-down
+.PHONY: clean-buildbox __clean-buildbox
+clean-buildbox:
+	$(Q)$(LOCKED_MAKE) __clean-buildbox V="$(V)"
+
+__clean-buildbox: __buildbox-down
 	@if [ -d "$(BUILDBOX_HOST_TMPDIR)" ]; then \
 		printf '[clean] Removing buildbox scratch %s\n' "$(BUILDBOX_HOST_TMPDIR)"; \
 		rm -rf "$(BUILDBOX_HOST_TMPDIR)"; \
 	fi
 
-.PHONY: buildbox-up
+.PHONY: buildbox-up __buildbox-up
 buildbox-up:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" true
+	$(Q)$(LOCKED_MAKE) __buildbox-up V="$(V)"
 
-.PHONY: buildbox-deb
+__buildbox-up:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" true
+
+.PHONY: buildbox-deb __buildbox-deb
 buildbox-deb:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" --dep-profile packaging \
+	$(Q)$(LOCKED_MAKE) __buildbox-deb V="$(V)"
+
+__buildbox-deb:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" --dep-profile packaging \
 		bash -lc 'set -euo pipefail; repo_root="$$(pwd -P)"; parent_dir="$$(dirname "$$repo_root")"; output_dir="$(BUILDBOX_DEB_RESULT_ROOT_IN_CONTAINER)"; package_name="$$(dpkg-parsechangelog -S Source)"; mkdir -p "$$output_dir"; make --no-print-directory deb; find "$$parent_dir" -maxdepth 1 -type f \( -name "$$package_name"_*.deb -o -name "$$package_name"_*.udeb -o -name "$$package_name"_*.changes -o -name "$$package_name"_*.buildinfo -o -name "$$package_name"_*.build \) -exec cp -f -t "$$output_dir" {} +'
 
-.PHONY: buildbox-firmware-build
+.PHONY: buildbox-firmware-build __buildbox-firmware-build
 buildbox-firmware-build:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-build \
+	$(Q)$(LOCKED_MAKE) __buildbox-firmware-build V="$(V)"
+
+__buildbox-firmware-build:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-build V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-o6
 buildbox-o6: buildbox-firmware-build
 
-.PHONY: buildbox-o6-log
+.PHONY: buildbox-o6-log __buildbox-o6-log
 buildbox-o6-log:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/capture_build_log.sh" "$(BUILD_LOG_ROOT)" \
+	$(Q)$(LOCKED_MAKE) __buildbox-o6-log V="$(V)"
+
+__buildbox-o6-log:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/capture_build_log.sh" "$(BUILD_LOG_ROOT)" \
 		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
-		make --no-print-directory firmware-build $(BUILDBOX_FIRMWARE_ARGS)
+		make --no-print-directory firmware-build V="$(V)" $(BUILDBOX_FIRMWARE_ARGS)
 
-.PHONY: buildbox-firmware-stage
+.PHONY: buildbox-firmware-stage __buildbox-firmware-stage
 buildbox-firmware-stage:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-stage \
+	$(Q)$(LOCKED_MAKE) __buildbox-firmware-stage V="$(V)"
+
+__buildbox-firmware-stage:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-stage V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
-.PHONY: buildbox-zip
+.PHONY: buildbox-zip __buildbox-zip
 buildbox-zip:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory zip \
+	$(Q)$(LOCKED_MAKE) __buildbox-zip V="$(V)"
+
+__buildbox-zip:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory zip V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
-.PHONY: buildbox-targz
+.PHONY: buildbox-targz __buildbox-targz
 buildbox-targz:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory targz \
+	$(Q)$(LOCKED_MAKE) __buildbox-targz V="$(V)"
+
+__buildbox-targz:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory targz V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
-.PHONY: buildbox-validate-firmware
+.PHONY: buildbox-validate-firmware __buildbox-validate-firmware
 buildbox-validate-firmware:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware \
+	$(Q)$(LOCKED_MAKE) __buildbox-validate-firmware V="$(V)"
+
+__buildbox-validate-firmware:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
-.PHONY: buildbox-validate-firmware-strict
+.PHONY: buildbox-validate-firmware-strict __buildbox-validate-firmware-strict
 buildbox-validate-firmware-strict:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware-strict \
+	$(Q)$(LOCKED_MAKE) __buildbox-validate-firmware-strict V="$(V)"
+
+__buildbox-validate-firmware-strict:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware-strict V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
-.PHONY: buildbox-capture-validation-profile
+.PHONY: buildbox-capture-validation-profile __buildbox-capture-validation-profile
 buildbox-capture-validation-profile:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory capture-validation-profile \
+	$(Q)$(LOCKED_MAKE) __buildbox-capture-validation-profile V="$(V)"
+
+__buildbox-capture-validation-profile:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory capture-validation-profile V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
-.PHONY: buildbox-metadata
+.PHONY: buildbox-metadata __buildbox-metadata
 buildbox-metadata:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory -C src print-build-metadata
+	$(Q)$(LOCKED_MAKE) __buildbox-metadata V="$(V)"
+
+__buildbox-metadata:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory -C src print-build-metadata V="$(V)"
