@@ -27,11 +27,14 @@ On a supported Debian host:
 To install the required host packages directly on the machine, run:
 
 ```bash
+make firmware_build_dep
 make devcontainer_setup
 ```
 
-That target is just the repo's dependency bootstrap; it works fine outside a
-devcontainer.
+`make firmware_build_dep` installs the slimmer direct-firmware dependency
+profile. `make devcontainer_setup` installs the fuller packaging-capable
+dependency profile. Both are just the repo's dependency bootstrap, so they
+work fine outside a devcontainer.
 
 Then build either the Debian package or the direct firmware payloads:
 
@@ -64,8 +67,11 @@ and otherwise fall back to `docker`. Set
 `EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
 The `buildbox-*` targets keep their host-side scratch space under
 `.buildbox/`, write staged/archive outputs under `dist/`, and copy Debian
-package artefacts into `dist/deb/`. You can also invoke them from another
-working directory with `make -C /path/to/checkout buildbox-...`.
+package artefacts into `dist/deb/`. The firmware-oriented `buildbox-*` targets
+install the slimmer firmware dependency profile by default; `buildbox-deb`
+switches the same reusable container to the fuller packaging profile when it
+needs Debian packaging tools. You can also invoke them from another working
+directory with `make -C /path/to/checkout buildbox-...`.
 
 ### With `devcontainer`
 
@@ -155,7 +161,8 @@ is available and usable.
 
 The first `make devcontainer_setup` run now drives `apt-get` in noninteractive
 mode and suppresses recommends/suggests so the initial dependency bootstrap is
-less noisy.
+less noisy. The buildbox helpers use the slimmer firmware dependency profile
+by default and only switch to the fuller packaging profile for `buildbox-deb`.
 
 The firmware build also records the userspace and toolchain context used for
 the EDK2 `BaseTools/Source/C` helpers. If that context changes, the next build

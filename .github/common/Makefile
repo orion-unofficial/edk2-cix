@@ -20,19 +20,23 @@ all: build
 .PHONY: devcontainer_setup
 devcontainer_setup: pre_build_dep main_build_dep post_build_dep
 
+.PHONY: firmware_build_dep
+firmware_build_dep:
+	"$(REPO_ROOT)/scripts/ensure_build_deps.sh" --profile firmware
+
 .PHONY: pre_build_dep
 pre_build_dep:
 
 .PHONY: main_build_dep
 main_build_dep:
-	"$(REPO_ROOT)/scripts/ensure_build_deps.sh"
+	"$(REPO_ROOT)/scripts/ensure_build_deps.sh" --profile packaging
 
 .PHONY: post_build_dep
 post_build_dep:
 
 .PHONY: arm64_crossbuild_dep
 arm64_crossbuild_dep:
-	"$(REPO_ROOT)/scripts/ensure_build_deps.sh"
+	"$(REPO_ROOT)/scripts/ensure_build_deps.sh" --profile packaging
 	cd "$(REPO_ROOT)" && \
 	sudo env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true DEBCONF_NOWARNINGS=yes DEBIAN_PRIORITY=critical TERM=dumb \
 		apt-get -o APT::Install-Recommends=false -o APT::Install-Suggests=false -o Dpkg::Use-Pty=0 build-dep . -y --no-install-recommends --host-architecture arm64

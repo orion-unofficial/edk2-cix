@@ -28,10 +28,13 @@ For a headless SSH session or any other non-IDE workflow, bootstrap the build
 dependencies directly on the machine:
 
 ```bash
+make firmware_build_dep
 make devcontainer_setup
 ```
 
-That installs the same core build dependencies the devcontainer path uses.
+Use `make firmware_build_dep` when you only need direct firmware builds. Use
+`make devcontainer_setup` when you also want Debian packaging and the broader
+maintainer tool set.
 
 Then build whatever output you need:
 
@@ -62,6 +65,9 @@ The local container helpers prefer `podman` when it is installed and usable,
 and otherwise fall back to `docker`. Set
 `EDK2_CIX_CONTAINER_RUNTIME=docker` or
 `EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
+The firmware-oriented `buildbox-*` targets install the slimmer firmware
+dependency profile inside the reusable container; `buildbox-deb` switches that
+same container to the fuller packaging profile when needed.
 
 ## Build inside a devcontainer
 
