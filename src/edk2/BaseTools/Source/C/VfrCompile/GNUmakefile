@@ -35,6 +35,27 @@ MAKEROOT ?= ../..
 
 include $(MAKEROOT)/Makefiles/header.makefile
 
+PCCTS_VERSION_BANNER_PATTERN = ^(Antlr parser generator|dlg)[[:space:]]+Version[[:space:]]+.*
+
+ifeq ($(V),1)
+define RUN_PCCTS_GENERATOR
+$(1)
+endef
+else
+define RUN_PCCTS_GENERATOR
+pccts_stderr_log="$$(mktemp)" || exit $$?; \
+if $(1) 2>"$$pccts_stderr_log"; then \
+	sed -E '/$(PCCTS_VERSION_BANNER_PATTERN)/d' "$$pccts_stderr_log" >&2; \
+else \
+	status=$$?; \
+	cat "$$pccts_stderr_log" >&2; \
+	rm -f "$$pccts_stderr_log"; \
+	exit $$status; \
+fi; \
+rm -f "$$pccts_stderr_log"
+endef
+endif
+
 APPLICATION = $(MAKEROOT)/bin/$(APPNAME)
 
 .PHONY:all
@@ -50,11 +71,11 @@ include $(MAKEROOT)/Makefiles/footer.makefile
 
 VfrSyntax.cpp EfiVfrParser.cpp EfiVfrParser.h VfrParser.dlg VfrTokens.h: Pccts/antlr/antlr VfrSyntax.g
 	$(call PRINT_STATUS,GEN,VfrTokens.h)
-	$(Q)Pccts/antlr/antlr -CC -e3 -ck 3 -k 2 -fl VfrParser.dlg -ft VfrTokens.h -o . VfrSyntax.g
+	$(Q)$(call RUN_PCCTS_GENERATOR,Pccts/antlr/antlr -CC -e3 -ck 3 -k 2 -fl VfrParser.dlg -ft VfrTokens.h -o . VfrSyntax.g)
 
 VfrLexer.cpp VfrLexer.h: Pccts/dlg/dlg VfrParser.dlg
 	$(call PRINT_STATUS,GEN,VfrLexer.cpp)
-	$(Q)Pccts/dlg/dlg -C2 -i -CC -cl VfrLexer -o . VfrParser.dlg
+	$(Q)$(call RUN_PCCTS_GENERATOR,Pccts/dlg/dlg -C2 -i -CC -cl VfrLexer -o . VfrParser.dlg)
 
 Pccts/antlr/antlr:
 	$(call PRINT_STATUS,MAKE,$@)
