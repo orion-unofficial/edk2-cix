@@ -14,6 +14,10 @@ export PATH_OUT="${WORKSPACE}/output"
 export PATH_OUT_PR="${WORKSPACE}/output/pr"
 export PATH_OUT_PR2="${WORKSPACE}/output/pr2"
 export PATH_SOURCE_TOOLS="${WORKSPACE}/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools"
+export TRUSTED_KEY_CERT_TOOL_SOURCE_DIR="${PATH_SOURCE_TOOLS}/cix_regen_trusted_key_cert"
+export TRUSTED_KEY_CERT_TOOL_BIN="${TRUSTED_KEY_CERT_TOOL_SOURCE_DIR}/cix_regen_trusted_key_cert"
+export CERT_UEFI_CREATE_RSA_SOURCE_DIR="${PATH_SOURCE_TOOLS}/cert_uefi_create_rsa"
+export CERT_UEFI_CREATE_RSA_BIN="${CERT_UEFI_CREATE_RSA_SOURCE_DIR}/cert_uefi_create_rsa"
 
 export ARM_TOOLCHAIN_ELF="gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf"
 if [ "$(uname -m)" = "aarch64" ]; then
@@ -190,7 +194,9 @@ exec_cix_mkimage() {
         host_arch="aarch64"
     fi
     host_fiptool_bin="${host_fiptool_dir}/build/${host_arch}/fiptool"
-    make -C "${host_fiptool_dir}" HOST_ARCH="${host_arch}" V="${V}"
+    make -C "${host_fiptool_dir}" HOST_ARCH="${host_arch}" V="${V}" clean all
+    make -C "${TRUSTED_KEY_CERT_TOOL_SOURCE_DIR}" V="${V}" clean all
+    make -C "${CERT_UEFI_CREATE_RSA_SOURCE_DIR}" V="${V}" clean all
 
     local build_key_type=$1
     local path_out_temp
@@ -252,16 +258,10 @@ exec_cix_mkimage() {
     fi
 
 	# Copy tools to output
-    if [ "$(uname -m)" = "aarch64" ]; then
-      cp  "${PATH_PACKAGE_TOOL}/AARCH64/cert_uefi_create_rsa" "${path_out_temp}"
-      cp  "${PATH_SOURCE_TOOLS}/cix_package_tool/cix_package_tool.py" "${path_out_temp}"
-      cp  "${host_fiptool_bin}" "${path_out_temp}/fiptool"
-    else
-      cp  "${PATH_PACKAGE_TOOL}/X86_64/cert_uefi_create_rsa" "${path_out_temp}"
-      cp  "${PATH_SOURCE_TOOLS}/cix_package_tool/cix_package_tool.py" "${path_out_temp}"
-      cp  "${host_fiptool_bin}" "${path_out_temp}/fiptool"
-	  cp  "${PATH_PACKAGE_TOOL}/cix_regen_trusted_key_cert" "${path_out_temp}"
-    fi
+    cp  "${CERT_UEFI_CREATE_RSA_BIN}" "${path_out_temp}"
+    cp  "${TRUSTED_KEY_CERT_TOOL_BIN}" "${path_out_temp}"
+    cp  "${PATH_SOURCE_TOOLS}/cix_package_tool/cix_package_tool.py" "${path_out_temp}"
+    cp  "${host_fiptool_bin}" "${path_out_temp}/fiptool"
     cat > "${path_out_temp}/cix_package_tool" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
