@@ -29,7 +29,7 @@
   PCD_DYNAMIC_AS_DYNAMICEX       = TRUE
   ACPI_IOMUX_INPUT               = Platform/Radxa/Orion/$(PLATFORM_NAME)/Drivers/AcpiPlatfomTables/RadxaO6Iomux.asl
   ACPI_IOMUX_OUTPUT              = $(OUTPUT_DIRECTORY)/Iomux.asl
-  PREBUILD                       = python Platform/CIX/Sky1/Drivers/AcpiSocTables/tool/python3/ParseIomuxTemplate.py $(ACPI_IOMUX_INPUT) $(ACPI_IOMUX_OUTPUT)
+  PREBUILD                       = python3 Platform/CIX/Sky1/Drivers/AcpiSocTables/tool/python3/ParseIomuxTemplate.py $(ACPI_IOMUX_INPUT) $(ACPI_IOMUX_OUTPUT)
 
 !include  Platform/CIX/Sky1/Sky1Define.dsc.inc
 !include  Platform/Radxa/RadxaDefine.dsc.inc
