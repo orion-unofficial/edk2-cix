@@ -220,6 +220,10 @@ By default:
 - `make zip` writes `dist/edk2-cix-orion-o6-<version>.zip`
 - `make targz` writes `dist/edk2-cix-orion-o6-<version>.tar.gz`
 
+Both archive formats store the payload under `orion-o6/<version>/` inside the
+archive, so the archive members match the same product/version layout used by
+the staged payload.
+
 `make buildbox-firmware-stage` uses the same export path, and the staged files
 appear directly in the host checkout under `dist/firmware/orion-o6/<version>/`
 because the buildbox bind-mounts the repo root. You do not need to copy files
