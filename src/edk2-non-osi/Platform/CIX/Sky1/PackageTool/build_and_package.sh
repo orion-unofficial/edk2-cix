@@ -22,7 +22,11 @@ export UEFI_PROJECT="Merak"
 export UEFI_PROJECT_FOLDER="edk2-platforms"
 export UEFI_PROJECT_PATH="Platform/CIX/Sky1"
 export GCC5_AARCH64_PREFIX="${WORKSPACE}/tools/gcc/${ARM_TOOLCHAIN_ELF}/bin/aarch64-none-elf-"
-export IASL_PREFIX="${WORKSPACE}/tools/acpica/generate/unix/bin/"
+if command -v iasl >/dev/null 2>&1; then
+  export IASL_PREFIX="$(dirname "$(command -v iasl)")/"
+else
+  export IASL_PREFIX=""
+fi
 export PACKAGES_PATH=$WORKSPACE/edk2:$WORKSPACE/edk2-platforms:$WORKSPACE/edk2-non-osi
 export OS_SUPPORT_TYPE="common"
 export FASTBOOT_LOAD_TYPE="disable"
@@ -59,9 +63,9 @@ if [ ! -e $WORKSPACE/Source/C/bin ]; then
 	make -C edk2/BaseTools
 fi
 
-if [ ! -e $WORKSPACE/tools/acpica/generate/unix/bin ]; then
-	echo "Need build acpi tool!"
-	make -C tools/acpica
+if ! command -v iasl >/dev/null 2>&1; then
+	echo "ERROR: iasl is required but was not found in PATH"
+	exit 1
 fi
 
 source $WORKSPACE/edk2/edksetup.sh --reconfig
