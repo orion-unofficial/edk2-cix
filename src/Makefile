@@ -549,17 +549,31 @@ tools/acpica/generate/unix/bin/iasl:
 clean:
 	printf '[clean] Removing build output\n'
 	rm -rf Build
-	printf '[clean] Cleaning BaseTools\n'
-	$(MAKE) -s -C edk2/BaseTools -j$(shell nproc) clean
-	if [[ -f tools/acpica/Makefile ]] && grep -Eq '^[[:space:]]*veryclean:' tools/acpica/Makefile; then \
-		printf '[clean] Cleaning tools/acpica (veryclean)\n'; \
-		$(MAKE) -s -C tools/acpica -j$(shell nproc) veryclean; \
-	elif [[ -f tools/acpica/Makefile ]] && grep -Eq '^[[:space:]]*clean:' tools/acpica/Makefile; then \
-		printf '[clean] tools/acpica has no veryclean target; using clean instead\n'; \
-		$(MAKE) -s -C tools/acpica -j$(shell nproc) clean; \
-	else \
-		printf '[clean] tools/acpica has no clean target; skipping extra cleanup\n'; \
-	fi
+	printf '[clean] Removing host-built helper tools\n'
+	rm -rf "$(FIPTOOL_SOURCE_DIR)/build" tools/acpica/generate/unix/bin
+	rm -f "$(TRUSTED_KEY_CERT_TOOL_BIN)" "$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool"
+	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type f -name '*.pyc' -delete
+	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type d -name '__pycache__' -prune -exec rm -rf {} +
+	printf '[clean] Cleaning BaseTools output without invoking host toolchain checks\n'
+	rm -rf "$(BASETOOLS_C_BIN_DIR)" edk2/BaseTools/Source/C/libs
+	rm -f "$(BASETOOLS_C_MARKER)" edk2/Conf/.AutoGenIdFile.txt
+	rm -f \
+		edk2/BaseTools/Source/C/VfrCompile/Pccts/antlr/antlr \
+		edk2/BaseTools/Source/C/VfrCompile/Pccts/dlg/dlg \
+		edk2/BaseTools/Source/C/VfrCompile/EfiVfrParser.cpp \
+		edk2/BaseTools/Source/C/VfrCompile/EfiVfrParser.h \
+		edk2/BaseTools/Source/C/VfrCompile/VfrParser.dlg \
+		edk2/BaseTools/Source/C/VfrCompile/VfrTokens.h \
+		edk2/BaseTools/Source/C/VfrCompile/VfrLexer.cpp \
+		edk2/BaseTools/Source/C/VfrCompile/VfrLexer.h \
+		edk2/BaseTools/Source/C/VfrCompile/VfrSyntax.cpp \
+		edk2/BaseTools/Source/C/VfrCompile/tokens.h
+	find edk2/BaseTools/Source/C -type f \( \
+		-name '*.o' -o -name '*.d' -o -name '*.a' -o -name '*.so' -o \
+		-name '*.dll' -o -name '*.obj' -o -name '*.exe' \
+	\) -delete
+	find edk2/BaseTools -type f -name '*.pyc' -delete
+	find edk2/BaseTools -type d -name '__pycache__' -prune -exec rm -rf {} +
 
 .PHONY: distclean
 distclean: clean
