@@ -285,16 +285,17 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export CIX_PACKAGE_TOOL_BIN="$(shell realpath "$(CIX_PACKAGE_TOOL_BIN)")" && \
 	printf '[build/%s] Packaging OTA flash image\n' "$*" && \
-	pushd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
-	tmp_ota="./cix_flash_ota.bin.tmp" && \
-	rm -f "$$tmp_ota" && \
-	TERM=dumb "$$CIX_PACKAGE_TOOL_BIN" -c "./spi_flash_config_ota.json" -O "$$tmp_ota" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
-	if [[ ! -s "$$tmp_ota" ]]; then \
-		echo "[build/$*] Expected OTA image $$tmp_ota was not created" >&2; \
-		exit 1; \
-	fi && \
-	mv -f "$$tmp_ota" "./cix_flash_ota.bin" && \
-	popd
+	( \
+		cd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
+		tmp_ota="./cix_flash_ota.bin.tmp" && \
+		rm -f "$$tmp_ota" && \
+		TERM=dumb "$$CIX_PACKAGE_TOOL_BIN" -c "./spi_flash_config_ota.json" -O "$$tmp_ota" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
+		if [[ ! -s "$$tmp_ota" ]]; then \
+			echo "[build/$*] Expected OTA image $$tmp_ota was not created" >&2; \
+			exit 1; \
+		fi && \
+		mv -f "$$tmp_ota" "./cix_flash_ota.bin" \
+	)
 
 # MEM_CFG_MEMFREQ ?= 2750
 MEM_CFG_MEMFREQ ?= 3000
@@ -338,13 +339,14 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	printf '[build/%s] Packaging full flash image\n' "$*" && \
-	pushd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
-	TERM=dumb "$$CIX_PACKAGE_TOOL_BIN" -c "./spi_flash_config_all.json" -o "./cix_flash_all.raw" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
-	if [[ ! -s "./cix_flash_all.raw" ]]; then \
-		echo "[build/$*] Expected cix_flash_all.raw was not created" >&2; \
-		exit 1; \
-	fi && \
-	popd
+	( \
+		cd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
+		TERM=dumb "$$CIX_PACKAGE_TOOL_BIN" -c "./spi_flash_config_all.json" -o "./cix_flash_all.raw" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
+		if [[ ! -s "./cix_flash_all.raw" ]]; then \
+			echo "[build/$*] Expected cix_flash_all.raw was not created" >&2; \
+			exit 1; \
+		fi \
+	)
 
 	# \377 = 0xFF
 	tmp_all="Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.bin.tmp" && \

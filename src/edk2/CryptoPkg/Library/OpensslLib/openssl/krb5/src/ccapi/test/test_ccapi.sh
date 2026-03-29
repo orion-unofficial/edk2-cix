@@ -5,10 +5,10 @@
 TEST_DIR="tests"
 failure_count=0
 
-function run_test {
-	if [[ -e $TEST_DIR/$1 ]]; then
-		./$TEST_DIR/$1
-		failure_count=`expr $failure_count + $?`
+run_test() {
+	if [ -e "$TEST_DIR/$1" ]; then
+		"./$TEST_DIR/$1"
+		failure_count=$((failure_count + $?))
 	fi
 }
 
@@ -71,6 +71,6 @@ run_test test_cc_seq_fetch_creds_begin
 run_test test_cc_seq_fetch_creds_next
 run_test test_cc_get_NC_info
 
-printf "\nFinished testing CCAPI. $failure_count failures in total.\n"
+printf "\nFinished testing CCAPI. %s failures in total.\n" "$failure_count"
 
 exit 0
