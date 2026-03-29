@@ -14,6 +14,7 @@ host_tmpdir="${host_tmpdir%/}"
 if [[ -z "$host_tmpdir" ]]; then
     host_tmpdir="${repo_root}/.buildbox/tmp"
 fi
+verbose="${EDK2_CIX_VERBOSE:-0}"
 
 container_name="${EDK2_CIX_BUILDBOX_NAME:-edk2-cix-buildbox}"
 container_image="${EDK2_CIX_BUILDBOX_IMAGE:-}"
@@ -32,6 +33,39 @@ fi
 
 status() {
     printf '[buildbox] %s\n' "$*"
+}
+
+describe_command() {
+    local cmd="$1"
+    shift || true
+
+    case "$cmd" in
+        make)
+            local arg target=""
+            for arg in "$@"; do
+                case "$arg" in
+                    -*|*=*)
+                        continue
+                        ;;
+                    *)
+                        target="$arg"
+                        break
+                        ;;
+                esac
+            done
+            if [[ -n "$target" ]]; then
+                printf 'make %s\n' "$target"
+            else
+                printf 'make\n'
+            fi
+            ;;
+        bash|sh)
+            printf '%s\n' "$cmd"
+            ;;
+        *)
+            printf '%s\n' "$cmd"
+            ;;
+    esac
 }
 
 resolve_container_runtime() {
@@ -456,13 +490,22 @@ ensure_container
 verify_workspace
 
 status "Ensuring ${dep_profile} build dependencies are present"
-runtime exec -w "$workspace_path" "$container_name" bash -lc "./scripts/ensure_build_deps.sh --profile ${dep_profile}"
+runtime exec \
+    -e "EDK2_CIX_VERBOSE=${verbose}" \
+    -w "$workspace_path" \
+    "$container_name" \
+    bash -lc "./scripts/ensure_build_deps.sh --profile ${dep_profile}"
 ensure_git_safe_directory
 
-status "Running in ${container_name}: $*"
+if [[ "$verbose" == "1" ]]; then
+    status "Running in ${container_name}: $*"
+else
+    status "Running $(describe_command "$@") in ${container_name}"
+fi
 runtime exec \
     -e "EDK2_CIX_REPO_LOCK_HELD=${EDK2_CIX_REPO_LOCK_HELD:-}" \
     -e "EDK2_CIX_HOST_OS=${host_os}" \
+    -e "EDK2_CIX_VERBOSE=${verbose}" \
     -w "$workspace_path" \
     "$container_name" \
     "$@"

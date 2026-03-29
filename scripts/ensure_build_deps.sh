@@ -5,6 +5,7 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 dep_profile="${EDK2_CIX_DEP_PROFILE:-packaging}"
+verbose="${EDK2_CIX_VERBOSE:-${V:-0}}"
 
 status() {
     printf '[deps] %s\n' "$*"
@@ -28,12 +29,29 @@ apt_env=(
 )
 
 apt_get() {
-    as_root "${apt_env[@]}" apt-get \
+    if [[ "$verbose" == "1" ]]; then
+        as_root "${apt_env[@]}" apt-get \
+            -o APT::Install-Recommends=false \
+            -o APT::Install-Suggests=false \
+            -o APT::Color=0 \
+            -o Dpkg::Use-Pty=0 \
+            "$@"
+        return 0
+    fi
+
+    local apt_log
+    apt_log="$(mktemp "${TMPDIR:-/tmp}/edk2-cix-apt.XXXXXX")"
+    if ! as_root "${apt_env[@]}" apt-get \
         -o APT::Install-Recommends=false \
         -o APT::Install-Suggests=false \
         -o APT::Color=0 \
         -o Dpkg::Use-Pty=0 \
-        "$@"
+        "$@" >"$apt_log" 2>&1; then
+        cat "$apt_log" >&2
+        rm -f "$apt_log"
+        return 1
+    fi
+    rm -f "$apt_log"
 }
 
 usage() {
@@ -83,6 +101,10 @@ if [[ "${EUID}" -ne 0 ]] && ! command -v sudo >/dev/null 2>&1; then
 [deps] Re-run as root or install sudo first.
 EOF
     exit 1
+fi
+
+if [[ "${EUID}" -ne 0 ]]; then
+    sudo -v
 fi
 
 host_dpkg_arch="$(dpkg --print-architecture)"

@@ -111,6 +111,7 @@ BASETOOLS_C_REQUIRED_TOOLS := \
 DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f") \
 	#    $(shell find edk2-platforms/Platform/CIX -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f")
 
+FIRMWARE_BOARDS := $(foreach i,$(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)),$(lastword $(subst /, ,$(i))))
 CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_all.bin) \
 				 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
 .PHONY: build __build host-fiptool host-cix-regen-trusted-key-cert host-cix-package-tool
@@ -305,7 +306,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET
 	@export CFG="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/spi_flash_config_ota.json" -type f)" && \
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	if [[ -f "$$CFG" ]]; then \
-		echo "Found custom flash config."; \
+		if [[ "$(V)" == "1" ]]; then echo "Found custom flash config."; fi; \
 		cp "$$CFG" Build/$*/$(UEFI_TARGET)_GCC5/; \
 	else \
 		cp "$$PATH_PACKAGE_TOOL/spi_flash_config_ota.json" Build/$*/$(UEFI_TARGET)_GCC5/; \
@@ -334,7 +335,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 	@export MEM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/mem_config" -type d)" && \
 	if [[ -d "$$MEM" ]]; then \
 		printf '[build/%s] Regenerating memory configuration\n' "$*" && \
-		echo "Found custom memory configuration."; \
+		if [[ "$(V)" == "1" ]]; then echo "Found custom memory configuration."; fi; \
 		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/memory_config.bin; \
 		$(MAKE) -C "$$MEM" $(if $(strip $(HELPER_BUILD_JOBS)),-j$(HELPER_BUILD_JOBS)) -e CFLAG:="-DMEM_CFG_MEMFREQ=$(MEM_CFG_MEMFREQ)" clean main; \
 		if [[ ! -s "$$MEM/memory_config.bin" ]]; then \
@@ -346,7 +347,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 	export PM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/pm_config" -type d)" && \
 	if [[ -d "$$PM" ]]; then \
 		printf '[build/%s] Regenerating PM configuration\n' "$*" && \
-		echo "Found custom PM configuration."; \
+		if [[ "$(V)" == "1" ]]; then echo "Found custom PM configuration."; fi; \
 		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/csu_pm_config.bin; \
 		PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)" $(MAKE) -C "$$PM" $(if $(strip $(HELPER_BUILD_JOBS)),-j$(HELPER_BUILD_JOBS)); \
 		if [[ ! -s "$$PM/csu_pm_config.bin" ]]; then \
@@ -360,7 +361,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export CIX_PACKAGE_TOOL_BIN="$(shell realpath "$(CIX_PACKAGE_TOOL_BIN)")" && \
 	if [[ -f "$$CFG" ]]; then \
-		echo "Found custom flash config."; \
+		if [[ "$(V)" == "1" ]]; then echo "Found custom flash config."; fi; \
 		cp "$$CFG" Build/$*/$(UEFI_TARGET)_GCC5/; \
 	else \
 		cp "$$PATH_PACKAGE_TOOL/spi_flash_config_all.json" Build/$*/$(UEFI_TARGET)_GCC5/; \
@@ -388,11 +389,11 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 	fi && \
 	mv -f "$$tmp_all" "Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.bin"
 
-.SECONDARY: \
-	Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd \
-	Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin \
-	Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
-	Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
+.NOTINTERMEDIATE: \
+	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd) \
+	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin) \
+	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt) \
+	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img)
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
 Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
@@ -484,7 +485,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
 
 	export FW="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/Firmwares" -type d)" && \
 	if [[ -d "$$FW" ]]; then \
-		echo "Found custom firmware."; \
+		if [[ "$(V)" == "1" ]]; then echo "Found custom firmware."; fi; \
 		cp -r "$$FW/." Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
 	fi; \
 	if [[ ! -e "$$FW" ]] || [[ ! -f "$$FW/ec_fw.bin" ]]; then \
@@ -565,7 +566,17 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
 		export IASL_PREFIX="$$(dirname "$$(command -v iasl)")/"
 	fi
 	unset MAKEFLAGS
-	source edk2/edksetup.sh --reconfig
+	if [[ "$(V)" == "1" ]]; then
+		source edk2/edksetup.sh --reconfig
+	else
+		edksetup_log="$$(mktemp "$${TMPDIR:-/tmp}/edk2-cix-edksetup.XXXXXX")"
+		if ! source edk2/edksetup.sh --reconfig >"$$edksetup_log" 2>&1; then
+			cat "$$edksetup_log" >&2
+			rm -f "$$edksetup_log"
+			exit 1
+		fi
+		rm -f "$$edksetup_log"
+	fi
 	build_extra_defines=()
 	if [[ "$(UEFI_TARGET)" == "RELEASE" ]]; then
 		case "$(ARTEFACT_MODE)" in \
@@ -610,6 +621,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
 clean:
 	$(Q)$(LOCKED_MAKE) __clean V="$(V)"
 
+.SILENT: __clean __distclean
 __clean:
 	printf '[clean] Removing build output\n'
 	rm -rf Build

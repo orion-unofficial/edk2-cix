@@ -7,6 +7,7 @@ export	GREEN="\e[32m"
 export	YELLOW="\e[33m"
 export  BLUE="\e[94m"
 export  CYAN="\e[36m"
+export  V="${V:-0}"
 
 export WORKSPACE=$PWD
 export PATH_OUT="${WORKSPACE}/output"
@@ -30,6 +31,34 @@ fi
 export PACKAGES_PATH=$WORKSPACE/edk2:$WORKSPACE/edk2-platforms:$WORKSPACE/edk2-non-osi
 export OS_SUPPORT_TYPE="common"
 export FASTBOOT_LOAD_TYPE="disable"
+
+is_verbose() {
+    [[ "${V}" == "1" ]]
+}
+
+status() {
+    printf '[package] %s\n' "$*"
+}
+
+log_verbose() {
+    if is_verbose; then
+        printf '%s\n' "$*"
+    fi
+}
+
+run_success_only() {
+    if is_verbose; then
+        "$@"
+        return $?
+    fi
+
+    local tool_output
+    if ! tool_output="$("$@" 2>&1)"; then
+        [[ -n "$tool_output" ]] && printf '%s\n' "$tool_output" >&2
+        return 1
+    fi
+    return 0
+}
 
 exec_blankfile() {
     if [[ -e $1 ]]; then
@@ -60,7 +89,7 @@ cd $WORKSPACE
 
 if [ ! -e $WORKSPACE/Source/C/bin ]; then
 	echo "Need build edk2 basetool!"
-	make -C edk2/BaseTools
+	make -C edk2/BaseTools V="${V}"
 fi
 
 if ! command -v iasl >/dev/null 2>&1; then
@@ -79,7 +108,12 @@ local UEFI_DSC_FILE="${UEFI_PROJECT_PATH}/${UEFI_PROJECT}/${UEFI_PROJECT}.dsc"
 local VARIABLE_TYPE=SPI
 local STMM_SUPPORT=TRUE
 
-build -a AARCH64 -t GCC5 -p $UEFI_DSC_FILE -b $UEFI_TARGET -D BOARD_NAME=$BOARD -D BUILD_DATE=$BUILD_DATE -D COMMIT_HASH=$COMMIT_HASH -D SMP_ENABLE=1 -D ACPI_BOOT_ENABLE=1 -D FASTBOOT_LOAD=$FASTBOOT_LOAD_TYPE -D VARIABLE_TYPE=$VARIABLE_TYPE -D STANDARD_MM=$STMM_SUPPORT -D SYSTEM_LOADER=$OS_SUPPORT_TYPE
+export EDK2_CIX_QUIET_PREBUILD="$([ "${V}" = "1" ] && printf '0' || printf '1')"
+if is_verbose; then
+    build -a AARCH64 -t GCC5 -p $UEFI_DSC_FILE -b $UEFI_TARGET -D BOARD_NAME=$BOARD -D BUILD_DATE=$BUILD_DATE -D COMMIT_HASH=$COMMIT_HASH -D SMP_ENABLE=1 -D ACPI_BOOT_ENABLE=1 -D FASTBOOT_LOAD=$FASTBOOT_LOAD_TYPE -D VARIABLE_TYPE=$VARIABLE_TYPE -D STANDARD_MM=$STMM_SUPPORT -D SYSTEM_LOADER=$OS_SUPPORT_TYPE
+else
+    build -a AARCH64 -t GCC5 -p $UEFI_DSC_FILE -s -b $UEFI_TARGET -D BOARD_NAME=$BOARD -D BUILD_DATE=$BUILD_DATE -D COMMIT_HASH=$COMMIT_HASH -D SMP_ENABLE=1 -D ACPI_BOOT_ENABLE=1 -D FASTBOOT_LOAD=$FASTBOOT_LOAD_TYPE -D VARIABLE_TYPE=$VARIABLE_TYPE -D STANDARD_MM=$STMM_SUPPORT -D SYSTEM_LOADER=$OS_SUPPORT_TYPE 2>&1 | python3 "$WORKSPACE/src/scripts/filter_edk2_build_output.py"
+fi
 
 cp Build/${UEFI_PROJECT}/${UEFI_TARGET}_GCC5/FV/SKY1_BL33_UEFI.fd ${PATH_OUT}
 
@@ -93,7 +127,7 @@ fi
 }
 
 build_memcfg(){
-    echo -e "BUILD MEMCFG $1 Started."
+    status "Generating memory config $1"
     local memcfg_dir="${PATH_PROJECT}/mem_config"
     local memcfg_file="memory_config.bin"
     local memcfg_target="$1"
@@ -101,14 +135,14 @@ build_memcfg(){
     cd $memcfg_dir
 
     #compile and generate the memory config with the param: $MEM_CONF_FREQ and $MEM_CONF_CH
-    make || exit 1
+    make V="${V}" || exit 1
 
     cd -
 
     cp $memcfg_dir/$memcfg_file $memcfg_target
 
     if [[ -e "${memcfg_target}" ]]; then
-        echo -e "${GREEN}BUILD MEMCFG to $memcfg_target Success!!${NORMAL}"
+        log_verbose "${GREEN}BUILD MEMCFG to $memcfg_target Success!!${NORMAL}"
     else
         echo -e "${RED}BUILD MEMCFG to $memcfg_target Failed!!${NORMAL}"
         exit 1
@@ -116,7 +150,7 @@ build_memcfg(){
 }
 
 build_pmcfg(){
-    echo -e "BUILD PMCFG $1 Started."
+    status "Generating PM config $1"
     local pmcfg_dir="${PATH_PROJECT}/pm_config"
     local pmcfg_file="csu_pm_config.bin"
     local pmcfg_target="$1"
@@ -124,14 +158,14 @@ build_pmcfg(){
     cd $pmcfg_dir
 
     #compile and generate the pm config
-    make || exit 1
+    make V="${V}" || exit 1
 
     cd -
 
     cp $pmcfg_dir/$pmcfg_file $pmcfg_target
 
     if [[ -e "${pmcfg_target}" ]]; then
-        echo -e "${GREEN}BUILD PMCFG to $pmcfg_target Success!!${NORMAL}"
+        log_verbose "${GREEN}BUILD PMCFG to $pmcfg_target Success!!${NORMAL}"
     else
         echo -e "${RED}BUILD PMCFG to $pmcfg_target Failed!!${NORMAL}"
         exit 1
@@ -156,7 +190,7 @@ exec_cix_mkimage() {
         host_arch="aarch64"
     fi
     host_fiptool_bin="${host_fiptool_dir}/build/${host_arch}/fiptool"
-    make -C "${host_fiptool_dir}" HOST_ARCH="${host_arch}" >/dev/null
+    make -C "${host_fiptool_dir}" HOST_ARCH="${host_arch}" V="${V}"
 
     local build_key_type=$1
     local path_out_temp
@@ -189,19 +223,19 @@ exec_cix_mkimage() {
 
     # build project specific memory config
     if [[ -e "${PATH_PROJECT}/mem_config" ]]; then
-        echo -e "${GREEN}found project specific memory config ${PATH_PROJECT}/mem_config${NORMAL}"
+        log_verbose "${GREEN}found project specific memory config ${PATH_PROJECT}/mem_config${NORMAL}"
         build_memcfg "${path_out_firmwares}/memory_config.bin"
     fi
 
     # build project specific pm config
     if [[ -e "${PATH_PROJECT}/pm_config" ]]; then
-        echo -e "${GREEN}found project specific pm config ${PATH_PROJECT}/pm_config${NORMAL}"
+        log_verbose "${GREEN}found project specific pm config ${PATH_PROJECT}/pm_config${NORMAL}"
         build_pmcfg "${path_out_firmwares}/csu_pm_config.bin"
     fi
 
     # update project specific low level firmware
     if [[ -e "${PATH_PROJECT}/Firmwares/" ]]; then
-        echo -e "${GREEN}found project specific firmware folder ${PATH_PROJECT}/Firmwares/${NORMAL}"
+        log_verbose "${GREEN}found project specific firmware folder ${PATH_PROJECT}/Firmwares/${NORMAL}"
         cp ${PATH_PROJECT}/Firmwares/* ${path_out_firmwares}
     fi
 
@@ -238,39 +272,39 @@ EOF
     cp ${PATH_PACKAGE_TOOL}/spi_flash_config_ota.json ${path_out_temp}
     # update project specific spi flash layout
     if [[ -e "${PATH_PROJECT}/spi_flash_config_all.json" ]]; then
-        echo -e "${GREEN}found project specific ${PATH_PROJECT}/spi_flash_config_all.json${NORMAL}"
+        log_verbose "${GREEN}found project specific ${PATH_PROJECT}/spi_flash_config_all.json${NORMAL}"
         cp ${PATH_PROJECT}/spi_flash_config_all.json ${path_out_temp}
     fi
 
     if [[ -e "${PATH_PROJECT}/spi_flash_config_ota.json" ]]; then
-        echo -e "${GREEN}found project specific ${PATH_PROJECT}/spi_flash_config_ota.json${NORMAL}"
+        log_verbose "${GREEN}found project specific ${PATH_PROJECT}/spi_flash_config_ota.json${NORMAL}"
         cp ${PATH_PROJECT}/spi_flash_config_ota.json ${path_out_temp}
     fi
 
     # update project specific oem key pair
     if [[ -e "${PATH_PROJECT}/Keys/oem_privatekey.pem" ]]; then
-        echo -e "${GREEN}found project specific ${PATH_PROJECT}/Keys/oem_privatekey.pem${NORMAL}"
+        log_verbose "${GREEN}found project specific ${PATH_PROJECT}/Keys/oem_privatekey.pem${NORMAL}"
         cp ${PATH_PROJECT}/Keys/oem_privatekey.pem ${path_out_temp}/Keys/
     fi
 
     if [[ -e "${PATH_PROJECT}/Keys/oem_publickey.pem" ]]; then
-        echo -e "${GREEN}found project specific ${PATH_PROJECT}/Keys/oem_publickey.pem${NORMAL}"
+        log_verbose "${GREEN}found project specific ${PATH_PROJECT}/Keys/oem_publickey.pem${NORMAL}"
         cp ${PATH_PROJECT}/Keys/oem_publickey.pem ${path_out_temp}/Keys/
     fi
 
     # Generate bootloader3 image
     cd "${path_out_temp}"
 
-    ./cix_regen_trusted_key_cert -p ${path_out_temp}/Keys/oem_publickey.pem -s ${path_out_temp}/Keys/oem_privatekey.pem -o ${path_out_temp}/certs/trusted_key_no.crt
+    run_success_only ./cix_regen_trusted_key_cert -p ${path_out_temp}/Keys/oem_publickey.pem -s ${path_out_temp}/Keys/oem_privatekey.pem -o ${path_out_temp}/certs/trusted_key_no.crt
 
-    ./cert_uefi_create_rsa --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
+    run_success_only ./cert_uefi_create_rsa --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
         --nt-fw-cert ${path_out_temp}/certs/nt_fw_cert.crt \
         --nt-fw-key-cert ${path_out_temp}/certs/nt_fw_key.crt \
         --nt-fw-key ${path_out_temp}/Keys/oem_privatekey.pem \
         --non-trusted-world-key ${path_out_temp}/Keys/oem_privatekey.pem \
         --nt-fw ${PATH_OUT}/SKY1_BL33_UEFI.fd
 
-    ./fiptool create \
+    run_success_only ./fiptool create \
         --trusted-key-cert ${path_out_temp}/certs/trusted_key_no.crt \
         --nt-fw-key-cert ${path_out_temp}/certs/nt_fw_key.crt \
         --nt-fw-cert ${path_out_temp}/certs/nt_fw_cert.crt \
@@ -286,11 +320,11 @@ EOF
     # Generate spi flash image
     cd "${path_out_temp}"
 
-	 echo "./cix_package_tool -c spi_flash_config_all.json -o ${flash_all_file_name}.bin"
+    if is_verbose; then echo "./cix_package_tool -c spi_flash_config_all.json -o ${flash_all_file_name}.bin"; fi
     ./cix_package_tool -c spi_flash_config_all.json -o ${flash_all_file_name}.bin
     cp ${flash_all_file_name}.bin ${PATH_OUT}/${flash_all_file_name}.bin
 
-    echo "./cix_package_tool -c spi_flash_config_ota.json -O ${flash_ota_file_name}.bin"
+    if is_verbose; then echo "./cix_package_tool -c spi_flash_config_ota.json -O ${flash_ota_file_name}.bin"; fi
     ./cix_package_tool -c spi_flash_config_ota.json -O ${flash_ota_file_name}.bin
     cp ${flash_ota_file_name}.bin ${PATH_OUT}/${flash_ota_file_name}.bin
 
