@@ -36,9 +36,20 @@ dependencies onto the host, use:
 
 ```bash
 make buildbox-up
+make buildbox-firmware-build
+make buildbox-firmware-stage
 make buildbox-o6
 make buildbox-deb
+make buildbox-zip
+make buildbox-targz
+make buildbox-validate-firmware
+make buildbox-capture-validation-profile
 ```
+
+The local container helpers prefer `podman` when it is installed and usable,
+and otherwise fall back to `docker`. Set
+`EDK2_CIX_CONTAINER_RUNTIME=docker` or
+`EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
 
 ## Build inside a devcontainer
 
@@ -146,10 +157,11 @@ command with `./scripts/capture_build_log.sh build-logs <command ...>`. The
 convenience target `make buildbox-o6-log` does this for the standard local O6
 build.
 
-For direct firmware builds, `make -C src` now defaults to EDK2 silent mode so
+For firmware builds, the underlying EDK2 build now defaults to silent mode so
 you see the higher-level `Building ...` progress without the full compiler
-command flood. Use `make -C src V=1 ...` if you want the raw EDK2 command
-lines.
+command flood. That applies both to direct `make -C src ...` invocations and
+to the top-level `make` targets that recurse into `src`. Use `V=1` on the
+`make` command line if you want the raw EDK2 command lines.
 
 If you want deployable firmware files without creating a Debian package, the
 top-level Makefile extensions now provide:
@@ -210,6 +222,8 @@ as the upstream release. By default it also mounts the helper's temp directory
 into the container automatically. If you need a different host/container temp
 mapping, set `EDK2_CIX_HOST_TMPDIR` and `EDK2_CIX_CONTAINER_TMPDIR` before
 running the wrapper.
+Despite the retained filename, the local helper scripts prefer `podman` over
+`docker` when it is available and usable.
 
 ## Reuse the build container
 
@@ -219,9 +233,16 @@ of paying the full dependency bootstrap cost every time:
 ```bash
 make buildbox-up
 make buildbox-metadata
+make buildbox-firmware-build
+make buildbox-firmware-stage
 make buildbox-o6
 make buildbox-o6-log
 make buildbox-deb
+make buildbox-zip
+make buildbox-targz
+make buildbox-validate-firmware
+make buildbox-validate-firmware-strict
+make buildbox-capture-validation-profile
 ```
 
 `make devcontainer_setup` is now idempotent: it checks for the required Debian

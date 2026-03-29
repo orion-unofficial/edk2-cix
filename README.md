@@ -42,9 +42,20 @@ use the buildbox helpers instead:
 
 ```bash
 make buildbox-up
+make buildbox-firmware-build
+make buildbox-firmware-stage
 make buildbox-o6
 make buildbox-deb
+make buildbox-zip
+make buildbox-targz
+make buildbox-validate-firmware
+make buildbox-capture-validation-profile
 ```
+
+The local container helpers prefer `podman` when it is installed and usable,
+and otherwise fall back to `docker`. Set
+`EDK2_CIX_CONTAINER_RUNTIME=docker` or
+`EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
 
 ### With `devcontainer`
 
@@ -66,10 +77,12 @@ this branch, so the supported local host environments are:
 Before a longer build, run `make -C src preflight` to fail early if the
 expected package-tool binaries or cross-compiler are missing.
 
-For the firmware build itself, `make -C src` now defaults to EDK2 silent mode
-so the transcript keeps the higher-level `Building ...` progress lines without
-the full compiler-command firehose. Use `V=1` to restore the raw EDK2 command
-output.
+For the firmware build itself, the repo now defaults the underlying EDK2 build
+to silent mode, so the transcript keeps the higher-level `Building ...`
+progress lines without the full compiler-command firehose. That applies both to
+direct `make -C src ...` invocations and to the top-level `make` targets that
+delegate into `src`. Use `V=1` on the `make` command line to restore the raw
+EDK2 command output.
 
 To capture a full build transcript plus a warning summary under `build-logs/`,
 use `make buildbox-o6-log` or wrap any command with
@@ -126,7 +139,9 @@ reproduce the vendor release payloads byte-for-byte. By default it writes its
 helper directory under the current system temp root and mounts that directory
 into the build container automatically. If you want to stage those helper
 files somewhere else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
-`EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper.
+`EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper. Despite the retained
+filename, the local helper scripts also prefer `podman` over `docker` when it
+is available and usable.
 
 The first `make devcontainer_setup` run now drives `apt-get` in noninteractive
 mode and suppresses recommends/suggests so the initial dependency bootstrap is
