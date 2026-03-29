@@ -4,6 +4,7 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
+dep_profile="${EDK2_CIX_DEP_PROFILE:-packaging}"
 
 status() {
     printf '[deps] %s\n' "$*"
@@ -34,23 +35,56 @@ apt_get() {
         "$@"
 }
 
+usage() {
+    cat <<'EOF'
+usage: scripts/ensure_build_deps.sh [--profile firmware|packaging]
+EOF
+}
+
+while (( $# > 0 )); do
+    case "$1" in
+        --profile)
+            shift
+            if (( $# == 0 )); then
+                usage >&2
+                exit 2
+            fi
+            dep_profile="$1"
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+case "$dep_profile" in
+    firmware|packaging)
+        ;;
+    *)
+        printf '[deps] Unsupported dependency profile: %s\n' "$dep_profile" >&2
+        exit 2
+        ;;
+esac
+
 package_installed() {
     local package="$1"
     dpkg-query -W -f='${Status}\n' "$package" 2>/dev/null | grep -qx 'install ok installed'
 }
 
-required_packages=(
+common_packages=(
     git
     pkg-config
     crossbuild-essential-arm64
     binfmt-support
     qemu-user-static
-    devscripts
-    lintian
-    dh-exec
+    dpkg-dev
     dos2unix
-    pandoc
-    shellcheck
     acpica-tools
     uuid-dev
     nasm
@@ -59,6 +93,19 @@ required_packages=(
     curl
     libssl-dev
 )
+
+packaging_packages=(
+    devscripts
+    lintian
+    dh-exec
+    pandoc
+    shellcheck
+)
+
+required_packages=("${common_packages[@]}")
+if [[ "$dep_profile" == "packaging" ]]; then
+    required_packages+=("${packaging_packages[@]}")
+fi
 
 missing_packages=()
 for package in "${required_packages[@]}"; do
@@ -73,7 +120,7 @@ if ! dpkg --print-foreign-architectures | grep -qx 'arm64'; then
 fi
 
 if (( need_arm64_arch == 0 )) && (( ${#missing_packages[@]} == 0 )); then
-    status "Build dependencies already installed."
+    status "Build dependencies already installed for profile: ${dep_profile}."
     exit 0
 fi
 
@@ -82,7 +129,7 @@ if (( need_arm64_arch != 0 )); then
     as_root dpkg --add-architecture arm64
 fi
 
-status "Refreshing apt metadata"
+status "Refreshing apt metadata for profile: ${dep_profile}"
 apt_get update
 
 bootstrap_packages=()
@@ -97,11 +144,15 @@ if (( ${#bootstrap_packages[@]} > 0 )); then
     apt_get install -y --no-install-recommends "${bootstrap_packages[@]}"
 fi
 
-status "Installing Debian build dependencies"
-(
-    cd "$repo_root"
-    apt_get build-dep . -y --no-install-recommends
-)
+if [[ "$dep_profile" == "packaging" ]]; then
+    status "Installing Debian packaging build dependencies"
+    (
+        cd "$repo_root"
+        apt_get build-dep . -y --no-install-recommends
+    )
+else
+    status "Skipping Debian packaging build-deps for firmware profile"
+fi
 
 remaining_packages=()
 for package in "${required_packages[@]}"; do
@@ -115,4 +166,4 @@ if (( ${#remaining_packages[@]} > 0 )); then
     apt_get install -y --no-install-recommends "${remaining_packages[@]}"
 fi
 
-status "Build dependencies ready."
+status "Build dependencies ready for profile: ${dep_profile}."
