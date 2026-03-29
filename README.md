@@ -46,7 +46,7 @@ make zip
 make targz
 ```
 
-If you would rather keep the host cleaner and reuse a prepared amd64 container,
+If you would rather keep the host cleaner and reuse a prepared build container,
 use the buildbox helpers instead:
 
 ```bash
@@ -65,6 +65,12 @@ The local container helpers prefer `podman` when it is installed and usable,
 and otherwise fall back to `docker`. Set
 `EDK2_CIX_CONTAINER_RUNTIME=docker` or
 `EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
+By default the buildbox now follows the host architecture: `linux/amd64` with
+the Bookworm base image on `x86_64`, and `linux/arm64` with the Trixie base
+image on `arm64` / `aarch64`. Override that with
+`EDK2_CIX_BUILDBOX_PLATFORM`, `EDK2_CIX_BUILDBOX_IMAGE`,
+`BUILDBOX_PLATFORM=...`, or `BUILDBOX_IMAGE=...` when you need a specific
+container environment.
 The `buildbox-*` targets keep their host-side scratch space under
 `.buildbox/`, write staged/archive outputs under `dist/`, and copy Debian
 package artefacts into `dist/deb/`. The firmware-oriented `buildbox-*` targets
@@ -159,7 +165,8 @@ into the build container automatically. If you want to stage those helper
 files somewhere else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
 `EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper. Despite the retained
 filename, the local helper scripts also prefer `podman` over `docker` when it
-is available and usable.
+is available and usable. The generated wrapper now also pins the buildbox back
+to the validated amd64 Bookworm replay environment explicitly.
 
 The first `make devcontainer_setup` run now drives `apt-get` in noninteractive
 mode and suppresses recommends/suggests so the initial dependency bootstrap is
@@ -195,7 +202,9 @@ host dependency bootstrap now includes `libssl-dev`.
 
 If you are specifically trying to recreate the published vendor release
 payloads byte-for-byte, the currently validated replay path remains the amd64
-Bookworm buildbox.
+Bookworm buildbox. On `arm64` / `aarch64`, force that path with
+`BUILDBOX_PLATFORM=linux/amd64` or `EDK2_CIX_BUILDBOX_PLATFORM=linux/amd64`
+once your container runtime has x86_64 emulation configured.
 
 `bookworm` and `bookworm-backports` do not currently expose `gcc-13` or
 `gcc-14` for the `aarch64-linux-gnu` cross toolchain in the default Debian
