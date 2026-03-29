@@ -100,7 +100,7 @@ build: preflight $(CIX_FLASH)
 host-fiptool: $(FIPTOOL_BIN)
 host-cix-regen-trusted-key-cert: $(TRUSTED_KEY_CERT_TOOL_BIN)
 
-.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools host-fiptool host-cix-regen-trusted-key-cert prepare-basetools-c
+.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert prepare-basetools-c
 .PHONY: help
 help:
 	echo "Supported targets:"
@@ -117,8 +117,8 @@ $(FIPTOOL_BIN): $(FIPTOOL_SOURCE_INPUTS)
 $(TRUSTED_KEY_CERT_TOOL_BIN): $(TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS)
 	$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" all
 
-.PHONY: print-build-metadata
-print-build-metadata:
+.PHONY: print-build-metadata preflight-build-metadata
+print-build-metadata: preflight-build-metadata
 	echo "ARTEFACT_MODE=$(ARTEFACT_MODE)"
 	echo "SOURCE_COMMIT=$(SOURCE_COMMIT)"
 	echo "SOURCE_COMMIT_HASH=$(SOURCE_COMMIT_HASH)"
@@ -128,6 +128,52 @@ print-build-metadata:
 	echo "EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH)"
 	echo "EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH)"
 	echo "EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH)"
+
+preflight-build-metadata:
+	@{ \
+		missing=0; \
+		case "$(ARTEFACT_MODE)" in \
+			custom|upstream) \
+				;; \
+			*) \
+				echo "[preflight/metadata] Unsupported ARTEFACT_MODE=$(ARTEFACT_MODE); expected custom or upstream" >&2; \
+				missing=1; \
+				;; \
+		esac; \
+		check_required() { \
+			local name="$$1"; \
+			local value="$$2"; \
+			if [[ -z "$$value" ]]; then \
+				echo "[preflight/metadata] Missing required build metadata: $$name" >&2; \
+				missing=1; \
+			fi; \
+		}; \
+		check_required "SOURCE_COMMIT" '$(strip $(SOURCE_COMMIT))'; \
+		check_required "SOURCE_COMMIT_HASH" '$(strip $(SOURCE_COMMIT_HASH))'; \
+		check_required "SOURCE_DATE_EPOCH" '$(strip $(SOURCE_DATE_EPOCH))'; \
+		check_required "PM_CONFIG_SOURCE_DATE_EPOCH" '$(strip $(PM_CONFIG_SOURCE_DATE_EPOCH))'; \
+		check_required "BUILD_DATE" '$(strip $(BUILD_DATE))'; \
+		check_required "EDK2_COMMIT_HASH" '$(strip $(EDK2_COMMIT_HASH))'; \
+		check_required "EDK2_NON_OSI_COMMIT_HASH" '$(strip $(EDK2_NON_OSI_COMMIT_HASH))'; \
+		check_required "EDK2_PLATFORMS_COMMIT_HASH" '$(strip $(EDK2_PLATFORMS_COMMIT_HASH))'; \
+		check_required "DEB_VERSION" '$(strip $(DEB_VERSION))'; \
+		if [[ -n '$(strip $(SOURCE_DATE_EPOCH))' ]] && [[ ! '$(strip $(SOURCE_DATE_EPOCH))' =~ ^[0-9]+$$ ]]; then \
+			echo "[preflight/metadata] SOURCE_DATE_EPOCH must be an integer Unix timestamp, got: $(SOURCE_DATE_EPOCH)" >&2; \
+			missing=1; \
+		fi; \
+		if [[ -n '$(strip $(PM_CONFIG_SOURCE_DATE_EPOCH))' ]] && [[ ! '$(strip $(PM_CONFIG_SOURCE_DATE_EPOCH))' =~ ^[0-9]+$$ ]]; then \
+			echo "[preflight/metadata] PM_CONFIG_SOURCE_DATE_EPOCH must be an integer Unix timestamp, got: $(PM_CONFIG_SOURCE_DATE_EPOCH)" >&2; \
+			missing=1; \
+		fi; \
+		if [[ "$$missing" -ne 0 ]]; then \
+			echo "[preflight/metadata] Refusing to continue with incomplete or invalid build metadata." >&2; \
+			if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
+				echo "[preflight/metadata] In ARTEFACT_MODE=custom these values should resolve from the mapped upstream source commit in Git history." >&2; \
+				echo "[preflight/metadata] Ensure the checkout is a usable Git repository inside the current environment, or pass explicit BUILD_DATE, SOURCE_DATE_EPOCH, PM_CONFIG_SOURCE_DATE_EPOCH, SOURCE_COMMIT, and SOURCE_COMMIT_HASH overrides." >&2; \
+			fi; \
+			exit 1; \
+		fi; \
+	}
 
 .PHONY: prepare-basetools-c
 prepare-basetools-c:
@@ -160,9 +206,9 @@ prepare-basetools-c:
 	fi
 
 .PHONY: preflight preflight-%
-preflight: preflight-tools
+preflight: preflight-tools preflight-build-metadata
 
-preflight-%: preflight-tools
+preflight-%: preflight-tools preflight-build-metadata
 	@dsc_path="$(filter %/$*.dsc,$(DSC))" && \
 	if [[ -z "$$dsc_path" ]]; then \
 		echo "[preflight/$*] No matching DSC found under edk2-platforms/Platform/Radxa" >&2; \
