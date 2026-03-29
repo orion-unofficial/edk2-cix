@@ -5,7 +5,6 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 dep_profile="${EDK2_CIX_DEP_PROFILE:-packaging}"
-host_dpkg_arch="$(dpkg --print-architecture)"
 
 status() {
     printf '[deps] %s\n' "$*"
@@ -72,6 +71,20 @@ case "$dep_profile" in
         exit 2
         ;;
 esac
+
+bash "${script_dir}/require_host_tools.sh" \
+    "Debian dependency bootstrap" \
+    apt-get dpkg dpkg-query
+
+if [[ "${EUID}" -ne 0 ]] && ! command -v sudo >/dev/null 2>&1; then
+    cat >&2 <<'EOF'
+[deps] This dependency bootstrap needs root privileges, but sudo is not available.
+[deps] Re-run as root or install sudo first.
+EOF
+    exit 1
+fi
+
+host_dpkg_arch="$(dpkg --print-architecture)"
 
 package_installed() {
     local package="$1"
