@@ -5,13 +5,13 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 workspace_parent="${EDK2_CIX_WORKSPACE_PARENT:-/workspaces}"
-workspace_path="${workspace_parent}/$(basename -- "$repo_root")"
-host_workspace_parent="$(dirname -- "$repo_root")"
+workspace_path="${EDK2_CIX_WORKSPACE_ROOT:-${workspace_parent}/$(basename -- "$repo_root")}"
+host_workspace_root="$repo_root"
 container_tmpdir="${EDK2_CIX_CONTAINER_TMPDIR:-/hosttmp}"
-host_tmpdir="${EDK2_CIX_HOST_TMPDIR:-${TMPDIR:-/tmp}}"
+host_tmpdir="${EDK2_CIX_HOST_TMPDIR:-${repo_root}/.buildbox/tmp}"
 host_tmpdir="${host_tmpdir%/}"
 if [[ -z "$host_tmpdir" ]]; then
-    host_tmpdir="/tmp"
+    host_tmpdir="${repo_root}/.buildbox/tmp"
 fi
 
 container_name="${EDK2_CIX_BUILDBOX_NAME:-edk2-cix-buildbox}"
@@ -57,7 +57,7 @@ verify_workspace() {
     if ! runtime exec -w "$workspace_path" "$container_name" test -f Makefile; then
         cat >&2 <<EOF
 [buildbox] Expected the repo root to be mounted at ${workspace_path}, but Makefile is missing there.
-[buildbox] Check EDK2_CIX_WORKSPACE_PARENT, the host workspace bind mount, and the checkout path.
+[buildbox] Check EDK2_CIX_WORKSPACE_ROOT/EDK2_CIX_WORKSPACE_PARENT, the host workspace bind mount, and the checkout path.
 EOF
         exit 1
     fi
@@ -75,7 +75,7 @@ ensure_container() {
     if runtime container inspect "$container_name" >/dev/null 2>&1; then
         local mounts
         mounts="$(runtime inspect -f '{{range .Mounts}}{{printf "%s=%s\n" .Destination .Source}}{{end}}' "$container_name")"
-        if ! grep -Fxq "${workspace_parent}=${host_workspace_parent}" <<<"$mounts" || \
+        if ! grep -Fxq "${workspace_path}=${host_workspace_root}" <<<"$mounts" || \
             ! grep -Fxq "${container_tmpdir}=${host_tmpdir}" <<<"$mounts"; then
             status "Recreating ${container_name} with the expected workspace mounts"
             runtime rm -f "$container_name" >/dev/null
@@ -93,7 +93,7 @@ ensure_container() {
         --name "$container_name" \
         --platform linux/amd64 \
         --ulimit nofile=1024:524288 \
-        -v "${host_workspace_parent}:${workspace_parent}" \
+        -v "${host_workspace_root}:${workspace_path}" \
         -v "${host_tmpdir}:${container_tmpdir}" \
         -w "$workspace_path" \
         "$container_image" \
@@ -109,8 +109,8 @@ fi
 
 container_runtime="$(resolve_container_runtime)"
 status "Using container runtime: ${container_runtime}"
-ensure_container
 mkdir -p "$host_tmpdir"
+ensure_container
 verify_workspace
 
 status "Ensuring build dependencies are present"

@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
+warning_summary_script="${script_dir}/summarize_build_warnings.py"
+
 usage() {
     cat >&2 <<'EOF'
 usage: scripts/capture_build_log.sh <log-dir> <command> [args...]
@@ -59,8 +62,8 @@ set -e
             "$log_file" || true
     fi
     printf '\n'
-    if [[ -f "./scripts/summarize_build_warnings.py" ]]; then
-        python3 ./scripts/summarize_build_warnings.py "$log_file" || true
+    if [[ -f "$warning_summary_script" ]]; then
+        python3 "$warning_summary_script" "$log_file" || true
     fi
 } >"$summary_file"
 
