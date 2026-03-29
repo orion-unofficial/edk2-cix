@@ -233,7 +233,7 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
-	for required_cmd in bash find grep head realpath tr dd python3; do \
+	for required_cmd in bash find grep head realpath tr dd python3 iasl; do \
 		if ! command -v "$$required_cmd" >/dev/null 2>&1; then \
 			echo "[preflight] Missing required host tool: $$required_cmd" >&2; \
 			missing=1; \
@@ -497,14 +497,14 @@ Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
 			;; \
 	esac
 
-.SILENT: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd tools/acpica/generate/unix/bin/iasl
+.SILENT: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
 Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
 	@$(MAKE) prepare-basetools-c
 	export WORKSPACE="$(shell pwd)"
 	export PACKAGES_PATH="$$WORKSPACE/edk2:$$WORKSPACE/edk2-platforms:$$WORKSPACE/edk2-non-osi:$$WORKSPACE/edk2-platforms/Silicon/Intel/"
 	export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_PREFIX)"
-	if [[ -f tools/acpica/generate/unix/bin/iasl ]]; then
-		export IASL_PREFIX="$$WORKSPACE/tools/acpica/generate/unix/bin/"
+	if command -v iasl >/dev/null 2>&1; then
+		export IASL_PREFIX="$$(dirname "$$(command -v iasl)")/"
 	fi
 	unset MAKEFLAGS
 	source edk2/edksetup.sh --reconfig
@@ -538,15 +538,12 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
 		exit 1
 	fi
 
-tools/acpica/generate/unix/bin/iasl:
-	@$(MAKE) -C tools/acpica -j$(shell nproc)
-
 .PHONY: clean
 clean:
 	printf '[clean] Removing build output\n'
 	rm -rf Build
 	printf '[clean] Removing host-built helper tools\n'
-	rm -rf "$(FIPTOOL_SOURCE_DIR)/build" tools/acpica/generate/unix/bin
+	rm -rf "$(FIPTOOL_SOURCE_DIR)/build"
 	rm -f "$(TRUSTED_KEY_CERT_TOOL_BIN)" "$(CIX_PACKAGE_TOOL_BIN)"
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type f -name '*.pyc' -delete
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type d -name '__pycache__' -prune -exec rm -rf {} +
