@@ -98,6 +98,19 @@ IASL_CODE_DETAILS = {
     "3175": "static OperationRegion declared inside control method",
 }
 
+IASL_SOURCE_BUCKETS = (
+    (
+        "o6_platform_tables",
+        "Radxa O6 platform SSDT tables",
+        "Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/",
+    ),
+    (
+        "cix_soc_tables",
+        "CIX Sky1 SoC ACPI tables",
+        "Platform/CIX/Sky1/Drivers/AcpiSocTables/",
+    ),
+)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -112,10 +125,10 @@ def main() -> int:
     lines = args.log_file.read_text(encoding="utf-8", errors="replace").splitlines()
 
     matched_indices: set[int] = set()
-    classified: list[tuple[WarningClass, list[str]]] = []
+    classified: list[tuple[WarningClass, list[tuple[int, str]]]] = []
     for warning_class in WARNING_CLASSES:
         hits = [
-            line.rstrip()
+            (index, line.rstrip())
             for index, line in enumerate(lines)
             if warning_class.pattern.search(line)
             and not (index in matched_indices or matched_indices.add(index))
@@ -136,18 +149,27 @@ def main() -> int:
         if not hits:
             continue
         printed_any = True
-        print(
-            f"- {warning_class.title}: {len(hits)} "
-            f"({warning_class.disposition})"
-        )
+        print(f"- {warning_class.title}: {len(hits)} ({warning_class.disposition})")
         print(f"  Note: {warning_class.note}")
+        if warning_class.key == "platformconfig_duplicate_default":
+            print(
+                "  Source: "
+                "src/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/"
+                "Drivers/PlatformConfigDxe/PlatformConfigHii.vfr"
+            )
         if warning_class.key == "iasl_warning":
             code_counts: collections.Counter[str] = collections.Counter()
             code_pattern = re.compile(r"Warning\s+(\d+)\s+-")
-            for hit in hits:
+            source_counts: collections.Counter[str] = collections.Counter()
+            for index, hit in hits:
                 match = code_pattern.search(hit)
                 if match:
                     code_counts[match.group(1)] += 1
+                context = "\n".join(lines[max(0, index - 3): index + 2])
+                for bucket_key, _bucket_title, bucket_pattern in IASL_SOURCE_BUCKETS:
+                    if bucket_pattern in context:
+                        source_counts[bucket_key] += 1
+                        break
             if code_counts:
                 print("  Breakdown:")
                 for code, count in sorted(
@@ -155,7 +177,13 @@ def main() -> int:
                 ):
                     detail = IASL_CODE_DETAILS.get(code, "unclassified IASL warning")
                     print(f"    - {code}: {count} ({detail})")
-        print(f"  Example: {hits[0]}")
+            if source_counts:
+                print("  Source areas:")
+                for bucket_key, bucket_title, _bucket_pattern in IASL_SOURCE_BUCKETS:
+                    count = source_counts.get(bucket_key)
+                    if count:
+                        print(f"    - {bucket_title}: {count}")
+        print(f"  Example: {hits[0][1]}")
 
     if not printed_any:
         print("- none detected")
