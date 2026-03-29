@@ -33,6 +33,36 @@ DEFAULT_TMP_ROOT = pathlib.Path(
 DEFAULT_CONTAINER_TMPDIR = pathlib.PurePosixPath(
     os.environ.get("EDK2_CIX_CONTAINER_TMPDIR", "/hosttmp")
 )
+CONTAINER_RUNTIME_ENV = "EDK2_CIX_CONTAINER_RUNTIME"
+
+
+def resolve_container_runtime() -> str:
+    override = os.environ.get(CONTAINER_RUNTIME_ENV)
+    if override:
+        return override
+
+    for candidate in ("podman", "docker"):
+        resolved = shutil.which(candidate)
+        if not resolved:
+            continue
+        try:
+            subprocess.run(
+                [resolved, "info"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+            return resolved
+        except (OSError, subprocess.CalledProcessError):
+            continue
+
+    for candidate in ("docker", "podman"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+
+    raise RuntimeError("Neither podman nor docker is available on PATH")
 
 
 def parse_args() -> argparse.Namespace:
@@ -220,9 +250,10 @@ make -C "$pm" csupm_bin_config >/dev/null
 "$pm/csupm_bin_config" unpack/csu_pm_config.bin > "$work/pm_parse.txt"
 """
 
+    container_runtime = resolve_container_runtime()
     subprocess.run(
         [
-            "docker",
+            container_runtime,
             "run",
             "--rm",
             "--platform",
@@ -487,7 +518,7 @@ def main() -> int:
     if "BUILD_DATE" in env_values:
         print(f"Host rebuild wrapper: {wrapper_path}")
         if docker_wrapper_path is not None:
-            print(f"Docker rebuild wrapper: {docker_wrapper_path}")
+            print(f"Container rebuild wrapper: {docker_wrapper_path}")
     if build_defines.get("COMMIT_HASH"):
         print(f"Upstream source commit: {build_defines['COMMIT_HASH']}")
     print(f"Compiler timestamp recovered from flash image: {compile_date} {compile_time}")
