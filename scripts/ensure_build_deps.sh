@@ -28,11 +28,24 @@ apt_env=(
 )
 
 apt_get() {
+    local status=0
+    set +e
     as_root "${apt_env[@]}" apt-get \
         -o APT::Install-Recommends=false \
         -o APT::Install-Suggests=false \
         -o Dpkg::Use-Pty=0 \
-        "$@"
+        "$@" 2>&1 | awk '
+            /^Suggested packages:$/ { skip = 1; next }
+            /^Recommended packages:$/ { skip = 1; next }
+            skip && /^[[:space:]]/ { next }
+            {
+                skip = 0
+                print
+            }
+        '
+    status=${PIPESTATUS[0]}
+    set -e
+    return "$status"
 }
 
 usage() {
@@ -101,6 +114,7 @@ case "$host_dpkg_arch" in
         ;;
     *)
         toolchain_packages+=(
+            build-essential
             crossbuild-essential-arm64
         )
         if ! dpkg --print-foreign-architectures | grep -qx 'arm64'; then
@@ -124,6 +138,8 @@ common_packages=(
     flex
     curl
     libssl-dev
+    perl
+    python3
 )
 
 packaging_packages=(
