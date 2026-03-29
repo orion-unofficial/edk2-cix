@@ -46,7 +46,7 @@ make zip
 make targz
 ```
 
-If you prefer to reuse a warmed amd64 container instead of installing the
+If you prefer to reuse a warmed build container instead of installing the
 dependencies onto the host, use:
 
 ```bash
@@ -65,6 +65,11 @@ The local container helpers prefer `podman` when it is installed and usable,
 and otherwise fall back to `docker`. Set
 `EDK2_CIX_CONTAINER_RUNTIME=docker` or
 `EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
+By default the buildbox follows the host architecture: `linux/amd64` with the
+Bookworm base image on `x86_64`, and `linux/arm64` with the Trixie base image
+on `arm64` / `aarch64`. Override that with `EDK2_CIX_BUILDBOX_PLATFORM`,
+`EDK2_CIX_BUILDBOX_IMAGE`, `BUILDBOX_PLATFORM=...`, or
+`BUILDBOX_IMAGE=...` when you need a specific container environment.
 The firmware-oriented `buildbox-*` targets install the slimmer firmware
 dependency profile inside the reusable container; `buildbox-deb` switches that
 same container to the fuller packaging profile when needed.
@@ -245,12 +250,15 @@ into the container automatically. If you need a different host/container temp
 mapping, set `EDK2_CIX_HOST_TMPDIR` and `EDK2_CIX_CONTAINER_TMPDIR` before
 running the wrapper.
 Despite the retained filename, the local helper scripts prefer `podman` over
-`docker` when it is available and usable.
+`docker` when it is available and usable. The generated replay wrapper also
+pins the buildbox back to the validated amd64 Bookworm environment explicitly.
 
 ## Reuse the build container
 
 For repeat local builds, keep a prepared amd64 build container around
 instead of paying the full dependency bootstrap cost every time:
+For repeat local builds, keep a prepared build container around instead
+of paying the full dependency bootstrap cost every time:
 
 ```bash
 make buildbox-up
@@ -304,7 +312,8 @@ significantly further; a native arm64 Trixie userspace can complete the full
 So:
 
 - use the amd64 Bookworm buildbox when you need exact upstream replay
-- use Trixie for native `arm64` / `aarch64` builds
+- use the default arm64 Trixie buildbox, or direct Trixie host builds, for
+  native `arm64` / `aarch64` work
 - use `make -C src host-fiptool` if you want to prebuild the vendored TF-A
   `fiptool` before the first packaging run
 - the dependency bootstrap now includes `libssl-dev`, because the source-built
