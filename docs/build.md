@@ -255,6 +255,11 @@ When it does need to provision packages, it uses noninteractive `apt-get`
 settings and suppresses recommends/suggests to keep the first-time bootstrap
 output much cleaner.
 
+The firmware build also tracks the userspace and toolchain context used for
+the EDK2 `BaseTools/Source/C` helpers. If you switch between container
+environments or distro generations, the next build rebuilds those helper tools
+automatically instead of reusing stale host-built binaries.
+
 The preferred local distribution for `x86_64` builds remains Debian
 `bookworm`.
 
