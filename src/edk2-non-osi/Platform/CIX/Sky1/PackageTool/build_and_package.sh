@@ -12,6 +12,7 @@ export WORKSPACE=$PWD
 export PATH_OUT="${WORKSPACE}/output"
 export PATH_OUT_PR="${WORKSPACE}/output/pr"
 export PATH_OUT_PR2="${WORKSPACE}/output/pr2"
+export PATH_SOURCE_TOOLS="${WORKSPACE}/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools"
 
 export ARM_TOOLCHAIN_ELF="gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf"
 if [ "$(uname -m)" = "aarch64" ]; then
@@ -215,11 +216,13 @@ exec_cix_mkimage() {
 	# Copy tools to output
     if [ "$(uname -m)" = "aarch64" ]; then
       cp  "${PATH_PACKAGE_TOOL}/AARCH64/cert_uefi_create_rsa" "${path_out_temp}"
-      cp  "${PATH_PACKAGE_TOOL}/AARCH64/cix_package_tool" "${path_out_temp}"
+      cp  "${PATH_SOURCE_TOOLS}/cix_package_tool/cix_package_tool" "${path_out_temp}"
+      cp  "${PATH_SOURCE_TOOLS}/cix_package_tool/cix_package_tool.py" "${path_out_temp}"
       cp  "${host_fiptool_bin}" "${path_out_temp}/fiptool"
     else
       cp  "${PATH_PACKAGE_TOOL}/X86_64/cert_uefi_create_rsa" "${path_out_temp}"
-      cp  "${PATH_PACKAGE_TOOL}/X86_64/cix_package_tool" "${path_out_temp}"
+      cp  "${PATH_SOURCE_TOOLS}/cix_package_tool/cix_package_tool" "${path_out_temp}"
+      cp  "${PATH_SOURCE_TOOLS}/cix_package_tool/cix_package_tool.py" "${path_out_temp}"
       cp  "${host_fiptool_bin}" "${path_out_temp}/fiptool"
 	  cp  "${PATH_PACKAGE_TOOL}/cix_regen_trusted_key_cert" "${path_out_temp}"
     fi
