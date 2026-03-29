@@ -194,17 +194,14 @@ The preferred distribution for local `x86_64` builds remains Debian
 
 Native `arm64` / `aarch64` work no longer depends on the old closed-source
 `cert_uefi_create_rsa` helper. The local build now compiles both that tool and
-`fiptool` from source, so the remaining shipped AARCH64 ABI sensitivity is the
-vendor `cix_package_tool` binary:
-
-- `AARCH64/cix_package_tool` only needs `GLIBC_2.34`
+`fiptool` from source, and the packaging step runs the in-tree source
+`cix_package_tool` implementation too.
 
 `fiptool` is built from the vendored Arm Trusted Firmware-A source snapshot
 under [src/tools/arm-trusted-firmware-fiptool](/Users/Stuart/src/edk2-cix/src/tools/arm-trusted-firmware-fiptool),
 and `cert_uefi_create_rsa` is built from the in-tree source helper under
 [src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cert_uefi_create_rsa](/Users/Stuart/src/edk2-cix/src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cert_uefi_create_rsa),
-so the self-generated FIP-cert path no longer depends on shipped opaque
-binaries.
+so the build and replay paths no longer depend on shipped opaque binaries.
 You can build it explicitly with:
 
 ```bash
