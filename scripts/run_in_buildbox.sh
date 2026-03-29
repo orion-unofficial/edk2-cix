@@ -21,6 +21,8 @@ container_platform="${EDK2_CIX_BUILDBOX_PLATFORM:-}"
 dep_profile="${EDK2_CIX_DEP_PROFILE:-firmware}"
 buildbox_image_label="edk2-cix.buildbox.image"
 buildbox_platform_label="edk2-cix.buildbox.platform"
+container_mount_args=()
+expected_mounts=()
 
 status() {
     printf '[buildbox] %s\n' "$*"
@@ -55,6 +57,94 @@ EOF
 
 runtime() {
     "$container_runtime" "$@"
+}
+
+record_bind_mount() {
+    local source="$1"
+    local target="$2"
+    local options="${3:-}"
+    local mount_spec existing
+
+    if [[ ! -e "$source" ]]; then
+        return 0
+    fi
+
+    mount_spec="${target}=${source}"
+    for existing in "${expected_mounts[@]:-}"; do
+        if [[ "$existing" == "$mount_spec" ]]; then
+            return 0
+        fi
+    done
+
+    expected_mounts+=("$mount_spec")
+    if [[ -n "$options" ]]; then
+        container_mount_args+=(-v "${source}:${target}:${options}")
+    else
+        container_mount_args+=(-v "${source}:${target}")
+    fi
+}
+
+resolve_git_common_dir() {
+    local common_dir
+
+    common_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    if [[ -n "$common_dir" ]]; then
+        printf '%s\n' "$common_dir"
+        return 0
+    fi
+
+    common_dir="$(git -C "$repo_root" rev-parse --git-common-dir 2>/dev/null || true)"
+    if [[ -z "$common_dir" ]]; then
+        return 1
+    fi
+    if [[ "$common_dir" == /* ]]; then
+        printf '%s\n' "$common_dir"
+        return 0
+    fi
+
+    (
+        cd "$repo_root"
+        cd "$common_dir" 2>/dev/null && pwd -P
+    )
+}
+
+prepare_container_mounts() {
+    local workspace_root_real git_path git_path_real
+    local -a extra_git_paths=()
+
+    container_mount_args=()
+    expected_mounts=()
+    record_bind_mount "$host_workspace_root" "$workspace_path"
+    record_bind_mount "$host_tmpdir" "$container_tmpdir"
+
+    if ! git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        return 0
+    fi
+
+    workspace_root_real="$(cd "$host_workspace_root" && pwd -P)"
+
+    while IFS= read -r git_path; do
+        [[ -n "$git_path" ]] || continue
+        [[ -d "$git_path" ]] || continue
+        git_path_real="$(cd "$git_path" && pwd -P)"
+        case "${git_path_real}/" in
+            "${workspace_root_real}/"*)
+                continue
+                ;;
+        esac
+        extra_git_paths+=("$git_path")
+    done < <(
+        git -C "$repo_root" rev-parse --absolute-git-dir 2>/dev/null || true
+        resolve_git_common_dir 2>/dev/null || true
+    )
+
+    if (( ${#extra_git_paths[@]} > 0 )); then
+        status "Exposing external git metadata inside the buildbox so source metadata can resolve"
+    fi
+
+    for git_path in "${extra_git_paths[@]}"; do
+        record_bind_mount "$git_path" "$git_path" ro
+    done
 }
 
 normalize_arch() {
@@ -192,13 +282,20 @@ EOF
 
 ensure_container() {
     if runtime container inspect "$container_name" >/dev/null 2>&1; then
-        local mounts existing_image existing_platform
+        local mounts existing_image existing_platform expected_mount
         mounts="$(runtime inspect -f '{{range .Mounts}}{{printf "%s=%s\n" .Destination .Source}}{{end}}' "$container_name")"
         existing_image="$(container_label "$buildbox_image_label")"
         existing_platform="$(container_label "$buildbox_platform_label")"
-        if ! grep -Fxq "${workspace_path}=${host_workspace_root}" <<<"$mounts" || \
-            ! grep -Fxq "${container_tmpdir}=${host_tmpdir}" <<<"$mounts" || \
-            [[ "$existing_image" != "$container_image" ]] || \
+        for expected_mount in "${expected_mounts[@]}"; do
+            if ! grep -Fxq "$expected_mount" <<<"$mounts"; then
+                status "Recreating ${container_name} with the expected workspace mounts and buildbox settings"
+                runtime rm -f "$container_name" >/dev/null
+                break
+            fi
+        done
+        if ! runtime container inspect "$container_name" >/dev/null 2>&1; then
+            :
+        elif [[ "$existing_image" != "$container_image" ]] || \
             [[ "$existing_platform" != "$container_platform" ]]; then
             status "Recreating ${container_name} with the expected workspace mounts and buildbox settings"
             runtime rm -f "$container_name" >/dev/null
@@ -221,8 +318,7 @@ ensure_container() {
         --label "${buildbox_platform_label}=${container_platform}" \
         --platform "$container_platform" \
         --ulimit nofile=1024:524288 \
-        -v "${host_workspace_root}:${workspace_path}" \
-        -v "${host_tmpdir}:${container_tmpdir}" \
+        "${container_mount_args[@]}" \
         -w "$workspace_path" \
         "$container_image" \
         sleep infinity >/dev/null
@@ -277,6 +373,8 @@ status "Using container runtime: ${container_runtime}"
 status "Using container platform: ${container_platform}"
 status "Using container image: ${container_image}"
 mkdir -p "$host_tmpdir"
+host_tmpdir="$(cd "$host_tmpdir" && pwd -P)"
+prepare_container_mounts
 ensure_container
 verify_workspace
 
