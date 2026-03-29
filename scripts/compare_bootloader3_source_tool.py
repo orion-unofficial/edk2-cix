@@ -12,6 +12,8 @@ import subprocess
 import sys
 import tempfile
 
+from vendor_tool_resolver import resolve_vendor_tool
+
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
@@ -28,6 +30,7 @@ def load_cert_compare_module():
 
 
 CERT_COMPARE = load_cert_compare_module()
+VENDOR_TOOL_REPO_RELPATH = "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/X86_64/cix_regen_trusted_key_cert"
 DEFAULT_SOURCE_TOOL_DIR = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cix_regen_trusted_key_cert"
 DEFAULT_SOURCE_TOOL = DEFAULT_SOURCE_TOOL_DIR / "cix_regen_trusted_key_cert"
 DEFAULT_FIPTOOL = REPO_ROOT / "src/tools/arm-trusted-firmware-fiptool/build" / (
@@ -116,7 +119,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--vendor-tool",
         type=pathlib.Path,
-        help="Path to an external vendor cix_regen_trusted_key_cert binary",
+        help="Optional path to an external vendor cix_regen_trusted_key_cert binary",
+    )
+    parser.add_argument(
+        "--vendor-ref",
+        action="append",
+        default=[],
+        help=(
+            "Git ref to search for the bundled vendor binary when --vendor-tool "
+            "is omitted; may be repeated"
+        ),
     )
     parser.add_argument("--source-tool", type=pathlib.Path, default=DEFAULT_SOURCE_TOOL)
     parser.add_argument("--source-tool-dir", type=pathlib.Path, default=DEFAULT_SOURCE_TOOL_DIR)
@@ -129,15 +141,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    if args.vendor_tool is None:
-        raise FileNotFoundError(
-            "pass --vendor-tool pointing at an external vendor cix_regen_trusted_key_cert binary"
-        )
     payloads = require_payloads(args.input_dir)
 
     required_paths = [
         args.input_dir,
-        args.vendor_tool,
         args.public_key,
         args.private_key,
     ]
@@ -155,73 +162,79 @@ def main() -> int:
         if not path.exists():
             raise FileNotFoundError(path)
 
-    with tempfile.TemporaryDirectory(prefix="bootloader3-compare-") as td:
-        td_path = pathlib.Path(td)
-        vendor_trusted = td_path / "vendor-trusted.crt"
-        source_trusted = td_path / "source-trusted.crt"
-        vendor_bootloader = td_path / "vendor-bootloader3.img"
-        source_bootloader = td_path / "source-bootloader3.img"
-        vendor_unpack = td_path / "vendor"
-        source_unpack = td_path / "source"
+    refs = tuple(args.vendor_ref) if args.vendor_ref else None
+    with resolve_vendor_tool(
+        explicit_path=args.vendor_tool,
+        repo_relpath=VENDOR_TOOL_REPO_RELPATH,
+        refs=refs or ("main-monorepo-upstream", "main"),
+    ) as vendor_tool:
+        with tempfile.TemporaryDirectory(prefix="bootloader3-compare-") as td:
+            td_path = pathlib.Path(td)
+            vendor_trusted = td_path / "vendor-trusted.crt"
+            source_trusted = td_path / "source-trusted.crt"
+            vendor_bootloader = td_path / "vendor-bootloader3.img"
+            source_bootloader = td_path / "source-bootloader3.img"
+            vendor_unpack = td_path / "vendor"
+            source_unpack = td_path / "source"
 
-        CERT_COMPARE.run(
-            [str(args.vendor_tool), "-p", str(args.public_key), "-s", str(args.private_key), "-o", str(vendor_trusted)]
-        )
-        CERT_COMPARE.run(
-            [str(args.source_tool), "-p", str(args.public_key), "-s", str(args.private_key), "-o", str(source_trusted)]
-        )
-        CERT_COMPARE.compare_generate(vendor_trusted, source_trusted, args.public_key, args.private_key)
+            CERT_COMPARE.run(
+                [str(vendor_tool), "-p", str(args.public_key), "-s", str(args.private_key), "-o", str(vendor_trusted)]
+            )
+            CERT_COMPARE.run(
+                [str(args.source_tool), "-p", str(args.public_key), "-s", str(args.private_key), "-o", str(source_trusted)]
+            )
+            CERT_COMPARE.compare_generate(vendor_trusted, source_trusted, args.public_key, args.private_key)
 
-        create_bootloader3(
-            args.fiptool,
-            vendor_trusted,
-            payloads["nt-fw-key-cert.bin"],
-            payloads["nt-fw-cert.bin"],
-            payloads["nt-fw.bin"],
-            vendor_bootloader,
-        )
-        create_bootloader3(
-            args.fiptool,
-            source_trusted,
-            payloads["nt-fw-key-cert.bin"],
-            payloads["nt-fw-cert.bin"],
-            payloads["nt-fw.bin"],
-            source_bootloader,
-        )
-        unpack_bootloader3(args.fiptool, vendor_bootloader, vendor_unpack)
-        unpack_bootloader3(args.fiptool, source_bootloader, source_unpack)
+            create_bootloader3(
+                args.fiptool,
+                vendor_trusted,
+                payloads["nt-fw-key-cert.bin"],
+                payloads["nt-fw-cert.bin"],
+                payloads["nt-fw.bin"],
+                vendor_bootloader,
+            )
+            create_bootloader3(
+                args.fiptool,
+                source_trusted,
+                payloads["nt-fw-key-cert.bin"],
+                payloads["nt-fw-cert.bin"],
+                payloads["nt-fw.bin"],
+                source_bootloader,
+            )
+            unpack_bootloader3(args.fiptool, vendor_bootloader, vendor_unpack)
+            unpack_bootloader3(args.fiptool, source_bootloader, source_unpack)
 
-        for name in ("nt-fw.bin", "nt-fw-cert.bin", "nt-fw-key-cert.bin"):
-            vendor_payload = vendor_unpack / name
-            source_payload = source_unpack / name
-            if vendor_payload.read_bytes() != payloads[name].read_bytes():
-                raise AssertionError(f"vendor bootloader3 changed payload {name}")
-            if source_payload.read_bytes() != payloads[name].read_bytes():
-                raise AssertionError(f"source bootloader3 changed payload {name}")
-            if vendor_payload.read_bytes() != source_payload.read_bytes():
-                raise AssertionError(f"vendor/source bootloader3 payload mismatch: {name}")
+            for name in ("nt-fw.bin", "nt-fw-cert.bin", "nt-fw-key-cert.bin"):
+                vendor_payload = vendor_unpack / name
+                source_payload = source_unpack / name
+                if vendor_payload.read_bytes() != payloads[name].read_bytes():
+                    raise AssertionError(f"vendor bootloader3 changed payload {name}")
+                if source_payload.read_bytes() != payloads[name].read_bytes():
+                    raise AssertionError(f"source bootloader3 changed payload {name}")
+                if vendor_payload.read_bytes() != source_payload.read_bytes():
+                    raise AssertionError(f"vendor/source bootloader3 payload mismatch: {name}")
 
-        vendor_trusted_unpacked = vendor_unpack / "trusted-key-cert.bin"
-        source_trusted_unpacked = source_unpack / "trusted-key-cert.bin"
-        if vendor_trusted_unpacked.read_bytes() != vendor_trusted.read_bytes():
-            raise AssertionError("vendor bootloader3 did not embed the generated trusted-key cert")
-        if source_trusted_unpacked.read_bytes() != source_trusted.read_bytes():
-            raise AssertionError("source bootloader3 did not embed the generated trusted-key cert")
+            vendor_trusted_unpacked = vendor_unpack / "trusted-key-cert.bin"
+            source_trusted_unpacked = source_unpack / "trusted-key-cert.bin"
+            if vendor_trusted_unpacked.read_bytes() != vendor_trusted.read_bytes():
+                raise AssertionError("vendor bootloader3 did not embed the generated trusted-key cert")
+            if source_trusted_unpacked.read_bytes() != source_trusted.read_bytes():
+                raise AssertionError("source bootloader3 did not embed the generated trusted-key cert")
 
-        CERT_COMPARE.compare_extract(args.source_tool, vendor_trusted_unpacked)
-        if (
-            source_bootloader.stat().st_size - vendor_bootloader.stat().st_size
-            != source_trusted.stat().st_size - vendor_trusted.stat().st_size
-        ):
-            raise AssertionError("bootloader3 size delta does not match trusted-key-cert size delta")
+            CERT_COMPARE.compare_extract(args.source_tool, vendor_trusted_unpacked)
+            if (
+                source_bootloader.stat().st_size - vendor_bootloader.stat().st_size
+                != source_trusted.stat().st_size - vendor_trusted.stat().st_size
+            ):
+                raise AssertionError("bootloader3 size delta does not match trusted-key-cert size delta")
 
-        print("bootloader3 comparison passed")
-        print(f"vendor trusted-key cert : {vendor_trusted.stat().st_size} bytes sha256={sha256(vendor_trusted)}")
-        print(f"source trusted-key cert : {source_trusted.stat().st_size} bytes sha256={sha256(source_trusted)}")
-        print(f"vendor bootloader3.img  : {vendor_bootloader.stat().st_size} bytes sha256={sha256(vendor_bootloader)}")
-        print(f"source bootloader3.img  : {source_bootloader.stat().st_size} bytes sha256={sha256(source_bootloader)}")
-        print("shared payloads         : nt-fw.bin, nt-fw-cert.bin, nt-fw-key-cert.bin are byte-identical")
-        return 0
+            print("bootloader3 comparison passed")
+            print(f"vendor trusted-key cert : {vendor_trusted.stat().st_size} bytes sha256={sha256(vendor_trusted)}")
+            print(f"source trusted-key cert : {source_trusted.stat().st_size} bytes sha256={sha256(source_trusted)}")
+            print(f"vendor bootloader3.img  : {vendor_bootloader.stat().st_size} bytes sha256={sha256(vendor_bootloader)}")
+            print(f"source bootloader3.img  : {source_bootloader.stat().st_size} bytes sha256={sha256(source_bootloader)}")
+            print("shared payloads         : nt-fw.bin, nt-fw-cert.bin, nt-fw-key-cert.bin are byte-identical")
+            return 0
 
 
 if __name__ == "__main__":
