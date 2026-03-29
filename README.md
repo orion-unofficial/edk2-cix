@@ -62,6 +62,10 @@ The local container helpers prefer `podman` when it is installed and usable,
 and otherwise fall back to `docker`. Set
 `EDK2_CIX_CONTAINER_RUNTIME=docker` or
 `EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
+The `buildbox-*` targets keep their host-side scratch space under
+`.buildbox/`, write staged/archive outputs under `dist/`, and copy Debian
+package artefacts into `dist/deb/`. You can also invoke them from another
+working directory with `make -C /path/to/checkout buildbox-...`.
 
 ### With `devcontainer`
 
