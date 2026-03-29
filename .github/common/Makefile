@@ -37,9 +37,19 @@ post_build_dep:
 .PHONY: arm64_crossbuild_dep
 arm64_crossbuild_dep:
 	"$(REPO_ROOT)/scripts/ensure_build_deps.sh" --profile packaging
+	bash "$(REPO_ROOT)/scripts/require_host_tools.sh" "arm64 Debian cross-build dependency installation" apt-get dpkg dpkg-query
 	cd "$(REPO_ROOT)" && \
-	sudo env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true DEBCONF_NOWARNINGS=yes DEBIAN_PRIORITY=critical TERM=dumb \
-		apt-get -o APT::Install-Recommends=false -o APT::Install-Suggests=false -o Dpkg::Use-Pty=0 build-dep . -y --no-install-recommends --host-architecture arm64
+	if [ "$$(id -u)" -eq 0 ]; then \
+		env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true DEBCONF_NOWARNINGS=yes DEBIAN_PRIORITY=critical TERM=dumb \
+			apt-get -o APT::Install-Recommends=false -o APT::Install-Suggests=false -o Dpkg::Use-Pty=0 build-dep . -y --no-install-recommends --host-architecture arm64; \
+	else \
+		if ! command -v sudo >/dev/null 2>&1; then \
+			printf '%s\n' '[deps] arm64_crossbuild_dep needs root privileges; re-run as root or install sudo.' >&2; \
+			exit 1; \
+		fi; \
+		sudo env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true DEBCONF_NOWARNINGS=yes DEBIAN_PRIORITY=critical TERM=dumb \
+			apt-get -o APT::Install-Recommends=false -o APT::Install-Suggests=false -o Dpkg::Use-Pty=0 build-dep . -y --no-install-recommends --host-architecture arm64; \
+	fi
 
 #
 # Test
@@ -109,6 +119,7 @@ clean-deb:
 #
 .PHONY: dch
 dch: $(REPO_ROOT)/debian/changelog
+	bash "$(REPO_ROOT)/scripts/require_host_tools.sh" "Debian changelog generation" gbp
 	cd "$(REPO_ROOT)" && \
 	gbp dch --ignore-branch --multimaint-merge --release --spawn-editor=never \
 	--git-log='--no-merges --perl-regexp --invert-grep --grep=^(chore:\stemplates\sgenerated)' \
@@ -122,6 +133,7 @@ pre_debuild:
 
 .PHONY: debuild
 debuild:
+	bash "$(REPO_ROOT)/scripts/require_host_tools.sh" "Debian package build" debuild lintian
 	cd "$(REPO_ROOT)" && $(CUSTOM_DEBUILD_ENV) debuild --no-lintian --lintian-hook "lintian --fail-on error,warning --suppress-tags-from-file $(REPO_ROOT)/debian/common-lintian-overrides -- %p_%v_*.changes" --no-sign -b $(CUSTOM_DEBUILD_ARG)
 
 .PHONY: post_debuild
