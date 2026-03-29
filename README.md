@@ -266,6 +266,10 @@ By default those targets work on the `O6` payload and:
 
 - stage files under `dist/firmware/orion-o6/<version>/`
 - install them under `/boot/efi/firmware/radxa/<version>/`
+- `make install` is intended for a live system with a writable EFI system
+  partition
+- Debian package builds do not use `make install`; they collect files from the
+  build tree via `dh_install`
 - write archives under `dist/`
 
 The `.zip` and `.tar.gz` exports keep the payload under
