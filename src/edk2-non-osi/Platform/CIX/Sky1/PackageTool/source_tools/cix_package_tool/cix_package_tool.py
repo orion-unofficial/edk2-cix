@@ -52,6 +52,7 @@ class ImageEntry:
 class Config:
     path: Path
     cfs_version: int
+    fip_version: int | None
     flash_size: int
     image_count: int
     image_entries: tuple[ImageEntry, ...]
@@ -99,6 +100,7 @@ def load_config(config_path: Path) -> Config:
     return Config(
         path=config_path,
         cfs_version=parse_int(raw["cfs_version"]),
+        fip_version=parse_int(raw["fip_version"]) if "fip_version" in raw else None,
         flash_size=parse_int(raw["flash_size"]),
         image_count=parse_int(raw["image_count"]),
         image_entries=tuple(entries),
@@ -130,6 +132,17 @@ def validate_entries(entries: tuple[ImageEntry, ...]) -> None:
         seen_types[entry.image_type] = entry
 
 
+def entry_data_for_full_flash(config: Config, entry: ImageEntry) -> bytes:
+    data = entry.data
+    if entry.image_type == 2 and config.fip_version is not None:
+        if len(data) < 8:
+            raise SystemExit("bootloader2.img is too small to carry the FIP version field")
+        mutable = bytearray(data)
+        struct.pack_into("<I", mutable, 4, config.fip_version)
+        return bytes(mutable)
+    return data
+
+
 def build_full_flash(config: Config) -> bytes:
     assert config.firmware_header_addr is not None
     assert config.ec_addr is not None
@@ -149,15 +162,20 @@ def build_full_flash(config: Config) -> bytes:
         fixed_writes.append((addr, data))
         max_end = max(max_end, addr + len(data))
 
+    entry_payloads = {
+        entry: entry_data_for_full_flash(config, entry) for entry in config.image_entries
+    }
+
     for entry in config.image_entries:
-        max_end = max(max_end, entry.address + entry.actual_size)
+        max_end = max(max_end, entry.address + len(entry_payloads[entry]))
 
     output = bytearray(max_end)
     for addr, data in fixed_writes:
         output[addr : addr + len(data)] = data
 
     for entry in config.image_entries:
-        output[entry.address : entry.address + entry.actual_size] = entry.data
+        data = entry_payloads[entry]
+        output[entry.address : entry.address + len(data)] = data
 
     struct.pack_into(
         "<4I",
@@ -175,7 +193,7 @@ def build_full_flash(config: Config) -> bytes:
             config.firmware_header_addr + HEADER_WORDS * 4 + index * ENTRY_SIZE,
             entry.image_type,
             entry.address,
-            entry.actual_size,
+            len(entry_payloads[entry]),
             0,
         )
     return bytes(output)

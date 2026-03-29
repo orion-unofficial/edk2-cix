@@ -1,7 +1,7 @@
 {
   "profiles": {
     "upstream-o6-1.2.1-bookworm": {
-      "description": "Validated upstream-identical O6 replay baseline from the published 1.2.1 release, reproduced in the amd64 Bookworm buildbox.",
+      "description": "Validated upstream-identical O6 replay baseline from the published 1.2.1 release, reproduced in both the amd64 and arm64 Bookworm buildboxes when reusing the extracted cert bundle.",
       "board": "O6",
       "target": "RELEASE_GCC5",
       "artefacts": {
