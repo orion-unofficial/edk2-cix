@@ -220,6 +220,10 @@ By default:
 - `make zip` writes `dist/edk2-cix-orion-o6-<version>.zip`
 - `make targz` writes `dist/edk2-cix-orion-o6-<version>.tar.gz`
 
+`make install` is intended for a live system with a writable EFI system
+partition. Debian package builds do not use this target; they collect files
+directly from the build tree with `dh_install`.
+
 Both archive formats store the payload under `orion-o6/<version>/` inside the
 archive, so the archive members match the same product/version layout used by
 the staged payload.
