@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import pathlib
 import re
 import sys
@@ -41,13 +42,26 @@ WARNING_CLASSES = (
         ),
     ),
     WarningClass(
+        key="platformconfig_duplicate_default",
+        title="PlatformConfig duplicate default",
+        pattern=re.compile(r"PlatformConfigHii\.i\(\d+\): WARNING: default"),
+        disposition="custom-path-candidate",
+        note=(
+            "Radxa/CIX VFR checkbox default is specified twice. The warning is "
+            "real, but removing the redundant default changes the generated "
+            "IFR/HII payload, so it is not upstream-safe to patch here."
+        ),
+    ),
+    WarningClass(
         key="iasl_warning",
         title="IASL / ACPI warning",
         pattern=re.compile(r"Warning\s+\d+\s+-"),
         disposition="needs-review",
         note=(
-            "ACPI source warning from the current firmware tables. These may "
-            "be worth fixing later, but should be reviewed table-by-table."
+            "Vendor ACPI source warning from the current O6/CIX tables. These "
+            "warnings were traced to Radxa/CIX ASL sources and should be "
+            "reviewed table-by-table; many are not upstream-safe fixes because "
+            "they would change emitted AML bytes or firmware behaviour."
         ),
     ),
     WarningClass(
@@ -71,6 +85,16 @@ WARNING_CLASSES = (
         ),
     ),
 )
+
+IASL_CODE_DETAILS = {
+    "3107": "reserved method must return a value",
+    "3115": "not all control paths return a value",
+    "3124": "switch expression defaults to Integer typing",
+    "3134": "unreachable statement",
+    "3144": "method local is set but never used",
+    "3150": "empty resource template",
+    "3175": "static OperationRegion declared inside control method",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -115,6 +139,20 @@ def main() -> int:
             f"({warning_class.disposition})"
         )
         print(f"  Note: {warning_class.note}")
+        if warning_class.key == "iasl_warning":
+            code_counts: collections.Counter[str] = collections.Counter()
+            code_pattern = re.compile(r"Warning\s+(\d+)\s+-")
+            for hit in hits:
+                match = code_pattern.search(hit)
+                if match:
+                    code_counts[match.group(1)] += 1
+            if code_counts:
+                print("  Breakdown:")
+                for code, count in sorted(
+                    code_counts.items(), key=lambda item: (-item[1], item[0])
+                ):
+                    detail = IASL_CODE_DETAILS.get(code, "unclassified IASL warning")
+                    print(f"    - {code}: {count} ({detail})")
         print(f"  Example: {hits[0]}")
 
     if not printed_any:
