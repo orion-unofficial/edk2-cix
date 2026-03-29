@@ -72,6 +72,12 @@ TRUSTED_KEY_CERT_TOOL_BIN := $(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trust
 TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS := \
 	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/Makefile \
 	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trusted_key_cert.c
+CIX_PACKAGE_TOOL_SOURCE_DIR := $(PACKAGE_TOOL)/source_tools/cix_package_tool
+CIX_PACKAGE_TOOL_BIN := $(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool
+CIX_PACKAGE_TOOL_SOURCE_INPUTS := $(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py
+CIX_PACKAGE_TOOL_REQUIRED_FILES := \
+	$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool \
+	$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py
 SIGNING_CERT_SOURCE_DIR ?=
 REQUIRE_SIGNING_CERT_SOURCE ?= $(if $(and $(filter upstream,$(ARTEFACT_MODE)),$(strip $(SIGNING_CERT_SOURCE_DIR))),1,0)
 BASETOOLS_C_BIN_DIR := edk2/BaseTools/Source/C/bin
@@ -94,19 +100,21 @@ DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name 
 
 CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_all.bin) \
 				 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
-.PHONY: build host-fiptool host-cix-regen-trusted-key-cert
+.PHONY: build host-fiptool host-cix-regen-trusted-key-cert host-cix-package-tool
 build: preflight $(CIX_FLASH)
 
 host-fiptool: $(FIPTOOL_BIN)
 host-cix-regen-trusted-key-cert: $(TRUSTED_KEY_CERT_TOOL_BIN)
+host-cix-package-tool: $(CIX_PACKAGE_TOOL_BIN)
 
-.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert prepare-basetools-c
+.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cix-package-tool prepare-basetools-c
 .PHONY: help
 help:
 	echo "Supported targets:"
 	echo "$(CIX_FLASH)"
 	echo "host-fiptool"
 	echo "host-cix-regen-trusted-key-cert"
+	echo "host-cix-package-tool"
 	echo "prepare-basetools-c"
 	echo "preflight"
 	echo "Use V=1 for verbose EDK2 build commands"
@@ -116,6 +124,9 @@ $(FIPTOOL_BIN): $(FIPTOOL_SOURCE_INPUTS)
 
 $(TRUSTED_KEY_CERT_TOOL_BIN): $(TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS)
 	$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" all
+
+$(CIX_PACKAGE_TOOL_BIN): $(CIX_PACKAGE_TOOL_SOURCE_INPUTS)
+	chmod +x "$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool" "$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py"
 
 .PHONY: print-build-metadata preflight-build-metadata
 print-build-metadata: preflight-build-metadata
@@ -246,8 +257,13 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
+	for required_file in $(CIX_PACKAGE_TOOL_REQUIRED_FILES); do \
+		if [[ ! -f "$$required_file" ]]; then \
+			echo "[preflight] Missing cix_package_tool source input: $$required_file" >&2; \
+			missing=1; \
+		fi; \
+	done; \
 	for required_bin in \
-		"$(PACKAGE_TOOL)/$(PACKAGE_TOOL_ARCH)/cix_package_tool" \
 		"$(PACKAGE_TOOL)/$(PACKAGE_TOOL_ARCH)/cert_uefi_create_rsa"; do \
 		if [[ ! -x "$$required_bin" ]]; then \
 			echo "[preflight] Missing required package-tool binary: $$required_bin" >&2; \
@@ -259,7 +275,7 @@ preflight-tools:
 	fi
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin
-Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
+Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
 	@export CFG="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/spi_flash_config_ota.json" -type f)" && \
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	if [[ -f "$$CFG" ]]; then \
@@ -270,11 +286,12 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET
 	fi
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
+	export CIX_PACKAGE_TOOL_BIN="$(shell realpath "$(CIX_PACKAGE_TOOL_BIN)")" && \
 	printf '[build/%s] Packaging OTA flash image\n' "$*" && \
 	pushd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
 	tmp_ota="./cix_flash_ota.bin.tmp" && \
 	rm -f "$$tmp_ota" && \
-	TERM=dumb "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_package_tool" -c "./spi_flash_config_ota.json" -O "$$tmp_ota" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
+	TERM=dumb "$$CIX_PACKAGE_TOOL_BIN" -c "./spi_flash_config_ota.json" -O "$$tmp_ota" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
 	if [[ ! -s "$$tmp_ota" ]]; then \
 		echo "[build/$*] Expected OTA image $$tmp_ota was not created" >&2; \
 		exit 1; \
@@ -286,7 +303,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET
 MEM_CFG_MEMFREQ ?= 3000
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin
-Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
+Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
 	@export MEM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/mem_config" -type d)" && \
 	if [[ -d "$$MEM" ]]; then \
 		printf '[build/%s] Regenerating memory configuration\n' "$*" && \
@@ -314,6 +331,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 
 	export CFG="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/spi_flash_config_all.json" -type f)" && \
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
+	export CIX_PACKAGE_TOOL_BIN="$(shell realpath "$(CIX_PACKAGE_TOOL_BIN)")" && \
 	if [[ -f "$$CFG" ]]; then \
 		echo "Found custom flash config."; \
 		cp "$$CFG" Build/$*/$(UEFI_TARGET)_GCC5/; \
@@ -324,7 +342,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	printf '[build/%s] Packaging full flash image\n' "$*" && \
 	pushd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
-	TERM=dumb "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_package_tool" -c "./spi_flash_config_all.json" -o "./cix_flash_all.raw" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
+	TERM=dumb "$$CIX_PACKAGE_TOOL_BIN" -c "./spi_flash_config_all.json" -o "./cix_flash_all.raw" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
 	if [[ ! -s "./cix_flash_all.raw" ]]; then \
 		echo "[build/$*] Expected cix_flash_all.raw was not created" >&2; \
 		exit 1; \
