@@ -34,6 +34,48 @@ src/tools/gcc/%: src/tools/gcc/%.tar.xz
 
 build: build-edk2
 
+.PHONY: help
+help:
+	@printf '%s\n' 'edk2-cix common targets'
+	@printf '%s\n' ''
+	@printf '%-34s %s\n' '  help' 'Show this help text'
+	@printf '%-34s %s\n' '  devcontainer_setup' 'Install host build dependencies'
+	@printf '%-34s %s\n' '  build-edk2' 'Run the raw src/ firmware build'
+	@printf '%-34s %s\n' '  firmware-build' 'Build the O6 firmware artefacts'
+	@printf '%-34s %s\n' '  firmware-stage' 'Stage deployable firmware files under dist/'
+	@printf '%-34s %s\n' '  install' 'Install staged firmware files under /boot/efi/'
+	@printf '%-34s %s\n' '  zip' 'Create a .zip firmware archive'
+	@printf '%-34s %s\n' '  targz' 'Create a .tar.gz firmware archive'
+	@printf '%-34s %s\n' '  deb' 'Build the Debian package'
+	@printf '%-34s %s\n' '  validate-firmware' 'Check outputs against the active validation profile'
+	@printf '%-34s %s\n' '  validate-firmware-strict' 'Require exact matches from the validation profile'
+	@printf '%-34s %s\n' '  capture-validation-profile' 'Snapshot the current build into a profile JSON'
+	@printf '%-34s %s\n' '  clean' 'Remove build output and packaging by-products'
+	@printf '%s\n' ''
+	@printf '%s\n' 'buildbox targets'
+	@printf '%s\n' ''
+	@printf '%-34s %s\n' '  buildbox-up' 'Start or reuse the persistent build container'
+	@printf '%-34s %s\n' '  buildbox-metadata' 'Print resolved build metadata inside the buildbox'
+	@printf '%-34s %s\n' '  buildbox-firmware-build' 'Build firmware inside the buildbox'
+	@printf '%-34s %s\n' '  buildbox-firmware-stage' 'Stage firmware files inside the buildbox'
+	@printf '%-34s %s\n' '  buildbox-o6' 'Compatibility alias for buildbox-firmware-build'
+	@printf '%-34s %s\n' '  buildbox-o6-log' 'Capture a full logged buildbox firmware build'
+	@printf '%-34s %s\n' '  buildbox-deb' 'Build the Debian package inside the buildbox'
+	@printf '%-34s %s\n' '  buildbox-zip' 'Create a .zip archive inside the buildbox'
+	@printf '%-34s %s\n' '  buildbox-targz' 'Create a .tar.gz archive inside the buildbox'
+	@printf '%-34s %s\n' '  buildbox-validate-firmware' 'Run validation inside the buildbox'
+	@printf '%-34s %s\n' '  buildbox-validate-firmware-strict' 'Run strict validation inside the buildbox'
+	@printf '%-34s %s\n' '  buildbox-capture-validation-profile' 'Capture a validation profile inside the buildbox'
+	@printf '%s\n' ''
+	@printf '%s\n' 'useful variables'
+	@printf '%s\n' ''
+	@printf '%-34s %s\n' '  ARTEFACT_MODE=custom|upstream' 'Select the custom or upstream output mode'
+	@printf '%-34s %s\n' '  V=1' 'Show raw EDK2 command lines'
+	@printf '%-34s %s\n' '  FIRMWARE_BOARD=O6' 'Select the firmware board'
+	@printf '%-34s %s\n' '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Override the validation profile'
+	@printf '%s\n' ''
+	@printf '%s\n' 'For lower-level firmware targets, run: make -C src help'
+
 .PHONY: build-edk2
 build-edk2:
 	make --no-print-directory -C src
