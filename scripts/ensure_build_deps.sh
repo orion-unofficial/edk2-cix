@@ -28,24 +28,12 @@ apt_env=(
 )
 
 apt_get() {
-    local status=0
-    set +e
     as_root "${apt_env[@]}" apt-get \
         -o APT::Install-Recommends=false \
         -o APT::Install-Suggests=false \
+        -o APT::Color=0 \
         -o Dpkg::Use-Pty=0 \
-        "$@" 2>&1 | awk '
-            /^Suggested packages:$/ { skip = 1; next }
-            /^Recommended packages:$/ { skip = 1; next }
-            skip && /^[[:space:]]/ { next }
-            {
-                skip = 0
-                print
-            }
-        '
-    status=${PIPESTATUS[0]}
-    set -e
-    return "$status"
+        "$@"
 }
 
 usage() {
