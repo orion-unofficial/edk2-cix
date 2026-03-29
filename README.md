@@ -261,6 +261,11 @@ By default those targets work on the `O6` payload and:
 - install them under `/boot/efi/firmware/radxa/<version>/`
 - write archives under `dist/`
 
+When you use `make buildbox-firmware-stage`, the staged payload is already
+written back into the host checkout at the same `dist/firmware/orion-o6/<version>/`
+path, because the buildbox bind-mounts the repo root. There is no separate
+`podman cp` or `docker cp` step.
+
 The staged payload includes:
 
 - top-level `startup.nsh` from `welcome.nsh`
@@ -273,6 +278,17 @@ The staged payload includes:
 - `VariableInfo.efi`
 - `Shell.efi`
 - product-local `startup.nsh`
+
+To deploy that staged payload manually onto a target machine or removable FAT
+volume, copy the contents of `dist/firmware/orion-o6/<version>/` into
+`edk2/radxa/` on the EFI System Partition. That gives you:
+
+- `edk2/radxa/startup.nsh` as the top-level launcher
+- `edk2/radxa/orion-o6/` with the board-specific flash binaries and `.efi`
+  helpers
+
+From the UEFI Shell, run `startup.nsh` to list available products, or go
+straight to `orion-o6/startup.nsh` to flash that payload directly.
 
 Override these knobs if needed:
 
