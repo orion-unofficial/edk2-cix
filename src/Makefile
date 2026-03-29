@@ -207,6 +207,8 @@ prepare-basetools-c:
 	done
 	if [[ "$$rebuild" -eq 1 ]]; then
 		printf '[build] Rebuilding BaseTools C binaries for %s\n' "$$current_env_id"
+		printf '[build] Cleaning stale BaseTools C objects and dependency files\n'
+		$(MAKE) -C edk2/BaseTools clean
 		$(MAKE) -C edk2/BaseTools -j$(shell nproc) Source/C
 		printf '%s\n' "$$current_env_id" > "$(BASETOOLS_C_MARKER)"
 	fi
