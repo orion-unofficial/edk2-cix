@@ -18,6 +18,7 @@ export TRUSTED_KEY_CERT_TOOL_SOURCE_DIR="${PATH_SOURCE_TOOLS}/cix_regen_trusted_
 export TRUSTED_KEY_CERT_TOOL_BIN="${TRUSTED_KEY_CERT_TOOL_SOURCE_DIR}/cix_regen_trusted_key_cert"
 export CERT_UEFI_CREATE_RSA_SOURCE_DIR="${PATH_SOURCE_TOOLS}/cert_uefi_create_rsa"
 export CERT_UEFI_CREATE_RSA_BIN="${CERT_UEFI_CREATE_RSA_SOURCE_DIR}/cert_uefi_create_rsa"
+export CERT_VALIDATOR="${WORKSPACE}/src/scripts/validate_cix_fip_certs.py"
 
 export ARM_TOOLCHAIN_ELF="gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf"
 if [ "$(uname -m)" = "aarch64" ]; then
@@ -303,6 +304,18 @@ EOF
         --nt-fw-key ${path_out_temp}/Keys/oem_privatekey.pem \
         --non-trusted-world-key ${path_out_temp}/Keys/oem_privatekey.pem \
         --nt-fw ${PATH_OUT}/SKY1_BL33_UEFI.fd
+
+    run_success_only python3 "${CERT_VALIDATOR}" \
+        --trusted-key-cert ${path_out_temp}/certs/trusted_key_no.crt \
+        --nt-fw-key-cert ${path_out_temp}/certs/nt_fw_key.crt \
+        --nt-fw-cert ${path_out_temp}/certs/nt_fw_cert.crt \
+        --oem-public-key ${path_out_temp}/Keys/oem_publickey.pem \
+        --trusted-sign-key ${path_out_temp}/Keys/oem_privatekey.pem \
+        --nt-fw-key ${path_out_temp}/Keys/oem_privatekey.pem \
+        --non-trusted-world-key ${path_out_temp}/Keys/oem_privatekey.pem \
+        --nt-fw ${PATH_OUT}/SKY1_BL33_UEFI.fd \
+        --ntfw-nvctr 223 \
+        --fiptool ${path_out_temp}/fiptool
 
     run_success_only ./fiptool create \
         --trusted-key-cert ${path_out_temp}/certs/trusted_key_no.crt \
