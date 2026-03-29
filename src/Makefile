@@ -26,6 +26,12 @@ PRINT_HOST_TOOL = @printf '  HOST    %s\n' '$(@F)'
 endif
 WITH_REPO_LOCK := "$(abspath ../scripts/with_repo_lock.sh)"
 LOCKED_MAKE = $(if $(filter 1,$(EDK2_CIX_REPO_LOCK_HELD)),$(MAKE) --no-print-directory,$(WITH_REPO_LOCK) $(MAKE) --no-print-directory)
+define ENSURE_REPO_LOCK
+if [[ "$(EDK2_CIX_REPO_LOCK_HELD)" != "1" ]]; then \
+	$(WITH_REPO_LOCK) $(MAKE) --no-print-directory "$@"; \
+	exit $$?; \
+fi
+endef
 MONOREPO_EDK2_COMMIT_HASH ?= 898a41ed09
 MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= 50f168f
 MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 918cb36f
@@ -78,6 +84,11 @@ TRUSTED_KEY_CERT_TOOL_BIN := $(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trust
 TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS := \
 	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/Makefile \
 	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trusted_key_cert.c
+CERT_UEFI_CREATE_RSA_SOURCE_DIR := $(PACKAGE_TOOL)/source_tools/cert_uefi_create_rsa
+CERT_UEFI_CREATE_RSA_BIN := $(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/cert_uefi_create_rsa
+CERT_UEFI_CREATE_RSA_SOURCE_INPUTS := \
+	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/Makefile \
+	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/cert_uefi_create_rsa.c
 HOST_TOOLS_DIR := Build/HostTools
 CIX_PACKAGE_TOOL_SOURCE_DIR := $(PACKAGE_TOOL)/source_tools/cix_package_tool
 CIX_PACKAGE_TOOL_BIN := $(HOST_TOOLS_DIR)/cix_package_tool
@@ -112,39 +123,56 @@ DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name 
 FIRMWARE_BOARDS := $(foreach i,$(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)),$(lastword $(subst /, ,$(i))))
 CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_all.bin) \
 				 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
-.PHONY: build __build host-fiptool host-cix-regen-trusted-key-cert host-cix-package-tool
+.PHONY: build __build host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool
 build:
 	$(Q)$(LOCKED_MAKE) __build V="$(V)"
 
 __build: preflight $(CIX_FLASH)
 
-host-fiptool: $(FIPTOOL_BIN)
+host-fiptool:
+	$(Q)$(ENSURE_REPO_LOCK)
+	$(PRINT_HOST_TOOL)
+	$(Q)$(MAKE) -C "$(FIPTOOL_SOURCE_DIR)" HOST_ARCH="$(HOST_ARCH)" V="$(V)" clean all
 host-cix-regen-trusted-key-cert:
+	$(Q)$(ENSURE_REPO_LOCK)
 	$(PRINT_HOST_TOOL)
 	$(Q)$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" V="$(V)" clean all
+host-cert-uefi-create-rsa:
+	$(Q)$(ENSURE_REPO_LOCK)
+	$(PRINT_HOST_TOOL)
+	$(Q)$(MAKE) -C "$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)" V="$(V)" clean all
 host-cix-package-tool: $(CIX_PACKAGE_TOOL_BIN)
 
-.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cix-package-tool prepare-basetools-c
+.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool prepare-basetools-c
 .PHONY: help
 help:
 	echo "Supported targets:"
 	echo "$(CIX_FLASH)"
 	echo "host-fiptool"
 	echo "host-cix-regen-trusted-key-cert"
+	echo "host-cert-uefi-create-rsa"
 	echo "host-cix-package-tool"
 	echo "prepare-basetools-c"
 	echo "preflight"
 	echo "Use V=1 for verbose EDK2 build commands"
 
 $(FIPTOOL_BIN): $(FIPTOOL_SOURCE_INPUTS)
+	$(Q)$(ENSURE_REPO_LOCK)
 	$(PRINT_HOST_TOOL)
 	$(Q)$(MAKE) -C "$(FIPTOOL_SOURCE_DIR)" HOST_ARCH="$(HOST_ARCH)" V="$(V)" all
 
 $(TRUSTED_KEY_CERT_TOOL_BIN): $(TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS)
+	$(Q)$(ENSURE_REPO_LOCK)
 	$(PRINT_HOST_TOOL)
 	$(Q)$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" V="$(V)" clean all
 
+$(CERT_UEFI_CREATE_RSA_BIN): $(CERT_UEFI_CREATE_RSA_SOURCE_INPUTS)
+	$(Q)$(ENSURE_REPO_LOCK)
+	$(PRINT_HOST_TOOL)
+	$(Q)$(MAKE) -C "$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)" V="$(V)" clean all
+
 $(CIX_PACKAGE_TOOL_BIN): $(CIX_PACKAGE_TOOL_SOURCE_INPUTS)
+	$(Q)$(ENSURE_REPO_LOCK)
 	$(PRINT_HOST_TOOL)
 	$(Q)mkdir -p "$(HOST_TOOLS_DIR)"
 	$(Q)printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' \
@@ -211,6 +239,7 @@ preflight-build-metadata:
 
 .PHONY: prepare-basetools-c
 prepare-basetools-c:
+	@$(ENSURE_REPO_LOCK)
 	@mkdir -p "$(BASETOOLS_C_BIN_DIR)"
 	current_env_id="$$( \
 		{ source /etc/os-release >/dev/null 2>&1 && true; } || true; \
@@ -288,10 +317,9 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
-	for required_bin in \
-		"$(PACKAGE_TOOL)/$(PACKAGE_TOOL_ARCH)/cert_uefi_create_rsa"; do \
-		if [[ ! -x "$$required_bin" ]]; then \
-			echo "[preflight] Missing required package-tool binary: $$required_bin" >&2; \
+	for required_file in $(CERT_UEFI_CREATE_RSA_SOURCE_INPUTS); do \
+		if [[ ! -f "$$required_file" ]]; then \
+			echo "[preflight] Missing cert_uefi_create_rsa source input: $$required_file" >&2; \
 			missing=1; \
 		fi; \
 	done; \
@@ -301,6 +329,7 @@ preflight-tools:
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin
 Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
+	@$(ENSURE_REPO_LOCK)
 	@export CFG="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/spi_flash_config_ota.json" -type f)" && \
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	if [[ -f "$$CFG" ]]; then \
@@ -330,6 +359,7 @@ MEM_CFG_MEMFREQ ?= 3000
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin
 Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
+	@$(ENSURE_REPO_LOCK)
 	@export MEM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/mem_config" -type d)" && \
 	if [[ -d "$$MEM" ]]; then \
 		printf '[build/%s] Regenerating memory configuration\n' "$*" && \
@@ -398,9 +428,11 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 	Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd \
 	Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin \
 	Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
-	| $(FIPTOOL_BIN)
+	| host-fiptool host-cert-uefi-create-rsa
 
+	@$(ENSURE_REPO_LOCK)
 	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
+	export SOURCE_CERT_TOOL_BIN="$(abspath $(CERT_UEFI_CREATE_RSA_BIN))" && \
 	export SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" && \
 	export REQUIRE_SIGNING_CERT_SOURCE="$(REQUIRE_SIGNING_CERT_SOURCE)" && \
 	run_success_only() { \
@@ -457,7 +489,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		fi; \
 	fi; \
 	if [[ ! -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt || ! -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt ]]; then \
-		run_success_only "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cert_uefi_create_rsa" --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
+		run_success_only "$$SOURCE_CERT_TOOL_BIN" --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
 			--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
 			--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
 			--nt-fw-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
@@ -477,6 +509,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin
 Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
+	@$(ENSURE_REPO_LOCK)
 	@cp -aR $(PACKAGE_TOOL)/Firmwares/ Build/$*/$(UEFI_TARGET)_GCC5/
 	# \377 = 0xFF
 	head -c 8192 < /dev/zero | tr '\000' '\377' > $@
@@ -493,6 +526,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt
 Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
+	@$(ENSURE_REPO_LOCK)
 	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export SOURCE_TOOL_BIN="$(abspath $(TRUSTED_KEY_CERT_TOOL_BIN))" && \
 	run_success_only() { \
@@ -530,23 +564,12 @@ Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
 		fi; \
 	fi; \
 	case "$(ARTEFACT_MODE)" in \
-		custom) \
+		custom|upstream) \
 			$(MAKE) --no-print-directory host-cix-regen-trusted-key-cert V="$(V)"; \
 			run_success_only "$$SOURCE_TOOL_BIN" \
 				-p Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
 				-s Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
 				-o $@; \
-			;; \
-		upstream) \
-			if [[ -f "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" ]]; then \
-				run_success_only "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" \
-					-p Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
-					-s Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
-					-o $@; \
-			else \
-				echo "ARTEFACT_MODE=upstream requires SIGNING_CERT_SOURCE_DIR or the bundled cix_regen_trusted_key_cert binary" >&2; \
-				exit 1; \
-			fi; \
 			;; \
 		*) \
 			echo "Unsupported ARTEFACT_MODE=$(ARTEFACT_MODE); expected custom or upstream" >&2; \
@@ -556,6 +579,7 @@ Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
 Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
+	@$(ENSURE_REPO_LOCK)
 	@$(MAKE) prepare-basetools-c
 	export WORKSPACE="$(shell pwd)"
 	export PACKAGES_PATH="$$WORKSPACE/edk2:$$WORKSPACE/edk2-platforms:$$WORKSPACE/edk2-non-osi:$$WORKSPACE/edk2-platforms/Silicon/Intel/"
@@ -625,8 +649,8 @@ __clean:
 	rm -rf Build
 	printf '[clean] Removing host-built helper tools\n'
 	rm -rf "$(FIPTOOL_SOURCE_DIR)/build"
-	rm -f "$(TRUSTED_KEY_CERT_TOOL_BIN)" "$(CIX_PACKAGE_TOOL_BIN)"
-	rm -f "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)"/*.o
+	rm -f "$(TRUSTED_KEY_CERT_TOOL_BIN)" "$(CERT_UEFI_CREATE_RSA_BIN)" "$(CIX_PACKAGE_TOOL_BIN)"
+	rm -f "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)"/*.o "$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)"/*.o
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type f -name '*.pyc' -delete
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type d -name '__pycache__' -prune -exec rm -rf {} +
 	printf '[clean] Cleaning BaseTools output without invoking host toolchain checks\n'

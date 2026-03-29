@@ -324,20 +324,18 @@ The preferred local distribution for `x86_64` builds remains Debian
 `bookworm`.
 
 Native arm64 packaging is now viable on newer userspaces, but the distro
-generation matters. Native `arm64` / `aarch64` builds require Debian
-`trixie`, because the remaining closed-source vendor helpers cannot run on
-Bookworm-class arm64 userspaces:
+generation still matters. The self-generated FIP-cert path no longer depends on
+the old closed-source `cert_uefi_create_rsa` helper: both that tool and
+`fiptool` are now built from source in-tree. The remaining shipped AARCH64 ABI
+sensitivity is the vendor `cix_package_tool` binary:
 
 - `AARCH64/cix_package_tool` only needs `GLIBC_2.34`
-- `AARCH64/cert_uefi_create_rsa` needs `GLIBC_2.38`
 
-`fiptool` is now built from the vendored upstream Arm Trusted Firmware-A source
-snapshot, so that old AARCH64 `fiptool` ABI problem no longer applies. The
-remaining native arm64 Bookworm blocker is `cert_uefi_create_rsa` for the
-self-generated-cert path. If you reuse existing cert blobs, that step is
-skipped and native arm64 Bookworm now reproduces the checked-in exact-replay
-`O6` baseline byte-for-byte. A native arm64 Trixie userspace is still the
-broader choice when you want to generate fresh vendor cert artefacts locally.
+If you reuse existing cert blobs, native arm64 Bookworm reproduces the
+checked-in exact-replay `O6` baseline byte-for-byte. Freshly generated certs
+are compatible but not byte-identical, because they inherently carry
+signing-time entropy. A native arm64 Trixie userspace is still the broader
+default when you want the newest distro toolchain for general development.
 
 So:
 
@@ -347,6 +345,8 @@ So:
   broader native `arm64` / `aarch64` work
 - use `make -C src host-fiptool` if you want to prebuild the vendored TF-A
   `fiptool` before the first packaging run
+- use `make -C src host-cert-uefi-create-rsa` if you want to prebuild the
+  source replacement for the non-trusted FIP cert helper
 - the dependency bootstrap now includes `libssl-dev`, because the source-built
   `fiptool` needs the OpenSSL development headers
 
