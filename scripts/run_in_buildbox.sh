@@ -23,6 +23,7 @@ buildbox_image_label="edk2-cix.buildbox.image"
 buildbox_platform_label="edk2-cix.buildbox.platform"
 container_mount_args=()
 expected_mounts=()
+host_git_repo_usable=0
 
 status() {
     printf '[buildbox] %s\n' "$*"
@@ -114,12 +115,14 @@ prepare_container_mounts() {
 
     container_mount_args=()
     expected_mounts=()
+    host_git_repo_usable=0
     record_bind_mount "$host_workspace_root" "$workspace_path"
     record_bind_mount "$host_tmpdir" "$container_tmpdir"
 
     if ! git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         return 0
     fi
+    host_git_repo_usable=1
 
     workspace_root_real="$(cd "$host_workspace_root" && pwd -P)"
 
@@ -280,6 +283,48 @@ EOF
     fi
 }
 
+container_git_repo_usable() {
+    runtime exec -w "$workspace_path" "$container_name" \
+        git -C "$workspace_path" rev-parse --is-inside-work-tree >/dev/null 2>&1
+}
+
+ensure_git_safe_directory() {
+    local git_error
+
+    if [[ "$host_git_repo_usable" != "1" ]]; then
+        return 0
+    fi
+
+    if container_git_repo_usable; then
+        return 0
+    fi
+
+    status "Marking ${workspace_path} as a safe Git directory inside ${container_name}"
+    if ! runtime exec -w "$workspace_path" "$container_name" \
+        git config --global --add safe.directory "$workspace_path" >/dev/null 2>&1; then
+        git_error="$(runtime exec -w "$workspace_path" "$container_name" \
+            git config --global --add safe.directory "$workspace_path" 2>&1 || true)"
+        cat >&2 <<EOF
+[buildbox] Failed to mark ${workspace_path} as a safe Git directory inside ${container_name}.
+${git_error}
+EOF
+        exit 1
+    fi
+
+    if container_git_repo_usable; then
+        return 0
+    fi
+
+    git_error="$(runtime exec -w "$workspace_path" "$container_name" \
+        git -C "$workspace_path" rev-parse --is-inside-work-tree 2>&1 || true)"
+    cat >&2 <<EOF
+[buildbox] Git still cannot access the mounted repo at ${workspace_path} inside ${container_name}.
+[buildbox] This prevents build metadata from resolving correctly.
+${git_error}
+EOF
+    exit 1
+}
+
 ensure_container() {
     if runtime container inspect "$container_name" >/dev/null 2>&1; then
         local mounts existing_image existing_platform expected_mount
@@ -380,6 +425,7 @@ verify_workspace
 
 status "Ensuring ${dep_profile} build dependencies are present"
 runtime exec -w "$workspace_path" "$container_name" bash -lc "./scripts/ensure_build_deps.sh --profile ${dep_profile}"
+ensure_git_safe_directory
 
 status "Running in ${container_name}: $*"
 runtime exec -w "$workspace_path" "$container_name" "$@"
