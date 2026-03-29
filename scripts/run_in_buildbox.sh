@@ -15,9 +15,12 @@ if [[ -z "$host_tmpdir" ]]; then
 fi
 
 container_name="${EDK2_CIX_BUILDBOX_NAME:-edk2-cix-buildbox}"
-container_image="${EDK2_CIX_BUILDBOX_IMAGE:-mcr.microsoft.com/devcontainers/base:bookworm}"
+container_image="${EDK2_CIX_BUILDBOX_IMAGE:-}"
 container_runtime="${EDK2_CIX_CONTAINER_RUNTIME:-}"
+container_platform="${EDK2_CIX_BUILDBOX_PLATFORM:-}"
 dep_profile="${EDK2_CIX_DEP_PROFILE:-firmware}"
+buildbox_image_label="edk2-cix.buildbox.image"
+buildbox_platform_label="edk2-cix.buildbox.platform"
 
 status() {
     printf '[buildbox] %s\n' "$*"
@@ -54,6 +57,121 @@ runtime() {
     "$container_runtime" "$@"
 }
 
+normalize_arch() {
+    case "$1" in
+        x86_64|amd64)
+            printf 'amd64\n'
+            ;;
+        aarch64|arm64)
+            printf 'arm64\n'
+            ;;
+        *)
+            printf '%s\n' "$1"
+            ;;
+    esac
+}
+
+default_container_platform() {
+    case "$(normalize_arch "$(uname -m)")" in
+        amd64)
+            printf 'linux/amd64\n'
+            ;;
+        arm64)
+            printf 'linux/arm64\n'
+            ;;
+        *)
+            cat >&2 <<EOF
+[buildbox] Unsupported host architecture: $(uname -m)
+[buildbox] Set EDK2_CIX_BUILDBOX_PLATFORM explicitly if your runtime supports a different target platform.
+EOF
+            exit 1
+            ;;
+    esac
+}
+
+default_container_image() {
+    case "$1" in
+        linux/arm64)
+            printf 'mcr.microsoft.com/devcontainers/base:trixie\n'
+            ;;
+        *)
+            printf 'mcr.microsoft.com/devcontainers/base:bookworm\n'
+            ;;
+    esac
+}
+
+container_status() {
+    runtime inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null || printf 'missing\n'
+}
+
+container_running() {
+    [[ "$(runtime inspect -f '{{.State.Running}}' "$container_name" 2>/dev/null || printf 'false\n')" == "true" ]]
+}
+
+container_label() {
+    local label_key="$1"
+    runtime inspect -f "{{index .Config.Labels \"$label_key\"}}" "$container_name" 2>/dev/null || true
+}
+
+report_container_start_failure() {
+    local current_status exit_code runtime_error recent_logs host_arch
+    current_status="$(container_status)"
+    exit_code="$(runtime inspect -f '{{.State.ExitCode}}' "$container_name" 2>/dev/null || printf 'unknown\n')"
+    runtime_error="$(runtime inspect -f '{{.State.Error}}' "$container_name" 2>/dev/null || true)"
+    recent_logs="$(runtime logs --tail 20 "$container_name" 2>&1 || true)"
+    host_arch="$(normalize_arch "$(uname -m)")"
+
+    cat >&2 <<EOF
+[buildbox] Container ${container_name} failed to stay running.
+[buildbox] image: ${container_image}
+[buildbox] platform: ${container_platform}
+[buildbox] state: ${current_status}
+[buildbox] exit code: ${exit_code}
+EOF
+
+    if [[ -n "$runtime_error" && "$runtime_error" != "<no value>" ]]; then
+        printf '[buildbox] runtime error: %s\n' "$runtime_error" >&2
+    fi
+
+    if [[ -n "${recent_logs//[$'\t\r\n ']}" ]]; then
+        printf '[buildbox] recent container logs:\n%s\n' "$recent_logs" >&2
+    fi
+
+    if [[ "$container_platform" == "linux/amd64" && "$host_arch" == "arm64" ]]; then
+        cat >&2 <<'EOF'
+[buildbox] This usually means the host cannot execute amd64 containers yet.
+[buildbox] Leave EDK2_CIX_BUILDBOX_PLATFORM unset for the native arm64/Trixie buildbox path.
+[buildbox] For exact upstream replay on arm64 hosts, keep EDK2_CIX_BUILDBOX_PLATFORM=linux/amd64 and ensure x86_64 emulation/binfmt support is configured for podman or docker.
+EOF
+    fi
+
+    exit 1
+}
+
+wait_for_container_running() {
+    local attempt current_status
+    for attempt in {1..20}; do
+        current_status="$(container_status)"
+        case "$current_status" in
+            running)
+                return 0
+                ;;
+            created|configured|starting)
+                sleep 0.25
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+
+    if container_running; then
+        return 0
+    fi
+
+    report_container_start_failure
+}
+
 verify_workspace() {
     if ! runtime exec -w "$workspace_path" "$container_name" test -f Makefile; then
         cat >&2 <<EOF
@@ -74,15 +192,22 @@ EOF
 
 ensure_container() {
     if runtime container inspect "$container_name" >/dev/null 2>&1; then
-        local mounts
+        local mounts existing_image existing_platform
         mounts="$(runtime inspect -f '{{range .Mounts}}{{printf "%s=%s\n" .Destination .Source}}{{end}}' "$container_name")"
+        existing_image="$(container_label "$buildbox_image_label")"
+        existing_platform="$(container_label "$buildbox_platform_label")"
         if ! grep -Fxq "${workspace_path}=${host_workspace_root}" <<<"$mounts" || \
-            ! grep -Fxq "${container_tmpdir}=${host_tmpdir}" <<<"$mounts"; then
-            status "Recreating ${container_name} with the expected workspace mounts"
+            ! grep -Fxq "${container_tmpdir}=${host_tmpdir}" <<<"$mounts" || \
+            [[ "$existing_image" != "$container_image" ]] || \
+            [[ "$existing_platform" != "$container_platform" ]]; then
+            status "Recreating ${container_name} with the expected workspace mounts and buildbox settings"
             runtime rm -f "$container_name" >/dev/null
-        elif [[ "$(runtime inspect -f '{{.State.Running}}' "$container_name")" != "true" ]]; then
+        elif ! container_running; then
             status "Starting existing container ${container_name}"
-            runtime start "$container_name" >/dev/null
+            if ! runtime start "$container_name" >/dev/null; then
+                report_container_start_failure
+            fi
+            wait_for_container_running
             return 0
         else
             return 0
@@ -92,13 +217,16 @@ ensure_container() {
     status "Creating container ${container_name}"
     runtime run -d \
         --name "$container_name" \
-        --platform linux/amd64 \
+        --label "${buildbox_image_label}=${container_image}" \
+        --label "${buildbox_platform_label}=${container_platform}" \
+        --platform "$container_platform" \
         --ulimit nofile=1024:524288 \
         -v "${host_workspace_root}:${workspace_path}" \
         -v "${host_tmpdir}:${container_tmpdir}" \
         -w "$workspace_path" \
         "$container_image" \
         sleep infinity >/dev/null
+    wait_for_container_running
 }
 
 while (( $# > 0 )); do
@@ -143,7 +271,11 @@ EOF
 fi
 
 container_runtime="$(resolve_container_runtime)"
+container_platform="${container_platform:-$(default_container_platform)}"
+container_image="${container_image:-$(default_container_image "$container_platform")}"
 status "Using container runtime: ${container_runtime}"
+status "Using container platform: ${container_platform}"
+status "Using container image: ${container_image}"
 mkdir -p "$host_tmpdir"
 ensure_container
 verify_workspace
