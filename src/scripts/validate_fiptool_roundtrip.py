@@ -18,6 +18,7 @@ SCRIPT_PATH = pathlib.Path(__file__).resolve()
 SRC_DIR = SCRIPT_PATH.parent.parent
 REPO_ROOT = SRC_DIR.parent
 PACKAGE_TOOL_DIR = SRC_DIR / "edk2-non-osi" / "Platform" / "CIX" / "Sky1" / "PackageTool"
+PACKAGE_TOOL_SOURCE = PACKAGE_TOOL_DIR / "source_tools" / "cix_package_tool" / "cix_package_tool.py"
 FIPTOOL_SOURCE_DIR = SRC_DIR / "tools" / "arm-trusted-firmware-fiptool"
 FLASH_CONFIG_ALL = PACKAGE_TOOL_DIR / "spi_flash_config_all.json"
 DEFAULT_TMP_ROOT = pathlib.Path(
@@ -223,6 +224,7 @@ def main() -> int:
     container_command = f"""
 set -euo pipefail
 pkg={('/workspace/' + str(PACKAGE_TOOL_DIR.relative_to(REPO_ROOT)))}
+pkg_tool={('/workspace/' + str(PACKAGE_TOOL_SOURCE.relative_to(REPO_ROOT)))}
 fiptool_src={('/workspace/' + str(FIPTOOL_SOURCE_DIR.relative_to(REPO_ROOT)))}
 work={to_container_tmp_path(work_dir, host_tmp_root, container_tmp_root)}
 mkdir -p "$work/roundtrip"
@@ -232,7 +234,7 @@ cd "$work/roundtrip"
 """
     if input_kind == "flash":
         container_command += f"""
-"$pkg/X86_64/cix_package_tool" -d "{to_container_tmp_path(staged_input, host_tmp_root, container_tmp_root)}" -c "$pkg/spi_flash_config_all.json" >/dev/null
+python3 "$pkg_tool" -d "{to_container_tmp_path(staged_input, host_tmp_root, container_tmp_root)}" -c "$pkg/spi_flash_config_all.json" >/dev/null
 cp unpack/bootloader3.img original.bin
 """
     else:

@@ -332,10 +332,8 @@ The preferred local distribution for `x86_64` builds remains Debian
 Native arm64 packaging is now viable on newer userspaces, but the distro
 generation still matters. The self-generated FIP-cert path no longer depends on
 the old closed-source `cert_uefi_create_rsa` helper: both that tool and
-`fiptool` are now built from source in-tree. The remaining shipped AARCH64 ABI
-sensitivity is the vendor `cix_package_tool` binary:
-
-- `AARCH64/cix_package_tool` only needs `GLIBC_2.34`
+`fiptool` are now built from source in-tree, and the flash-image packaging step
+uses the source `cix_package_tool` implementation too.
 
 If you reuse existing cert blobs, native arm64 Bookworm reproduces the
 checked-in exact-replay `O6` baseline byte-for-byte. Freshly generated certs

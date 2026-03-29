@@ -28,7 +28,6 @@ def load_cert_compare_module():
 
 
 CERT_COMPARE = load_cert_compare_module()
-DEFAULT_VENDOR_TOOL = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/X86_64/cix_regen_trusted_key_cert"
 DEFAULT_SOURCE_TOOL_DIR = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cix_regen_trusted_key_cert"
 DEFAULT_SOURCE_TOOL = DEFAULT_SOURCE_TOOL_DIR / "cix_regen_trusted_key_cert"
 DEFAULT_FIPTOOL = REPO_ROOT / "src/tools/arm-trusted-firmware-fiptool/build" / (
@@ -114,7 +113,11 @@ def parse_args() -> argparse.Namespace:
         type=pathlib.Path,
         help="Directory containing nt-fw.bin, nt-fw-cert.bin, and nt-fw-key-cert.bin",
     )
-    parser.add_argument("--vendor-tool", type=pathlib.Path, default=DEFAULT_VENDOR_TOOL)
+    parser.add_argument(
+        "--vendor-tool",
+        type=pathlib.Path,
+        help="Path to an external vendor cix_regen_trusted_key_cert binary",
+    )
     parser.add_argument("--source-tool", type=pathlib.Path, default=DEFAULT_SOURCE_TOOL)
     parser.add_argument("--source-tool-dir", type=pathlib.Path, default=DEFAULT_SOURCE_TOOL_DIR)
     parser.add_argument("--fiptool", type=pathlib.Path, default=DEFAULT_FIPTOOL)
@@ -126,6 +129,10 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if args.vendor_tool is None:
+        raise FileNotFoundError(
+            "pass --vendor-tool pointing at an external vendor cix_regen_trusted_key_cert binary"
+        )
     payloads = require_payloads(args.input_dir)
 
     required_paths = [
