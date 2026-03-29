@@ -17,6 +17,7 @@ fi
 container_name="${EDK2_CIX_BUILDBOX_NAME:-edk2-cix-buildbox}"
 container_image="${EDK2_CIX_BUILDBOX_IMAGE:-mcr.microsoft.com/devcontainers/base:bookworm}"
 container_runtime="${EDK2_CIX_CONTAINER_RUNTIME:-}"
+dep_profile="${EDK2_CIX_DEP_PROFILE:-firmware}"
 
 status() {
     printf '[buildbox] %s\n' "$*"
@@ -100,9 +101,43 @@ ensure_container() {
         sleep infinity >/dev/null
 }
 
+while (( $# > 0 )); do
+    case "$1" in
+        --dep-profile)
+            shift
+            if (( $# == 0 )); then
+                cat >&2 <<'EOF'
+usage: scripts/run_in_buildbox.sh [--dep-profile firmware|packaging] <command> [args...]
+EOF
+                exit 2
+            fi
+            dep_profile="$1"
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+case "$dep_profile" in
+    firmware|packaging)
+        ;;
+    *)
+        cat >&2 <<EOF
+[buildbox] Unsupported dependency profile: ${dep_profile}
+EOF
+        exit 2
+        ;;
+esac
+
 if (( $# == 0 )); then
     cat >&2 <<'EOF'
-usage: scripts/run_in_buildbox.sh <command> [args...]
+usage: scripts/run_in_buildbox.sh [--dep-profile firmware|packaging] <command> [args...]
 EOF
     exit 2
 fi
@@ -113,8 +148,8 @@ mkdir -p "$host_tmpdir"
 ensure_container
 verify_workspace
 
-status "Ensuring build dependencies are present"
-runtime exec -w "$workspace_path" "$container_name" bash -lc './scripts/ensure_build_deps.sh'
+status "Ensuring ${dep_profile} build dependencies are present"
+runtime exec -w "$workspace_path" "$container_name" bash -lc "./scripts/ensure_build_deps.sh --profile ${dep_profile}"
 
 status "Running in ${container_name}: $*"
 runtime exec -w "$workspace_path" "$container_name" "$@"
