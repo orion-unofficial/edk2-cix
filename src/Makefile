@@ -551,7 +551,13 @@ clean:
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type d -name '__pycache__' -prune -exec rm -rf {} +
 	printf '[clean] Cleaning BaseTools output without invoking host toolchain checks\n'
 	rm -rf "$(BASETOOLS_C_BIN_DIR)" edk2/BaseTools/Source/C/libs
-	rm -f "$(BASETOOLS_C_MARKER)" edk2/Conf/.AutoGenIdFile.txt
+	printf '[clean] Removing generated EDK2 Conf state\n'
+	rm -f "$(BASETOOLS_C_MARKER)" \
+		edk2/Conf/.AutoGenIdFile.txt \
+		edk2/Conf/BuildEnv.sh \
+		edk2/Conf/build_rule.txt \
+		edk2/Conf/tools_def.txt \
+		edk2/Conf/target.txt
 	rm -f \
 		edk2/BaseTools/Source/C/VfrCompile/Pccts/antlr/antlr \
 		edk2/BaseTools/Source/C/VfrCompile/Pccts/dlg/dlg \
