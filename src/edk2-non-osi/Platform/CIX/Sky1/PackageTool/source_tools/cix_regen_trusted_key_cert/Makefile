@@ -4,6 +4,19 @@ CPPFLAGS ?=
 CFLAGS ?= -O2 -Wall -Wextra -Wpedantic -std=c11
 LDFLAGS ?=
 LDLIBS ?=
+V ?= 0
+
+ifeq ($(V),1)
+Q :=
+PRINT_CC = @:
+PRINT_LD = @:
+PRINT_CLEAN = @:
+else
+Q := @
+PRINT_CC = @printf '  CC      %s\n' '$@'
+PRINT_LD = @printf '  LD      %s\n' '$@'
+PRINT_CLEAN = @printf '  CLEAN   %s\n' 'cix_regen_trusted_key_cert'
+endif
 
 ifeq ($(strip $(PKG_CONFIG)),)
 $(error pkg-config or pkgconf is required to locate OpenSSL build flags)
@@ -26,12 +39,15 @@ OBJS := $(SRCS:.c=.o)
 all: $(BUILD_NAME)
 
 $(BUILD_NAME): $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
+	$(PRINT_LD)
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
 $(OBJS): %.o: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(PRINT_CC)
+	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f $(BUILD_NAME) $(OBJS)
+	$(PRINT_CLEAN)
+	$(Q)rm -f $(BUILD_NAME) $(OBJS)
 
 .PHONY: all clean

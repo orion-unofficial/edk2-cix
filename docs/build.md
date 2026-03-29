@@ -61,9 +61,9 @@ make buildbox-validate-firmware
 make buildbox-capture-validation-profile
 ```
 
-The local container helpers prefer `podman` when it is installed and usable,
-and otherwise fall back to `docker`. Set
-`EDK2_CIX_CONTAINER_RUNTIME=docker` or
+The local container helpers prefer `podman` on Linux and `docker` on macOS.
+If the preferred runtime is installed but not usable, they automatically try
+the other one before failing. Set `EDK2_CIX_CONTAINER_RUNTIME=docker` or
 `EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
 By default the buildbox follows the host architecture: `linux/amd64` with the
 Bookworm base image on `x86_64`, and `linux/arm64` with the Trixie base image
@@ -281,9 +281,10 @@ as the upstream release. By default it also mounts the helper's temp directory
 into the container automatically. If you need a different host/container temp
 mapping, set `EDK2_CIX_HOST_TMPDIR` and `EDK2_CIX_CONTAINER_TMPDIR` before
 running the wrapper.
-Despite the retained filename, the local helper scripts prefer `podman` over
-`docker` when it is available and usable. The generated replay wrapper also
-pins the buildbox back to the validated amd64 Bookworm environment explicitly.
+Despite the retained filename, the local helper scripts prefer `podman` on
+Linux and `docker` on macOS, then fall back to the other runtime if needed.
+The generated replay wrapper also pins the buildbox back to the validated
+amd64 Bookworm environment explicitly.
 
 ## Reuse the build container
 

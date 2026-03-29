@@ -112,7 +112,7 @@ clean: clean-deb
 
 .PHONY: clean-deb
 clean-deb:
-	rm -rf "$(REPO_ROOT)"/debian/.debhelper "$(REPO_ROOT)"/debian/$(PROJECT)*/ "$(REPO_ROOT)"/debian/tmp/ "$(REPO_ROOT)"/debian/debhelper-build-stamp "$(REPO_ROOT)"/debian/files "$(REPO_ROOT)"/debian/*.debhelper.log "$(REPO_ROOT)"/debian/*.*.debhelper "$(REPO_ROOT)"/debian/*.substvars
+	$(if $(filter 1,$(V)),,@)rm -rf "$(REPO_ROOT)"/debian/.debhelper "$(REPO_ROOT)"/debian/$(PROJECT)*/ "$(REPO_ROOT)"/debian/tmp/ "$(REPO_ROOT)"/debian/debhelper-build-stamp "$(REPO_ROOT)"/debian/files "$(REPO_ROOT)"/debian/*.debhelper.log "$(REPO_ROOT)"/debian/*.*.debhelper "$(REPO_ROOT)"/debian/*.substvars
 
 #
 # Release

@@ -11,16 +11,24 @@ all: build
 SHELL := bash
 MAKEFLAGS += --no-print-directory
 UNAME := $(shell uname -m)
+HOST_OS ?= $(if $(EDK2_CIX_HOST_OS),$(EDK2_CIX_HOST_OS),$(shell uname -s))
 HOST_ARCH := $(if $(filter arm64,$(UNAME)),aarch64,$(UNAME))
 UPSTREAM_EDK2_REF ?= refs/heads/main-monorepo-upstream-edk2
 BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
 MONOREPO_EDK2_COMMIT_HASH ?= 971cfbc5fa
 MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= c051ce622f
 MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 971cfbc5fa
+EDK2_BUILD_OUTPUT_FILTER := scripts/filter_edk2_build_output.py
 V ?= 0
-MONOREPO_EDK2_COMMIT_HASH ?= 898a41ed09
-MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= 50f168f
-MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 918cb36f
+ifeq ($(V),1)
+Q :=
+PRINT_HOST_TOOL = @:
+else
+Q := @
+PRINT_HOST_TOOL = @printf '  HOST    %s\n' '$(@F)'
+endif
+WITH_REPO_LOCK := "$(abspath ../scripts/with_repo_lock.sh)"
+LOCKED_MAKE = $(if $(filter 1,$(EDK2_CIX_REPO_LOCK_HELD)),$(MAKE) --no-print-directory,$(WITH_REPO_LOCK) $(MAKE) --no-print-directory)
 ARTEFACT_MODE ?= custom
 EDK2_BUILD_SILENT_FLAG := $(if $(filter 1,$(V)),,-s)
 
@@ -80,6 +88,13 @@ SIGNING_CERT_SOURCE_DIR ?=
 REQUIRE_SIGNING_CERT_SOURCE ?= $(if $(and $(filter upstream,$(ARTEFACT_MODE)),$(strip $(SIGNING_CERT_SOURCE_DIR))),1,0)
 BASETOOLS_C_BIN_DIR := edk2/BaseTools/Source/C/bin
 BASETOOLS_C_MARKER := $(BASETOOLS_C_BIN_DIR)/.edk2-cix-build-env
+# Docker Desktop bind mounts on Darwin have been flaky with EDK2's default
+# parallel build fan-out, so default to a single build thread there while
+# leaving Linux behavior unchanged. Callers can still override this explicitly.
+EDK2_BUILD_JOBS ?= $(if $(filter Darwin,$(HOST_OS)),1,)
+EDK2_GENFDS_MULTI_THREAD_FLAG := $(if $(filter Darwin,$(HOST_OS)),--no-genfds-multi-thread,)
+BASETOOLS_BUILD_JOBS ?= $(if $(filter Darwin,$(HOST_OS)),1,$(shell nproc))
+HELPER_BUILD_JOBS ?= $(if $(filter Darwin,$(HOST_OS)),1,$(shell nproc))
 BASETOOLS_C_REQUIRED_TOOLS := \
 	BrotliCompress \
 	DevicePath \
@@ -98,11 +113,16 @@ DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name 
 
 CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_all.bin) \
 				 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
-.PHONY: build host-fiptool host-cix-regen-trusted-key-cert host-cix-package-tool
-build: preflight $(CIX_FLASH)
+.PHONY: build __build host-fiptool host-cix-regen-trusted-key-cert host-cix-package-tool
+build:
+	$(Q)$(LOCKED_MAKE) __build V="$(V)"
+
+__build: preflight $(CIX_FLASH)
 
 host-fiptool: $(FIPTOOL_BIN)
-host-cix-regen-trusted-key-cert: $(TRUSTED_KEY_CERT_TOOL_BIN)
+host-cix-regen-trusted-key-cert:
+	$(PRINT_HOST_TOOL)
+	$(Q)$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" V="$(V)" clean all
 host-cix-package-tool: $(CIX_PACKAGE_TOOL_BIN)
 
 .SILENT: help print-build-metadata clean preflight preflight-% preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cix-package-tool prepare-basetools-c
@@ -118,16 +138,19 @@ help:
 	echo "Use V=1 for verbose EDK2 build commands"
 
 $(FIPTOOL_BIN): $(FIPTOOL_SOURCE_INPUTS)
-	$(MAKE) -C "$(FIPTOOL_SOURCE_DIR)" HOST_ARCH="$(HOST_ARCH)" all
+	$(PRINT_HOST_TOOL)
+	$(Q)$(MAKE) -C "$(FIPTOOL_SOURCE_DIR)" HOST_ARCH="$(HOST_ARCH)" V="$(V)" all
 
 $(TRUSTED_KEY_CERT_TOOL_BIN): $(TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS)
-	$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" all
+	$(PRINT_HOST_TOOL)
+	$(Q)$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" V="$(V)" clean all
 
 $(CIX_PACKAGE_TOOL_BIN): $(CIX_PACKAGE_TOOL_SOURCE_INPUTS)
-	mkdir -p "$(HOST_TOOLS_DIR)"
-	printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' \
+	$(PRINT_HOST_TOOL)
+	$(Q)mkdir -p "$(HOST_TOOLS_DIR)"
+	$(Q)printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' \
 		'exec python3 "$(abspath $(CIX_PACKAGE_TOOL_SOURCE_DIR))/cix_package_tool.py" "$$@"' >"$@"
-	chmod +x "$@" "$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py"
+	$(Q)chmod +x "$@" "$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py"
 
 .PHONY: print-build-metadata preflight-build-metadata
 print-build-metadata: preflight-build-metadata
@@ -196,8 +219,8 @@ prepare-basetools-c:
 			"$$(uname -sm)" \
 			"$${ID:-unknown}" \
 			"$${VERSION_ID:-unknown}" \
-			"$$(cc --version 2>/dev/null | head -n1 || echo unavailable)" \
-			"$$(ldd --version 2>/dev/null | head -n1 || echo unavailable)"; \
+			"$$(cc --version 2>/dev/null | sed -n '1p' || echo unavailable)" \
+			"$$(ldd --version 2>/dev/null | sed -n '1p' || echo unavailable)"; \
 	)"
 	rebuild=0
 	if [[ ! -f "$(BASETOOLS_C_MARKER)" ]]; then
@@ -214,8 +237,8 @@ prepare-basetools-c:
 	if [[ "$$rebuild" -eq 1 ]]; then
 		printf '[build] Rebuilding BaseTools C binaries for %s\n' "$$current_env_id"
 		printf '[build] Cleaning stale BaseTools C objects and dependency files\n'
-		$(MAKE) -C edk2/BaseTools clean
-		$(MAKE) -C edk2/BaseTools -j$(shell nproc) Source/C
+		$(MAKE) -C edk2/BaseTools V="$(V)" clean
+		$(MAKE) -C edk2/BaseTools -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C
 		printf '%s\n' "$$current_env_id" > "$(BASETOOLS_C_MARKER)"
 	fi
 
@@ -313,7 +336,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 		printf '[build/%s] Regenerating memory configuration\n' "$*" && \
 		echo "Found custom memory configuration."; \
 		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/memory_config.bin; \
-		$(MAKE) -C "$$MEM" -j$(shell nproc) -e CFLAG:="-DMEM_CFG_MEMFREQ=$(MEM_CFG_MEMFREQ)" clean main; \
+		$(MAKE) -C "$$MEM" $(if $(strip $(HELPER_BUILD_JOBS)),-j$(HELPER_BUILD_JOBS)) -e CFLAG:="-DMEM_CFG_MEMFREQ=$(MEM_CFG_MEMFREQ)" clean main; \
 		if [[ ! -s "$$MEM/memory_config.bin" ]]; then \
 			echo "[build/$*] Expected memory_config.bin was not generated in $$MEM" >&2; \
 			exit 1; \
@@ -325,7 +348,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 		printf '[build/%s] Regenerating PM configuration\n' "$*" && \
 		echo "Found custom PM configuration."; \
 		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/csu_pm_config.bin; \
-		PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)" $(MAKE) -C "$$PM" -j$(shell nproc); \
+		PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)" $(MAKE) -C "$$PM" $(if $(strip $(HELPER_BUILD_JOBS)),-j$(HELPER_BUILD_JOBS)); \
 		if [[ ! -s "$$PM/csu_pm_config.bin" ]]; then \
 			echo "[build/$*] Expected csu_pm_config.bin was not generated in $$PM" >&2; \
 			exit 1; \
@@ -365,6 +388,12 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 	fi && \
 	mv -f "$$tmp_all" "Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.bin"
 
+.SECONDARY: \
+	Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd \
+	Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin \
+	Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
+	Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
+
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
 Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 	Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd \
@@ -375,6 +404,18 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" && \
 	export REQUIRE_SIGNING_CERT_SOURCE="$(REQUIRE_SIGNING_CERT_SOURCE)" && \
+	run_success_only() { \
+		if [[ "$(V)" == "1" ]]; then \
+			"$$@"; \
+			return $$?; \
+		fi; \
+		local tool_output; \
+		if ! tool_output="$$("$$@" 2>&1)"; then \
+			[[ -n "$$tool_output" ]] && printf '%s\n' "$$tool_output" >&2; \
+			return 1; \
+		fi; \
+		return 0; \
+	}; \
 	select_cert_source() { \
 		local dir="$$1"; \
 		shift; \
@@ -417,14 +458,14 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		fi; \
 	fi; \
 	if [[ ! -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt || ! -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt ]]; then \
-		"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cert_uefi_create_rsa" --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
+		run_success_only "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cert_uefi_create_rsa" --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
 			--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
 			--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
 			--nt-fw-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
 			--non-trusted-world-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
 			--nt-fw "$(shell realpath "$<")"; \
 	fi && \
-	"$(FIPTOOL_BIN)" create \
+	run_success_only "$(FIPTOOL_BIN)" create \
 		--trusted-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
 		--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
 		--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
@@ -455,6 +496,18 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
 Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
 	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export SOURCE_TOOL_BIN="$(abspath $(TRUSTED_KEY_CERT_TOOL_BIN))" && \
+	run_success_only() { \
+		if [[ "$(V)" == "1" ]]; then \
+			"$$@"; \
+			return $$?; \
+		fi; \
+		local tool_output; \
+		if ! tool_output="$$("$$@" 2>&1)"; then \
+			[[ -n "$$tool_output" ]] && printf '%s\n' "$$tool_output" >&2; \
+			return 1; \
+		fi; \
+		return 0; \
+	}; \
 	mkdir -p Build/$*/$(UEFI_TARGET)_GCC5/Keys Build/$*/$(UEFI_TARGET)_GCC5/certs && \
 	cp -a $(PACKAGE_TOOL)/Keys/. Build/$*/$(UEFI_TARGET)_GCC5/Keys/ && \
 	cp -a $(PACKAGE_TOOL)/certs/. Build/$*/$(UEFI_TARGET)_GCC5/certs/ && \
@@ -479,15 +532,15 @@ Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
 	fi; \
 	case "$(ARTEFACT_MODE)" in \
 		custom) \
-			$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" all >/dev/null; \
-			"$$SOURCE_TOOL_BIN" \
+			$(MAKE) --no-print-directory host-cix-regen-trusted-key-cert V="$(V)"; \
+			run_success_only "$$SOURCE_TOOL_BIN" \
 				-p Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
 				-s Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
 				-o $@; \
 			;; \
 		upstream) \
 			if [[ -f "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" ]]; then \
-				"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" \
+				run_success_only "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" \
 					-p Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
 					-s Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
 					-o $@; \
@@ -528,28 +581,42 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
 				;; \
 		esac
 	fi
-	build -a AARCH64 -t GCC5 -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
-		$(EDK2_BUILD_SILENT_FLAG) \
-		"$${build_extra_defines[@]}" \
-		-b $(UEFI_TARGET) -D BOARD_NAME=$(word 2, $(subst /,, $@)) -D BUILD_DATE=$(BUILD_DATE) \
-		-D SMP_ENABLE=1 -D ACPI_BOOT_ENABLE=1 -D FASTBOOT_LOAD= -D VARIABLE_TYPE=SPI -D STANDARD_MM=TRUE \
-		-D COMMIT_HASH=$(SOURCE_COMMIT_HASH) \
-		-D EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH) \
-		-D EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH) \
-		-D EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH) \
-		-D DEB_VERSION=$(DEB_VERSION)
+	run_edk2_build() {
+		export EDK2_CIX_QUIET_PREBUILD="$(if $(filter 1,$(V)),0,1)"
+		build -a AARCH64 -t GCC5 -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
+			$(if $(strip $(EDK2_BUILD_JOBS)),-n $(EDK2_BUILD_JOBS)) \
+			$(EDK2_GENFDS_MULTI_THREAD_FLAG) \
+			$(EDK2_BUILD_SILENT_FLAG) \
+			"$${build_extra_defines[@]}" \
+			-b $(UEFI_TARGET) -D BOARD_NAME=$(word 2, $(subst /,, $@)) -D BUILD_DATE=$(BUILD_DATE) \
+			-D SMP_ENABLE=1 -D ACPI_BOOT_ENABLE=1 -D FASTBOOT_LOAD= -D VARIABLE_TYPE=SPI -D STANDARD_MM=TRUE \
+			-D COMMIT_HASH=$(SOURCE_COMMIT_HASH) \
+			-D EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH) \
+			-D EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH) \
+			-D EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH) \
+			-D DEB_VERSION=$(DEB_VERSION)
+	}
+	if [[ "$(V)" == "1" ]]; then
+		run_edk2_build
+	else
+		run_edk2_build 2>&1 | python3 "$(EDK2_BUILD_OUTPUT_FILTER)"
+	fi
 	if [[ ! -s "$@" ]]; then
 		echo "[build/$*] Expected firmware image $@ was not produced" >&2
 		exit 1
 	fi
 
-.PHONY: clean
+.PHONY: clean __clean
 clean:
+	$(Q)$(LOCKED_MAKE) __clean V="$(V)"
+
+__clean:
 	printf '[clean] Removing build output\n'
 	rm -rf Build
 	printf '[clean] Removing host-built helper tools\n'
 	rm -rf "$(FIPTOOL_SOURCE_DIR)/build"
 	rm -f "$(TRUSTED_KEY_CERT_TOOL_BIN)" "$(CIX_PACKAGE_TOOL_BIN)"
+	rm -f "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)"/*.o
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type f -name '*.pyc' -delete
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type d -name '__pycache__' -prune -exec rm -rf {} +
 	printf '[clean] Cleaning BaseTools output without invoking host toolchain checks\n'
@@ -579,5 +646,8 @@ clean:
 	find edk2/BaseTools -type f -name '*.pyc' -delete
 	find edk2/BaseTools -type d -name '__pycache__' -prune -exec rm -rf {} +
 
-.PHONY: distclean
-distclean: clean
+.PHONY: distclean __distclean
+distclean:
+	$(Q)$(LOCKED_MAKE) __distclean V="$(V)"
+
+__distclean: __clean
