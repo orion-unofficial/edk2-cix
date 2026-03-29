@@ -38,6 +38,7 @@ SOURCE_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit-sho
 SOURCE_DATE_EPOCH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-date-epoch 2>/dev/null || true))
 PM_CONFIG_SOURCE_DATE_EPOCH ?= $(SOURCE_DATE_EPOCH)
 BUILD_DATE ?= $(strip $(shell SOURCE_DATE_EPOCH="$(SOURCE_DATE_EPOCH)" $(BUILD_METADATA_SCRIPT) source-date-iso 2>/dev/null || true))
+DEB_VERSION ?= $(strip $(shell cd .. && (dpkg-parsechangelog -S Version 2>/dev/null || sed -n '1s/^[^(]*(\([^)]*\)).*/\1/p' debian/changelog)))
 export SOURCE_DATE_EPOCH
 export PM_CONFIG_SOURCE_DATE_EPOCH
 
@@ -467,7 +468,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
 		-D EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH) \
 		-D EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH) \
 		-D EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH) \
-		-D DEB_VERSION=$(shell cd .. && dpkg-parsechangelog -S Version)
+		-D DEB_VERSION=$(DEB_VERSION)
 	if [[ ! -s "$@" ]]; then
 		echo "[build/$*] Expected firmware image $@ was not produced" >&2
 		exit 1
