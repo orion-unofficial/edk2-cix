@@ -139,7 +139,15 @@ def install_payload(
     with tempfile.TemporaryDirectory(prefix=f"{product}-{version}-stage-") as tmpdir_text:
         stage_dir = pathlib.Path(tmpdir_text) / version
         stage_payload(repo_root, board, product, target, stage_dir)
-        shutil.copytree(stage_dir, destination)
+        try:
+            shutil.copytree(stage_dir, destination)
+        except PermissionError as exc:
+            raise SystemExit(
+                f"Cannot install firmware payload to {destination}: {exc.strerror}. "
+                "Use the stage/zip/targz commands for packaging workflows, or pass "
+                "--install-root to a writable live-system mount such as "
+                "/boot/efi/firmware/radxa."
+            ) from exc
     return destination
 
 
