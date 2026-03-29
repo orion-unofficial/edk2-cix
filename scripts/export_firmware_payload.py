@@ -143,8 +143,8 @@ def install_payload(
     return destination
 
 
-def archive_root_name(product: str, version: str) -> str:
-    return f"edk2-cix-{product}-{version}"
+def archive_root_path(product: str, version: str) -> pathlib.Path:
+    return pathlib.Path(product) / version
 
 
 def create_zip(
@@ -157,12 +157,13 @@ def create_zip(
 ) -> pathlib.Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f"{product}-{version}-zip-") as tmpdir_text:
-        stage_base = pathlib.Path(tmpdir_text) / archive_root_name(product, version)
+        tmpdir = pathlib.Path(tmpdir_text)
+        stage_base = tmpdir / archive_root_path(product, version)
         stage_payload(repo_root, board, product, target, stage_base)
         with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path in sorted(stage_base.rglob("*")):
                 if path.is_file():
-                    archive.write(path, path.relative_to(stage_base.parent))
+                    archive.write(path, path.relative_to(tmpdir))
     return output_path
 
 
@@ -176,10 +177,11 @@ def create_targz(
 ) -> pathlib.Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f"{product}-{version}-tar-") as tmpdir_text:
-        stage_base = pathlib.Path(tmpdir_text) / archive_root_name(product, version)
+        tmpdir = pathlib.Path(tmpdir_text)
+        stage_base = tmpdir / archive_root_path(product, version)
         stage_payload(repo_root, board, product, target, stage_base)
         with tarfile.open(output_path, "w:gz") as archive:
-            archive.add(stage_base, arcname=stage_base.name)
+            archive.add(stage_base.parent, arcname=stage_base.parent.relative_to(tmpdir).as_posix())
     return output_path
 
 
