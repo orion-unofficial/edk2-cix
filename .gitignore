@@ -30,5 +30,11 @@ __pycache__/
 # Local captured build logs
 /build-logs/
 
+# Local buildbox scratch state
+/.buildbox/
+
+# Local staged and packaged firmware artefacts
+/dist/
+
 # Local firmware validation reports
 /build-validation/
