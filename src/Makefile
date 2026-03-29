@@ -72,12 +72,10 @@ TRUSTED_KEY_CERT_TOOL_BIN := $(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trust
 TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS := \
 	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/Makefile \
 	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trusted_key_cert.c
+HOST_TOOLS_DIR := Build/HostTools
 CIX_PACKAGE_TOOL_SOURCE_DIR := $(PACKAGE_TOOL)/source_tools/cix_package_tool
-CIX_PACKAGE_TOOL_BIN := $(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool
+CIX_PACKAGE_TOOL_BIN := $(HOST_TOOLS_DIR)/cix_package_tool
 CIX_PACKAGE_TOOL_SOURCE_INPUTS := $(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py
-CIX_PACKAGE_TOOL_REQUIRED_FILES := \
-	$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool \
-	$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py
 SIGNING_CERT_SOURCE_DIR ?=
 REQUIRE_SIGNING_CERT_SOURCE ?= $(if $(and $(filter upstream,$(ARTEFACT_MODE)),$(strip $(SIGNING_CERT_SOURCE_DIR))),1,0)
 BASETOOLS_C_BIN_DIR := edk2/BaseTools/Source/C/bin
@@ -126,7 +124,10 @@ $(TRUSTED_KEY_CERT_TOOL_BIN): $(TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS)
 	$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" all
 
 $(CIX_PACKAGE_TOOL_BIN): $(CIX_PACKAGE_TOOL_SOURCE_INPUTS)
-	chmod +x "$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool" "$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py"
+	mkdir -p "$(HOST_TOOLS_DIR)"
+	printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' \
+		'exec python3 "$(abspath $(CIX_PACKAGE_TOOL_SOURCE_DIR))/cix_package_tool.py" "$$@"' >"$@"
+	chmod +x "$@" "$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py"
 
 .PHONY: print-build-metadata preflight-build-metadata
 print-build-metadata: preflight-build-metadata
@@ -259,7 +260,7 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
-	for required_file in $(CIX_PACKAGE_TOOL_REQUIRED_FILES); do \
+	for required_file in $(CIX_PACKAGE_TOOL_SOURCE_INPUTS); do \
 		if [[ ! -f "$$required_file" ]]; then \
 			echo "[preflight] Missing cix_package_tool source input: $$required_file" >&2; \
 			missing=1; \
@@ -551,7 +552,7 @@ clean:
 	rm -rf Build
 	printf '[clean] Removing host-built helper tools\n'
 	rm -rf "$(FIPTOOL_SOURCE_DIR)/build" tools/acpica/generate/unix/bin
-	rm -f "$(TRUSTED_KEY_CERT_TOOL_BIN)"
+	rm -f "$(TRUSTED_KEY_CERT_TOOL_BIN)" "$(CIX_PACKAGE_TOOL_BIN)"
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type f -name '*.pyc' -delete
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type d -name '__pycache__' -prune -exec rm -rf {} +
 	printf '[clean] Cleaning BaseTools output without invoking host toolchain checks\n'

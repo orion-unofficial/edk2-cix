@@ -216,16 +216,20 @@ exec_cix_mkimage() {
 	# Copy tools to output
     if [ "$(uname -m)" = "aarch64" ]; then
       cp  "${PATH_PACKAGE_TOOL}/AARCH64/cert_uefi_create_rsa" "${path_out_temp}"
-      cp  "${PATH_SOURCE_TOOLS}/cix_package_tool/cix_package_tool" "${path_out_temp}"
       cp  "${PATH_SOURCE_TOOLS}/cix_package_tool/cix_package_tool.py" "${path_out_temp}"
       cp  "${host_fiptool_bin}" "${path_out_temp}/fiptool"
     else
       cp  "${PATH_PACKAGE_TOOL}/X86_64/cert_uefi_create_rsa" "${path_out_temp}"
-      cp  "${PATH_SOURCE_TOOLS}/cix_package_tool/cix_package_tool" "${path_out_temp}"
       cp  "${PATH_SOURCE_TOOLS}/cix_package_tool/cix_package_tool.py" "${path_out_temp}"
       cp  "${host_fiptool_bin}" "${path_out_temp}/fiptool"
 	  cp  "${PATH_PACKAGE_TOOL}/cix_regen_trusted_key_cert" "${path_out_temp}"
     fi
+    cat > "${path_out_temp}/cix_package_tool" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exec python3 "$(dirname "$0")/cix_package_tool.py" "$@"
+EOF
+    chmod +x "${path_out_temp}/cix_package_tool" "${path_out_temp}/cix_package_tool.py"
     cp ${PATH_PACKAGE_TOOL}/spi_flash_config_all.json ${path_out_temp}
     cp ${PATH_PACKAGE_TOOL}/spi_flash_config_ota.json ${path_out_temp}
     # update project specific spi flash layout
