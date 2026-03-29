@@ -21,10 +21,10 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y git-buildpackage
-          export DEBEMAIL="41898282+github-actions[bot]@users.noreply.github.com"
-          export DEBFULLNAME='"GitHub Actions"'
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          export DEBEMAIL="github-actions@github.com"
+          export DEBFULLNAME="GitHub Actions"
+          git config user.name "GitHub Actions"
+          git config user.email "github-actions@github.com"
           git branch -m GITHUB_RUNNER || true
           git branch -D main || true
           git switch -c main || true
