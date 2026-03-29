@@ -13,11 +13,52 @@ jobs:
       uses: "docker/setup-qemu-action@v4"
       with:
         image: "tonistiigi/binfmt:latest"
-    - name: "Test"
-      uses: "devcontainers/ci@v0.3"
+    # Keep the previous devcontainers/ci wiring here for easy restoration if a
+    # future release gains Node 24 support. We switched to the official
+    # devcontainer CLI because GitHub Actions is deprecating Node 20 for JS
+    # actions and devcontainers/ci@v0.3 still warns on that runtime.
+    #
+    # - name: "Test"
+    #   uses: "devcontainers/ci@<future-version>"
+    #   with:
+    #     push: "never"
+    #     runCmd: |
+    #       set -euo pipefail
+    #       sudo apt-get update
+    #       sudo apt-get install --no-install-recommends -y git-buildpackage
+    #       export DEBEMAIL="github-actions@github.com"
+    #       export DEBFULLNAME="GitHub Actions"
+    #       git config user.name "GitHub Actions"
+    #       git config user.email "github-actions@github.com"
+    #       git branch -m GITHUB_RUNNER || true
+    #       git branch -D main || true
+    #       git switch -c main || true
+    #       make dch
+    #       make test deb
+    #       git reset --hard HEAD~1
+    #       rm ../*.deb
+    # - name: "Build"
+    #   uses: "devcontainers/ci@<future-version>"
+    #   with:
+    #     push: "never"
+    #     runCmd: |
+    #       set -euo pipefail
+    #       make deb
+    - name: "Set up Node.js"
+      uses: "actions/setup-node@v6"
       with:
-        push: "never"
-        runCmd: |
+        node-version: "24"
+    - name: "Install Dev Container CLI"
+      run: |
+        npm install --global @devcontainers/cli
+      shell: "bash"
+    - name: "Start dev container"
+      run: |
+        devcontainer up --workspace-folder .
+      shell: "bash"
+    - name: "Test"
+      run: |
+        devcontainer exec --workspace-folder . bash -lc '
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y git-buildpackage
@@ -32,13 +73,15 @@ jobs:
           make test deb
           git reset --hard HEAD~1
           rm ../*.deb
+        '
+      shell: "bash"
     - name: "Build"
-      uses: "devcontainers/ci@v0.3"
-      with:
-        push: "never"
-        runCmd: |
+      run: |
+        devcontainer exec --workspace-folder . bash -lc '
           set -euo pipefail
           make deb
+        '
+      shell: "bash"
     - id: "artifacts_path"
       name: "Workaround actions/upload-artifact#176"
       run: |
