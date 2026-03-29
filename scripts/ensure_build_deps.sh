@@ -5,6 +5,7 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 dep_profile="${EDK2_CIX_DEP_PROFILE:-packaging}"
+host_dpkg_arch="$(dpkg --print-architecture)"
 
 status() {
     printf '[deps] %s\n' "$*"
@@ -77,10 +78,28 @@ package_installed() {
     dpkg-query -W -f='${Status}\n' "$package" 2>/dev/null | grep -qx 'install ok installed'
 }
 
+toolchain_packages=()
+need_arm64_arch=0
+case "$host_dpkg_arch" in
+    arm64)
+        toolchain_packages+=(
+            build-essential
+        )
+        ;;
+    *)
+        toolchain_packages+=(
+            crossbuild-essential-arm64
+        )
+        if ! dpkg --print-foreign-architectures | grep -qx 'arm64'; then
+            need_arm64_arch=1
+        fi
+        ;;
+esac
+
 common_packages=(
     git
     pkg-config
-    crossbuild-essential-arm64
+    "${toolchain_packages[@]}"
     binfmt-support
     qemu-user-static
     dpkg-dev
@@ -114,11 +133,6 @@ for package in "${required_packages[@]}"; do
     fi
 done
 
-need_arm64_arch=0
-if ! dpkg --print-foreign-architectures | grep -qx 'arm64'; then
-    need_arm64_arch=1
-fi
-
 if (( need_arm64_arch == 0 )) && (( ${#missing_packages[@]} == 0 )); then
     status "Build dependencies already installed for profile: ${dep_profile}."
     exit 0
@@ -133,7 +147,7 @@ status "Refreshing apt metadata for profile: ${dep_profile}"
 apt_get update
 
 bootstrap_packages=()
-for package in crossbuild-essential-arm64 binfmt-support qemu-user-static; do
+for package in "${toolchain_packages[@]}" binfmt-support qemu-user-static; do
     if ! package_installed "$package"; then
         bootstrap_packages+=("$package")
     fi

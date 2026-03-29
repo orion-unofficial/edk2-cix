@@ -5,13 +5,17 @@ BUILDBOX_WORKSPACE_PARENT ?= /workspaces
 BUILDBOX_WORKSPACE_ROOT ?= $(BUILDBOX_WORKSPACE_PARENT)/$(REPO_NAME)
 BUILDBOX_HOST_TMPDIR ?= $(REPO_ROOT)/.buildbox/tmp
 BUILDBOX_CONTAINER_TMPDIR ?= /hosttmp
+BUILDBOX_IMAGE ?=
+BUILDBOX_PLATFORM ?=
 BUILDBOX_DEB_RESULT_ROOT ?= $(REPO_ROOT)/dist/deb
 BUILDBOX_DEB_RESULT_ROOT_IN_CONTAINER ?= $(BUILDBOX_WORKSPACE_ROOT)/dist/deb
 BUILD_LOG_ROOT ?= $(REPO_ROOT)/build-logs
 BUILDBOX_ENV = \
 	EDK2_CIX_WORKSPACE_ROOT="$(BUILDBOX_WORKSPACE_ROOT)" \
 	EDK2_CIX_HOST_TMPDIR="$(BUILDBOX_HOST_TMPDIR)" \
-	EDK2_CIX_CONTAINER_TMPDIR="$(BUILDBOX_CONTAINER_TMPDIR)"
+	EDK2_CIX_CONTAINER_TMPDIR="$(BUILDBOX_CONTAINER_TMPDIR)" \
+	EDK2_CIX_BUILDBOX_IMAGE="$(BUILDBOX_IMAGE)" \
+	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)"
 
 PROJECT ?= edk2-cix
 FIRMWARE_BOARD ?= O6
@@ -89,6 +93,8 @@ help:
 	@printf '%-34s %s\n' '  V=1' 'Show raw EDK2 command lines'
 	@printf '%-34s %s\n' '  FIRMWARE_BOARD=O6' 'Select the firmware board'
 	@printf '%-34s %s\n' '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Override the validation profile'
+	@printf '%-34s %s\n' '  BUILDBOX_PLATFORM=linux/amd64|linux/arm64' 'Force the buildbox container architecture'
+	@printf '%-34s %s\n' '  BUILDBOX_IMAGE=<image>' 'Override the buildbox base image'
 	@printf '%s\n' ''
 	@printf '%s\n' 'For lower-level firmware targets, run: make -C src help'
 
