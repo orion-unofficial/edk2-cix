@@ -25,12 +25,12 @@ CIX P1 edk2 code is base on as follows:
     $ export ARM_TOOLCHAIN_ELF="gcc-arm-10.3-2021.07-aarch64-aarch64-none-elf"
 
   3. Install ACPI Tool
-    Download ACPICA tool from https://github.com/acpica/acpica.git. The verifed tag is R03_31_22
+    Install `iasl` on the host and ensure it is in `PATH`.
 
   4. Config your ACPI tool in build_and_package.sh
     For Example:
 
-    $ export IASL_PREFIX="${WORKSPACE}/tools/acpica/generate/unix/bin/"
+    $ export IASL_PREFIX="$(dirname "$(command -v iasl)")/"
 
   5. Config your edk2 submodule update method in build_and_package.sh
 
@@ -50,4 +50,3 @@ CIX P1 edk2 code is base on as follows:
     For Example:
 
     FS0:\>FlashUpdate.efi -f cix_flash_all.bin
-
