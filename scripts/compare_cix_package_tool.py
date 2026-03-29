@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare the source cix_package_tool prototype against vendor outputs."""
+"""Compare the source cix_package_tool implementation against vendor outputs."""
 
 from __future__ import annotations
 
@@ -119,7 +119,7 @@ def main() -> int:
         shutil.rmtree(source_dump, ignore_errors=True)
         shutil.rmtree(ota_unpack, ignore_errors=True)
 
-    print("source cix_package_tool prototype matches vendor outputs")
+    print("source cix_package_tool matches vendor outputs")
     return 0
 
 
