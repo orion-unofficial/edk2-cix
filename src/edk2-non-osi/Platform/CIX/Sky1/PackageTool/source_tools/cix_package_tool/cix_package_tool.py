@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Source replacement prototype for the vendor cix_package_tool."""
+"""Source replacement for the vendor cix_package_tool."""
 
 from __future__ import annotations
 

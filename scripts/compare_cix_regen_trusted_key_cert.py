@@ -11,7 +11,6 @@ import tempfile
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-VENDOR_TOOL = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/X86_64/cix_regen_trusted_key_cert"
 SOURCE_TOOL_DIR = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cix_regen_trusted_key_cert"
 SOURCE_TOOL = SOURCE_TOOL_DIR / "cix_regen_trusted_key_cert"
 DEFAULT_PUBLIC_KEY = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Keys/oem_publickey.pem"
@@ -110,14 +109,24 @@ def assert_pss_sha256(cert_info: str) -> None:
         "Hash Algorithm: sha256",
         "Mask Algorithm: mgf1 with sha256",
         "Salt Length: 0x20",
-        "Issuer: CN = Trusted Key Certificate",
-        "Subject: CN = Trusted Key Certificate",
         "X509v3 Basic Constraints:",
         "CA:FALSE",
     ]
     for item in required:
         if item not in cert_info:
             raise AssertionError(f"missing expected certificate text: {item}")
+    issuer_variants = (
+        "Issuer: CN=Trusted Key Certificate",
+        "Issuer: CN = Trusted Key Certificate",
+    )
+    subject_variants = (
+        "Subject: CN=Trusted Key Certificate",
+        "Subject: CN = Trusted Key Certificate",
+    )
+    if not any(item in cert_info for item in issuer_variants):
+        raise AssertionError("missing expected trusted-key issuer text")
+    if not any(item in cert_info for item in subject_variants):
+        raise AssertionError("missing expected trusted-key subject text")
 
 
 def extract_extension_value(cert_info: str, label: str) -> str:
@@ -188,18 +197,31 @@ def compare_extract(source_tool: pathlib.Path, sample_cert: pathlib.Path) -> Non
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Compare the source cix_regen_trusted_key_cert implementation against the bundled vendor binary.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Compare the source cix_regen_trusted_key_cert implementation against "
+            "an explicitly supplied vendor binary."
+        )
+    )
     parser.add_argument("--public-key", type=pathlib.Path, default=DEFAULT_PUBLIC_KEY)
     parser.add_argument("--private-key", type=pathlib.Path, default=DEFAULT_PRIVATE_KEY)
-    parser.add_argument("--vendor-tool", type=pathlib.Path, default=VENDOR_TOOL)
+    parser.add_argument(
+        "--vendor-tool",
+        type=pathlib.Path,
+        help="Optional path to an external vendor cix_regen_trusted_key_cert binary",
+    )
     parser.add_argument("--source-tool", type=pathlib.Path, default=SOURCE_TOOL)
     parser.add_argument("--sample-cert", type=pathlib.Path, action="append", default=[], help="Optional DER certs for extract-mode validation")
     parser.add_argument("--skip-build", action="store_true", help="Do not rebuild the source tool before testing")
     parser.add_argument("--skip-vendor", action="store_true", help="Skip the generate-mode vendor comparison and only validate the source tool")
     args = parser.parse_args()
 
+    run_vendor_compare = not args.skip_vendor
+    if run_vendor_compare and args.vendor_tool is None:
+        parser.error("pass --vendor-tool with an external vendor binary, or use --skip-vendor")
+
     required_paths = [args.public_key, args.private_key]
-    if not args.skip_vendor:
+    if run_vendor_compare:
         required_paths.append(args.vendor_tool)
 
     for path in required_paths:
@@ -211,7 +233,7 @@ def main() -> int:
     elif not args.source_tool.exists():
         parser.error(f"missing source tool: {args.source_tool}")
 
-    if not args.skip_vendor:
+    if run_vendor_compare:
         with tempfile.TemporaryDirectory(prefix="cix-regen-generate-") as td:
             td_path = pathlib.Path(td)
             vendor_cert = td_path / "vendor.crt"
