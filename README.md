@@ -269,6 +269,10 @@ By default those targets work on the `O6` payload and:
 - install them under `/boot/efi/firmware/radxa/<version>/`
 - write archives under `dist/`
 
+The `.zip` and `.tar.gz` exports keep the payload under
+`orion-o6/<version>/` inside the archive, so the archive contents mirror the
+same product/version layout as the staged payload.
+
 When you use `make buildbox-firmware-stage`, the staged payload is already
 written back into the host checkout at the same `dist/firmware/orion-o6/<version>/`
 path, because the buildbox bind-mounts the repo root. There is no separate
