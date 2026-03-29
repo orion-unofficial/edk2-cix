@@ -19,6 +19,8 @@ make -C src help
 
 - Debian `bookworm` on `x86_64` for the preferred exact-upstream replay path
 - Debian `trixie` on `arm64` / `aarch64` for native local builds
+- Debian `bookworm` on `arm64` / `aarch64` for exact replay when you reuse the
+  extracted cert bundle
 
 We still support `devcontainer`, but it is optional.
 
@@ -331,16 +333,18 @@ Bookworm-class arm64 userspaces:
 
 `fiptool` is now built from the vendored upstream Arm Trusted Firmware-A source
 snapshot, so that old AARCH64 `fiptool` ABI problem no longer applies. The
-remaining native arm64 Bookworm blocker is `cert_uefi_create_rsa`. If you reuse
-existing cert blobs, that step is skipped and Bookworm arm64 can get
-significantly further; a native arm64 Trixie userspace can complete the full
-`O6` replay build.
+remaining native arm64 Bookworm blocker is `cert_uefi_create_rsa` for the
+self-generated-cert path. If you reuse existing cert blobs, that step is
+skipped and native arm64 Bookworm now reproduces the checked-in exact-replay
+`O6` baseline byte-for-byte. A native arm64 Trixie userspace is still the
+broader choice when you want to generate fresh vendor cert artefacts locally.
 
 So:
 
-- use the amd64 Bookworm buildbox when you need exact upstream replay
+- use the amd64 Bookworm buildbox, or an arm64 Bookworm buildbox with reused
+  extracted cert blobs, when you need exact upstream replay
 - use the default arm64 Trixie buildbox, or direct Trixie host builds, for
-  native `arm64` / `aarch64` work
+  broader native `arm64` / `aarch64` work
 - use `make -C src host-fiptool` if you want to prebuild the vendored TF-A
   `fiptool` before the first packaging run
 - the dependency bootstrap now includes `libssl-dev`, because the source-built

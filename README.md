@@ -24,6 +24,10 @@ On a supported Debian host:
 - `x86_64`: prefer Debian `bookworm`
 - `arm64` / `aarch64`: use Debian `trixie`
 
+For exact upstream replay on `arm64` / `aarch64`, Debian `bookworm` is also
+confirmed when you reuse the extracted cert bundle instead of generating fresh
+vendor cert artefacts locally.
+
 To install the required host packages directly on the machine, run:
 
 ```bash
