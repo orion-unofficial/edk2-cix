@@ -68,6 +68,21 @@ FIPTOOL_SOURCE_INPUTS := \
 	$(FIPTOOL_SOURCE_DIR)/upstream.json
 SIGNING_CERT_SOURCE_DIR ?=
 REQUIRE_SIGNING_CERT_SOURCE ?= $(if $(and $(filter upstream,$(ARTEFACT_MODE)),$(strip $(SIGNING_CERT_SOURCE_DIR))),1,0)
+BASETOOLS_C_BIN_DIR := edk2/BaseTools/Source/C/bin
+BASETOOLS_C_MARKER := $(BASETOOLS_C_BIN_DIR)/.edk2-cix-build-env
+BASETOOLS_C_REQUIRED_TOOLS := \
+	BrotliCompress \
+	DevicePath \
+	EfiRom \
+	GenCrc32 \
+	GenFfs \
+	GenFv \
+	GenFw \
+	GenSec \
+	LzmaCompress \
+	TianoCompress \
+	VfrCompile \
+	VolInfo
 DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f") \
 	#    $(shell find edk2-platforms/Platform/CIX -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f")
 
@@ -78,12 +93,13 @@ build: preflight $(CIX_FLASH)
 
 host-fiptool: $(FIPTOOL_BIN)
 
-.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools host-fiptool
+.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools host-fiptool prepare-basetools-c
 .PHONY: help
 help:
 	echo "Supported targets:"
 	echo "$(CIX_FLASH)"
 	echo "host-fiptool"
+	echo "prepare-basetools-c"
 	echo "preflight"
 	echo "Use V=1 for verbose EDK2 build commands"
 
@@ -101,6 +117,36 @@ print-build-metadata:
 	echo "EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH)"
 	echo "EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH)"
 	echo "EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH)"
+
+.PHONY: prepare-basetools-c
+prepare-basetools-c:
+	@mkdir -p "$(BASETOOLS_C_BIN_DIR)"
+	current_env_id="$$( \
+		{ source /etc/os-release >/dev/null 2>&1 && true; } || true; \
+		printf 'arch=%s;os=%s;version=%s;cc=%s;ldd=%s\n' \
+			"$$(uname -sm)" \
+			"$${ID:-unknown}" \
+			"$${VERSION_ID:-unknown}" \
+			"$$(cc --version 2>/dev/null | head -n1 || echo unavailable)" \
+			"$$(ldd --version 2>/dev/null | head -n1 || echo unavailable)"; \
+	)"
+	rebuild=0
+	if [[ ! -f "$(BASETOOLS_C_MARKER)" ]]; then
+		rebuild=1
+	elif ! grep -qxF "$$current_env_id" "$(BASETOOLS_C_MARKER)"; then
+		rebuild=1
+	fi
+	for tool in $(BASETOOLS_C_REQUIRED_TOOLS); do
+		if [[ ! -x "$(BASETOOLS_C_BIN_DIR)/$$tool" ]]; then
+			rebuild=1
+			break
+		fi
+	done
+	if [[ "$$rebuild" -eq 1 ]]; then
+		printf '[build] Rebuilding BaseTools C binaries for %s\n' "$$current_env_id"
+		$(MAKE) -C edk2/BaseTools -j$(shell nproc) Source/C
+		printf '%s\n' "$$current_env_id" > "$(BASETOOLS_C_MARKER)"
+	fi
 
 .PHONY: preflight preflight-%
 preflight: preflight-tools
@@ -340,7 +386,7 @@ Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd tools/acpica/generate/unix/bin/iasl
 Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
-	@$(MAKE) -C edk2/BaseTools -j$(shell nproc) Source/C
+	@$(MAKE) prepare-basetools-c
 	export WORKSPACE="$(shell pwd)"
 	export PACKAGES_PATH="$$WORKSPACE/edk2:$$WORKSPACE/edk2-platforms:$$WORKSPACE/edk2-non-osi:$$WORKSPACE/edk2-platforms/Silicon/Intel/"
 	export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_PREFIX)"
