@@ -2,17 +2,30 @@ SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 HOST_ARCH ?= $(shell uname -m)
+PKG_CONFIG ?= $(or $(shell command -v pkg-config 2>/dev/null),$(shell command -v pkgconf 2>/dev/null))
 CC ?= cc
 
 BUILD_DIR := build/$(HOST_ARCH)
 OUTPUT := $(BUILD_DIR)/fiptool
 UPSTREAM_TAG := $(shell sed -n 's/^[[:space:]]*"tag":[[:space:]]*"\([^"]*\)".*/\1/p' upstream.json | head -n 1)
 
+ifeq ($(strip $(PKG_CONFIG)),)
+$(error pkg-config or pkgconf is required to locate OpenSSL build flags)
+endif
+
+OPENSSL_CFLAGS := $(shell $(PKG_CONFIG) --cflags openssl 2>/dev/null)
+OPENSSL_LIBS := $(shell $(PKG_CONFIG) --libs openssl 2>/dev/null)
+
+ifeq ($(strip $(OPENSSL_LIBS)),)
+$(error unable to resolve OpenSSL build flags via $(PKG_CONFIG) --libs openssl)
+endif
+
 CPPFLAGS += -Iinclude/tools_share -Isrc \
 	-D_GNU_SOURCE -D_XOPEN_SOURCE=700 -DSTATIC=0 \
 	-DVERSION='"$(UPSTREAM_TAG)"'
+CPPFLAGS += $(OPENSSL_CFLAGS)
 CFLAGS += -Wall -Werror -pedantic -std=c99 -O2
-LDLIBS += -lcrypto
+LDLIBS += $(OPENSSL_LIBS)
 
 SOURCES := src/fiptool.c src/tbbr_config.c
 OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
