@@ -1,14 +1,29 @@
+LOCAL_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
+REPO_ROOT ?= $(patsubst %/,%,$(abspath $(dir $(LOCAL_MAKEFILE))/../..))
+REPO_NAME ?= $(notdir $(REPO_ROOT))
+BUILDBOX_WORKSPACE_PARENT ?= /workspaces
+BUILDBOX_WORKSPACE_ROOT ?= $(BUILDBOX_WORKSPACE_PARENT)/$(REPO_NAME)
+BUILDBOX_HOST_TMPDIR ?= $(REPO_ROOT)/.buildbox/tmp
+BUILDBOX_CONTAINER_TMPDIR ?= /hosttmp
+BUILDBOX_DEB_RESULT_ROOT ?= $(REPO_ROOT)/dist/deb
+BUILDBOX_DEB_RESULT_ROOT_IN_CONTAINER ?= $(BUILDBOX_WORKSPACE_ROOT)/dist/deb
+BUILD_LOG_ROOT ?= $(REPO_ROOT)/build-logs
+BUILDBOX_ENV = \
+	EDK2_CIX_WORKSPACE_ROOT="$(BUILDBOX_WORKSPACE_ROOT)" \
+	EDK2_CIX_HOST_TMPDIR="$(BUILDBOX_HOST_TMPDIR)" \
+	EDK2_CIX_CONTAINER_TMPDIR="$(BUILDBOX_CONTAINER_TMPDIR)"
+
 PROJECT ?= edk2-cix
 FIRMWARE_BOARD ?= O6
 FIRMWARE_PRODUCT ?= orion-o6
 FIRMWARE_TARGET ?= RELEASE_GCC5
-FIRMWARE_VERSION ?= $(shell dpkg-parsechangelog -S Version 2>/dev/null || sed -n '1s/^[^(]*(\([^)]*\)).*/\1/p' debian/changelog)
-FIRMWARE_STAGE_ROOT ?= $(CURDIR)/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)
+FIRMWARE_VERSION ?= $(shell cd "$(REPO_ROOT)" && (dpkg-parsechangelog -S Version 2>/dev/null || sed -n '1s/^[^(]*(\([^)]*\)).*/\1/p' debian/changelog))
+FIRMWARE_STAGE_ROOT ?= $(REPO_ROOT)/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)
 FIRMWARE_INSTALL_ROOT ?= /boot/efi/firmware/radxa
-FIRMWARE_ARCHIVE_ROOT ?= $(CURDIR)/dist
+FIRMWARE_ARCHIVE_ROOT ?= $(REPO_ROOT)/dist
 FIRMWARE_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)
 FIRMWARE_VALIDATION_PROFILE ?= upstream-o6-1.2.1-bookworm
-FIRMWARE_VALIDATION_REPORT_ROOT ?= $(CURDIR)/build-validation
+FIRMWARE_VALIDATION_REPORT_ROOT ?= $(REPO_ROOT)/build-validation
 FIRMWARE_VALIDATE_ON_BUILD ?= $(if $(filter upstream,$(ARTEFACT_MODE)),1,0)
 FIRMWARE_SRC_BUILD_TARGETS = \
 	Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)/cix_flash_all.bin \
@@ -19,10 +34,10 @@ BUILDBOX_FIRMWARE_ARGS = \
 	FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" \
 	FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
 	FIRMWARE_VERSION="$(FIRMWARE_VERSION)" \
-	FIRMWARE_STAGE_ROOT="/workspaces/edk2-cix/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)" \
-	FIRMWARE_ARCHIVE_ROOT="/workspaces/edk2-cix/dist" \
+	FIRMWARE_STAGE_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)" \
+	FIRMWARE_ARCHIVE_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/dist" \
 	FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
-	FIRMWARE_VALIDATION_REPORT_ROOT="/workspaces/edk2-cix/build-validation"
+	FIRMWARE_VALIDATION_REPORT_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/build-validation"
 
 src/tools/gcc/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf.tar.xz:
 	mkdir -p src/tools/gcc
@@ -78,16 +93,16 @@ help:
 
 .PHONY: build-edk2
 build-edk2:
-	make --no-print-directory -C src
+	$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src"
 
 .PHONY: firmware-build
 firmware-build:
-	make --no-print-directory -C src $(FIRMWARE_SRC_BUILD_TARGETS)
+	$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" $(FIRMWARE_SRC_BUILD_TARGETS)
 	@if [[ "$(FIRMWARE_VALIDATE_ON_BUILD)" == "1" ]]; then \
 		printf '\n[validate] Checking artefacts against %s\n' "$(FIRMWARE_VALIDATION_PROFILE)"; \
 		mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"; \
-		python3 scripts/validate_firmware_outputs.py \
-			--repo-root "$(CURDIR)" \
+		python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
+			--repo-root "$(REPO_ROOT)" \
 			--board "$(FIRMWARE_BOARD)" \
 			--target "$(FIRMWARE_TARGET)" \
 			--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
@@ -96,8 +111,8 @@ firmware-build:
 
 .PHONY: firmware-stage
 firmware-stage: firmware-build
-	python3 scripts/export_firmware_payload.py stage \
-		--repo-root "$(CURDIR)" \
+	python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" stage \
+		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(FIRMWARE_TARGET)" \
@@ -106,8 +121,8 @@ firmware-stage: firmware-build
 
 .PHONY: install
 install: firmware-stage
-	python3 scripts/export_firmware_payload.py install \
-		--repo-root "$(CURDIR)" \
+	python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" install \
+		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(FIRMWARE_TARGET)" \
@@ -116,8 +131,8 @@ install: firmware-stage
 
 .PHONY: zip
 zip: firmware-build
-	python3 scripts/export_firmware_payload.py zip \
-		--repo-root "$(CURDIR)" \
+	python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" zip \
+		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(FIRMWARE_TARGET)" \
@@ -126,8 +141,8 @@ zip: firmware-build
 
 .PHONY: targz
 targz: firmware-build
-	python3 scripts/export_firmware_payload.py targz \
-		--repo-root "$(CURDIR)" \
+	python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" targz \
+		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(FIRMWARE_TARGET)" \
@@ -137,8 +152,8 @@ targz: firmware-build
 .PHONY: validate-firmware
 validate-firmware:
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
-	python3 scripts/validate_firmware_outputs.py \
-		--repo-root "$(CURDIR)" \
+	python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
+		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--target "$(FIRMWARE_TARGET)" \
 		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
@@ -147,8 +162,8 @@ validate-firmware:
 .PHONY: validate-firmware-strict
 validate-firmware-strict:
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
-	python3 scripts/validate_firmware_outputs.py \
-		--repo-root "$(CURDIR)" \
+	python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
+		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--target "$(FIRMWARE_TARGET)" \
 		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
@@ -158,8 +173,8 @@ validate-firmware-strict:
 .PHONY: capture-validation-profile
 capture-validation-profile:
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
-	python3 scripts/validate_firmware_outputs.py \
-		--repo-root "$(CURDIR)" \
+	python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
+		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--target "$(FIRMWARE_TARGET)" \
 		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
@@ -171,19 +186,20 @@ clean: clean-edk2
 
 .PHONY: clean-edk2
 clean-edk2:
-	make --no-print-directory -C src clean
+	$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" clean
 
 .PHONY: buildbox-up
 buildbox-up:
-	./scripts/run_in_buildbox.sh true
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" true
 
 .PHONY: buildbox-deb
 buildbox-deb:
-	./scripts/run_in_buildbox.sh make --no-print-directory deb
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+		bash -lc 'set -euo pipefail; repo_root="$$(pwd -P)"; parent_dir="$$(dirname "$$repo_root")"; output_dir="$(BUILDBOX_DEB_RESULT_ROOT_IN_CONTAINER)"; package_name="$$(dpkg-parsechangelog -S Source)"; mkdir -p "$$output_dir"; make --no-print-directory deb; find "$$parent_dir" -maxdepth 1 -type f \( -name "$$package_name"_*.deb -o -name "$$package_name"_*.udeb -o -name "$$package_name"_*.changes -o -name "$$package_name"_*.buildinfo -o -name "$$package_name"_*.build \) -exec cp -f -t "$$output_dir" {} +'
 
 .PHONY: buildbox-firmware-build
 buildbox-firmware-build:
-	./scripts/run_in_buildbox.sh make --no-print-directory firmware-build \
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-build \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-o6
@@ -191,40 +207,40 @@ buildbox-o6: buildbox-firmware-build
 
 .PHONY: buildbox-o6-log
 buildbox-o6-log:
-	./scripts/capture_build_log.sh build-logs \
-		./scripts/run_in_buildbox.sh \
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/capture_build_log.sh" "$(BUILD_LOG_ROOT)" \
+		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
 		make --no-print-directory firmware-build $(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-firmware-stage
 buildbox-firmware-stage:
-	./scripts/run_in_buildbox.sh make --no-print-directory firmware-stage \
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-stage \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-zip
 buildbox-zip:
-	./scripts/run_in_buildbox.sh make --no-print-directory zip \
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory zip \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-targz
 buildbox-targz:
-	./scripts/run_in_buildbox.sh make --no-print-directory targz \
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory targz \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-validate-firmware
 buildbox-validate-firmware:
-	./scripts/run_in_buildbox.sh make --no-print-directory validate-firmware \
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-validate-firmware-strict
 buildbox-validate-firmware-strict:
-	./scripts/run_in_buildbox.sh make --no-print-directory validate-firmware-strict \
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware-strict \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-capture-validation-profile
 buildbox-capture-validation-profile:
-	./scripts/run_in_buildbox.sh make --no-print-directory capture-validation-profile \
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory capture-validation-profile \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-metadata
 buildbox-metadata:
-	./scripts/run_in_buildbox.sh make --no-print-directory -C src print-build-metadata
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory -C src print-build-metadata

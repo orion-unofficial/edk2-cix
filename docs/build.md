@@ -261,6 +261,11 @@ make buildbox-validate-firmware-strict
 make buildbox-capture-validation-profile
 ```
 
+The `buildbox-*` targets keep their host-side scratch space under
+`.buildbox/`, write staged/archive outputs under `dist/`, and copy Debian
+package artefacts into `dist/deb/`. You can also drive them from another
+working directory with `make -C /path/to/checkout buildbox-...`.
+
 `make devcontainer_setup` is now idempotent: it checks for the required Debian
 packages first and skips the `apt` work when the environment is already ready.
 When it does need to provision packages, it uses noninteractive `apt-get`
