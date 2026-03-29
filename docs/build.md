@@ -3,6 +3,18 @@
 You can build this repo either directly on a supported Debian host or inside a
 containerized environment.
 
+If you want a quick overview of the common top-level workflows first, run:
+
+```bash
+make help
+```
+
+For lower-level firmware targets, use:
+
+```bash
+make -C src help
+```
+
 ## Supported host environments
 
 - Debian `bookworm` on `x86_64` for the preferred exact-upstream replay path
