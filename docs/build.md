@@ -220,6 +220,30 @@ By default:
 - `make zip` writes `dist/edk2-cix-orion-o6-<version>.zip`
 - `make targz` writes `dist/edk2-cix-orion-o6-<version>.tar.gz`
 
+`make buildbox-firmware-stage` uses the same export path, and the staged files
+appear directly in the host checkout under `dist/firmware/orion-o6/<version>/`
+because the buildbox bind-mounts the repo root. You do not need to copy files
+back out of the container separately.
+
+To deploy that staged payload manually onto a target ESP or removable FAT
+volume, copy the contents of `dist/firmware/orion-o6/<version>/` into
+`edk2/radxa/` on that filesystem. That layout matches the payload shipped by
+the Debian package:
+
+- `edk2/radxa/startup.nsh`
+- `edk2/radxa/orion-o6/BuildOptions`
+- `edk2/radxa/orion-o6/cix_flash_all.bin`
+- `edk2/radxa/orion-o6/cix_flash_ota.bin`
+- `edk2/radxa/orion-o6/BurnImage.efi`
+- `edk2/radxa/orion-o6/FlashUpdate.efi`
+- `edk2/radxa/orion-o6/EnrollFromDefaultKeysApp.efi`
+- `edk2/radxa/orion-o6/VariableInfo.efi`
+- `edk2/radxa/orion-o6/Shell.efi`
+- `edk2/radxa/orion-o6/startup.nsh`
+
+From the UEFI Shell, run `startup.nsh` to get the product picker, or run
+`orion-o6/startup.nsh` directly to launch that board's flash flow.
+
 Use these variables to change the defaults:
 
 - `FIRMWARE_BOARD`
