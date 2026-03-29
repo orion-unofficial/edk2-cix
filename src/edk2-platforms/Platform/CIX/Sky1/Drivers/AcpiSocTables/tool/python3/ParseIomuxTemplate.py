@@ -14,8 +14,9 @@ from pathlib import Path
 import argparse
 
 def setup_logging():
+    quiet = os.getenv("EDK2_CIX_QUIET_PREBUILD") == "1"
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.ERROR if quiet else logging.INFO,
         format='%(asctime)s [%(levelname)s] %(message)s',
         handlers=[
             logging.StreamHandler(sys.stdout)

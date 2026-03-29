@@ -4,6 +4,7 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
+host_os="${EDK2_CIX_HOST_OS:-$(uname -s 2>/dev/null || printf 'unknown\n')}"
 workspace_parent="${EDK2_CIX_WORKSPACE_PARENT:-/workspaces}"
 workspace_path="${EDK2_CIX_WORKSPACE_ROOT:-${workspace_parent}/$(basename -- "$repo_root")}"
 host_workspace_root="$repo_root"
@@ -25,6 +26,10 @@ container_mount_args=()
 expected_mounts=()
 host_git_repo_usable=0
 
+if [[ "${EDK2_CIX_REPO_LOCK_HELD:-0}" != "1" ]]; then
+    exec "${script_dir}/with_repo_lock.sh" "${script_dir}/run_in_buildbox.sh" "$@"
+fi
+
 status() {
     printf '[buildbox] %s\n' "$*"
 }
@@ -35,20 +40,47 @@ resolve_container_runtime() {
         return 0
     fi
 
-    local candidate
-    for candidate in podman docker; do
-        if command -v "$candidate" >/dev/null 2>&1 && "$candidate" info >/dev/null 2>&1; then
+    local host_os preferred_runtime fallback_runtime candidate
+    local -a probe_failures=()
+
+    host_os="$(uname -s)"
+    case "$host_os" in
+        Darwin)
+            preferred_runtime="docker"
+            fallback_runtime="podman"
+            ;;
+        Linux)
+            preferred_runtime="podman"
+            fallback_runtime="docker"
+            ;;
+        *)
+            preferred_runtime="podman"
+            fallback_runtime="docker"
+            ;;
+    esac
+
+    for candidate in "$preferred_runtime" "$fallback_runtime"; do
+        if ! command -v "$candidate" >/dev/null 2>&1; then
+            continue
+        fi
+        if "$candidate" info >/dev/null 2>&1; then
+            if [[ "$candidate" != "$preferred_runtime" ]] && command -v "$preferred_runtime" >/dev/null 2>&1; then
+                status "Preferred runtime ${preferred_runtime} was not usable; falling back to ${candidate}"
+            fi
             printf '%s\n' "$candidate"
             return 0
         fi
+        probe_failures+=("$candidate")
     done
 
-    for candidate in docker podman; do
-        if command -v "$candidate" >/dev/null 2>&1; then
-            printf '%s\n' "$candidate"
-            return 0
-        fi
-    done
+    if (( ${#probe_failures[@]} > 0 )); then
+        cat >&2 <<EOF
+[buildbox] Tried the available container runtimes in this order: ${preferred_runtime}, ${fallback_runtime}
+[buildbox] None of the installed runtimes responded successfully to 'info': ${probe_failures[*]}
+[buildbox] Start the preferred runtime or set EDK2_CIX_CONTAINER_RUNTIME explicitly if you want to force one.
+EOF
+        exit 1
+    fi
 
     cat >&2 <<'EOF'
 [buildbox] Neither podman nor docker is available on PATH.
@@ -428,4 +460,9 @@ runtime exec -w "$workspace_path" "$container_name" bash -lc "./scripts/ensure_b
 ensure_git_safe_directory
 
 status "Running in ${container_name}: $*"
-runtime exec -w "$workspace_path" "$container_name" "$@"
+runtime exec \
+    -e "EDK2_CIX_REPO_LOCK_HELD=${EDK2_CIX_REPO_LOCK_HELD:-}" \
+    -e "EDK2_CIX_HOST_OS=${host_os}" \
+    -w "$workspace_path" \
+    "$container_name" \
+    "$@"

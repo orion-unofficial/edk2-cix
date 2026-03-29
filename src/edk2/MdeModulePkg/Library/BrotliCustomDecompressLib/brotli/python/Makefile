@@ -22,6 +22,13 @@
 
 PYTHON ?= python
 YAPF ?= yapf
+V ?= 0
+
+ifeq ($(V),1)
+Q :=
+else
+Q := @
+endif
 
 EXT_SUFFIX=$(shell $(PYTHON) -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))')
 EXT_SOURCES=$(shell find . -name '*.cc')
@@ -46,11 +53,11 @@ test: build
 	@$(PYTHON) -m unittest discover -v -p '*_test.py'
 
 clean:
-	@cd .. && $(PYTHON) setup.py clean
-	@find .. -name '*.pyc' | xargs rm -v
-	@find .. -name '*.so' | xargs rm -v
-	@find .. -type d -name '__pycache__' | xargs rm -v -r
-	@find .. -type d -name '*.egg-info' | xargs rm -v -r
+	$(Q)cd .. && $(PYTHON) setup.py clean
+	$(Q)find .. -name '*.pyc' -exec rm -f {} +
+	$(Q)find .. -name '*.so' -exec rm -f {} +
+	$(Q)find .. -type d -name '__pycache__' -exec rm -rf {} +
+	$(Q)find .. -type d -name '*.egg-info' -exec rm -rf {} +
 
 fix:
 	@echo 'formatting code'
