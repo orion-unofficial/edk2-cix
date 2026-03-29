@@ -27,6 +27,7 @@ DEFAULT_CONTAINER_TMPDIR = pathlib.PurePosixPath(
     os.environ.get("EDK2_CIX_CONTAINER_TMPDIR", "/hosttmp")
 )
 DEFAULT_CONTAINER_IMAGE = "mcr.microsoft.com/devcontainers/base:bookworm"
+CONTAINER_RUNTIME_ENV = "EDK2_CIX_CONTAINER_RUNTIME"
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,6 +59,35 @@ def parse_args() -> argparse.Namespace:
         help="Linux container image to use for the round-trip validation",
     )
     return parser.parse_args()
+
+
+def resolve_container_runtime() -> str:
+    override = os.environ.get(CONTAINER_RUNTIME_ENV)
+    if override:
+        return override
+
+    for candidate in ("podman", "docker"):
+        resolved = shutil.which(candidate)
+        if not resolved:
+            continue
+        try:
+            subprocess.run(
+                [resolved, "info"],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+            return resolved
+        except (OSError, subprocess.CalledProcessError):
+            continue
+
+    for candidate in ("docker", "podman"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+
+    raise RuntimeError("Neither podman nor docker is available on PATH")
 
 
 def require_file(path: pathlib.Path) -> pathlib.Path:
@@ -219,9 +249,10 @@ cp "{to_container_tmp_path(staged_input, host_tmp_root, container_tmp_root)}" or
   recreated.bin >/dev/null
 """
 
+    container_runtime = resolve_container_runtime()
     subprocess.run(
         [
-            "docker",
+            container_runtime,
             "run",
             "--rm",
             "--platform",

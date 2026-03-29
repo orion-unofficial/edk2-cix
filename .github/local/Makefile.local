@@ -13,6 +13,16 @@ FIRMWARE_VALIDATE_ON_BUILD ?= $(if $(filter upstream,$(ARTEFACT_MODE)),1,0)
 FIRMWARE_SRC_BUILD_TARGETS = \
 	Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)/cix_flash_all.bin \
 	Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)/cix_flash_ota.bin
+BUILDBOX_FIRMWARE_ARGS = \
+	ARTEFACT_MODE="$(ARTEFACT_MODE)" \
+	FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
+	FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" \
+	FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+	FIRMWARE_VERSION="$(FIRMWARE_VERSION)" \
+	FIRMWARE_STAGE_ROOT="/workspaces/edk2-cix/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)" \
+	FIRMWARE_ARCHIVE_ROOT="/workspaces/edk2-cix/dist" \
+	FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
+	FIRMWARE_VALIDATION_REPORT_ROOT="/workspaces/edk2-cix/build-validation"
 
 src/tools/gcc/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf.tar.xz:
 	mkdir -p src/tools/gcc
@@ -129,26 +139,49 @@ buildbox-up:
 buildbox-deb:
 	./scripts/run_in_buildbox.sh make --no-print-directory deb
 
-.PHONY: buildbox-o6
-buildbox-o6:
+.PHONY: buildbox-firmware-build
+buildbox-firmware-build:
 	./scripts/run_in_buildbox.sh make --no-print-directory firmware-build \
-		ARTEFACT_MODE="$(ARTEFACT_MODE)" \
-		FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
-		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
-		FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
-		FIRMWARE_VALIDATION_REPORT_ROOT="/workspaces/edk2-cix/build-validation"
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-o6
+buildbox-o6: buildbox-firmware-build
 
 .PHONY: buildbox-o6-log
 buildbox-o6-log:
-	./scripts/capture_build_log.sh build-logs ./scripts/run_in_buildbox.sh make --no-print-directory firmware-build ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" FIRMWARE_VALIDATION_REPORT_ROOT="/workspaces/edk2-cix/build-validation"
+	./scripts/capture_build_log.sh build-logs \
+		./scripts/run_in_buildbox.sh \
+		make --no-print-directory firmware-build $(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-firmware-stage
+buildbox-firmware-stage:
+	./scripts/run_in_buildbox.sh make --no-print-directory firmware-stage \
+		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-zip
 buildbox-zip:
-	./scripts/run_in_buildbox.sh make --no-print-directory zip
+	./scripts/run_in_buildbox.sh make --no-print-directory zip \
+		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-targz
 buildbox-targz:
-	./scripts/run_in_buildbox.sh make --no-print-directory targz
+	./scripts/run_in_buildbox.sh make --no-print-directory targz \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-validate-firmware
+buildbox-validate-firmware:
+	./scripts/run_in_buildbox.sh make --no-print-directory validate-firmware \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-validate-firmware-strict
+buildbox-validate-firmware-strict:
+	./scripts/run_in_buildbox.sh make --no-print-directory validate-firmware-strict \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-capture-validation-profile
+buildbox-capture-validation-profile:
+	./scripts/run_in_buildbox.sh make --no-print-directory capture-validation-profile \
+		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-metadata
 buildbox-metadata:
