@@ -546,7 +546,7 @@ clean:
 	rm -rf Build
 	printf '[clean] Removing host-built helper tools\n'
 	rm -rf "$(FIPTOOL_SOURCE_DIR)/build" tools/acpica/generate/unix/bin
-	rm -f "$(TRUSTED_KEY_CERT_TOOL_BIN)" "$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool"
+	rm -f "$(TRUSTED_KEY_CERT_TOOL_BIN)"
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type f -name '*.pyc' -delete
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type d -name '__pycache__' -prune -exec rm -rf {} +
 	printf '[clean] Cleaning BaseTools output without invoking host toolchain checks\n'
