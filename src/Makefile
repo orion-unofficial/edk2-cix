@@ -61,6 +61,11 @@ FIPTOOL_SOURCE_INPUTS := \
 	$(FIPTOOL_SOURCE_DIR)/include/tools_share/firmware_image_package.h \
 	$(FIPTOOL_SOURCE_DIR)/include/tools_share/uuid.h \
 	$(FIPTOOL_SOURCE_DIR)/upstream.json
+TRUSTED_KEY_CERT_TOOL_SOURCE_DIR := $(PACKAGE_TOOL)/source_tools/cix_regen_trusted_key_cert
+TRUSTED_KEY_CERT_TOOL_BIN := $(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trusted_key_cert
+TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS := \
+	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/Makefile \
+	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trusted_key_cert.c
 SIGNING_CERT_SOURCE_DIR ?=
 REQUIRE_SIGNING_CERT_SOURCE ?= $(if $(and $(filter upstream,$(ARTEFACT_MODE)),$(strip $(SIGNING_CERT_SOURCE_DIR))),1,0)
 BASETOOLS_C_BIN_DIR := edk2/BaseTools/Source/C/bin
@@ -82,24 +87,29 @@ DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name 
 	#    $(shell find edk2-platforms/Platform/CIX -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f")
 
 CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_all.bin) \
-			 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
-.PHONY: build host-fiptool
+				 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
+.PHONY: build host-fiptool host-cix-regen-trusted-key-cert
 build: preflight $(CIX_FLASH)
 
 host-fiptool: $(FIPTOOL_BIN)
+host-cix-regen-trusted-key-cert: $(TRUSTED_KEY_CERT_TOOL_BIN)
 
-.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools host-fiptool prepare-basetools-c
+.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools host-fiptool host-cix-regen-trusted-key-cert prepare-basetools-c
 .PHONY: help
 help:
 	echo "Supported targets:"
 	echo "$(CIX_FLASH)"
 	echo "host-fiptool"
+	echo "host-cix-regen-trusted-key-cert"
 	echo "prepare-basetools-c"
 	echo "preflight"
 	echo "Use V=1 for verbose EDK2 build commands"
 
 $(FIPTOOL_BIN): $(FIPTOOL_SOURCE_INPUTS)
 	$(MAKE) -C "$(FIPTOOL_SOURCE_DIR)" HOST_ARCH="$(HOST_ARCH)" all
+
+$(TRUSTED_KEY_CERT_TOOL_BIN): $(TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS)
+	$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" all
 
 .PHONY: print-build-metadata
 print-build-metadata:
@@ -369,15 +379,53 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt
 Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt:
 	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
+	export SOURCE_TOOL_BIN="$(abspath $(TRUSTED_KEY_CERT_TOOL_BIN))" && \
 	mkdir -p Build/$*/$(UEFI_TARGET)_GCC5/Keys Build/$*/$(UEFI_TARGET)_GCC5/certs && \
 	cp -a $(PACKAGE_TOOL)/Keys/. Build/$*/$(UEFI_TARGET)_GCC5/Keys/ && \
 	cp -a $(PACKAGE_TOOL)/certs/. Build/$*/$(UEFI_TARGET)_GCC5/certs/ && \
-	if [[ -f "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" ]]; then \
-    	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" \
-			-p Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
-			-s Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
-			-o $@; \
-	fi
+	select_cert_source() { \
+		local base_dir="$$1"; \
+		shift; \
+		local candidate; \
+		for candidate in "$$@"; do \
+			if [[ -f "$$base_dir/$$candidate" ]]; then \
+				printf '%s\n' "$$base_dir/$$candidate"; \
+				return 0; \
+			fi; \
+		done; \
+		return 1; \
+	}; \
+	if [[ -n "$$SIGNING_CERT_SOURCE_DIR" ]]; then \
+		trusted_key_cert_src="$$(select_cert_source "$$SIGNING_CERT_SOURCE_DIR" trusted_key_no.crt trusted-key-cert.bin || true)"; \
+		if [[ -n "$$trusted_key_cert_src" ]]; then \
+			cp "$$trusted_key_cert_src" "$@"; \
+			exit 0; \
+		fi; \
+	fi; \
+	case "$(ARTEFACT_MODE)" in \
+		custom) \
+			$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" all >/dev/null; \
+			"$$SOURCE_TOOL_BIN" \
+				-p Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
+				-s Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
+				-o $@; \
+			;; \
+		upstream) \
+			if [[ -f "$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" ]]; then \
+				"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cix_regen_trusted_key_cert" \
+					-p Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
+					-s Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
+					-o $@; \
+			else \
+				echo "ARTEFACT_MODE=upstream requires SIGNING_CERT_SOURCE_DIR or the bundled cix_regen_trusted_key_cert binary" >&2; \
+				exit 1; \
+			fi; \
+			;; \
+		*) \
+			echo "Unsupported ARTEFACT_MODE=$(ARTEFACT_MODE); expected custom or upstream" >&2; \
+			exit 1; \
+			;; \
+	esac
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd tools/acpica/generate/unix/bin/iasl
 Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
