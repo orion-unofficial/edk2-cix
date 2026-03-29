@@ -54,6 +54,7 @@ help:
 	@printf '%s\n' 'edk2-cix common targets'
 	@printf '%s\n' ''
 	@printf '%-34s %s\n' '  help' 'Show this help text'
+	@printf '%-34s %s\n' '  firmware_build_dep' 'Install only the direct firmware-build host dependencies'
 	@printf '%-34s %s\n' '  devcontainer_setup' 'Install host build dependencies'
 	@printf '%-34s %s\n' '  build-edk2' 'Run the raw src/ firmware build'
 	@printf '%-34s %s\n' '  firmware-build' 'Build the O6 firmware artefacts'
@@ -194,7 +195,7 @@ buildbox-up:
 
 .PHONY: buildbox-deb
 buildbox-deb:
-	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+	$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" --dep-profile packaging \
 		bash -lc 'set -euo pipefail; repo_root="$$(pwd -P)"; parent_dir="$$(dirname "$$repo_root")"; output_dir="$(BUILDBOX_DEB_RESULT_ROOT_IN_CONTAINER)"; package_name="$$(dpkg-parsechangelog -S Source)"; mkdir -p "$$output_dir"; make --no-print-directory deb; find "$$parent_dir" -maxdepth 1 -type f \( -name "$$package_name"_*.deb -o -name "$$package_name"_*.udeb -o -name "$$package_name"_*.changes -o -name "$$package_name"_*.buildinfo -o -name "$$package_name"_*.build \) -exec cp -f -t "$$output_dir" {} +'
 
 .PHONY: buildbox-firmware-build
