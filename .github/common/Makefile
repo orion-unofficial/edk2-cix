@@ -22,32 +22,47 @@ devcontainer_setup: pre_build_dep main_build_dep post_build_dep
 
 .PHONY: firmware_build_dep
 firmware_build_dep:
-	"$(REPO_ROOT)/scripts/ensure_build_deps.sh" --profile firmware
+	EDK2_CIX_VERBOSE="$(V)" "$(REPO_ROOT)/scripts/ensure_build_deps.sh" --profile firmware
 
 .PHONY: pre_build_dep
 pre_build_dep:
 
 .PHONY: main_build_dep
 main_build_dep:
-	"$(REPO_ROOT)/scripts/ensure_build_deps.sh" --profile packaging
+	EDK2_CIX_VERBOSE="$(V)" "$(REPO_ROOT)/scripts/ensure_build_deps.sh" --profile packaging
 
 .PHONY: post_build_dep
 post_build_dep:
 
 .PHONY: arm64_crossbuild_dep
 arm64_crossbuild_dep:
-	"$(REPO_ROOT)/scripts/ensure_build_deps.sh" --profile packaging
+	EDK2_CIX_VERBOSE="$(V)" "$(REPO_ROOT)/scripts/ensure_build_deps.sh" --profile packaging
 	bash "$(REPO_ROOT)/scripts/require_host_tools.sh" "arm64 Debian cross-build dependency installation" apt-get dpkg dpkg-query
 	cd "$(REPO_ROOT)" && \
+	run_build_dep() { \
+		if [ "$(V)" = "1" ]; then \
+			"$$@"; \
+			return $$?; \
+		fi; \
+		apt_log="$$(mktemp "$${TMPDIR:-/tmp}/edk2-cix-apt.XXXXXX")"; \
+		if "$$@" >"$$apt_log" 2>&1; then \
+			rm -f "$$apt_log"; \
+			return 0; \
+		fi; \
+		cat "$$apt_log" >&2; \
+		rm -f "$$apt_log"; \
+		return 1; \
+	}; \
 	if [ "$$(id -u)" -eq 0 ]; then \
-		env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true DEBCONF_NOWARNINGS=yes DEBIAN_PRIORITY=critical TERM=dumb \
+		run_build_dep env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true DEBCONF_NOWARNINGS=yes DEBIAN_PRIORITY=critical TERM=dumb \
 			apt-get -o APT::Install-Recommends=false -o APT::Install-Suggests=false -o Dpkg::Use-Pty=0 build-dep . -y --no-install-recommends --host-architecture arm64; \
 	else \
 		if ! command -v sudo >/dev/null 2>&1; then \
 			printf '%s\n' '[deps] arm64_crossbuild_dep needs root privileges; re-run as root or install sudo.' >&2; \
 			exit 1; \
 		fi; \
-		sudo env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true DEBCONF_NOWARNINGS=yes DEBIAN_PRIORITY=critical TERM=dumb \
+		sudo -v; \
+		run_build_dep sudo env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true DEBCONF_NOWARNINGS=yes DEBIAN_PRIORITY=critical TERM=dumb \
 			apt-get -o APT::Install-Recommends=false -o APT::Install-Suggests=false -o Dpkg::Use-Pty=0 build-dep . -y --no-install-recommends --host-architecture arm64; \
 	fi
 
