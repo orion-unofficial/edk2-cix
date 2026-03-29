@@ -164,6 +164,19 @@ PCCTS_H=../h
 #
 #   UNIX  (default)
 #
+V ?= 0
+ifeq ($(V),1)
+Q :=
+define PRINT_STATUS
+@:
+endef
+else
+Q := @
+define PRINT_STATUS
+@printf '  %-7s %s\n' '$(1)' '$(2)'
+endef
+endif
+
 ifeq ($(CXX), llvm)
 BUILD_CC?=$(CLANG_BIN)clang
 else
@@ -184,7 +197,8 @@ OBJ=antlr.o scan.o err.o bits.o build.o fset2.o fset.o gen.o  \
         globals.o hash.o lex.o main.o misc.o set.o pred.o egman.o mrhoist.o fcache.o
 
 $(BIN_DIR)/antlr : $(OBJ) $(SRC)
-		$(BUILD_CC) $(BUILD_CFLAGS) -o $(BIN_DIR)/antlr $(OBJ)
+	$(call PRINT_STATUS,LD,$@)
+	$(Q)$(BUILD_CC) $(BUILD_CFLAGS) -o $(BIN_DIR)/antlr $(OBJ)
 
 # what files does PCCTS generate (both ANTLR and DLG)
 PCCTS_GEN=antlr.c scan.c err.c tokens.h mode.h parser.dlg stdpccts.h remap.h
@@ -207,10 +221,12 @@ scan.o : scan.c mode.h tokens.h
 #	$(DLG) -C2 parser.dlg scan.c
 
 set.o : $(SET)/set.c
-	$(BUILD_CC) $(BUILD_CFLAGS) -c -o set.o $(SET)/set.c
+	$(call PRINT_STATUS,CC,$@)
+	$(Q)$(BUILD_CC) $(BUILD_CFLAGS) -c -o set.o $(SET)/set.c
 
-%.o : %.c 
-	$(BUILD_CC) -c $(BUILD_CFLAGS) $(BUILD_CPPFLAGS) $< -o $@
+%.o : %.c
+	$(call PRINT_STATUS,CC,$@)
+	$(Q)$(BUILD_CC) -c $(BUILD_CFLAGS) $(BUILD_CPPFLAGS) $< -o $@
 
 #
 # ****** These next targets are common to UNIX and PC world ********
@@ -218,7 +234,8 @@ set.o : $(SET)/set.c
 
 #clean up all the intermediate files
 clean:
-	rm -f $(BIN_DIR)/antlr *.$(OBJ_EXT) core
+	$(call PRINT_STATUS,CLEAN,$(BIN_DIR)/antlr)
+	$(Q)rm -f $(BIN_DIR)/antlr *.$(OBJ_EXT) core
 
 #remove everything in clean plus the PCCTS files generated
 scrub:

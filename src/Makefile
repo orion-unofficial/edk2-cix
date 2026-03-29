@@ -113,7 +113,7 @@ help:
 	echo "Use V=1 for verbose EDK2 build commands"
 
 $(FIPTOOL_BIN): $(FIPTOOL_SOURCE_INPUTS)
-	$(MAKE) -C "$(FIPTOOL_SOURCE_DIR)" HOST_ARCH="$(HOST_ARCH)" all
+	$(MAKE) -C "$(FIPTOOL_SOURCE_DIR)" HOST_ARCH="$(HOST_ARCH)" V="$(V)" all
 
 $(TRUSTED_KEY_CERT_TOOL_BIN): $(TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS)
 	$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" all
@@ -209,8 +209,8 @@ prepare-basetools-c:
 	if [[ "$$rebuild" -eq 1 ]]; then
 		printf '[build] Rebuilding BaseTools C binaries for %s\n' "$$current_env_id"
 		printf '[build] Cleaning stale BaseTools C objects and dependency files\n'
-		$(MAKE) -C edk2/BaseTools clean
-		$(MAKE) -C edk2/BaseTools -j$(shell nproc) Source/C
+		$(MAKE) -C edk2/BaseTools V="$(V)" clean
+		$(MAKE) -C edk2/BaseTools -j$(shell nproc) V="$(V)" Source/C
 		printf '%s\n' "$$current_env_id" > "$(BASETOOLS_C_MARKER)"
 	fi
 

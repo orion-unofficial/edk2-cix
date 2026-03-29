@@ -73,26 +73,31 @@ $(APPLICATIONS): $(LIBRARIES) $(MAKEROOT)/bin $(VFRAUTOGEN)
 
 .PHONY: outputdirs
 makerootdir:
-	-mkdir -p $(MAKEROOT)
+	$(call PRINT_STATUS,MKDIR,$(MAKEROOT))
+	$(Q)-mkdir -p $(MAKEROOT)
 
 .PHONY: subdirs $(SUBDIRS)
 subdirs: $(SUBDIRS)
 $(SUBDIRS):
-	$(MAKE) -C $@
+	$(call PRINT_STATUS,MAKE,$@)
+	$(Q)$(MAKE) -C $@
 
 .PHONY: $(patsubst %,%-clean,$(sort $(SUBDIRS)))
 $(patsubst %,%-clean,$(sort $(SUBDIRS))):
-	-$(MAKE) -C $(@:-clean=) clean
+	$(call PRINT_STATUS,CLEAN,$(@:-clean=))
+	$(Q)-$(MAKE) -C $(@:-clean=) clean
 
 $(VFRAUTOGEN): VfrCompile/VfrSyntax.g
-	$(MAKE) -C VfrCompile VfrLexer.h
+	$(call PRINT_STATUS,GEN,$@)
+	$(Q)$(MAKE) -C VfrCompile VfrLexer.h
 
 clean:  $(patsubst %,%-clean,$(sort $(SUBDIRS)))
 
 clean: localClean
 
 localClean:
-	rm -f $(MAKEROOT)/bin/*
+	$(call PRINT_STATUS,CLEAN,$(MAKEROOT)/bin)
+	$(Q)rm -f $(MAKEROOT)/bin/*
 	@if [ -d "$(MAKEROOT)/libs" ] || [ -d "$(MAKEROOT)/bin" ]; then \
 		rmdir $(MAKEROOT)/libs $(MAKEROOT)/bin 2>/dev/null || true; \
 	fi

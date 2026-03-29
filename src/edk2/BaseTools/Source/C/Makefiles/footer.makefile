@@ -8,23 +8,29 @@
 DEPFILES = $(OBJECTS:%.o=%.d)
 
 $(MAKEROOT)/libs-$(HOST_ARCH):
-	mkdir -p $(MAKEROOT)/libs-$(HOST_ARCH)
+	$(call PRINT_STATUS,MKDIR,$@)
+	$(Q)mkdir -p $(MAKEROOT)/libs-$(HOST_ARCH)
 
 .PHONY: install
 install: $(MAKEROOT)/libs-$(HOST_ARCH) $(LIBRARY)
-	cp $(LIBRARY) $(MAKEROOT)/libs-$(HOST_ARCH)
+	$(call PRINT_STATUS,INSTALL,$(notdir $(LIBRARY)))
+	$(Q)cp $(LIBRARY) $(MAKEROOT)/libs-$(HOST_ARCH)
 
 $(LIBRARY): $(OBJECTS)
-	$(BUILD_AR) crs $@ $^
+	$(call PRINT_STATUS,AR,$@)
+	$(Q)$(BUILD_AR) crs $@ $^
 
 %.o : %.c
-	$(BUILD_CC)  -c $(BUILD_CPPFLAGS) $(BUILD_CFLAGS) $< -o $@
+	$(call PRINT_STATUS,CC,$@)
+	$(Q)$(BUILD_CC)  -c $(BUILD_CPPFLAGS) $(BUILD_CFLAGS) $< -o $@
 
 %.o : %.cpp
-	$(BUILD_CXX) -c $(BUILD_CPPFLAGS) $(BUILD_CXXFLAGS) $< -o $@
+	$(call PRINT_STATUS,CXX,$@)
+	$(Q)$(BUILD_CXX) -c $(BUILD_CPPFLAGS) $(BUILD_CXXFLAGS) $< -o $@
 
 .PHONY: clean
 clean:
-	@rm -f $(OBJECTS) $(LIBRARY) $(DEPFILES)
+	$(call PRINT_STATUS,CLEAN,$(CURDIR))
+	$(Q)rm -f $(OBJECTS) $(LIBRARY) $(DEPFILES)
 
 -include $(DEPFILES)
