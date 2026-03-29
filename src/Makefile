@@ -91,6 +91,7 @@ CERT_UEFI_CREATE_RSA_BIN := $(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/cert_uefi_create_
 CERT_UEFI_CREATE_RSA_SOURCE_INPUTS := \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/Makefile \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/cert_uefi_create_rsa.c
+CERT_VALIDATOR := scripts/validate_cix_fip_certs.py
 HOST_TOOLS_DIR := Build/HostTools
 CIX_PACKAGE_TOOL_SOURCE_DIR := $(PACKAGE_TOOL)/source_tools/cix_package_tool
 CIX_PACKAGE_TOOL_BIN := $(HOST_TOOLS_DIR)/cix_package_tool
@@ -291,7 +292,7 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
-	for required_cmd in bash find grep head realpath tr dd python3 iasl; do \
+	for required_cmd in bash find grep head realpath tr dd python3 iasl openssl; do \
 		if ! command -v "$$required_cmd" >/dev/null 2>&1; then \
 			echo "[preflight] Missing required host tool: $$required_cmd" >&2; \
 			missing=1; \
@@ -325,6 +326,10 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
+	if [[ ! -f "$(CERT_VALIDATOR)" ]]; then \
+		echo "[preflight] Missing certificate validation helper: $(CERT_VALIDATOR)" >&2; \
+		missing=1; \
+	fi; \
 	if [[ "$$missing" -ne 0 ]]; then \
 		exit 1; \
 	fi
@@ -498,6 +503,17 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 			--non-trusted-world-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
 			--nt-fw "$(shell realpath "$<")"; \
 	fi && \
+	run_success_only python3 "$(CERT_VALIDATOR)" \
+		--trusted-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
+		--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
+		--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
+		--oem-public-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
+		--trusted-sign-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
+		--nt-fw-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
+		--non-trusted-world-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
+		--nt-fw "$(shell realpath "$<")" \
+		--ntfw-nvctr 223 \
+		--fiptool "$(FIPTOOL_BIN)" && \
 	run_success_only "$(FIPTOOL_BIN)" create \
 		--trusted-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
 		--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
