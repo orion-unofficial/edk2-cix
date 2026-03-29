@@ -61,9 +61,10 @@ WARNING_CLASSES = (
         disposition="needs-review",
         note=(
             "Vendor ACPI source warning from the current O6/CIX tables. These "
-            "warnings were traced to Radxa/CIX ASL sources and should be "
-            "reviewed table-by-table; many are not upstream-safe fixes because "
-            "they would change emitted AML bytes or firmware behaviour."
+            "warnings were traced to Radxa/CIX ASL sources. Representative "
+            "byte-neutral cleanup experiments all changed the emitted AML, so "
+            "they should currently be treated as custom-path candidates unless "
+            "a specific fix is re-proven to preserve the output bytes."
         ),
     ),
     WarningClass(
