@@ -7,6 +7,7 @@
 #
 
 MAKEFLAGS += --no-print-directory
+V ?= 0
 
 ifndef HOST_ARCH
   #
@@ -14,7 +15,9 @@ ifndef HOST_ARCH
   # try to figure out the appropriate HOST_ARCH.
   #
   uname_m = $(shell uname -m)
-  $(info Attempting to detect HOST_ARCH from 'uname -m': $(uname_m))
+  ifeq ($(V),1)
+    $(info Attempting to detect HOST_ARCH from 'uname -m': $(uname_m))
+  endif
   ifneq (,$(strip $(filter $(uname_m), x86_64 amd64)))
     HOST_ARCH=X64
   endif
@@ -35,10 +38,14 @@ ifndef HOST_ARCH
     HOST_ARCH=LOONGARCH64
   endif
   ifndef HOST_ARCH
-    $(info Could not detected HOST_ARCH from uname results)
+    ifeq ($(V),1)
+      $(info Could not detected HOST_ARCH from uname results)
+    endif
     $(error HOST_ARCH is not defined!)
   endif
-  $(info Detected HOST_ARCH of $(HOST_ARCH) using uname.)
+  ifeq ($(V),1)
+    $(info Detected HOST_ARCH of $(HOST_ARCH) using uname.)
+  endif
 endif
 
 export HOST_ARCH
