@@ -26,7 +26,7 @@ PACKAGE_TOOL_DIR = SRC_DIR / "edk2-non-osi" / "Platform" / "CIX" / "Sky1" / "Pac
 PM_CONFIG_DIR = SRC_DIR / "edk2-platforms" / "Platform" / "Radxa" / "Orion" / "O6" / "pm_config"
 FIPTOOL_SOURCE_DIR = SRC_DIR / "tools" / "arm-trusted-firmware-fiptool"
 FLASH_CONFIG_ALL = PACKAGE_TOOL_DIR / "spi_flash_config_all.json"
-PACKAGE_TOOL_BIN = PACKAGE_TOOL_DIR / "X86_64" / "cix_package_tool"
+PACKAGE_TOOL_SOURCE = PACKAGE_TOOL_DIR / "source_tools" / "cix_package_tool" / "cix_package_tool.py"
 DEFAULT_TMP_ROOT = pathlib.Path(
     os.environ.get("EDK2_CIX_HOST_TMPDIR", tempfile.gettempdir())
 ).resolve()
@@ -239,13 +239,14 @@ def extract_flash_details(flash_image: pathlib.Path, work_dir: pathlib.Path) -> 
     container_command = f"""
 set -euo pipefail
 pkg={shlex.quote('/workspace/' + str(PACKAGE_TOOL_DIR.relative_to(REPO_ROOT)))}
+pkg_tool={shlex.quote('/workspace/' + str(PACKAGE_TOOL_SOURCE.relative_to(REPO_ROOT)))}
 pm={shlex.quote('/workspace/' + str(PM_CONFIG_DIR.relative_to(REPO_ROOT)))}
 fiptool_src={shlex.quote('/workspace/' + str(FIPTOOL_SOURCE_DIR.relative_to(REPO_ROOT)))}
 work={shlex.quote(to_container_tmp_path(work_dir, host_tmp_root, container_tmp_root))}
 mkdir -p "$work/flash"
 make -C "$fiptool_src" HOST_ARCH=x86_64 >/dev/null
 cd "$work/flash"
-"$pkg/X86_64/cix_package_tool" -d "$work/input/cix_flash_all.bin" -c "$pkg/spi_flash_config_all.json" >/dev/null
+python3 "$pkg_tool" -d "$work/input/cix_flash_all.bin" -c "$pkg/spi_flash_config_all.json" >/dev/null
 cp unpack/bootloader3.img .
 "$fiptool_src/build/x86_64/fiptool" unpack bootloader3.img >/dev/null
 make -C "$pm" csupm_bin_config >/dev/null
