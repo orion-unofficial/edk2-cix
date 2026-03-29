@@ -4,15 +4,17 @@ import argparse
 import datetime as dt
 import pathlib
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
+
+from vendor_tool_resolver import resolve_vendor_tool
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 SOURCE_TOOL_DIR = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cix_regen_trusted_key_cert"
 SOURCE_TOOL = SOURCE_TOOL_DIR / "cix_regen_trusted_key_cert"
+VENDOR_TOOL_REPO_RELPATH = "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/X86_64/cix_regen_trusted_key_cert"
 DEFAULT_PUBLIC_KEY = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Keys/oem_publickey.pem"
 DEFAULT_PRIVATE_KEY = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Keys/oem_privatekey.pem"
 CUSTOM_OID = "1.3.6.1.4.1.4128.2100.303"
@@ -200,7 +202,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Compare the source cix_regen_trusted_key_cert implementation against "
-            "an explicitly supplied vendor binary."
+            "a vendor binary, optionally materialized from another branch."
         )
     )
     parser.add_argument("--public-key", type=pathlib.Path, default=DEFAULT_PUBLIC_KEY)
@@ -210,6 +212,15 @@ def main() -> int:
         type=pathlib.Path,
         help="Optional path to an external vendor cix_regen_trusted_key_cert binary",
     )
+    parser.add_argument(
+        "--vendor-ref",
+        action="append",
+        default=[],
+        help=(
+            "Git ref to search for the bundled vendor binary when --vendor-tool "
+            "is omitted; may be repeated"
+        ),
+    )
     parser.add_argument("--source-tool", type=pathlib.Path, default=SOURCE_TOOL)
     parser.add_argument("--sample-cert", type=pathlib.Path, action="append", default=[], help="Optional DER certs for extract-mode validation")
     parser.add_argument("--skip-build", action="store_true", help="Do not rebuild the source tool before testing")
@@ -217,12 +228,8 @@ def main() -> int:
     args = parser.parse_args()
 
     run_vendor_compare = not args.skip_vendor
-    if run_vendor_compare and args.vendor_tool is None:
-        parser.error("pass --vendor-tool with an external vendor binary, or use --skip-vendor")
 
     required_paths = [args.public_key, args.private_key]
-    if run_vendor_compare:
-        required_paths.append(args.vendor_tool)
 
     for path in required_paths:
         if not path.exists():
@@ -234,14 +241,20 @@ def main() -> int:
         parser.error(f"missing source tool: {args.source_tool}")
 
     if run_vendor_compare:
-        with tempfile.TemporaryDirectory(prefix="cix-regen-generate-") as td:
-            td_path = pathlib.Path(td)
-            vendor_cert = td_path / "vendor.crt"
-            source_cert = td_path / "source.crt"
+        refs = tuple(args.vendor_ref) if args.vendor_ref else None
+        with resolve_vendor_tool(
+            explicit_path=args.vendor_tool,
+            repo_relpath=VENDOR_TOOL_REPO_RELPATH,
+            refs=refs or ("main-monorepo-upstream", "main"),
+        ) as vendor_tool:
+            with tempfile.TemporaryDirectory(prefix="cix-regen-generate-") as td:
+                td_path = pathlib.Path(td)
+                vendor_cert = td_path / "vendor.crt"
+                source_cert = td_path / "source.crt"
 
-            run([str(args.vendor_tool), "-p", str(args.public_key), "-s", str(args.private_key), "-o", str(vendor_cert)])
-            run([str(args.source_tool), "-p", str(args.public_key), "-s", str(args.private_key), "-o", str(source_cert)])
-            compare_generate(vendor_cert, source_cert, args.public_key, args.private_key)
+                run([str(vendor_tool), "-p", str(args.public_key), "-s", str(args.private_key), "-o", str(vendor_cert)])
+                run([str(args.source_tool), "-p", str(args.public_key), "-s", str(args.private_key), "-o", str(source_cert)])
+                compare_generate(vendor_cert, source_cert, args.public_key, args.private_key)
 
     for sample_cert in args.sample_cert:
         if not sample_cert.exists():
