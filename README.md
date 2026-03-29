@@ -8,6 +8,12 @@
 2. Choose one of the supported build paths below
 3. Run the top-level `make` target you need
 
+To see the common end-user targets first, run:
+
+```bash
+make help
+```
+
 ### Without `devcontainer`
 
 If you are building on a headless Linux host over SSH, you do not need VS Code
