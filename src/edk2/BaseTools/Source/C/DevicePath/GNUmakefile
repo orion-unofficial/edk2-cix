@@ -19,6 +19,7 @@ ifneq ($(CXX), llvm)
 ifneq ($(DARWIN),Darwin)
 # gcc 12 trips over device path handling
 BUILD_CFLAGS += -Wno-error=stringop-overflow
+BUILD_CFLAGS += -Wno-stringop-overflow
 endif
 endif
 endif
