@@ -249,14 +249,7 @@ EOF
 }
 
 default_container_image() {
-    case "$1" in
-        linux/arm64)
-            printf 'mcr.microsoft.com/devcontainers/base:trixie\n'
-            ;;
-        *)
-            printf 'mcr.microsoft.com/devcontainers/base:bookworm\n'
-            ;;
-    esac
+    printf 'mcr.microsoft.com/devcontainers/base:bookworm\n'
 }
 
 container_status() {
