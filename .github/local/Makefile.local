@@ -1,6 +1,7 @@
 LOCAL_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
 REPO_ROOT ?= $(patsubst %/,%,$(abspath $(dir $(LOCAL_MAKEFILE))/../..))
 REPO_NAME ?= $(notdir $(REPO_ROOT))
+SHELL := bash
 V ?= 0
 ifeq ($(V),1)
 Q :=
