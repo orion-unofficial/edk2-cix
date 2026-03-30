@@ -12,14 +12,22 @@ The following UARTs can be used to debug EDK2 on Radxa Orion O6:
 
 UART2 is the default management console for EDK2 and the operating system.
 
-On the current O6 and O6N sources, `UEFI_TARGET=DEBUG` does not enable UART3.
-The dedicated debug path is selected by the Radxa `DEBUG_ON_UART3` define,
-which routes the firmware debug library to UART3 while leaving the normal
-firmware and OS console on UART2. The dedicated O6/O6N UART3 pinmux entries
-are currently compiled only when `DEBUG_MODE` is not set, so a `DEBUG` build
-is not what enables the physical UART3 path today. The broader CIX runtime
-`Debug Mode` menu exists on boards that enable `DEBUG_MODE_SUPPORT`, but O6
-and O6N do not currently enable that path.
+For O6 and O6N, the practical combinations are:
+
+- `ARTEFACT_MODE=upstream FIRMWARE_TARGET=DEBUG`: keeps the imported upstream
+  behavior.
+- `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG`: firmware `DEBUG()` output is
+  visible on UART2.
+- `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG DEBUG_ON_UART3=true`: firmware
+  `DEBUG()` output moves to UART3.
+- `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG DEBUG_PRINT_ERROR_LEVEL=0x8000004f`:
+  firmware emits additional debug levels without changing the UART route.
+
+The `DEBUG_ON_UART3` switch is only honored on the custom overlay path. When
+enabled it consumes 40-pin header GPIO105 and GPIO106, so those lines are no
+longer available as general GPIO while UART3 debug is active. The broader CIX
+runtime `Debug Mode` menu exists on boards that enable `DEBUG_MODE_SUPPORT`,
+but O6 and O6N do not currently enable that path.
 
 All UARTs use 115200 baud.
 
