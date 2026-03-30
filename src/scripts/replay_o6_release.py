@@ -35,36 +35,6 @@ DEFAULT_CONTAINER_TMPDIR = pathlib.PurePosixPath(
 )
 DEFAULT_REPLAY_BUILDBOX_IMAGE = "mcr.microsoft.com/devcontainers/base:bookworm"
 DEFAULT_REPLAY_BUILDBOX_PLATFORM = "linux/amd64"
-CONTAINER_RUNTIME_ENV = "EDK2_CIX_CONTAINER_RUNTIME"
-
-
-def resolve_container_runtime() -> str:
-    override = os.environ.get(CONTAINER_RUNTIME_ENV)
-    if override:
-        return override
-
-    for candidate in ("podman", "docker"):
-        resolved = shutil.which(candidate)
-        if not resolved:
-            continue
-        try:
-            subprocess.run(
-                [resolved, "info"],
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                text=True,
-            )
-            return resolved
-        except (OSError, subprocess.CalledProcessError):
-            continue
-
-    for candidate in ("docker", "podman"):
-        resolved = shutil.which(candidate)
-        if resolved:
-            return resolved
-
-    raise RuntimeError("Neither podman nor docker is available on PATH")
 
 
 def parse_args() -> argparse.Namespace:
@@ -238,10 +208,11 @@ def extract_flash_details(flash_image: pathlib.Path, work_dir: pathlib.Path) -> 
 
     container_command = f"""
 set -euo pipefail
-pkg={shlex.quote('/workspace/' + str(PACKAGE_TOOL_DIR.relative_to(REPO_ROOT)))}
-pkg_tool={shlex.quote('/workspace/' + str(PACKAGE_TOOL_SOURCE.relative_to(REPO_ROOT)))}
-pm={shlex.quote('/workspace/' + str(PM_CONFIG_DIR.relative_to(REPO_ROOT)))}
-fiptool_src={shlex.quote('/workspace/' + str(FIPTOOL_SOURCE_DIR.relative_to(REPO_ROOT)))}
+workspace="$PWD"
+pkg="$workspace/{PACKAGE_TOOL_DIR.relative_to(REPO_ROOT).as_posix()}"
+pkg_tool="$workspace/{PACKAGE_TOOL_SOURCE.relative_to(REPO_ROOT).as_posix()}"
+pm="$workspace/{PM_CONFIG_DIR.relative_to(REPO_ROOT).as_posix()}"
+fiptool_src="$workspace/{FIPTOOL_SOURCE_DIR.relative_to(REPO_ROOT).as_posix()}"
 work={shlex.quote(to_container_tmp_path(work_dir, host_tmp_root, container_tmp_root))}
 mkdir -p "$work/flash"
 make -C "$fiptool_src" HOST_ARCH=x86_64 >/dev/null
@@ -253,27 +224,20 @@ make -C "$pm" csupm_bin_config >/dev/null
 "$pm/csupm_bin_config" unpack/csu_pm_config.bin > "$work/pm_parse.txt"
 """
 
-    container_runtime = resolve_container_runtime()
+    buildbox_env = os.environ.copy()
+    buildbox_env.update(
+        {
+            "EDK2_CIX_BUILDBOX_IMAGE": DEFAULT_REPLAY_BUILDBOX_IMAGE,
+            "EDK2_CIX_BUILDBOX_PLATFORM": DEFAULT_REPLAY_BUILDBOX_PLATFORM,
+            "EDK2_CIX_HOST_TMPDIR": str(host_tmp_root),
+            "EDK2_CIX_CONTAINER_TMPDIR": str(container_tmp_root),
+        }
+    )
     subprocess.run(
-        [
-            container_runtime,
-            "run",
-            "--rm",
-            "--platform",
-            "linux/amd64",
-            "-v",
-            f"{REPO_ROOT}:/workspace",
-            "-v",
-            f"{host_tmp_root}:{container_tmp_root}",
-            "-w",
-            str(container_tmp_root),
-            "mcr.microsoft.com/devcontainers/base:bookworm",
-            "bash",
-            "-lc",
-            container_command,
-        ],
+        [str(REPO_ROOT / "scripts" / "run_in_buildbox.sh"), "bash", "-lc", container_command],
         check=True,
         text=True,
+        env=buildbox_env,
     )
 
     pm_parse = require_file(pm_parse_path).read_text(encoding="utf-8")

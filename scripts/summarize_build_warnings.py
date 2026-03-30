@@ -132,7 +132,13 @@ def main() -> int:
     for warning_class in WARNING_CLASSES:
         if (
             artefact_mode == "upstream"
-            and warning_class.key == "platformconfig_duplicate_default"
+            and warning_class.key
+            in {
+                "platformconfig_duplicate_default",
+                "vfr_grammar_ambiguity",
+                "rwx_segment",
+                "lto_serial",
+            }
         ):
             classified.append((warning_class, []))
             continue
