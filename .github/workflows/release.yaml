@@ -166,7 +166,6 @@ name: "Build & Release"
     paths-ignore:
     - "docs/**"
     - "theme/**"
-    - "po/**"
     - "book.toml"
     - ".github/workflows/docs.yaml"
   push:
@@ -175,7 +174,6 @@ name: "Build & Release"
     paths-ignore:
     - "docs/**"
     - "theme/**"
-    - "po/**"
     - "book.toml"
     - ".github/workflows/docs.yaml"
   workflow_dispatch: {}

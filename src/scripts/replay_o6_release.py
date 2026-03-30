@@ -26,7 +26,7 @@ PACKAGE_TOOL_DIR = SRC_DIR / "edk2-non-osi" / "Platform" / "CIX" / "Sky1" / "Pac
 PM_CONFIG_DIR = SRC_DIR / "edk2-platforms" / "Platform" / "Radxa" / "Orion" / "O6" / "pm_config"
 FIPTOOL_SOURCE_DIR = SRC_DIR / "tools" / "arm-trusted-firmware-fiptool"
 FLASH_CONFIG_ALL = PACKAGE_TOOL_DIR / "spi_flash_config_all.json"
-PACKAGE_TOOL_SOURCE = PACKAGE_TOOL_DIR / "source_tools" / "cix_package_tool" / "cix_package_tool.py"
+PACKAGE_TOOL_SOURCE = SRC_DIR / "tools" / "cix_package_tool" / "cix_package_tool.py"
 DEFAULT_TMP_ROOT = pathlib.Path(
     os.environ.get("EDK2_CIX_HOST_TMPDIR", tempfile.gettempdir())
 ).resolve()
