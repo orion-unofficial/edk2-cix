@@ -9,13 +9,11 @@ title = "edk2-cix"
 [output.html]
 git-repository-url = "https://github.com/radxa-pkg/edk2-cix/tree/main-monorepo"
 edit-url-template = "https://github.com/radxa-pkg/edk2-cix/edit/main-monorepo/{path}"
-additional-css = [
-    "./theme/css/mdbook-admonish.css",
-]
+additional-css = ["./theme/css/mdbook-admonish.css"]
 
 [preprocessor.admonish]
 command = "mdbook-admonish"
-assets_version = "3.0.2" # do not edit: managed by `mdbook-admonish install`
+assets_version = "3.0.2"    # do not edit: managed by `mdbook-admonish install`
 
 [preprocessor.toc]
 command = "mdbook-toc"
