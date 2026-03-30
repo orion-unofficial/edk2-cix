@@ -19,7 +19,7 @@ VALID_ARTEFACT_MODES = {"custom", "upstream"}
 VALID_FIRMWARE_TARGETS = {"RELEASE", "DEBUG"}
 VALID_RAW_FIRMWARE_TARGETS = {f"{target}_GCC5" for target in VALID_FIRMWARE_TARGETS}
 VALID_BOARDS = {"O6", "O6N"}
-VALID_REPLAY_DISTROS = {"bookworm", "trixie"}
+VALID_FIRMWARE_DISTROS = {"bookworm", "trixie"}
 VALID_BUILDBOX_PLATFORMS = {"linux/amd64", "linux/arm64"}
 TRUE_TOKENS = {"1", "true", "on", "yes"}
 FALSE_TOKENS = {"0", "false", "off", "no"}
@@ -45,6 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--artefact-mode")
     validate.add_argument("--firmware-target")
     validate.add_argument("--firmware-board")
+    validate.add_argument("--firmware-distro")
     validate.add_argument("--firmware-validate-on-build")
     validate.add_argument("--validation-profile")
     validate.add_argument("--validation-board")
@@ -52,7 +53,6 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--replay-input")
     validate.add_argument("--replay-build-options")
     validate.add_argument("--replay-build-date")
-    validate.add_argument("--replay-distro")
     validate.add_argument("--buildbox-platform")
     validate.add_argument("--buildbox-image")
     validate.add_argument("--debug-on-uart3")
@@ -265,6 +265,9 @@ def run_validate(args: argparse.Namespace) -> int:
         if args.firmware_board is not None:
             require_choice("FIRMWARE_BOARD", args.firmware_board, VALID_BOARDS)
 
+        if args.firmware_distro is not None:
+            require_choice("FIRMWARE_DISTRO", args.firmware_distro, VALID_FIRMWARE_DISTROS)
+
         if args.firmware_validate_on_build is not None:
             normalize_bool(args.firmware_validate_on_build)
 
@@ -290,9 +293,6 @@ def run_validate(args: argparse.Namespace) -> int:
                 args.validation_board,
                 args.validation_target,
             )
-
-        if args.replay_distro is not None:
-            require_choice("REPLAY_DISTRO", args.replay_distro, VALID_REPLAY_DISTROS)
 
         if args.replay_build_options:
             replay_build_options_path = pathlib.Path(args.replay_build_options).expanduser().resolve()
