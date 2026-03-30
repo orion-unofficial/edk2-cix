@@ -1,7 +1,7 @@
 {
   "profiles": {
     "upstream-o6-1.2.1-bookworm": {
-      "description": "Validated upstream-identical O6 replay baseline from the published 1.2.1 release, reproduced in both the amd64 and arm64 Bookworm buildboxes when reusing the extracted cert bundle.",
+      "description": "Qualification profile for reproducing the published 1.2.1 O6 release in the Bookworm buildboxes when reusing the extracted release cert bundle.",
       "boards": {
         "O6": {
           "target": "RELEASE_GCC5",
@@ -99,7 +99,7 @@
       }
     },
     "upstream-o6-1.2.1-trixie": {
-      "description": "Validated upstream-identical O6 replay baseline from an amd64 Trixie build of upstream main, with matching amd64 and arm64 replays on main-monorepo when reusing the extracted cert bundle.",
+      "description": "Reproducibility profile from an amd64 Trixie build of upstream main, used to confirm matching amd64 and arm64 Trixie builds on main-monorepo when they reuse the same cert bundle and injected timestamps.",
       "boards": {
         "O6": {
           "target": "RELEASE_GCC5",
