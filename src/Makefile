@@ -380,10 +380,11 @@ prepare-basetools-c:
 		printf '[build] Rebuilding BaseTools C binaries for %s\n' "$$current_env_id"
 		printf '[build] Cleaning stale BaseTools C objects and dependency files\n'
 		$(MAKE) -C edk2/BaseTools V="$(V)" clean
-		if [[ "$(V)" == "1" || "$(ARTEFACT_MODE)" != "upstream" ]]; then
+		if [[ "$(V)" == "1" ]]; then
 			$(MAKE) -C edk2/BaseTools -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C
 		else
 			$(MAKE) -C edk2/BaseTools -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C 2>&1 | \
+				ARTEFACT_MODE="$(ARTEFACT_MODE)" \
 				python3 "$(EDK2_BUILD_OUTPUT_FILTER)"
 		fi
 		printf '%s\n' "$$current_env_id" > "$(BASETOOLS_C_MARKER)"
@@ -861,7 +862,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 			-D EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH) \
 			-D DEB_VERSION=$(DEB_VERSION)
 	}
-	if [[ "$(V)" == "1" || "$(ARTEFACT_MODE)" != "upstream" ]]; then
+	if [[ "$(V)" == "1" ]]; then
 		run_edk2_build
 	else
 		run_edk2_build 2>&1 | ARTEFACT_MODE="$(ARTEFACT_MODE)" python3 "$(EDK2_BUILD_OUTPUT_FILTER)"
