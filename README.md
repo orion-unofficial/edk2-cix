@@ -14,6 +14,10 @@ To see the common end-user targets first, run:
 make help
 ```
 
+To build the documentation locally, run `make docs-build` when `mdbook` is
+already installed, or `devenv shell make docs-build` when you want the repo's
+managed docs toolchain. The rendered site is written to `book/html/`.
+
 ### Without `devcontainer`
 
 If you are building on a headless Linux host over SSH, you do not need VS Code
@@ -250,15 +254,21 @@ Native `arm64` / `aarch64` work no longer depends on the old closed-source
 `fiptool` from source, and the packaging step runs the in-tree source
 `cix_package_tool` implementation too.
 
-`fiptool` is built from the vendored Arm Trusted Firmware-A source snapshot
-under [src/tools/arm-trusted-firmware-fiptool](/Users/Stuart/src/edk2-cix/src/tools/arm-trusted-firmware-fiptool),
-and `cert_uefi_create_rsa` is built from the in-tree source helper under
-[src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cert_uefi_create_rsa](/Users/Stuart/src/edk2-cix/src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cert_uefi_create_rsa),
-so the build and replay paths no longer depend on shipped opaque binaries.
-You can build it explicitly with:
+The maintained helper sources now live under [src/tools](/Users/Stuart/src/edk2-cix/src/tools):
+
+- [src/tools/arm-trusted-firmware-fiptool](/Users/Stuart/src/edk2-cix/src/tools/arm-trusted-firmware-fiptool)
+- [src/tools/cert_uefi_create_rsa](/Users/Stuart/src/edk2-cix/src/tools/cert_uefi_create_rsa)
+- [src/tools/cix_package_tool](/Users/Stuart/src/edk2-cix/src/tools/cix_package_tool)
+- [src/tools/cix_regen_trusted_key_cert](/Users/Stuart/src/edk2-cix/src/tools/cix_regen_trusted_key_cert)
+
+That keeps the build and replay paths off the old shipped opaque binaries.
+You can build them explicitly with:
 
 ```bash
 make -C src host-fiptool
+make -C src host-cert-uefi-create-rsa
+make -C src host-cix-regen-trusted-key-cert
+make -C src host-cix-package-tool
 ```
 
 That source build depends on the normal OpenSSL development headers, so the
@@ -286,7 +296,7 @@ make validate-firmware ARTEFACT_MODE=upstream
 
 That compares the built `O6` outputs against the checked-in
 `upstream-o6-1.2.1-bookworm` profile under
-[validation/o6/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/o6/expected-hashes.json)
+[validation/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/expected-hashes.json)
 and writes a structural report under `build-validation/`.
 
 The same file also carries an exact `upstream-o6-1.2.1-trixie` profile,
