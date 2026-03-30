@@ -19,7 +19,7 @@ EDK2_ENV_RE = re.compile(
     r"^(WORKSPACE|PACKAGES_PATH|EDK_TOOLS_PATH|CONF_PATH|PYTHON_COMMAND|PREBUILD)\s*="
 )
 EDK2_META_RE = re.compile(
-    r"^(Processing meta-data|Architecture\(s\)\s*=|Build target\s*=|Toolchain\s*=|Active Platform\s*=)"
+    r"^[.]*\s*(Processing meta-data|Architecture\(s\)\s*=|Build target\s*=|Toolchain\s*=|Active Platform\s*=)"
 )
 PLATFORMCONFIG_DEFAULT_RE = re.compile(r"PlatformConfigHii\.i\(\d+\): WARNING: default")
 PLATFORMCONFIG_CONTINUATION_RE = re.compile(r"^\s*: default value re-defined")
@@ -29,8 +29,11 @@ LTO_SERIAL_NOTE_RE = re.compile(r"^lto-wrapper: note: see the .-flto. option doc
 VFR_AMBIGUITY_RE = re.compile(r"^VfrSyntax\.g(?:, line \d+)?: warning: .*ambiguous upon ")
 BUILDING_RE = re.compile(r"^Building \.\.\. (.+) \[([^\]]+)\]$")
 SRC_PREFIX_RE = re.compile(r"^.*?/src/")
+PROGRESS_LINE_RE = re.compile(r"^[.#]+(?: done!)?$")
 
 ARTEFACT_MODE = os.environ.get("ARTEFACT_MODE", "custom")
+VERBOSE = os.environ.get("V", os.environ.get("EDK2_CIX_VERBOSE", "0")) == "1"
+QUIET_UPSTREAM = ARTEFACT_MODE == "upstream" and not VERBOSE
 
 
 def should_drop_line(line: str) -> bool:
@@ -60,7 +63,7 @@ def should_drop_line(line: str) -> bool:
         return True
     if EDK2_META_RE.match(line):
         return True
-    if re.fullmatch(r"\.* done!", line):
+    if PROGRESS_LINE_RE.match(line):
         return True
     if line.startswith("Build environment: "):
         return True
@@ -87,14 +90,40 @@ def rewrite_line(line: str) -> str:
     return f"Building {path} [{arch}]"
 
 
+def prefers_no_blank_before(line: str) -> bool:
+    return (
+        not line
+        or line.startswith("Building ")
+        or line.startswith("VfrCompile...")
+        or line.startswith(".Architecture")
+        or PROGRESS_LINE_RE.match(line) is not None
+    )
+
+
 def main() -> int:
+    if not QUIET_UPSTREAM:
+        for raw_line in sys.stdin:
+            sys.stdout.write(raw_line)
+        return 0
+
     buffered_iasl: list[str] = []
     suppress_platformconfig_continuation = False
+    pending_blank = False
 
     def flush_buffer() -> None:
         for buffered_line in buffered_iasl:
             print(buffered_line)
         buffered_iasl.clear()
+
+    def emit_line(line: str) -> None:
+        nonlocal pending_blank
+        if not line:
+            pending_blank = True
+            return
+        if pending_blank and not prefers_no_blank_before(line):
+            print()
+        pending_blank = False
+        print(line)
 
     for raw_line in sys.stdin:
         line = raw_line.rstrip("\n")
@@ -119,7 +148,7 @@ def main() -> int:
             buffered_iasl.append(line)
             continue
 
-        if ARTEFACT_MODE == "upstream" and PLATFORMCONFIG_DEFAULT_RE.search(line):
+        if PLATFORMCONFIG_DEFAULT_RE.search(line):
             suppress_platformconfig_continuation = True
             continue
         if (
@@ -133,7 +162,7 @@ def main() -> int:
         if should_drop_line(line):
             continue
 
-        print(rewrite_line(line))
+        emit_line(rewrite_line(line))
 
     if buffered_iasl:
         flush_buffer()
