@@ -5,6 +5,7 @@
     edk2-console = {
       description = "Launch UART workspace";
       exec = ''
+        mkdir -p logs
         ${lib.getExe pkgs.tmux} kill-session -t edk2-console
         sleep 1 # wait for picocom to be closed to release UART resources
         ${lib.getExe pkgs.tmux} new-session -d -s edk2-console "${lib.getExe pkgs.picocom} -b 115200 /dev/$EDK2_SE_UART | ${lib.getExe' pkgs.coreutils "tee"} logs/se.log"
