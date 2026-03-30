@@ -60,6 +60,65 @@ usage: scripts/ensure_build_deps.sh [--profile firmware|packaging]
 EOF
 }
 
+describe_host() {
+    if [[ -r /etc/os-release ]]; then
+        local id="" id_like="" pretty_name="" name=""
+        # shellcheck disable=SC1091
+        . /etc/os-release
+        id="${ID:-}"
+        id_like="${ID_LIKE:-}"
+        pretty_name="${PRETTY_NAME:-}"
+        name="${NAME:-}"
+        if [[ -n "$pretty_name" ]]; then
+            if [[ -n "$id" || -n "$id_like" ]]; then
+                printf '%s (ID=%s%s)\n' \
+                    "$pretty_name" \
+                    "${id:-unknown}" \
+                    "${id_like:+, ID_LIKE=${id_like}}"
+            else
+                printf '%s\n' "$pretty_name"
+            fi
+            return 0
+        fi
+        if [[ -n "$name" ]]; then
+            printf '%s\n' "$name"
+            return 0
+        fi
+    fi
+    printf '%s %s %s\n' "$(uname -s)" "$(uname -r)" "$(uname -m)"
+}
+
+is_debian_family_host() {
+    if [[ ! -r /etc/os-release ]]; then
+        return 1
+    fi
+
+    local id="" id_like=""
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    id="${ID:-}"
+    id_like="${ID_LIKE:-}"
+    case " ${id} ${id_like} " in
+        *" debian "*|*" ubuntu "*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+ensure_supported_host() {
+    if is_debian_family_host; then
+        return 0
+    fi
+
+    cat >&2 <<EOF
+[deps] scripts/ensure_build_deps.sh bootstraps packages with apt/dpkg and only supports Debian/Ubuntu-family hosts.
+[deps] Detected host: $(describe_host)
+[deps] Use scripts/run_in_buildbox.sh, a devcontainer, or install the equivalent host tools manually on this platform.
+EOF
+    exit 1
+}
+
 while (( $# > 0 )); do
     case "$1" in
         --profile)
@@ -90,6 +149,8 @@ case "$dep_profile" in
         exit 2
         ;;
 esac
+
+ensure_supported_host
 
 bash "${script_dir}/require_host_tools.sh" \
     "Debian dependency bootstrap" \
