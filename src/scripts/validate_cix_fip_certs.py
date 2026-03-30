@@ -192,13 +192,16 @@ def validate_trusted_key_cert(
     cert_path: pathlib.Path,
     oem_public_key: pathlib.Path,
     sign_key: pathlib.Path,
+    *,
+    allow_reused_subject_mismatch: bool = False,
 ) -> None:
     assert_common_cert_properties(cert_path, TRUSTED_KEY_CERT_COMMON_NAME, "trusted-key cert")
-    require_equal(
-        cert_public_key_der(cert_path),
-        pem_private_key_to_public_der(sign_key),
-        "trusted-key cert subject public key",
-    )
+    if not allow_reused_subject_mismatch:
+        require_equal(
+            cert_public_key_der(cert_path),
+            pem_private_key_to_public_der(sign_key),
+            "trusted-key cert subject public key",
+        )
     extension = extract_extension_der(cert_path, TRUSTED_KEY_OID)
     if extension is None:
         raise ValidationError(f"trusted-key cert: missing extension {TRUSTED_KEY_OID}")
@@ -369,6 +372,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--nt-fw-config", type=pathlib.Path)
     parser.add_argument("--ntfw-nvctr", type=int, required=True)
     parser.add_argument("--fiptool", type=pathlib.Path)
+    parser.add_argument(
+        "--allow-reused-trusted-key-cert",
+        action="store_true",
+        help=(
+            "Allow the trusted-key cert subject public key to differ from the local "
+            "signing key while still validating the embedded OEM key, structure, and "
+            "downstream fiptool acceptance."
+        ),
+    )
     parser.add_argument("--verbose", action="store_true")
     return parser.parse_args()
 
@@ -393,6 +405,7 @@ def main() -> int:
         args.trusted_key_cert,
         args.oem_public_key,
         args.trusted_sign_key,
+        allow_reused_subject_mismatch=args.allow_reused_trusted_key_cert,
     )
     validate_nt_fw_key_cert(
         args.nt_fw_key_cert,

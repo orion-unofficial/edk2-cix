@@ -18,9 +18,16 @@ make -C src help
 ## Supported host environments
 
 - Debian `bookworm` on `x86_64` for the preferred exact-upstream replay path
-- Debian `trixie` on `arm64` / `aarch64` for native local builds
-- Debian `bookworm` on `arm64` / `aarch64` for exact replay when you reuse the
-  extracted cert bundle
+- Debian `bookworm` on `arm64` / `aarch64` for the default `main-monorepo`
+  build path, including exact replay when you reuse the extracted cert bundle
+- Debian `trixie` on `arm64` / `aarch64` when you want the newer distro /
+  toolchain family on `main-monorepo`
+
+The untouched upstream repo contents still need Debian `trixie` for native
+`arm64` / `aarch64` builds because they shipped closed-source helper binaries.
+`main-monorepo` replaces those helpers with source implementations, so native
+`arm64` / `aarch64` can now use the same default Debian `bookworm` base as
+`x86_64`.
 
 We still support `devcontainer`, but it is optional.
 
@@ -68,10 +75,17 @@ If the preferred runtime is installed but not usable, they automatically try
 the other one before failing. Set `EDK2_CIX_CONTAINER_RUNTIME=docker` or
 `EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
 By default the buildbox follows the host architecture: `linux/amd64` with the
-Bookworm base image on `x86_64`, and `linux/arm64` with the Trixie base image
-on `arm64` / `aarch64`. Override that with `EDK2_CIX_BUILDBOX_PLATFORM`,
-`EDK2_CIX_BUILDBOX_IMAGE`, `BUILDBOX_PLATFORM=...`, or
-`BUILDBOX_IMAGE=...` when you need a specific container environment.
+Bookworm base image on both `x86_64` and `arm64` / `aarch64`. Override that
+with `EDK2_CIX_BUILDBOX_PLATFORM`, `EDK2_CIX_BUILDBOX_IMAGE`,
+`BUILDBOX_PLATFORM=...`, or `BUILDBOX_IMAGE=...` when you need a specific
+container environment.
+
+To select the distro generation explicitly:
+
+- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:bookworm` (or
+  `EDK2_CIX_BUILDBOX_IMAGE=...`) for the default Bookworm environment
+- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:trixie` (or
+  `EDK2_CIX_BUILDBOX_IMAGE=...`) for the Trixie environment
 The firmware-oriented `buildbox-*` targets install the slimmer firmware
 dependency profile inside the reusable container; `buildbox-deb` switches that
 same container to the fuller packaging profile when needed.
@@ -329,34 +343,29 @@ automatically instead of reusing stale host-built binaries.
 The preferred local distribution for `x86_64` builds remains Debian
 `bookworm`.
 
-Native arm64 packaging is now viable on newer userspaces, but the distro
-generation still matters. The self-generated FIP-cert path no longer depends on
-the old closed-source `cert_uefi_create_rsa` helper: both that tool and
-`fiptool` are now built from source in-tree, and the flash-image packaging step
-uses the source `cix_package_tool` implementation too.
+Native arm64 packaging no longer depends on the old closed-source
+`cert_uefi_create_rsa` helper: both that tool and `fiptool` are now built from
+source in-tree, and the flash-image packaging step uses the source
+`cix_package_tool` implementation too.
 
 If you reuse existing cert blobs, native arm64 Bookworm reproduces the
 checked-in exact-replay `O6` baseline byte-for-byte. Freshly generated certs
 are compatible but not byte-identical, because they inherently carry
-signing-time entropy. A native arm64 Trixie userspace is still the broader
-default when you want the newest distro toolchain for general development.
+signing-time entropy.
 
 So:
 
-- use the amd64 Bookworm buildbox, or an arm64 Bookworm buildbox with reused
-  extracted cert blobs, when you need exact upstream replay
-- use the default arm64 Trixie buildbox, or direct Trixie host builds, for
-  broader native `arm64` / `aarch64` work
+- use the default Bookworm buildbox on either `x86_64` or `arm64` / `aarch64`
+  when you want the standard `main-monorepo` environment or the exact Bookworm
+  replay baseline
+- use a Trixie buildbox, or a direct Trixie host build, when you want the
+  newer distro/toolchain family on `arm64` / `aarch64`
 - use `make -C src host-fiptool` if you want to prebuild the vendored TF-A
   `fiptool` before the first packaging run
 - use `make -C src host-cert-uefi-create-rsa` if you want to prebuild the
   source replacement for the non-trusted FIP cert helper
 - the dependency bootstrap now includes `libssl-dev`, because the source-built
   `fiptool` needs the OpenSSL development headers
-
-`bookworm` and `bookworm-backports` do not currently expose `gcc-13` or
-`gcc-14` for the Debian `aarch64-linux-gnu` cross compiler in the default
-repositories.
 
 To compare a local build against the checked-in exact-replay baseline, run:
 
@@ -369,22 +378,22 @@ That loads the `upstream-o6-1.2.1-bookworm` profile from
 checks the key shipped artefacts plus a few structural markers from the EFI
 utility binaries, and writes a JSON report under `build-validation/`.
 
-For the current Trixie-era local build family there is also a structural-only
-profile in the same file:
+The same file also carries an exact `upstream-o6-1.2.1-trixie` profile,
+generated from an amd64 Trixie build of upstream `main` and intended for
+matching amd64 or arm64 Trixie replays on `main-monorepo`:
 
 ```bash
-make validate-firmware FIRMWARE_VALIDATION_PROFILE=modern-o6-trixie-structural
+make validate-firmware \
+  ARTEFACT_MODE=upstream \
+  FIRMWARE_VALIDATION_PROFILE=upstream-o6-1.2.1-trixie
 ```
 
-That profile keeps `BuildOptions` exact, but checks the EFI utility binaries by
-size and PE section layout rather than by whole-file hash.
-
 To snapshot the current build into a fresh profile JSON for later review or to
-seed a future validation baseline, run:
+seed a future validation baseline under a profile name you choose, run:
 
 ```bash
 make capture-validation-profile \
-  FIRMWARE_VALIDATION_PROFILE=modern-o6-trixie-structural
+  FIRMWARE_VALIDATION_PROFILE=<new-profile-name>
 ```
 
 The top-level `firmware-build`, `firmware-stage`, `zip`, and `targz` targets

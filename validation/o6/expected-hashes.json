@@ -95,37 +95,55 @@
         ]
       }
     },
-    "modern-o6-trixie-structural": {
-      "description": "Structural baseline for the current Trixie-era O6 build family. This profile checks stable metadata plus EFI section layout without requiring byte-identical replay.",
+    "upstream-o6-1.2.1-trixie": {
+      "description": "Validated upstream-identical O6 replay baseline from an amd64 Trixie build of upstream main, with matching amd64 and arm64 replays on main-monorepo when reusing the extracted cert bundle.",
       "board": "O6",
       "target": "RELEASE_GCC5",
       "artefacts": {
         "BuildOptions": {
           "path": "BuildOptions",
-          "sha256": "abff6d823593a2259c449d626052ca94a2575be1913d7b85f19df52064c4426c",
-          "size": 617
+          "sha256": "3321daaaaa4a33226ff12f45f6df81d334910699ba925eba4aa2b8d4fe8addeb",
+          "size": 620
+        },
+        "cix_flash_all.bin": {
+          "path": "cix_flash_all.bin",
+          "sha256": "0ac7814c02d54c87f660d21a8eb67a624b3a59f1c2a2e0713496d1dd79e9da5c",
+          "size": 8388608
+        },
+        "cix_flash_ota.bin": {
+          "path": "cix_flash_ota.bin",
+          "sha256": "dfa49e9e8b86e49d15024ddd020687af3315b4a5a9444f2991b78d4486173cea",
+          "size": 2101982
+        },
+        "Firmwares/csu_pm_config.bin": {
+          "path": "Firmwares/csu_pm_config.bin",
+          "sha256": "739c145ae54de955cd78954120af0395d1bfe147468b52d3600323f869f47d87",
+          "size": 4096
         },
         "AARCH64/Shell.efi": {
           "path": "AARCH64/Shell.efi",
+          "sha256": "4db200f143ea067731d7813402a68ee3d7ad5760a78ff84f7c46ec5d07fb3fbc",
           "size": 978944
         },
         "AARCH64/VariableInfo.efi": {
           "path": "AARCH64/VariableInfo.efi",
+          "sha256": "486181a5207f93af9ca92f63573203ddedb80a603c22badc75f2efd644e29734",
           "size": 16384
         },
         "AARCH64/EnrollFromDefaultKeysApp.efi": {
           "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+          "sha256": "393d263c9a8da71f228c1c26fe337a6098de33e97302c9b52ce3a584e6fc316f",
           "size": 20480
         }
       },
       "build_options": {
         "gCommandLineDefines": {
-          "BUILD_DATE": "2026-03-19T10:41:29+00:00",
+          "BUILD_DATE": "2026-03-30T07:57:08+00:00",
           "SMP_ENABLE": "1",
           "ACPI_BOOT_ENABLE": "1",
           "VARIABLE_TYPE": "SPI",
           "STANDARD_MM": "TRUE",
-          "COMMIT_HASH": "dadc5b1",
+          "COMMIT_HASH": "dadc5b14b1",
           "EDK2_COMMIT_HASH": "898a41ed09",
           "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
           "EDK2_PLATFORMS_COMMIT_HASH": "918cb36f",
