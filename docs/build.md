@@ -15,6 +15,10 @@ For lower-level firmware targets, use:
 make -C src help
 ```
 
+For documentation builds, run `make docs-build` when `mdbook` is already
+available, or `devenv shell make docs-build` to use the repo's managed docs
+toolchain. The generated site is written to `book/html/`.
+
 ## Supported host environments
 
 - Debian `bookworm` on `x86_64` for the preferred exact-upstream replay path
@@ -111,7 +115,20 @@ Before a longer build, run `make -C src preflight` to fail early if the
 expected package-tool binaries, source directories, or cross-compiler are
 missing.
 
-Set `BUILD_TARGET` to `DEBUG` in `src/Makefile` to build for debug artifacts.
+Set `UEFI_TARGET=DEBUG` on the `make -C src ...` command line when you want
+debug artefacts instead of the default `RELEASE_GCC5` output tree.
+
+The top-level firmware targets now accept the same switch and map it to
+`FIRMWARE_TARGET=DEBUG_GCC5`. For example:
+
+```bash
+make firmware-build ARTEFACT_MODE=upstream UEFI_TARGET=DEBUG
+```
+
+On the current O6 and O6N sources, `UEFI_TARGET=DEBUG` does not enable UART3.
+UART3 routing comes from the Radxa `DEBUG_ON_UART3` define instead, and the
+O6/O6N UART3 pinmux entries are currently compiled only when `DEBUG_MODE` is
+not set. See `docs/debug.md` for the current board-specific details.
 
 Edit `DSC` in `src/Makefile` to reduce amount of variants that will be built.
 You should also edit `debian/edk2-cix.install` to exclude unbuild variants,
@@ -385,7 +402,8 @@ both `amd64` and native `arm64` exact replay.
 Native arm64 packaging no longer depends on the old closed-source
 `cert_uefi_create_rsa` helper: both that tool and `fiptool` are now built from
 source in-tree, and the flash-image packaging step uses the source
-`cix_package_tool` implementation too.
+`cix_package_tool` implementation too. The maintained helper sources now live
+under `src/tools/`.
 
 If you reuse existing cert blobs, native arm64 reproduces the checked-in exact
 replay baselines byte-for-byte on both Bookworm and Trixie. Freshly generated
@@ -415,7 +433,7 @@ make validate-firmware ARTEFACT_MODE=upstream
 ```
 
 That loads the `upstream-o6-1.2.1-bookworm` profile from
-[validation/o6/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/o6/expected-hashes.json),
+[validation/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/expected-hashes.json),
 checks the key shipped artefacts plus a few structural markers from the EFI
 utility binaries, and writes a JSON report under `build-validation/`.
 
