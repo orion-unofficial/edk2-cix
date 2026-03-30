@@ -18,10 +18,10 @@
   # Microsoft-managed defaults so Microsoft-signed Windows and shim-based Linux
   # media can boot without manual key enrollment.
   #
-  DEFINE PK_DEFAULT_FILE            = Platform/CIX/Sky1/Drivers/SecureBootDxe/Microsoft/PK.bin
-  DEFINE KEK_DEFAULT_FILE1          = Platform/CIX/Sky1/Drivers/SecureBootDxe/Microsoft/KEK.bin
-  DEFINE DB_DEFAULT_FILE1           = Platform/CIX/Sky1/Drivers/SecureBootDxe/Microsoft/DB.bin
-  DEFINE DBX_DEFAULT_FILE1          = Platform/CIX/Sky1/Drivers/SecureBootDxe/Microsoft/DBX.bin
+  DEFINE PK_DEFAULT_FILE            = Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft/PK.bin
+  DEFINE KEK_DEFAULT_FILE1          = Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft/KEK.bin
+  DEFINE DB_DEFAULT_FILE1           = Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft/DB.bin
+  DEFINE DBX_DEFAULT_FILE1          = Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft/DBX.bin
   DEFINE TOKEN_SETUP_SUPPORT        = FALSE
   DEFINE SMBIOS_ENABLE              = FALSE
   DEFINE BOOT_LOGO_ENABLE           = FALSE
