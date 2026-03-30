@@ -195,6 +195,39 @@ It also writes:
 - `rebuild-o6.sh`
 - `rebuild-o6-docker.sh`
 
+For the common exact-replay workflow, the top-level Makefile now wraps this as:
+
+```bash
+make deterministic-replay \
+  REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
+```
+
+That target defaults to:
+
+- `REPLAY_BOARD=O6`
+- `REPLAY_DISTRO=bookworm`
+- `REPLAY_VERSION=$(dpkg-parsechangelog -S Version)`
+
+and then:
+
+- seeds or reuses `.buildbox/replay/<profile>/`
+- rebuilds with `ARTEFACT_MODE=upstream`
+- runs `validate-firmware-strict` against the matching checked-in profile
+
+To replay the validated Trixie family instead, run:
+
+```bash
+make deterministic-replay \
+  REPLAY_DISTRO=trixie \
+  REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
+```
+
+If you already prepared `.buildbox/replay/<profile>/` once, later reruns can
+omit `REPLAY_INPUT=...` and will reuse the cached `replay.env` plus cert
+bundle. When the replay input is only `cix_flash_all.bin`, also provide
+`REPLAY_BUILD_OPTIONS=/path/to/BuildOptions` when available so the helper can
+recover `BUILD_DATE`.
+
 If you want to keep the full transcript from a replay or local build, wrap the
 command with `./scripts/capture_build_log.sh build-logs <command ...>`. The
 convenience target `make buildbox-o6-log` does this for the standard local O6
@@ -299,7 +332,7 @@ mapping, set `EDK2_CIX_HOST_TMPDIR` and `EDK2_CIX_CONTAINER_TMPDIR` before
 running the wrapper.
 Despite the retained filename, the local helper scripts prefer `podman` on
 Linux and `docker` on macOS, then fall back to the other runtime if needed.
-The generated replay wrapper also pins the buildbox back to the validated
+The generated replay wrapper still pins the buildbox back to the validated
 amd64 Bookworm environment explicitly.
 
 ## Reuse the build container
@@ -343,14 +376,20 @@ automatically instead of reusing stale host-built binaries.
 The preferred local distribution for `x86_64` builds remains Debian
 `bookworm`.
 
+In the original upstream tree, native `arm64` / `aarch64` builds needed the
+`trixie` buildbox because the shipped closed-source helpers were not portable
+enough for the Bookworm arm64 path. On `main-monorepo`, those helpers are now
+reimplemented from source, so the same default `bookworm` buildbox works for
+both `amd64` and native `arm64` exact replay.
+
 Native arm64 packaging no longer depends on the old closed-source
 `cert_uefi_create_rsa` helper: both that tool and `fiptool` are now built from
 source in-tree, and the flash-image packaging step uses the source
 `cix_package_tool` implementation too.
 
-If you reuse existing cert blobs, native arm64 Bookworm reproduces the
-checked-in exact-replay `O6` baseline byte-for-byte. Freshly generated certs
-are compatible but not byte-identical, because they inherently carry
+If you reuse existing cert blobs, native arm64 reproduces the checked-in exact
+replay baselines byte-for-byte on both Bookworm and Trixie. Freshly generated
+certs are compatible but not byte-identical, because they inherently carry
 signing-time entropy.
 
 So:
@@ -358,8 +397,10 @@ So:
 - use the default Bookworm buildbox on either `x86_64` or `arm64` / `aarch64`
   when you want the standard `main-monorepo` environment or the exact Bookworm
   replay baseline
-- use a Trixie buildbox, or a direct Trixie host build, when you want the
-  newer distro/toolchain family on `arm64` / `aarch64`
+- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:trixie` when you
+  want the Trixie family for general buildbox use
+- use `REPLAY_DISTRO=trixie` with `make deterministic-replay` when you want
+  the exact Trixie replay baseline
 - use `make -C src host-fiptool` if you want to prebuild the vendored TF-A
   `fiptool` before the first packaging run
 - use `make -C src host-cert-uefi-create-rsa` if you want to prebuild the
@@ -398,7 +439,7 @@ make capture-validation-profile \
 
 The top-level `firmware-build`, `firmware-stage`, `zip`, and `targz` targets
 now run that validation automatically when `ARTEFACT_MODE=upstream`, so a
-local build that drifts away from the stored Bookworm replay baseline emits a
+local build that drifts away from the active exact replay profile emits a
 very obvious warning even if the build itself completed successfully.
 
 The vendor `cix_package_tool` still writes ANSI colour escapes even when it is

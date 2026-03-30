@@ -182,10 +182,37 @@ into the build container automatically. If you want to stage those helper
 files somewhere else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
 `EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper.
 
+For the common case, you can drive the same exact-replay flow from the
+top-level Makefile instead:
+
+```bash
+make deterministic-replay \
+  REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
+```
+
+That target defaults to `REPLAY_BOARD=O6` and `REPLAY_DISTRO=bookworm`, seeds
+or reuses a cached replay-input directory under
+`.buildbox/replay/<profile>/`, rebuilds in the matching buildbox image, and
+then runs strict validation against the checked-in exact replay profile.
+
+You can switch to the validated Trixie replay family with:
+
+```bash
+make deterministic-replay \
+  REPLAY_DISTRO=trixie \
+  REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
+```
+
+If you already populated `.buildbox/replay/<profile>/` once, later reruns can
+omit `REPLAY_INPUT=...` and will reuse the cached `replay.env` plus cert
+bundle. When the replay input is only `cix_flash_all.bin`, also pass
+`REPLAY_BUILD_OPTIONS=/path/to/BuildOptions` when available so the helper can
+recover `BUILD_DATE`.
+
 Despite the retained filename, the local helper scripts prefer `podman` on
 Linux and `docker` on macOS, then fall back to the other runtime if needed.
-The generated wrapper now also pins the buildbox back to the validated amd64
-Bookworm replay environment explicitly.
+The generated wrapper still pins the replay buildbox back to the validated
+amd64 Bookworm environment explicitly.
 
 The first `make devcontainer_setup` run now drives `apt-get` in noninteractive
 mode and suppresses recommends/suggests so the initial dependency bootstrap is
@@ -201,6 +228,22 @@ host-built copies.
 
 The preferred distribution for local `x86_64` builds remains Debian
 `bookworm`.
+
+In the original upstream tree, native `arm64` / `aarch64` builds needed the
+`trixie` buildbox because the shipped closed-source helpers were not portable
+enough for the Bookworm arm64 path. On `main-monorepo`, those helpers are now
+reimplemented from source, so both `amd64` and native `arm64` can use the
+same default `bookworm` buildbox for exact replay and local builds.
+
+If you want to pick the buildbox distro family explicitly, set either:
+
+- `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:bookworm`
+- `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:trixie`
+
+or, for the convenience replay target:
+
+- `REPLAY_DISTRO=bookworm`
+- `REPLAY_DISTRO=trixie`
 
 Native `arm64` / `aarch64` work no longer depends on the old closed-source
 `cert_uefi_create_rsa` helper. The local build now compiles both that tool and
@@ -222,10 +265,15 @@ That source build depends on the normal OpenSSL development headers, so the
 host dependency bootstrap now includes `libssl-dev`.
 
 If you are specifically trying to recreate the published vendor release
-payloads byte-for-byte, the validated replay paths remain the Bookworm
-buildboxes with the extracted cert bundle reused. Freshly generated certs are
-compatible but not byte-identical because they inherently carry signing-time
-entropy. On `arm64` / `aarch64`, you can still force the amd64 replay path with
+payloads byte-for-byte, the validated exact replay profiles are:
+
+- `upstream-o6-1.2.1-bookworm`
+- `upstream-o6-1.2.1-trixie`
+
+Both profiles are confirmed on `amd64` and native `arm64` when the extracted
+cert bundle is reused. Freshly generated certs are compatible but not
+byte-identical because they inherently carry signing-time entropy. On `arm64`
+/ `aarch64`, you can still force the amd64 replay path with
 `BUILDBOX_PLATFORM=linux/amd64` or `EDK2_CIX_BUILDBOX_PLATFORM=linux/amd64`
 once your container runtime has x86_64 emulation configured.
 
@@ -262,7 +310,7 @@ make capture-validation-profile \
 When you use the top-level `firmware-build`, `firmware-stage`, `zip`, or
 `targz` targets with `ARTEFACT_MODE=upstream`, that validation now runs
 automatically and emits a loud warning if the local artefacts drift away from
-the stored Bookworm replay baseline.
+the active exact replay profile.
 
 If you do not want a Debian package, the local Makefile extensions now provide
 several direct payload targets based on the same `O6` files that the `.deb`
