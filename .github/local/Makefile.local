@@ -314,62 +314,77 @@ __firmware-build:
 			--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
 		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"; \
 	fi
-	@printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)"
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)"; \
+	fi
+
+.PHONY: __firmware-build-silent-output
+__firmware-build-silent-output:
+	$(Q)$(MAKE) --no-print-directory __firmware-build V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1
 
 .PHONY: firmware-stage __firmware-stage
 firmware-stage:
 	$(Q)$(LOCKED_MAKE) __firmware-stage V="$(V)"
 
-__firmware-stage: __firmware-build
-	$(Q)python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" stage \
+__firmware-stage: __firmware-build-silent-output
+	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" stage \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(RAW_FIRMWARE_TARGET)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output-dir "$(FIRMWARE_STAGE_ROOT)"
-	@printf '[output] Staged firmware payload available under %s\n' "$(FIRMWARE_STAGE_ROOT)"
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Staged firmware payload available under %s\n' "$(FIRMWARE_STAGE_ROOT)"; \
+	fi
 
 .PHONY: install __install
 install:
 	$(Q)$(LOCKED_MAKE) __install V="$(V)"
 
 __install: __firmware-stage
-	$(Q)python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" install \
+	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" install \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(RAW_FIRMWARE_TARGET)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--install-root "$(FIRMWARE_INSTALL_ROOT)"
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Installed firmware payload available under %s\n' "$(FIRMWARE_INSTALL_ROOT)/$(FIRMWARE_VERSION)"; \
+	fi
 
 .PHONY: zip __zip
 zip:
 	$(Q)$(LOCKED_MAKE) __zip V="$(V)"
 
-__zip: __firmware-build
-	$(Q)python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" zip \
+__zip: __firmware-build-silent-output
+	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" zip \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(RAW_FIRMWARE_TARGET)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
-	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"; \
+	fi
 
 .PHONY: targz __targz
 targz:
 	$(Q)$(LOCKED_MAKE) __targz V="$(V)"
 
-__targz: __firmware-build
-	$(Q)python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" targz \
+__targz: __firmware-build-silent-output
+	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" targz \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(RAW_FIRMWARE_TARGET)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
-	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"; \
+	fi
 
 .PHONY: validate-firmware __validate-firmware
 validate-firmware:
@@ -581,7 +596,7 @@ buildbox-firmware-build:
 	$(Q)$(LOCKED_MAKE) __buildbox-firmware-build V="$(V)"
 
 __buildbox-firmware-build:
-	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-build V="$(V)" \
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-build V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
 		$(BUILDBOX_FIRMWARE_ARGS)
 	@printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)"
 
@@ -602,7 +617,7 @@ buildbox-firmware-stage:
 	$(Q)$(LOCKED_MAKE) __buildbox-firmware-stage V="$(V)"
 
 __buildbox-firmware-stage:
-	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-stage V="$(V)" \
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-stage V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
 		$(BUILDBOX_FIRMWARE_ARGS)
 	@printf '[output] Staged firmware payload available under %s\n' "$(FIRMWARE_STAGE_ROOT)"
 
@@ -611,7 +626,7 @@ buildbox-zip:
 	$(Q)$(LOCKED_MAKE) __buildbox-zip V="$(V)"
 
 __buildbox-zip:
-	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory zip V="$(V)" \
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory zip V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
 		$(BUILDBOX_FIRMWARE_ARGS)
 	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
 
@@ -620,7 +635,7 @@ buildbox-targz:
 	$(Q)$(LOCKED_MAKE) __buildbox-targz V="$(V)"
 
 __buildbox-targz:
-	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory targz V="$(V)" \
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory targz V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
 		$(BUILDBOX_FIRMWARE_ARGS)
 	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
 

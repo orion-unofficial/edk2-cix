@@ -825,7 +825,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: | preflight-%
 			-D EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH) \
 			-D DEB_VERSION=$(DEB_VERSION)
 	}
-	if [[ "$(V)" == "1" ]]; then
+	if [[ "$(V)" == "1" || "$(ARTEFACT_MODE)" != "upstream" ]]; then
 		run_edk2_build
 	else
 		run_edk2_build 2>&1 | ARTEFACT_MODE="$(ARTEFACT_MODE)" python3 "$(EDK2_BUILD_OUTPUT_FILTER)"
