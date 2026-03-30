@@ -80,19 +80,26 @@ the other one before failing. Set `EDK2_CIX_CONTAINER_RUNTIME=docker` or
 `EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
 By default the buildbox follows the host architecture: `linux/amd64` with the
 Bookworm base image on both `x86_64` and `arm64` / `aarch64`. Override that
-with `EDK2_CIX_BUILDBOX_PLATFORM`, `EDK2_CIX_BUILDBOX_IMAGE`,
-`BUILDBOX_PLATFORM=...`, or `BUILDBOX_IMAGE=...` when you need a specific
-container environment.
+with `FIRMWARE_DISTRO=trixie`, `EDK2_CIX_BUILDBOX_PLATFORM`,
+`EDK2_CIX_BUILDBOX_IMAGE`, `BUILDBOX_PLATFORM=...`, or `BUILDBOX_IMAGE=...`
+when you need a specific container environment.
 
 To select the distro generation explicitly:
 
-- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:bookworm` (or
-  `EDK2_CIX_BUILDBOX_IMAGE=...`) for the default Bookworm environment
-- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:trixie` (or
-  `EDK2_CIX_BUILDBOX_IMAGE=...`) for the Trixie environment
+- use `FIRMWARE_DISTRO=bookworm` for the default general buildbox environment
+- use `FIRMWARE_DISTRO=trixie` for the Trixie general buildbox environment
+- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:...` (or
+  `EDK2_CIX_BUILDBOX_IMAGE=...`) when you want to override the image directly;
+  when unset, the effective default is
+  `mcr.microsoft.com/devcontainers/base:${FIRMWARE_DISTRO}`
 The firmware-oriented `buildbox-*` targets install the slimmer firmware
 dependency profile inside the reusable container; `buildbox-deb` switches that
 same container to the fuller packaging profile when needed.
+
+For non-buildbox workflows, the base OS is whichever environment you are
+already building in. Host-native builds therefore use the host distro, and the
+checked-in devcontainer remains pinned by
+[`/.devcontainer/devcontainer.json`](/Users/Stuart/src/edk2-cix/.devcontainer/devcontainer.json).
 
 ## Build inside a devcontainer
 
@@ -239,7 +246,7 @@ make deterministic-replay \
 That target defaults to:
 
 - `FIRMWARE_BOARD=O6`
-- `REPLAY_DISTRO=bookworm`
+- `FIRMWARE_DISTRO=bookworm`
 - `REPLAY_VERSION=$(dpkg-parsechangelog -S Version)`
 
 and then:
@@ -252,7 +259,7 @@ To replay the validated Trixie family instead, run:
 
 ```bash
 make deterministic-replay \
-  REPLAY_DISTRO=trixie \
+  FIRMWARE_DISTRO=trixie \
   REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
 ```
 
@@ -432,10 +439,10 @@ So:
 - use the default Bookworm buildbox on either `x86_64` or `arm64` / `aarch64`
   when you want the standard `main-monorepo` environment or the exact Bookworm
   replay baseline
-- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:trixie` when you
-  want the Trixie family for general buildbox use
-- use `REPLAY_DISTRO=trixie` with `make deterministic-replay` when you want
-  the exact Trixie replay baseline
+- use `FIRMWARE_DISTRO=trixie` when you want the Trixie family for general
+  buildbox use or for exact deterministic replay
+- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:...` when you want
+  to override `FIRMWARE_DISTRO` with a specific image
 - use `make -C src host-fiptool` if you want to prebuild the vendored TF-A
   `fiptool` before the first packaging run
 - use `make -C src host-cert-uefi-create-rsa` if you want to prebuild the

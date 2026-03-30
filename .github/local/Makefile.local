@@ -1,7 +1,7 @@
 LOCAL_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
 REPO_ROOT ?= $(patsubst %/,%,$(abspath $(dir $(LOCAL_MAKEFILE))/../..))
 REPO_NAME ?= $(notdir $(REPO_ROOT))
-SHELL := bash
+SHELL := /bin/bash
 V ?= 0
 ifeq ($(V),1)
 Q :=
@@ -16,8 +16,11 @@ BUILDBOX_WORKSPACE_PARENT ?= /workspaces
 BUILDBOX_WORKSPACE_ROOT ?= $(BUILDBOX_WORKSPACE_PARENT)/$(REPO_NAME)
 BUILDBOX_HOST_TMPDIR ?= $(REPO_ROOT)/.buildbox/tmp
 BUILDBOX_CONTAINER_TMPDIR ?= /hosttmp
+FIRMWARE_DISTRO ?= bookworm
 BUILDBOX_IMAGE ?=
 BUILDBOX_PLATFORM ?=
+BUILDBOX_IMAGE_DEFAULT := mcr.microsoft.com/devcontainers/base:$(FIRMWARE_DISTRO)
+BUILDBOX_IMAGE_EFFECTIVE := $(if $(strip $(BUILDBOX_IMAGE)),$(BUILDBOX_IMAGE),$(BUILDBOX_IMAGE_DEFAULT))
 BUILDBOX_DEB_RESULT_ROOT ?= $(DEB_RESULT_ROOT)
 BUILDBOX_DEB_RESULT_ROOT_IN_CONTAINER ?= $(BUILDBOX_WORKSPACE_ROOT)/dist/deb
 BUILD_LOG_ROOT ?= $(REPO_ROOT)/build-logs
@@ -26,7 +29,7 @@ BUILDBOX_ENV = \
 	EDK2_CIX_HOST_TMPDIR="$(BUILDBOX_HOST_TMPDIR)" \
 	EDK2_CIX_CONTAINER_TMPDIR="$(BUILDBOX_CONTAINER_TMPDIR)" \
 	EDK2_CIX_VERBOSE="$(V)" \
-	EDK2_CIX_BUILDBOX_IMAGE="$(BUILDBOX_IMAGE)" \
+	EDK2_CIX_BUILDBOX_IMAGE="$(BUILDBOX_IMAGE_EFFECTIVE)" \
 	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)"
 
 PROJECT ?= edk2-cix
@@ -52,12 +55,11 @@ FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW := $(if $(strip $(FIRMWARE_VALIDATE_ON
 FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED := $(if $(filter __INVALID__,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW)),,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW))
 FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE := $(if $(filter TRUE,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED)),1,0)
 FIRMWARE_BOARD_LOWER = $(shell printf '%s' '$(FIRMWARE_BOARD)' | tr '[:upper:]' '[:lower:]')
-REPLAY_DISTRO ?= bookworm
 REPLAY_VERSION ?= $(FIRMWARE_VERSION)
 REPLAY_PRODUCT ?= orion-$(FIRMWARE_BOARD_LOWER)
-DETERMINISTIC_REPLAY_PROFILE ?= upstream-$(FIRMWARE_BOARD_LOWER)-$(REPLAY_VERSION)-$(REPLAY_DISTRO)
+DETERMINISTIC_REPLAY_PROFILE ?= upstream-$(FIRMWARE_BOARD_LOWER)-$(REPLAY_VERSION)-$(FIRMWARE_DISTRO)
 DETERMINISTIC_REPLAY_ROOT ?= $(REPO_ROOT)/.buildbox/replay/$(DETERMINISTIC_REPLAY_PROFILE)
-DETERMINISTIC_REPLAY_IMAGE ?= $(if $(strip $(BUILDBOX_IMAGE)),$(BUILDBOX_IMAGE),mcr.microsoft.com/devcontainers/base:$(REPLAY_DISTRO))
+DETERMINISTIC_REPLAY_IMAGE ?= $(BUILDBOX_IMAGE_EFFECTIVE)
 DETERMINISTIC_REPLAY_MOUNT_ROOT ?= $(REPO_ROOT)/.buildbox
 REPLAY_INPUT ?=
 REPLAY_BUILD_OPTIONS ?=
@@ -121,12 +123,12 @@ define PRINT_TOP_LEVEL_VARIABLES
 	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; custom builds use 0x80000040.'; \
 	print_help_line '  FIRMWARE_VALIDATE_ON_BUILD=true|false' 'Enable or skip automatic output validation after firmware-build.\nDefault: true for ARTEFACT_MODE=upstream; false for ARTEFACT_MODE=custom.'; \
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile from validation/expected-hashes.json, e.g. upstream-o6-1.2.1-bookworm.\nDefault: upstream-o6-1.2.1-bookworm.'; \
-	print_help_line '  REPLAY_DISTRO=bookworm|trixie' 'Choose the exact replay distro family.\nDefault: bookworm.'; \
+	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Select the default distro family for buildbox runs and deterministic replay.\nDefault: bookworm.'; \
 	print_help_line '  REPLAY_INPUT=<path>' 'Seed replay inputs from a .deb, an extracted release dir, or cix_flash_all.bin.\nDefault: unset; reuse cached replay inputs if present.'; \
 	print_help_line '  REPLAY_BUILD_OPTIONS=<path>' 'BuildOptions file used when replaying from cix_flash_all.bin.\nDefault: unset.'; \
 	print_help_line '  REPLAY_BUILD_DATE=<iso8601>' 'Fallback build timestamp when replay inputs do not include BuildOptions.\nDefault: unset.'; \
 	print_help_line '  BUILDBOX_PLATFORM=linux/amd64|linux/arm64' 'Select the container platform for buildbox runs.\nDefault: host-matched runtime platform.'; \
-	print_help_line '  BUILDBOX_IMAGE=<image>' 'Container image, e.g. mcr.microsoft.com/devcontainers/base:bookworm.\nDefault: mcr.microsoft.com/devcontainers/base:bookworm.'; \
+	print_help_line '  BUILDBOX_IMAGE=<image>' 'Override the selected buildbox container image directly.\nDefault: mcr.microsoft.com/devcontainers/base:${FIRMWARE_DISTRO}.'; \
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'
 endef
 
@@ -247,6 +249,9 @@ preflight-wrapper-buildbox:
 		--repo-root "$(REPO_ROOT)" \
 		--profile-file "$(VALIDATION_PROFILE_FILE)" \
 		--v "$(V)"); \
+	if [ -n "$(strip $(FIRMWARE_DISTRO))" ]; then \
+		validate_cmd+=(--firmware-distro "$(strip $(FIRMWARE_DISTRO))"); \
+	fi; \
 	if [ -n "$(strip $(BUILDBOX_PLATFORM))" ]; then \
 		validate_cmd+=(--buildbox-platform "$(strip $(BUILDBOX_PLATFORM))"); \
 	fi; \
@@ -265,8 +270,7 @@ preflight-wrapper-replay: preflight-wrapper-buildbox
 		--firmware-board "$(FIRMWARE_BOARD)" \
 		--validation-profile "$(DETERMINISTIC_REPLAY_PROFILE)" \
 		--validation-board "$(FIRMWARE_BOARD)" \
-		--validation-target "$(RAW_FIRMWARE_TARGET)" \
-		--replay-distro "$(REPLAY_DISTRO)"); \
+		--validation-target "$(RAW_FIRMWARE_TARGET)"); \
 	if [ -n "$(strip $(REPLAY_INPUT))" ]; then \
 		validate_cmd+=(--replay-input "$(strip $(REPLAY_INPUT))"); \
 	fi; \
@@ -488,7 +492,7 @@ __deterministic-replay:
 			exit 2; \
 			;; \
 	esac; \
-	printf '[replay] Running %s in %s using %s\n' "$(DETERMINISTIC_REPLAY_PROFILE)" "$(REPLAY_DISTRO)" "$(DETERMINISTIC_REPLAY_IMAGE)"; \
+	printf '[replay] Running %s in %s using %s\n' "$(DETERMINISTIC_REPLAY_PROFILE)" "$(FIRMWARE_DISTRO)" "$(DETERMINISTIC_REPLAY_IMAGE)"; \
 	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" \
 		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
 		make --no-print-directory -C src clean V="$(V)"; \
