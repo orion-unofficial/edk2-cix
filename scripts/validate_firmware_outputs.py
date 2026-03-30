@@ -16,7 +16,7 @@ from typing import Any
 
 SCRIPT_PATH = pathlib.Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parent.parent
-DEFAULT_PROFILE_FILE = REPO_ROOT / "validation" / "o6" / "expected-hashes.json"
+DEFAULT_PROFILE_FILE = REPO_ROOT / "validation" / "expected-hashes.json"
 DEFAULT_PROFILE = "upstream-o6-1.2.1-bookworm"
 DEFAULT_PE_FILES = (
     "AARCH64/Shell.efi",
@@ -61,6 +61,48 @@ def sha256_file(path: pathlib.Path) -> str:
 def load_profiles(profile_file: pathlib.Path) -> dict[str, Any]:
     data = json.loads(profile_file.read_text(encoding="utf-8"))
     return data.get("profiles", {})
+
+
+def resolve_profile(
+    profiles: dict[str, Any],
+    profile_name: str,
+    board: str,
+    target: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    profile = profiles.get(profile_name)
+    if profile is None:
+        raise KeyError(profile_name)
+
+    board_profiles = profile.get("boards")
+    if not isinstance(board_profiles, dict):
+        legacy_board = profile.get("board")
+        if legacy_board and legacy_board != board:
+            raise ValueError(
+                f"Profile '{profile_name}' is recorded for board '{legacy_board}', not '{board}'"
+            )
+        legacy_target = profile.get("target")
+        if legacy_target and legacy_target != target:
+            raise ValueError(
+                f"Profile '{profile_name}' is recorded for target '{legacy_target}', not '{target}'"
+            )
+        return profile, profile
+
+    board_profile = board_profiles.get(board)
+    if board_profile is None:
+        available = ", ".join(sorted(board_profiles))
+        raise ValueError(
+            f"Profile '{profile_name}' does not define board '{board}'"
+            f" (available: {available})"
+        )
+
+    profile_target = board_profile.get("target") or profile.get("target")
+    if profile_target and profile_target != target:
+        raise ValueError(
+            f"Profile '{profile_name}' for board '{board}' is recorded for target "
+            f"'{profile_target}', not '{target}'"
+        )
+
+    return profile, board_profile
 
 
 def resolve_build_dir(args: argparse.Namespace) -> pathlib.Path:
@@ -164,12 +206,16 @@ def main() -> int:
     repo_root = args.repo_root.resolve()
     build_dir = resolve_build_dir(args)
     profiles = load_profiles(args.profile_file.resolve())
-    profile = profiles.get(args.profile)
-    if profile is None:
+    try:
+        profile_meta, profile = resolve_profile(profiles, args.profile, args.board, args.target)
+    except KeyError:
         print(
             f"Unknown profile '{args.profile}' in {args.profile_file}",
             file=sys.stderr,
         )
+        return 2
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
         return 2
 
     artefact_specs = dict(profile.get("artefacts", {}))
@@ -178,7 +224,9 @@ def main() -> int:
 
     report: dict[str, Any] = {
         "profile": args.profile,
-        "description": profile.get("description"),
+        "description": profile_meta.get("description"),
+        "board": args.board,
+        "target": args.target,
         "repo_root": str(repo_root),
         "build_dir": str(build_dir),
         "artefacts": {},
@@ -323,15 +371,18 @@ def main() -> int:
             "profiles": {
                 generated_profile_name: {
                     "description": f"Generated from {build_dir}",
-                    "board": args.board,
-                    "target": args.target,
-                    "artefacts": {},
-                    "build_options": {},
-                    "pe_sections": {},
+                    "boards": {
+                        args.board: {
+                            "target": args.target,
+                            "artefacts": {},
+                            "build_options": {},
+                            "pe_sections": {},
+                        }
+                    },
                 }
             }
         }
-        profile_entry = generated_profile["profiles"][generated_profile_name]
+        profile_entry = generated_profile["profiles"][generated_profile_name]["boards"][args.board]
         for label, entry in report["artefacts"].items():
             if entry.get("exists"):
                 profile_entry["artefacts"][label] = {

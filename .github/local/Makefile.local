@@ -15,7 +15,7 @@ BUILDBOX_HOST_TMPDIR ?= $(REPO_ROOT)/.buildbox/tmp
 BUILDBOX_CONTAINER_TMPDIR ?= /hosttmp
 BUILDBOX_IMAGE ?=
 BUILDBOX_PLATFORM ?=
-BUILDBOX_DEB_RESULT_ROOT ?= $(REPO_ROOT)/dist/deb
+BUILDBOX_DEB_RESULT_ROOT ?= $(DEB_RESULT_ROOT)
 BUILDBOX_DEB_RESULT_ROOT_IN_CONTAINER ?= $(BUILDBOX_WORKSPACE_ROOT)/dist/deb
 BUILD_LOG_ROOT ?= $(REPO_ROOT)/build-logs
 BUILDBOX_ENV = \
@@ -30,7 +30,14 @@ PROJECT ?= edk2-cix
 ARTEFACT_MODE ?= custom
 FIRMWARE_BOARD ?= O6
 FIRMWARE_PRODUCT ?= orion-o6
-FIRMWARE_TARGET ?= RELEASE_GCC5
+DEFAULT_FIRMWARE_TARGET := RELEASE_GCC5
+FIRMWARE_TARGET ?= $(DEFAULT_FIRMWARE_TARGET)
+ifneq ($(strip $(UEFI_TARGET)),)
+ifeq ($(FIRMWARE_TARGET),$(DEFAULT_FIRMWARE_TARGET))
+FIRMWARE_TARGET := $(UEFI_TARGET)_GCC5
+endif
+endif
+FIRMWARE_UEFI_TARGET ?= $(patsubst %_GCC5,%,$(FIRMWARE_TARGET))
 FIRMWARE_VERSION ?= $(shell cd "$(REPO_ROOT)" && (dpkg-parsechangelog -S Version 2>/dev/null || sed -n '1s/^[^(]*(\([^)]*\)).*/\1/p' debian/changelog))
 FIRMWARE_STAGE_ROOT ?= $(REPO_ROOT)/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)
 FIRMWARE_INSTALL_ROOT ?= /boot/efi/firmware/radxa
@@ -78,18 +85,25 @@ build: build-edk2
 .PHONY: help
 help:
 	@set -eu; \
-	help_pad=40; \
+	help_pad=28; \
 	help_gap=2; \
 	help_width=80; \
 	desc_width=$$((help_width - help_pad - help_gap)); \
+	desc_indent=$$(printf '%*s' "$$((help_pad + help_gap))" ''); \
 	print_help_line() { \
 		label="$$1"; \
 		desc="$$2"; \
-		first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
-		cont_indent=$$(printf '%*s' "$$((help_pad + help_gap))" ''); \
-		printf '%s\n' "$$desc" | fold -s -w "$$desc_width" | \
-			awk -v first="$$first_indent" -v cont="$$cont_indent" \
-				'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
+		if [ "$${#label}" -le "$$help_pad" ]; then \
+			first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
+			printf '%s\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v first="$$first_indent" -v cont="$$desc_indent" \
+					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
+		else \
+			printf '%s\n' "$$label"; \
+			printf '%s\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v cont="$$desc_indent" \
+					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
+		fi; \
 	}; \
 	printf '%s\n\n' 'edk2-cix common targets'; \
 	print_help_line '  help' 'Show this help text'; \
@@ -101,12 +115,15 @@ help:
 	print_help_line '  install' 'Copy the staged payload under /boot/efi/firmware/radxa/'; \
 	print_help_line '  zip' 'Create a .zip firmware archive'; \
 	print_help_line '  targz' 'Create a .tar.gz firmware archive'; \
-	print_help_line '  deb' 'Build the Debian package'; \
+	print_help_line '  deb' 'Build the Debian package and copy it under dist/deb/'; \
 	print_help_line '  validate-firmware' 'Check outputs against the active validation profile'; \
 	print_help_line '  validate-firmware-strict' 'Require exact matches from the validation profile'; \
 	print_help_line '  capture-validation-profile' 'Snapshot the current build into a profile JSON'; \
 	print_help_line '  deterministic-replay' 'Seed or reuse exact replay inputs, rebuild, and validate them strictly'; \
 	print_help_line '  clean' 'Remove build output, packaging by-products, and buildbox state'; \
+	printf '\n%s\n\n' 'documentation'; \
+	print_help_line '  docs-build' 'Build the mdBook site into book/html/'; \
+	print_help_line '  serve' 'Serve the mdBook site locally with mdbook serve'; \
 	printf '\n%s\n\n' 'buildbox targets'; \
 	print_help_line '  buildbox-up' 'Start or reuse the persistent build container'; \
 	print_help_line '  buildbox-down' 'Remove the persistent build container if it exists'; \
@@ -115,22 +132,24 @@ help:
 	print_help_line '  buildbox-firmware-stage' 'Stage deployable firmware on the host under dist/firmware/'; \
 	print_help_line '  buildbox-o6' 'Compatibility alias for buildbox-firmware-build'; \
 	print_help_line '  buildbox-o6-log' 'Capture a full logged buildbox firmware build'; \
-	print_help_line '  buildbox-deb' 'Build the Debian package inside the buildbox'; \
+	print_help_line '  buildbox-deb' 'Build the Debian package inside the buildbox under dist/deb/'; \
 	print_help_line '  buildbox-zip' 'Create a .zip archive inside the buildbox'; \
 	print_help_line '  buildbox-targz' 'Create a .tar.gz archive inside the buildbox'; \
 	print_help_line '  buildbox-validate-firmware' 'Run validation inside the buildbox'; \
 	print_help_line '  buildbox-validate-firmware-strict' 'Run strict validation inside the buildbox'; \
 	print_help_line '  buildbox-capture-validation-profile' 'Capture a validation profile inside the buildbox'; \
 	printf '\n%s\n\n' 'useful variables'; \
-	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Select the custom or upstream output mode'; \
+	print_help_line '  ARTEFACT_MODE' 'Output mode: custom or upstream'; \
+	print_help_line '  UEFI_TARGET=DEBUG' 'Top-level alias for DEBUG_GCC5 firmware builds; does not itself enable UART3 on O6/O6N'; \
+	print_help_line '  FIRMWARE_TARGET=DEBUG_GCC5' 'Explicit debug target for the top-level firmware wrappers'; \
 	print_help_line '  V=1' 'Show raw EDK2 command lines'; \
 	print_help_line '  FIRMWARE_BOARD=O6' 'Select the firmware board'; \
-	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Override the validation profile'; \
+	print_help_line '  FIRMWARE_VALIDATION_PROFILE' 'Profile from validation/expected-hashes.json, e.g. upstream-o6-1.2.1-bookworm'; \
 	print_help_line '  REPLAY_BOARD=O6|O6N' 'Select the exact replay board (defaults to O6)'; \
-	print_help_line '  REPLAY_DISTRO=bookworm|trixie' 'Select the exact replay distro family'; \
-	print_help_line '  REPLAY_INPUT=/path/to/release' 'Seed cached replay inputs from a .deb, O6 dir, or cix_flash_all.bin'; \
-	print_help_line '  BUILDBOX_PLATFORM=linux/amd64|linux/arm64' 'Force the buildbox container architecture'; \
-	print_help_line '  BUILDBOX_IMAGE=<image>' 'Override the buildbox base image'; \
+	print_help_line '  REPLAY_DISTRO' 'Replay distro family: bookworm or trixie'; \
+	print_help_line '  REPLAY_INPUT=/path/to/release' 'Seed replay inputs from a .deb, an extracted O6 dir, or cix_flash_all.bin'; \
+	print_help_line '  BUILDBOX_PLATFORM' 'Container architecture: linux/amd64 or linux/arm64'; \
+	print_help_line '  BUILDBOX_IMAGE' 'Container image, e.g. mcr.microsoft.com/devcontainers/base:bookworm'; \
 	printf '\n%s\n' 'For lower-level firmware targets, run: make -C src help'
 
 .PHONY: build-edk2 __build-edk2
@@ -138,14 +157,16 @@ build-edk2:
 	$(Q)$(LOCKED_MAKE) __build-edk2 V="$(V)"
 
 __build-edk2:
-	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)"
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
+		$(if $(strip $(UEFI_TARGET)),UEFI_TARGET="$(UEFI_TARGET)")
 
 .PHONY: firmware-build __firmware-build
 firmware-build:
 	$(Q)$(LOCKED_MAKE) __firmware-build V="$(V)"
 
 __firmware-build:
-	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" $(FIRMWARE_SRC_BUILD_TARGETS)
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
+		UEFI_TARGET="$(FIRMWARE_UEFI_TARGET)" $(FIRMWARE_SRC_BUILD_TARGETS)
 	@if [ "$(FIRMWARE_VALIDATE_ON_BUILD)" = "1" ]; then \
 		printf '\n[validate] Checking artefacts against %s\n' "$(FIRMWARE_VALIDATION_PROFILE)"; \
 		mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"; \
@@ -156,6 +177,7 @@ __firmware-build:
 			--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
 		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"; \
 	fi
+	@printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)"
 
 .PHONY: firmware-stage __firmware-stage
 firmware-stage:
@@ -169,6 +191,7 @@ __firmware-stage: __firmware-build
 		--target "$(FIRMWARE_TARGET)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output-dir "$(FIRMWARE_STAGE_ROOT)"
+	@printf '[output] Staged firmware payload available under %s\n' "$(FIRMWARE_STAGE_ROOT)"
 
 .PHONY: install __install
 install:
@@ -195,6 +218,7 @@ __zip: __firmware-build
 		--target "$(FIRMWARE_TARGET)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
+	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
 
 .PHONY: targz __targz
 targz:
@@ -208,6 +232,7 @@ __targz: __firmware-build
 		--target "$(FIRMWARE_TARGET)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
+	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
 
 .PHONY: validate-firmware __validate-firmware
 validate-firmware:
@@ -262,7 +287,7 @@ __deterministic-replay:
 	replay_input='$(strip $(REPLAY_INPUT))'; \
 	replay_build_options='$(strip $(REPLAY_BUILD_OPTIONS))'; \
 	replay_build_date='$(strip $(REPLAY_BUILD_DATE))'; \
-	validation_file="$(REPO_ROOT)/validation/$(REPLAY_BOARD_LOWER)/expected-hashes.json"; \
+	validation_file="$(REPO_ROOT)/validation/expected-hashes.json"; \
 	if [ ! -f "$$validation_file" ]; then \
 		echo "[replay] No checked-in exact replay validation data exists for board $$replay_board." >&2; \
 		echo "[replay] Expected: $$validation_file" >&2; \
@@ -411,7 +436,8 @@ buildbox-deb:
 
 __buildbox-deb:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" --dep-profile packaging \
-		bash -lc 'set -euo pipefail; repo_root="$$(pwd -P)"; parent_dir="$$(dirname "$$repo_root")"; output_dir="$(BUILDBOX_DEB_RESULT_ROOT_IN_CONTAINER)"; package_name="$$(dpkg-parsechangelog -S Source)"; mkdir -p "$$output_dir"; make --no-print-directory deb; find "$$parent_dir" -maxdepth 1 -type f \( -name "$$package_name"_*.deb -o -name "$$package_name"_*.udeb -o -name "$$package_name"_*.changes -o -name "$$package_name"_*.buildinfo -o -name "$$package_name"_*.build \) -exec cp -f -t "$$output_dir" {} +'
+		make --no-print-directory deb V="$(V)"
+	@printf '[output] Debian packages available under %s\n' "$(BUILDBOX_DEB_RESULT_ROOT)"
 
 .PHONY: buildbox-firmware-build __buildbox-firmware-build
 buildbox-firmware-build:
@@ -420,6 +446,7 @@ buildbox-firmware-build:
 __buildbox-firmware-build:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-build V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
+	@printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)"
 
 .PHONY: buildbox-o6
 buildbox-o6: buildbox-firmware-build
@@ -440,6 +467,7 @@ buildbox-firmware-stage:
 __buildbox-firmware-stage:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-stage V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
+	@printf '[output] Staged firmware payload available under %s\n' "$(FIRMWARE_STAGE_ROOT)"
 
 .PHONY: buildbox-zip __buildbox-zip
 buildbox-zip:
@@ -448,6 +476,7 @@ buildbox-zip:
 __buildbox-zip:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory zip V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
+	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
 
 .PHONY: buildbox-targz __buildbox-targz
 buildbox-targz:
@@ -456,6 +485,7 @@ buildbox-targz:
 __buildbox-targz:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory targz V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
+	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
 
 .PHONY: buildbox-validate-firmware __buildbox-validate-firmware
 buildbox-validate-firmware:

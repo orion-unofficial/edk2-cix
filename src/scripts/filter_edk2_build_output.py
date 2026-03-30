@@ -26,7 +26,9 @@ PLATFORMCONFIG_CONTINUATION_RE = re.compile(r"^\s*: default value re-defined")
 RWX_WARNING_RE = re.compile(r"LOAD segment with RWX permissions")
 LTO_SERIAL_WARNING_RE = re.compile(r"^lto-wrapper: warning: using serial compilation")
 LTO_SERIAL_NOTE_RE = re.compile(r"^lto-wrapper: note: see the .-flto. option documentation")
-VFR_AMBIGUITY_RE = re.compile(r"^VfrSyntax\.g, line \d+: warning: alts \d+ and \d+ of \{\.\.\} ambiguous upon ")
+VFR_AMBIGUITY_RE = re.compile(r"^VfrSyntax\.g(?:, line \d+)?: warning: .*ambiguous upon ")
+BUILDING_RE = re.compile(r"^Building \.\.\. (.+) \[([^\]]+)\]$")
+SRC_PREFIX_RE = re.compile(r"^.*?/src/")
 
 ARTEFACT_MODE = os.environ.get("ARTEFACT_MODE", "custom")
 
@@ -76,6 +78,15 @@ def should_drop_line(line: str) -> bool:
     return False
 
 
+def rewrite_line(line: str) -> str:
+    match = BUILDING_RE.match(line)
+    if not match:
+        return line
+    path, arch = match.groups()
+    path = SRC_PREFIX_RE.sub("", path, count=1)
+    return f"Building {path} [{arch}]"
+
+
 def main() -> int:
     buffered_iasl: list[str] = []
     suppress_platformconfig_continuation = False
@@ -111,7 +122,7 @@ def main() -> int:
         if ARTEFACT_MODE == "upstream" and PLATFORMCONFIG_DEFAULT_RE.search(line):
             suppress_platformconfig_continuation = True
             continue
-        if ARTEFACT_MODE == "upstream" and (
+        if (
             RWX_WARNING_RE.search(line)
             or LTO_SERIAL_WARNING_RE.search(line)
             or LTO_SERIAL_NOTE_RE.search(line)
@@ -122,7 +133,7 @@ def main() -> int:
         if should_drop_line(line):
             continue
 
-        print(line)
+        print(rewrite_line(line))
 
     if buffered_iasl:
         flush_buffer()
