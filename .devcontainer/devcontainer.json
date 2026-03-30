@@ -32,6 +32,7 @@
       ]
     }
   },
+  "initializeCommand": "mkdir -p .devcontainer/.devenv .devcontainer/.direnv",
   "mounts": [
     {
       "source": "${localWorkspaceFolder}/.devcontainer/.devenv",
