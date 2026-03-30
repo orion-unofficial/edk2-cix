@@ -61,15 +61,16 @@ export PM_CONFIG_SOURCE_DATE_EPOCH
 ifeq ($(UNAME), aarch64)
 PACKAGE_TOOL_ARCH := AARCH64
 GCC5_AARCH64_PREFIX :=
-# GCC5_AARCH64_PREFIX := $(shell pwd)/tools/gcc/gcc-arm-10.2-2020.11-aarch64-aarch64-none-elf/bin/aarch64-none-elf-gcc
+# GCC5_AARCH64_PREFIX := $(CURDIR)/tools/gcc/gcc-arm-10.3-2021.07-aarch64-aarch64-none-elf/bin/aarch64-none-elf-
 else
 PACKAGE_TOOL_ARCH := X86_64
 GCC5_AARCH64_PREFIX := aarch64-linux-gnu-
-# GCC5_AARCH64_PREFIX := $(shell pwd)/tools/gcc/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf/bin/aarch64-none-elf-
+# GCC5_AARCH64_PREFIX := $(CURDIR)/tools/gcc/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf/bin/aarch64-none-elf-
 endif
 
 PACKAGE_TOOL := edk2-non-osi/Platform/CIX/Sky1/PackageTool
-FIPTOOL_SOURCE_DIR := tools/arm-trusted-firmware-fiptool
+TOOLS_DIR := tools
+FIPTOOL_SOURCE_DIR := $(TOOLS_DIR)/arm-trusted-firmware-fiptool
 FIPTOOL_BIN := $(FIPTOOL_SOURCE_DIR)/build/$(HOST_ARCH)/fiptool
 FIPTOOL_SOURCE_INPUTS := \
 	$(FIPTOOL_SOURCE_DIR)/Makefile \
@@ -81,19 +82,19 @@ FIPTOOL_SOURCE_INPUTS := \
 	$(FIPTOOL_SOURCE_DIR)/include/tools_share/firmware_image_package.h \
 	$(FIPTOOL_SOURCE_DIR)/include/tools_share/uuid.h \
 	$(FIPTOOL_SOURCE_DIR)/upstream.json
-TRUSTED_KEY_CERT_TOOL_SOURCE_DIR := $(PACKAGE_TOOL)/source_tools/cix_regen_trusted_key_cert
+TRUSTED_KEY_CERT_TOOL_SOURCE_DIR := $(TOOLS_DIR)/cix_regen_trusted_key_cert
 TRUSTED_KEY_CERT_TOOL_BIN := $(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trusted_key_cert
 TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS := \
 	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/Makefile \
 	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trusted_key_cert.c
-CERT_UEFI_CREATE_RSA_SOURCE_DIR := $(PACKAGE_TOOL)/source_tools/cert_uefi_create_rsa
+CERT_UEFI_CREATE_RSA_SOURCE_DIR := $(TOOLS_DIR)/cert_uefi_create_rsa
 CERT_UEFI_CREATE_RSA_BIN := $(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/cert_uefi_create_rsa
 CERT_UEFI_CREATE_RSA_SOURCE_INPUTS := \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/Makefile \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/cert_uefi_create_rsa.c
 CERT_VALIDATOR := scripts/validate_cix_fip_certs.py
 HOST_TOOLS_DIR := Build/HostTools
-CIX_PACKAGE_TOOL_SOURCE_DIR := $(PACKAGE_TOOL)/source_tools/cix_package_tool
+CIX_PACKAGE_TOOL_SOURCE_DIR := $(TOOLS_DIR)/cix_package_tool
 CIX_PACKAGE_TOOL_BIN := $(HOST_TOOLS_DIR)/cix_package_tool
 CIX_PACKAGE_TOOL_SOURCE_INPUTS := $(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py
 SIGNING_CERT_SOURCE_DIR ?=
@@ -149,15 +150,50 @@ host-cix-package-tool: $(CIX_PACKAGE_TOOL_BIN)
 .SILENT: help print-build-metadata clean preflight preflight-% preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool prepare-basetools-c
 .PHONY: help
 help:
-	echo "Supported targets:"
-	echo "$(CIX_FLASH)"
-	echo "host-fiptool"
-	echo "host-cix-regen-trusted-key-cert"
-	echo "host-cert-uefi-create-rsa"
-	echo "host-cix-package-tool"
-	echo "prepare-basetools-c"
-	echo "preflight"
-	echo "Use V=1 for verbose EDK2 build commands"
+	@set -eu; \
+	help_pad=28; \
+	help_gap=2; \
+	help_width=80; \
+	desc_width=$$((help_width - help_pad - help_gap)); \
+	desc_indent=$$(printf '%*s' "$$((help_pad + help_gap))" ''); \
+	print_help_line() { \
+		label="$$1"; \
+		desc="$$2"; \
+		if [ "$${#label}" -le "$$help_pad" ]; then \
+			first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
+			printf '%s\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v first="$$first_indent" -v cont="$$desc_indent" \
+					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
+		else \
+			printf '%s\n' "$$label"; \
+			printf '%s\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v cont="$$desc_indent" \
+					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
+		fi; \
+	}; \
+	printf '%s\n\n' 'edk2-cix raw firmware targets'; \
+	print_help_line '  build' 'Build all raw flash images for the supported boards'; \
+	print_help_line '  Build/O6/$(UEFI_TARGET)_GCC5/cix_flash_all.bin' 'Build the full flash image for O6'; \
+	print_help_line '  Build/O6/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin' 'Build the OTA flash image for O6'; \
+	print_help_line '  Build/O6N/$(UEFI_TARGET)_GCC5/cix_flash_all.bin' 'Build the full flash image for O6N'; \
+	print_help_line '  Build/O6N/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin' 'Build the OTA flash image for O6N'; \
+	printf '\n%s\n\n' 'host tools and checks'; \
+	print_help_line '  host-fiptool' 'Build the vendored TF-A fiptool from source'; \
+	print_help_line '  host-cix-regen-trusted-key-cert' 'Build the source trusted-key cert helper'; \
+	print_help_line '  host-cert-uefi-create-rsa' 'Build the source non-trusted cert helper'; \
+	print_help_line '  host-cix-package-tool' 'Refresh the cix_package_tool wrapper in Build/HostTools/'; \
+	print_help_line '  prepare-basetools-c' 'Build or refresh the EDK2 BaseTools C helpers'; \
+	print_help_line '  preflight' 'Check host tools, metadata, and toolchain prerequisites'; \
+	print_help_line '  print-build-metadata' 'Show the resolved reproducible build metadata'; \
+	print_help_line '  clean' 'Remove Build/ output and generated helper artefacts'; \
+	printf '\n%s\n\n' 'useful variables'; \
+	print_help_line '  V=1' 'Show raw EDK2 command lines'; \
+	print_help_line '  UEFI_TARGET=DEBUG' 'Switch the raw build from RELEASE_GCC5 to DEBUG_GCC5; does not itself enable UART3 on O6/O6N'; \
+	print_help_line '  ARTEFACT_MODE' 'Output mode: custom or upstream'; \
+	print_help_line '  GCC5_AARCH64_PREFIX' 'Cross-compiler prefix; defaults to aarch64-linux-gnu-, or set a legacy Arm bare-metal prefix when probing older toolchains'; \
+	print_help_line '  SIGNING_CERT_SOURCE_DIR' 'Path to extracted or built cert blobs for exact replay'; \
+	print_help_line '  SOURCE_DATE_EPOCH' 'Override the compiler-facing reproducible timestamp'; \
+	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH' 'Override the PM-config timestamp; defaults to SOURCE_DATE_EPOCH'
 
 $(FIPTOOL_BIN): $(FIPTOOL_SOURCE_INPUTS)
 	$(Q)$(ENSURE_REPO_LOCK)

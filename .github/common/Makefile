@@ -12,6 +12,7 @@ PROJECT ?= edk2-cix
 CUSTOM_DEBUILD_ENV ?= DEB_BUILD_OPTIONS='parallel=1'
 CUSTOM_DEBUILD_ARG ?=
 CURRENT_BRANCH ?= $(strip $(shell git -C "$(REPO_ROOT)" branch --show-current 2>/dev/null))
+DEB_RESULT_ROOT ?= $(REPO_ROOT)/dist/deb
 
 .DEFAULT_GOAL := all
 .PHONY: all
@@ -92,29 +93,15 @@ post_build:
 #
 # Documentation
 #
+.PHONY: docs-build
+docs-build:
+	bash "$(REPO_ROOT)/scripts/require_host_tools.sh" "Documentation build" mdbook
+	cd "$(REPO_ROOT)" && mdbook build
+
 .PHONY: serve
 serve:
+	bash "$(REPO_ROOT)/scripts/require_host_tools.sh" "Documentation live preview" mdbook
 	cd "$(REPO_ROOT)" && mdbook serve
-
-.PHONY: serve_zh-CN
-serve_zh-CN:
-	cd "$(REPO_ROOT)" && MDBOOK_BOOK__LANGUAGE=zh-CN mdbook serve -d book/zh-CN
-
-PO_LOCALE := zh-CN
-.PHONY: translate
-translate:
-	cd "$(REPO_ROOT)" && \
-	MDBOOK_OUTPUT='{"xgettext": {"pot-file": "messages.pot"}}' mdbook build -d po && \
-	cd po; \
-	for i in $(PO_LOCALE); \
-	do \
-		if [ ! -f $$i.po ]; \
-		then \
-			msginit -l $$i --no-translator; \
-		else \
-			msgmerge --update $$i.po messages.pot; \
-		fi \
-	done
 
 #
 # Clean
@@ -149,10 +136,25 @@ pre_debuild:
 .PHONY: debuild
 debuild:
 	bash "$(REPO_ROOT)/scripts/require_host_tools.sh" "Debian package build" debuild lintian
+	mkdir -p "$(DEB_RESULT_ROOT)"
 	cd "$(REPO_ROOT)" && $(CUSTOM_DEBUILD_ENV) debuild --no-lintian --lintian-hook "lintian --fail-on error,warning --suppress-tags-from-file $(REPO_ROOT)/debian/common-lintian-overrides -- %p_%v_*.changes" --no-sign -b $(CUSTOM_DEBUILD_ARG)
 
 .PHONY: post_debuild
 post_debuild:
+	@set -euo pipefail; \
+	repo_root="$(REPO_ROOT)"; \
+	parent_dir="$$(dirname "$$repo_root")"; \
+	output_dir="$(DEB_RESULT_ROOT)"; \
+	package_name="$$(cd "$$repo_root" && dpkg-parsechangelog -S Source)"; \
+	mkdir -p "$$output_dir"; \
+	find "$$parent_dir" -maxdepth 1 -type f \
+		\( -name "$$package_name"_*.deb \
+		-o -name "$$package_name"_*.udeb \
+		-o -name "$$package_name"_*.changes \
+		-o -name "$$package_name"_*.buildinfo \
+		-o -name "$$package_name"_*.build \) \
+		-exec cp -f -t "$$output_dir" {} +; \
+	printf '[output] Debian packages available under %s\n' "$$output_dir"
 
 .PHONY: release
 release:
