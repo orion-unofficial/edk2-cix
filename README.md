@@ -194,7 +194,7 @@ make deterministic-replay \
   REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
 ```
 
-That target defaults to `REPLAY_BOARD=O6` and `REPLAY_DISTRO=bookworm`, seeds
+That target defaults to `FIRMWARE_BOARD=O6` and `REPLAY_DISTRO=bookworm`, seeds
 or reuses a cached replay-input directory under
 `.buildbox/replay/<profile>/`, rebuilds in the matching buildbox image, and
 then runs strict validation against the checked-in exact replay profile.
@@ -405,4 +405,6 @@ python3 -W default -m py_compile \
 Release builds default to `ARTEFACT_MODE=custom`, which strips embedded
 PE/COFF debug path records from the final firmware images. Use
 `ARTEFACT_MODE=upstream` when you specifically want replay-compatible output
-instead.
+instead. When `ARTEFACT_MODE=custom`, the build also prepends matching package
+roots under `custom/overlay/` to `PACKAGES_PATH`, so source-level custom
+overrides live outside the imported upstream trees.
