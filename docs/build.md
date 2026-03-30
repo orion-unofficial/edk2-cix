@@ -115,20 +115,33 @@ Before a longer build, run `make -C src preflight` to fail early if the
 expected package-tool binaries, source directories, or cross-compiler are
 missing.
 
-Set `UEFI_TARGET=DEBUG` on the `make -C src ...` command line when you want
-debug artefacts instead of the default `RELEASE_GCC5` output tree.
+Set `FIRMWARE_TARGET=DEBUG` on the `make -C src ...` command line when you want
+debug artefacts instead of the default release output tree under
+`Build/.../RELEASE_GCC5/`.
 
-The top-level firmware targets now accept the same switch and map it to
-`FIRMWARE_TARGET=DEBUG_GCC5`. For example:
+The top-level firmware targets accept the same switch. For example:
 
 ```bash
-make firmware-build ARTEFACT_MODE=upstream UEFI_TARGET=DEBUG
+make firmware-build ARTEFACT_MODE=upstream FIRMWARE_TARGET=DEBUG
 ```
 
-On the current O6 and O6N sources, `UEFI_TARGET=DEBUG` does not enable UART3.
-UART3 routing comes from the Radxa `DEBUG_ON_UART3` define instead, and the
-O6/O6N UART3 pinmux entries are currently compiled only when `DEBUG_MODE` is
-not set. See `docs/debug.md` for the current board-specific details.
+On O6 and O6N, `FIRMWARE_TARGET=DEBUG` enables firmware `DEBUG()` output, but the
+serial routing depends on the artefact mode:
+
+- `ARTEFACT_MODE=upstream FIRMWARE_TARGET=DEBUG` keeps the imported upstream
+  behavior.
+- `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG` keeps firmware `DEBUG()` output on
+  UART2 by default.
+- `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG DEBUG_ON_UART3=true` opts into the
+  custom overlay path that routes firmware `DEBUG()` output to UART3.
+- `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG DEBUG_PRINT_ERROR_LEVEL=0x8000004f`
+  widens the default custom debug mask while keeping the serial route
+  unchanged.
+
+That UART3 option consumes 40-pin header GPIO105 and GPIO106 while it is
+enabled. `DEBUG_ON_UART3` and `DEBUG_PRINT_ERROR_LEVEL` are custom-only
+overrides; `ARTEFACT_MODE=upstream` keeps the imported source behavior
+unchanged. See `docs/debug.md` for the board-specific serial details.
 
 Edit `DSC` in `src/Makefile` to reduce amount of variants that will be built.
 You should also edit `debian/edk2-cix.install` to exclude unbuild variants,
@@ -139,6 +152,10 @@ otherwise `debuild` will complain that those files are missing.
 On `main-monorepo`, the imported `edk2`, `edk2-platforms`, and
 `edk2-non-osi` trees are regular directories inside this repo. There are
 no Git submodules to initialize or update.
+
+When `ARTEFACT_MODE=custom`, the build also prepends any matching package
+roots under `custom/overlay/` to `PACKAGES_PATH`, so source-level custom
+changes can shadow selected imported files without editing them in place.
 
 The monorepo build resolves its displayed top-level source hash and default
 timestamp from the nearest mapped upstream `main` commit in history, so
@@ -217,7 +234,7 @@ make deterministic-replay \
 
 That target defaults to:
 
-- `REPLAY_BOARD=O6`
+- `FIRMWARE_BOARD=O6`
 - `REPLAY_DISTRO=bookworm`
 - `REPLAY_VERSION=$(dpkg-parsechangelog -S Version)`
 
