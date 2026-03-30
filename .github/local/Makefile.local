@@ -39,6 +39,18 @@ FIRMWARE_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)
 FIRMWARE_VALIDATION_PROFILE ?= upstream-o6-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(REPO_ROOT)/build-validation
 FIRMWARE_VALIDATE_ON_BUILD ?= $(if $(filter upstream,$(ARTEFACT_MODE)),1,0)
+REPLAY_BOARD ?= O6
+REPLAY_BOARD_LOWER = $(shell printf '%s' '$(REPLAY_BOARD)' | tr '[:upper:]' '[:lower:]')
+REPLAY_DISTRO ?= bookworm
+REPLAY_VERSION ?= $(FIRMWARE_VERSION)
+REPLAY_PRODUCT ?= orion-$(REPLAY_BOARD_LOWER)
+DETERMINISTIC_REPLAY_PROFILE ?= upstream-$(REPLAY_BOARD_LOWER)-$(REPLAY_VERSION)-$(REPLAY_DISTRO)
+DETERMINISTIC_REPLAY_ROOT ?= $(REPO_ROOT)/.buildbox/replay/$(DETERMINISTIC_REPLAY_PROFILE)
+DETERMINISTIC_REPLAY_IMAGE ?= $(if $(strip $(BUILDBOX_IMAGE)),$(BUILDBOX_IMAGE),mcr.microsoft.com/devcontainers/base:$(REPLAY_DISTRO))
+DETERMINISTIC_REPLAY_MOUNT_ROOT ?= $(REPO_ROOT)/.buildbox
+REPLAY_INPUT ?=
+REPLAY_BUILD_OPTIONS ?=
+REPLAY_BUILD_DATE ?=
 FIRMWARE_SRC_BUILD_TARGETS = \
 	Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)/cix_flash_all.bin \
 	Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)/cix_flash_ota.bin
@@ -93,6 +105,7 @@ help:
 	print_help_line '  validate-firmware' 'Check outputs against the active validation profile'; \
 	print_help_line '  validate-firmware-strict' 'Require exact matches from the validation profile'; \
 	print_help_line '  capture-validation-profile' 'Snapshot the current build into a profile JSON'; \
+	print_help_line '  deterministic-replay' 'Seed or reuse exact replay inputs, rebuild, and validate them strictly'; \
 	print_help_line '  clean' 'Remove build output, packaging by-products, and buildbox state'; \
 	printf '\n%s\n\n' 'buildbox targets'; \
 	print_help_line '  buildbox-up' 'Start or reuse the persistent build container'; \
@@ -113,6 +126,9 @@ help:
 	print_help_line '  V=1' 'Show raw EDK2 command lines'; \
 	print_help_line '  FIRMWARE_BOARD=O6' 'Select the firmware board'; \
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Override the validation profile'; \
+	print_help_line '  REPLAY_BOARD=O6|O6N' 'Select the exact replay board (defaults to O6)'; \
+	print_help_line '  REPLAY_DISTRO=bookworm|trixie' 'Select the exact replay distro family'; \
+	print_help_line '  REPLAY_INPUT=/path/to/release' 'Seed cached replay inputs from a .deb, O6 dir, or cix_flash_all.bin'; \
 	print_help_line '  BUILDBOX_PLATFORM=linux/amd64|linux/arm64' 'Force the buildbox container architecture'; \
 	print_help_line '  BUILDBOX_IMAGE=<image>' 'Override the buildbox base image'; \
 	printf '\n%s\n' 'For lower-level firmware targets, run: make -C src help'
@@ -234,6 +250,95 @@ __capture-validation-profile:
 		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json" \
 		--emit-profile "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-profile.json" \
 		--emit-profile-name "$(FIRMWARE_VALIDATION_PROFILE)"
+
+.PHONY: deterministic-replay __deterministic-replay
+deterministic-replay:
+	$(Q)$(LOCKED_MAKE) __deterministic-replay V="$(V)"
+
+__deterministic-replay:
+	@set -euo pipefail; \
+	replay_board="$(REPLAY_BOARD)"; \
+	replay_dir="$(DETERMINISTIC_REPLAY_ROOT)"; \
+	replay_input='$(strip $(REPLAY_INPUT))'; \
+	replay_build_options='$(strip $(REPLAY_BUILD_OPTIONS))'; \
+	replay_build_date='$(strip $(REPLAY_BUILD_DATE))'; \
+	validation_file="$(REPO_ROOT)/validation/$(REPLAY_BOARD_LOWER)/expected-hashes.json"; \
+	if [ ! -f "$$validation_file" ]; then \
+		echo "[replay] No checked-in exact replay validation data exists for board $$replay_board." >&2; \
+		echo "[replay] Expected: $$validation_file" >&2; \
+		exit 2; \
+	fi; \
+	if [ -n "$$replay_input" ]; then \
+		if [ "$$replay_board" != "O6" ]; then \
+			echo "[replay] Automatic replay input extraction is currently implemented only for O6." >&2; \
+			echo "[replay] For $$replay_board, pre-populate $$replay_dir with replay.env and certs/ first." >&2; \
+			exit 2; \
+		fi; \
+		printf '[replay] Extracting exact replay inputs into %s\n' "$$replay_dir"; \
+		rm -rf "$$replay_dir"; \
+		mkdir -p "$$replay_dir"; \
+		replay_cmd=(python3 "$(REPO_ROOT)/src/scripts/replay_o6_release.py" "$$replay_input" --output-dir "$$replay_dir"); \
+		if [ -n "$$replay_build_options" ]; then \
+			replay_cmd+=(--build-options "$$replay_build_options"); \
+		fi; \
+		if [ -n "$$replay_build_date" ]; then \
+			replay_cmd+=(--build-date "$$replay_build_date"); \
+		fi; \
+		"$${replay_cmd[@]}"; \
+	elif [ ! -f "$$replay_dir/replay.env" ]; then \
+		echo "[replay] No cached replay inputs found at $$replay_dir/replay.env" >&2; \
+		echo "[replay] Re-run with REPLAY_INPUT=/path/to/edk2-cix_*.deb" >&2; \
+		echo "[replay] or REPLAY_INPUT=/path/to/cix_flash_all.bin plus REPLAY_BUILD_OPTIONS=/path/to/BuildOptions." >&2; \
+		exit 2; \
+	else \
+		printf '[replay] Reusing cached replay inputs from %s\n' "$$replay_dir"; \
+	fi; \
+	if [ ! -f "$$replay_dir/replay.env" ]; then \
+		echo "[replay] Expected $$replay_dir/replay.env after preparing replay inputs." >&2; \
+		exit 2; \
+	fi; \
+	set -a; . "$$replay_dir/replay.env"; set +a; \
+	replay_mount_root="$(DETERMINISTIC_REPLAY_MOUNT_ROOT)"; \
+	replay_cert_dir_host="$$SIGNING_CERT_SOURCE_DIR"; \
+	case "$$replay_cert_dir_host" in \
+		"$$replay_mount_root"/*) \
+			replay_cert_dir_container="/hosttmp/$${replay_cert_dir_host#$$replay_mount_root/}"; \
+			;; \
+		*) \
+			echo "[replay] Cached cert bundle $$replay_cert_dir_host is outside $$replay_mount_root and cannot be mounted into the buildbox." >&2; \
+			echo "[replay] Move the replay cache under $$replay_mount_root or override DETERMINISTIC_REPLAY_MOUNT_ROOT accordingly." >&2; \
+			exit 2; \
+			;; \
+	esac; \
+	printf '[replay] Running %s in %s using %s\n' "$(DETERMINISTIC_REPLAY_PROFILE)" "$(REPLAY_DISTRO)" "$(DETERMINISTIC_REPLAY_IMAGE)"; \
+	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" \
+		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+		make --no-print-directory -C src clean V="$(V)"; \
+	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" \
+		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+		make --no-print-directory firmware-build V="$(V)" \
+		ARTEFACT_MODE="upstream" \
+		FIRMWARE_BOARD="$(REPLAY_BOARD)" \
+		FIRMWARE_PRODUCT="$(REPLAY_PRODUCT)" \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VERSION="$(REPLAY_VERSION)" \
+		FIRMWARE_VALIDATION_PROFILE="$(DETERMINISTIC_REPLAY_PROFILE)" \
+		BUILD_DATE="$$BUILD_DATE" \
+		SOURCE_DATE_EPOCH="$$SOURCE_DATE_EPOCH" \
+		PM_CONFIG_SOURCE_DATE_EPOCH="$$PM_CONFIG_SOURCE_DATE_EPOCH" \
+		SIGNING_CERT_SOURCE_DIR="$$replay_cert_dir_container" \
+		SOURCE_COMMIT_HASH="$${SOURCE_COMMIT_HASH:-}" \
+		EDK2_COMMIT_HASH="$${EDK2_COMMIT_HASH:-}" \
+		EDK2_NON_OSI_COMMIT_HASH="$${EDK2_NON_OSI_COMMIT_HASH:-}" \
+		EDK2_PLATFORMS_COMMIT_HASH="$${EDK2_PLATFORMS_COMMIT_HASH:-}"; \
+	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" \
+		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+		make --no-print-directory validate-firmware-strict V="$(V)" \
+		FIRMWARE_BOARD="$(REPLAY_BOARD)" \
+		FIRMWARE_PRODUCT="$(REPLAY_PRODUCT)" \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VERSION="$(REPLAY_VERSION)" \
+		FIRMWARE_VALIDATION_PROFILE="$(DETERMINISTIC_REPLAY_PROFILE)"
 
 .PHONY: clean __clean
 clean:
