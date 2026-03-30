@@ -1,6 +1,7 @@
-UEFI_TARGET ?= RELEASE
+FIRMWARE_TARGET ?= RELEASE
 # Specify DEBUG build for development
-# UEFI_TARGET ?= DEBUG
+# FIRMWARE_TARGET ?= DEBUG
+override UEFI_TARGET := $(FIRMWARE_TARGET)
 
 .PHONY: all
 all: build
@@ -13,12 +14,15 @@ MAKEFLAGS += --no-print-directory
 UNAME := $(shell uname -m)
 HOST_OS ?= $(if $(EDK2_CIX_HOST_OS),$(EDK2_CIX_HOST_OS),$(shell uname -s))
 HOST_ARCH := $(if $(filter arm64,$(UNAME)),aarch64,$(UNAME))
+EMPTY :=
+SPACE := $(EMPTY) $(EMPTY)
 UPSTREAM_EDK2_REF ?= refs/heads/main-monorepo-upstream-edk2
 BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
 MONOREPO_EDK2_COMMIT_HASH ?= 971cfbc5fa
 MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= c051ce622f
 MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 971cfbc5fa
 EDK2_BUILD_OUTPUT_FILTER := scripts/filter_edk2_build_output.py
+MAKE_INPUT_VALIDATOR := $(abspath ../scripts/validate_make_inputs.py)
 V ?= 0
 ifeq ($(V),1)
 Q :=
@@ -36,6 +40,27 @@ if [[ "$(EDK2_CIX_REPO_LOCK_HELD)" != "1" ]]; then \
 fi
 endef
 ARTEFACT_MODE ?= custom
+CUSTOM_OVERLAY_ROOT ?= $(abspath ../custom/overlay)
+DEBUG_ON_UART3_NORMALIZED_RAW := $(if $(strip $(DEBUG_ON_UART3)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_ON_UART3)" 2>/dev/null || printf '%s' __INVALID__),)
+DEBUG_ON_UART3_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_ON_UART3_NORMALIZED_RAW)),,$(DEBUG_ON_UART3_NORMALIZED_RAW))
+CUSTOM_OVERLAY_PACKAGE_ROOTS := \
+	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2) \
+	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-platforms) \
+	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-non-osi)
+EDK2_PACKAGE_ROOTS := \
+	$(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_OVERLAY_PACKAGE_ROOTS)) \
+	$(abspath edk2) \
+	$(abspath edk2-platforms) \
+	$(abspath edk2-non-osi) \
+	$(abspath edk2-platforms/Silicon/Intel)
+EDK2_PACKAGES_PATH := $(subst $(SPACE),:,$(strip $(EDK2_PACKAGE_ROOTS)))
+CUSTOM_PLATFORM_SEARCH_ROOTS := \
+	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-platforms/Platform) \
+	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-non-osi/Platform)
+PLATFORM_SEARCH_ROOTS := \
+	$(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_PLATFORM_SEARCH_ROOTS)) \
+	edk2-platforms/Platform \
+	edk2-non-osi/Platform
 EDK2_BUILD_SILENT_FLAG := $(if $(filter 1,$(V)),,-s)
 
 resolve-path-head = $(strip $(shell git -C .. log -1 --format=%h $(1) -- $(2) 2>/dev/null))
@@ -147,8 +172,42 @@ host-cert-uefi-create-rsa:
 	$(Q)$(MAKE) -C "$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)" V="$(V)" clean all
 host-cix-package-tool: $(CIX_PACKAGE_TOOL_BIN)
 
-.SILENT: help print-build-metadata clean preflight preflight-% preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool prepare-basetools-c
-.PHONY: help
+.SILENT: help print-build-metadata clean preflight preflight-% preflight-inputs preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool prepare-basetools-c
+.PHONY: help vars
+define PRINT_SRC_VARIABLES
+	@set -eu; \
+	help_pad=28; \
+	help_gap=2; \
+	help_width=80; \
+	desc_width=$$((help_width - help_pad - help_gap)); \
+	desc_indent=$$(printf '%*s' "$$((help_pad + help_gap))" ''); \
+	print_help_line() { \
+		label="$$1"; \
+		desc="$$2"; \
+		if [ "$${#label}" -le "$$help_pad" ]; then \
+			first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v first="$$first_indent" -v cont="$$desc_indent" \
+					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
+		else \
+			printf '%s\n' "$$label"; \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v cont="$$desc_indent" \
+					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
+		fi; \
+	}; \
+	printf '%s\n\n' 'useful variables'; \
+	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG build.\nDefault: RELEASE.'; \
+	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Generate unmodified upstream firmware images or allow custom enhancements.\nDefault: custom.'; \
+	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; consumes GPIO105 and GPIO106.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
+	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; custom builds use 0x80000040.'; \
+	print_help_line '  GCC5_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
+	print_help_line '  SIGNING_CERT_SOURCE_DIR=<dir>' 'Path to extracted or built cert blobs for exact replay.\nDefault: unset.'; \
+	print_help_line '  SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the compiler-facing reproducible timestamp.\nDefault: resolved from mapped upstream source metadata.'; \
+	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the PM-config timestamp.\nDefault: SOURCE_DATE_EPOCH.'; \
+	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'
+endef
+
 help:
 	@set -eu; \
 	help_pad=28; \
@@ -161,22 +220,22 @@ help:
 		desc="$$2"; \
 		if [ "$${#label}" -le "$$help_pad" ]; then \
 			first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
-			printf '%s\n' "$$desc" | fold -s -w "$$desc_width" | \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
 				awk -v first="$$first_indent" -v cont="$$desc_indent" \
 					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
 		else \
 			printf '%s\n' "$$label"; \
-			printf '%s\n' "$$desc" | fold -s -w "$$desc_width" | \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
 				awk -v cont="$$desc_indent" \
 					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
 		fi; \
 	}; \
 	printf '%s\n\n' 'edk2-cix raw firmware targets'; \
 	print_help_line '  build' 'Build all raw flash images for the supported boards'; \
-	print_help_line '  Build/O6/$(UEFI_TARGET)_GCC5/cix_flash_all.bin' 'Build the full flash image for O6'; \
-	print_help_line '  Build/O6/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin' 'Build the OTA flash image for O6'; \
-	print_help_line '  Build/O6N/$(UEFI_TARGET)_GCC5/cix_flash_all.bin' 'Build the full flash image for O6N'; \
-	print_help_line '  Build/O6N/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin' 'Build the OTA flash image for O6N'; \
+	print_help_line '  Build/O6/{RELEASE|DEBUG}_GCC5/cix_flash_all.bin' 'Build the full flash image for O6'; \
+	print_help_line '  Build/O6/{RELEASE|DEBUG}_GCC5/cix_flash_ota.bin' 'Build the OTA flash image for O6'; \
+	print_help_line '  Build/O6N/{RELEASE|DEBUG}_GCC5/cix_flash_all.bin' 'Build the full flash image for O6N'; \
+	print_help_line '  Build/O6N/{RELEASE|DEBUG}_GCC5/cix_flash_ota.bin' 'Build the OTA flash image for O6N'; \
 	printf '\n%s\n\n' 'host tools and checks'; \
 	print_help_line '  host-fiptool' 'Build the vendored TF-A fiptool from source'; \
 	print_help_line '  host-cix-regen-trusted-key-cert' 'Build the source trusted-key cert helper'; \
@@ -186,14 +245,10 @@ help:
 	print_help_line '  preflight' 'Check host tools, metadata, and toolchain prerequisites'; \
 	print_help_line '  print-build-metadata' 'Show the resolved reproducible build metadata'; \
 	print_help_line '  clean' 'Remove Build/ output and generated helper artefacts'; \
-	printf '\n%s\n\n' 'useful variables'; \
-	print_help_line '  V=1' 'Show raw EDK2 command lines'; \
-	print_help_line '  UEFI_TARGET=DEBUG' 'Switch the raw build from RELEASE_GCC5 to DEBUG_GCC5; does not itself enable UART3 on O6/O6N'; \
-	print_help_line '  ARTEFACT_MODE' 'Output mode: custom or upstream'; \
-	print_help_line '  GCC5_AARCH64_PREFIX' 'Cross-compiler prefix; defaults to aarch64-linux-gnu-, or set a legacy Arm bare-metal prefix when probing older toolchains'; \
-	print_help_line '  SIGNING_CERT_SOURCE_DIR' 'Path to extracted or built cert blobs for exact replay'; \
-	print_help_line '  SOURCE_DATE_EPOCH' 'Override the compiler-facing reproducible timestamp'; \
-	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH' 'Override the PM-config timestamp; defaults to SOURCE_DATE_EPOCH'
+	printf '\n%s\n' 'For accepted control variables, run: make -C src vars'
+
+vars:
+	$(PRINT_SRC_VARIABLES)
 
 $(FIPTOOL_BIN): $(FIPTOOL_SOURCE_INPUTS)
 	$(Q)$(ENSURE_REPO_LOCK)
@@ -233,14 +288,6 @@ print-build-metadata: preflight-build-metadata
 preflight-build-metadata:
 	@{ \
 		missing=0; \
-		case "$(ARTEFACT_MODE)" in \
-			custom|upstream) \
-				;; \
-			*) \
-				echo "[preflight/metadata] Unsupported ARTEFACT_MODE=$(ARTEFACT_MODE); expected custom or upstream" >&2; \
-				missing=1; \
-				;; \
-		esac; \
 		check_required() { \
 			local name="$$1"; \
 			local value="$$2"; \
@@ -314,15 +361,30 @@ prepare-basetools-c:
 		printf '%s\n' "$$current_env_id" > "$(BASETOOLS_C_MARKER)"
 	fi
 
-.PHONY: preflight preflight-%
-preflight: preflight-tools preflight-build-metadata
+.PHONY: preflight preflight-% preflight-inputs
+preflight: preflight-inputs preflight-tools preflight-build-metadata
 
-preflight-%: preflight-tools preflight-build-metadata
+preflight-%: preflight-inputs preflight-tools preflight-build-metadata
 	@dsc_path="$(filter %/$*.dsc,$(DSC))" && \
 	if [[ -z "$$dsc_path" ]]; then \
 		echo "[preflight/$*] No matching DSC found under edk2-platforms/Platform/Radxa" >&2; \
 		exit 1; \
 	fi
+
+preflight-inputs:
+	@set -euo pipefail; \
+	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+		--repo-root "$(abspath ..)" \
+		--v "$(V)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
+		--firmware-target "$(FIRMWARE_TARGET)"); \
+	if [ -n "$(strip $(DEBUG_ON_UART3))" ]; then \
+		validate_cmd+=(--debug-on-uart3 "$(strip $(DEBUG_ON_UART3))"); \
+	fi; \
+	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL))" ]; then \
+		validate_cmd+=(--debug-print-error-level "$(strip $(DEBUG_PRINT_ERROR_LEVEL))"); \
+	fi; \
+	"$${validate_cmd[@]}"
 
 .PHONY: preflight-tools
 preflight-tools:
@@ -378,7 +440,22 @@ preflight-tools:
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin
 Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
 	@$(ENSURE_REPO_LOCK)
-	@export CFG="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/spi_flash_config_ota.json" -type f)" && \
+	@find_platform_match() { \
+		local relative_path="$$1"; \
+		local node_type="$$2"; \
+		local search_root; \
+		local found; \
+		for search_root in $(PLATFORM_SEARCH_ROOTS); do \
+			[[ -d "$$search_root" ]] || continue; \
+			found="$$(find "$$search_root" -mindepth 4 -maxdepth 4 -path "*/$$relative_path" -type "$$node_type" | head -n 1)"; \
+			if [[ -n "$$found" ]]; then \
+				printf '%s\n' "$$found"; \
+				return 0; \
+			fi; \
+		done; \
+		return 1; \
+	}; \
+	export CFG="$$(find_platform_match "$*/spi_flash_config_ota.json" f || true)" && \
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	if [[ -f "$$CFG" ]]; then \
 		if [[ "$(V)" == "1" ]]; then echo "Found custom flash config."; fi; \
@@ -408,7 +485,22 @@ MEM_CFG_MEMFREQ ?= 3000
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin
 Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
 	@$(ENSURE_REPO_LOCK)
-	@export MEM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/mem_config" -type d)" && \
+	@find_platform_match() { \
+		local relative_path="$$1"; \
+		local node_type="$$2"; \
+		local search_root; \
+		local found; \
+		for search_root in $(PLATFORM_SEARCH_ROOTS); do \
+			[[ -d "$$search_root" ]] || continue; \
+			found="$$(find "$$search_root" -mindepth 4 -maxdepth 4 -path "*/$$relative_path" -type "$$node_type" | head -n 1)"; \
+			if [[ -n "$$found" ]]; then \
+				printf '%s\n' "$$found"; \
+				return 0; \
+			fi; \
+		done; \
+		return 1; \
+	}; \
+	export MEM="$$(find_platform_match "$*/mem_config" d || true)" && \
 	if [[ -d "$$MEM" ]]; then \
 		printf '[build/%s] Regenerating memory configuration\n' "$*" && \
 		if [[ "$(V)" == "1" ]]; then echo "Found custom memory configuration."; fi; \
@@ -420,7 +512,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 		fi; \
 		mv "$$MEM/memory_config.bin" Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
 	fi
-	export PM="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/pm_config" -type d)" && \
+	export PM="$$(find_platform_match "$*/pm_config" d || true)" && \
 	if [[ -d "$$PM" ]]; then \
 		printf '[build/%s] Regenerating PM configuration\n' "$*" && \
 		if [[ "$(V)" == "1" ]]; then echo "Found custom PM configuration."; fi; \
@@ -433,7 +525,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 		mv "$$PM/csu_pm_config.bin" Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
 	fi
 
-	export CFG="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/spi_flash_config_all.json" -type f)" && \
+	export CFG="$$(find_platform_match "$*/spi_flash_config_all.json" f || true)" && \
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export CIX_PACKAGE_TOOL_BIN="$(shell realpath "$(CIX_PACKAGE_TOOL_BIN)")" && \
 	if [[ -f "$$CFG" ]]; then \
@@ -598,7 +690,22 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
 	# \377 = 0xFF
 	head -c 8192 < /dev/zero | tr '\000' '\377' > $@
 
-	export FW="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/Firmwares" -type d)" && \
+	find_platform_match() { \
+		local relative_path="$$1"; \
+		local node_type="$$2"; \
+		local search_root; \
+		local found; \
+		for search_root in $(PLATFORM_SEARCH_ROOTS); do \
+			[[ -d "$$search_root" ]] || continue; \
+			found="$$(find "$$search_root" -mindepth 4 -maxdepth 4 -path "*/$$relative_path" -type "$$node_type" | head -n 1)"; \
+			if [[ -n "$$found" ]]; then \
+				printf '%s\n' "$$found"; \
+				return 0; \
+			fi; \
+		done; \
+		return 1; \
+	}; \
+	export FW="$$(find_platform_match "$*/Firmwares" d || true)" && \
 	if [[ -d "$$FW" ]]; then \
 		if [[ "$(V)" == "1" ]]; then echo "Found custom firmware."; fi; \
 		cp -r "$$FW/." Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
@@ -665,7 +772,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: | preflight-%
 	@$(ENSURE_REPO_LOCK)
 	@$(MAKE) prepare-basetools-c
 	export WORKSPACE="$(shell pwd)"
-	export PACKAGES_PATH="$$WORKSPACE/edk2:$$WORKSPACE/edk2-platforms:$$WORKSPACE/edk2-non-osi:$$WORKSPACE/edk2-platforms/Silicon/Intel/"
+	export PACKAGES_PATH="$(EDK2_PACKAGES_PATH)"
 	export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_PREFIX)"
 	if command -v iasl >/dev/null 2>&1; then
 		export IASL_PREFIX="$$(dirname "$$(command -v iasl)")/"
@@ -696,6 +803,12 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: | preflight-%
 				exit 1; \
 				;; \
 		esac
+	fi
+	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_ON_UART3_NORMALIZED)" ]]; then
+		build_extra_defines+=(-D DEBUG_ON_UART3=$(DEBUG_ON_UART3_NORMALIZED))
+	fi
+	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_PRINT_ERROR_LEVEL)" ]]; then
+		build_extra_defines+=(-D DEBUG_PRINT_ERROR_LEVEL=$(DEBUG_PRINT_ERROR_LEVEL))
 	fi
 	run_edk2_build() {
 		export EDK2_CIX_QUIET_PREBUILD="$(if $(filter 1,$(V)),0,1)"
