@@ -33,7 +33,8 @@ PROGRESS_LINE_RE = re.compile(r"^[.#]+(?: done!)?$")
 
 ARTEFACT_MODE = os.environ.get("ARTEFACT_MODE", "custom")
 VERBOSE = os.environ.get("V", os.environ.get("EDK2_CIX_VERBOSE", "0")) == "1"
-QUIET_UPSTREAM = ARTEFACT_MODE == "upstream" and not VERBOSE
+QUIET_FILTERING = not VERBOSE
+SUPPRESS_WARNINGS = ARTEFACT_MODE == "upstream" and not VERBOSE
 
 
 def should_drop_line(line: str) -> bool:
@@ -76,8 +77,12 @@ def should_drop_line(line: str) -> bool:
     if line.startswith("/") and line.endswith(".dll") and "Build/" in line and "/DEBUG/" in line:
         return True
     match = IASL_SUMMARY_RE.match(line)
-    if match and int(match.group(1)) == 0:
-        return True
+    if match:
+        errors = int(match.group(1))
+        warnings = int(match.group(2))
+        remarks = int(match.group(3))
+        if errors == 0 and warnings == 0 and remarks == 0:
+            return True
     return False
 
 
@@ -100,8 +105,12 @@ def prefers_no_blank_before(line: str) -> bool:
     )
 
 
+def is_warning_line(line: str) -> bool:
+    return "warning:" in line or "WARNING:" in line or "Warnings," in line
+
+
 def main() -> int:
-    if not QUIET_UPSTREAM:
+    if not QUIET_FILTERING:
         for raw_line in sys.stdin:
             sys.stdout.write(raw_line)
         return 0
@@ -137,7 +146,14 @@ def main() -> int:
             buffered_iasl.append(line)
             summary_match = IASL_SUMMARY_RE.match(line)
             if summary_match:
-                if int(summary_match.group(1)) != 0:
+                errors = int(summary_match.group(1))
+                warnings = int(summary_match.group(2))
+                remarks = int(summary_match.group(3))
+                if errors != 0:
+                    flush_buffer()
+                elif SUPPRESS_WARNINGS:
+                    buffered_iasl.clear()
+                elif warnings != 0 or remarks != 0:
                     flush_buffer()
                 else:
                     buffered_iasl.clear()
@@ -148,16 +164,18 @@ def main() -> int:
             buffered_iasl.append(line)
             continue
 
-        if PLATFORMCONFIG_DEFAULT_RE.search(line):
-            suppress_platformconfig_continuation = True
-            continue
-        if (
-            RWX_WARNING_RE.search(line)
-            or LTO_SERIAL_WARNING_RE.search(line)
-            or LTO_SERIAL_NOTE_RE.search(line)
-            or VFR_AMBIGUITY_RE.search(line)
-        ):
-            continue
+        if SUPPRESS_WARNINGS:
+            if PLATFORMCONFIG_DEFAULT_RE.search(line):
+                suppress_platformconfig_continuation = True
+                continue
+            if (
+                RWX_WARNING_RE.search(line)
+                or LTO_SERIAL_WARNING_RE.search(line)
+                or LTO_SERIAL_NOTE_RE.search(line)
+                or VFR_AMBIGUITY_RE.search(line)
+                or is_warning_line(line)
+            ):
+                continue
 
         if should_drop_line(line):
             continue
