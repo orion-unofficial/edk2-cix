@@ -80,13 +80,13 @@ def resolve_optional_file(base_dir: Path, raw_path: object) -> Path | None:
     return base_dir / str(raw_path)
 
 
-def load_config(config_path: Path) -> Config:
+def load_config(config_path: Path, *, load_payloads: bool = True) -> Config:
     raw = json.loads(config_path.read_text())
     base_dir = config_path.parent
     entries = []
     for item in raw["image_header_groups"]:
         file_path = base_dir / item["file"]
-        data = file_path.read_bytes()
+        data = file_path.read_bytes() if load_payloads else b""
         entries.append(
             ImageEntry(
                 image_type=parse_int(item["image_type"]),
@@ -305,7 +305,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    config = load_config(Path(args.config))
+    config = load_config(Path(args.config), load_payloads=not bool(args.dump))
 
     if args.output:
         Path(args.output).write_bytes(build_full_flash(config))
