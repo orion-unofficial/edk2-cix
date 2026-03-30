@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 
@@ -20,6 +21,10 @@ EDK2_ENV_RE = re.compile(
 EDK2_META_RE = re.compile(
     r"^(Processing meta-data|Architecture\(s\)\s*=|Build target\s*=|Toolchain\s*=|Active Platform\s*=)"
 )
+PLATFORMCONFIG_DEFAULT_RE = re.compile(r"PlatformConfigHii\.i\(\d+\): WARNING: default")
+PLATFORMCONFIG_CONTINUATION_RE = re.compile(r"^\s*: default value re-defined")
+
+ARTEFACT_MODE = os.environ.get("ARTEFACT_MODE", "custom")
 
 
 def should_drop_line(line: str) -> bool:
@@ -69,6 +74,7 @@ def should_drop_line(line: str) -> bool:
 
 def main() -> int:
     buffered_iasl: list[str] = []
+    suppress_platformconfig_continuation = False
 
     def flush_buffer() -> None:
         for buffered_line in buffered_iasl:
@@ -77,6 +83,11 @@ def main() -> int:
 
     for raw_line in sys.stdin:
         line = raw_line.rstrip("\n")
+
+        if suppress_platformconfig_continuation:
+            suppress_platformconfig_continuation = False
+            if PLATFORMCONFIG_CONTINUATION_RE.match(line):
+                continue
 
         if buffered_iasl:
             buffered_iasl.append(line)
@@ -91,6 +102,10 @@ def main() -> int:
 
         if IASL_LOC_RE.search(line):
             buffered_iasl.append(line)
+            continue
+
+        if ARTEFACT_MODE == "upstream" and PLATFORMCONFIG_DEFAULT_RE.search(line):
+            suppress_platformconfig_continuation = True
             continue
 
         if should_drop_line(line):
