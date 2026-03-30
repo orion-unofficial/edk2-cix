@@ -13,6 +13,15 @@
 !else
   DEFINE DEBUG_PRINT_ERROR_LEVEL    = 0x80000040
 !endif
+  #
+  # Custom path: replace the in-tree CIX Secure Boot defaults with the public
+  # Microsoft-managed defaults so Microsoft-signed Windows and shim-based Linux
+  # media can boot without manual key enrollment.
+  #
+  DEFINE PK_DEFAULT_FILE            = Platform/CIX/Sky1/Drivers/SecureBootDxe/Microsoft/PK.bin
+  DEFINE KEK_DEFAULT_FILE1          = Platform/CIX/Sky1/Drivers/SecureBootDxe/Microsoft/KEK.bin
+  DEFINE DB_DEFAULT_FILE1           = Platform/CIX/Sky1/Drivers/SecureBootDxe/Microsoft/DB.bin
+  DEFINE DBX_DEFAULT_FILE1          = Platform/CIX/Sky1/Drivers/SecureBootDxe/Microsoft/DBX.bin
   DEFINE TOKEN_SETUP_SUPPORT        = FALSE
   DEFINE SMBIOS_ENABLE              = FALSE
   DEFINE BOOT_LOGO_ENABLE           = FALSE
