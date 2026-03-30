@@ -9,6 +9,8 @@ Q := @
 endif
 WITH_REPO_LOCK := "$(REPO_ROOT)/scripts/with_repo_lock.sh"
 LOCKED_MAKE = $(if $(filter 1,$(EDK2_CIX_REPO_LOCK_HELD)),$(MAKE) --no-print-directory,$(WITH_REPO_LOCK) $(MAKE) --no-print-directory)
+MAKE_INPUT_VALIDATOR := $(REPO_ROOT)/scripts/validate_make_inputs.py
+VALIDATION_PROFILE_FILE := $(REPO_ROOT)/validation/expected-hashes.json
 BUILDBOX_WORKSPACE_PARENT ?= /workspaces
 BUILDBOX_WORKSPACE_ROOT ?= $(BUILDBOX_WORKSPACE_PARENT)/$(REPO_NAME)
 BUILDBOX_HOST_TMPDIR ?= $(REPO_ROOT)/.buildbox/tmp
@@ -28,16 +30,13 @@ BUILDBOX_ENV = \
 
 PROJECT ?= edk2-cix
 ARTEFACT_MODE ?= custom
+DEBUG_ON_UART3 ?=
+DEBUG_PRINT_ERROR_LEVEL ?=
 FIRMWARE_BOARD ?= O6
 FIRMWARE_PRODUCT ?= orion-o6
-DEFAULT_FIRMWARE_TARGET := RELEASE_GCC5
+DEFAULT_FIRMWARE_TARGET := RELEASE
 FIRMWARE_TARGET ?= $(DEFAULT_FIRMWARE_TARGET)
-ifneq ($(strip $(UEFI_TARGET)),)
-ifeq ($(FIRMWARE_TARGET),$(DEFAULT_FIRMWARE_TARGET))
-FIRMWARE_TARGET := $(UEFI_TARGET)_GCC5
-endif
-endif
-FIRMWARE_UEFI_TARGET ?= $(patsubst %_GCC5,%,$(FIRMWARE_TARGET))
+RAW_FIRMWARE_TARGET := $(FIRMWARE_TARGET)_GCC5
 FIRMWARE_VERSION ?= $(shell cd "$(REPO_ROOT)" && (dpkg-parsechangelog -S Version 2>/dev/null || sed -n '1s/^[^(]*(\([^)]*\)).*/\1/p' debian/changelog))
 FIRMWARE_STAGE_ROOT ?= $(REPO_ROOT)/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)
 FIRMWARE_INSTALL_ROOT ?= /boot/efi/firmware/radxa
@@ -46,27 +45,36 @@ FIRMWARE_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)
 FIRMWARE_VALIDATION_PROFILE ?= upstream-o6-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(REPO_ROOT)/build-validation
 FIRMWARE_VALIDATE_ON_BUILD ?= $(if $(filter upstream,$(ARTEFACT_MODE)),1,0)
-REPLAY_BOARD ?= O6
-REPLAY_BOARD_LOWER = $(shell printf '%s' '$(REPLAY_BOARD)' | tr '[:upper:]' '[:lower:]')
+DEBUG_ON_UART3_NORMALIZED_RAW := $(if $(strip $(DEBUG_ON_UART3)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_ON_UART3)" 2>/dev/null || printf '%s' __INVALID__),)
+DEBUG_ON_UART3_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_ON_UART3_NORMALIZED_RAW)),,$(DEBUG_ON_UART3_NORMALIZED_RAW))
+FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW := $(if $(strip $(FIRMWARE_VALIDATE_ON_BUILD)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(FIRMWARE_VALIDATE_ON_BUILD)" 2>/dev/null || printf '%s' __INVALID__),)
+FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED := $(if $(filter __INVALID__,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW)),,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW))
+FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE := $(if $(filter TRUE,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED)),1,0)
+FIRMWARE_BOARD_LOWER = $(shell printf '%s' '$(FIRMWARE_BOARD)' | tr '[:upper:]' '[:lower:]')
 REPLAY_DISTRO ?= bookworm
 REPLAY_VERSION ?= $(FIRMWARE_VERSION)
-REPLAY_PRODUCT ?= orion-$(REPLAY_BOARD_LOWER)
-DETERMINISTIC_REPLAY_PROFILE ?= upstream-$(REPLAY_BOARD_LOWER)-$(REPLAY_VERSION)-$(REPLAY_DISTRO)
+REPLAY_PRODUCT ?= orion-$(FIRMWARE_BOARD_LOWER)
+DETERMINISTIC_REPLAY_PROFILE ?= upstream-$(FIRMWARE_BOARD_LOWER)-$(REPLAY_VERSION)-$(REPLAY_DISTRO)
 DETERMINISTIC_REPLAY_ROOT ?= $(REPO_ROOT)/.buildbox/replay/$(DETERMINISTIC_REPLAY_PROFILE)
 DETERMINISTIC_REPLAY_IMAGE ?= $(if $(strip $(BUILDBOX_IMAGE)),$(BUILDBOX_IMAGE),mcr.microsoft.com/devcontainers/base:$(REPLAY_DISTRO))
 DETERMINISTIC_REPLAY_MOUNT_ROOT ?= $(REPO_ROOT)/.buildbox
 REPLAY_INPUT ?=
 REPLAY_BUILD_OPTIONS ?=
 REPLAY_BUILD_DATE ?=
-FIRMWARE_SRC_BUILD_TARGETS = \
-	Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)/cix_flash_all.bin \
-	Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)/cix_flash_ota.bin
-BUILDBOX_FIRMWARE_ARGS = \
+SRC_COMMON_ARGS = \
 	ARTEFACT_MODE="$(ARTEFACT_MODE)" \
+	$(if $(strip $(DEBUG_ON_UART3_NORMALIZED)),DEBUG_ON_UART3="$(DEBUG_ON_UART3_NORMALIZED)") \
+	$(if $(strip $(DEBUG_PRINT_ERROR_LEVEL)),DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)")
+FIRMWARE_SRC_BUILD_TARGETS = \
+	Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)/cix_flash_all.bin \
+	Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)/cix_flash_ota.bin
+BUILDBOX_FIRMWARE_ARGS = \
+	$(SRC_COMMON_ARGS) \
 	FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
 	FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" \
 	FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
 	FIRMWARE_VERSION="$(FIRMWARE_VERSION)" \
+	FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" \
 	FIRMWARE_STAGE_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)" \
 	FIRMWARE_ARCHIVE_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/dist" \
 	FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
@@ -82,7 +90,46 @@ src/tools/gcc/%: src/tools/gcc/%.tar.xz
 
 build: build-edk2
 
-.PHONY: help
+define PRINT_TOP_LEVEL_VARIABLES
+	@set -eu; \
+	help_pad=28; \
+	help_gap=2; \
+	help_width=80; \
+	desc_width=$$((help_width - help_pad - help_gap)); \
+	desc_indent=$$(printf '%*s' "$$((help_pad + help_gap))" ''); \
+	print_help_line() { \
+		label="$$1"; \
+		desc="$$2"; \
+		if [ "$${#label}" -le "$$help_pad" ]; then \
+			first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v first="$$first_indent" -v cont="$$desc_indent" \
+					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
+		else \
+			printf '%s\n' "$$label"; \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v cont="$$desc_indent" \
+					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
+		fi; \
+	}; \
+	printf '%s\n\n' 'useful variables'; \
+	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Generate unmodified upstream firmware images or allow custom enhancements.\nDefault: custom.'; \
+	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG firmware build.\nDefault: RELEASE.'; \
+	print_help_line '  FIRMWARE_BOARD=O6|O6N' 'Select the firmware board; replay follows the same board.\nDefault: O6.'; \
+	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; consumes GPIO105 and GPIO106.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
+	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; custom builds use 0x80000040.'; \
+	print_help_line '  FIRMWARE_VALIDATE_ON_BUILD=true|false' 'Enable or skip automatic output validation after firmware-build.\nDefault: true for ARTEFACT_MODE=upstream; false for ARTEFACT_MODE=custom.'; \
+	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile from validation/expected-hashes.json, e.g. upstream-o6-1.2.1-bookworm.\nDefault: upstream-o6-1.2.1-bookworm.'; \
+	print_help_line '  REPLAY_DISTRO=bookworm|trixie' 'Choose the exact replay distro family.\nDefault: bookworm.'; \
+	print_help_line '  REPLAY_INPUT=<path>' 'Seed replay inputs from a .deb, an extracted release dir, or cix_flash_all.bin.\nDefault: unset; reuse cached replay inputs if present.'; \
+	print_help_line '  REPLAY_BUILD_OPTIONS=<path>' 'BuildOptions file used when replaying from cix_flash_all.bin.\nDefault: unset.'; \
+	print_help_line '  REPLAY_BUILD_DATE=<iso8601>' 'Fallback build timestamp when replay inputs do not include BuildOptions.\nDefault: unset.'; \
+	print_help_line '  BUILDBOX_PLATFORM=linux/amd64|linux/arm64' 'Select the container platform for buildbox runs.\nDefault: host-matched runtime platform.'; \
+	print_help_line '  BUILDBOX_IMAGE=<image>' 'Container image, e.g. mcr.microsoft.com/devcontainers/base:bookworm.\nDefault: mcr.microsoft.com/devcontainers/base:bookworm.'; \
+	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'
+endef
+
+.PHONY: help vars
 help:
 	@set -eu; \
 	help_pad=28; \
@@ -95,12 +142,12 @@ help:
 		desc="$$2"; \
 		if [ "$${#label}" -le "$$help_pad" ]; then \
 			first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
-			printf '%s\n' "$$desc" | fold -s -w "$$desc_width" | \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
 				awk -v first="$$first_indent" -v cont="$$desc_indent" \
 					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
 		else \
 			printf '%s\n' "$$label"; \
-			printf '%s\n' "$$desc" | fold -s -w "$$desc_width" | \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
 				awk -v cont="$$desc_indent" \
 					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
 		fi; \
@@ -138,19 +185,107 @@ help:
 	print_help_line '  buildbox-validate-firmware' 'Run validation inside the buildbox'; \
 	print_help_line '  buildbox-validate-firmware-strict' 'Run strict validation inside the buildbox'; \
 	print_help_line '  buildbox-capture-validation-profile' 'Capture a validation profile inside the buildbox'; \
-	printf '\n%s\n\n' 'useful variables'; \
-	print_help_line '  ARTEFACT_MODE' 'Output mode: custom or upstream'; \
-	print_help_line '  UEFI_TARGET=DEBUG' 'Top-level alias for DEBUG_GCC5 firmware builds; does not itself enable UART3 on O6/O6N'; \
-	print_help_line '  FIRMWARE_TARGET=DEBUG_GCC5' 'Explicit debug target for the top-level firmware wrappers'; \
-	print_help_line '  V=1' 'Show raw EDK2 command lines'; \
-	print_help_line '  FIRMWARE_BOARD=O6' 'Select the firmware board'; \
-	print_help_line '  FIRMWARE_VALIDATION_PROFILE' 'Profile from validation/expected-hashes.json, e.g. upstream-o6-1.2.1-bookworm'; \
-	print_help_line '  REPLAY_BOARD=O6|O6N' 'Select the exact replay board (defaults to O6)'; \
-	print_help_line '  REPLAY_DISTRO' 'Replay distro family: bookworm or trixie'; \
-	print_help_line '  REPLAY_INPUT=/path/to/release' 'Seed replay inputs from a .deb, an extracted O6 dir, or cix_flash_all.bin'; \
-	print_help_line '  BUILDBOX_PLATFORM' 'Container architecture: linux/amd64 or linux/arm64'; \
-	print_help_line '  BUILDBOX_IMAGE' 'Container image, e.g. mcr.microsoft.com/devcontainers/base:bookworm'; \
+	printf '\n%s\n' 'For accepted control variables, run: make vars'; \
 	printf '\n%s\n' 'For lower-level firmware targets, run: make -C src help'
+
+vars:
+	$(PRINT_TOP_LEVEL_VARIABLES)
+
+.PHONY: preflight-wrapper-common preflight-wrapper-firmware-build preflight-wrapper-validation preflight-wrapper-buildbox preflight-wrapper-replay
+preflight-wrapper-common:
+	@set -euo pipefail; \
+	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+		--repo-root "$(REPO_ROOT)" \
+		--profile-file "$(VALIDATION_PROFILE_FILE)" \
+		--v "$(V)" \
+		--artefact-mode "$(ARTEFACT_MODE)"); \
+	if [ -n "$(strip $(FIRMWARE_TARGET))" ]; then \
+		validate_cmd+=(--firmware-target "$(strip $(FIRMWARE_TARGET))"); \
+	fi; \
+	if [ -n "$(strip $(DEBUG_ON_UART3))" ]; then \
+		validate_cmd+=(--debug-on-uart3 "$(strip $(DEBUG_ON_UART3))"); \
+	fi; \
+	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL))" ]; then \
+		validate_cmd+=(--debug-print-error-level "$(strip $(DEBUG_PRINT_ERROR_LEVEL))"); \
+	fi; \
+	"$${validate_cmd[@]}"
+
+preflight-wrapper-firmware-build: preflight-wrapper-common
+	@set -euo pipefail; \
+	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+		--repo-root "$(REPO_ROOT)" \
+		--profile-file "$(VALIDATION_PROFILE_FILE)" \
+		--v "$(V)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
+		--firmware-target "$(FIRMWARE_TARGET)" \
+		--firmware-board "$(FIRMWARE_BOARD)" \
+		--firmware-validate-on-build "$(FIRMWARE_VALIDATE_ON_BUILD)"); \
+	if [ -n "$(strip $(FIRMWARE_VALIDATION_PROFILE))" ] && [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
+		validate_cmd+=(--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" --validation-board "$(FIRMWARE_BOARD)" --validation-target "$(RAW_FIRMWARE_TARGET)"); \
+	fi; \
+	"$${validate_cmd[@]}"
+
+preflight-wrapper-validation: preflight-wrapper-common
+	@set -euo pipefail; \
+	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+		--repo-root "$(REPO_ROOT)" \
+		--profile-file "$(VALIDATION_PROFILE_FILE)" \
+		--v "$(V)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
+		--firmware-target "$(FIRMWARE_TARGET)" \
+		--firmware-board "$(FIRMWARE_BOARD)" \
+		--firmware-validate-on-build "$(FIRMWARE_VALIDATE_ON_BUILD)" \
+		--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+		--validation-board "$(FIRMWARE_BOARD)" \
+		--validation-target "$(RAW_FIRMWARE_TARGET)"); \
+	"$${validate_cmd[@]}"
+
+preflight-wrapper-buildbox:
+	@set -euo pipefail; \
+	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+		--repo-root "$(REPO_ROOT)" \
+		--profile-file "$(VALIDATION_PROFILE_FILE)" \
+		--v "$(V)"); \
+	if [ -n "$(strip $(BUILDBOX_PLATFORM))" ]; then \
+		validate_cmd+=(--buildbox-platform "$(strip $(BUILDBOX_PLATFORM))"); \
+	fi; \
+	if [ -n "$(strip $(BUILDBOX_IMAGE))" ]; then \
+		validate_cmd+=(--buildbox-image "$(strip $(BUILDBOX_IMAGE))" --check-buildbox-image); \
+	fi; \
+	"$${validate_cmd[@]}"
+
+preflight-wrapper-replay: preflight-wrapper-buildbox
+	@set -euo pipefail; \
+	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+		--repo-root "$(REPO_ROOT)" \
+		--profile-file "$(VALIDATION_PROFILE_FILE)" \
+		--v "$(V)" \
+		--firmware-target "$(FIRMWARE_TARGET)" \
+		--firmware-board "$(FIRMWARE_BOARD)" \
+		--validation-profile "$(DETERMINISTIC_REPLAY_PROFILE)" \
+		--validation-board "$(FIRMWARE_BOARD)" \
+		--validation-target "$(RAW_FIRMWARE_TARGET)" \
+		--replay-distro "$(REPLAY_DISTRO)"); \
+	if [ -n "$(strip $(REPLAY_INPUT))" ]; then \
+		validate_cmd+=(--replay-input "$(strip $(REPLAY_INPUT))"); \
+	fi; \
+	if [ -n "$(strip $(REPLAY_BUILD_OPTIONS))" ]; then \
+		validate_cmd+=(--replay-build-options "$(strip $(REPLAY_BUILD_OPTIONS))"); \
+	fi; \
+	if [ -n "$(strip $(REPLAY_BUILD_DATE))" ]; then \
+		validate_cmd+=(--replay-build-date "$(strip $(REPLAY_BUILD_DATE))"); \
+	fi; \
+	"$${validate_cmd[@]}"
+
+.PHONY: build-edk2 firmware-build firmware-stage install zip targz validate-firmware validate-firmware-strict capture-validation-profile deterministic-replay buildbox-up buildbox-deb buildbox-firmware-build buildbox-o6 buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-firmware-strict buildbox-capture-validation-profile buildbox-metadata
+build-edk2: preflight-wrapper-common
+firmware-build firmware-stage install zip targz: preflight-wrapper-firmware-build
+validate-firmware validate-firmware-strict capture-validation-profile: preflight-wrapper-validation
+deterministic-replay: preflight-wrapper-replay
+buildbox-up buildbox-deb: preflight-wrapper-buildbox
+buildbox-metadata: preflight-wrapper-common preflight-wrapper-buildbox
+buildbox-firmware-build buildbox-o6 buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz: preflight-wrapper-firmware-build preflight-wrapper-buildbox
+buildbox-validate-firmware buildbox-validate-firmware-strict buildbox-capture-validation-profile: preflight-wrapper-validation preflight-wrapper-buildbox
 
 .PHONY: build-edk2 __build-edk2
 build-edk2:
@@ -158,7 +293,8 @@ build-edk2:
 
 __build-edk2:
 	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
-		$(if $(strip $(UEFI_TARGET)),UEFI_TARGET="$(UEFI_TARGET)")
+		$(SRC_COMMON_ARGS) \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)"
 
 .PHONY: firmware-build __firmware-build
 firmware-build:
@@ -166,18 +302,19 @@ firmware-build:
 
 __firmware-build:
 	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
-		UEFI_TARGET="$(FIRMWARE_UEFI_TARGET)" $(FIRMWARE_SRC_BUILD_TARGETS)
-	@if [ "$(FIRMWARE_VALIDATE_ON_BUILD)" = "1" ]; then \
+		$(SRC_COMMON_ARGS) \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" $(FIRMWARE_SRC_BUILD_TARGETS)
+	@if [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
 		printf '\n[validate] Checking artefacts against %s\n' "$(FIRMWARE_VALIDATION_PROFILE)"; \
 		mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"; \
 		python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
 			--repo-root "$(REPO_ROOT)" \
 			--board "$(FIRMWARE_BOARD)" \
-			--target "$(FIRMWARE_TARGET)" \
+			--target "$(RAW_FIRMWARE_TARGET)" \
 			--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
-		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"; \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"; \
 	fi
-	@printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)"
+	@printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)"
 
 .PHONY: firmware-stage __firmware-stage
 firmware-stage:
@@ -188,7 +325,7 @@ __firmware-stage: __firmware-build
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
-		--target "$(FIRMWARE_TARGET)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output-dir "$(FIRMWARE_STAGE_ROOT)"
 	@printf '[output] Staged firmware payload available under %s\n' "$(FIRMWARE_STAGE_ROOT)"
@@ -202,7 +339,7 @@ __install: __firmware-stage
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
-		--target "$(FIRMWARE_TARGET)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--install-root "$(FIRMWARE_INSTALL_ROOT)"
 
@@ -215,7 +352,7 @@ __zip: __firmware-build
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
-		--target "$(FIRMWARE_TARGET)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
 	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
@@ -229,7 +366,7 @@ __targz: __firmware-build
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
-		--target "$(FIRMWARE_TARGET)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
 	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
@@ -243,9 +380,9 @@ __validate-firmware:
 	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
-		--target "$(FIRMWARE_TARGET)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
 		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
-		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
 
 .PHONY: validate-firmware-strict __validate-firmware-strict
 validate-firmware-strict:
@@ -256,10 +393,10 @@ __validate-firmware-strict:
 	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
-		--target "$(FIRMWARE_TARGET)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
 		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
 		--strict \
-		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
 
 .PHONY: capture-validation-profile __capture-validation-profile
 capture-validation-profile:
@@ -270,10 +407,10 @@ __capture-validation-profile:
 	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
-		--target "$(FIRMWARE_TARGET)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
 		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
-		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json" \
-		--emit-profile "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(FIRMWARE_TARGET)-profile.json" \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json" \
+		--emit-profile "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-profile.json" \
 		--emit-profile-name "$(FIRMWARE_VALIDATION_PROFILE)"
 
 .PHONY: deterministic-replay __deterministic-replay
@@ -282,7 +419,7 @@ deterministic-replay:
 
 __deterministic-replay:
 	@set -euo pipefail; \
-	replay_board="$(REPLAY_BOARD)"; \
+	replay_board="$(FIRMWARE_BOARD)"; \
 	replay_dir="$(DETERMINISTIC_REPLAY_ROOT)"; \
 	replay_input='$(strip $(REPLAY_INPUT))'; \
 	replay_build_options='$(strip $(REPLAY_BUILD_OPTIONS))'; \
@@ -343,7 +480,7 @@ __deterministic-replay:
 		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
 		make --no-print-directory firmware-build V="$(V)" \
 		ARTEFACT_MODE="upstream" \
-		FIRMWARE_BOARD="$(REPLAY_BOARD)" \
+		FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
 		FIRMWARE_PRODUCT="$(REPLAY_PRODUCT)" \
 		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
 		FIRMWARE_VERSION="$(REPLAY_VERSION)" \
@@ -359,7 +496,7 @@ __deterministic-replay:
 	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" \
 		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
 		make --no-print-directory validate-firmware-strict V="$(V)" \
-		FIRMWARE_BOARD="$(REPLAY_BOARD)" \
+		FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
 		FIRMWARE_PRODUCT="$(REPLAY_PRODUCT)" \
 		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
 		FIRMWARE_VERSION="$(REPLAY_VERSION)" \
@@ -446,7 +583,7 @@ buildbox-firmware-build:
 __buildbox-firmware-build:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-build V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
-	@printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)"
+	@printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)"
 
 .PHONY: buildbox-o6
 buildbox-o6: buildbox-firmware-build
@@ -516,4 +653,5 @@ buildbox-metadata:
 	$(Q)$(LOCKED_MAKE) __buildbox-metadata V="$(V)"
 
 __buildbox-metadata:
-	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory -C src print-build-metadata V="$(V)"
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory -C src print-build-metadata V="$(V)" \
+		$(SRC_COMMON_ARGS)
