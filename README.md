@@ -192,32 +192,39 @@ into the build container automatically. If you want to stage those helper
 files somewhere else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
 `EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper.
 
-For the common case, you can drive the same exact-replay flow from the
-top-level Makefile instead:
+For the common qualification/replay flow, you can drive the same process from
+the top-level Makefile instead:
 
 ```bash
 make deterministic-replay \
   REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
 ```
 
-That target defaults to `FIRMWARE_BOARD=O6` and `FIRMWARE_DISTRO=bookworm`, seeds
-or reuses a cached replay-input directory under
-`.buildbox/replay/<profile>/`, rebuilds in the matching buildbox image, and
-then runs strict validation against the checked-in exact replay profile.
+That target defaults to `FIRMWARE_BOARD=O6` and
+`FIRMWARE_DISTRO=bookworm`, seeds or reuses a cached replay-input directory
+under `.buildbox/replay/<profile>/`, rebuilds in the matching buildbox image,
+and then runs strict validation against the checked-in replay profile. When the
+input is the published `1.2.1` release plus its extracted cert bundle, this is
+the qualification path that proves the Bookworm build can still reproduce the
+published payloads byte-for-byte.
 
-You can switch to the validated Trixie replay family with:
-
-```bash
-make deterministic-replay \
-  FIRMWARE_DISTRO=trixie \
-  REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
-```
+You can also switch to `FIRMWARE_DISTRO=trixie` when you want a same-input
+Trixie replay. In that mode the goal is matching `amd64` and `arm64` outputs
+against the same cert bundle and injected timestamps, not comparison with a
+published upstream release.
 
 If you already populated `.buildbox/replay/<profile>/` once, later reruns can
 omit `REPLAY_INPUT=...` and will reuse the cached `replay.env` plus cert
 bundle. When the replay input is only `cix_flash_all.bin`, also pass
 `REPLAY_BUILD_OPTIONS=/path/to/BuildOptions` when available so the helper can
 recover `BUILD_DATE`.
+
+Without explicit replay inputs, both `ARTEFACT_MODE=custom` and ordinary
+`ARTEFACT_MODE=upstream` builds resolve `SOURCE_COMMIT_HASH`,
+`SOURCE_DATE_EPOCH`, `PM_CONFIG_SOURCE_DATE_EPOCH`, and `BUILD_DATE` from the
+mapped upstream source commit in Git history. On the custom path, that keeps
+the displayed build metadata tied to the upstream tag or commit being built
+rather than the local overlay commit.
 
 Despite the retained filename, the local helper scripts prefer `podman` on
 Linux and `docker` on macOS, then fall back to the other runtime if needed.
@@ -279,34 +286,40 @@ make -C src host-cix-package-tool
 That source build depends on the normal OpenSSL development headers, so the
 host dependency bootstrap now includes `libssl-dev`.
 
-If you are specifically trying to recreate the published vendor release
-payloads byte-for-byte, the validated exact replay profiles are:
+If you are specifically qualifying reproducibility, the checked-in validation
+profiles serve two different purposes:
 
 - `upstream-o6-1.2.1-bookworm`
+  - qualification profile for the published `1.2.1` release
+  - expected to match only when the build reuses the extracted release cert
+    bundle and the corresponding replay timestamps
 - `upstream-o6-1.2.1-trixie`
+  - same-input Trixie reproducibility profile
+  - used to confirm matching `amd64` and `arm64` Trixie builds on
+    `main-monorepo`
+  - not a published upstream-release baseline
 
-Both profiles are confirmed on `amd64` and native `arm64` when the extracted
-cert bundle is reused. Freshly generated certs are compatible but not
-byte-identical because they inherently carry signing-time entropy. On `arm64`
-/ `aarch64`, you can still force the amd64 replay path with
-`BUILDBOX_PLATFORM=linux/amd64` or `EDK2_CIX_BUILDBOX_PLATFORM=linux/amd64`
-once your container runtime has x86_64 emulation configured.
+Freshly generated certs are compatible but not byte-identical because they
+inherently carry signing-time entropy. On `arm64` / `aarch64`, you can still
+force the amd64 replay path with `BUILDBOX_PLATFORM=linux/amd64` or
+`EDK2_CIX_BUILDBOX_PLATFORM=linux/amd64` once your container runtime has x86_64
+emulation configured.
 
-To check a build against the stored exact-replay baseline without
-re-running the whole release replay workflow, use:
+To check a build against the stored validation profile without re-running the
+whole replay workflow, use:
 
 ```bash
 make validate-firmware ARTEFACT_MODE=upstream
 ```
 
 That compares the built `O6` outputs against the checked-in
-`upstream-o6-1.2.1-bookworm` profile under
+`upstream-o6-1.2.1-bookworm` qualification profile under
 [validation/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/expected-hashes.json)
 and writes a structural report under `build-validation/`.
 
-The same file also carries an exact `upstream-o6-1.2.1-trixie` profile,
-generated from an amd64 Trixie build of upstream `main` and intended for
-matching amd64 or arm64 Trixie replays on `main-monorepo`:
+The same file also carries the `upstream-o6-1.2.1-trixie` reproducibility
+profile, intended for matching amd64 or arm64 Trixie replays on
+`main-monorepo` when they reuse the same cert bundle and replay timestamps:
 
 ```bash
 make validate-firmware \
@@ -322,10 +335,13 @@ make capture-validation-profile \
   FIRMWARE_VALIDATION_PROFILE=<new-profile-name>
 ```
 
-When you use the top-level `firmware-build`, `firmware-stage`, `zip`, or
-`targz` targets with `ARTEFACT_MODE=upstream`, that validation now runs
-automatically and emits a loud warning if the local artefacts drift away from
-the active exact replay profile.
+Ordinary `ARTEFACT_MODE=upstream` builds with freshly generated certs or
+non-replay timestamps are not expected to match either stored profile.
+Top-level `firmware-build`, `firmware-stage`, `zip`, and `targz` therefore no
+longer run validation automatically by default. Use `make validate-firmware`,
+`make validate-firmware-strict`, or `make deterministic-replay` explicitly when
+you want qualification checks, or set `FIRMWARE_VALIDATE_ON_BUILD=true` to
+restore the advisory post-build validation step.
 
 If you do not want a Debian package, the local Makefile extensions now provide
 several direct payload targets based on the same `O6` files that the `.deb`

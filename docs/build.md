@@ -226,13 +226,21 @@ usable Git checkout just to resolve metadata. That keeps copied trees and
 containerized replay wrappers quiet and deterministic instead of probing a
 host-side worktree that may not exist inside the container.
 
+Without those explicit replay inputs, both `ARTEFACT_MODE=custom` and ordinary
+`ARTEFACT_MODE=upstream` builds resolve `SOURCE_COMMIT_HASH`,
+`SOURCE_DATE_EPOCH`, `PM_CONFIG_SOURCE_DATE_EPOCH`, and `BUILD_DATE` from the
+mapped upstream source commit in Git history. On the custom path, that keeps
+the displayed build metadata tied to the upstream tag or commit being built
+rather than the local overlay commit.
+
 It also writes:
 
 - `replay.env`
 - `rebuild-o6.sh`
 - `rebuild-o6-docker.sh`
 
-For the common exact-replay workflow, the top-level Makefile now wraps this as:
+For the common qualification or replay workflow, the top-level Makefile wraps
+this as:
 
 ```bash
 make deterministic-replay \
@@ -250,14 +258,13 @@ and then:
 - seeds or reuses `.buildbox/replay/<profile>/`
 - rebuilds with `ARTEFACT_MODE=upstream`
 - runs `validate-firmware-strict` against the matching checked-in profile
+- when the input is the published `1.2.1` release plus the extracted release
+  cert bundle, qualifies the Bookworm path against the published release data
 
-To replay the validated Trixie family instead, run:
-
-```bash
-make deterministic-replay \
-  FIRMWARE_DISTRO=trixie \
-  REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
-```
+You can also switch to `FIRMWARE_DISTRO=trixie` when you want a same-input
+Trixie replay. In that mode the goal is matching `amd64` and `arm64` outputs
+against the same cert bundle and injected timestamps, not comparison with a
+published upstream release.
 
 If you already prepared `.buildbox/replay/<profile>/` once, later reruns can
 omit `REPLAY_INPUT=...` and will reuse the cached `replay.env` plus cert
@@ -423,10 +430,11 @@ source in-tree, and the flash-image packaging step uses the source
 `cix_package_tool` implementation too. The maintained helper sources now live
 under `src/tools/`.
 
-If you reuse existing cert blobs, native arm64 reproduces the checked-in exact
-replay baselines byte-for-byte on both Bookworm and Trixie. Freshly generated
-certs are compatible but not byte-identical, because they inherently carry
-signing-time entropy.
+If you reuse existing cert blobs, native arm64 reproduces the checked-in
+Bookworm qualification profile byte-for-byte and can also match the checked-in
+Trixie same-input reproducibility profile. Freshly generated certs are
+compatible but not byte-identical, because they inherently carry signing-time
+entropy.
 
 So:
 
@@ -444,20 +452,25 @@ So:
 - the dependency bootstrap now includes `libssl-dev`, because the source-built
   `fiptool` needs the OpenSSL development headers
 
-To compare a local build against the checked-in exact-replay baseline, run:
+To compare a local build against a checked-in validation profile, run:
 
 ```bash
 make validate-firmware ARTEFACT_MODE=upstream
 ```
 
-That loads the `upstream-o6-1.2.1-bookworm` profile from
+That loads the `upstream-o6-1.2.1-bookworm` qualification profile from
 [validation/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/expected-hashes.json),
 checks the key shipped artefacts plus a few structural markers from the EFI
 utility binaries, and writes a JSON report under `build-validation/`.
 
-The same file also carries an exact `upstream-o6-1.2.1-trixie` profile,
-generated from an amd64 Trixie build of upstream `main` and intended for
-matching amd64 or arm64 Trixie replays on `main-monorepo`:
+The same file also carries the `upstream-o6-1.2.1-trixie` reproducibility
+profile, intended for matching amd64 or arm64 Trixie replays on
+`main-monorepo` when they reuse the same cert bundle and replay timestamps:
+
+The profile name refers to the Trixie distro/toolchain family used for the
+build. The cert bundle reused by that profile currently still comes from the
+published Bookworm release, because that is the only upstream cert source we
+have today.
 
 ```bash
 make validate-firmware \
@@ -473,10 +486,13 @@ make capture-validation-profile \
   FIRMWARE_VALIDATION_PROFILE=<new-profile-name>
 ```
 
-The top-level `firmware-build`, `firmware-stage`, `zip`, and `targz` targets
-now run that validation automatically when `ARTEFACT_MODE=upstream`, so a
-local build that drifts away from the active exact replay profile emits a
-very obvious warning even if the build itself completed successfully.
+Ordinary `ARTEFACT_MODE=upstream` builds with freshly generated certs or
+non-replay timestamps are not expected to match either stored profile. The
+top-level `firmware-build`, `firmware-stage`, `zip`, and `targz` targets
+therefore skip validation by default. Use `make validate-firmware`,
+`make validate-firmware-strict`, or `make deterministic-replay` explicitly when
+you want qualification checks, or set `FIRMWARE_VALIDATE_ON_BUILD=true` to
+restore the advisory post-build validation step.
 
 The vendor `cix_package_tool` still writes ANSI colour escapes even when it is
 not attached to a terminal and even when `NO_COLOR`, `CLICOLOR=0`, and
