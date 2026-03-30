@@ -23,6 +23,10 @@ EDK2_META_RE = re.compile(
 )
 PLATFORMCONFIG_DEFAULT_RE = re.compile(r"PlatformConfigHii\.i\(\d+\): WARNING: default")
 PLATFORMCONFIG_CONTINUATION_RE = re.compile(r"^\s*: default value re-defined")
+RWX_WARNING_RE = re.compile(r"LOAD segment with RWX permissions")
+LTO_SERIAL_WARNING_RE = re.compile(r"^lto-wrapper: warning: using serial compilation")
+LTO_SERIAL_NOTE_RE = re.compile(r"^lto-wrapper: note: see the .-flto. option documentation")
+VFR_AMBIGUITY_RE = re.compile(r"^VfrSyntax\.g, line \d+: warning: alts \d+ and \d+ of \{\.\.\} ambiguous upon ")
 
 ARTEFACT_MODE = os.environ.get("ARTEFACT_MODE", "custom")
 
@@ -106,6 +110,13 @@ def main() -> int:
 
         if ARTEFACT_MODE == "upstream" and PLATFORMCONFIG_DEFAULT_RE.search(line):
             suppress_platformconfig_continuation = True
+            continue
+        if ARTEFACT_MODE == "upstream" and (
+            RWX_WARNING_RE.search(line)
+            or LTO_SERIAL_WARNING_RE.search(line)
+            or LTO_SERIAL_NOTE_RE.search(line)
+            or VFR_AMBIGUITY_RE.search(line)
+        ):
             continue
 
         if should_drop_line(line):
