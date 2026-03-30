@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import os
 import pathlib
 import re
 import sys
@@ -124,10 +125,17 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     lines = args.log_file.read_text(encoding="utf-8", errors="replace").splitlines()
+    artefact_mode = os.environ.get("ARTEFACT_MODE", "custom")
 
     matched_indices: set[int] = set()
     classified: list[tuple[WarningClass, list[tuple[int, str]]]] = []
     for warning_class in WARNING_CLASSES:
+        if (
+            artefact_mode == "upstream"
+            and warning_class.key == "platformconfig_duplicate_default"
+        ):
+            classified.append((warning_class, []))
+            continue
         hits = [
             (index, line.rstrip())
             for index, line in enumerate(lines)
