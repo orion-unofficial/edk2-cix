@@ -364,7 +364,8 @@ preflight-build-metadata:
 .PHONY: prepare-basetools-c
 prepare-basetools-c:
 	@$(ENSURE_REPO_LOCK)
-	@mkdir -p "$(BASETOOLS_C_BIN_DIR)"
+	@set -euo pipefail; \
+	mkdir -p "$(BASETOOLS_C_BIN_DIR)"; \
 	current_env_id="$$( \
 		{ source /etc/os-release >/dev/null 2>&1 && true; } || true; \
 		printf 'arch=%s;os=%s;version=%s;cc=%s;ldd=%s\n' \
@@ -373,31 +374,31 @@ prepare-basetools-c:
 			"$${VERSION_ID:-unknown}" \
 			"$$(cc --version 2>/dev/null | sed -n '1p' || echo unavailable)" \
 			"$$(ldd --version 2>/dev/null | sed -n '1p' || echo unavailable)"; \
-	)"
-	rebuild=0
-	if [[ ! -f "$(BASETOOLS_C_MARKER)" ]]; then
-		rebuild=1
-	elif ! grep -qxF "$$current_env_id" "$(BASETOOLS_C_MARKER)"; then
-		rebuild=1
-	fi
-	for tool in $(BASETOOLS_C_REQUIRED_TOOLS); do
-		if [[ ! -x "$(BASETOOLS_C_BIN_DIR)/$$tool" ]]; then
-			rebuild=1
-			break
-		fi
-	done
-	if [[ "$$rebuild" -eq 1 ]]; then
-		printf '[build] Rebuilding BaseTools C binaries for %s\n' "$$current_env_id"
-		printf '[build] Cleaning stale BaseTools C objects and dependency files\n'
-		$(MAKE) -C edk2/BaseTools V="$(V)" clean
-		if [[ "$(V)" == "1" ]]; then
-			$(MAKE) -C edk2/BaseTools -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C
-		else
+	)"; \
+	rebuild=0; \
+	if [[ ! -f "$(BASETOOLS_C_MARKER)" ]]; then \
+		rebuild=1; \
+	elif ! grep -qxF "$$current_env_id" "$(BASETOOLS_C_MARKER)"; then \
+		rebuild=1; \
+	fi; \
+	for tool in $(BASETOOLS_C_REQUIRED_TOOLS); do \
+		if [[ ! -x "$(BASETOOLS_C_BIN_DIR)/$$tool" ]]; then \
+			rebuild=1; \
+			break; \
+		fi; \
+	done; \
+	if [[ "$$rebuild" -eq 1 ]]; then \
+		printf '[build] Rebuilding BaseTools C binaries for %s\n' "$$current_env_id"; \
+		printf '[build] Cleaning stale BaseTools C objects and dependency files\n'; \
+		$(MAKE) -C edk2/BaseTools V="$(V)" clean; \
+		if [[ "$(V)" == "1" ]]; then \
+			$(MAKE) -C edk2/BaseTools -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C; \
+		else \
 			$(MAKE) -C edk2/BaseTools -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C 2>&1 | \
 				ARTEFACT_MODE="$(ARTEFACT_MODE)" \
-				python3 "$(EDK2_BUILD_OUTPUT_FILTER)"
-		fi
-		printf '%s\n' "$$current_env_id" > "$(BASETOOLS_C_MARKER)"
+				python3 "$(EDK2_BUILD_OUTPUT_FILTER)"; \
+		fi; \
+		printf '%s\n' "$$current_env_id" > "$(BASETOOLS_C_MARKER)"; \
 	fi
 
 .PHONY: preflight preflight-% preflight-inputs
@@ -809,43 +810,44 @@ Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt: | $(TRUSTED_KEY_CERT_TOOL_
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
 Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | preflight-% $(CUSTOM_EDK2_ORDER_ONLY_PREREQS)
 	@$(ENSURE_REPO_LOCK)
-	@$(MAKE) prepare-basetools-c
-	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then
-		export WORKSPACE="$(CUSTOM_EDK2_WORKSPACE)"
-		export PACKAGES_PATH="$(EDK2_PACKAGES_PATH)"
-		mkdir -p "$$WORKSPACE"
-		rm -rf "$$WORKSPACE/Build/$*" "$$WORKSPACE/Conf"
-		export EDK_TOOLS_PATH="$(abspath edk2/BaseTools)"
-	else
-		export WORKSPACE="$(shell pwd)"
-		export PACKAGES_PATH="$(IMPORTED_EDK2_PACKAGES_PATH)"
-	fi
-	export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_PREFIX)"
-	if command -v iasl >/dev/null 2>&1; then
-		export IASL_PREFIX="$$(dirname "$$(command -v iasl)")/"
-	fi
-	unset MAKEFLAGS
-	if [[ "$(V)" == "1" ]]; then
-		source edk2/edksetup.sh --reconfig
-	else
-		edksetup_log="$$(mktemp "$${TMPDIR:-/tmp}/edk2-cix-edksetup.XXXXXX")"
-		if ! source edk2/edksetup.sh --reconfig >"$$edksetup_log" 2>&1; then
-			cat "$$edksetup_log" >&2
-			rm -f "$$edksetup_log"
-			exit 1
-		fi
-		rm -f "$$edksetup_log"
-	fi
-	build_extra_defines=()
-	tool_def_overrides=()
-	tools_def_file="$${CONF_PATH:-edk2/Conf}/tools_def.txt"
-	lto_flag='-flto=auto'
-	rwx_warning_flag=''
-	if [[ ! -f "$$tools_def_file" ]]; then
-		echo "[build/$*] Expected EDK2 tools configuration $$tools_def_file was not produced" >&2
-		exit 1
-	fi
-	if [[ "$(UEFI_TARGET)" == "RELEASE" ]]; then
+	$(MAKE) prepare-basetools-c
+	@set -euo pipefail; \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
+		export WORKSPACE="$(CUSTOM_EDK2_WORKSPACE)"; \
+		export PACKAGES_PATH="$(EDK2_PACKAGES_PATH)"; \
+		mkdir -p "$$WORKSPACE"; \
+		rm -rf "$$WORKSPACE/Build/$*" "$$WORKSPACE/Conf"; \
+		export EDK_TOOLS_PATH="$(abspath edk2/BaseTools)"; \
+	else \
+		export WORKSPACE="$(shell pwd)"; \
+		export PACKAGES_PATH="$(IMPORTED_EDK2_PACKAGES_PATH)"; \
+	fi; \
+	export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_PREFIX)"; \
+	if command -v iasl >/dev/null 2>&1; then \
+		export IASL_PREFIX="$$(dirname "$$(command -v iasl)")/"; \
+	fi; \
+	unset MAKEFLAGS; \
+	if [[ "$(V)" == "1" ]]; then \
+		source edk2/edksetup.sh --reconfig; \
+	else \
+		edksetup_log="$$(mktemp "$${TMPDIR:-/tmp}/edk2-cix-edksetup.XXXXXX")"; \
+		if ! source edk2/edksetup.sh --reconfig >"$$edksetup_log" 2>&1; then \
+			cat "$$edksetup_log" >&2; \
+			rm -f "$$edksetup_log"; \
+			exit 1; \
+		fi; \
+		rm -f "$$edksetup_log"; \
+	fi; \
+	build_extra_defines=(); \
+	tool_def_overrides=(); \
+	tools_def_file="$${CONF_PATH:-edk2/Conf}/tools_def.txt"; \
+	lto_flag='-flto=auto'; \
+	rwx_warning_flag=''; \
+	if [[ ! -f "$$tools_def_file" ]]; then \
+		echo "[build/$*] Expected EDK2 tools configuration $$tools_def_file was not produced" >&2; \
+		exit 1; \
+	fi; \
+	if [[ "$(UEFI_TARGET)" == "RELEASE" ]]; then \
 		case "$(ARTEFACT_MODE)" in \
 			custom) \
 				tool_def_overrides+=('RELEASE_*_*_GENFW_FLAGS          = --zero'); \
@@ -857,30 +859,30 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 				echo "Unsupported ARTEFACT_MODE=$(ARTEFACT_MODE); expected custom or upstream" >&2; \
 				exit 1; \
 				;; \
-		esac
-	fi
-	if [[ "$(V)" != "1" ]]; then
-		tool_def_overrides+=(
-			'  DEBUG_GCC5_AARCH64_ASL_FLAGS   = -vr -vs'
-			'RELEASE_GCC5_AARCH64_ASL_FLAGS   = -vr -vs'
-		)
-		rwx_warning_flag=' -Wl,--no-warn-rwx-segments'
-	fi
-	tool_def_overrides+=(
-		"  DEBUG_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable"
-		"  DEBUG_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag"
-		"RELEASE_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable"
-		"RELEASE_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag"
-	)
-	printf '\n%s\n' "$${tool_def_overrides[@]}" >> "$$tools_def_file"
-	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_ON_UART3_NORMALIZED)" ]]; then
-		build_extra_defines+=(-D DEBUG_ON_UART3=$(DEBUG_ON_UART3_NORMALIZED))
-	fi
-	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_PRINT_ERROR_LEVEL)" ]]; then
-		build_extra_defines+=(-D DEBUG_PRINT_ERROR_LEVEL=$(DEBUG_PRINT_ERROR_LEVEL))
-	fi
-	run_edk2_build() {
-		export EDK2_CIX_QUIET_PREBUILD="$(if $(filter 1,$(V)),0,1)"
+		esac; \
+	fi; \
+	if [[ "$(V)" != "1" ]]; then \
+		tool_def_overrides+=( \
+			'  DEBUG_GCC5_AARCH64_ASL_FLAGS   = -vr -vs' \
+			'RELEASE_GCC5_AARCH64_ASL_FLAGS   = -vr -vs' \
+		); \
+		rwx_warning_flag=' -Wl,--no-warn-rwx-segments'; \
+	fi; \
+	tool_def_overrides+=( \
+		"  DEBUG_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
+		"  DEBUG_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
+		"RELEASE_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
+		"RELEASE_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
+	); \
+	printf '\n%s\n' "$${tool_def_overrides[@]}" >> "$$tools_def_file"; \
+	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_ON_UART3_NORMALIZED)" ]]; then \
+		build_extra_defines+=(-D DEBUG_ON_UART3=$(DEBUG_ON_UART3_NORMALIZED)); \
+	fi; \
+	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_PRINT_ERROR_LEVEL)" ]]; then \
+		build_extra_defines+=(-D DEBUG_PRINT_ERROR_LEVEL=$(DEBUG_PRINT_ERROR_LEVEL)); \
+	fi; \
+	run_edk2_build() { \
+		export EDK2_CIX_QUIET_PREBUILD="$(if $(filter 1,$(V)),0,1)"; \
 		build -a AARCH64 -t GCC5 -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
 			$(if $(strip $(EDK2_BUILD_JOBS)),-n $(EDK2_BUILD_JOBS)) \
 			$(EDK2_GENFDS_MULTI_THREAD_FLAG) \
@@ -892,25 +894,25 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 			-D EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH) \
 			-D EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH) \
 			-D EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH) \
-			-D DEB_VERSION=$(DEB_VERSION)
-	}
-	if [[ "$(V)" == "1" ]]; then
-		run_edk2_build
-	else
-		run_edk2_build 2>&1 | ARTEFACT_MODE="$(ARTEFACT_MODE)" python3 "$(EDK2_BUILD_OUTPUT_FILTER)"
-	fi
-	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then
-		if [[ ! -d "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5" ]]; then
-			echo "[build/$*] Expected custom workspace output $$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5 was not produced" >&2
-			exit 1
-		fi
-		mkdir -p "Build/$*"
-		rm -rf "Build/$*/$(UEFI_TARGET)_GCC5"
-		cp -a "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5" "Build/$*/"
-	fi
-	if [[ ! -s "$@" ]]; then
-		echo "[build/$*] Expected firmware image $@ was not produced" >&2
-		exit 1
+			-D DEB_VERSION=$(DEB_VERSION); \
+	}; \
+	if [[ "$(V)" == "1" ]]; then \
+		run_edk2_build; \
+	else \
+		run_edk2_build 2>&1 | ARTEFACT_MODE="$(ARTEFACT_MODE)" python3 "$(EDK2_BUILD_OUTPUT_FILTER)"; \
+	fi; \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
+		if [[ ! -d "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5" ]]; then \
+			echo "[build/$*] Expected custom workspace output $$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5 was not produced" >&2; \
+			exit 1; \
+		fi; \
+		mkdir -p "Build/$*"; \
+		rm -rf "Build/$*/$(UEFI_TARGET)_GCC5"; \
+		cp -a "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5" "Build/$*/"; \
+	fi; \
+	if [[ ! -s "$@" ]]; then \
+		echo "[build/$*] Expected firmware image $@ was not produced" >&2; \
+		exit 1; \
 	fi
 
 .PHONY: refresh-microsoft-secure-boot-defaults check-microsoft-secure-boot-defaults check-microsoft-secure-boot-release
