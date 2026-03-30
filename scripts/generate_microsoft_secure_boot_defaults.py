@@ -23,10 +23,11 @@ DEFAULT_INPUT_DIR = (
     / "overlay"
     / "edk2-platforms"
     / "Platform"
+    / "Radxa"
+    / "Platforms"
     / "CIX"
     / "Sky1"
-    / "Drivers"
-    / "SecureBootDxe"
+    / "SecureBootDefaults"
     / "Microsoft"
     / "Inputs"
 )
