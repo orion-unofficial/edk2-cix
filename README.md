@@ -22,11 +22,14 @@ or any IDE integration.
 On a supported Debian host:
 
 - `x86_64`: prefer Debian `bookworm`
-- `arm64` / `aarch64`: use Debian `trixie`
+- `arm64` / `aarch64` on `main-monorepo`: use Debian `bookworm` by default,
+  or Debian `trixie` when you want the newer distro/toolchain family
 
-For exact upstream replay on `arm64` / `aarch64`, Debian `bookworm` is also
-confirmed when you reuse the extracted cert bundle instead of generating fresh
-vendor cert artefacts locally.
+The untouched upstream repo contents still need Debian `trixie` for native
+`arm64` / `aarch64` builds because they shipped closed-source helper binaries.
+`main-monorepo` replaces those helpers with source implementations, so native
+`arm64` / `aarch64` builds can now use the same default Debian `bookworm` base
+as `x86_64` builds.
 
 To install the required host packages directly on the machine, run:
 
@@ -70,12 +73,18 @@ If the preferred runtime is installed but not usable, they automatically try
 the other one before failing. Set `EDK2_CIX_CONTAINER_RUNTIME=docker` or
 `EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
 
-By default the buildbox now follows the host architecture: `linux/amd64` with
-the Bookworm base image on `x86_64`, and `linux/arm64` with the Trixie base
-image on `arm64` / `aarch64`. Override that with
-`EDK2_CIX_BUILDBOX_PLATFORM`, `EDK2_CIX_BUILDBOX_IMAGE`,
+By default the buildbox now follows the host architecture and uses the
+Bookworm base image on both `x86_64` and `arm64` / `aarch64`. Override that
+with `EDK2_CIX_BUILDBOX_PLATFORM`, `EDK2_CIX_BUILDBOX_IMAGE`,
 `BUILDBOX_PLATFORM=...`, or `BUILDBOX_IMAGE=...` when you need a specific
 container environment.
+
+To select the distro generation explicitly:
+
+- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:bookworm` (or
+  `EDK2_CIX_BUILDBOX_IMAGE=...`) for the default Bookworm environment
+- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:trixie` (or
+  `EDK2_CIX_BUILDBOX_IMAGE=...`) for the Trixie environment
 
 The `buildbox-*` targets keep their host-side scratch space under
 `.buildbox/`, write staged/archive outputs under `dist/`, and copy Debian
@@ -220,10 +229,6 @@ entropy. On `arm64` / `aarch64`, you can still force the amd64 replay path with
 `BUILDBOX_PLATFORM=linux/amd64` or `EDK2_CIX_BUILDBOX_PLATFORM=linux/amd64`
 once your container runtime has x86_64 emulation configured.
 
-`bookworm` and `bookworm-backports` do not currently expose `gcc-13` or
-`gcc-14` for the `aarch64-linux-gnu` cross toolchain in the default Debian
-repositories.
-
 To check a build against the stored exact-replay baseline without
 re-running the whole release replay workflow, use:
 
@@ -236,20 +241,22 @@ That compares the built `O6` outputs against the checked-in
 [validation/o6/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/o6/expected-hashes.json)
 and writes a structural report under `build-validation/`.
 
-For the current Trixie-era local build family, the same file also carries a
-`modern-o6-trixie-structural` profile. That profile checks stable metadata and
-EFI section layout without requiring byte-identical output:
+The same file also carries an exact `upstream-o6-1.2.1-trixie` profile,
+generated from an amd64 Trixie build of upstream `main` and intended for
+matching amd64 or arm64 Trixie replays on `main-monorepo`:
 
 ```bash
-make validate-firmware FIRMWARE_VALIDATION_PROFILE=modern-o6-trixie-structural
+make validate-firmware \
+  ARTEFACT_MODE=upstream \
+  FIRMWARE_VALIDATION_PROFILE=upstream-o6-1.2.1-trixie
 ```
 
 To snapshot the current build into a fresh profile JSON for later review or to
-seed a new validation baseline, use:
+seed a new validation baseline under a profile name you choose, use:
 
 ```bash
 make capture-validation-profile \
-  FIRMWARE_VALIDATION_PROFILE=modern-o6-trixie-structural
+  FIRMWARE_VALIDATION_PROFILE=<new-profile-name>
 ```
 
 When you use the top-level `firmware-build`, `firmware-stage`, `zip`, or
