@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 #python `dirname $0`/RunToolFromSource.py `basename $0` $*
 
-# If a ${PYTHON_COMMAND} command is available, use it in preference to python
-if command -v ${PYTHON_COMMAND} >/dev/null 2>&1; then
+# Prefer an explicit PYTHON_COMMAND, then python3, and only fall back to python.
+if [[ -n "${PYTHON_COMMAND:-}" ]] && command -v "${PYTHON_COMMAND}" >/dev/null 2>&1; then
     python_exe=${PYTHON_COMMAND}
+elif command -v python3 >/dev/null 2>&1; then
+    python_exe=python3
+elif command -v python >/dev/null 2>&1; then
+    python_exe=python
+else
+    echo "Unable to find a usable Python interpreter. Set PYTHON_COMMAND or install python3." >&2
+    exit 127
 fi
 
 full_cmd=${BASH_SOURCE:-$0} # see http://mywiki.wooledge.org/BashFAQ/028 for a discussion of why $0 is not a good choice here
