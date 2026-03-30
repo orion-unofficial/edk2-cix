@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import pathlib
 import shutil
 import subprocess
@@ -197,12 +198,14 @@ def main() -> None:
     args = parse_args()
     repo_root = args.repo_root.resolve()
     version = detect_version(repo_root, args.version)
+    suppress_output = os.environ.get("EDK2_CIX_SUPPRESS_EXPORT_OUTPUT", "0") == "1"
 
     if args.command == "stage":
         destination = stage_payload(
             repo_root, args.board, args.product, args.target, args.output_dir.resolve()
         )
-        print(destination)
+        if not suppress_output:
+            print(destination)
     elif args.command == "install":
         destination = install_payload(
             repo_root,
@@ -212,29 +215,30 @@ def main() -> None:
             args.install_root.resolve(),
             version,
         )
-        print(destination)
+        if not suppress_output:
+            print(destination)
     elif args.command == "zip":
-        print(
-            create_zip(
-                repo_root,
-                args.board,
-                args.product,
-                args.target,
-                args.output.resolve(),
-                version,
-            )
+        destination = create_zip(
+            repo_root,
+            args.board,
+            args.product,
+            args.target,
+            args.output.resolve(),
+            version,
         )
+        if not suppress_output:
+            print(destination)
     elif args.command == "targz":
-        print(
-            create_targz(
-                repo_root,
-                args.board,
-                args.product,
-                args.target,
-                args.output.resolve(),
-                version,
-            )
+        destination = create_targz(
+            repo_root,
+            args.board,
+            args.product,
+            args.target,
+            args.output.resolve(),
+            version,
         )
+        if not suppress_output:
+            print(destination)
 
 
 if __name__ == "__main__":
