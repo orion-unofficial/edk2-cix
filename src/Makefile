@@ -41,6 +41,7 @@ MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= 50f168f
 MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 918cb36f
 ARTEFACT_MODE ?= custom
 CUSTOM_OVERLAY_ROOT ?= $(abspath ../custom/overlay)
+CUSTOM_EDK2_WORKSPACE ?= /tmp/edk2-cix-custom-workspace
 DEBUG_ON_UART3_NORMALIZED_RAW := $(if $(strip $(DEBUG_ON_UART3)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_ON_UART3)" 2>/dev/null || printf '%s' __INVALID__),)
 DEBUG_ON_UART3_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_ON_UART3_NORMALIZED_RAW)),,$(DEBUG_ON_UART3_NORMALIZED_RAW))
 CUSTOM_OVERLAY_PACKAGE_ROOTS := \
@@ -54,6 +55,12 @@ EDK2_PACKAGE_ROOTS := \
 	$(abspath edk2-non-osi) \
 	$(abspath edk2-platforms/Silicon/Intel)
 EDK2_PACKAGES_PATH := $(subst $(SPACE),:,$(strip $(EDK2_PACKAGE_ROOTS)))
+IMPORTED_EDK2_PACKAGE_ROOTS := \
+	$(abspath edk2) \
+	$(abspath edk2-platforms) \
+	$(abspath edk2-non-osi) \
+	$(abspath edk2-platforms/Silicon/Intel)
+IMPORTED_EDK2_PACKAGES_PATH := $(subst $(SPACE),:,$(strip $(IMPORTED_EDK2_PACKAGE_ROOTS)))
 CUSTOM_PLATFORM_SEARCH_ROOTS := \
 	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-platforms/Platform) \
 	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-non-osi/Platform)
@@ -116,6 +123,29 @@ CERT_UEFI_CREATE_RSA_SOURCE_INPUTS := \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/Makefile \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/cert_uefi_create_rsa.c
 CERT_VALIDATOR := scripts/validate_cix_fip_certs.py
+MICROSOFT_SECURE_BOOT_OUTPUT_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/SecureBootDxe/Microsoft)
+MICROSOFT_SECURE_BOOT_MANIFEST := $(MICROSOFT_SECURE_BOOT_OUTPUT_DIR)/manifest.lock.json
+MICROSOFT_SECURE_BOOT_RELEASE_CHECK_MODE ?= warn
+MICROSOFT_SECURE_BOOT_PAYLOADS := \
+	$(MICROSOFT_SECURE_BOOT_OUTPUT_DIR)/PK.bin \
+	$(MICROSOFT_SECURE_BOOT_OUTPUT_DIR)/KEK.bin \
+	$(MICROSOFT_SECURE_BOOT_OUTPUT_DIR)/DB.bin \
+	$(MICROSOFT_SECURE_BOOT_OUTPUT_DIR)/DBX.bin
+CUSTOM_EDK2_OVERLAY_SOURCES := \
+	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
+	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Define.dsc.inc) \
+	$(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/tool/python3/ParseIomuxTemplate.py) \
+	$(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/tool/python3/pads-sky1.m4) \
+	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
+	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
+	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
+	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
+	$(abspath ../custom/overlay/edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/SecureBootVariableProvisionLib.c) \
+	$(abspath ../custom/overlay/edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/SecureBootVariableProvisionLib.inf)
+CUSTOM_EDK2_BUILD_INPUTS := \
+	$(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_EDK2_OVERLAY_SOURCES) $(MICROSOFT_SECURE_BOOT_PAYLOADS))
+CUSTOM_EDK2_ORDER_ONLY_PREREQS := \
+	$(if $(filter custom,$(ARTEFACT_MODE)),refresh-microsoft-secure-boot-defaults check-microsoft-secure-boot-release)
 HOST_TOOLS_DIR := Build/HostTools
 CIX_PACKAGE_TOOL_SOURCE_DIR := $(TOOLS_DIR)/cix_package_tool
 CIX_PACKAGE_TOOL_BIN := $(HOST_TOOLS_DIR)/cix_package_tool
@@ -766,11 +796,19 @@ Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt: | $(TRUSTED_KEY_CERT_TOOL_
 	esac
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
-Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: | preflight-%
+Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | preflight-% $(CUSTOM_EDK2_ORDER_ONLY_PREREQS)
 	@$(ENSURE_REPO_LOCK)
 	@$(MAKE) prepare-basetools-c
-	export WORKSPACE="$(shell pwd)"
-	export PACKAGES_PATH="$(EDK2_PACKAGES_PATH)"
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then
+		export WORKSPACE="$(CUSTOM_EDK2_WORKSPACE)"
+		export PACKAGES_PATH="$(EDK2_PACKAGES_PATH)"
+		mkdir -p "$$WORKSPACE"
+		rm -rf "$$WORKSPACE/Build/$*" "$$WORKSPACE/Conf"
+		export EDK_TOOLS_PATH="$(abspath edk2/BaseTools)"
+	else
+		export WORKSPACE="$(shell pwd)"
+		export PACKAGES_PATH="$(IMPORTED_EDK2_PACKAGES_PATH)"
+	fi
 	export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_PREFIX)"
 	if command -v iasl >/dev/null 2>&1; then
 		export IASL_PREFIX="$$(dirname "$$(command -v iasl)")/"
@@ -828,10 +866,42 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: | preflight-%
 	else
 		run_edk2_build 2>&1 | ARTEFACT_MODE="$(ARTEFACT_MODE)" python3 "$(EDK2_BUILD_OUTPUT_FILTER)"
 	fi
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then
+		if [[ ! -d "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5" ]]; then
+			echo "[build/$*] Expected custom workspace output $$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5 was not produced" >&2
+			exit 1
+		fi
+		mkdir -p "Build/$*"
+		rm -rf "Build/$*/$(UEFI_TARGET)_GCC5"
+		cp -a "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5" "Build/$*/"
+	fi
 	if [[ ! -s "$@" ]]; then
 		echo "[build/$*] Expected firmware image $@ was not produced" >&2
 		exit 1
 	fi
+
+.PHONY: refresh-microsoft-secure-boot-defaults check-microsoft-secure-boot-defaults check-microsoft-secure-boot-release
+refresh-microsoft-secure-boot-defaults:
+	@python3 ../scripts/generate_microsoft_secure_boot_defaults.py >/dev/null
+
+check-microsoft-secure-boot-defaults:
+	@python3 ../scripts/generate_microsoft_secure_boot_defaults.py --check
+
+check-microsoft-secure-boot-release:
+	@python3 ../scripts/check_microsoft_secure_boot_release.py \
+		--mode "$(MICROSOFT_SECURE_BOOT_RELEASE_CHECK_MODE)"
+
+.PHONY: validate-secure-boot-defaults validate-secure-boot-defaults-%
+validate-secure-boot-defaults: $(foreach board,$(FIRMWARE_BOARDS),validate-secure-boot-defaults-$(board))
+
+validate-secure-boot-defaults-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
+	@python3 ../scripts/validate_secure_boot_defaults.py \
+		--repo-root "$(abspath ..)" \
+		--board "$*" \
+		--target "$(UEFI_TARGET)_GCC5"
+
+$(MICROSOFT_SECURE_BOOT_PAYLOADS): ../scripts/generate_microsoft_secure_boot_defaults.py $(MICROSOFT_SECURE_BOOT_MANIFEST)
+	@python3 ../scripts/generate_microsoft_secure_boot_defaults.py >/dev/null
 
 .PHONY: clean __clean
 clean:
@@ -841,6 +911,7 @@ clean:
 __clean:
 	printf '[clean] Removing build output\n'
 	rm -rf Build
+	rm -rf "$(CUSTOM_EDK2_WORKSPACE)"
 	printf '[clean] Removing host-built helper tools\n'
 	rm -rf "$(FIPTOOL_SOURCE_DIR)/build"
 	rm -f "$(TRUSTED_KEY_CERT_TOOL_BIN)" "$(CERT_UEFI_CREATE_RSA_BIN)" "$(CIX_PACKAGE_TOOL_BIN)"
