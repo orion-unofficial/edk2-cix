@@ -9,7 +9,7 @@
     mdbook
     mdbook-admonish
     mdbook-cmdrun
-    mdbook-linkcheck
+    mdbook-linkcheck2
     mdbook-toc
     ncurses
   ];
