@@ -3,7 +3,7 @@
 # Custom rules should be placed in .github/local/Makefile.local
 
 TOP_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
-REPO_ROOT ?= $(patsubst %/,%,$(dir $(TOP_MAKEFILE)))
+REPO_ROOT ?= $(patsubst %/,%,$(abspath $(dir $(TOP_MAKEFILE))/../..))
 
 -include $(REPO_ROOT)/.github/local/Makefile.local
 -include $(REPO_ROOT)/Makefile.extra
