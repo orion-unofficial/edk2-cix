@@ -10,38 +10,54 @@ CIX P1 edk2 code is base on as follows:
 - [edk2-platforms](https://github.com/tianocore/edk2-platforms): `8ea6ec38da8812f0703e8845fe639b8845704f96`
 
 # How to build (X86 & ARM64 Linux Environment)
-  1. Install Arm GNU Toolchain on X86 machines.
-    Download AArch64 bare-metal target (aarch64-none-elf) for x86_64 Linux hosted cross toolchains from https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads. The verified version is 10.2-2020.11
 
-  2. Config your GCC tool in build_and_package.sh
-    For Example:
+This repo no longer uses the legacy upstream `build_and_package.sh` wrapper.
+Build from the repo root with the supported top-level `make` targets instead.
 
-    For x86_64 Linux hosted cross toolchains
+  1. Install host dependencies.
 
-    $ export ARM_TOOLCHAIN_ELF="gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf"
+    For a direct host build:
 
-    For aarch64 Linux hosted cross toolchains
+    ```bash
+    make firmware_build_dep
+    ```
 
-    $ export ARM_TOOLCHAIN_ELF="gcc-arm-10.3-2021.07-aarch64-aarch64-none-elf"
+    For the fuller packaging-capable dependency set:
 
-  3. Install ACPI Tool
+    ```bash
+    make devcontainer_setup
+    ```
+
+  2. Install the ACPI tool.
+
     Install `iasl` on the host and ensure it is in `PATH`.
 
-  4. Config your ACPI tool in build_and_package.sh
-    For Example:
+  3. Build the firmware.
 
-    $ export IASL_PREFIX="$(dirname "$(command -v iasl)")/"
+    ```bash
+    make firmware-build
+    ```
 
-  5. Config your edk2 submodule update method in build_and_package.sh
+    This produces the raw build artefacts under `src/Build/O6/RELEASE_GCC5/`,
+    including `cix_flash_all.bin` and `FV/SKY1_BL33_UEFI.fd`.
 
-  6. Create symbolic link for build_and_package.sh and run it
-    For Example:
+  4. If you want the deployable payload layout used by the package, stage it.
 
-    $ cd $YOUR_WORKSPACE
-    $ ln -s edk2-non-osi/Platform/CIX/Sky1/PackageTool/build_and_package.sh build_and_package.sh
-    $ ./build_and_package.sh
+    ```bash
+    make firmware-stage
+    ```
 
-  7. Found "cix_flash_all.bin" and "SKY1_BL33_UEFI.fd" in output folder
+    This writes the staged payload under `dist/firmware/orion-o6/<version>/`.
+
+  5. Optional: override the cross-toolchain prefix if you need the old pinned
+     Arm bare-metal toolchain layout.
+
+    For example:
+
+    ```bash
+    make firmware-build \
+      GCC5_AARCH64_PREFIX=/path/to/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf/bin/aarch64-none-elf-
+    ```
 
 # How to Flash Firmware
   1. Use SPI Flash Programmer(like DediProg SF100) by flash file "cix_flash_all.bin"
