@@ -1,10 +1,12 @@
 [book]
 authors = ["Radxa Limited"]
+description = ""
 language = "en"
 src = "docs"
+text-direction = "ltr"
 title = "edk2-cix"
 
-[output.linkcheck]
+[output.linkcheck2]
 
 [output.html]
 git-repository-url = "https://github.com/radxa-pkg/edk2-cix/tree/main-monorepo"
@@ -12,11 +14,10 @@ edit-url-template = "https://github.com/radxa-pkg/edk2-cix/edit/main-monorepo/{p
 additional-css = ["./theme/css/mdbook-admonish.css"]
 
 [preprocessor.admonish]
-command = "mdbook-admonish"
-assets_version = "3.0.2"    # do not edit: managed by `mdbook-admonish install`
+command = "scripts/mdbook-admonish.py"
 
 [preprocessor.toc]
-command = "mdbook-toc"
+command = "scripts/mdbook-toc.sh"
 renderer = ["html"]
 
 [preprocessor.cmdrun]
