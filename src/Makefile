@@ -464,6 +464,8 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		done; \
 		return 1; \
 	}; \
+	reused_trusted_key_cert=0; \
+	validator_extra_args=(); \
 	if [[ -n "$$SIGNING_CERT_SOURCE_DIR" ]]; then \
 		if [[ ! -d "$$SIGNING_CERT_SOURCE_DIR" ]]; then \
 			echo "SIGNING_CERT_SOURCE_DIR=$$SIGNING_CERT_SOURCE_DIR does not exist" >&2; \
@@ -481,6 +483,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		if [[ -n "$$trusted_key_cert_src" ]]; then \
 			echo "Reusing trusted-key cert from $$trusted_key_cert_src"; \
 			cp "$$trusted_key_cert_src" Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt; \
+			reused_trusted_key_cert=1; \
 		fi; \
 		if [[ -n "$$nt_fw_cert_src" && -n "$$nt_fw_key_cert_src" ]]; then \
 			echo "Reusing non-trusted FIP certs from $$SIGNING_CERT_SOURCE_DIR"; \
@@ -492,6 +495,9 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		else \
 			echo "SIGNING_CERT_SOURCE_DIR does not provide nt-fw cert blobs; generating them"; \
 		fi; \
+	fi; \
+	if [[ "$(ARTEFACT_MODE)" == "upstream" && "$$reused_trusted_key_cert" == "1" ]]; then \
+		validator_extra_args+=(--allow-reused-trusted-key-cert); \
 	fi; \
 	if [[ ! -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt || ! -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt ]]; then \
 		run_success_only "$$SOURCE_CERT_TOOL_BIN" --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
@@ -511,7 +517,8 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		--non-trusted-world-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
 		--nt-fw "$(shell realpath "$<")" \
 		--ntfw-nvctr 223 \
-		--fiptool "$(FIPTOOL_BIN)" && \
+		--fiptool "$(FIPTOOL_BIN)" \
+		"$${validator_extra_args[@]}" && \
 	run_success_only "$(FIPTOOL_BIN)" create \
 		--trusted-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
 		--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
@@ -648,7 +655,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: preflight-%
 	if [[ "$(V)" == "1" ]]; then
 		run_edk2_build
 	else
-		run_edk2_build 2>&1 | python3 "$(EDK2_BUILD_OUTPUT_FILTER)"
+		run_edk2_build 2>&1 | ARTEFACT_MODE="$(ARTEFACT_MODE)" python3 "$(EDK2_BUILD_OUTPUT_FILTER)"
 	fi
 	if [[ ! -s "$@" ]]; then
 		echo "[build/$*] Expected firmware image $@ was not produced" >&2
