@@ -48,7 +48,7 @@ FIRMWARE_ARCHIVE_ROOT ?= $(REPO_ROOT)/dist
 FIRMWARE_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)
 FIRMWARE_VALIDATION_PROFILE ?= upstream-o6-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(REPO_ROOT)/build-validation
-FIRMWARE_VALIDATE_ON_BUILD ?= $(if $(filter upstream,$(ARTEFACT_MODE)),1,0)
+FIRMWARE_VALIDATE_ON_BUILD ?= 0
 DEBUG_ON_UART3_NORMALIZED_RAW := $(if $(strip $(DEBUG_ON_UART3)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_ON_UART3)" 2>/dev/null || printf '%s' __INVALID__),)
 DEBUG_ON_UART3_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_ON_UART3_NORMALIZED_RAW)),,$(DEBUG_ON_UART3_NORMALIZED_RAW))
 FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW := $(if $(strip $(FIRMWARE_VALIDATE_ON_BUILD)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(FIRMWARE_VALIDATE_ON_BUILD)" 2>/dev/null || printf '%s' __INVALID__),)
@@ -121,7 +121,7 @@ define PRINT_TOP_LEVEL_VARIABLES
 	print_help_line '  FIRMWARE_BOARD=O6|O6N' 'Select the firmware board; replay follows the same board.\nDefault: O6.'; \
 	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; consumes GPIO105 and GPIO106.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
 	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; custom builds use 0x80000040.'; \
-	print_help_line '  FIRMWARE_VALIDATE_ON_BUILD=true|false' 'Enable or skip automatic output validation after firmware-build.\nDefault: true for ARTEFACT_MODE=upstream; false for ARTEFACT_MODE=custom.'; \
+	print_help_line '  FIRMWARE_VALIDATE_ON_BUILD=true|false' 'Enable or skip automatic output validation after firmware-build.\nDefault: false; enable explicitly for qualification or diagnostic runs.'; \
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile from validation/expected-hashes.json, e.g. upstream-o6-1.2.1-bookworm.\nDefault: upstream-o6-1.2.1-bookworm.'; \
 	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Select the default distro family for buildbox runs and deterministic replay.\nDefault: bookworm.'; \
 	print_help_line '  REPLAY_INPUT=<path>' 'Seed replay inputs from a .deb, an extracted release dir, or cix_flash_all.bin.\nDefault: unset; reuse cached replay inputs if present.'; \
