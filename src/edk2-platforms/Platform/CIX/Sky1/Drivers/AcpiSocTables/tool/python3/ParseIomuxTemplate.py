@@ -51,17 +51,16 @@ def run_m4_process(m4_file: Path, output_file: Path, includes: list) -> bool:
         return False
 
 def main():
-    workspace = os.getenv("WORKSPACE", "")
-    if not workspace:
-        print("ERROR: WORKSPACE environment variable not set!", file=sys.stderr)
-        return 1
-
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file", help="input file")
     parser.add_argument("output_file", help="output file")
     parser.add_argument("extra_args", nargs=argparse.REMAINDER, help="extra args")
 
     args = parser.parse_args()
+    workspace = os.getenv("WORKSPACE", "")
+    if not workspace:
+        print("ERROR: WORKSPACE environment variable not set!", file=sys.stderr)
+        return 1
 
     base_dir = Path(workspace)
     inc_dir = Path(workspace) / "edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/tool/python3"
