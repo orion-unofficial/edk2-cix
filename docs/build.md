@@ -99,7 +99,7 @@ same container to the fuller packaging profile when needed.
 For non-buildbox workflows, the base OS is whichever environment you are
 already building in. Host-native builds therefore use the host distro, and the
 checked-in devcontainer remains pinned by
-[`/.devcontainer/devcontainer.json`](/Users/Stuart/src/edk2-cix/.devcontainer/devcontainer.json).
+[`/.devcontainer/devcontainer.json`](https://github.com/radxa-pkg/edk2-cix/blob/main-monorepo/.devcontainer/devcontainer.json).
 
 ## Build inside a devcontainer
 
@@ -458,8 +458,8 @@ To compare a local build against a checked-in validation profile, run:
 make validate-firmware ARTEFACT_MODE=upstream
 ```
 
-That loads the `upstream-o6-1.2.1-bookworm` qualification profile from
-[validation/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/expected-hashes.json),
+That loads the `upstream-o6-1.2.1-bookworm` profile from
+[validation/expected-hashes.json](https://github.com/radxa-pkg/edk2-cix/blob/main-monorepo/validation/expected-hashes.json),
 checks the key shipped artefacts plus a few structural markers from the EFI
 utility binaries, and writes a JSON report under `build-validation/`.
 
