@@ -4,6 +4,8 @@
 
 # direnv
 /.direnv
+/.devcontainer/.direnv/
+/.devcontainer/.devenv/
 
 # pre-commit
 /.pre-commit-config.yaml
@@ -29,6 +31,7 @@ __pycache__/
 
 # Local captured build logs
 /build-logs/
+/logs/
 
 # Local buildbox scratch state
 /.buildbox/
@@ -38,3 +41,7 @@ __pycache__/
 
 # Local firmware validation reports
 /build-validation/
+
+# Editor swap/backup files
+*.sw?
+*~

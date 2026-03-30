@@ -1,29 +1,22 @@
 [book]
 authors = ["Radxa Limited"]
 language = "en"
-multilingual = true
+multilingual = false
 src = "docs"
 title = "edk2-cix"
-
-[build]
-extra-watch-dirs = ["po"]
 
 [output.linkcheck]
 
 [output.html]
-git-repository-url = "https://github.com/radxa-pkg/edk2-cix/tree/main"
-edit-url-template = "https://github.com/radxa-pkg/edk2-cix/edit/main/{path}"
+git-repository-url = "https://github.com/radxa-pkg/edk2-cix/tree/main-monorepo"
+edit-url-template = "https://github.com/radxa-pkg/edk2-cix/edit/main-monorepo/{path}"
 additional-css = [
     "./theme/css/mdbook-admonish.css",
-    "./theme/css/language-picker.css",
 ]
 
 [preprocessor.admonish]
 command = "mdbook-admonish"
 assets_version = "3.0.2" # do not edit: managed by `mdbook-admonish install`
-
-[preprocessor.gettext]
-after = ["links"]
 
 [preprocessor.toc]
 command = "mdbook-toc"

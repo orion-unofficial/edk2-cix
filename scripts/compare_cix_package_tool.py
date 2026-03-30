@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-TOOL = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cix_package_tool/cix_package_tool.py"
+TOOL = REPO_ROOT / "src/tools/cix_package_tool/cix_package_tool.py"
 
 
 def sha256(path: Path) -> str:

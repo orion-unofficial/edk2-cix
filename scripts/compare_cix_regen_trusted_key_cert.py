@@ -12,7 +12,7 @@ from vendor_tool_resolver import resolve_vendor_tool
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-SOURCE_TOOL_DIR = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cix_regen_trusted_key_cert"
+SOURCE_TOOL_DIR = REPO_ROOT / "src/tools/cix_regen_trusted_key_cert"
 SOURCE_TOOL = SOURCE_TOOL_DIR / "cix_regen_trusted_key_cert"
 VENDOR_TOOL_REPO_RELPATH = "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/X86_64/cix_regen_trusted_key_cert"
 DEFAULT_PUBLIC_KEY = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Keys/oem_publickey.pem"

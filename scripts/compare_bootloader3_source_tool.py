@@ -31,7 +31,7 @@ def load_cert_compare_module():
 
 CERT_COMPARE = load_cert_compare_module()
 VENDOR_TOOL_REPO_RELPATH = "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/X86_64/cix_regen_trusted_key_cert"
-DEFAULT_SOURCE_TOOL_DIR = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/source_tools/cix_regen_trusted_key_cert"
+DEFAULT_SOURCE_TOOL_DIR = REPO_ROOT / "src/tools/cix_regen_trusted_key_cert"
 DEFAULT_SOURCE_TOOL = DEFAULT_SOURCE_TOOL_DIR / "cix_regen_trusted_key_cert"
 DEFAULT_FIPTOOL = REPO_ROOT / "src/tools/arm-trusted-firmware-fiptool/build" / (
     "aarch64" if platform.machine() in {"aarch64", "arm64"} else "x86_64"
