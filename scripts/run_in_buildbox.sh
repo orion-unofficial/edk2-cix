@@ -16,8 +16,8 @@ if [[ -z "$host_tmpdir" ]]; then
     host_tmpdir="${repo_root}/.buildbox/tmp"
 fi
 verbose="${EDK2_CIX_VERBOSE:-0}"
-
-container_name="${EDK2_CIX_BUILDBOX_NAME:-edk2-cix-buildbox}"
+buildbox_name_prefix="edk2-cix-buildbox"
+buildbox_name_file="${EDK2_CIX_BUILDBOX_NAME_FILE:-${repo_root}/.buildbox/buildbox-name}"
 container_image="${EDK2_CIX_BUILDBOX_IMAGE:-}"
 container_runtime="${EDK2_CIX_CONTAINER_RUNTIME:-}"
 container_platform="${EDK2_CIX_BUILDBOX_PLATFORM:-}"
@@ -31,6 +31,33 @@ host_git_repo_usable=0
 if [[ "${EDK2_CIX_REPO_LOCK_HELD:-0}" != "1" ]]; then
     exec "${script_dir}/with_repo_lock.sh" "${script_dir}/run_in_buildbox.sh" "$@"
 fi
+
+random_hex_suffix() {
+    LC_ALL=C od -An -N4 -tx1 /dev/urandom | tr -d ' \n'
+}
+
+resolve_container_name() {
+    local stored_name name_dir
+
+    if [[ -n "${EDK2_CIX_BUILDBOX_NAME:-}" ]]; then
+        printf '%s\n' "${EDK2_CIX_BUILDBOX_NAME}"
+        return 0
+    fi
+
+    if [[ -f "$buildbox_name_file" ]]; then
+        IFS= read -r stored_name <"$buildbox_name_file" || true
+        if [[ -n "$stored_name" ]]; then
+            printf '%s\n' "$stored_name"
+            return 0
+        fi
+    fi
+
+    name_dir="$(dirname -- "$buildbox_name_file")"
+    mkdir -p "$name_dir"
+    stored_name="${buildbox_name_prefix}-$(random_hex_suffix)"
+    printf '%s\n' "$stored_name" >"$buildbox_name_file"
+    printf '%s\n' "$stored_name"
+}
 
 status() {
     printf '[buildbox] %s\n' "$*"
@@ -466,6 +493,7 @@ EOF
 fi
 
 container_runtime="$(resolve_container_runtime)"
+container_name="$(resolve_container_name)"
 container_platform="${container_platform:-$(default_container_platform)}"
 container_image="${container_image:-$(default_container_image "$container_platform")}"
 status "Using container runtime: ${container_runtime}"

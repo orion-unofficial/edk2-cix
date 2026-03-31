@@ -691,7 +691,8 @@ buildbox-down:
 	$(Q)$(LOCKED_MAKE) __buildbox-down V="$(V)"
 
 __buildbox-down:
-	@container_name="$${EDK2_CIX_BUILDBOX_NAME:-edk2-cix-buildbox}"; \
+	@buildbox_name_file="$(REPO_ROOT)/.buildbox/buildbox-name"; \
+	container_names=(); \
 	requested_runtime="$${EDK2_CIX_CONTAINER_RUNTIME:-}"; \
 	default_runtime_helper="$(REPO_ROOT)/scripts/default_container_runtimes.sh"; \
 	runtimes=(); \
@@ -708,6 +709,25 @@ __buildbox-down:
 		done; \
 		runtimes+=("$$candidate"); \
 	}; \
+	add_container_name() { \
+		local candidate="$$1"; \
+		local existing; \
+		[ -n "$$candidate" ] || return 0; \
+		for existing in "$${container_names[@]}"; do \
+			if [ "$$existing" = "$$candidate" ]; then \
+				return 0; \
+			fi; \
+		done; \
+		container_names+=("$$candidate"); \
+	}; \
+	if [ -n "$${EDK2_CIX_BUILDBOX_NAME:-}" ]; then \
+		add_container_name "$${EDK2_CIX_BUILDBOX_NAME}"; \
+	fi; \
+	if [ -f "$$buildbox_name_file" ]; then \
+		IFS= read -r stored_name <"$$buildbox_name_file" || true; \
+		add_container_name "$$stored_name"; \
+	fi; \
+	add_container_name edk2-cix-buildbox; \
 	if [ -n "$$requested_runtime" ]; then \
 		add_runtime "$$requested_runtime"; \
 	fi; \
@@ -721,12 +741,13 @@ __buildbox-down:
 	for runtime in "$${runtimes[@]}"; do \
 		command -v "$$runtime" >/dev/null 2>&1 || continue; \
 		found_runtime=1; \
-		if "$$runtime" container inspect "$$container_name" >/dev/null 2>&1; then \
-			printf '[clean] Removing buildbox container %s via %s\n' "$$container_name" "$$runtime"; \
-			"$$runtime" rm -f "$$container_name" >/dev/null; \
-			removed=1; \
-			break; \
-		fi; \
+		for container_name in "$${container_names[@]}"; do \
+			if "$$runtime" container inspect "$$container_name" >/dev/null 2>&1; then \
+				printf '[clean] Removing buildbox container %s via %s\n' "$$container_name" "$$runtime"; \
+				"$$runtime" rm -f "$$container_name" >/dev/null; \
+				removed=1; \
+			fi; \
+		done; \
 	done; \
 	if [ "$$removed" -eq 0 ]; then \
 		if [ "$$found_runtime" -eq 0 ]; then \
@@ -744,6 +765,10 @@ __clean-buildbox: __buildbox-down
 	@if [ -d "$(BUILDBOX_HOST_TMPDIR)" ]; then \
 		printf '[clean] Removing buildbox scratch %s\n' "$(BUILDBOX_HOST_TMPDIR)"; \
 		rm -rf "$(BUILDBOX_HOST_TMPDIR)"; \
+	fi
+	@if [ -f "$(REPO_ROOT)/.buildbox/buildbox-name" ]; then \
+		printf '[clean] Removing buildbox name file %s\n' "$(REPO_ROOT)/.buildbox/buildbox-name"; \
+		rm -f "$(REPO_ROOT)/.buildbox/buildbox-name"; \
 	fi
 
 .PHONY: buildbox-up __buildbox-up

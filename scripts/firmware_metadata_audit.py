@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import re
 
 
 MIN_TEXT_LENGTH = 4
-BANNED_TEXT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+BASE_BANNED_TEXT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("NB10", re.compile(r"NB10", re.IGNORECASE)),
     ("RSDS", re.compile(r"RSDS", re.IGNORECASE)),
     (".pdb", re.compile(r"\.pdb\b", re.IGNORECASE)),
-    ("/tmp/", re.compile(r"/tmp/", re.IGNORECASE)),
     ("/Users/", re.compile(r"/Users/", re.IGNORECASE)),
     ("/workspaces/", re.compile(r"/workspaces/", re.IGNORECASE)),
     (
@@ -37,6 +37,7 @@ BENIGN_WINDOWS_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
     # than leaked build metadata, so keep the audit focused on real breadcrumbs.
     re.compile(r"Shell>\s+set\s+-v\s+EFI_SOURCE\s+c:\\project\\EFI1\.1\b", re.IGNORECASE),
 )
+TEMP_PATH_ENV_VARS: tuple[str, ...] = ("TMPDIR", "TMP", "TEMP", "TEMPDIR", "XDG_RUNTIME_DIR")
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,38 @@ class AuditFinding:
     path: str
     text: str
     reasons: tuple[str, ...]
+
+
+def _normalize_temp_path(value: str) -> str | None:
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if re.match(r"^[A-Za-z]:[\\/]", normalized):
+        return normalized.rstrip("\\/")
+    if normalized.startswith("/"):
+        return normalized.rstrip("/")
+    return None
+
+
+def _dynamic_temp_path_patterns() -> tuple[tuple[str, re.Pattern[str]], ...]:
+    patterns: list[tuple[str, re.Pattern[str]]] = []
+    seen: set[str] = set()
+    for label, value in (
+        ("/tmp/", "/tmp"),
+        ("/var/tmp/", "/var/tmp"),
+        *((f"{env_name} path", os.environ.get(env_name, "")) for env_name in TEMP_PATH_ENV_VARS),
+    ):
+        normalized = _normalize_temp_path(value)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        patterns.append(
+            (
+                label,
+                re.compile(re.escape(normalized) + r"(?:[\\/]|$)", re.IGNORECASE),
+            )
+        )
+    return tuple(patterns)
 
 
 def _iter_ascii_strings(data: bytes) -> list[str]:
@@ -93,8 +126,15 @@ def _iter_text_candidates(path: Path) -> list[str]:
     return strings
 
 
-def _match_reasons(text: str) -> tuple[str, ...]:
-    reasons = [label for label, pattern in BANNED_TEXT_PATTERNS if pattern.search(text)]
+def _match_reasons(
+    text: str,
+    banned_text_patterns: tuple[tuple[str, re.Pattern[str]], ...],
+) -> tuple[str, ...]:
+    reasons = [
+        label
+        for label, pattern in banned_text_patterns
+        if pattern.search(text)
+    ]
     if WINDOWS_DRIVE_PATH_PATTERN.search(text) and not any(
         pattern.search(text) for pattern in BENIGN_WINDOWS_PATH_PATTERNS
     ):
@@ -104,11 +144,12 @@ def _match_reasons(text: str) -> tuple[str, ...]:
 
 def audit_targets(targets: list[tuple[str, Path]]) -> list[AuditFinding]:
     findings: list[AuditFinding] = []
+    banned_text_patterns = BASE_BANNED_TEXT_PATTERNS + _dynamic_temp_path_patterns()
     for display_path, path in targets:
         if not path.is_file():
             continue
         for text in _iter_text_candidates(path):
-            reasons = _match_reasons(text)
+            reasons = _match_reasons(text, banned_text_patterns)
             if reasons:
                 findings.append(AuditFinding(display_path, text, reasons))
     return findings
