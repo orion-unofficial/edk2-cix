@@ -29,6 +29,7 @@ DEFAULT_CONTAINER_TMPDIR = pathlib.PurePosixPath(
 )
 DEFAULT_CONTAINER_IMAGE = "mcr.microsoft.com/devcontainers/base:bookworm"
 CONTAINER_RUNTIME_ENV = "EDK2_CIX_CONTAINER_RUNTIME"
+DEFAULT_RUNTIME_HELPER = REPO_ROOT / "scripts" / "default_container_runtimes.sh"
 
 
 def parse_args() -> argparse.Namespace:
@@ -67,7 +68,23 @@ def resolve_container_runtime() -> str:
     if override:
         return override
 
-    for candidate in ("podman", "docker"):
+    helper_candidates: list[str] = []
+    try:
+        helper = subprocess.run(
+            ["bash", str(DEFAULT_RUNTIME_HELPER)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        helper_candidates = [
+            line.strip() for line in helper.stdout.splitlines() if line.strip()
+        ]
+    except (OSError, subprocess.CalledProcessError):
+        helper_candidates = []
+
+    candidates = helper_candidates or ["podman", "docker"]
+
+    for candidate in candidates:
         resolved = shutil.which(candidate)
         if not resolved:
             continue
@@ -83,7 +100,7 @@ def resolve_container_runtime() -> str:
         except (OSError, subprocess.CalledProcessError):
             continue
 
-    for candidate in ("docker", "podman"):
+    for candidate in candidates:
         resolved = shutil.which(candidate)
         if resolved:
             return resolved
