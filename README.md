@@ -16,7 +16,9 @@ make help
 
 To build the documentation locally, run `make docs-build` when `mdbook` is
 already installed, or `devenv shell make docs-build` when you want the repo's
-managed docs toolchain. The rendered site is written to `book/html/`.
+managed docs toolchain. The rendered site is written to `book/html/`. Keep any
+machine-specific `devenv` overrides, including optional Git hook installation,
+in a local `devenv.local.nix` based on `devenv.local.nix.example`.
 
 ### Without `devcontainer`
 
