@@ -75,6 +75,12 @@ DETERMINISTIC_REPLAY_MOUNT_ROOT ?= $(REPO_ROOT)/.buildbox
 REPLAY_INPUT ?=
 REPLAY_BUILD_OPTIONS ?=
 REPLAY_BUILD_DATE ?=
+ACT_WORKFLOW ?=
+ACT_EVENT ?= workflow_dispatch
+ACT_JOB ?=
+ACT_MATRIX ?=
+ACT_SECRET_FILE ?=
+ACT_EXTRA_ARGS ?=
 SRC_COMMON_ARGS = \
 	ARTEFACT_MODE="$(ARTEFACT_MODE)" \
 	$(if $(strip $(DEBUG_ON_UART3_NORMALIZED)),DEBUG_ON_UART3="$(DEBUG_ON_UART3_NORMALIZED)") \
@@ -144,6 +150,12 @@ define PRINT_TOP_LEVEL_VARIABLES
 	print_help_line '  REPLAY_BUILD_DATE=<iso8601>' 'Fallback build timestamp when replay inputs do not include BuildOptions.\nDefault: unset.'; \
 	print_help_line '  BUILDBOX_PLATFORM=linux/amd64|linux/arm64' 'Select the container platform for buildbox runs.\nDefault: host-matched runtime platform.'; \
 	print_help_line '  BUILDBOX_IMAGE=<image>' 'Override the selected buildbox container image directly.\nDefault: mcr.microsoft.com/devcontainers/base:${FIRMWARE_DISTRO}.'; \
+	print_help_line '  ACT_WORKFLOW=.github/workflows/<file>.yaml' 'Workflow file to list, dry-run, or execute through the local act wrapper.\nDefault: unset; gha-act-list shows every workflow when this stays empty.'; \
+	print_help_line '  ACT_EVENT=workflow_dispatch|push|pull_request' 'Event name passed to act for gha-act-dry-run and gha-act-run.\nDefault: workflow_dispatch.'; \
+	print_help_line '  ACT_JOB=<job-id>' 'Optional job to target inside the selected workflow.\nDefault: unset.'; \
+	print_help_line '  ACT_MATRIX=<name:value>' 'Optional single act matrix filter, for example board:O6.\nDefault: unset.'; \
+	print_help_line '  ACT_SECRET_FILE=<path>' 'Optional act --secret-file path for local workflow runs.\nDefault: unset.'; \
+	print_help_line '  ACT_EXTRA_ARGS=<args>' 'Additional raw flags appended to act, for example --pull=false.\nDefault: unset.'; \
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'
 endef
 
@@ -189,6 +201,10 @@ help:
 	printf '\n%s\n\n' 'documentation'; \
 	print_help_line '  docs-build' 'Build the mdBook site into book/html/'; \
 	print_help_line '  serve' 'Serve the mdBook site locally with mdbook serve'; \
+	printf '\n%s\n\n' 'GitHub Actions'; \
+	print_help_line '  gha-act-list' 'List workflows and jobs through the repo-local act wrapper'; \
+	print_help_line '  gha-act-dry-run' 'Dry-run a selected workflow or job through act'; \
+	print_help_line '  gha-act-run' 'Execute a selected workflow or job through act'; \
 	printf '\n%s\n\n' 'buildbox targets'; \
 	print_help_line '  buildbox-up' 'Start or reuse the persistent build container'; \
 	print_help_line '  buildbox-down' 'Remove the persistent build container if it exists'; \
@@ -340,7 +356,7 @@ preflight-wrapper-replay: preflight-wrapper-buildbox
 	fi; \
 	"$${validate_cmd[@]}"
 
-.PHONY: build-edk2 firmware-build firmware-stage install zip targz validate-firmware validate-firmware-strict capture-validation-profile deterministic-replay buildbox-up buildbox-deb buildbox-firmware-build buildbox-o6 buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-firmware-strict buildbox-capture-validation-profile buildbox-metadata
+.PHONY: build-edk2 firmware-build firmware-stage install zip targz validate-firmware validate-firmware-strict capture-validation-profile deterministic-replay gha-act-list gha-act-dry-run gha-act-run buildbox-up buildbox-deb buildbox-firmware-build buildbox-o6 buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-firmware-strict buildbox-capture-validation-profile buildbox-metadata
 build-edk2: preflight-wrapper-common
 firmware-build firmware-stage install zip targz: preflight-wrapper-firmware-build
 validate-firmware validate-firmware-strict capture-validation-profile: preflight-wrapper-validation
@@ -570,6 +586,18 @@ __deterministic-replay:
 		EDK2_COMMIT_HASH="$${EDK2_COMMIT_HASH:-}" \
 		EDK2_NON_OSI_COMMIT_HASH="$${EDK2_NON_OSI_COMMIT_HASH:-}" \
 		EDK2_PLATFORMS_COMMIT_HASH="$${EDK2_PLATFORMS_COMMIT_HASH:-}"; \
+	reference_dir="$$replay_dir/reference"; \
+	if [ -d "$$reference_dir" ]; then \
+		printf '[replay] Comparing built outputs against upstream release payload in %s\n' "$$reference_dir"; \
+		mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"; \
+		python3 "$(REPO_ROOT)/scripts/compare_release_payloads.py" \
+			--build-dir "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)" \
+			--reference-dir "$$reference_dir" \
+			--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(DETERMINISTIC_REPLAY_PROFILE)-release-compare.json" \
+			--strict; \
+	else \
+		printf '[replay] No preserved upstream release payload found at %s; skipping direct release comparison\n' "$$reference_dir"; \
+	fi; \
 	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" \
 		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
 		make --no-print-directory validate-firmware-strict V="$(V)" \
@@ -578,6 +606,72 @@ __deterministic-replay:
 		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
 		FIRMWARE_VERSION="$(REPLAY_VERSION)" \
 		FIRMWARE_VALIDATION_PROFILE="$(DETERMINISTIC_REPLAY_PROFILE)"
+
+.PHONY: gha-act-list __gha-act-list
+gha-act-list:
+	$(Q)$(LOCKED_MAKE) __gha-act-list V="$(V)"
+
+__gha-act-list:
+	@set -euo pipefail; \
+	args=(); \
+	if [ -n "$(strip $(ACT_WORKFLOW))" ]; then \
+		args+=(-W "$(strip $(ACT_WORKFLOW))"); \
+	fi; \
+	"$(REPO_ROOT)/scripts/run_github_actions_with_act.sh" "$${args[@]}" -l
+
+.PHONY: gha-act-dry-run __gha-act-dry-run
+gha-act-dry-run:
+	$(Q)$(LOCKED_MAKE) __gha-act-dry-run V="$(V)"
+
+__gha-act-dry-run:
+	@set -euo pipefail; \
+	workflow="$(strip $(ACT_WORKFLOW))"; \
+	if [ -z "$$workflow" ]; then \
+		echo "[act] Set ACT_WORKFLOW=.github/workflows/<file>.yaml for gha-act-dry-run." >&2; \
+		exit 2; \
+	fi; \
+	args=("$(ACT_EVENT)" -W "$$workflow" -n); \
+	if [ -n "$(strip $(ACT_JOB))" ]; then \
+		args+=(-j "$(strip $(ACT_JOB))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_MATRIX))" ]; then \
+		args+=(--matrix "$(strip $(ACT_MATRIX))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_SECRET_FILE))" ]; then \
+		args+=(--secret-file "$(strip $(ACT_SECRET_FILE))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_EXTRA_ARGS))" ]; then \
+		extra_args=( $(ACT_EXTRA_ARGS) ); \
+		args+=("$${extra_args[@]}"); \
+	fi; \
+	"$(REPO_ROOT)/scripts/run_github_actions_with_act.sh" "$${args[@]}"
+
+.PHONY: gha-act-run __gha-act-run
+gha-act-run:
+	$(Q)$(LOCKED_MAKE) __gha-act-run V="$(V)"
+
+__gha-act-run:
+	@set -euo pipefail; \
+	workflow="$(strip $(ACT_WORKFLOW))"; \
+	if [ -z "$$workflow" ]; then \
+		echo "[act] Set ACT_WORKFLOW=.github/workflows/<file>.yaml for gha-act-run." >&2; \
+		exit 2; \
+	fi; \
+	args=("$(ACT_EVENT)" -W "$$workflow"); \
+	if [ -n "$(strip $(ACT_JOB))" ]; then \
+		args+=(-j "$(strip $(ACT_JOB))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_MATRIX))" ]; then \
+		args+=(--matrix "$(strip $(ACT_MATRIX))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_SECRET_FILE))" ]; then \
+		args+=(--secret-file "$(strip $(ACT_SECRET_FILE))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_EXTRA_ARGS))" ]; then \
+		extra_args=( $(ACT_EXTRA_ARGS) ); \
+		args+=("$${extra_args[@]}"); \
+	fi; \
+	"$(REPO_ROOT)/scripts/run_github_actions_with_act.sh" "$${args[@]}"
 
 .PHONY: clean __clean
 clean:
