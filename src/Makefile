@@ -39,9 +39,12 @@ if [[ "$(EDK2_CIX_REPO_LOCK_HELD)" != "1" ]]; then \
 	exit $$?; \
 fi
 endef
+REPO_ROOT := $(abspath ..)
+PREFERRED_TMP_ROOT ?= $(strip $(shell "$(REPO_ROOT)/scripts/resolve_temp_root.sh"))
 ARTEFACT_MODE ?= custom
 CUSTOM_OVERLAY_ROOT ?= $(abspath ../custom/overlay)
-CUSTOM_EDK2_WORKSPACE ?= /tmp/edk2-cix-custom-workspace
+CUSTOM_EDK2_WORKSPACE_KEY := $(strip $(shell printf '%s' '$(REPO_ROOT)' | cksum | awk '{print $$1}'))
+CUSTOM_EDK2_WORKSPACE ?= $(PREFERRED_TMP_ROOT)/edk2-cix-custom-workspace-$(CUSTOM_EDK2_WORKSPACE_KEY)
 DEBUG_ON_UART3_NORMALIZED_RAW := $(if $(strip $(DEBUG_ON_UART3)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_ON_UART3)" 2>/dev/null || printf '%s' __INVALID__),)
 DEBUG_ON_UART3_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_ON_UART3_NORMALIZED_RAW)),,$(DEBUG_ON_UART3_NORMALIZED_RAW))
 UART3_ENABLE_NORMALIZED_RAW := $(if $(strip $(UART3_ENABLE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(UART3_ENABLE)" 2>/dev/null || printf '%s' __INVALID__),)
@@ -901,7 +904,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 			source edk2/edksetup.sh --reconfig; \
 		else \
 			local edksetup_log; \
-			edksetup_log="$$(mktemp "$${TMPDIR:-/tmp}/edk2-cix-edksetup.XXXXXX")"; \
+			edksetup_log="$$(mktemp "$(PREFERRED_TMP_ROOT)/edk2-cix-edksetup.XXXXXX")"; \
 			if source edk2/edksetup.sh --reconfig >"$$edksetup_log" 2>&1; then \
 				rm -f "$$edksetup_log"; \
 			else \
