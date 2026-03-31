@@ -474,10 +474,19 @@ To compare a local build against a checked-in validation profile, run:
 make validate-firmware ARTEFACT_MODE=upstream
 ```
 
-That loads the `upstream-o6-1.2.1-bookworm` profile from
+That loads the selected validation profile from
 [validation/expected-hashes.json](https://github.com/radxa-pkg/edk2-cix/blob/main-monorepo/validation/expected-hashes.json),
 checks the key shipped artefacts plus a few structural markers from the EFI
 utility binaries, and writes a JSON report under `build-validation/`.
+
+For the published O6N release baseline, select the dedicated O6N profile:
+
+```bash
+make validate-firmware \
+  ARTEFACT_MODE=upstream \
+  FIRMWARE_BOARD=O6N \
+  FIRMWARE_VALIDATION_PROFILE=upstream-o6n-1.2.1-bookworm
+```
 
 The same file also carries the `upstream-o6-1.2.1-trixie` reproducibility
 profile, intended for matching amd64 or arm64 Trixie replays on

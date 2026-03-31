@@ -255,12 +255,6 @@ def validate_replay_input(
     if not input_path.exists():
         raise ValueError(f"REPLAY_INPUT does not exist: {input_path}")
 
-    if board and board != "O6":
-        raise ValueError(
-            "Automatic replay input extraction is currently implemented only for O6; "
-            f"FIRMWARE_BOARD={board} requires a pre-populated replay cache instead"
-        )
-
     if input_path.is_dir():
         flash_path = input_path / "cix_flash_all.bin"
         if not flash_path.is_file():
