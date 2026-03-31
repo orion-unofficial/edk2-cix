@@ -40,6 +40,32 @@ time_t CixEpoch ()
     return mktime(&specific_time);
 }
 
+static time_t ResolveBuildTime(void)
+{
+    const char *pm_config_source_date_epoch = getenv("PM_CONFIG_SOURCE_DATE_EPOCH");
+    const char *source_date_epoch =
+        (pm_config_source_date_epoch && pm_config_source_date_epoch[0]) ?
+        pm_config_source_date_epoch : getenv("SOURCE_DATE_EPOCH");
+    char *end = NULL;
+    unsigned long long epoch = 0;
+    time_t build_time;
+
+    if (!source_date_epoch || !source_date_epoch[0]) {
+        return time(NULL);
+    }
+
+    errno = 0;
+    epoch = strtoull(source_date_epoch, &end, 10);
+    build_time = (time_t)epoch;
+    if (errno != 0 || end == source_date_epoch || *end != '\0' ||
+        (unsigned long long)build_time != epoch) {
+        fprintf(stderr, "Invalid PM_CONFIG_SOURCE_DATE_EPOCH/SOURCE_DATE_EPOCH: %s\n", source_date_epoch);
+        exit(EXIT_FAILURE);
+    }
+
+    return build_time;
+}
+
 _Static_assert(((sizeof(g_config)) & 0x3) == 0,
     "PM config block size must be 4-byte aligned!");
 
@@ -492,10 +518,19 @@ int main(int argc, char **argv)
     (void)config;
     memset(&g_config, 0xff, sizeof(g_config));
 
+    time_t build_time;
+    time_t cix_epoch;
+
     // version & timestamp
     g_config.version_major = PM_CONFIG_VERSION_MAJOR;
     g_config.version_minor = PM_CONFIG_VERSION_MINOR;
-    g_config.timestamp = (uint32_t)(time(NULL) - CixEpoch());
+    build_time = ResolveBuildTime();
+    cix_epoch = CixEpoch();
+    if (build_time < cix_epoch) {
+        fprintf(stderr, "Build timestamp predates the CIX epoch\n");
+        return -1;
+    }
+    g_config.timestamp = (uint32_t)(build_time - cix_epoch);
     g_config.length = sizeof(pm_export_config_crc_t);
     g_config.signature = PM_CONFIG_SIGNATURE;
     g_config.crc1 = g_config.crc2 = 0;
