@@ -25,7 +25,7 @@
   gArmPlatformTokenSpaceGuid.PcdSerialDbgInterrupt|330
   gCixPlatformTokenSpaceGuid.PcdAcpiSpcrEnable|TRUE
   gCixTokenSpaceGuid.PcdAcpiUart2Enable|TRUE
-!if $(DEBUG_ON_UART3) == TRUE
+!if $(UART3_ENABLE) == TRUE
   gCixTokenSpaceGuid.PcdAcpiUart3Enable|TRUE
 !else
   gCixTokenSpaceGuid.PcdAcpiUart3Enable|FALSE
@@ -142,10 +142,26 @@
 !endif
 
 [BuildOptions]
+!if $(UART3_ENABLE) == TRUE
+  GCC:*_*_*_CC_FLAGS          = -DUART3_ENABLE=1
+!else
+  GCC:*_*_*_CC_FLAGS          = -UUART3_ENABLE
+!endif
 !if $(DEBUG_ON_UART3) == TRUE
   GCC:*_*_*_CC_FLAGS          = -DDEBUG_ON_UART3=1
   GCC:*_*_*_ASLPP_FLAGS       = -DDEBUG_ON_UART3=1
 !else
   GCC:*_*_*_CC_FLAGS          = -UDEBUG_ON_UART3
   GCC:*_*_*_ASLPP_FLAGS       = -UDEBUG_ON_UART3
+!endif
+!if $(DEBUG_VERBOSE) == TRUE
+  GCC:*_*_*_CC_FLAGS          = -DDEBUG_VERBOSE=1
+  GCC:RELEASE_*_*_CC_FLAGS    = -UMDEPKG_NDEBUG -UNDEBUG
+!else
+  GCC:*_*_*_CC_FLAGS          = -UDEBUG_VERBOSE
+!endif
+
+[PcdsPatchableInModule]
+!if $(TARGET) == RELEASE && $(DEBUG_VERBOSE) == TRUE
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x06
 !endif
