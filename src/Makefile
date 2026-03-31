@@ -997,6 +997,15 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 		mkdir -p "Build/$*"; \
 		rm -rf "Build/$*/$(UEFI_TARGET)_GCC5"; \
 		cp -a "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5" "Build/$*/"; \
+		build_options_path="Build/$*/$(UEFI_TARGET)_GCC5/BuildOptions"; \
+		if [[ ! -f "$$build_options_path" ]]; then \
+			echo "[build/$*] Expected BuildOptions $$build_options_path was not produced" >&2; \
+			exit 1; \
+		fi; \
+		python3 ../scripts/normalize_build_options.py \
+			--build-options "$$build_options_path" \
+			--active-platform "src/$(filter %/$*.dsc,$(DSC))" \
+			--flash-definition "src/$(patsubst %.dsc,%.fdf,$(filter %/$*.dsc,$(DSC)))"; \
 	fi; \
 	if [[ ! -s "$@" ]]; then \
 		echo "[build/$*] Expected firmware image $@ was not produced" >&2; \
