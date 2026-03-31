@@ -35,6 +35,8 @@ BUILDBOX_ENV = \
 PROJECT ?= edk2-cix
 ARTEFACT_MODE ?= custom
 DEBUG_ON_UART3 ?=
+UART3_ENABLE ?=
+DEBUG_VERBOSE ?=
 DEBUG_PRINT_ERROR_LEVEL ?=
 FIRMWARE_BOARD ?= O6
 FIRMWARE_PRODUCT ?= orion-o6
@@ -51,6 +53,15 @@ FIRMWARE_VALIDATION_REPORT_ROOT ?= $(REPO_ROOT)/build-validation
 FIRMWARE_VALIDATE_ON_BUILD ?= 0
 DEBUG_ON_UART3_NORMALIZED_RAW := $(if $(strip $(DEBUG_ON_UART3)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_ON_UART3)" 2>/dev/null || printf '%s' __INVALID__),)
 DEBUG_ON_UART3_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_ON_UART3_NORMALIZED_RAW)),,$(DEBUG_ON_UART3_NORMALIZED_RAW))
+UART3_ENABLE_NORMALIZED_RAW := $(if $(strip $(UART3_ENABLE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(UART3_ENABLE)" 2>/dev/null || printf '%s' __INVALID__),)
+UART3_ENABLE_NORMALIZED := $(if $(filter __INVALID__,$(UART3_ENABLE_NORMALIZED_RAW)),,$(UART3_ENABLE_NORMALIZED_RAW))
+UART3_ENABLE_EFFECTIVE := $(if $(filter TRUE,$(DEBUG_ON_UART3_NORMALIZED)),TRUE,$(UART3_ENABLE_NORMALIZED))
+DEBUG_VERBOSE_NORMALIZED_RAW := $(if $(strip $(DEBUG_VERBOSE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_VERBOSE)" 2>/dev/null || printf '%s' __INVALID__),)
+DEBUG_VERBOSE_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_VERBOSE_NORMALIZED_RAW)),,$(DEBUG_VERBOSE_NORMALIZED_RAW))
+DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-u32 --value "$(DEBUG_PRINT_ERROR_LEVEL)" 2>/dev/null || printf '%s' __INVALID__),)
+DEBUG_PRINT_ERROR_LEVEL_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW)),,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW))
+DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT := $(if $(filter TRUE,$(DEBUG_VERBOSE_NORMALIZED)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" max-debug-print-error-level 2>/dev/null || true),)
+DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED),$(DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT))
 FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW := $(if $(strip $(FIRMWARE_VALIDATE_ON_BUILD)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(FIRMWARE_VALIDATE_ON_BUILD)" 2>/dev/null || printf '%s' __INVALID__),)
 FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED := $(if $(filter __INVALID__,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW)),,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW))
 FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE := $(if $(filter TRUE,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED)),1,0)
@@ -67,7 +78,9 @@ REPLAY_BUILD_DATE ?=
 SRC_COMMON_ARGS = \
 	ARTEFACT_MODE="$(ARTEFACT_MODE)" \
 	$(if $(strip $(DEBUG_ON_UART3_NORMALIZED)),DEBUG_ON_UART3="$(DEBUG_ON_UART3_NORMALIZED)") \
-	$(if $(strip $(DEBUG_PRINT_ERROR_LEVEL)),DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)")
+	$(if $(strip $(UART3_ENABLE_EFFECTIVE)),UART3_ENABLE="$(UART3_ENABLE_EFFECTIVE)") \
+	$(if $(strip $(DEBUG_VERBOSE_NORMALIZED)),DEBUG_VERBOSE="$(DEBUG_VERBOSE_NORMALIZED)") \
+	$(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)),DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)")
 FIRMWARE_SRC_BUILD_TARGETS = \
 	Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)/cix_flash_all.bin \
 	Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)/cix_flash_ota.bin
@@ -119,8 +132,10 @@ define PRINT_TOP_LEVEL_VARIABLES
 	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Generate unmodified upstream firmware images or allow custom enhancements.\nDefault: custom.'; \
 	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG firmware build.\nDefault: RELEASE.'; \
 	print_help_line '  FIRMWARE_BOARD=O6|O6N' 'Select the firmware board; replay follows the same board.\nDefault: O6.'; \
-	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; consumes GPIO105 and GPIO106.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
-	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; custom builds use 0x80000040.'; \
+	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
+	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: expose UART3 to ACPI and mux its header pins as UART instead of GPIO.\nDefault: false.'; \
+	print_help_line '  DEBUG_VERBOSE=true|false' 'Custom-only: on RELEASE builds, re-enable DEBUG() logging with minimal runtime side effects and default to the full DEBUG_* mask unless DEBUG_PRINT_ERROR_LEVEL is set.\nDefault: false.'; \
+	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug message mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; builds use 0x80000040 unless DEBUG_VERBOSE=true.\nRun: make help-debug'; \
 	print_help_line '  FIRMWARE_VALIDATE_ON_BUILD=true|false' 'Enable or skip automatic output validation after firmware-build.\nDefault: false; enable explicitly for qualification or diagnostic runs.'; \
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile from validation/expected-hashes.json, e.g. upstream-o6-1.2.1-bookworm.\nDefault: upstream-o6-1.2.1-bookworm.'; \
 	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Select the default distro family for buildbox runs and deterministic replay.\nDefault: bookworm.'; \
@@ -132,7 +147,7 @@ define PRINT_TOP_LEVEL_VARIABLES
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'
 endef
 
-.PHONY: help vars
+.PHONY: help help-vars help-debug
 help:
 	@set -eu; \
 	help_pad=28; \
@@ -188,11 +203,48 @@ help:
 	print_help_line '  buildbox-validate-firmware' 'Run validation inside the buildbox'; \
 	print_help_line '  buildbox-validate-firmware-strict' 'Run strict validation inside the buildbox'; \
 	print_help_line '  buildbox-capture-validation-profile' 'Capture a validation profile inside the buildbox'; \
-	printf '\n%s\n' 'For accepted control variables, run: make vars'; \
+	print_help_line '  help-vars' 'Show accepted top-level control variables'; \
+	print_help_line '  help-debug' 'Explain the DEBUG_PRINT_ERROR_LEVEL bit values derived from DebugLib.h'; \
 	printf '\n%s\n' 'For lower-level firmware targets, run: make -C src help'
 
-vars:
+help-vars:
 	$(PRINT_TOP_LEVEL_VARIABLES)
+
+help-debug:
+	@set -eu; \
+	help_pad=28; \
+	help_gap=2; \
+	help_width=80; \
+	desc_width=$$((help_width - help_pad - help_gap)); \
+	desc_indent=$$(printf '%*s' "$$((help_pad + help_gap))" ''); \
+	print_help_line() { \
+		label="$$1"; \
+		desc="$$2"; \
+		if [ "$${#label}" -le "$$help_pad" ]; then \
+			first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v first="$$first_indent" -v cont="$$desc_indent" \
+					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
+		else \
+			printf '%s\n' "$$label"; \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v cont="$$desc_indent" \
+					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
+		fi; \
+	}; \
+	printf '%s\n\n' 'debug print levels'; \
+	printf '%s\n' 'Custom-only: set DEBUG_PRINT_ERROR_LEVEL to a decimal or '\
+'0x-prefixed 32-bit value to choose which DEBUG() message classes are '\
+'printed. Combine entries by ORing or summing their values. Default: '\
+'0x80000040 (DEBUG_INFO|DEBUG_ERROR). If DEBUG_VERBOSE=true and you do '\
+'not set DEBUG_PRINT_ERROR_LEVEL explicitly, the build enables all '\
+'available DEBUG_* message levels by default.' | fold -s -w 78 | sed 's/^/  /'; \
+	printf '\n'; \
+	python3 "$(MAKE_INPUT_VALIDATOR)" list-debug-print-error-level-bits | \
+	awk '{ mask=$$1; name=$$2; $$1=""; $$2=""; sub(/^ +/, "", $$0); printf "%s\t%s\t%s\n", mask, name, $$0 }' | \
+	while IFS=$$(printf '\t') read -r mask name desc; do \
+		print_help_line "  $$mask $$name" "$$desc"; \
+	done
 
 .PHONY: preflight-wrapper-common preflight-wrapper-firmware-build preflight-wrapper-validation preflight-wrapper-buildbox preflight-wrapper-replay
 preflight-wrapper-common:
@@ -208,8 +260,14 @@ preflight-wrapper-common:
 	if [ -n "$(strip $(DEBUG_ON_UART3))" ]; then \
 		validate_cmd+=(--debug-on-uart3 "$(strip $(DEBUG_ON_UART3))"); \
 	fi; \
-	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL))" ]; then \
-		validate_cmd+=(--debug-print-error-level "$(strip $(DEBUG_PRINT_ERROR_LEVEL))"); \
+	if [ -n "$(strip $(UART3_ENABLE_EFFECTIVE))" ]; then \
+		validate_cmd+=(--uart3-enable "$(strip $(UART3_ENABLE_EFFECTIVE))"); \
+	fi; \
+	if [ -n "$(strip $(DEBUG_VERBOSE_NORMALIZED))" ]; then \
+		validate_cmd+=(--debug-verbose "$(strip $(DEBUG_VERBOSE_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))" ]; then \
+		validate_cmd+=(--debug-print-error-level "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))"); \
 	fi; \
 	"$${validate_cmd[@]}"
 
