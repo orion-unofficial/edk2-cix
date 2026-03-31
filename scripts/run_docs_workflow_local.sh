@@ -5,7 +5,8 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 dockerfile="${EDK2_CIX_DOCS_WORKFLOW_DOCKERFILE:-${script_dir}/docs-workflow.Dockerfile}"
-image="${EDK2_CIX_DOCS_WORKFLOW_IMAGE:-edk2-cix-docs-workflow:20260330}"
+repo_key="$(printf '%s' "$repo_root" | cksum | awk '{print $1}')"
+image="${EDK2_CIX_DOCS_WORKFLOW_IMAGE:-edk2-cix-docs-workflow:20260330-${repo_key}}"
 platform="${EDK2_CIX_DOCS_WORKFLOW_PLATFORM:-}"
 rebuild=0
 

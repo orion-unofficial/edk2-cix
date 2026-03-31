@@ -13,6 +13,7 @@ CUSTOM_DEBUILD_ENV ?= DEB_BUILD_OPTIONS='parallel=1'
 CUSTOM_DEBUILD_ARG ?=
 CURRENT_BRANCH ?= $(strip $(shell git -C "$(REPO_ROOT)" branch --show-current 2>/dev/null))
 DEB_RESULT_ROOT ?= $(REPO_ROOT)/dist/deb
+PREFERRED_TMP_ROOT ?= $(strip $(shell "$(REPO_ROOT)/scripts/resolve_temp_root.sh"))
 
 .DEFAULT_GOAL := all
 .PHONY: all
@@ -45,7 +46,7 @@ arm64_crossbuild_dep:
 			"$$@"; \
 			return $$?; \
 		fi; \
-		apt_log="$$(mktemp "$${TMPDIR:-/tmp}/edk2-cix-apt.XXXXXX")"; \
+		apt_log="$$(mktemp "$(PREFERRED_TMP_ROOT)/edk2-cix-apt.XXXXXX")"; \
 		if "$$@" >"$$apt_log" 2>&1; then \
 			rm -f "$$apt_log"; \
 			return 0; \
