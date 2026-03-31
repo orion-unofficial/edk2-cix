@@ -14,6 +14,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 from typing import Iterable
@@ -238,6 +239,10 @@ pkg_tool="$workspace/{PACKAGE_TOOL_SOURCE.relative_to(REPO_ROOT).as_posix()}"
 pm="$workspace/{pm_config_dir.relative_to(REPO_ROOT).as_posix()}"
 fiptool_src="$workspace/{FIPTOOL_SOURCE_DIR.relative_to(REPO_ROOT).as_posix()}"
 work={shlex.quote(to_container_tmp_path(work_dir, host_tmp_root, container_tmp_root))}
+cleanup() {{
+  chmod -R a+rwX "$work" >/dev/null 2>&1 || true
+}}
+trap cleanup EXIT
 mkdir -p "$work/flash"
 make -C "$fiptool_src" HOST_ARCH=x86_64 >/dev/null
 cd "$work/flash"
@@ -390,6 +395,19 @@ def compare_outputs(reference_files: dict[str, pathlib.Path], board: str = "O6")
         status = "IDENTICAL" if reference_hash == built_hash else "DIFFER"
         results.append(f"{relative_name}: {status} {reference_hash} {built_hash}")
     return results
+
+
+def cleanup_temp_workdir(work_dir_obj: tempfile.TemporaryDirectory[str] | None) -> None:
+    if work_dir_obj is None:
+        return
+    try:
+        work_dir_obj.cleanup()
+    except PermissionError as exc:
+        work_dir = pathlib.Path(work_dir_obj.name)
+        print(
+            f"Warning: could not remove temporary replay work directory {work_dir}: {exc}",
+            file=sys.stderr,
+        )
 
 
 def main() -> int:
@@ -557,8 +575,7 @@ def main() -> int:
             for line in compare_outputs(reference_files, board=args.board):
                 print(f"  {line}")
 
-    if work_dir_obj is not None:
-        work_dir_obj.cleanup()
+    cleanup_temp_workdir(work_dir_obj)
 
     return 0
 
