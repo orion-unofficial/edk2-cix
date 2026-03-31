@@ -131,11 +131,21 @@ MICROSOFT_SECURE_BOOT_PAYLOADS := \
 	$(MICROSOFT_SECURE_BOOT_OUTPUT_DIR)/KEK.bin \
 	$(MICROSOFT_SECURE_BOOT_OUTPUT_DIR)/DB.bin \
 	$(MICROSOFT_SECURE_BOOT_OUTPUT_DIR)/DBX.bin
+CUSTOM_O6_DRIVERS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers)
+CUSTOM_O6_ACPI_OVERLAY_DIR := $(CUSTOM_O6_DRIVERS_OVERLAY_DIR)/AcpiPlatfomTables
+CUSTOM_SKY1_ACPI_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables)
+CUSTOM_SKY1_ACPI_OVERLAY_SOURCES := \
+	$(wildcard $(CUSTOM_SKY1_ACPI_OVERLAY_DIR)/*.asl) \
+	$(wildcard $(CUSTOM_SKY1_ACPI_OVERLAY_DIR)/*.aslc) \
+	$(wildcard $(CUSTOM_SKY1_ACPI_OVERLAY_DIR)/*.h) \
+	$(wildcard $(CUSTOM_SKY1_ACPI_OVERLAY_DIR)/*.inf) \
+	$(wildcard $(CUSTOM_SKY1_ACPI_OVERLAY_DIR)/tool/python3/*)
 CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Define.dsc.inc) \
-	$(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/tool/python3/ParseIomuxTemplate.py) \
-	$(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/tool/python3/pads-sky1.m4) \
+	$(CUSTOM_SKY1_ACPI_OVERLAY_SOURCES) \
+	$(abspath $(CUSTOM_O6_DRIVERS_OVERLAY_DIR)/LinuxAcpiConfig.h) \
+	$(wildcard $(CUSTOM_O6_ACPI_OVERLAY_DIR)/*) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
@@ -827,10 +837,18 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 		rm -f "$$edksetup_log"
 	fi
 	build_extra_defines=()
+	tool_def_overrides=()
+	tools_def_file="$${CONF_PATH:-edk2/Conf}/tools_def.txt"
+	lto_flag='-flto=auto'
+	rwx_warning_flag=''
+	if [[ ! -f "$$tools_def_file" ]]; then
+		echo "[build/$*] Expected EDK2 tools configuration $$tools_def_file was not produced" >&2
+		exit 1
+	fi
 	if [[ "$(UEFI_TARGET)" == "RELEASE" ]]; then
 		case "$(ARTEFACT_MODE)" in \
 			custom) \
-				printf '\nRELEASE_*_*_GENFW_FLAGS          = --zero\n' >> edk2/Conf/tools_def.txt; \
+				tool_def_overrides+=('RELEASE_*_*_GENFW_FLAGS          = --zero'); \
 				build_extra_defines=(-D REPRODUCIBLE_BUILD_METADATA=TRUE); \
 				;; \
 			upstream) \
@@ -841,6 +859,20 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 				;; \
 		esac
 	fi
+	if [[ "$(V)" != "1" ]]; then
+		tool_def_overrides+=(
+			'  DEBUG_GCC5_AARCH64_ASL_FLAGS   = -vr -vs'
+			'RELEASE_GCC5_AARCH64_ASL_FLAGS   = -vr -vs'
+		)
+		rwx_warning_flag=' -Wl,--no-warn-rwx-segments'
+	fi
+	tool_def_overrides+=(
+		"  DEBUG_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable"
+		"  DEBUG_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag"
+		"RELEASE_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable"
+		"RELEASE_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag"
+	)
+	printf '\n%s\n' "$${tool_def_overrides[@]}" >> "$$tools_def_file"
 	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_ON_UART3_NORMALIZED)" ]]; then
 		build_extra_defines+=(-D DEBUG_ON_UART3=$(DEBUG_ON_UART3_NORMALIZED))
 	fi
