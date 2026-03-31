@@ -282,6 +282,21 @@ def copy_cert_bundle(flash_dir: pathlib.Path, output_dir: pathlib.Path) -> pathl
     return cert_dir
 
 
+def copy_reference_files(
+    reference_files: dict[str, pathlib.Path],
+    output_dir: pathlib.Path,
+) -> pathlib.Path | None:
+    if not reference_files:
+        return None
+
+    reference_dir = output_dir / "reference"
+    for relative_name, source in reference_files.items():
+        destination = reference_dir / relative_name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(require_file(source), destination)
+    return reference_dir
+
+
 def write_env_file(env_path: pathlib.Path, env_values: dict[str, str]) -> None:
     lines = [f"{key}={value}" for key, value in env_values.items()]
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -365,20 +380,15 @@ EDK2_CIX_CONTAINER_TMPDIR={shlex.quote(str(container_tmp_root))} \\
 
 def compare_outputs(reference_files: dict[str, pathlib.Path], board: str = "O6") -> list[str]:
     built_root = SRC_DIR / "Build" / board / "RELEASE_GCC5"
-    built_files = {
-        "cix_flash_all.bin": built_root / "cix_flash_all.bin",
-        "cix_flash_ota.bin": built_root / "cix_flash_ota.bin",
-        "BuildOptions": built_root / "BuildOptions",
-    }
     results: list[str] = []
-    for name, reference in reference_files.items():
-        built = built_files.get(name)
-        if built is None or not reference.is_file() or not built.is_file():
+    for relative_name, reference in reference_files.items():
+        built = built_root / relative_name
+        if not reference.is_file() or not built.is_file():
             continue
         reference_hash = sha256(reference)
         built_hash = sha256(built)
         status = "IDENTICAL" if reference_hash == built_hash else "DIFFER"
-        results.append(f"{name}: {status} {reference_hash} {built_hash}")
+        results.append(f"{relative_name}: {status} {reference_hash} {built_hash}")
     return results
 
 
@@ -412,6 +422,9 @@ def main() -> int:
         reference_files["cix_flash_all.bin"] = require_file(release_dir / "cix_flash_all.bin")
         reference_files["cix_flash_ota.bin"] = require_file(release_dir / "cix_flash_ota.bin")
         reference_files["BuildOptions"] = require_file(release_dir / "BuildOptions")
+        pm_config_path = release_dir / "Firmwares" / "csu_pm_config.bin"
+        if pm_config_path.is_file():
+            reference_files["Firmwares/csu_pm_config.bin"] = pm_config_path
         build_defines = parse_build_options(reference_files["BuildOptions"])
     elif input_kind == "dir":
         reference_files["cix_flash_all.bin"] = require_file(input_path / "cix_flash_all.bin")
@@ -420,6 +433,10 @@ def main() -> int:
         if (input_path / "BuildOptions").is_file():
             reference_files["BuildOptions"] = input_path / "BuildOptions"
             build_defines = parse_build_options(reference_files["BuildOptions"])
+        if (input_path / "Firmwares" / "csu_pm_config.bin").is_file():
+            reference_files["Firmwares/csu_pm_config.bin"] = (
+                input_path / "Firmwares" / "csu_pm_config.bin"
+            )
     else:
         reference_files["cix_flash_all.bin"] = require_file(input_path)
         if args.build_options:
@@ -436,7 +453,11 @@ def main() -> int:
     pm_config_source_date_epoch, flash_dir = extract_flash_details(
         reference_files["cix_flash_all.bin"], work_dir, board_config["pm_config_dir"]
     )
+    extracted_pm_config = flash_dir / "csu_pm_config.bin"
+    if extracted_pm_config.is_file():
+        reference_files.setdefault("Firmwares/csu_pm_config.bin", extracted_pm_config)
     cert_dir = copy_cert_bundle(flash_dir, output_dir)
+    reference_dir = copy_reference_files(reference_files, output_dir)
 
     env_values = {
         "ARTEFACT_MODE": "upstream",
@@ -494,8 +515,16 @@ def main() -> int:
         "source_date_epoch": source_date_epoch,
         "pm_config_source_date_epoch": pm_config_source_date_epoch,
         "signing_cert_source_dir": str(cert_dir),
+        "reference_dir": str(reference_dir) if reference_dir is not None else None,
         "build_defines": build_defines,
-        "reference_files": {name: str(path) for name, path in reference_files.items()},
+        "reference_files": (
+            {
+                relative_name: str(reference_dir / relative_name)
+                for relative_name in reference_files
+            }
+            if reference_dir is not None
+            else {relative_name: str(path) for relative_name, path in reference_files.items()}
+        ),
     }
     (output_dir / "replay-summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n",

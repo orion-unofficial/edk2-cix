@@ -19,6 +19,44 @@ For documentation builds, run `make docs-build` when `mdbook` is already
 available, or `devenv shell make docs-build` to use the repo's managed docs
 toolchain. The generated site is written to `book/html/`.
 
+## Test GitHub Actions locally
+
+For workflow changes, prefer testing them locally with the repo-managed `act`
+wrapper before pushing:
+
+```bash
+make gha-act-list
+make gha-act-dry-run \
+  ACT_WORKFLOW=.github/workflows/deterministic-replay.yaml \
+  ACT_JOB=resolve-release
+make gha-act-run \
+  ACT_WORKFLOW=.github/workflows/deterministic-replay.yaml \
+  ACT_JOB=resolve-release
+```
+
+The wrapper lives at `scripts/run_github_actions_with_act.sh`. It bootstraps a
+pinned `act` binary under `.buildbox/tools/act/`, keeps its cache under
+`.buildbox/act-cache/`, maps `ubuntu-latest` to
+`catthehacker/ubuntu:act-latest`, and defaults the act runner architecture to
+`linux/amd64` so workflow behaviour stays closer to hosted GitHub Actions.
+
+Common variables:
+
+- `ACT_WORKFLOW=.github/workflows/<file>.yaml`
+- `ACT_EVENT=workflow_dispatch|push|pull_request`
+- `ACT_JOB=<job-id>`
+- `ACT_MATRIX=<name:value>` for a single matrix leg such as `board:O6`
+- `ACT_SECRET_FILE=/path/to/secrets.env` when a local run needs secrets
+- `ACT_EXTRA_ARGS='...'` for any extra raw act flags
+
+If you want to pass the runner image or container architecture yourself, call
+`scripts/run_github_actions_with_act.sh --no-defaults ...` directly.
+
+The first run downloads the pinned `act` release plus the selected runner
+image, so it is expected to take longer. In sandboxed agent environments,
+`act` may also need permission to talk to Docker and bind its local helper
+networking before the run can start.
+
 ## Supported host environments
 
 - Debian `bookworm` on `x86_64` for the preferred exact-upstream replay path
