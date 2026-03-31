@@ -826,18 +826,34 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 	if command -v iasl >/dev/null 2>&1; then \
 		export IASL_PREFIX="$$(dirname "$$(command -v iasl)")/"; \
 	fi; \
-	unset MAKEFLAGS; \
-	if [[ "$(V)" == "1" ]]; then \
-		source edk2/edksetup.sh --reconfig; \
-	else \
-		edksetup_log="$$(mktemp "$${TMPDIR:-/tmp}/edk2-cix-edksetup.XXXXXX")"; \
-		if ! source edk2/edksetup.sh --reconfig >"$$edksetup_log" 2>&1; then \
-			cat "$$edksetup_log" >&2; \
-			rm -f "$$edksetup_log"; \
-			exit 1; \
+	run_edksetup() { \
+		local had_nounset=0; \
+		case "$$-" in \
+			*u*) had_nounset=1; set +u; ;; \
+		esac; \
+		if [[ "$(V)" == "1" ]]; then \
+			source edk2/edksetup.sh --reconfig; \
+		else \
+			local edksetup_log; \
+			edksetup_log="$$(mktemp "$${TMPDIR:-/tmp}/edk2-cix-edksetup.XXXXXX")"; \
+			if source edk2/edksetup.sh --reconfig >"$$edksetup_log" 2>&1; then \
+				rm -f "$$edksetup_log"; \
+			else \
+				local status=$$?; \
+				cat "$$edksetup_log" >&2; \
+				rm -f "$$edksetup_log"; \
+				if (( had_nounset )); then \
+					set -u; \
+				fi; \
+				return "$$status"; \
+			fi; \
 		fi; \
-		rm -f "$$edksetup_log"; \
-	fi; \
+		if (( had_nounset )); then \
+			set -u; \
+		fi; \
+	}; \
+	unset MAKEFLAGS; \
+	run_edksetup; \
 	build_extra_defines=(); \
 	tool_def_overrides=(); \
 	tools_def_file="$${CONF_PATH:-edk2/Conf}/tools_def.txt"; \
