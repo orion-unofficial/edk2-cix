@@ -1,9 +1,9 @@
 /*
- * Custom path: make the O6N UART3 pinmux track DEBUG_ON_UART3 without editing
+ * Custom path: make the O6N UART3 pinmux track UART3_ENABLE without editing
  * the imported upstream source in place.
  */
 
-#if DEBUG_ON_UART3
+#if UART3_ENABLE
 #ifdef DEBUG_MODE
 #undef DEBUG_MODE
 #endif
@@ -23,13 +23,13 @@ ApplyDebugUart3PinMuxOverride (
   VOID
   )
 {
-#if DEBUG_ON_UART3
+#if UART3_ENABLE
   UINTN  Index;
 
   //
   // The public pad definitions describe UART3_TXD/RXD as raw function 0, with
   // function 1 mapping the same pads to GPIO105/GPIO106. Force the imported
-  // O6N pinmux table to select the UART function when DEBUG_ON_UART3 is enabled.
+  // O6N pinmux table to select the UART function when UART3_ENABLE is enabled.
   //
   for (Index = 0; Index < ARRAY_SIZE (PinMuxCfgTable); Index++) {
     if ((PinMuxCfgTable[Index].Offset == IO_S0_UART3_TXD) ||
