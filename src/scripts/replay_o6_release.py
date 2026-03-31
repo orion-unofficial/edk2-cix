@@ -33,6 +33,7 @@ DEFAULT_TMP_ROOT = pathlib.Path(
 DEFAULT_CONTAINER_TMPDIR = pathlib.PurePosixPath(
     os.environ.get("EDK2_CIX_CONTAINER_TMPDIR", "/hosttmp")
 )
+DEFAULT_BUILDBOX_WORKSPACE_ROOT = pathlib.PurePosixPath("/workspaces/edk2-cix")
 DEFAULT_REPLAY_BUILDBOX_IMAGE = "mcr.microsoft.com/devcontainers/base:bookworm"
 DEFAULT_REPLAY_BUILDBOX_PLATFORM = "linux/amd64"
 
@@ -368,11 +369,13 @@ def write_docker_rebuild_wrapper(
 set -euo pipefail
 
 cd {shlex.quote(str(REPO_ROOT))}
+EDK2_CIX_WORKSPACE_ROOT={shlex.quote(str(DEFAULT_BUILDBOX_WORKSPACE_ROOT))} \\
 EDK2_CIX_BUILDBOX_IMAGE={shlex.quote(DEFAULT_REPLAY_BUILDBOX_IMAGE)} \\
 EDK2_CIX_BUILDBOX_PLATFORM={shlex.quote(DEFAULT_REPLAY_BUILDBOX_PLATFORM)} \\
 EDK2_CIX_HOST_TMPDIR={shlex.quote(str(host_tmp_root))} \\
 EDK2_CIX_CONTAINER_TMPDIR={shlex.quote(str(container_tmp_root))} \\
 ./scripts/run_in_buildbox.sh make --no-print-directory -C src clean
+EDK2_CIX_WORKSPACE_ROOT={shlex.quote(str(DEFAULT_BUILDBOX_WORKSPACE_ROOT))} \\
 EDK2_CIX_BUILDBOX_IMAGE={shlex.quote(DEFAULT_REPLAY_BUILDBOX_IMAGE)} \\
 EDK2_CIX_BUILDBOX_PLATFORM={shlex.quote(DEFAULT_REPLAY_BUILDBOX_PLATFORM)} \\
 EDK2_CIX_HOST_TMPDIR={shlex.quote(str(host_tmp_root))} \\
