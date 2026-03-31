@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -39,6 +40,25 @@ class FirmwareMetadataAuditTests(unittest.TestCase):
         self.assertEqual(findings[0].text, "/workspaces/edk2-cix")
         self.assertIn("/workspaces/", findings[0].reasons)
 
+    def test_var_tmp_path_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir_text:
+            payload = Path(tempdir_text) / "BuildOptions"
+            payload.write_bytes(b"/var/tmp/edk2-cix-custom-workspace/Build/O6/RELEASE_GCC5")
+            findings = audit_targets([(payload.name, payload)])
+
+        self.assertEqual(len(findings), 1)
+        self.assertIn("/var/tmp/", findings[0].reasons)
+
+    def test_tmpdir_environment_path_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir_text:
+            payload = Path(tempdir_text) / "BuildOptions"
+            payload.write_bytes(b"/custom-temp-root/edk2-cix-custom-workspace/Build/O6")
+            with mock.patch.dict("os.environ", {"TMPDIR": "/custom-temp-root"}, clear=False):
+                findings = audit_targets([(payload.name, payload)])
+
+        self.assertEqual(len(findings), 1)
+        self.assertIn("TMPDIR path", findings[0].reasons)
+
     def test_windows_workspace_path_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir_text:
             payload = Path(tempdir_text) / "FlashUpdate.efi"
@@ -66,10 +86,11 @@ class FirmwareMetadataAuditTests(unittest.TestCase):
         self.assertEqual(findings, [])
 
     def test_build_options_paths_are_normalized(self) -> None:
+        temp_workspace_root = (Path(tempfile.gettempdir()) / "edk2-cix-custom-workspace").as_posix()
         original = "\n".join(
             (
-                "Active Platform: /tmp/edk2-cix-custom-workspace/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
-                "Flash Image Definition: /tmp/edk2-cix-custom-workspace/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
+                f"Active Platform: {temp_workspace_root}/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+                f"Flash Image Definition: {temp_workspace_root}/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
                 "gCommandLineDefines: {'BUILD_DATE': '2026-03-31T00:00:00+00:00'}",
             )
         )
@@ -87,7 +108,7 @@ class FirmwareMetadataAuditTests(unittest.TestCase):
             "Flash Image Definition: src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
             normalized,
         )
-        self.assertNotIn("/tmp/edk2-cix-custom-workspace", normalized)
+        self.assertNotIn(temp_workspace_root, normalized)
 
 
 if __name__ == "__main__":
