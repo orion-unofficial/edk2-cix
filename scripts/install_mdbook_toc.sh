@@ -9,6 +9,7 @@ lockfile="${repo_root}/nix/mdbook-toc-0.15.3-mdbook-0.5.2.Cargo.lock"
 stamp_file="${tool_root}/mdbook-toc.lock.cksum"
 binary="${tool_root}/bin/mdbook-toc"
 version="0.15.3"
+temp_root="$("${script_dir}/resolve_temp_root.sh")"
 read -r lockfile_cksum lockfile_size _ < <(cksum "$lockfile")
 expected_stamp="${lockfile_cksum}:${lockfile_size}"
 
@@ -26,7 +27,7 @@ if ! command -v git >/dev/null 2>&1; then
     exit 1
 fi
 
-workdir="$(mktemp -d "${TMPDIR:-/tmp}/mdbook-toc.XXXXXX")"
+workdir="$(mktemp -d "${temp_root}/mdbook-toc.XXXXXX")"
 trap 'rm -rf "$workdir"' EXIT
 
 git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$version" https://github.com/badboy/mdbook-toc.git "$workdir/src"

@@ -7,6 +7,7 @@ repo_root="$(dirname -- "$script_dir")"
 act_version="${EDK2_CIX_ACT_VERSION:-0.2.86}"
 tool_root="${EDK2_CIX_ACT_TOOL_ROOT:-${repo_root}/.buildbox/tools/act}"
 download_root="${tool_root}/downloads"
+temp_root="$("${script_dir}/resolve_temp_root.sh")"
 
 status() {
     printf '[act-bootstrap] %s\n' "$*" >&2
@@ -80,7 +81,7 @@ fi
 
 mkdir -p "$download_root" "$tool_root"
 
-tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/edk2-cix-act.XXXXXX")"
+tmpdir="$(mktemp -d "${temp_root}/edk2-cix-act.XXXXXX")"
 trap 'rm -rf "$tmpdir"' EXIT
 
 checksums_path="${tmpdir}/checksums.txt"

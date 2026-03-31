@@ -6,6 +6,7 @@ script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 dep_profile="${EDK2_CIX_DEP_PROFILE:-packaging}"
 verbose="${EDK2_CIX_VERBOSE:-${V:-0}}"
+temp_root="$("${script_dir}/resolve_temp_root.sh")"
 
 status() {
     printf '[deps] %s\n' "$*"
@@ -40,7 +41,7 @@ apt_get() {
     fi
 
     local apt_log
-    apt_log="$(mktemp "${TMPDIR:-/tmp}/edk2-cix-apt.XXXXXX")"
+    apt_log="$(mktemp "${temp_root}/edk2-cix-apt.XXXXXX")"
     if ! as_root "${apt_env[@]}" apt-get \
         -o APT::Install-Recommends=false \
         -o APT::Install-Suggests=false \
