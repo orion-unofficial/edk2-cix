@@ -23,7 +23,6 @@ SCRIPT_PATH = pathlib.Path(__file__).resolve()
 SRC_DIR = SCRIPT_PATH.parent.parent
 REPO_ROOT = SRC_DIR.parent
 PACKAGE_TOOL_DIR = SRC_DIR / "edk2-non-osi" / "Platform" / "CIX" / "Sky1" / "PackageTool"
-PM_CONFIG_DIR = SRC_DIR / "edk2-platforms" / "Platform" / "Radxa" / "Orion" / "O6" / "pm_config"
 FIPTOOL_SOURCE_DIR = SRC_DIR / "tools" / "arm-trusted-firmware-fiptool"
 FLASH_CONFIG_ALL = PACKAGE_TOOL_DIR / "spi_flash_config_all.json"
 PACKAGE_TOOL_SOURCE = SRC_DIR / "tools" / "cix_package_tool" / "cix_package_tool.py"
@@ -36,17 +35,34 @@ DEFAULT_CONTAINER_TMPDIR = pathlib.PurePosixPath(
 DEFAULT_REPLAY_BUILDBOX_IMAGE = "mcr.microsoft.com/devcontainers/base:bookworm"
 DEFAULT_REPLAY_BUILDBOX_PLATFORM = "linux/amd64"
 
+BOARD_CONFIG = {
+    "O6": {
+        "product": "orion-o6",
+        "pm_config_dir": SRC_DIR / "edk2-platforms" / "Platform" / "Radxa" / "Orion" / "O6" / "pm_config",
+    },
+    "O6N": {
+        "product": "orion-o6n",
+        "pm_config_dir": SRC_DIR / "edk2-platforms" / "Platform" / "Radxa" / "Orion" / "O6N" / "pm_config",
+    },
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Extract replay inputs from an O6 release artefact and optionally "
+            "Extract replay inputs from an O6/O6N release artefact and optionally "
             "rebuild matching firmware on main-monorepo."
         )
     )
     parser.add_argument(
         "input_path",
-        help="Path to a published edk2-cix *.deb, a cix_flash_all.bin, or an extracted O6 directory",
+        help="Path to a published edk2-cix *.deb, a cix_flash_all.bin, or an extracted release directory",
+    )
+    parser.add_argument(
+        "--board",
+        choices=sorted(BOARD_CONFIG),
+        default="O6",
+        help="Firmware board to replay (default: O6).",
     )
     parser.add_argument(
         "--build-options",
@@ -155,7 +171,11 @@ def read_ar_members(archive_path: pathlib.Path) -> dict[str, bytes]:
     return members
 
 
-def extract_release_dir_from_deb(deb_path: pathlib.Path, work_dir: pathlib.Path) -> pathlib.Path:
+def extract_release_dir_from_deb(
+    deb_path: pathlib.Path,
+    work_dir: pathlib.Path,
+    product: str,
+) -> pathlib.Path:
     release_root = ensure_clean_dir(work_dir / "release")
     members = read_ar_members(deb_path)
     data_name, data_payload = next(
@@ -166,10 +186,10 @@ def extract_release_dir_from_deb(deb_path: pathlib.Path, work_dir: pathlib.Path)
         raise ValueError(f"Could not find data.tar.* inside {deb_path}")
     with tarfile.open(fileobj=io.BytesIO(data_payload), mode="r:*") as archive:
         archive.extractall(release_root)
-    o6_dir = release_root / "usr" / "share" / "edk2" / "radxa" / "orion-o6"
-    if not o6_dir.is_dir():
-        raise ValueError(f"Could not find O6 payload directory inside {deb_path}")
-    return o6_dir
+    release_dir = release_root / "usr" / "share" / "edk2" / "radxa" / product
+    if not release_dir.is_dir():
+        raise ValueError(f"Could not find {product} payload directory inside {deb_path}")
+    return release_dir
 
 
 def parse_build_options(build_options: pathlib.Path) -> dict[str, str]:
@@ -196,7 +216,11 @@ def parse_compile_epoch(flash_image: pathlib.Path) -> tuple[str, str, int]:
     raise ValueError(f"Could not locate compile timestamp banner inside {flash_image}")
 
 
-def extract_flash_details(flash_image: pathlib.Path, work_dir: pathlib.Path) -> tuple[int, pathlib.Path]:
+def extract_flash_details(
+    flash_image: pathlib.Path,
+    work_dir: pathlib.Path,
+    pm_config_dir: pathlib.Path,
+) -> tuple[int, pathlib.Path]:
     input_dir = ensure_clean_dir(work_dir / "input")
     flash_dir = ensure_clean_dir(work_dir / "flash")
     pm_parse_path = work_dir / "pm_parse.txt"
@@ -211,7 +235,7 @@ set -euo pipefail
 workspace="$PWD"
 pkg="$workspace/{PACKAGE_TOOL_DIR.relative_to(REPO_ROOT).as_posix()}"
 pkg_tool="$workspace/{PACKAGE_TOOL_SOURCE.relative_to(REPO_ROOT).as_posix()}"
-pm="$workspace/{PM_CONFIG_DIR.relative_to(REPO_ROOT).as_posix()}"
+pm="$workspace/{pm_config_dir.relative_to(REPO_ROOT).as_posix()}"
 fiptool_src="$workspace/{FIPTOOL_SOURCE_DIR.relative_to(REPO_ROOT).as_posix()}"
 work={shlex.quote(to_container_tmp_path(work_dir, host_tmp_root, container_tmp_root))}
 mkdir -p "$work/flash"
@@ -362,6 +386,7 @@ def main() -> int:
     args = parse_args()
     input_path = pathlib.Path(args.input_path).resolve()
     input_kind = detect_input_kind(input_path)
+    board_config = BOARD_CONFIG[args.board]
 
     output_dir = (
         pathlib.Path(args.output_dir).resolve()
@@ -383,7 +408,7 @@ def main() -> int:
     build_defines: dict[str, str] = {}
 
     if input_kind == "deb":
-        release_dir = extract_release_dir_from_deb(input_path, work_dir)
+        release_dir = extract_release_dir_from_deb(input_path, work_dir, board_config["product"])
         reference_files["cix_flash_all.bin"] = require_file(release_dir / "cix_flash_all.bin")
         reference_files["cix_flash_ota.bin"] = require_file(release_dir / "cix_flash_ota.bin")
         reference_files["BuildOptions"] = require_file(release_dir / "BuildOptions")
@@ -409,7 +434,7 @@ def main() -> int:
         reference_files["cix_flash_all.bin"]
     )
     pm_config_source_date_epoch, flash_dir = extract_flash_details(
-        reference_files["cix_flash_all.bin"], work_dir
+        reference_files["cix_flash_all.bin"], work_dir, board_config["pm_config_dir"]
     )
     cert_dir = copy_cert_bundle(flash_dir, output_dir)
 
@@ -436,30 +461,30 @@ def main() -> int:
     env_path = output_dir / "replay.env"
     write_env_file(env_path, env_values)
 
-    wrapper_path = output_dir / "rebuild-o6.sh"
-    docker_wrapper_path = output_dir / "rebuild-o6-docker.sh"
+    wrapper_path = output_dir / f"rebuild-{args.board.lower()}.sh"
+    docker_wrapper_path = output_dir / f"rebuild-{args.board.lower()}-docker.sh"
     if "BUILD_DATE" in env_values:
+        build_targets = (
+            f"Build/{args.board}/RELEASE_GCC5/cix_flash_all.bin",
+            f"Build/{args.board}/RELEASE_GCC5/cix_flash_ota.bin",
+        )
         write_rebuild_wrapper(
             wrapper_path,
             env_values,
-            (
-                "Build/O6/RELEASE_GCC5/cix_flash_all.bin",
-                "Build/O6/RELEASE_GCC5/cix_flash_ota.bin",
-            ),
+            build_targets,
         )
         try:
             write_docker_rebuild_wrapper(
                 docker_wrapper_path,
                 env_values,
-                (
-                    "Build/O6/RELEASE_GCC5/cix_flash_all.bin",
-                    "Build/O6/RELEASE_GCC5/cix_flash_ota.bin",
-                ),
+                build_targets,
             )
         except ValueError:
             docker_wrapper_path = None
 
     summary = {
+        "board": args.board,
+        "product": board_config["product"],
         "input_path": str(input_path),
         "output_dir": str(output_dir),
         "build_date": build_date,
@@ -500,7 +525,7 @@ def main() -> int:
         subprocess.run([str(wrapper_path)], check=True)
         if args.compare:
             print("Comparison against reference files:")
-            for line in compare_outputs(reference_files):
+            for line in compare_outputs(reference_files, board=args.board):
                 print(f"  {line}")
 
     if work_dir_obj is not None:

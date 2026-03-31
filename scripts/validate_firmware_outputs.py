@@ -164,9 +164,32 @@ def find_fiptool(repo_root: pathlib.Path) -> str | None:
         repo_root / "src" / "tools" / "arm-trusted-firmware-fiptool" / "build" / "aarch64" / "fiptool",
         repo_root / "src" / "tools" / "arm-trusted-firmware-fiptool" / "build" / "x86_64" / "fiptool",
     ):
-        if candidate.is_file():
-            return str(candidate)
-    return shutil.which("fiptool")
+        if not candidate.is_file():
+            continue
+        try:
+            subprocess.run(
+                [str(candidate), "--help"],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError:
+            continue
+        return str(candidate)
+
+    fallback = shutil.which("fiptool")
+    if not fallback:
+        return None
+    try:
+        subprocess.run(
+            [fallback, "--help"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        return None
+    return fallback
 
 
 def gather_fip_info(path: pathlib.Path, fiptool: str | None) -> list[str] | None:

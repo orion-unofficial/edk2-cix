@@ -137,7 +137,7 @@ define PRINT_TOP_LEVEL_VARIABLES
 	print_help_line '  DEBUG_VERBOSE=true|false' 'Custom-only: on RELEASE builds, re-enable DEBUG() logging with minimal runtime side effects and default to the full DEBUG_* mask unless DEBUG_PRINT_ERROR_LEVEL is set.\nDefault: false.'; \
 	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug message mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; builds use 0x80000040 unless DEBUG_VERBOSE=true.\nRun: make help-debug'; \
 	print_help_line '  FIRMWARE_VALIDATE_ON_BUILD=true|false' 'Enable or skip automatic output validation after firmware-build.\nDefault: false; enable explicitly for qualification or diagnostic runs.'; \
-	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile from validation/expected-hashes.json, e.g. upstream-o6-1.2.1-bookworm.\nDefault: upstream-o6-1.2.1-bookworm.'; \
+	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile from validation/expected-hashes.json, e.g. upstream-o6-1.2.1-bookworm or upstream-o6n-1.2.1-bookworm.\nDefault: upstream-o6-1.2.1-bookworm.'; \
 	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Select the default distro family for buildbox runs and deterministic replay.\nDefault: bookworm.'; \
 	print_help_line '  REPLAY_INPUT=<path>' 'Seed replay inputs from a .deb, an extracted release dir, or cix_flash_all.bin.\nDefault: unset; reuse cached replay inputs if present.'; \
 	print_help_line '  REPLAY_BUILD_OPTIONS=<path>' 'BuildOptions file used when replaying from cix_flash_all.bin.\nDefault: unset.'; \
@@ -513,15 +513,10 @@ __deterministic-replay:
 		exit 2; \
 	fi; \
 	if [ -n "$$replay_input" ]; then \
-		if [ "$$replay_board" != "O6" ]; then \
-			echo "[replay] Automatic replay input extraction is currently implemented only for O6." >&2; \
-			echo "[replay] For $$replay_board, pre-populate $$replay_dir with replay.env and certs/ first." >&2; \
-			exit 2; \
-		fi; \
 		printf '[replay] Extracting exact replay inputs into %s\n' "$$replay_dir"; \
 		rm -rf "$$replay_dir"; \
 		mkdir -p "$$replay_dir"; \
-		replay_cmd=(python3 "$(REPO_ROOT)/src/scripts/replay_o6_release.py" "$$replay_input" --output-dir "$$replay_dir"); \
+		replay_cmd=(python3 "$(REPO_ROOT)/src/scripts/replay_o6_release.py" "$$replay_input" --board "$$replay_board" --output-dir "$$replay_dir"); \
 		if [ -n "$$replay_build_options" ]; then \
 			replay_cmd+=(--build-options "$$replay_build_options"); \
 		fi; \
