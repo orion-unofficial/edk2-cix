@@ -295,6 +295,10 @@ profiles serve two different purposes:
   - qualification profile for the published `1.2.1` release
   - expected to match only when the build reuses the extracted release cert
     bundle and the corresponding replay timestamps
+- `upstream-o6n-1.2.1-bookworm`
+  - qualification profile for the published `1.2.1` O6N release
+  - expected to match only when the build reuses the extracted release cert
+    bundle and the corresponding replay timestamps
 - `upstream-o6-1.2.1-trixie`
   - same-input Trixie reproducibility profile
   - used to confirm matching `amd64` and `arm64` Trixie builds on
@@ -314,13 +318,21 @@ whole replay workflow, use:
 make validate-firmware ARTEFACT_MODE=upstream
 ```
 
-That compares the built `O6` outputs against the checked-in
-`upstream-o6-1.2.1-bookworm` qualification profile under
+That compares the built outputs against the checked-in validation profile under
 [validation/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/expected-hashes.json)
 and writes a structural report under `build-validation/`.
 
+For the published O6N release baseline, select the dedicated O6N profile:
+
+```bash
+make validate-firmware \
+  ARTEFACT_MODE=upstream \
+  FIRMWARE_BOARD=O6N \
+  FIRMWARE_VALIDATION_PROFILE=upstream-o6n-1.2.1-bookworm
+```
+
 The same file also carries the `upstream-o6-1.2.1-trixie` reproducibility
-profile, intended for matching amd64 or arm64 Trixie replays on
+profile, intended for matching amd64 or arm64 Trixie O6 replays on
 `main-monorepo` when they reuse the same cert bundle and replay timestamps:
 
 ```bash
