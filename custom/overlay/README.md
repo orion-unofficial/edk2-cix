@@ -16,7 +16,29 @@ Keep overlays narrow and intentional:
   possible, so a partial overlay cannot accidentally mask an imported `.inf` or
   source file during EDK2 path resolution
 
-The initial custom overlay makes `DEBUG_ON_UART3` opt-in on O6/O6N, aligns the
-UART3 pinmux with that setting, and lets custom builds override
-`DEBUG_PRINT_ERROR_LEVEL` without modifying the imported upstream sources in
-place.
+Current overlay areas:
+
+- `edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/`:
+  custom `DEBUG_ON_UART3` and `DEBUG_PRINT_ERROR_LEVEL` handling for
+  `ARTEFACT_MODE=custom`
+- `edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/` and
+  `edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/`:
+  board hook changes that keep the UART3 pinmux aligned with the custom debug
+  routing choice
+- `edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/`:
+  Sky1 ACPI source overlay used to reduce ACPICA warnings and remarks under the
+  custom path
+- `edk2-platforms/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/` plus the
+  sibling `LinuxAcpiConfig.h`:
+  O6 ACPI source overlay used to reduce ACPICA warnings and remarks under the
+  custom path; the sibling header is mirrored here because this package-level
+  overlay would otherwise hide the imported header during EDK2 path resolution
+- `edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/` and
+  `edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft/`:
+  custom Secure Boot provisioning logic and Microsoft default key material for
+  custom builds
+
+Keep module-local warning suppressions scoped and documented. Today the custom
+Sky1 ACPI overlay uses targeted ACPICA suppressions for `2184` and `2095`
+because those remarks come from intentional vendor UUIDs and intentionally empty
+dependency packages rather than from ambiguous or malformed AML.
