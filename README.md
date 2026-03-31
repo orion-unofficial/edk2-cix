@@ -20,6 +20,21 @@ managed docs toolchain. The rendered site is written to `book/html/`. Keep any
 machine-specific `devenv` overrides, including optional Git hook installation,
 in a local `devenv.local.nix` based on `devenv.local.nix.example`.
 
+For GitHub Actions workflow changes, use the repo-local `act` wrapper before
+pushing:
+
+```bash
+make gha-act-list
+make gha-act-dry-run \
+  ACT_WORKFLOW=.github/workflows/deterministic-replay.yaml \
+  ACT_JOB=resolve-release
+```
+
+That wrapper bootstraps a pinned `act` binary under `.buildbox/tools/act/`,
+keeps its cache under `.buildbox/act-cache/`, and applies the repo's default
+runner mapping for `ubuntu-latest`. See [docs/build.md](docs/build.md) for the
+full local-workflow testing notes and variables.
+
 ### Without `devcontainer`
 
 If you are building on a headless Linux host over SSH, you do not need VS Code
@@ -101,7 +116,7 @@ package artefacts into `dist/deb/`.
 For non-buildbox workflows, the base OS is whichever environment you are
 already building in. Host-native builds therefore use the host distro, and the
 checked-in devcontainer remains pinned by
-[`/.devcontainer/devcontainer.json`](/Users/Stuart/src/edk2-cix/.devcontainer/devcontainer.json).
+[`/.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json).
 
 The firmware-oriented `buildbox-*` targets install the slimmer firmware
 dependency profile by default; `buildbox-deb` switches the same reusable
@@ -269,12 +284,12 @@ Native `arm64` / `aarch64` work no longer depends on the old closed-source
 `fiptool` from source, and the packaging step runs the in-tree source
 `cix_package_tool` implementation too.
 
-The maintained helper sources now live under [src/tools](/Users/Stuart/src/edk2-cix/src/tools):
+The maintained helper sources now live under [src/tools](src/tools):
 
-- [src/tools/arm-trusted-firmware-fiptool](/Users/Stuart/src/edk2-cix/src/tools/arm-trusted-firmware-fiptool)
-- [src/tools/cert_uefi_create_rsa](/Users/Stuart/src/edk2-cix/src/tools/cert_uefi_create_rsa)
-- [src/tools/cix_package_tool](/Users/Stuart/src/edk2-cix/src/tools/cix_package_tool)
-- [src/tools/cix_regen_trusted_key_cert](/Users/Stuart/src/edk2-cix/src/tools/cix_regen_trusted_key_cert)
+- [src/tools/arm-trusted-firmware-fiptool](src/tools/arm-trusted-firmware-fiptool)
+- [src/tools/cert_uefi_create_rsa](src/tools/cert_uefi_create_rsa)
+- [src/tools/cix_package_tool](src/tools/cix_package_tool)
+- [src/tools/cix_regen_trusted_key_cert](src/tools/cix_regen_trusted_key_cert)
 
 That keeps the build and replay paths off the old shipped opaque binaries.
 You can build them explicitly with:
@@ -320,8 +335,8 @@ make validate-firmware ARTEFACT_MODE=upstream
 ```
 
 That compares the built outputs against the checked-in validation profile under
-[validation/expected-hashes.json](/Users/Stuart/src/edk2-cix/validation/expected-hashes.json)
-and writes a structural report under `build-validation/`.
+[validation/expected-hashes.json](validation/expected-hashes.json) and writes a
+structural report under `build-validation/`.
 
 For the published O6N release baseline, select the dedicated O6N profile:
 
