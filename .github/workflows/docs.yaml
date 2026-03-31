@@ -36,10 +36,28 @@ jobs:
       shell: "bash"
     - name: "Setup Pages"
       uses: "actions/configure-pages@v6"
+    - name: "Archive Pages artifact"
+      # actions/upload-pages-artifact@v4 still pins actions/upload-artifact
+      # v4.6.2 internally, which triggers the hosted runner Node 20
+      # deprecation warning. Archive the Pages payload inline and upload it
+      # with the current Node 24-compatible action instead.
+      run: |
+        tar \
+          --dereference --hard-dereference \
+          --directory "./book/html" \
+          -cvf "${RUNNER_TEMP}/artifact.tar" \
+          --exclude=.git \
+          --exclude=.github \
+          --exclude='.[^/]*' \
+          .
+      shell: "bash"
     - name: "Upload artifact"
-      uses: "actions/upload-pages-artifact@v4"
+      uses: "actions/upload-artifact@v7"
       with:
-        path: "./book/html"
+        name: "github-pages"
+        path: "${{ runner.temp }}/artifact.tar"
+        retention-days: 1
+        if-no-files-found: "error"
     - if: "github.event_name != 'pull_request'"
       name: "Deploy to GitHub Pages"
       uses: "actions/deploy-pages@v5"
