@@ -8,6 +8,16 @@
 !else
   DEFINE DEBUG_ON_UART3             = FALSE
 !endif
+!ifdef $(UART3_ENABLE)
+  DEFINE UART3_ENABLE               = $(UART3_ENABLE)
+!else
+  DEFINE UART3_ENABLE               = FALSE
+!endif
+!ifdef $(DEBUG_VERBOSE)
+  DEFINE DEBUG_VERBOSE              = $(DEBUG_VERBOSE)
+!else
+  DEFINE DEBUG_VERBOSE              = FALSE
+!endif
 !ifdef $(DEBUG_PRINT_ERROR_LEVEL)
   DEFINE DEBUG_PRINT_ERROR_LEVEL    = $(DEBUG_PRINT_ERROR_LEVEL)
 !else
