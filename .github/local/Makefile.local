@@ -395,6 +395,7 @@ __firmware-stage: __firmware-build-silent-output
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(RAW_FIRMWARE_TARGET)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output-dir "$(FIRMWARE_STAGE_ROOT)"
 	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
@@ -411,6 +412,7 @@ __install: __firmware-stage
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(RAW_FIRMWARE_TARGET)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--install-root "$(FIRMWARE_INSTALL_ROOT)"
 	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
@@ -427,6 +429,7 @@ __zip: __firmware-build-silent-output
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(RAW_FIRMWARE_TARGET)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
 	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
@@ -443,6 +446,7 @@ __targz: __firmware-build-silent-output
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
 		--target "$(RAW_FIRMWARE_TARGET)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
 		--version "$(FIRMWARE_VERSION)" \
 		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
 	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \

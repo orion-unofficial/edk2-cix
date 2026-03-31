@@ -11,9 +11,14 @@ import tarfile
 import tempfile
 import zipfile
 
+from firmware_metadata_audit import audit_targets, format_findings
+
 
 SCRIPT_PATH = pathlib.Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parent.parent
+BASETOOLS_GENFW = (
+    REPO_ROOT / "src" / "edk2" / "BaseTools" / "Source" / "C" / "bin" / "GenFw"
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,6 +35,11 @@ def parse_args() -> argparse.Namespace:
     common.add_argument("--board", default="O6")
     common.add_argument("--product", default="orion-o6")
     common.add_argument("--target", default="RELEASE_GCC5")
+    common.add_argument(
+        "--artefact-mode",
+        choices=("custom", "upstream"),
+        default=os.environ.get("ARTEFACT_MODE", "custom"),
+    )
     common.add_argument("--version")
 
     stage = subparsers.add_parser("stage", parents=[common])
@@ -80,6 +90,111 @@ def copy_required_file(source: pathlib.Path, destination: pathlib.Path) -> None:
     shutil.copy2(source, destination)
 
 
+def parse_build_options(path: pathlib.Path) -> dict[str, str]:
+    result: dict[str, str] = {}
+    if not path.is_file():
+        return result
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("Active Platform: "):
+            result["active_platform"] = line.partition(": ")[2].strip()
+        elif line.startswith("Flash Image Definition: "):
+            result["flash_definition"] = line.partition(": ")[2].strip()
+    return result
+
+
+def resolve_genfw(repo_root: pathlib.Path) -> pathlib.Path:
+    local_genfw = repo_root / "src" / BASETOOLS_GENFW.relative_to(REPO_ROOT / "src")
+    if local_genfw.is_file():
+        return local_genfw
+    resolved = shutil.which("GenFw")
+    if resolved:
+        return pathlib.Path(resolved)
+    raise RuntimeError(
+        "GenFw was not found. Run `make -C src prepare-basetools-c` before staging a "
+        "custom payload."
+    )
+
+
+def zero_debug_metadata(genfw: pathlib.Path, source: pathlib.Path, destination: pathlib.Path) -> None:
+    if not source.is_file():
+        raise FileNotFoundError(source)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(
+        [str(genfw), "--zero", "-o", str(destination), str(source)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or result.stdout.strip() or "unknown GenFw failure"
+        raise RuntimeError(f"Failed to zero debug metadata in {source}: {stderr}")
+
+
+def resolve_repo_relative_board_file(
+    repo_root: pathlib.Path,
+    board: str,
+    suffix: str,
+) -> str:
+    search_root = repo_root / "src" / "edk2-platforms" / "Platform" / "Radxa"
+    candidates = sorted(search_root.rglob(f"{board}{suffix}"))
+    if len(candidates) != 1:
+        rendered = ", ".join(candidate.relative_to(repo_root).as_posix() for candidate in candidates)
+        raise RuntimeError(
+            f"Expected exactly one {board}{suffix} under {search_root}, found {len(candidates)}"
+            + (f": {rendered}" if rendered else "")
+        )
+    return candidates[0].resolve().relative_to(repo_root.resolve()).as_posix()
+
+
+def validate_custom_build_options(
+    path: pathlib.Path,
+    expected_active_platform: str,
+    expected_flash_definition: str,
+) -> None:
+    parsed = parse_build_options(path)
+    active_platform = parsed.get("active_platform")
+    if active_platform != expected_active_platform:
+        raise RuntimeError(
+            f"Expected BuildOptions Active Platform to be {expected_active_platform}, got "
+            f"{active_platform or 'missing'}"
+        )
+    flash_definition = parsed.get("flash_definition")
+    if flash_definition != expected_flash_definition:
+        raise RuntimeError(
+            f"Expected BuildOptions Flash Image Definition to be {expected_flash_definition}, got "
+            f"{flash_definition or 'missing'}"
+        )
+
+
+def audit_custom_payload(
+    stage_root: pathlib.Path,
+    build_dir: pathlib.Path,
+    product: str,
+    board: str,
+    target: str,
+) -> None:
+    product_root = stage_root / product
+    targets: list[tuple[str, pathlib.Path]] = []
+    for path in sorted(product_root.glob("cix_flash*.bin")):
+        targets.append((path.relative_to(stage_root).as_posix(), path))
+    for path in sorted(product_root.glob("*.efi")):
+        targets.append((path.relative_to(stage_root).as_posix(), path))
+    build_options_path = product_root / "BuildOptions"
+    if build_options_path.is_file():
+        targets.append((build_options_path.relative_to(stage_root).as_posix(), build_options_path))
+
+    bootloader3_path = build_dir / "Firmwares" / "bootloader3.img"
+    targets.append((f"Build/{board}/{target}/Firmwares/bootloader3.img", bootloader3_path))
+
+    findings = audit_targets(targets)
+    if findings:
+        rendered = "\n".join(f"  - {line}" for line in format_findings(findings))
+        raise RuntimeError(
+            "Refusing to stage the custom payload because shipped artefacts still expose "
+            f"debug metadata or workspace breadcrumbs:\n{rendered}"
+        )
+
+
 def payload_mapping(
     repo_root: pathlib.Path, board: str, product: str, target: str
 ) -> list[tuple[pathlib.Path, pathlib.Path]]:
@@ -118,11 +233,30 @@ def stage_payload(
     board: str,
     product: str,
     target: str,
+    artefact_mode: str,
     output_dir: pathlib.Path,
 ) -> pathlib.Path:
     output_dir.mkdir(parents=True, exist_ok=True)
+    build_dir = repo_root / "src" / "Build" / board / target
+    expected_active_platform = resolve_repo_relative_board_file(repo_root, board, ".dsc")
+    expected_flash_definition = resolve_repo_relative_board_file(repo_root, board, ".fdf")
+    genfw = resolve_genfw(repo_root) if artefact_mode == "custom" else None
+
     for source, relative_destination in payload_mapping(repo_root, board, product, target):
-        copy_required_file(source, output_dir / relative_destination)
+        destination = output_dir / relative_destination
+        if artefact_mode == "custom" and source.name in {"BurnImage.efi", "FlashUpdate.efi"}:
+            assert genfw is not None
+            zero_debug_metadata(genfw, source, destination)
+        else:
+            copy_required_file(source, destination)
+
+    if artefact_mode == "custom":
+        validate_custom_build_options(
+            output_dir / product / "BuildOptions",
+            expected_active_platform,
+            expected_flash_definition,
+        )
+        audit_custom_payload(output_dir, build_dir, product, board, target)
     return output_dir
 
 
@@ -131,6 +265,7 @@ def install_payload(
     board: str,
     product: str,
     target: str,
+    artefact_mode: str,
     install_root: pathlib.Path,
     version: str,
 ) -> pathlib.Path:
@@ -139,7 +274,7 @@ def install_payload(
         shutil.rmtree(destination)
     with tempfile.TemporaryDirectory(prefix=f"{product}-{version}-stage-") as tmpdir_text:
         stage_dir = pathlib.Path(tmpdir_text) / version
-        stage_payload(repo_root, board, product, target, stage_dir)
+        stage_payload(repo_root, board, product, target, artefact_mode, stage_dir)
         try:
             shutil.copytree(stage_dir, destination)
         except PermissionError as exc:
@@ -161,6 +296,7 @@ def create_zip(
     board: str,
     product: str,
     target: str,
+    artefact_mode: str,
     output_path: pathlib.Path,
     version: str,
 ) -> pathlib.Path:
@@ -168,7 +304,7 @@ def create_zip(
     with tempfile.TemporaryDirectory(prefix=f"{product}-{version}-zip-") as tmpdir_text:
         tmpdir = pathlib.Path(tmpdir_text)
         stage_base = tmpdir / archive_root_path(product, version)
-        stage_payload(repo_root, board, product, target, stage_base)
+        stage_payload(repo_root, board, product, target, artefact_mode, stage_base)
         with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path in sorted(stage_base.rglob("*")):
                 if path.is_file():
@@ -181,6 +317,7 @@ def create_targz(
     board: str,
     product: str,
     target: str,
+    artefact_mode: str,
     output_path: pathlib.Path,
     version: str,
 ) -> pathlib.Path:
@@ -188,7 +325,7 @@ def create_targz(
     with tempfile.TemporaryDirectory(prefix=f"{product}-{version}-tar-") as tmpdir_text:
         tmpdir = pathlib.Path(tmpdir_text)
         stage_base = tmpdir / archive_root_path(product, version)
-        stage_payload(repo_root, board, product, target, stage_base)
+        stage_payload(repo_root, board, product, target, artefact_mode, stage_base)
         with tarfile.open(output_path, "w:gz") as archive:
             archive.add(stage_base.parent, arcname=stage_base.parent.relative_to(tmpdir).as_posix())
     return output_path
@@ -202,7 +339,12 @@ def main() -> None:
 
     if args.command == "stage":
         destination = stage_payload(
-            repo_root, args.board, args.product, args.target, args.output_dir.resolve()
+            repo_root,
+            args.board,
+            args.product,
+            args.target,
+            args.artefact_mode,
+            args.output_dir.resolve(),
         )
         if not suppress_output:
             print(destination)
@@ -212,6 +354,7 @@ def main() -> None:
             args.board,
             args.product,
             args.target,
+            args.artefact_mode,
             args.install_root.resolve(),
             version,
         )
@@ -223,6 +366,7 @@ def main() -> None:
             args.board,
             args.product,
             args.target,
+            args.artefact_mode,
             args.output.resolve(),
             version,
         )
@@ -234,6 +378,7 @@ def main() -> None:
             args.board,
             args.product,
             args.target,
+            args.artefact_mode,
             args.output.resolve(),
             version,
         )
