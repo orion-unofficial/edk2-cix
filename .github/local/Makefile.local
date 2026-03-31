@@ -693,17 +693,32 @@ buildbox-down:
 __buildbox-down:
 	@container_name="$${EDK2_CIX_BUILDBOX_NAME:-edk2-cix-buildbox}"; \
 	requested_runtime="$${EDK2_CIX_CONTAINER_RUNTIME:-}"; \
-	host_os="$$(uname -s 2>/dev/null || echo unknown)"; \
+	default_runtime_helper="$(REPO_ROOT)/scripts/default_container_runtimes.sh"; \
+	runtimes=(); \
 	removed=0; \
 	found_runtime=0; \
+	add_runtime() { \
+		local candidate="$$1"; \
+		local existing; \
+		[ -n "$$candidate" ] || return 0; \
+		for existing in "$${runtimes[@]}"; do \
+			if [ "$$existing" = "$$candidate" ]; then \
+				return 0; \
+			fi; \
+		done; \
+		runtimes+=("$$candidate"); \
+	}; \
 	if [ -n "$$requested_runtime" ]; then \
-		runtimes="$$requested_runtime podman docker"; \
-	elif [ "$$host_os" = "Darwin" ]; then \
-		runtimes="docker podman"; \
-	else \
-		runtimes="podman docker"; \
+		add_runtime "$$requested_runtime"; \
 	fi; \
-	for runtime in $$runtimes; do \
+	while IFS= read -r runtime; do \
+		add_runtime "$$runtime"; \
+	done < <(bash "$$default_runtime_helper"); \
+	if [ "$${#runtimes[@]}" -eq 0 ]; then \
+		add_runtime podman; \
+		add_runtime docker; \
+	fi; \
+	for runtime in "$${runtimes[@]}"; do \
 		command -v "$$runtime" >/dev/null 2>&1 || continue; \
 		found_runtime=1; \
 		if "$$runtime" container inspect "$$container_name" >/dev/null 2>&1; then \
