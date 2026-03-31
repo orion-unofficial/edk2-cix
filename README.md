@@ -89,10 +89,13 @@ make buildbox-validate-firmware
 make buildbox-capture-validation-profile
 ```
 
-The local container helpers prefer `podman` on Linux and `docker` on macOS.
-If the preferred runtime is installed but not usable, they automatically try
-the other one before failing. Set `EDK2_CIX_CONTAINER_RUNTIME=docker` or
-`EDK2_CIX_CONTAINER_RUNTIME=podman` to force a specific runtime.
+The local container helpers prefer a working Docker engine first when they can
+clearly reach one that is not a Podman compatibility socket. Otherwise they
+fall back to the platform default order: `docker` first on macOS and `podman`
+first on Linux. If the preferred runtime is installed but not usable, they
+automatically try the other one before failing. Set
+`EDK2_CIX_CONTAINER_RUNTIME=docker` or `EDK2_CIX_CONTAINER_RUNTIME=podman` to
+force a specific runtime.
 
 By default the buildbox now follows the host architecture and uses the
 Bookworm base image on both `x86_64` and `arm64` / `aarch64`. Override that
@@ -244,10 +247,11 @@ mapped upstream source commit in Git history. On the custom path, that keeps
 the displayed build metadata tied to the upstream tag or commit being built
 rather than the local overlay commit.
 
-Despite the retained filename, the local helper scripts prefer `podman` on
-Linux and `docker` on macOS, then fall back to the other runtime if needed.
-The generated wrapper still pins the replay buildbox back to the validated
-amd64 Bookworm environment explicitly.
+Despite the retained filename, the local helper scripts prefer a working Docker
+engine first when they can positively distinguish it from Podman. Otherwise
+they fall back to `docker` first on macOS and `podman` first on Linux, then
+try the other runtime if needed. The generated wrapper still pins the replay
+buildbox back to the validated amd64 Bookworm environment explicitly.
 
 The first `make devcontainer_setup` run now drives `apt-get` in noninteractive
 mode and suppresses recommends/suggests so the initial dependency bootstrap is
