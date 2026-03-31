@@ -24,6 +24,12 @@
   gArmPlatformTokenSpaceGuid.PcdSerialDbgRegisterBase|0x040D0000
   gArmPlatformTokenSpaceGuid.PcdSerialDbgInterrupt|330
   gCixPlatformTokenSpaceGuid.PcdAcpiSpcrEnable|TRUE
+  gCixTokenSpaceGuid.PcdAcpiUart2Enable|TRUE
+!if $(DEBUG_ON_UART3) == TRUE
+  gCixTokenSpaceGuid.PcdAcpiUart3Enable|TRUE
+!else
+  gCixTokenSpaceGuid.PcdAcpiUart3Enable|FALSE
+!endif
 
   # Default hardware description should be ACPI
   gEmbeddedTokenSpaceGuid.PcdDefaultDtPref|FALSE
@@ -138,6 +144,8 @@
 [BuildOptions]
 !if $(DEBUG_ON_UART3) == TRUE
   GCC:*_*_*_CC_FLAGS          = -DDEBUG_ON_UART3=1
+  GCC:*_*_*_ASLPP_FLAGS       = -DDEBUG_ON_UART3=1
 !else
   GCC:*_*_*_CC_FLAGS          = -UDEBUG_ON_UART3
+  GCC:*_*_*_ASLPP_FLAGS       = -UDEBUG_ON_UART3
 !endif
