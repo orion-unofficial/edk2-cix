@@ -10,6 +10,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 
@@ -244,6 +245,10 @@ pkg={('/workspace/' + str(PACKAGE_TOOL_DIR.relative_to(REPO_ROOT)))}
 pkg_tool={('/workspace/' + str(PACKAGE_TOOL_SOURCE.relative_to(REPO_ROOT)))}
 fiptool_src={('/workspace/' + str(FIPTOOL_SOURCE_DIR.relative_to(REPO_ROOT)))}
 work={to_container_tmp_path(work_dir, host_tmp_root, container_tmp_root)}
+cleanup() {{
+  chmod -R a+rwX "$work" >/dev/null 2>&1 || true
+}}
+trap cleanup EXIT
 mkdir -p "$work/roundtrip"
 make -C "$fiptool_src" HOST_ARCH=x86_64 >/dev/null
 fiptool="$fiptool_src/build/x86_64/fiptool"
@@ -303,7 +308,13 @@ cp "{to_container_tmp_path(staged_input, host_tmp_root, container_tmp_root)}" or
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2, sort_keys=True))
     if work_obj is not None:
-        work_obj.cleanup()
+        try:
+            work_obj.cleanup()
+        except PermissionError as exc:
+            print(
+                f"Warning: could not remove temporary fiptool work directory {work_dir}: {exc}",
+                file=sys.stderr,
+            )
     return 0 if report.get("identical") else 1
 
 
