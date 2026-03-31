@@ -95,8 +95,9 @@ post_build:
 #
 .PHONY: docs-build
 docs-build:
-	bash "$(REPO_ROOT)/scripts/require_host_tools.sh" "Documentation build" mdbook
+	bash "$(REPO_ROOT)/scripts/require_host_tools.sh" "Documentation build" mdbook python3
 	cd "$(REPO_ROOT)" && mdbook build
+	cd "$(REPO_ROOT)" && python3 scripts/validate_docs_artifacts.py book/html
 
 .PHONY: serve
 serve:
