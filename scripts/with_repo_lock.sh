@@ -9,12 +9,13 @@ lock_name="${EDK2_CIX_BUILD_LOCK_NAME:-repo-build}"
 lock_dir="${lock_root}/${lock_name}.lock.d"
 owner_file="${lock_dir}/owner"
 wait_mode="${EDK2_CIX_BUILD_LOCK_WAIT:-0}"
-break_stale="${EDK2_CIX_BUILD_LOCK_BREAK_STALE:-0}"
+break_stale="${EDK2_CIX_BUILD_LOCK_BREAK_STALE:-1}"
 current_host="$(hostname 2>/dev/null || uname -n 2>/dev/null || printf 'unknown\n')"
 current_user="${USER:-$(id -un 2>/dev/null || printf 'unknown\n')}"
 current_pid="$$"
 current_started="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date)"
 current_cwd="$(pwd -P)"
+lock_acquired=0
 
 usage() {
     cat >&2 <<'EOF'
@@ -57,20 +58,23 @@ describe_owner() {
 lock_is_stale() {
     local owner_host owner_pid
 
+    [[ -d "$lock_dir" ]] || return 1
+    [[ -f "$owner_file" ]] || return 0
+
     owner_host="$(read_owner_value host || true)"
     owner_pid="$(read_owner_value pid || true)"
 
-    [[ -n "$owner_pid" ]] || return 1
+    [[ -n "$owner_host" ]] || return 0
+    [[ -n "$owner_pid" ]] || return 0
+    [[ "$owner_pid" =~ ^[0-9]+$ ]] || return 0
     [[ "$owner_host" == "$current_host" ]] || return 1
     ! kill -0 "$owner_pid" 2>/dev/null
 }
 
 cleanup() {
     local status="$?"
-    local owner_pid
 
-    owner_pid="$(read_owner_value pid || true)"
-    if [[ -d "$lock_dir" && "$owner_pid" == "$current_pid" ]]; then
+    if [[ "$lock_acquired" == "1" && -d "$lock_dir" ]]; then
         rm -rf "$lock_dir"
     fi
     exit "$status"
@@ -155,11 +159,15 @@ while ! mkdir "$lock_dir" 2>/dev/null; do
     sleep 1
 done
 
-write_owner_file
+lock_acquired=1
 trap cleanup EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
+trap 'exit 131' QUIT
+trap 'exit 141' PIPE
+trap 'exit 134' ABRT
+write_owner_file
 
 export EDK2_CIX_REPO_LOCK_HELD=1
 "$@"
