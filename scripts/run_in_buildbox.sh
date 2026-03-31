@@ -4,6 +4,7 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
+default_runtime_helper="${script_dir}/default_container_runtimes.sh"
 host_os="${EDK2_CIX_HOST_OS:-$(uname -s 2>/dev/null || printf 'unknown\n')}"
 workspace_parent="${EDK2_CIX_WORKSPACE_PARENT:-/workspaces}"
 workspace_path="${EDK2_CIX_WORKSPACE_ROOT:-${workspace_parent}/$(basename -- "$repo_root")}"
@@ -74,32 +75,26 @@ resolve_container_runtime() {
         return 0
     fi
 
-    local host_os preferred_runtime fallback_runtime candidate
+    local candidate
+    local -a runtime_candidates=()
     local -a probe_failures=()
 
-    host_os="$(uname -s)"
-    case "$host_os" in
-        Darwin)
-            preferred_runtime="docker"
-            fallback_runtime="podman"
-            ;;
-        Linux)
-            preferred_runtime="podman"
-            fallback_runtime="docker"
-            ;;
-        *)
-            preferred_runtime="podman"
-            fallback_runtime="docker"
-            ;;
-    esac
+    while IFS= read -r candidate; do
+        [[ -n "$candidate" ]] || continue
+        runtime_candidates+=("$candidate")
+    done < <(bash "$default_runtime_helper")
 
-    for candidate in "$preferred_runtime" "$fallback_runtime"; do
+    if (( ${#runtime_candidates[@]} == 0 )); then
+        runtime_candidates=(podman docker)
+    fi
+
+    for candidate in "${runtime_candidates[@]}"; do
         if ! command -v "$candidate" >/dev/null 2>&1; then
             continue
         fi
         if "$candidate" info >/dev/null 2>&1; then
-            if [[ "$candidate" != "$preferred_runtime" ]] && command -v "$preferred_runtime" >/dev/null 2>&1; then
-                status "Preferred runtime ${preferred_runtime} was not usable; falling back to ${candidate}"
+            if [[ "$candidate" != "${runtime_candidates[0]}" ]] && command -v "${runtime_candidates[0]}" >/dev/null 2>&1; then
+                status "Preferred runtime ${runtime_candidates[0]} was not usable; falling back to ${candidate}"
             fi
             printf '%s\n' "$candidate"
             return 0
@@ -109,7 +104,7 @@ resolve_container_runtime() {
 
     if (( ${#probe_failures[@]} > 0 )); then
         cat >&2 <<EOF
-[buildbox] Tried the available container runtimes in this order: ${preferred_runtime}, ${fallback_runtime}
+[buildbox] Tried the available container runtimes in this order: ${runtime_candidates[*]}
 [buildbox] None of the installed runtimes responded successfully to 'info': ${probe_failures[*]}
 [buildbox] Start the preferred runtime or set EDK2_CIX_CONTAINER_RUNTIME explicitly if you want to force one.
 EOF
