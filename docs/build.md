@@ -139,16 +139,26 @@ serial routing depends on the artefact mode:
   behavior.
 - `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG` keeps firmware `DEBUG()` output on
   UART2 by default.
+- `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG UART3_ENABLE=true` exposes UART3 to
+  ACPI and muxes the header pins for UART use without moving firmware
+  `DEBUG()` output off UART2.
 - `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG DEBUG_ON_UART3=true` opts into the
-  custom overlay path that routes firmware `DEBUG()` output to UART3.
+  custom overlay path that routes firmware `DEBUG()` output to UART3 and
+  implies `UART3_ENABLE=true`.
 - `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG DEBUG_PRINT_ERROR_LEVEL=0x8000004f`
   widens the default custom debug mask while keeping the serial route
   unchanged.
+- `ARTEFACT_MODE=custom FIRMWARE_TARGET=RELEASE DEBUG_VERBOSE=true` re-enables
+  `DEBUG()` logging on RELEASE builds with a narrow property mask. When
+  `DEBUG_PRINT_ERROR_LEVEL` is left unset in that mode, the build enables all
+  available `DEBUG_*` message levels by default.
 
 That UART3 option consumes 40-pin header GPIO105 and GPIO106 while it is
-enabled. `DEBUG_ON_UART3` and `DEBUG_PRINT_ERROR_LEVEL` are custom-only
-overrides; `ARTEFACT_MODE=upstream` keeps the imported source behavior
-unchanged. See `docs/debug.md` for the board-specific serial details.
+enabled. `DEBUG_ON_UART3`, `UART3_ENABLE`, `DEBUG_VERBOSE`, and
+`DEBUG_PRINT_ERROR_LEVEL` are custom-only overrides; `ARTEFACT_MODE=upstream`
+keeps the imported source behavior unchanged. Run `make help-debug` for the
+derived `DEBUG_PRINT_ERROR_LEVEL` bit values from `DebugLib.h`. See
+`docs/debug.md` for the board-specific serial details.
 
 Edit `DSC` in `src/Makefile` to reduce amount of variants that will be built.
 You should also edit `debian/edk2-cix.install` to exclude unbuild variants,
