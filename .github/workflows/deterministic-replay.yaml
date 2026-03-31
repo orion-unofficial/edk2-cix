@@ -78,7 +78,7 @@ jobs:
           REPLAY_VERSION="${{ needs.resolve-release.outputs.tag }}" \
           REPLAY_INPUT="${{ steps.download.outputs.deb_path }}"
       shell: "bash"
-    - if: "always()"
+    - if: "${{ always() && hashFiles('build-validation/*.json', '.buildbox/replay/**/replay.env', '.buildbox/replay/**/replay-summary.json') != '' }}"
       name: "Upload replay reports"
       uses: "actions/upload-artifact@v7"
       with:
