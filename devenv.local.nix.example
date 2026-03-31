@@ -1,7 +1,8 @@
 # You can use devenv.local.nix to override the default settings.
 # This file is provided as an example.
+# Copy it to devenv.local.nix and keep any machine-specific settings there.
 
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 {
   # Override rsdk defaults here
@@ -13,4 +14,31 @@
     DEBEMAIL = "email@example.com"; # Email in debian/changelog
     DEBFULLNAME = "\"Example Co., Ltd\""; # Full name in debian/changelog
   };
+
+  # Optional: enable local Git hooks for this clone only.
+  #
+  # Keeping the hook configuration here avoids stale generated hooks being
+  # imposed on every checkout that happens to enter the devenv shell.
+  #
+  # git-hooks = {
+  #   hooks = {
+  #     commitizen.enable = true;
+  #     shellcheck = {
+  #       enable = true;
+  #       entry = lib.mkForce "${pkgs.shellcheck}/bin/shellcheck -x";
+  #     };
+  #     shfmt.enable = true;
+  #     statix.enable = true;
+  #     typos = {
+  #       enable = true;
+  #       excludes = [
+  #         "theme/highlight.js"
+  #       ];
+  #       settings.ignored-words = [
+  #         "Synopsys"
+  #         "HSI"
+  #       ];
+  #     };
+  #   };
+  # };
 }
