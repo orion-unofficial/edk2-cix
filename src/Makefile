@@ -44,6 +44,15 @@ CUSTOM_OVERLAY_ROOT ?= $(abspath ../custom/overlay)
 CUSTOM_EDK2_WORKSPACE ?= /tmp/edk2-cix-custom-workspace
 DEBUG_ON_UART3_NORMALIZED_RAW := $(if $(strip $(DEBUG_ON_UART3)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_ON_UART3)" 2>/dev/null || printf '%s' __INVALID__),)
 DEBUG_ON_UART3_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_ON_UART3_NORMALIZED_RAW)),,$(DEBUG_ON_UART3_NORMALIZED_RAW))
+UART3_ENABLE_NORMALIZED_RAW := $(if $(strip $(UART3_ENABLE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(UART3_ENABLE)" 2>/dev/null || printf '%s' __INVALID__),)
+UART3_ENABLE_NORMALIZED := $(if $(filter __INVALID__,$(UART3_ENABLE_NORMALIZED_RAW)),,$(UART3_ENABLE_NORMALIZED_RAW))
+UART3_ENABLE_EFFECTIVE := $(if $(filter TRUE,$(DEBUG_ON_UART3_NORMALIZED)),TRUE,$(UART3_ENABLE_NORMALIZED))
+DEBUG_VERBOSE_NORMALIZED_RAW := $(if $(strip $(DEBUG_VERBOSE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_VERBOSE)" 2>/dev/null || printf '%s' __INVALID__),)
+DEBUG_VERBOSE_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_VERBOSE_NORMALIZED_RAW)),,$(DEBUG_VERBOSE_NORMALIZED_RAW))
+DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-u32 --value "$(DEBUG_PRINT_ERROR_LEVEL)" 2>/dev/null || printf '%s' __INVALID__),)
+DEBUG_PRINT_ERROR_LEVEL_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW)),,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW))
+DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT := $(if $(filter TRUE,$(DEBUG_VERBOSE_NORMALIZED)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" max-debug-print-error-level 2>/dev/null || true),)
+DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED),$(DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT))
 CUSTOM_OVERLAY_PACKAGE_ROOTS := \
 	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2) \
 	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-platforms) \
@@ -211,7 +220,7 @@ host-cert-uefi-create-rsa:
 host-cix-package-tool: $(CIX_PACKAGE_TOOL_BIN)
 
 .SILENT: help print-build-metadata clean preflight preflight-% preflight-inputs preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool prepare-basetools-c
-.PHONY: help vars
+.PHONY: help help-vars help-debug
 define PRINT_SRC_VARIABLES
 	@set -eu; \
 	help_pad=28; \
@@ -237,8 +246,10 @@ define PRINT_SRC_VARIABLES
 	printf '%s\n\n' 'useful variables'; \
 	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG build.\nDefault: RELEASE.'; \
 	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Generate unmodified upstream firmware images or allow custom enhancements.\nDefault: custom.'; \
-	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; consumes GPIO105 and GPIO106.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
-	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; custom builds use 0x80000040.'; \
+	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
+	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: mux the UART3 header pins for UART use and expose COM3 to the OS without moving firmware DEBUG() there.\nDefault: false.'; \
+	print_help_line '  DEBUG_VERBOSE=true|false' 'Custom-only: on RELEASE builds, re-enable DEBUG() logging with minimal runtime side effects and default to the full DEBUG_* mask unless DEBUG_PRINT_ERROR_LEVEL is set.\nDefault: false.'; \
+	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug message mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; builds use 0x80000040 unless DEBUG_VERBOSE=true.\nRun: make -C src help-debug'; \
 	print_help_line '  GCC5_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
 	print_help_line '  SIGNING_CERT_SOURCE_DIR=<dir>' 'Path to extracted or built cert blobs for exact replay.\nDefault: unset.'; \
 	print_help_line '  SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the compiler-facing reproducible timestamp.\nDefault: resolved from mapped upstream source metadata.'; \
@@ -283,10 +294,48 @@ help:
 	print_help_line '  preflight' 'Check host tools, metadata, and toolchain prerequisites'; \
 	print_help_line '  print-build-metadata' 'Show the resolved reproducible build metadata'; \
 	print_help_line '  clean' 'Remove Build/ output and generated helper artefacts'; \
-	printf '\n%s\n' 'For accepted control variables, run: make -C src vars'
+	print_help_line '  help-vars' 'Show accepted raw-build control variables'; \
+	print_help_line '  help-debug' 'Explain the DEBUG_PRINT_ERROR_LEVEL bit values derived from DebugLib.h'; \
+	printf '\n%s\n' 'For accepted control variables, run: make -C src help-vars'
 
-vars:
+help-vars:
 	$(PRINT_SRC_VARIABLES)
+
+help-debug:
+	@set -eu; \
+	help_pad=28; \
+	help_gap=2; \
+	help_width=80; \
+	desc_width=$$((help_width - help_pad - help_gap)); \
+	desc_indent=$$(printf '%*s' "$$((help_pad + help_gap))" ''); \
+	print_help_line() { \
+		label="$$1"; \
+		desc="$$2"; \
+		if [ "$${#label}" -le "$$help_pad" ]; then \
+			first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v first="$$first_indent" -v cont="$$desc_indent" \
+					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
+		else \
+			printf '%s\n' "$$label"; \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v cont="$$desc_indent" \
+					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
+		fi; \
+	}; \
+	printf '%s\n\n' 'debug print levels'; \
+	printf '%s\n' 'Custom-only: set DEBUG_PRINT_ERROR_LEVEL to a decimal or '\
+'0x-prefixed 32-bit value to choose which DEBUG() message classes are '\
+'printed. Combine entries by ORing or summing their values. Default: '\
+'0x80000040 (DEBUG_INFO|DEBUG_ERROR). If DEBUG_VERBOSE=true and you do '\
+'not set DEBUG_PRINT_ERROR_LEVEL explicitly, the build enables all '\
+'available DEBUG_* message levels by default.' | fold -s -w 78 | sed 's/^/  /'; \
+	printf '\n'; \
+	python3 "$(MAKE_INPUT_VALIDATOR)" list-debug-print-error-level-bits | \
+	awk '{ mask=$$1; name=$$2; $$1=""; $$2=""; sub(/^ +/, "", $$0); printf "%s\t%s\t%s\n", mask, name, $$0 }' | \
+	while IFS=$$(printf '\t') read -r mask name desc; do \
+		print_help_line "  $$mask $$name" "$$desc"; \
+	done
 
 $(FIPTOOL_BIN): $(FIPTOOL_SOURCE_INPUTS)
 	$(Q)$(ENSURE_REPO_LOCK)
@@ -421,10 +470,25 @@ preflight-inputs:
 	if [ -n "$(strip $(DEBUG_ON_UART3))" ]; then \
 		validate_cmd+=(--debug-on-uart3 "$(strip $(DEBUG_ON_UART3))"); \
 	fi; \
-	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL))" ]; then \
-		validate_cmd+=(--debug-print-error-level "$(strip $(DEBUG_PRINT_ERROR_LEVEL))"); \
+	if [ -n "$(strip $(UART3_ENABLE_EFFECTIVE))" ]; then \
+		validate_cmd+=(--uart3-enable "$(strip $(UART3_ENABLE_EFFECTIVE))"); \
 	fi; \
-	"$${validate_cmd[@]}"
+	if [ -n "$(strip $(DEBUG_VERBOSE_NORMALIZED))" ]; then \
+		validate_cmd+=(--debug-verbose "$(strip $(DEBUG_VERBOSE_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))" ]; then \
+		validate_cmd+=(--debug-print-error-level "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))"); \
+	fi; \
+	"$${validate_cmd[@]}"; \
+	if [ -n "$(strip $(DEBUG_ON_UART3_NORMALIZED))" ] && [ "$(DEBUG_ON_UART3_NORMALIZED)" = "TRUE" ] && [ "$(strip $(UART3_ENABLE_NORMALIZED))" != "TRUE" ]; then \
+		echo "[config] DEBUG_ON_UART3=true implies UART3_ENABLE=true"; \
+	fi; \
+	if [ -n "$(strip $(DEBUG_VERBOSE_NORMALIZED))" ] && [ "$(DEBUG_VERBOSE_NORMALIZED)" = "TRUE" ] && [ "$(FIRMWARE_TARGET)" = "RELEASE" ]; then \
+		echo "[config] DEBUG_VERBOSE=true re-enables DEBUG() logging on RELEASE builds"; \
+	fi; \
+	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))" ]; then \
+		echo "[config] $$(python3 "$(MAKE_INPUT_VALIDATOR)" describe-debug-print-error-level --value "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)")"; \
+	fi
 
 .PHONY: preflight-tools
 preflight-tools:
@@ -894,8 +958,14 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_ON_UART3_NORMALIZED)" ]]; then \
 		build_extra_defines+=(-D DEBUG_ON_UART3=$(DEBUG_ON_UART3_NORMALIZED)); \
 	fi; \
-	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_PRINT_ERROR_LEVEL)" ]]; then \
-		build_extra_defines+=(-D DEBUG_PRINT_ERROR_LEVEL=$(DEBUG_PRINT_ERROR_LEVEL)); \
+	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(UART3_ENABLE_EFFECTIVE)" ]]; then \
+		build_extra_defines+=(-D UART3_ENABLE=$(UART3_ENABLE_EFFECTIVE)); \
+	fi; \
+	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_VERBOSE_NORMALIZED)" ]]; then \
+		build_extra_defines+=(-D DEBUG_VERBOSE=$(DEBUG_VERBOSE_NORMALIZED)); \
+	fi; \
+	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)" ]]; then \
+		build_extra_defines+=(-D DEBUG_PRINT_ERROR_LEVEL=$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)); \
 	fi; \
 	run_edk2_build() { \
 		export EDK2_CIX_QUIET_PREBUILD="$(if $(filter 1,$(V)),0,1)"; \
