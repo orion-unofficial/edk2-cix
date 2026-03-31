@@ -201,6 +201,36 @@ def suffix_matches(actual: str | None, expected_suffix: str | None) -> bool | No
     return actual.endswith(expected_suffix)
 
 
+def exact_matches(actual: str | None, expected_exact: str | None) -> bool | None:
+    if expected_exact is None:
+        return None
+    if actual is None:
+        return False
+    return actual == expected_exact
+
+
+def compare_path_field(
+    actual: str | None,
+    field_name: str,
+    expected_exact: str | None,
+    expected_suffix: str | None,
+) -> list[str]:
+    exact_match = exact_matches(actual, expected_exact)
+    if exact_match is not None:
+        if exact_match:
+            return []
+        return [f"{field_name}: expected {expected_exact}, got {actual}"]
+
+    suffix_match = suffix_matches(actual, expected_suffix)
+    if suffix_match is False:
+        return [f"{field_name} suffix mismatch: expected suffix {expected_suffix}, got {actual}"]
+    return []
+
+
+def should_record_exact_path(value: str) -> bool:
+    return not value.startswith("/") and re.match(r"^[A-Za-z]:[\\/]", value) is None
+
+
 def main() -> int:
     args = parse_args()
     repo_root = args.repo_root.resolve()
@@ -284,22 +314,22 @@ def main() -> int:
                 define_mismatches.append(
                     f"gCommandLineDefines[{key}]: expected {expected_value}, got {actual_value}"
                 )
-        active_match = suffix_matches(
-            build_options_actual.get("active_platform"),
-            build_options_expected.get("active_platform_suffix"),
-        )
-        if active_match is False:
-            build_options_report["mismatches"].append(
-                "active_platform suffix mismatch"
+        build_options_report["mismatches"].extend(
+            compare_path_field(
+                build_options_actual.get("active_platform"),
+                "active_platform",
+                build_options_expected.get("active_platform"),
+                build_options_expected.get("active_platform_suffix"),
             )
-        flash_match = suffix_matches(
-            build_options_actual.get("flash_definition"),
-            build_options_expected.get("flash_definition_suffix"),
         )
-        if flash_match is False:
-            build_options_report["mismatches"].append(
-                "flash_definition suffix mismatch"
+        build_options_report["mismatches"].extend(
+            compare_path_field(
+                build_options_actual.get("flash_definition"),
+                "flash_definition",
+                build_options_expected.get("flash_definition"),
+                build_options_expected.get("flash_definition_suffix"),
             )
+        )
         build_options_report["mismatches"].extend(define_mismatches)
         if build_options_report["mismatches"]:
             build_options_report["status"] = "mismatch"
@@ -395,9 +425,11 @@ def main() -> int:
                 "gCommandLineDefines": build_options_actual.get("gCommandLineDefines", {}),
             }
             if build_options_actual.get("active_platform"):
-                profile_entry["build_options"]["active_platform_suffix"] = build_options_actual["active_platform"]
+                key = "active_platform" if should_record_exact_path(build_options_actual["active_platform"]) else "active_platform_suffix"
+                profile_entry["build_options"][key] = build_options_actual["active_platform"]
             if build_options_actual.get("flash_definition"):
-                profile_entry["build_options"]["flash_definition_suffix"] = build_options_actual["flash_definition"]
+                key = "flash_definition" if should_record_exact_path(build_options_actual["flash_definition"]) else "flash_definition_suffix"
+                profile_entry["build_options"][key] = build_options_actual["flash_definition"]
         for relative_name, entry in report["pe_sections"].items():
             if entry.get("sections"):
                 profile_entry["pe_sections"][relative_name] = [
