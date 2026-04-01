@@ -201,6 +201,10 @@ keeps the imported source behavior unchanged. Run `make help-debug` for the
 derived `DEBUG_PRINT_ERROR_LEVEL` bit values from `DebugLib.h`. See
 `docs/debug.md` for the board-specific serial details.
 
+If you are validating the custom Microsoft Secure Boot defaults on real
+hardware, use [`docs/secure-boot-hardware-validation.md`](secure-boot-hardware-validation.md)
+as the field checklist after the build succeeds.
+
 Edit `DSC` in `src/Makefile` to reduce amount of variants that will be built.
 You should also edit `debian/edk2-cix.install` to exclude unbuild variants,
 otherwise `debuild` will complain that those files are missing.
