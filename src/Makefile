@@ -138,6 +138,7 @@ CERT_UEFI_CREATE_RSA_SOURCE_INPUTS := \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/Makefile \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/cert_uefi_create_rsa.c
 CERT_VALIDATOR := scripts/validate_cix_fip_certs.py
+CUSTOM_ACPI_OVERLAY_CHECK := $(abspath ../scripts/check_custom_acpi_overlays.py)
 MICROSOFT_SECURE_BOOT_OUTPUT_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft)
 MICROSOFT_SECURE_BOOT_MANIFEST := $(MICROSOFT_SECURE_BOOT_OUTPUT_DIR)/manifest.lock.json
 MICROSOFT_SECURE_BOOT_RELEASE_CHECK_MODE ?= warn
@@ -225,7 +226,7 @@ host-cert-uefi-create-rsa:
 	$(Q)$(MAKE) -C "$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)" V="$(V)" clean all
 host-cix-package-tool: $(CIX_PACKAGE_TOOL_BIN)
 
-.SILENT: help print-build-metadata clean preflight preflight-% preflight-inputs preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool prepare-basetools-c
+.SILENT: help print-build-metadata clean preflight preflight-% preflight-inputs preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool prepare-basetools-c check-custom-acpi-overlays
 .PHONY: help help-vars help-debug
 define PRINT_SRC_VARIABLES
 	@set -eu; \
@@ -297,6 +298,7 @@ help:
 	print_help_line '  host-cert-uefi-create-rsa' 'Build the source non-trusted cert helper'; \
 	print_help_line '  host-cix-package-tool' 'Refresh the cix_package_tool wrapper in Build/HostTools/'; \
 	print_help_line '  prepare-basetools-c' 'Build or refresh the EDK2 BaseTools C helpers'; \
+	print_help_line '  check-custom-acpi-overlays' 'Verify the custom ACPI module overlays still mirror the imported source tree cleanly'; \
 	print_help_line '  preflight' 'Check host tools, metadata, and toolchain prerequisites'; \
 	print_help_line '  print-build-metadata' 'Show the resolved reproducible build metadata'; \
 	print_help_line '  clean' 'Remove Build/ output and generated helper artefacts'; \
@@ -499,6 +501,8 @@ preflight-inputs:
 		python3 "$(CUSTOM_OVERLAY_SHADOW_CHECK)" \
 			--overlay-root "$(CUSTOM_OVERLAY_ROOT)" \
 			--source-root "$(REPO_ROOT)/src"; \
+		python3 "$(CUSTOM_ACPI_OVERLAY_CHECK)" \
+			--repo-root "$(abspath ..)"; \
 	fi
 
 .PHONY: preflight-tools
@@ -1031,6 +1035,10 @@ check-microsoft-secure-boot-defaults:
 check-microsoft-secure-boot-release:
 	@python3 ../scripts/check_microsoft_secure_boot_release.py \
 		--mode "$(MICROSOFT_SECURE_BOOT_RELEASE_CHECK_MODE)"
+
+.PHONY: check-custom-acpi-overlays
+check-custom-acpi-overlays:
+	@python3 "$(CUSTOM_ACPI_OVERLAY_CHECK)" --repo-root "$(abspath ..)"
 
 .PHONY: validate-secure-boot-defaults validate-secure-boot-defaults-%
 validate-secure-boot-defaults: $(foreach board,$(FIRMWARE_BOARDS),validate-secure-boot-defaults-$(board))
