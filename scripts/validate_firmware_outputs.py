@@ -17,7 +17,7 @@ from typing import Any
 SCRIPT_PATH = pathlib.Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parent.parent
 DEFAULT_PROFILE_FILE = REPO_ROOT / "validation" / "expected-hashes.json"
-DEFAULT_PROFILE = "upstream-o6-1.2.1-bookworm"
+DEFAULT_PROFILE = "upstream-1.2.1-bookworm"
 DEFAULT_PE_FILES = (
     "AARCH64/Shell.efi",
     "AARCH64/VariableInfo.efi",
@@ -58,51 +58,66 @@ def sha256_file(path: pathlib.Path) -> str:
     return digest.hexdigest()
 
 
-def load_profiles(profile_file: pathlib.Path) -> dict[str, Any]:
+def load_profile_data(profile_file: pathlib.Path) -> dict[str, Any]:
     data = json.loads(profile_file.read_text(encoding="utf-8"))
+    return data
+
+
+def load_profiles(profile_file: pathlib.Path) -> dict[str, Any]:
+    data = load_profile_data(profile_file)
     return data.get("profiles", {})
+
+
+def load_profile_aliases(profile_file: pathlib.Path) -> dict[str, str]:
+    data = load_profile_data(profile_file)
+    aliases = data.get("profile_aliases", {})
+    if not isinstance(aliases, dict):
+        return {}
+    return {str(key): str(value) for key, value in aliases.items()}
 
 
 def resolve_profile(
     profiles: dict[str, Any],
+    profile_aliases: dict[str, str],
     profile_name: str,
     board: str,
     target: str,
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    profile = profiles.get(profile_name)
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    resolved_profile_name = profile_aliases.get(profile_name, profile_name)
+    profile = profiles.get(resolved_profile_name)
     if profile is None:
-        raise KeyError(profile_name)
+        raise KeyError(resolved_profile_name)
 
     board_profiles = profile.get("boards")
     if not isinstance(board_profiles, dict):
         legacy_board = profile.get("board")
         if legacy_board and legacy_board != board:
             raise ValueError(
-                f"Profile '{profile_name}' is recorded for board '{legacy_board}', not '{board}'"
+                f"Profile '{resolved_profile_name}' is recorded for board '{legacy_board}', not '{board}'"
             )
         legacy_target = profile.get("target")
         if legacy_target and legacy_target != target:
             raise ValueError(
-                f"Profile '{profile_name}' is recorded for target '{legacy_target}', not '{target}'"
+                f"Profile '{resolved_profile_name}' is recorded for target '{legacy_target}', not '{target}'"
             )
-        return profile, profile
+        return resolved_profile_name, profile, profile
 
     board_profile = board_profiles.get(board)
     if board_profile is None:
         available = ", ".join(sorted(board_profiles))
         raise ValueError(
-            f"Profile '{profile_name}' does not define board '{board}'"
+            f"Profile '{resolved_profile_name}' does not define board '{board}'"
             f" (available: {available})"
         )
 
     profile_target = board_profile.get("target") or profile.get("target")
     if profile_target and profile_target != target:
         raise ValueError(
-            f"Profile '{profile_name}' for board '{board}' is recorded for target "
+            f"Profile '{resolved_profile_name}' for board '{board}' is recorded for target "
             f"'{profile_target}', not '{target}'"
         )
 
-    return profile, board_profile
+    return resolved_profile_name, profile, board_profile
 
 
 def resolve_build_dir(args: argparse.Namespace) -> pathlib.Path:
@@ -258,9 +273,17 @@ def main() -> int:
     args = parse_args()
     repo_root = args.repo_root.resolve()
     build_dir = resolve_build_dir(args)
-    profiles = load_profiles(args.profile_file.resolve())
+    profile_file = args.profile_file.resolve()
+    profiles = load_profiles(profile_file)
+    profile_aliases = load_profile_aliases(profile_file)
     try:
-        profile_meta, profile = resolve_profile(profiles, args.profile, args.board, args.target)
+        resolved_profile_name, profile_meta, profile = resolve_profile(
+            profiles,
+            profile_aliases,
+            args.profile,
+            args.board,
+            args.target,
+        )
     except KeyError:
         print(
             f"Unknown profile '{args.profile}' in {args.profile_file}",
@@ -276,7 +299,8 @@ def main() -> int:
     fiptool = find_fiptool(repo_root)
 
     report: dict[str, Any] = {
-        "profile": args.profile,
+        "requested_profile": args.profile,
+        "profile": resolved_profile_name,
         "description": profile_meta.get("description"),
         "board": args.board,
         "target": args.target,
@@ -466,7 +490,9 @@ def main() -> int:
         )
         print(f"Generated profile: {args.emit_profile}")
 
-    print(f"Validation profile: {args.profile}")
+    print(f"Validation profile: {resolved_profile_name}")
+    if resolved_profile_name != args.profile:
+        print(f"Requested profile alias: {args.profile}")
     print(f"Build directory: {build_dir}")
     print(
         "Hash results: "
