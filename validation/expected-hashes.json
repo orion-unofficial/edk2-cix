@@ -1,7 +1,12 @@
 {
+  "profile_aliases": {
+    "upstream-o6-1.2.1-bookworm": "upstream-1.2.1-bookworm",
+    "upstream-o6n-1.2.1-bookworm": "upstream-1.2.1-bookworm",
+    "upstream-o6-1.2.1-trixie": "upstream-1.2.1-trixie"
+  },
   "profiles": {
-    "upstream-o6-1.2.1-bookworm": {
-      "description": "Qualification profile for reproducing the published 1.2.1 O6 release in the Bookworm buildboxes when reusing the extracted release cert bundle.",
+    "upstream-1.2.1-bookworm": {
+      "description": "Qualification profile for reproducing the published 1.2.1 upstream release builds in the Bookworm buildboxes when reusing the extracted release cert bundle.",
       "boards": {
         "O6": {
           "target": "RELEASE_GCC5",
@@ -95,12 +100,7 @@
               }
             ]
           }
-        }
-      }
-    },
-    "upstream-o6n-1.2.1-bookworm": {
-      "description": "Qualification profile for reproducing the published 1.2.1 O6N release in the Bookworm buildboxes when reusing the extracted release cert bundle.",
-      "boards": {
+        },
         "O6N": {
           "target": "RELEASE_GCC5",
           "artefacts": {
@@ -199,7 +199,7 @@
         }
       }
     },
-    "upstream-o6-1.2.1-trixie": {
+    "upstream-1.2.1-trixie": {
       "description": "Reproducibility profile from an amd64 Trixie build of upstream main, used to confirm matching amd64 and arm64 Trixie builds on main-monorepo when they reuse the same cert bundle and injected timestamps.",
       "boards": {
         "O6": {

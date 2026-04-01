@@ -199,6 +199,14 @@ def load_profiles(profile_file: pathlib.Path) -> dict[str, object]:
     return profiles
 
 
+def load_profile_aliases(profile_file: pathlib.Path) -> dict[str, str]:
+    data = json.loads(profile_file.read_text(encoding="utf-8"))
+    aliases = data.get("profile_aliases", {})
+    if not isinstance(aliases, dict):
+        return {}
+    return {str(key): str(value) for key, value in aliases.items()}
+
+
 def validate_profile(
     profile_file: pathlib.Path,
     profile_name: str,
@@ -206,7 +214,9 @@ def validate_profile(
     target: str | None,
 ) -> None:
     profiles = load_profiles(profile_file)
-    profile = profiles.get(profile_name)
+    aliases = load_profile_aliases(profile_file)
+    resolved_profile_name = aliases.get(profile_name, profile_name)
+    profile = profiles.get(resolved_profile_name)
     if not isinstance(profile, dict):
         raise ValueError(f"Unknown validation profile '{profile_name}' in {profile_file}")
 
