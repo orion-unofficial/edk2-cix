@@ -515,16 +515,17 @@ That loads the selected validation profile from
 checks the key shipped artefacts plus a few structural markers from the EFI
 utility binaries, and writes a JSON report under `build-validation/`.
 
-For the published O6N release baseline, select the dedicated O6N profile:
+For the published O6N release baseline, select the shared Bookworm profile and
+the `O6N` board:
 
 ```bash
 make validate-firmware \
   ARTEFACT_MODE=upstream \
   FIRMWARE_BOARD=O6N \
-  FIRMWARE_VALIDATION_PROFILE=upstream-o6n-1.2.1-bookworm
+  FIRMWARE_VALIDATION_PROFILE=upstream-1.2.1-bookworm
 ```
 
-The same file also carries the `upstream-o6-1.2.1-trixie` reproducibility
+The same file also carries the `upstream-1.2.1-trixie` reproducibility
 profile, intended for matching amd64 or arm64 Trixie replays on
 `main-monorepo` when they reuse the same cert bundle and replay timestamps:
 
@@ -536,8 +537,11 @@ have today.
 ```bash
 make validate-firmware \
   ARTEFACT_MODE=upstream \
-  FIRMWARE_VALIDATION_PROFILE=upstream-o6-1.2.1-trixie
+  FIRMWARE_VALIDATION_PROFILE=upstream-1.2.1-trixie
 ```
+
+Legacy board-scoped profile names still resolve as compatibility aliases, but
+the shared `upstream-<version>-<distro>` form is the canonical naming now.
 
 To snapshot the current build into a fresh profile JSON for later review or to
 seed a future validation baseline under a profile name you choose, run:
