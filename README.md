@@ -311,16 +311,17 @@ host dependency bootstrap now includes `libssl-dev`.
 If you are specifically qualifying reproducibility, the checked-in validation
 profiles serve two different purposes:
 
-- `upstream-o6-1.2.1-bookworm`
-  - qualification profile for the published `1.2.1` release
+- `upstream-1.2.1-bookworm`
+  - shared validation profile for the published `1.2.1` upstream release
+    builds
+  - select `FIRMWARE_BOARD=O6` or `FIRMWARE_BOARD=O6N` to validate the matching
+    board baseline under the same profile name
   - expected to match only when the build reuses the extracted release cert
     bundle and the corresponding replay timestamps
-- `upstream-o6n-1.2.1-bookworm`
-  - qualification profile for the published `1.2.1` O6N release
-  - expected to match only when the build reuses the extracted release cert
-    bundle and the corresponding replay timestamps
-- `upstream-o6-1.2.1-trixie`
+- `upstream-1.2.1-trixie`
   - same-input Trixie reproducibility profile
+  - currently records the checked O6 Trixie baseline under the shared profile
+    naming scheme
   - used to confirm matching `amd64` and `arm64` Trixie builds on
     `main-monorepo`
   - not a published upstream-release baseline
@@ -342,24 +343,29 @@ That compares the built outputs against the checked-in validation profile under
 [validation/expected-hashes.json](validation/expected-hashes.json) and writes a
 structural report under `build-validation/`.
 
-For the published O6N release baseline, select the dedicated O6N profile:
+For the published O6N release baseline, select the shared Bookworm profile and
+the `O6N` board:
 
 ```bash
 make validate-firmware \
   ARTEFACT_MODE=upstream \
   FIRMWARE_BOARD=O6N \
-  FIRMWARE_VALIDATION_PROFILE=upstream-o6n-1.2.1-bookworm
+  FIRMWARE_VALIDATION_PROFILE=upstream-1.2.1-bookworm
 ```
 
-The same file also carries the `upstream-o6-1.2.1-trixie` reproducibility
-profile, intended for matching amd64 or arm64 Trixie O6 replays on
+The same file also carries the `upstream-1.2.1-trixie` reproducibility profile,
+intended for matching amd64 or arm64 Trixie O6 replays on
 `main-monorepo` when they reuse the same cert bundle and replay timestamps:
 
 ```bash
 make validate-firmware \
   ARTEFACT_MODE=upstream \
-  FIRMWARE_VALIDATION_PROFILE=upstream-o6-1.2.1-trixie
+  FIRMWARE_VALIDATION_PROFILE=upstream-1.2.1-trixie
 ```
+
+Legacy profile names such as `upstream-o6-1.2.1-bookworm` and
+`upstream-o6n-1.2.1-bookworm` still resolve as compatibility aliases, but the
+shared `upstream-<version>-<distro>` form is the canonical naming now.
 
 To snapshot the current build into a fresh profile JSON for later review or to
 seed a new validation baseline under a profile name you choose, use:
