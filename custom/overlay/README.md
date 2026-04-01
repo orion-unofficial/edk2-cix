@@ -15,6 +15,9 @@ Keep overlays narrow and intentional:
 - keep data-only custom assets out of existing upstream module directories when
   possible, so a partial overlay cannot accidentally mask an imported `.inf` or
   source file during EDK2 path resolution
+- the custom build preflight now rejects this shadowing pattern explicitly:
+  if a file sits inside an imported module directory in the overlay tree, the
+  overlay must also carry that module root's `.inf`
 
 Current overlay areas:
 
