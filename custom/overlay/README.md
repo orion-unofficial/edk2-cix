@@ -45,3 +45,9 @@ Keep module-local warning suppressions scoped and documented. Today the custom
 Sky1 ACPI overlay uses targeted ACPICA suppressions for `2184` and `2095`
 because those remarks come from intentional vendor UUIDs and intentionally empty
 dependency packages rather than from ambiguous or malformed AML.
+
+For the ACPI module overlays specifically, `make -C src check-custom-acpi-overlays`
+verifies that the mirrored module file lists still match the imported source
+tree. See `docs/custom-acpi-overlays.md` for the maintenance rules and the
+rationale behind carrying byte-identical mirrored files inside those overlay
+modules.
