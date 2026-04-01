@@ -23,6 +23,7 @@ MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= c051ce622f
 MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 971cfbc5fa
 EDK2_BUILD_OUTPUT_FILTER := scripts/filter_edk2_build_output.py
 MAKE_INPUT_VALIDATOR := $(abspath ../scripts/validate_make_inputs.py)
+CUSTOM_OVERLAY_SHADOW_CHECK := $(abspath ../scripts/check_custom_overlay_shadowing.py)
 V ?= 0
 ifeq ($(V),1)
 Q :=
@@ -493,6 +494,11 @@ preflight-inputs:
 	fi; \
 	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))" ]; then \
 		echo "[config] $$(python3 "$(MAKE_INPUT_VALIDATOR)" describe-debug-print-error-level --value "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)")"; \
+	fi; \
+	if [ "$(ARTEFACT_MODE)" = "custom" ] && [ -d "$(CUSTOM_OVERLAY_ROOT)" ]; then \
+		python3 "$(CUSTOM_OVERLAY_SHADOW_CHECK)" \
+			--overlay-root "$(CUSTOM_OVERLAY_ROOT)" \
+			--source-root "$(REPO_ROOT)/src"; \
 	fi
 
 .PHONY: preflight-tools
