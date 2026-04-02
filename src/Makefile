@@ -53,6 +53,7 @@ ARTEFACT_MODE ?= custom
 FIRMWARE_VALIDATION_PROFILE ?= upstream-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(abspath ../build-validation)
 CUSTOM_OVERLAY_ROOT ?= $(abspath ../custom/overlay)
+EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT ?= $(abspath ../custom/overlay-experimental-uefi-settings)
 CUSTOM_EDK2_WORKSPACE_KEY := $(strip $(shell printf '%s' '$(REPO_ROOT)' | cksum | awk '{print $$1}'))
 CUSTOM_EDK2_WORKSPACE ?= $(PREFERRED_TMP_ROOT)/edk2-cix-custom-workspace-$(CUSTOM_EDK2_WORKSPACE_KEY)
 DEBUG_ON_UART3_NORMALIZED_RAW := $(if $(strip $(DEBUG_ON_UART3)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_ON_UART3)" 2>/dev/null || printf '%s' __INVALID__),)
@@ -66,11 +67,20 @@ DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL
 DEBUG_PRINT_ERROR_LEVEL_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW)),,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW))
 DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT := $(if $(filter TRUE,$(DEBUG_VERBOSE_NORMALIZED)),$(MAX_DEBUG_PRINT_ERROR_LEVEL),)
 DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED),$(DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT))
+ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW := $(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" 2>/dev/null || printf '%s' __INVALID__),)
+ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW)),,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW))
+EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_PACKAGE_ROOTS := \
+	$(wildcard $(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)/edk2) \
+	$(wildcard $(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)/edk2-platforms) \
+	$(wildcard $(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)/edk2-non-osi)
+ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_PACKAGE_ROOTS := \
+	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))),$(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_PACKAGE_ROOTS))
 CUSTOM_OVERLAY_PACKAGE_ROOTS := \
 	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2) \
 	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-platforms) \
 	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-non-osi)
 EDK2_PACKAGE_ROOTS := \
+	$(ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_PACKAGE_ROOTS) \
 	$(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_OVERLAY_PACKAGE_ROOTS)) \
 	$(abspath edk2) \
 	$(abspath edk2-platforms) \
@@ -86,7 +96,11 @@ IMPORTED_EDK2_PACKAGES_PATH := $(subst $(SPACE),:,$(strip $(IMPORTED_EDK2_PACKAG
 CUSTOM_PLATFORM_SEARCH_ROOTS := \
 	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-platforms/Platform) \
 	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-non-osi/Platform)
+EXPERIMENTAL_UEFI_SETTINGS_PLATFORM_SEARCH_ROOTS := \
+	$(wildcard $(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)/edk2-platforms/Platform) \
+	$(wildcard $(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)/edk2-non-osi/Platform)
 PLATFORM_SEARCH_ROOTS := \
+	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))),$(EXPERIMENTAL_UEFI_SETTINGS_PLATFORM_SEARCH_ROOTS)) \
 	$(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_PLATFORM_SEARCH_ROOTS)) \
 	edk2-platforms/Platform \
 	edk2-non-osi/Platform
@@ -175,8 +189,32 @@ CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
 	$(abspath ../custom/overlay/edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/SecureBootVariableProvisionLib.c) \
 	$(abspath ../custom/overlay/edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/SecureBootVariableProvisionLib.inf)
+EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
+	$(abspath ../custom/overlay-experimental-uefi-settings/README.md) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2/EmbeddedPkg/Drivers/ConsolePrefDxe/ConsolePrefDxe.c) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2/EmbeddedPkg/Drivers/ConsolePrefDxe/ConsolePrefDxe.inf) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/CpuMenu/CpuConfig.uni) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/I2cMenu/I2cConfig.hfr) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/I2cMenu/I2cConfig.uni) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.hfr) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.uni) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/UsbMenu/UsbConfig.uni) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Include/ExperimentalPcieSrIovSetupVar.h) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/ComplianceMenu/ComplianceConfig.hfr) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/ComplianceMenu/ComplianceConfig.uni) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/ExperimentalUefiSettings.hfr) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/ExperimentalUefiSettings.uni) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigDxe.inf) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigHii.uni) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigHii.vfr) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Define.dsc.inc)
+ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
+	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))),$(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES))
 CUSTOM_EDK2_BUILD_INPUTS := \
-	$(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_EDK2_OVERLAY_SOURCES) $(MICROSOFT_SECURE_BOOT_PAYLOADS))
+	$(if $(filter custom,$(ARTEFACT_MODE)),$(ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES) $(CUSTOM_EDK2_OVERLAY_SOURCES) $(MICROSOFT_SECURE_BOOT_PAYLOADS))
 CUSTOM_EDK2_ORDER_ONLY_PREREQS := \
 	$(if $(filter custom,$(ARTEFACT_MODE)),refresh-microsoft-secure-boot-defaults check-microsoft-secure-boot-release)
 HOST_TOOLS_DIR := Build/HostTools
@@ -263,6 +301,7 @@ define PRINT_SRC_VARIABLES
 	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG build.\nDefault: RELEASE.'; \
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile name shared with the top-level qualification checks.\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
 	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory where raw-build audit and validation reports are written.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
+	print_help_line '  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Custom-only: enable the experimental Radxa UEFI settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
 	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: mux the UART3 header pins for UART use and expose COM3 to the OS without moving firmware DEBUG() there.\nDefault: false.'; \
 	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
 	print_help_line '  DEBUG_VERBOSE=true|false' 'Custom-only: on RELEASE builds, re-enable DEBUG() logging with minimal runtime side effects and default to the full DEBUG_* mask unless DEBUG_PRINT_ERROR_LEVEL is set.\nDefault: false.'; \
@@ -489,6 +528,12 @@ preflight-inputs:
 		--v "$(V)" \
 		--artefact-mode "$(ARTEFACT_MODE)" \
 		--firmware-target "$(FIRMWARE_TARGET)"); \
+	if [ -n "$(strip $(FIRMWARE_BOARD))" ]; then \
+		validate_cmd+=(--firmware-board "$(strip $(FIRMWARE_BOARD))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
+	fi; \
 	if [ -n "$(strip $(DEBUG_ON_UART3))" ]; then \
 		validate_cmd+=(--debug-on-uart3 "$(strip $(DEBUG_ON_UART3))"); \
 	fi; \
@@ -510,6 +555,9 @@ preflight-inputs:
 	fi; \
 	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))" ]; then \
 		echo "[config] $$(python3 "$(MAKE_INPUT_VALIDATOR)" describe-debug-print-error-level --value "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)")"; \
+	fi; \
+	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ] && [ "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" = "TRUE" ]; then \
+		echo "[config] ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true enables the experimental Radxa UI overlay"; \
 	fi; \
 	if [ "$(ARTEFACT_MODE)" = "custom" ] && [ -d "$(CUSTOM_OVERLAY_ROOT)" ]; then \
 		python3 "$(CUSTOM_OVERLAY_SHADOW_CHECK)" \
@@ -993,10 +1041,13 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_VERBOSE_NORMALIZED)" ]]; then \
 		build_extra_defines+=(-D DEBUG_VERBOSE=$(DEBUG_VERBOSE_NORMALIZED)); \
 	fi; \
-	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)" ]]; then \
-		build_extra_defines+=(-D DEBUG_PRINT_ERROR_LEVEL=$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)); \
-	fi; \
-	run_edk2_build() { \
+		if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)" ]]; then \
+			build_extra_defines+=(-D DEBUG_PRINT_ERROR_LEVEL=$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)); \
+		fi; \
+		if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" ]]; then \
+			build_extra_defines+=(-D ENABLE_EXPERIMENTAL_UEFI_SETTINGS=$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)); \
+		fi; \
+		run_edk2_build() { \
 		export EDK2_CIX_QUIET_PREBUILD="$(if $(filter 1,$(V)),0,1)"; \
 		build -a AARCH64 -t GCC5 -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
 			$(if $(strip $(EDK2_BUILD_JOBS)),-n $(EDK2_BUILD_JOBS)) \

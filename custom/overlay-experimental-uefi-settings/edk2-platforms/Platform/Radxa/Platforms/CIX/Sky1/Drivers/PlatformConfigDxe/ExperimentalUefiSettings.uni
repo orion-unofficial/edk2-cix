@@ -1,0 +1,22 @@
+#langdef en-US  "English"
+
+#string STR_EXPERIMENTAL_RTC_WAKEUP_PROMPT              #language en-US "RTC Wakeup"
+#string STR_EXPERIMENTAL_RTC_WAKEUP_PROMPT_HELP         #language en-US "Power on the system from an RTC alarm. Default: disabled."
+
+#string STR_EXPERIMENTAL_DEVICE_POWER_FORM_TITLE        #language en-US "Device Power Control"
+#string STR_EXPERIMENTAL_DEVICE_POWER_FORM_TITLE_HELP   #language en-US "Press <Enter> to configure device power settings. Defaults are shown in each item help."
+
+#string STR_EXPERIMENTAL_GFX_POWER_PROMPT               #language en-US "Graphics Slot Power"
+#string STR_EXPERIMENTAL_GFX_POWER_PROMPT_HELP          #language en-US "Enable or disable power to the PCIe graphics slot. Default: enabled."
+
+#string STR_EXPERIMENTAL_ONBOARD_LAN_POWER_PROMPT       #language en-US "On-Board LAN Power"
+#string STR_EXPERIMENTAL_ONBOARD_LAN_POWER_PROMPT_HELP  #language en-US "Enable or disable power to the onboard Ethernet controllers. Default: enabled."
+
+#string STR_EXPERIMENTAL_WLAN_POWER_PROMPT              #language en-US "M.2 Wi-Fi / BT Power"
+#string STR_EXPERIMENTAL_WLAN_POWER_PROMPT_HELP         #language en-US "Enable or disable power to the M.2 E-key Wi-Fi/Bluetooth slot. Default: enabled."
+
+#string STR_EXPERIMENTAL_M2_SSD_POWER_PROMPT            #language en-US "M.2 SSD Slot Power"
+#string STR_EXPERIMENTAL_M2_SSD_POWER_PROMPT_HELP       #language en-US "Enable or disable power to the M.2 M-key SSD slot. Default: enabled."
+
+#string STR_PCIE_SRIOV_PROMPT       #language en-US "SR-IOV Support"
+#string STR_PCIE_SRIOV_PROMPT_HELP  #language en-US "Enable or disable SR-IOV handling during PCIe enumeration. Default: enabled."
