@@ -1,0 +1,115 @@
+/**
+Copyright 2024 Cix Technology Group Co., Ltd. All Rights Reserved.
+
+SPDX-License-Identifier: BSD-2-Clause-Patent
+
+**/
+
+#langdef en-US  "English"
+
+/*
+* PCIe settings.
+*/
+#string STR_PCIE_FORM_SET_TITLE                 #language en-US "PCIe Configuration"
+#string STR_PCIE_FORM_SET_TITLE_HELP            #language en-US "Configure PCIe root ports and link settings. Defaults are shown in each item help."
+
+#string STR_PCIERP0_OPTIONS_FORM_TITLE          #language en-US "PCIe x8 (Port 0)"
+#string STR_PCIERP1_OPTIONS_FORM_TITLE          #language en-US "PCIe x4 (Port 1)"
+#string STR_PCIERP2_OPTIONS_FORM_TITLE          #language en-US "PCIe x2 (Port 2)"
+#string STR_PCIERP3_OPTIONS_FORM_TITLE          #language en-US "PCIe x1_1 (Port 4)"
+#string STR_PCIERP4_OPTIONS_FORM_TITLE          #language en-US "PCIe x1_0 (Port 3)"
+#string STR_PCIERP_HELP                         #language en-US "Enable or disable this PCIe root port."
+#string STR_PCIERP0_OPTIONS_FORM_HELP           #language en-US "Configure PCIe Port 0. O6 uses this port for the full-size PCIe slot; O6N routes it to onboard M.2 expansion. Default: enabled, x8, Gen4."
+#string STR_PCIERP1_OPTIONS_FORM_HELP           #language en-US "Configure PCIe Port 1. O6 uses this port for the M.2 M-key storage slot; O6N routes it to onboard M.2 expansion. Default: enabled, x4, Gen4."
+#string STR_PCIERP2_OPTIONS_FORM_HELP           #language en-US "Configure PCIe Port 2. This port is routed to the M.2 E-key Wi-Fi/Bluetooth slot. Default: enabled, x2, Gen4."
+#string STR_PCIERP3_OPTIONS_FORM_HELP           #language en-US "Configure PCIe Port 4. This port is routed to an onboard Ethernet controller. Default: enabled, x1, Gen4."
+#string STR_PCIERP4_OPTIONS_FORM_HELP           #language en-US "Configure PCIe Port 3. This port is routed to an onboard Ethernet controller. Default: enabled, x1, Gen4."
+
+#string STR_ENABLED                             #language en-US "Enabled"
+#string STR_DISABLED                            #language en-US "Disabled"
+
+#string STR_PCIE_PROMPT0                        #language en-US "PCIe x8 (Port 0)"
+#string STR_PCIE_PROMPT1                        #language en-US "PCIe x4 (Port 1)"
+#string STR_PCIE_PROMPT2                        #language en-US "PCIe x2 (Port 2)"
+#string STR_PCIE_PROMPT3                        #language en-US "PCIe x1_1 (Port 4)"
+#string STR_PCIE_PROMPT4                        #language en-US "PCIe x1_0 (Port 3)"
+
+#string STR_PCIE_WIDTH_PROMPT0                  #language en-US "Lane Width"
+#string STR_PCIE_WIDTH_PROMPT1                  #language en-US "Lane Width"
+#string STR_PCIE_WIDTH_PROMPT2                  #language en-US "Lane Width"
+#string STR_PCIE_WIDTH_PROMPT3                  #language en-US "Lane Width"
+#string STR_PCIE_WIDTH_PROMPT4                  #language en-US "Lane Width"
+#string STR_PCIE_WIDTH_HELP                     #language en-US "Limit the link width this root port may advertise. Widths above the wired lane count have no effect. Default: Port 0 x8, Port 1 x4, Port 2 x2, Ports 3 and 4 x1."
+#string STR_X8                                  #language en-US "x8"
+#string STR_X4                                  #language en-US "x4"
+#string STR_X2                                  #language en-US "x2"
+#string STR_X1                                  #language en-US "x1"
+
+
+#string STR_PCIE_SPEED_PROMPT0                  #language en-US "Maximum Link Speed"
+#string STR_PCIE_SPEED_PROMPT1                  #language en-US "Maximum Link Speed"
+#string STR_PCIE_SPEED_PROMPT2                  #language en-US "Maximum Link Speed"
+#string STR_PCIE_SPEED_PROMPT3                  #language en-US "Maximum Link Speed"
+#string STR_PCIE_SPEED_PROMPT4                  #language en-US "Maximum Link Speed"
+#string STR_PCIE_SPEED_HELP                     #language en-US "Limit the maximum PCIe link speed this root port may advertise. Attached devices may still train at a lower speed. Default: Gen4."
+#string STR_AUTO                                #language en-US "Auto"
+#string STR_GEN1                                #language en-US "Gen1"
+#string STR_GEN2                                #language en-US "Gen2"
+#string STR_GEN3                                #language en-US "Gen3"
+#string STR_GEN4                                #language en-US "Gen4"
+
+#string STR_PCIE_ASPM_MAX_PROMPT0               #language en-US "Maximum ASPM State"
+#string STR_PCIE_ASPM_MAX_PROMPT1               #language en-US "Maximum ASPM State"
+#string STR_PCIE_ASPM_MAX_PROMPT2               #language en-US "Maximum ASPM State"
+#string STR_PCIE_ASPM_MAX_PROMPT3               #language en-US "Maximum ASPM State"
+#string STR_PCIE_ASPM_MAX_PROMPT4               #language en-US "Maximum ASPM State"
+#string STR_PCIE_ASPM_MAX_HELP                  #language en-US "Set the maximum ASPM state this root port may advertise. Default: L1."
+
+
+#string STR_PCIE_ASPM_PROMPT0                   #language en-US "ASPM Policy"
+#string STR_PCIE_ASPM_PROMPT1                   #language en-US "ASPM Policy"
+#string STR_PCIE_ASPM_PROMPT2                   #language en-US "ASPM Policy"
+#string STR_PCIE_ASPM_PROMPT3                   #language en-US "ASPM Policy"
+#string STR_PCIE_ASPM_PROMPT4                   #language en-US "ASPM Policy"
+#string STR_PCIE_ASPM_HELP                      #language en-US "Select the ASPM policy for this root port. Default: L0s + L1."
+#string STR_PCIE_ASPM_DISABLE                   #language en-US "Disabled"
+#string STR_PCIE_ASPM_L0S_STRING                #language en-US "L0s"
+#string STR_PCIE_ASPM_L1_STRING                 #language en-US "L1"
+#string STR_PCIE_ASPM_L0SL1_STRING              #language en-US "L0s + L1"
+#string STR_PCIE_ASPM_CONFIG_PROMPT             #language en-US "ASPM Support"
+#string STR_PCIE_ASPM_CONFIG_HELP               #language en-US "Set the highest ASPM state this root port may expose to the OS. Default: L1."
+
+#string STR_PCIE_MAX_PAYLOAD_PROMPT             #language en-US "Maximum Payload Size"
+#string STR_PCIE_MAX_PAYLOAD_HELP               #language en-US "Set the maximum payload size this root port may advertise. Default: 512 Bytes."
+
+#string STR_PCIE_MAX_READ_REQUEST_PROMPT        #language en-US "Maximum Read Request"
+#string STR_PCIE_MAX_READ_REQUEST_HELP          #language en-US "Set the maximum PCIe read request size for devices on this port. Default: 1024 Bytes."
+
+#string STR_MAX_128                             #language en-US "128 Bytes"
+#string STR_MAX_256                             #language en-US "256 Bytes"
+#string STR_MAX_512                             #language en-US "512 Bytes"
+#string STR_MAX_1024                            #language en-US "1024 Bytes"
+#string STR_MAX_2048                            #language en-US "2048 Bytes"
+#string STR_MAX_4096                            #language en-US "4096 Bytes"
+
+#string STR_LINK_SPEED_PROMPT                   #language en-US "Target Link Speed"
+#string STR_LINK_SPEED_HELP                     #language en-US "Limit the maximum negotiated link speed. Default: 16.0 GT/s."
+#string STR_LINK_SPEED_AUTO                     #language en-US "Auto"
+#string STR_2_5G                                #language en-US "2.5 GT/s"
+#string STR_5_0G                                #language en-US "5.0 GT/s"
+#string STR_8_0G                                #language en-US "8.0 GT/s"
+#string STR_16_0G                               #language en-US "16.0 GT/s"
+
+#string STR_LINK_WIDTH_PROMPT                   #language en-US "Target Link Width"
+#string STR_LINK_WIDTH_HELP                     #language en-US "Limit the maximum negotiated link width. Default: Auto, which uses the board default lane width."
+#string STR_LINK_WIDTH_AUTO                     #language en-US "Auto"
+#string STR_LINK_WIDTH_X_1                      #language en-US "x1"
+#string STR_LINK_WIDTH_X_2                      #language en-US "x2"
+#string STR_LINK_WIDTH_X_4                      #language en-US "x4"
+#string STR_LINK_WIDTH_X_8                      #language en-US "x8"
+
+#string STR_PCIE_DTI_PROMPT                     #language en-US "DTI Support"
+#string STR_PCIE_DTI_HELP                       #language en-US "Enable or disable DTI for this root port. Default: disabled."
+
+#string STR_PCIE_LINK_TIMEOUT_PROMPT            #language en-US "Link-Up Timeout (ms)"
+#string STR_PCIE_LINK_TIMEOUT_HELP              #language en-US "Set the PCIe link-up timeout for devices that need more time to train. Default: 300 ms."
