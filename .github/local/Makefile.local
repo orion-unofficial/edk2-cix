@@ -35,6 +35,7 @@ BUILDBOX_ENV = \
 
 PROJECT ?= edk2-cix
 ARTEFACT_MODE ?= custom
+ENABLE_EXPERIMENTAL_UEFI_SETTINGS ?=
 DEBUG_ON_UART3 ?=
 UART3_ENABLE ?=
 DEBUG_VERBOSE ?=
@@ -64,6 +65,8 @@ DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL
 DEBUG_PRINT_ERROR_LEVEL_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW)),,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW))
 DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT := $(if $(filter TRUE,$(DEBUG_VERBOSE_NORMALIZED)),$(MAX_DEBUG_PRINT_ERROR_LEVEL),)
 DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED),$(DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT))
+ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW := $(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" 2>/dev/null || printf '%s' __INVALID__),)
+ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW)),,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW))
 FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW := $(if $(strip $(FIRMWARE_VALIDATE_ON_BUILD)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(FIRMWARE_VALIDATE_ON_BUILD)" 2>/dev/null || printf '%s' __INVALID__),)
 FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED := $(if $(filter __INVALID__,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW)),,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW))
 FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE := $(if $(filter TRUE,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED)),1,0)
@@ -87,6 +90,7 @@ ACT_EXTRA_ARGS ?=
 ACT_CLEAN_KEEP ?=
 SRC_COMMON_ARGS = \
 	ARTEFACT_MODE="$(ARTEFACT_MODE)" \
+	$(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)),ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)") \
 	$(if $(strip $(DEBUG_ON_UART3_NORMALIZED)),DEBUG_ON_UART3="$(DEBUG_ON_UART3_NORMALIZED)") \
 	$(if $(strip $(UART3_ENABLE_EFFECTIVE)),UART3_ENABLE="$(UART3_ENABLE_EFFECTIVE)") \
 	$(if $(strip $(DEBUG_VERBOSE_NORMALIZED)),DEBUG_VERBOSE="$(DEBUG_VERBOSE_NORMALIZED)") \
@@ -156,6 +160,7 @@ define PRINT_TOP_LEVEL_USER_VARIABLES
 	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Generate unmodified upstream firmware images or allow custom enhancements.\nDefault: custom.'; \
 	print_help_line '  FIRMWARE_BOARD=O6|O6N' 'Select the firmware board; replay follows the same board.\nDefault: O6.'; \
 	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG firmware build.\nDefault: RELEASE.'; \
+	print_help_line '  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Custom-only: enable the experimental Radxa UEFI settings overlay for O6/O6N, with SR-IOV remaining O6-only.\nDefault: false.'; \
 	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: expose UART3 to ACPI and mux its header pins as UART instead of GPIO.\nDefault: false.'; \
 	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
 	print_help_line '  DEBUG_VERBOSE=true|false' 'Custom-only: on RELEASE builds, re-enable DEBUG() logging with minimal runtime side effects and default to the full DEBUG_* mask unless DEBUG_PRINT_ERROR_LEVEL is set.\nDefault: false.'; \
@@ -307,14 +312,17 @@ help-debug:
 .PHONY: preflight-wrapper-common preflight-wrapper-firmware-build preflight-wrapper-validation preflight-wrapper-buildbox preflight-wrapper-replay
 preflight-wrapper-common:
 	@set -euo pipefail; \
-	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
-		--repo-root "$(REPO_ROOT)" \
-		--profile-file "$(VALIDATION_PROFILE_FILE)" \
-		--v "$(V)" \
-		--artefact-mode "$(ARTEFACT_MODE)"); \
-	if [ -n "$(strip $(FIRMWARE_TARGET))" ]; then \
-		validate_cmd+=(--firmware-target "$(strip $(FIRMWARE_TARGET))"); \
-	fi; \
+		validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+			--repo-root "$(REPO_ROOT)" \
+			--profile-file "$(VALIDATION_PROFILE_FILE)" \
+			--v "$(V)" \
+			--artefact-mode "$(ARTEFACT_MODE)"); \
+		if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
+			validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
+		fi; \
+		if [ -n "$(strip $(FIRMWARE_TARGET))" ]; then \
+			validate_cmd+=(--firmware-target "$(strip $(FIRMWARE_TARGET))"); \
+		fi; \
 	if [ -n "$(strip $(DEBUG_ON_UART3))" ]; then \
 		validate_cmd+=(--debug-on-uart3 "$(strip $(DEBUG_ON_UART3))"); \
 	fi; \
@@ -331,33 +339,39 @@ preflight-wrapper-common:
 
 preflight-wrapper-firmware-build: preflight-wrapper-common
 	@set -euo pipefail; \
-	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
-		--repo-root "$(REPO_ROOT)" \
-		--profile-file "$(VALIDATION_PROFILE_FILE)" \
-		--v "$(V)" \
-		--artefact-mode "$(ARTEFACT_MODE)" \
-		--firmware-target "$(FIRMWARE_TARGET)" \
-		--firmware-board "$(FIRMWARE_BOARD)" \
-		--firmware-validate-on-build "$(FIRMWARE_VALIDATE_ON_BUILD)"); \
-	if [ -n "$(strip $(FIRMWARE_VALIDATION_PROFILE))" ] && [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
-		validate_cmd+=(--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" --validation-board "$(FIRMWARE_BOARD)" --validation-target "$(RAW_FIRMWARE_TARGET)"); \
-	fi; \
+		validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+			--repo-root "$(REPO_ROOT)" \
+			--profile-file "$(VALIDATION_PROFILE_FILE)" \
+			--v "$(V)" \
+			--artefact-mode "$(ARTEFACT_MODE)" \
+			--firmware-target "$(FIRMWARE_TARGET)" \
+			--firmware-board "$(FIRMWARE_BOARD)" \
+			--firmware-validate-on-build "$(FIRMWARE_VALIDATE_ON_BUILD)"); \
+		if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
+			validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
+		fi; \
+		if [ -n "$(strip $(FIRMWARE_VALIDATION_PROFILE))" ] && [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
+			validate_cmd+=(--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" --validation-board "$(FIRMWARE_BOARD)" --validation-target "$(RAW_FIRMWARE_TARGET)"); \
+		fi; \
 	"$${validate_cmd[@]}"
 
 preflight-wrapper-validation: preflight-wrapper-common
 	@set -euo pipefail; \
-	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
-		--repo-root "$(REPO_ROOT)" \
-		--profile-file "$(VALIDATION_PROFILE_FILE)" \
-		--v "$(V)" \
-		--artefact-mode "$(ARTEFACT_MODE)" \
-		--firmware-target "$(FIRMWARE_TARGET)" \
-		--firmware-board "$(FIRMWARE_BOARD)" \
-		--firmware-validate-on-build "$(FIRMWARE_VALIDATE_ON_BUILD)" \
-		--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" \
-		--validation-board "$(FIRMWARE_BOARD)" \
-		--validation-target "$(RAW_FIRMWARE_TARGET)"); \
-	"$${validate_cmd[@]}"
+		validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+			--repo-root "$(REPO_ROOT)" \
+			--profile-file "$(VALIDATION_PROFILE_FILE)" \
+			--v "$(V)" \
+			--artefact-mode "$(ARTEFACT_MODE)" \
+			--firmware-target "$(FIRMWARE_TARGET)" \
+			--firmware-board "$(FIRMWARE_BOARD)" \
+			--firmware-validate-on-build "$(FIRMWARE_VALIDATE_ON_BUILD)" \
+			--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+			--validation-board "$(FIRMWARE_BOARD)" \
+			--validation-target "$(RAW_FIRMWARE_TARGET)"); \
+		if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
+			validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
+		fi; \
+		"$${validate_cmd[@]}"
 
 preflight-wrapper-buildbox:
 	@set -euo pipefail; \

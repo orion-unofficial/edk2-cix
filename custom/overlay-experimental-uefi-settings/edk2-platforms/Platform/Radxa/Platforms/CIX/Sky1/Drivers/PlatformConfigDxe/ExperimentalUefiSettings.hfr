@@ -1,0 +1,43 @@
+#if (EXPERIMENTAL_UEFI_SETTINGS_UI_ENABLE == TRUE)
+  form formid = EXPERIMENTAL_DEVICE_POWER_CONTROL_FORM_ID,
+    title  = STRING_TOKEN(STR_EXPERIMENTAL_DEVICE_POWER_FORM_TITLE);
+    subtitle text = STRING_TOKEN(STR_EMPTY_STRING);
+
+#if (EXPERIMENTAL_UEFI_SETTINGS_O6_ONLY_ENABLE == TRUE)
+    oneof varid   = PlatformSetupVar.GfxPower,
+      prompt      = STRING_TOKEN(STR_EXPERIMENTAL_GFX_POWER_PROMPT),
+      help        = STRING_TOKEN(STR_EXPERIMENTAL_GFX_POWER_PROMPT_HELP),
+      default     = FixedPcdGet16 (PcdGfxPower),
+      option text = STRING_TOKEN(STR_DISABLED), value = 0, flags = RESET_REQUIRED;
+      option text = STRING_TOKEN(STR_ENABLED),  value = 1, flags = RESET_REQUIRED;
+    endoneof;
+#endif
+
+    oneof varid   = PlatformSetupVar.OnBoardLanPower,
+      prompt      = STRING_TOKEN(STR_EXPERIMENTAL_ONBOARD_LAN_POWER_PROMPT),
+      help        = STRING_TOKEN(STR_EXPERIMENTAL_ONBOARD_LAN_POWER_PROMPT_HELP),
+      default     = FixedPcdGet16 (PcdOnBoardLanPower),
+      option text = STRING_TOKEN(STR_DISABLED), value = 0, flags = RESET_REQUIRED;
+      option text = STRING_TOKEN(STR_ENABLED),  value = 1, flags = RESET_REQUIRED;
+    endoneof;
+
+    oneof varid   = PlatformSetupVar.WlanPower,
+      prompt      = STRING_TOKEN(STR_EXPERIMENTAL_WLAN_POWER_PROMPT),
+      help        = STRING_TOKEN(STR_EXPERIMENTAL_WLAN_POWER_PROMPT_HELP),
+      default     = FixedPcdGet16 (PcdWlanPower),
+      option text = STRING_TOKEN(STR_DISABLED), value = 0, flags = RESET_REQUIRED;
+      option text = STRING_TOKEN(STR_ENABLED),  value = 1, flags = RESET_REQUIRED;
+    endoneof;
+
+#if (EXPERIMENTAL_UEFI_SETTINGS_O6_ONLY_ENABLE == TRUE)
+    oneof varid   = PlatformSetupVar.M2SsdPower,
+      prompt      = STRING_TOKEN(STR_EXPERIMENTAL_M2_SSD_POWER_PROMPT),
+      help        = STRING_TOKEN(STR_EXPERIMENTAL_M2_SSD_POWER_PROMPT_HELP),
+      default     = FixedPcdGet16 (PcdM2SsdPower),
+      option text = STRING_TOKEN(STR_DISABLED), value = 0, flags = RESET_REQUIRED;
+      option text = STRING_TOKEN(STR_ENABLED),  value = 1, flags = RESET_REQUIRED;
+    endoneof;
+#endif
+
+  endform;
+#endif
