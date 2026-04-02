@@ -1,0 +1,34 @@
+concurrency:
+  cancel-in-progress: true
+  group: "${{ github.workflow }}-${{ github.ref }}"
+jobs:
+  check-microsoft-secure-boot-release:
+    permissions:
+      contents: "read"
+    runs-on: "ubuntu-latest"
+    steps:
+    - name: "Checkout"
+      uses: "actions/checkout@v6"
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+    - name: "Check pinned Microsoft Secure Boot release freshness"
+      run: |
+        make -C src check-microsoft-secure-boot-release \
+          MICROSOFT_SECURE_BOOT_RELEASE_CHECK_MODE=strict
+      shell: "bash"
+name: "Microsoft Secure Boot Freshness"
+"on":
+  push:
+    branches:
+    - "main-monorepo"
+    paths:
+    - ".github/workflows/microsoft-secure-boot-freshness.yaml"
+    - "custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft/**"
+    - "scripts/check_microsoft_secure_boot_release.py"
+    - "scripts/generate_microsoft_secure_boot_defaults.py"
+  schedule:
+  - cron: "17 6 * * 1"
+  workflow_dispatch: {}
+permissions:
+  contents: "read"
