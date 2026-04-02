@@ -56,6 +56,10 @@ jobs:
       with:
         fetch-depth: 0
         fetch-tags: true
+    - name: "Check offline audit baseline schema"
+      run: |
+        python3 scripts/test_offline_audit_baselines.py
+      shell: "bash"
     - id: "download"
       name: "Download upstream release package"
       run: |
@@ -77,6 +81,34 @@ jobs:
           BUILDBOX_PLATFORM="linux/amd64" \
           REPLAY_VERSION="${{ needs.resolve-release.outputs.tag }}" \
           REPLAY_INPUT="${{ steps.download.outputs.deb_path }}"
+      shell: "bash"
+    - name: "Audit final firmware manifest"
+      run: |
+        make buildbox-audit-final-image-manifest V=1 \
+          ARTEFACT_MODE="upstream" \
+          FIRMWARE_BOARD="${{ matrix.board }}" \
+          FIRMWARE_TARGET="RELEASE" \
+          FIRMWARE_DISTRO="bookworm" \
+          BUILDBOX_PLATFORM="linux/amd64" \
+          FIRMWARE_VALIDATION_PROFILE="upstream-${{ needs.resolve-release.outputs.tag }}-bookworm"
+      shell: "bash"
+    - name: "Audit ACPI regression baseline"
+      run: |
+        make buildbox-audit-acpi-regression V=1 \
+          ARTEFACT_MODE="upstream" \
+          FIRMWARE_BOARD="${{ matrix.board }}" \
+          FIRMWARE_TARGET="RELEASE" \
+          FIRMWARE_DISTRO="bookworm" \
+          BUILDBOX_PLATFORM="linux/amd64" \
+          FIRMWARE_VALIDATION_PROFILE="upstream-${{ needs.resolve-release.outputs.tag }}-bookworm"
+      shell: "bash"
+    - if: "${{ always() && hashFiles('build-validation/*.json') != '' }}"
+      name: "Write validation report summary"
+      run: |
+        python3 scripts/summarize_validation_reports.py \
+          --report-root build-validation \
+          --heading "Validation reports for ${{ matrix.board }} / ${{ needs.resolve-release.outputs.tag }}" \
+          >>"${GITHUB_STEP_SUMMARY}"
       shell: "bash"
     - if: "${{ always() && hashFiles('build-validation/*.json', '.buildbox/replay/**/replay.env', '.buildbox/replay/**/replay-summary.json') != '' }}"
       name: "Upload replay reports"
