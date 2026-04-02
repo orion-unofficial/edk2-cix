@@ -1,9 +1,4 @@
 {
-  "profile_aliases": {
-    "upstream-o6-1.2.1-bookworm": "upstream-1.2.1-bookworm",
-    "upstream-o6n-1.2.1-bookworm": "upstream-1.2.1-bookworm",
-    "upstream-o6-1.2.1-trixie": "upstream-1.2.1-trixie"
-  },
   "profiles": {
     "upstream-1.2.1-bookworm": {
       "description": "Qualification profile for reproducing the published 1.2.1 upstream release builds in the Bookworm buildboxes when reusing the extracted release cert bundle.",
