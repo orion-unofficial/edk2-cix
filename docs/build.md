@@ -40,6 +40,21 @@ pinned `act` binary under `.buildbox/tools/act/`, keeps its cache under
 `catthehacker/ubuntu:act-latest`, and defaults the act runner architecture to
 `linux/amd64` so workflow behaviour stays closer to hosted GitHub Actions.
 
+For workflows that build under ignored paths like `src/Build/` or `.buildbox/`,
+use the clean helper instead:
+
+```bash
+make gha-act-run-clean \
+  ACT_WORKFLOW=.github/workflows/custom-secure-boot.yaml \
+  ACT_JOB=validate-custom-secure-boot \
+  ACT_MATRIX=board:O6N
+```
+
+That helper clones a scratch checkout, overlays the current tracked and
+untracked non-ignored working tree changes, and runs `act` there so stale
+ignored artefacts from your main checkout cannot skew the result. Set
+`ACT_CLEAN_KEEP=1` if you want to preserve that scratch checkout for debugging.
+
 Common variables:
 
 - `ACT_WORKFLOW=.github/workflows/<file>.yaml`
@@ -48,6 +63,7 @@ Common variables:
 - `ACT_MATRIX=<name:value>` for a single matrix leg such as `board:O6`
 - `ACT_SECRET_FILE=/path/to/secrets.env` when a local run needs secrets
 - `ACT_EXTRA_ARGS='...'` for any extra raw act flags
+- `ACT_CLEAN_KEEP=1` to keep the temporary checkout used by `gha-act-run-clean`
 
 If you want to pass the runner image or container architecture yourself, call
 `scripts/run_github_actions_with_act.sh --no-defaults ...` directly.

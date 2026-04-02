@@ -35,6 +35,16 @@ keeps its cache under `.buildbox/act-cache/`, and applies the repo's default
 runner mapping for `ubuntu-latest`. See [docs/build.md](docs/build.md) for the
 full local-workflow testing notes and variables.
 
+If a workflow touches generated paths such as `src/Build/` or `.buildbox/`,
+prefer the clean helper so ignored local artefacts do not leak into the run:
+
+```bash
+make gha-act-run-clean \
+  ACT_WORKFLOW=.github/workflows/custom-secure-boot.yaml \
+  ACT_JOB=validate-custom-secure-boot \
+  ACT_MATRIX=board:O6
+```
+
 ### Without `devcontainer`
 
 If you are building on a headless Linux host over SSH, you do not need VS Code
