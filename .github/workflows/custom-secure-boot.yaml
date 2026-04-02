@@ -36,7 +36,10 @@ jobs:
       shell: "bash"
     - name: "Validate embedded Secure Boot payloads"
       run: |
-        make -C src validate-secure-boot-defaults-${{ matrix.board }} \
+        make buildbox-validate-secure-boot-defaults V=1 \
+          ARTEFACT_MODE=custom \
+          FIRMWARE_BOARD="${{ matrix.board }}" \
+          FIRMWARE_PRODUCT="${{ matrix.product }}" \
           FIRMWARE_TARGET=RELEASE
       shell: "bash"
 name: "Custom Secure Boot"
