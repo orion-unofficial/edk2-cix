@@ -21,6 +21,7 @@ BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
 EDK2_BUILD_OUTPUT_FILTER := scripts/filter_edk2_build_output.py
 MAKE_INPUT_VALIDATOR := $(abspath ../scripts/validate_make_inputs.py)
 CUSTOM_OVERLAY_SHADOW_CHECK := $(abspath ../scripts/check_custom_overlay_shadowing.py)
+MAX_DEBUG_PRINT_ERROR_LEVEL := $(shell python3 "$(MAKE_INPUT_VALIDATOR)" max-debug-print-error-level 2>/dev/null || printf '%s' 0x807B55FF)
 V ?= 0
 ifeq ($(V),1)
 Q :=
@@ -55,7 +56,7 @@ DEBUG_VERBOSE_NORMALIZED_RAW := $(if $(strip $(DEBUG_VERBOSE)),$(shell python3 "
 DEBUG_VERBOSE_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_VERBOSE_NORMALIZED_RAW)),,$(DEBUG_VERBOSE_NORMALIZED_RAW))
 DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-u32 --value "$(DEBUG_PRINT_ERROR_LEVEL)" 2>/dev/null || printf '%s' __INVALID__),)
 DEBUG_PRINT_ERROR_LEVEL_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW)),,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW))
-DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT := $(if $(filter TRUE,$(DEBUG_VERBOSE_NORMALIZED)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" max-debug-print-error-level 2>/dev/null || true),)
+DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT := $(if $(filter TRUE,$(DEBUG_VERBOSE_NORMALIZED)),$(MAX_DEBUG_PRINT_ERROR_LEVEL),)
 DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED),$(DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT))
 CUSTOM_OVERLAY_PACKAGE_ROOTS := \
 	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2) \
@@ -228,7 +229,7 @@ host-cix-package-tool: $(CIX_PACKAGE_TOOL_BIN)
 .PHONY: help help-vars help-debug
 define PRINT_SRC_VARIABLES
 	@set -eu; \
-	help_pad=28; \
+	help_pad=31; \
 	help_gap=2; \
 	help_width=80; \
 	desc_width=$$((help_width - help_pad - help_gap)); \
@@ -249,22 +250,22 @@ define PRINT_SRC_VARIABLES
 		fi; \
 	}; \
 	printf '%s\n\n' 'useful variables'; \
-	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG build.\nDefault: RELEASE.'; \
+	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
 	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Generate unmodified upstream firmware images or allow custom enhancements.\nDefault: custom.'; \
-	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
+	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG build.\nDefault: RELEASE.'; \
 	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: mux the UART3 header pins for UART use and expose COM3 to the OS without moving firmware DEBUG() there.\nDefault: false.'; \
+	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
 	print_help_line '  DEBUG_VERBOSE=true|false' 'Custom-only: on RELEASE builds, re-enable DEBUG() logging with minimal runtime side effects and default to the full DEBUG_* mask unless DEBUG_PRINT_ERROR_LEVEL is set.\nDefault: false.'; \
-	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug message mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; builds use 0x80000040 unless DEBUG_VERBOSE=true.\nRun: make -C src help-debug'; \
+	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug message mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; builds use 0x80000040 by default or $(MAX_DEBUG_PRINT_ERROR_LEVEL) when DEBUG_VERBOSE=true.\nSee '\''make -C src help-debug'\'''; \
 	print_help_line '  GCC5_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
 	print_help_line '  SIGNING_CERT_SOURCE_DIR=<dir>' 'Path to extracted or built cert blobs for exact replay.\nDefault: unset.'; \
 	print_help_line '  SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the compiler-facing reproducible timestamp.\nDefault: resolved from mapped upstream source metadata.'; \
-	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the PM-config timestamp.\nDefault: SOURCE_DATE_EPOCH.'; \
-	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'
+	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the PM-config timestamp.\nDefault: SOURCE_DATE_EPOCH.'
 endef
 
 help:
 	@set -eu; \
-	help_pad=28; \
+	help_pad=31; \
 	help_gap=2; \
 	help_width=80; \
 	desc_width=$$((help_width - help_pad - help_gap)); \
@@ -291,14 +292,14 @@ help:
 	print_help_line '  Build/O6N/{RELEASE|DEBUG}_GCC5/cix_flash_all.bin' 'Build the full flash image for O6N'; \
 	print_help_line '  Build/O6N/{RELEASE|DEBUG}_GCC5/cix_flash_ota.bin' 'Build the OTA flash image for O6N'; \
 	printf '\n%s\n\n' 'host tools and checks'; \
-	print_help_line '  host-fiptool' 'Build the vendored TF-A fiptool from source'; \
-	print_help_line '  host-cix-regen-trusted-key-cert' 'Build the source trusted-key cert helper'; \
-	print_help_line '  host-cert-uefi-create-rsa' 'Build the source non-trusted cert helper'; \
-	print_help_line '  host-cix-package-tool' 'Refresh the cix_package_tool wrapper in Build/HostTools/'; \
-	print_help_line '  prepare-basetools-c' 'Build or refresh the EDK2 BaseTools C helpers'; \
-	print_help_line '  check-custom-acpi-overlays' 'Verify the custom ACPI module overlays still mirror the imported source tree cleanly'; \
 	print_help_line '  preflight' 'Check host tools, metadata, and toolchain prerequisites'; \
 	print_help_line '  print-build-metadata' 'Show the resolved reproducible build metadata'; \
+	print_help_line '  prepare-basetools-c' 'Build or refresh the EDK2 BaseTools C helpers'; \
+	print_help_line '  check-custom-acpi-overlays' 'Verify the custom ACPI module overlays still mirror the imported source tree cleanly'; \
+	print_help_line '  host-fiptool' 'Build the vendored TF-A fiptool from source'; \
+	print_help_line '  host-cert-uefi-create-rsa' 'Build the source non-trusted cert helper'; \
+	print_help_line '  host-cix-package-tool' 'Refresh the cix_package_tool wrapper in Build/HostTools/'; \
+	print_help_line '  host-cix-regen-trusted-key-cert' 'Build the source trusted-key cert helper'; \
 	print_help_line '  clean' 'Remove Build/ output and generated helper artefacts'; \
 	print_help_line '  help-vars' 'Show accepted raw-build control variables'; \
 	print_help_line '  help-debug' 'Explain the DEBUG_PRINT_ERROR_LEVEL bit values derived from DebugLib.h'; \
@@ -309,7 +310,7 @@ help-vars:
 
 help-debug:
 	@set -eu; \
-	help_pad=28; \
+	help_pad=31; \
 	help_gap=2; \
 	help_width=80; \
 	desc_width=$$((help_width - help_pad - help_gap)); \
@@ -334,8 +335,8 @@ help-debug:
 '0x-prefixed 32-bit value to choose which DEBUG() message classes are '\
 'printed. Combine entries by ORing or summing their values. Default: '\
 '0x80000040 (DEBUG_INFO|DEBUG_ERROR). If DEBUG_VERBOSE=true and you do '\
-'not set DEBUG_PRINT_ERROR_LEVEL explicitly, the build enables all '\
-'available DEBUG_* message levels by default.' | fold -s -w 78 | sed 's/^/  /'; \
+'not set DEBUG_PRINT_ERROR_LEVEL explicitly, the build uses 0x807B55FF, '\
+'which enables all available DEBUG_* message levels by default.' | fold -s -w 78 | sed 's/^/  /'; \
 	printf '\n'; \
 	python3 "$(MAKE_INPUT_VALIDATOR)" list-debug-print-error-level-bits | \
 	awk '{ mask=$$1; name=$$2; $$1=""; $$2=""; sub(/^ +/, "", $$0); printf "%s\t%s\t%s\n", mask, name, $$0 }' | \

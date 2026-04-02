@@ -120,7 +120,6 @@ dependencies onto the host, use:
 make buildbox-up
 make buildbox-firmware-build
 make buildbox-firmware-stage
-make buildbox-o6
 make buildbox-deb
 make buildbox-zip
 make buildbox-targz
@@ -461,7 +460,6 @@ make buildbox-up
 make buildbox-metadata
 make buildbox-firmware-build
 make buildbox-firmware-stage
-make buildbox-o6
 make buildbox-o6-log
 make buildbox-deb
 make buildbox-zip
