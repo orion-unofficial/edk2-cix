@@ -1,0 +1,62 @@
+/**
+Copyright 2024 Cix Technology Group Co., Ltd. All Rights Reserved.
+
+SPDX-License-Identifier: BSD-2-Clause-Patent
+
+**/
+
+#langdef en-US  "English"
+/*
+* I2C settings.
+*/
+#string STR_I2C_FORM_SET_TITLE                #language en-US "I2C Configuration"
+#string STR_I2C_FORM_SET_TITLE_HELP           #language en-US "Configure I2C buses and bus speeds. Bus help text includes the board default."
+
+#string STR_I2C0_OPTIONS_FORM_TITLE           #language en-US "I2C0 (Camera 0)"
+#string STR_I2C1_OPTIONS_FORM_TITLE           #language en-US "I2C1 (Camera 1)"
+#string STR_I2C2_OPTIONS_FORM_TITLE           #language en-US "I2C2 (40-pin GPIO)"
+#string STR_I2C3_OPTIONS_FORM_TITLE           #language en-US "I2C3 (RTC)"
+#string STR_I2C4_OPTIONS_FORM_TITLE           #language en-US "I2C4 (40-pin GPIO)"
+#string STR_I2C5_OPTIONS_FORM_TITLE           #language en-US "I2C5 (Board Control)"
+#string STR_I2C6_OPTIONS_FORM_TITLE           #language en-US "I2C6 (EC / Board ID)"
+#string STR_I2C7_OPTIONS_FORM_TITLE           #language en-US "I2C7 (EEPROM / Control)"
+
+#string STR_I2C0_OPTIONS_FORM_HELP            #language en-US "Camera connector 0 control bus. Default: enabled at 100 kHz."
+#string STR_I2C1_OPTIONS_FORM_HELP            #language en-US "Camera connector 1 control bus. On O6, this bus also carries the USB-C PD controllers. Default: enabled at 100 kHz."
+#string STR_I2C2_OPTIONS_FORM_HELP            #language en-US "40-pin GPIO header I2C bus. Default: disabled at 100 kHz."
+#string STR_I2C3_OPTIONS_FORM_HELP            #language en-US "RTC bus. This bus stays enabled so RTC services keep working. Default: enabled at 100 kHz."
+#string STR_I2C4_OPTIONS_FORM_HELP            #language en-US "40-pin GPIO header I2C bus. Default: O6 enabled at 100 kHz; O6N disabled at 100 kHz."
+#string STR_I2C5_OPTIONS_FORM_HELP            #language en-US "Internal board-management bus. On O6N, this bus carries the USB-C PD controller. Default: enabled at 100 kHz."
+#string STR_I2C6_OPTIONS_FORM_HELP            #language en-US "O6: embedded-controller bus. O6N: board-ID bus. Default: O6 enabled at 50 kHz; O6N disabled at 100 kHz."
+#string STR_I2C7_OPTIONS_FORM_HELP            #language en-US "Internal board-management bus. O6N uses this bus for the onboard EEPROM. Default: enabled at 100 kHz."
+
+#string STR_I2C0_PROMPT                       #language en-US "I2C0"
+#string STR_I2C1_PROMPT                       #language en-US "I2C1"
+#string STR_I2C2_PROMPT                       #language en-US "I2C2"
+#string STR_I2C3_PROMPT                       #language en-US "I2C3"
+#string STR_I2C4_PROMPT                       #language en-US "I2C4"
+#string STR_I2C5_PROMPT                       #language en-US "I2C5"
+#string STR_I2C6_PROMPT                       #language en-US "I2C6"
+#string STR_I2C7_PROMPT                       #language en-US "I2C7"
+
+#string STR_I2C0_BUS_FREQ_PROMPT              #language en-US "Bus Speed"
+#string STR_I2C1_BUS_FREQ_PROMPT              #language en-US "Bus Speed"
+#string STR_I2C2_BUS_FREQ_PROMPT              #language en-US "Bus Speed"
+#string STR_I2C3_BUS_FREQ_PROMPT              #language en-US "Bus Speed"
+#string STR_I2C4_BUS_FREQ_PROMPT              #language en-US "Bus Speed"
+#string STR_I2C5_BUS_FREQ_PROMPT              #language en-US "Bus Speed"
+#string STR_I2C6_BUS_FREQ_PROMPT              #language en-US "Bus Speed"
+#string STR_I2C7_BUS_FREQ_PROMPT              #language en-US "Bus Speed"
+#string STR_I2C0_BUS_FREQ_HELP                #language en-US "Select the I2C0 bus speed. Default: 100 kHz. Not every attached device supports every rate."
+#string STR_I2C1_BUS_FREQ_HELP                #language en-US "Select the I2C1 bus speed. Default: 100 kHz. Not every attached device supports every rate."
+#string STR_I2C2_BUS_FREQ_HELP                #language en-US "Select the I2C2 bus speed. Default: 100 kHz. Not every attached device supports every rate."
+#string STR_I2C3_BUS_FREQ_HELP                #language en-US "Select the I2C3 bus speed. Default: 100 kHz. Not every attached device supports every rate."
+#string STR_I2C4_BUS_FREQ_HELP                #language en-US "Select the I2C4 bus speed. Default: 100 kHz. Not every attached device supports every rate."
+#string STR_I2C5_BUS_FREQ_HELP                #language en-US "Select the I2C5 bus speed. Default: 100 kHz. Not every attached device supports every rate."
+#string STR_I2C6_BUS_FREQ_HELP                #language en-US "Select the I2C6 bus speed. Default: O6 50 kHz; O6N 100 kHz. Not every attached device supports every rate."
+#string STR_I2C7_BUS_FREQ_HELP                #language en-US "Select the I2C7 bus speed. Default: 100 kHz. Not every attached device supports every rate."
+
+#string STR_I2C_BUS_FREQ_50K                  #language en-US "50 kHz"
+#string STR_I2C_BUS_FREQ_100K                 #language en-US "100 kHz"
+#string STR_I2C_BUS_FREQ_400K                 #language en-US "400 kHz"
+#string STR_I2C_BUS_FREQ_1M                   #language en-US "1 MHz"
