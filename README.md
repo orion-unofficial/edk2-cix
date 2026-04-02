@@ -91,7 +91,6 @@ use the buildbox helpers instead:
 make buildbox-up
 make buildbox-firmware-build
 make buildbox-firmware-stage
-make buildbox-o6
 make buildbox-deb
 make buildbox-zip
 make buildbox-targz
