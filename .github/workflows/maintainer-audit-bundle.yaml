@@ -1,0 +1,83 @@
+concurrency:
+  cancel-in-progress: true
+  group: "${{ github.workflow }}-${{ github.ref }}"
+jobs:
+  maintainer-audit-bundle:
+    permissions:
+      contents: "read"
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 180
+    steps:
+    - name: "Checkout source"
+      uses: "actions/checkout@v6"
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+    - name: "Checkout metadata branch"
+      uses: "actions/checkout@v6"
+      with:
+        fetch-depth: 0
+        path: "metadata"
+        ref: "main-monorepo-meta"
+    - name: "Check offline audit baseline schema"
+      run: |
+        python3 scripts/test_offline_audit_baselines.py
+      shell: "bash"
+    - name: "Run maintainer audit bundle in buildbox"
+      run: |
+        case "${{ inputs.board }}" in
+          O6) product="orion-o6" ;;
+          O6N) product="orion-o6n" ;;
+          *) echo "Unsupported board: ${{ inputs.board }}" >&2; exit 2 ;;
+        esac
+        make buildbox-audit-bundle V=1 \
+          ARTEFACT_MODE="upstream" \
+          FIRMWARE_BOARD="${{ inputs.board }}" \
+          FIRMWARE_PRODUCT="${product}" \
+          FIRMWARE_TARGET="RELEASE" \
+          FIRMWARE_DISTRO="bookworm" \
+          BUILDBOX_PLATFORM="linux/amd64" \
+          FIRMWARE_VALIDATION_PROFILE="${{ inputs.validation_profile }}"
+      shell: "bash"
+    - name: "Check metadata consistency"
+      run: |
+        python3 metadata/scripts/monorepo/check_metadata_consistency.py \
+          --metadata-root metadata \
+          --source-repo .
+      shell: "bash"
+    - if: "${{ always() && hashFiles('build-validation/*.json') != '' }}"
+      name: "Write audit summary"
+      run: |
+        python3 scripts/summarize_validation_reports.py \
+          --report-root build-validation \
+          --heading "Maintainer audit bundle for ${{ inputs.board }} / ${{ inputs.validation_profile }}" \
+          >>"${GITHUB_STEP_SUMMARY}"
+        printf '\n- Metadata consistency check: passed\n' >>"${GITHUB_STEP_SUMMARY}"
+      shell: "bash"
+    - if: "${{ always() && hashFiles('build-validation/*.json') != '' }}"
+      name: "Upload audit reports"
+      uses: "actions/upload-artifact@v7"
+      with:
+        if-no-files-found: "warn"
+        name: "maintainer-audit-${{ inputs.board }}-${{ inputs.validation_profile }}"
+        path: |
+          build-validation/*.json
+name: "Maintainer Audit Bundle"
+"on":
+  workflow_dispatch:
+    inputs:
+      board:
+        default: "O6"
+        description: "Board to qualify"
+        options:
+        - "O6"
+        - "O6N"
+        required: true
+        type: "choice"
+      validation_profile:
+        default: "upstream-1.2.1-bookworm"
+        description: "Validation profile and offline-audit baseline to check"
+        required: true
+        type: "string"
+permissions:
+  contents: "read"

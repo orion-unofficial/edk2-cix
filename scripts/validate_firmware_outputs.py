@@ -68,22 +68,13 @@ def load_profiles(profile_file: pathlib.Path) -> dict[str, Any]:
     return data.get("profiles", {})
 
 
-def load_profile_aliases(profile_file: pathlib.Path) -> dict[str, str]:
-    data = load_profile_data(profile_file)
-    aliases = data.get("profile_aliases", {})
-    if not isinstance(aliases, dict):
-        return {}
-    return {str(key): str(value) for key, value in aliases.items()}
-
-
 def resolve_profile(
     profiles: dict[str, Any],
-    profile_aliases: dict[str, str],
     profile_name: str,
     board: str,
     target: str,
 ) -> tuple[str, dict[str, Any], dict[str, Any]]:
-    resolved_profile_name = profile_aliases.get(profile_name, profile_name)
+    resolved_profile_name = profile_name
     profile = profiles.get(resolved_profile_name)
     if profile is None:
         raise KeyError(resolved_profile_name)
@@ -275,11 +266,9 @@ def main() -> int:
     build_dir = resolve_build_dir(args)
     profile_file = args.profile_file.resolve()
     profiles = load_profiles(profile_file)
-    profile_aliases = load_profile_aliases(profile_file)
     try:
         resolved_profile_name, profile_meta, profile = resolve_profile(
             profiles,
-            profile_aliases,
             args.profile,
             args.board,
             args.target,
