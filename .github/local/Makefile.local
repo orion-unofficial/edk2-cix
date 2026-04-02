@@ -51,6 +51,7 @@ FIRMWARE_ARCHIVE_ROOT ?= $(REPO_ROOT)/dist
 FIRMWARE_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)
 FIRMWARE_VALIDATION_PROFILE ?= upstream-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(REPO_ROOT)/build-validation
+MONOREPO_META_ROOT ?=
 FIRMWARE_VALIDATE_ON_BUILD ?= 0
 DEBUG_ON_UART3_NORMALIZED_RAW := $(if $(strip $(DEBUG_ON_UART3)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_ON_UART3)" 2>/dev/null || printf '%s' __INVALID__),)
 DEBUG_ON_UART3_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_ON_UART3_NORMALIZED_RAW)),,$(DEBUG_ON_UART3_NORMALIZED_RAW))
@@ -103,7 +104,16 @@ BUILDBOX_FIRMWARE_ARGS = \
 	FIRMWARE_STAGE_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)" \
 	FIRMWARE_ARCHIVE_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/dist" \
 	FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
-	FIRMWARE_VALIDATION_REPORT_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/build-validation"
+	FIRMWARE_VALIDATION_REPORT_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/build-validation" \
+	$(if $(strip $(BUILD_DATE)),BUILD_DATE="$(BUILD_DATE)") \
+	$(if $(strip $(SOURCE_DATE_EPOCH)),SOURCE_DATE_EPOCH="$(SOURCE_DATE_EPOCH)") \
+	$(if $(strip $(PM_CONFIG_SOURCE_DATE_EPOCH)),PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)") \
+	$(if $(strip $(SOURCE_COMMIT)),SOURCE_COMMIT="$(SOURCE_COMMIT)") \
+	$(if $(strip $(SOURCE_COMMIT_HASH)),SOURCE_COMMIT_HASH="$(SOURCE_COMMIT_HASH)") \
+	$(if $(strip $(EDK2_COMMIT_HASH)),EDK2_COMMIT_HASH="$(EDK2_COMMIT_HASH)") \
+	$(if $(strip $(EDK2_NON_OSI_COMMIT_HASH)),EDK2_NON_OSI_COMMIT_HASH="$(EDK2_NON_OSI_COMMIT_HASH)") \
+	$(if $(strip $(EDK2_PLATFORMS_COMMIT_HASH)),EDK2_PLATFORMS_COMMIT_HASH="$(EDK2_PLATFORMS_COMMIT_HASH)") \
+	$(if $(strip $(DEB_VERSION)),DEB_VERSION="$(DEB_VERSION)")
 
 src/tools/gcc/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf.tar.xz:
 	$(Q)mkdir -p src/tools/gcc
@@ -156,6 +166,8 @@ define PRINT_TOP_LEVEL_DEV_VARIABLES
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
 	print_help_line '  FIRMWARE_VALIDATE_ON_BUILD=0|1' 'Enable or skip automatic output validation after firmware-build.\nDefault: 0; enable explicitly for qualification or diagnostic runs.'; \
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile from validation/expected-hashes.json, e.g. '\''upstream-1.2.1-bookworm'\'' or '\''upstream-1.2.1-trixie'\''\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
+	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory for validation and audit JSON reports.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
+	print_help_line '  MONOREPO_META_ROOT=<path>' 'Optional main-monorepo-meta checkout used by audit-bundle for the metadata-consistency check.\nDefault: unset.'; \
 	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Select the default distro family for buildbox runs and deterministic replay.\nDefault: bookworm.'; \
 	print_help_line '  BUILDBOX_PLATFORM=linux/amd64|linux/arm64' 'Select the container platform for buildbox runs.\nDefault: host-matched runtime platform.'; \
 	print_help_line '  BUILDBOX_IMAGE=<image>' 'Override the selected buildbox container image directly.\nDefault: '\''mcr.microsoft.com/devcontainers/base:$(FIRMWARE_DISTRO)'\'''; \
@@ -229,6 +241,11 @@ help-dev:
 	print_help_line '  build-edk2' 'Run the raw src/ firmware build directly'; \
 	print_help_line '  validate-firmware' 'Check outputs against the active validation profile'; \
 	print_help_line '  validate-firmware-strict' 'Require exact matches from the validation profile'; \
+	print_help_line '  check-offline-audit-baselines' 'Validate the checked-in offline audit baseline JSON structure'; \
+	print_help_line '  audit-final-image-manifest' 'Check final BL33 firmware composition against the stored baseline'; \
+	print_help_line '  audit-acpi-regression' 'Check final ACPI tables and IASL diagnostics against the stored baseline'; \
+	print_help_line '  refresh-offline-audit-baselines' 'Refresh both offline audit baseline files from the selected board build'; \
+	print_help_line '  audit-bundle' 'Run the maintainer-focused structural audit bundle for the selected board'; \
 	print_help_line '  capture-validation-profile' 'Snapshot the current build into a profile JSON'; \
 	print_help_line '  deterministic-replay' 'Seed or reuse exact replay inputs, rebuild, and validate them strictly'; \
 	print_help_line '  buildbox-up' 'Start or reuse the persistent build container'; \
@@ -236,6 +253,9 @@ help-dev:
 	print_help_line '  buildbox-o6-log' 'Capture a full logged buildbox firmware build'; \
 	print_help_line '  buildbox-validate-firmware' 'Run validation inside the buildbox'; \
 	print_help_line '  buildbox-validate-firmware-strict' 'Run strict validation inside the buildbox'; \
+	print_help_line '  buildbox-audit-final-image-manifest' 'Run the final-image manifest audit inside the buildbox'; \
+	print_help_line '  buildbox-audit-acpi-regression' 'Run the ACPI regression audit inside the buildbox'; \
+	print_help_line '  buildbox-audit-bundle' 'Run the full maintainer audit bundle inside the buildbox'; \
 	print_help_line '  buildbox-validate-secure-boot-defaults' 'Validate embedded Secure Boot payloads inside the buildbox'; \
 	print_help_line '  buildbox-capture-validation-profile' 'Capture a validation profile inside the buildbox'; \
 	print_help_line '  buildbox-down' 'Remove the persistent build container if it exists'; \
@@ -378,15 +398,15 @@ preflight-wrapper-replay: preflight-wrapper-buildbox
 	fi; \
 	"$${validate_cmd[@]}"
 
-.PHONY: build-edk2 firmware-build firmware-stage install zip targz validate-firmware validate-firmware-strict capture-validation-profile deterministic-replay gha-act-list gha-act-dry-run gha-act-run gha-act-run-clean buildbox-up buildbox-deb buildbox-firmware-build buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-capture-validation-profile buildbox-metadata
+.PHONY: build-edk2 firmware-build firmware-stage install zip targz validate-firmware validate-firmware-strict check-offline-audit-baselines audit-final-image-manifest audit-acpi-regression refresh-offline-audit-baselines audit-bundle capture-validation-profile deterministic-replay gha-act-list gha-act-dry-run gha-act-run gha-act-run-clean buildbox-up buildbox-deb buildbox-firmware-build buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile buildbox-metadata
 build-edk2: preflight-wrapper-common
 firmware-build firmware-stage install zip targz: preflight-wrapper-firmware-build
-validate-firmware validate-firmware-strict capture-validation-profile: preflight-wrapper-validation
+validate-firmware validate-firmware-strict refresh-offline-audit-baselines audit-final-image-manifest audit-acpi-regression audit-bundle capture-validation-profile: preflight-wrapper-validation
 deterministic-replay: preflight-wrapper-replay
 buildbox-up buildbox-deb: preflight-wrapper-buildbox
 buildbox-metadata: preflight-wrapper-common preflight-wrapper-buildbox
 buildbox-firmware-build buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz: preflight-wrapper-firmware-build preflight-wrapper-buildbox
-buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-capture-validation-profile: preflight-wrapper-validation preflight-wrapper-buildbox
+buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile: preflight-wrapper-validation preflight-wrapper-buildbox
 
 .PHONY: build-edk2 __build-edk2
 build-edk2:
@@ -517,6 +537,73 @@ __validate-firmware-strict:
 		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
 		--strict \
 		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
+
+.PHONY: check-offline-audit-baselines __check-offline-audit-baselines
+check-offline-audit-baselines:
+	$(Q)$(LOCKED_MAKE) __check-offline-audit-baselines V="$(V)"
+
+__check-offline-audit-baselines:
+	$(Q)python3 "$(REPO_ROOT)/scripts/test_offline_audit_baselines.py"
+
+.PHONY: audit-final-image-manifest __audit-final-image-manifest
+audit-final-image-manifest:
+	$(Q)$(LOCKED_MAKE) __audit-final-image-manifest V="$(V)"
+
+__audit-final-image-manifest:
+	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
+		$(SRC_COMMON_ARGS) \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="$(FIRMWARE_VALIDATION_REPORT_ROOT)" \
+		audit-final-image-manifest-$(FIRMWARE_BOARD)
+
+.PHONY: audit-acpi-regression __audit-acpi-regression
+audit-acpi-regression:
+	$(Q)$(LOCKED_MAKE) __audit-acpi-regression V="$(V)"
+
+__audit-acpi-regression:
+	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
+		$(SRC_COMMON_ARGS) \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="$(FIRMWARE_VALIDATION_REPORT_ROOT)" \
+		audit-acpi-regression-$(FIRMWARE_BOARD)
+
+.PHONY: refresh-offline-audit-baselines __refresh-offline-audit-baselines
+refresh-offline-audit-baselines:
+	$(Q)$(LOCKED_MAKE) __refresh-offline-audit-baselines V="$(V)"
+
+__refresh-offline-audit-baselines:
+	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
+		$(SRC_COMMON_ARGS) \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="$(FIRMWARE_VALIDATION_REPORT_ROOT)" \
+		refresh-offline-audit-baselines-$(FIRMWARE_BOARD)
+	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
+
+.PHONY: audit-bundle __audit-bundle
+audit-bundle:
+	$(Q)$(LOCKED_MAKE) __audit-bundle V="$(V)"
+
+__audit-bundle:
+	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
+	$(Q)$(MAKE) --no-print-directory firmware-build V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1
+	$(Q)$(MAKE) --no-print-directory validate-firmware-strict V="$(V)"
+	$(Q)$(MAKE) --no-print-directory audit-final-image-manifest V="$(V)"
+	$(Q)$(MAKE) --no-print-directory audit-acpi-regression V="$(V)"
+	$(Q)python3 "$(REPO_ROOT)/scripts/test_firmware_metadata_audit.py"
+	@if [ -n "$(strip $(MONOREPO_META_ROOT))" ]; then \
+		python3 "$(MONOREPO_META_ROOT)/scripts/monorepo/check_metadata_consistency.py" \
+			--metadata-root "$(MONOREPO_META_ROOT)" \
+			--source-repo "$(REPO_ROOT)"; \
+	fi
 
 .PHONY: capture-validation-profile __capture-validation-profile
 capture-validation-profile:
@@ -904,6 +991,30 @@ buildbox-validate-firmware-strict:
 
 __buildbox-validate-firmware-strict:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware-strict V="$(V)" \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-audit-final-image-manifest __buildbox-audit-final-image-manifest
+buildbox-audit-final-image-manifest:
+	$(Q)$(LOCKED_MAKE) __buildbox-audit-final-image-manifest V="$(V)"
+
+__buildbox-audit-final-image-manifest:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory audit-final-image-manifest V="$(V)" \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-audit-acpi-regression __buildbox-audit-acpi-regression
+buildbox-audit-acpi-regression:
+	$(Q)$(LOCKED_MAKE) __buildbox-audit-acpi-regression V="$(V)"
+
+__buildbox-audit-acpi-regression:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory audit-acpi-regression V="$(V)" \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-audit-bundle __buildbox-audit-bundle
+buildbox-audit-bundle:
+	$(Q)$(LOCKED_MAKE) __buildbox-audit-bundle V="$(V)"
+
+__buildbox-audit-bundle:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory audit-bundle V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-capture-validation-profile __buildbox-capture-validation-profile
