@@ -25,16 +25,56 @@ timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 base_name="build-${timestamp}"
 log_file="${log_dir}/${base_name}.log"
 summary_file="${log_dir}/${base_name}.summary.txt"
+pipe_dir="$(mktemp -d "${TMPDIR:-/tmp}/capture-build-log.XXXXXX")"
+pipe_path="${pipe_dir}/stream"
+tee_pid=""
+
+cleanup() {
+    local status=$?
+    trap - EXIT
+    if [[ -n "${tee_pid:-}" ]]; then
+        if kill -0 "$tee_pid" >/dev/null 2>&1; then
+            kill "$tee_pid" >/dev/null 2>&1 || true
+        fi
+        wait "$tee_pid" 2>/dev/null || true
+    fi
+    rm -f "$pipe_path"
+    rmdir "$pipe_dir" 2>/dev/null || true
+    exit "$status"
+}
+
+trap cleanup EXIT
+mkfifo "$pipe_path"
 
 printf '[log] Command:'
 printf ' %q' "$@"
 printf '\n'
 printf '[log] Writing full log to %s\n' "$log_file"
 
+tee "$log_file" <"$pipe_path" &
+tee_pid=$!
+
 set +e
-"$@" 2>&1 | tee "$log_file"
-cmd_status=${PIPESTATUS[0]}
+(
+    exec </dev/null
+    "$@" >"$pipe_path" 2>&1
+)
+cmd_status=$?
 set -e
+
+for _attempt in {1..20}; do
+    if ! kill -0 "$tee_pid" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.1
+done
+
+if kill -0 "$tee_pid" >/dev/null 2>&1; then
+    printf '[log] Log capture helper did not exit promptly after the command finished; closing it.\n' >&2
+    kill "$tee_pid" >/dev/null 2>&1 || true
+fi
+wait "$tee_pid" 2>/dev/null || true
+tee_pid=""
 
 {
     printf 'Command:'
