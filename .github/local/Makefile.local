@@ -82,6 +82,7 @@ ACT_JOB ?=
 ACT_MATRIX ?=
 ACT_SECRET_FILE ?=
 ACT_EXTRA_ARGS ?=
+ACT_CLEAN_KEEP ?=
 SRC_COMMON_ARGS = \
 	ARTEFACT_MODE="$(ARTEFACT_MODE)" \
 	$(if $(strip $(DEBUG_ON_UART3_NORMALIZED)),DEBUG_ON_UART3="$(DEBUG_ON_UART3_NORMALIZED)") \
@@ -157,6 +158,7 @@ define PRINT_TOP_LEVEL_VARIABLES
 	print_help_line '  ACT_MATRIX=<name:value>' 'Optional single act matrix filter, for example board:O6.\nDefault: unset.'; \
 	print_help_line '  ACT_SECRET_FILE=<path>' 'Optional act --secret-file path for local workflow runs.\nDefault: unset.'; \
 	print_help_line '  ACT_EXTRA_ARGS=<args>' 'Additional raw flags appended to act, for example --pull=false.\nDefault: unset.'; \
+	print_help_line '  ACT_CLEAN_KEEP=1' 'Preserve the temporary clean checkout used by gha-act-run-clean for debugging.\nDefault: unset.'; \
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'
 endef
 
@@ -206,6 +208,7 @@ help:
 	print_help_line '  gha-act-list' 'List workflows and jobs through the repo-local act wrapper'; \
 	print_help_line '  gha-act-dry-run' 'Dry-run a selected workflow or job through act'; \
 	print_help_line '  gha-act-run' 'Execute a selected workflow or job through act'; \
+	print_help_line '  gha-act-run-clean' 'Execute a selected workflow or job through act from a scratch checkout'; \
 	printf '\n%s\n\n' 'buildbox targets'; \
 	print_help_line '  buildbox-up' 'Start or reuse the persistent build container'; \
 	print_help_line '  buildbox-down' 'Remove the persistent build container if it exists'; \
@@ -218,6 +221,7 @@ help:
 	print_help_line '  buildbox-zip' 'Create a .zip archive inside the buildbox'; \
 	print_help_line '  buildbox-targz' 'Create a .tar.gz archive inside the buildbox'; \
 	print_help_line '  buildbox-validate-firmware' 'Run validation inside the buildbox'; \
+	print_help_line '  buildbox-validate-secure-boot-defaults' 'Validate embedded Secure Boot payloads inside the buildbox'; \
 	print_help_line '  buildbox-validate-firmware-strict' 'Run strict validation inside the buildbox'; \
 	print_help_line '  buildbox-capture-validation-profile' 'Capture a validation profile inside the buildbox'; \
 	print_help_line '  help-vars' 'Show accepted top-level control variables'; \
@@ -357,7 +361,7 @@ preflight-wrapper-replay: preflight-wrapper-buildbox
 	fi; \
 	"$${validate_cmd[@]}"
 
-.PHONY: build-edk2 firmware-build firmware-stage install zip targz validate-firmware validate-firmware-strict capture-validation-profile deterministic-replay gha-act-list gha-act-dry-run gha-act-run buildbox-up buildbox-deb buildbox-firmware-build buildbox-o6 buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-firmware-strict buildbox-capture-validation-profile buildbox-metadata
+.PHONY: build-edk2 firmware-build firmware-stage install zip targz validate-firmware validate-firmware-strict capture-validation-profile deterministic-replay gha-act-list gha-act-dry-run gha-act-run gha-act-run-clean buildbox-up buildbox-deb buildbox-firmware-build buildbox-o6 buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-capture-validation-profile buildbox-metadata
 build-edk2: preflight-wrapper-common
 firmware-build firmware-stage install zip targz: preflight-wrapper-firmware-build
 validate-firmware validate-firmware-strict capture-validation-profile: preflight-wrapper-validation
@@ -365,7 +369,7 @@ deterministic-replay: preflight-wrapper-replay
 buildbox-up buildbox-deb: preflight-wrapper-buildbox
 buildbox-metadata: preflight-wrapper-common preflight-wrapper-buildbox
 buildbox-firmware-build buildbox-o6 buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz: preflight-wrapper-firmware-build preflight-wrapper-buildbox
-buildbox-validate-firmware buildbox-validate-firmware-strict buildbox-capture-validation-profile: preflight-wrapper-validation preflight-wrapper-buildbox
+buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-capture-validation-profile: preflight-wrapper-validation preflight-wrapper-buildbox
 
 .PHONY: build-edk2 __build-edk2
 build-edk2:
@@ -674,6 +678,34 @@ __gha-act-run:
 	fi; \
 	"$(REPO_ROOT)/scripts/run_github_actions_with_act.sh" "$${args[@]}"
 
+.PHONY: gha-act-run-clean __gha-act-run-clean
+gha-act-run-clean:
+	$(Q)$(LOCKED_MAKE) __gha-act-run-clean V="$(V)"
+
+__gha-act-run-clean:
+	@set -euo pipefail; \
+	workflow="$(strip $(ACT_WORKFLOW))"; \
+	if [ -z "$$workflow" ]; then \
+		echo "[act] Set ACT_WORKFLOW=.github/workflows/<file>.yaml for gha-act-run-clean." >&2; \
+		exit 2; \
+	fi; \
+	args=("$(ACT_EVENT)" -W "$$workflow"); \
+	if [ -n "$(strip $(ACT_JOB))" ]; then \
+		args+=(-j "$(strip $(ACT_JOB))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_MATRIX))" ]; then \
+		args+=(--matrix "$(strip $(ACT_MATRIX))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_SECRET_FILE))" ]; then \
+		args+=(--secret-file "$(strip $(ACT_SECRET_FILE))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_EXTRA_ARGS))" ]; then \
+		extra_args=( $(ACT_EXTRA_ARGS) ); \
+		args+=("$${extra_args[@]}"); \
+	fi; \
+	EDK2_CIX_ACT_CLEAN_KEEP="$(strip $(ACT_CLEAN_KEEP))" \
+		"$(REPO_ROOT)/scripts/run_github_actions_with_act_clean_checkout.sh" "$${args[@]}"
+
 .PHONY: clean __clean
 clean:
 	$(Q)$(LOCKED_MAKE) __clean V="$(V)"
@@ -842,6 +874,14 @@ buildbox-validate-firmware:
 
 __buildbox-validate-firmware:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware V="$(V)" \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-validate-secure-boot-defaults __buildbox-validate-secure-boot-defaults
+buildbox-validate-secure-boot-defaults:
+	$(Q)$(LOCKED_MAKE) __buildbox-validate-secure-boot-defaults V="$(V)"
+
+__buildbox-validate-secure-boot-defaults:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory -C src validate-secure-boot-defaults-$(FIRMWARE_BOARD) V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
 .PHONY: buildbox-validate-firmware-strict __buildbox-validate-firmware-strict
