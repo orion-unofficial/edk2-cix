@@ -558,8 +558,50 @@ make validate-firmware \
   FIRMWARE_VALIDATION_PROFILE=upstream-1.2.1-trixie
 ```
 
-Legacy board-scoped profile names still resolve as compatibility aliases, but
-the shared `upstream-<version>-<distro>` form is the canonical naming now.
+The shared `upstream-<version>-<distro>` form is now the only maintained
+replay-profile naming scheme.
+
+For deeper offline regression checks against the currently checked-in Bookworm
+replay baselines, use:
+
+```bash
+make check-offline-audit-baselines
+make audit-final-image-manifest ARTEFACT_MODE=upstream
+make audit-acpi-regression ARTEFACT_MODE=upstream
+make audit-bundle ARTEFACT_MODE=upstream
+make buildbox-audit-bundle ARTEFACT_MODE=upstream FIRMWARE_BOARD=O6
+```
+
+Those checks write JSON reports under `build-validation/`.
+The checked-in offline baseline files currently cover the shared
+`upstream-1.2.1-bookworm` profile for both `O6` and `O6N`; seed additional
+profiles later with the audit scripts' `--emit-baseline` mode if you want to
+extend that coverage.
+
+- the final-image manifest audit baselines the final BL33 FV / FFS / section
+  composition
+- the ACPI regression audit baselines emitted AML tables plus rerun `iasl`
+  warning and remark families
+- `make check-offline-audit-baselines` verifies the checked-in offline audit
+  baseline JSON structure before those audits run
+- `make refresh-offline-audit-baselines ARTEFACT_MODE=upstream` refreshes both
+  offline audit baseline files together from the already-built selected board
+  tree for the active `FIRMWARE_VALIDATION_PROFILE`
+- the `audit-bundle` maintainer target combines the qualification checks plus
+  the payload metadata self-test, and optionally also runs the metadata branch
+  consistency checker if `MONOREPO_META_ROOT=/path/to/main-monorepo-meta` is
+  set
+
+The deterministic replay workflow also uploads the generated
+`build-validation/*.json` files as CI artefacts and writes a short Markdown job
+summary listing the report statuses.
+
+For a maintainer-driven full qualification pass on GitHub Actions, the tree
+also includes `.github/workflows/maintainer-audit-bundle.yaml`. That manual
+workflow runs the `buildbox-audit-bundle` target for a selected board/profile,
+checks metadata consistency against `main-monorepo-meta`, uploads the
+generated `build-validation/*.json` reports, and writes the same short
+Markdown summary to the job page.
 
 To snapshot the current build into a fresh profile JSON for later review or to
 seed a future validation baseline under a profile name you choose, run:

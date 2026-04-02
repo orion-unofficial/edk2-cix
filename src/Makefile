@@ -21,6 +21,12 @@ BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
 EDK2_BUILD_OUTPUT_FILTER := scripts/filter_edk2_build_output.py
 MAKE_INPUT_VALIDATOR := $(abspath ../scripts/validate_make_inputs.py)
 CUSTOM_OVERLAY_SHADOW_CHECK := $(abspath ../scripts/check_custom_overlay_shadowing.py)
+OFFLINE_AUDIT_BASELINE_CHECK := $(abspath ../scripts/test_offline_audit_baselines.py)
+OFFLINE_AUDIT_BASELINE_REFRESH := $(abspath ../scripts/refresh_offline_audit_baselines.py)
+FINAL_IMAGE_MANIFEST_AUDIT_SCRIPT := $(abspath ../scripts/audit_final_image_manifest.py)
+FINAL_IMAGE_MANIFEST_BASELINE := $(abspath ../validation/final-image-manifests.json)
+ACPI_REGRESSION_AUDIT_SCRIPT := $(abspath ../scripts/audit_acpi_regression.py)
+ACPI_REGRESSION_AUDIT_BASELINE := $(abspath ../validation/acpi-audit-baselines.json)
 MAX_DEBUG_PRINT_ERROR_LEVEL := $(shell python3 "$(MAKE_INPUT_VALIDATOR)" max-debug-print-error-level 2>/dev/null || printf '%s' 0x807B55FF)
 V ?= 0
 ifeq ($(V),1)
@@ -44,6 +50,8 @@ MONOREPO_EDK2_COMMIT_HASH ?= 898a41ed09
 MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= 50f168f
 MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 918cb36f
 ARTEFACT_MODE ?= custom
+FIRMWARE_VALIDATION_PROFILE ?= upstream-1.2.1-bookworm
+FIRMWARE_VALIDATION_REPORT_ROOT ?= $(abspath ../build-validation)
 CUSTOM_OVERLAY_ROOT ?= $(abspath ../custom/overlay)
 CUSTOM_EDK2_WORKSPACE_KEY := $(strip $(shell printf '%s' '$(REPO_ROOT)' | cksum | awk '{print $$1}'))
 CUSTOM_EDK2_WORKSPACE ?= $(PREFERRED_TMP_ROOT)/edk2-cix-custom-workspace-$(CUSTOM_EDK2_WORKSPACE_KEY)
@@ -253,6 +261,8 @@ define PRINT_SRC_VARIABLES
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
 	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Generate unmodified upstream firmware images or allow custom enhancements.\nDefault: custom.'; \
 	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG build.\nDefault: RELEASE.'; \
+	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile name shared with the top-level qualification checks.\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
+	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory where raw-build audit and validation reports are written.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
 	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: mux the UART3 header pins for UART use and expose COM3 to the OS without moving firmware DEBUG() there.\nDefault: false.'; \
 	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
 	print_help_line '  DEBUG_VERBOSE=true|false' 'Custom-only: on RELEASE builds, re-enable DEBUG() logging with minimal runtime side effects and default to the full DEBUG_* mask unless DEBUG_PRINT_ERROR_LEVEL is set.\nDefault: false.'; \
@@ -296,13 +306,18 @@ help:
 	print_help_line '  print-build-metadata' 'Show the resolved reproducible build metadata'; \
 	print_help_line '  prepare-basetools-c' 'Build or refresh the EDK2 BaseTools C helpers'; \
 	print_help_line '  check-custom-acpi-overlays' 'Verify the custom ACPI module overlays still mirror the imported source tree cleanly'; \
+	print_help_line '  check-offline-audit-baselines' 'Validate the checked-in offline audit baseline JSON structure'; \
+	print_help_line '  audit-final-image-manifest-{O6|O6N}' 'Check the final BL33 firmware composition against the stored baseline for the selected board'; \
+	print_help_line '  audit-acpi-regression-{O6|O6N}' 'Check final ACPI tables and IASL diagnostics against the stored baseline for the selected board'; \
+	print_help_line '  refresh-offline-audit-baselines-{O6|O6N}' 'Refresh both offline audit baseline files from the selected board build'; \
+	print_help_line '  check-microsoft-secure-boot-release' 'Advisory check for a newer pinned Microsoft Secure Boot firmware release'; \
 	print_help_line '  host-fiptool' 'Build the vendored TF-A fiptool from source'; \
 	print_help_line '  host-cert-uefi-create-rsa' 'Build the source non-trusted cert helper'; \
 	print_help_line '  host-cix-package-tool' 'Refresh the cix_package_tool wrapper in Build/HostTools/'; \
 	print_help_line '  host-cix-regen-trusted-key-cert' 'Build the source trusted-key cert helper'; \
 	print_help_line '  clean' 'Remove Build/ output and generated helper artefacts'; \
-	print_help_line '  help-vars' 'Show accepted raw-build control variables'; \
 	print_help_line '  help-debug' 'Explain the DEBUG_PRINT_ERROR_LEVEL bit values derived from DebugLib.h'; \
+	print_help_line '  help-vars' 'Show accepted raw-build control variables'; \
 	printf '\n%s\n' 'For accepted control variables, run: make -C src help-vars'
 
 help-vars:
@@ -1038,6 +1053,52 @@ check-microsoft-secure-boot-release:
 .PHONY: check-custom-acpi-overlays
 check-custom-acpi-overlays:
 	@python3 "$(CUSTOM_ACPI_OVERLAY_CHECK)" --repo-root "$(abspath ..)"
+
+.PHONY: check-offline-audit-baselines
+check-offline-audit-baselines:
+	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
+
+.PHONY: audit-final-image-manifest audit-final-image-manifest-%
+audit-final-image-manifest: $(foreach board,$(FIRMWARE_BOARDS),audit-final-image-manifest-$(board))
+
+audit-final-image-manifest-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
+	@python3 "$(FINAL_IMAGE_MANIFEST_AUDIT_SCRIPT)" \
+		--repo-root "$(abspath ..)" \
+		--board "$*" \
+		--target "$(UEFI_TARGET)_GCC5" \
+		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+		--baseline-file "$(FINAL_IMAGE_MANIFEST_BASELINE)" \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$*-$(UEFI_TARGET)_GCC5-$(FIRMWARE_VALIDATION_PROFILE)-manifest-audit.json"
+
+.PHONY: audit-acpi-regression audit-acpi-regression-%
+audit-acpi-regression: $(foreach board,$(FIRMWARE_BOARDS),audit-acpi-regression-$(board))
+
+audit-acpi-regression-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
+	@python3 "$(ACPI_REGRESSION_AUDIT_SCRIPT)" \
+		--repo-root "$(abspath ..)" \
+		--board "$*" \
+		--target "$(UEFI_TARGET)_GCC5" \
+		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+		--baseline-file "$(ACPI_REGRESSION_AUDIT_BASELINE)" \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$*-$(UEFI_TARGET)_GCC5-$(FIRMWARE_VALIDATION_PROFILE)-acpi-audit.json"
+
+.PHONY: refresh-offline-audit-baselines refresh-offline-audit-baselines-%
+refresh-offline-audit-baselines: $(foreach board,$(FIRMWARE_BOARDS),refresh-offline-audit-baselines-$(board))
+
+refresh-offline-audit-baselines-%:
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
+	@python3 "$(OFFLINE_AUDIT_BASELINE_REFRESH)" \
+		--repo-root "$(abspath ..)" \
+		--board "$*" \
+		--target "$(UEFI_TARGET)_GCC5" \
+		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+		--report-dir "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
 
 .PHONY: validate-secure-boot-defaults validate-secure-boot-defaults-%
 validate-secure-boot-defaults: $(foreach board,$(FIRMWARE_BOARDS),validate-secure-boot-defaults-$(board))
