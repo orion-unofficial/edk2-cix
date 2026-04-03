@@ -333,7 +333,7 @@ GetFarmId (
     return Status;
   }
 
-  Status = GetEcInfo (SwapBytes16 (EC_CMD_GET_FRAM_ID), NULL, 0, (VOID *)ResponseBuffer, &ResponseSize);
+  Status = GetEcInfo (SwapBytes16 (EC_CMD_GET_FARM_ID), NULL, 0, (VOID *)ResponseBuffer, &ResponseSize);
   if (!EFI_ERROR (Status)) {
     Info->Id = ResponseBuffer->Id;
 
