@@ -92,7 +92,6 @@
   gCixAndroidLoaderGuid
   gCixAbselectGuid
   gCixExitConsoleCallBackGuid
-  gCixFarmEnableFlagGuid
 
 [Protocols]
   gEdkiiNonDiscoverableDeviceProtocolGuid
