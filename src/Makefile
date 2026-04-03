@@ -178,17 +178,38 @@ CUSTOM_SKY1_ACPI_OVERLAY_SOURCES := \
 	$(wildcard $(CUSTOM_SKY1_ACPI_OVERLAY_DIR)/*.inf) \
 	$(wildcard $(CUSTOM_SKY1_ACPI_OVERLAY_DIR)/tool/python3/*)
 CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/PlatformBootManagerLib)
+CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_SOURCES := $(wildcard $(CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_DIR)/*)
+CUSTOM_SKY1_EC_PROTOCOL_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Include/Protocol)
+CUSTOM_SKY1_EC_LIBRARY_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Include/Library)
+CUSTOM_SKY1_EC_DRIVER_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/EcPlatformDxe)
+CUSTOM_SKY1_EC_LIBRARY_SOURCES_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/Ite5570EcLib)
+CUSTOM_ECLIB_NULL_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Library/EcLibNull)
+CUSTOM_COMMON_LIB_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/CommonLib)
+CUSTOM_RADXA_SETUP_INIT_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/RadxaSetupVariableInitDxe)
+CUSTOM_RADXA_SETUP_INCLUDE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Include)
+CUSTOM_MERAK_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Merak/Library/PlatformEnvHookLib)
+CUSTOM_EDGE_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Edge/Library/PlatformEnvHookLib)
+CUSTOM_O6_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib)
 CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Define.dsc.inc) \
 	$(CUSTOM_SKY1_ACPI_OVERLAY_SOURCES) \
-	$(wildcard $(CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_SKY1_EC_LIBRARY_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_SKY1_EC_PROTOCOL_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_SKY1_EC_DRIVER_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_SKY1_EC_LIBRARY_SOURCES_DIR)/*) \
+	$(wildcard $(CUSTOM_ECLIB_NULL_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_COMMON_LIB_OVERLAY_DIR)/*) \
+	$(CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_SOURCES) \
+	$(wildcard $(CUSTOM_MERAK_ENV_HOOK_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_EDGE_ENV_HOOK_OVERLAY_DIR)/*) \
 	$(abspath $(CUSTOM_O6_DRIVERS_OVERLAY_DIR)/LinuxAcpiConfig.h) \
 	$(wildcard $(CUSTOM_O6_ACPI_OVERLAY_DIR)/*) \
-	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
-	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
+	$(wildcard $(CUSTOM_O6_ENV_HOOK_OVERLAY_DIR)/*) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
+	$(wildcard $(CUSTOM_RADXA_SETUP_INCLUDE_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_RADXA_SETUP_INIT_OVERLAY_DIR)/*) \
 	$(abspath ../custom/overlay/edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/SecureBootVariableProvisionLib.c) \
 	$(abspath ../custom/overlay/edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/SecureBootVariableProvisionLib.inf)
 EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
