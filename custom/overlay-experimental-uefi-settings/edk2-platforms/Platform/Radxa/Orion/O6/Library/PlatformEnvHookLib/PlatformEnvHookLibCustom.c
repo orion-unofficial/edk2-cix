@@ -1,19 +1,9 @@
 /*
- * Custom path: keep the existing UART3 pinmux override behavior for O6 while
- * also applying the experimental SR-IOV setup variable before PCI
- * enumeration begins and the persisted firmware text-console mode before the
- * console drivers initialize.
+ * Experimental UEFI settings path: extend the maintained custom O6 env-hook
+ * overlay with the SR-IOV setup variable before PCI enumeration begins and
+ * the persisted firmware text-console mode before the console drivers
+ * initialize.
  */
-
-#if UART3_ENABLE
-#ifdef DEBUG_MODE
-#undef DEBUG_MODE
-#endif
-#else
-#ifndef DEBUG_MODE
-#define DEBUG_MODE 1
-#endif
-#endif
 
 #include <Library/PcdLib.h>
 #include "../../../../Platforms/CIX/Sky1/Include/ExperimentalConsoleModeSetupVar.h"
@@ -32,33 +22,9 @@ STATIC CONST EXPERIMENTAL_TEXT_MODE_INFO  mExperimentalTextModes[] = {
 
 #define InitPinmux ImportedInitPinmux
 #define PlatformEnvHook ImportedPlatformEnvHook
-#include "../../../../../../../../../src/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLib.c"
+#include "../../../../../../../../../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLib.c"
 #undef PlatformEnvHook
 #undef InitPinmux
-
-STATIC
-VOID
-ApplyDebugUart3PinMuxOverride (
-  VOID
-  )
-{
-#if UART3_ENABLE
-  UINTN  Index;
-
-  //
-  // The public pad definitions describe UART3_TXD/RXD as raw function 0, with
-  // function 1 mapping the same pads to GPIO105/GPIO106. Force the imported
-  // O6 pinmux table to select the UART function when UART3_ENABLE is enabled.
-  //
-  for (Index = 0; Index < ARRAY_SIZE (PinMuxCfgTable); Index++) {
-    if ((PinMuxCfgTable[Index].Offset == IO_S0_UART3_TXD) ||
-        (PinMuxCfgTable[Index].Offset == IO_S0_UART3_RXD))
-    {
-      PinMuxCfgTable[Index].FuncSel = IO_FUNC00;
-    }
-  }
-#endif
-}
 
 STATIC
 VOID
@@ -142,7 +108,6 @@ PlatformEnvHook (
   IN OUT ENV_HOOK_PARAMS_DATA_BLOCK  *ConfigData
   )
 {
-  ApplyDebugUart3PinMuxOverride ();
   ApplyExperimentalConsoleModeOverride ();
   ApplyExperimentalSrIovSetupOverride ();
 

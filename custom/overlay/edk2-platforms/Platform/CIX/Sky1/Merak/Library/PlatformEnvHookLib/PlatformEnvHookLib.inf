@@ -1,6 +1,6 @@
 #/**
 #
-#  Copyright 2023 Cix Technology (Shanghai) Co., Ltd. All Rights Reserved.
+#  Copyright 2024 Cix Technology Group Co., Ltd. All Rights Reserved.
 #
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
@@ -26,8 +26,6 @@
   Platform/CIX/Sky1/Sky1.dec
   Silicon/CIX/Sky1/CixPkg.dec
   NetworkPkg/NetworkPkg.dec
-  Platform/Radxa/Radxa.dec
-  Platform/Radxa/Library/Hym8563RealTimeClockLib/Hym8563RealTimeClockLib.dec
 
 [LibraryClasses]
   BaseMemoryLib
@@ -37,34 +35,37 @@
   UefiBootServicesTableLib
   UefiRuntimeServicesTableLib
   UefiLib
-  TimerLib
   PinMuxLib
   PinMuxTableLib
   GpioLib
   GpioTableLib
   CixSipLib
   EcLib
+  MailBoxLib
+  CixFwBootPerfLib
+  PostCodeLib
+  CixGPNVLib
+  IoLib
 
 [Guids]
   gCixI2cDevicePathGuid
   gEfiNetworkStackSetupGuid
   gPlatformSetupVariableGuid
+  gEfiEventReadyToBootGuid
+  gCixGPNVGuid
 
 [Protocols]
   gEfiI2cMasterProtocolGuid
   gEfiDevicePathProtocolGuid
-  gHym8563RealTimeClockLibI2cMasterProtocolGuid
+  gRa8900ceRealTimeClockLibI2cMasterProtocolGuid
   gCixEcPlatformProtocolGuid
+  gCixFastbootInfoProtocolGuid
 
 [FixedPcd]
-  gRadxaTokenSpaceGuid.PcdRtc8563I2cBus
+  gCixPlatformTokenSpaceGuid.PcdRa8900ceI2cBus
+  gCixPlatformTokenSpaceGuid.PcdRa8900ceI2cSlaveAddress
   gArmTokenSpaceGuid.PcdSystemMemorySize
   gCixTokenSpaceGuid.PcdMemInfoBaseAddr
-  gCixTokenSpaceGuid.PcdPcieRootPort0PeResetPin
-  gCixTokenSpaceGuid.PcdPcieRootPort1PeResetPin
-  gCixTokenSpaceGuid.PcdPcieRootPort2PeResetPin
-  gCixTokenSpaceGuid.PcdPcieRootPort3PeResetPin
-  gCixTokenSpaceGuid.PcdPcieRootPort4PeResetPin
   gCixTokenSpaceGuid.PcdSocWatchdogTimer
   gEfiNetworkPkgTokenSpaceGuid.PcdNetworkStackSupport
   gEfiNetworkPkgTokenSpaceGuid.PcdIPv4PXESupport
@@ -74,3 +75,6 @@
 
 [Pcd]
   gEmbeddedTokenSpaceGuid.PcdDmaDeviceLimit
+  gCixPlatformTokenSpaceGuid.PcdNorFlashVarSyncRegionBase
+  gCixPlatformTokenSpaceGuid.PcdNorFlashVarSyncRegionSize
+  gCixPlatformTokenSpaceGuid.PcdDebugModeFlagAddress

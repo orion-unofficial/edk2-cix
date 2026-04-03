@@ -27,7 +27,19 @@ Current overlay areas:
 - `edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/` and
   `edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/`:
   board hook changes that keep the UART3 pinmux aligned with the custom debug
-  routing choice
+  routing choice; the O6 module is fully mirrored here so the custom path can
+  also drop the vendor Farm Mode behavior without changing the imported source
+- `edk2-platforms/Platform/CIX/Sky1/Library/PlatformBootManagerLib/`,
+  `edk2-platforms/Platform/CIX/Sky1/Drivers/EcPlatformDxe/`,
+  `edk2-platforms/Platform/CIX/Sky1/Include/{Library,Protocol}/`,
+  `edk2-platforms/Platform/CIX/Library/EcLibNull/`,
+  `edk2-platforms/Platform/CIX/Sky1/Library/Ite5570EcLib/`,
+  `edk2-platforms/Platform/CIX/Sky1/{Merak,Edge}/Library/PlatformEnvHookLib/`,
+  and `edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/RadxaSetupVariableInitDxe/`:
+  custom-only cleanups that remove Farm Mode and its EC protocol plumbing from
+  the custom build, harden the shared boot-manager and common-library paths,
+  and reduce vendor-specific debug noise without perturbing upstream-path
+  artefacts
 - `edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/`:
   Sky1 ACPI source overlay used to reduce ACPICA warnings and remarks under the
   custom path
