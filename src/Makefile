@@ -1000,8 +1000,6 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 	build_extra_defines=(); \
 	tool_def_overrides=(); \
 	tools_def_file="$${CONF_PATH:-edk2/Conf}/tools_def.txt"; \
-	lto_flag='-flto=auto'; \
-	rwx_warning_flag=''; \
 	if [[ ! -f "$$tools_def_file" ]]; then \
 		echo "[build/$*] Expected EDK2 tools configuration $$tools_def_file was not produced" >&2; \
 		exit 1; \
@@ -1020,20 +1018,26 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 				;; \
 		esac; \
 	fi; \
-	if [[ "$(V)" != "1" ]]; then \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
+		lto_flag='-flto=auto'; \
+		rwx_warning_flag=''; \
+		if [[ "$(V)" != "1" ]]; then \
+			tool_def_overrides+=( \
+				'  DEBUG_GCC5_AARCH64_ASL_FLAGS   = -vr -vs' \
+				'RELEASE_GCC5_AARCH64_ASL_FLAGS   = -vr -vs' \
+			); \
+			rwx_warning_flag=' -Wl,--no-warn-rwx-segments'; \
+		fi; \
 		tool_def_overrides+=( \
-			'  DEBUG_GCC5_AARCH64_ASL_FLAGS   = -vr -vs' \
-			'RELEASE_GCC5_AARCH64_ASL_FLAGS   = -vr -vs' \
+			"  DEBUG_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
+			"  DEBUG_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
+			"RELEASE_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
+			"RELEASE_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
 		); \
-		rwx_warning_flag=' -Wl,--no-warn-rwx-segments'; \
 	fi; \
-	tool_def_overrides+=( \
-		"  DEBUG_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
-		"  DEBUG_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
-		"RELEASE_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
-		"RELEASE_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
-	); \
-	printf '\n%s\n' "$${tool_def_overrides[@]}" >> "$$tools_def_file"; \
+	if [[ "$${#tool_def_overrides[@]}" -ne 0 ]]; then \
+		printf '\n%s\n' "$${tool_def_overrides[@]}" >> "$$tools_def_file"; \
+	fi; \
 	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_ON_UART3_NORMALIZED)" ]]; then \
 		build_extra_defines+=(-D DEBUG_ON_UART3=$(DEBUG_ON_UART3_NORMALIZED)); \
 	fi; \
