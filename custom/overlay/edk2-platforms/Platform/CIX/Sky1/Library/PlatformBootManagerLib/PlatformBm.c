@@ -958,13 +958,6 @@ PlatformBootManagerAfterConsole (
   UINTN                         PosY;
   EFI_INPUT_KEY                 Key;
 
-  EFI_BOOT_MANAGER_LOAD_OPTION  *BootOptions;
-  UINTN                         BootOptionCount;
-  CHAR16                        *Str;
-  UINTN                         Index;
-  UINTN                         VarSize;
-  UINT8                         FarmEnableFlag;
-
   FirmwareVerLength = StrLen (PcdGetPtr (PcdFirmwareVersionString));
 
   //
@@ -1034,47 +1027,6 @@ PlatformBootManagerAfterConsole (
     Key.ScanCode    = SCAN_NULL;
     Key.UnicodeChar = L'a';
     PlatformRegisterFvBootOption (&gCixAbselectGuid, L"Android S1 Loader", LOAD_OPTION_ACTIVE, &Key);
-  }
-
-  VarSize =  sizeof (UINT8);
-  Status  = gRT->GetVariable (
-                   L"FarmEnableFlag",
-                   &gCixFarmEnableFlagGuid,
-                   NULL,
-                   &VarSize,
-                   &FarmEnableFlag
-                   );
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_INFO, "%a: Get Farm Enable Flag Variable, Status %r\n", __FUNCTION__, Status));
-  } else {
-    DEBUG ((DEBUG_INFO, "%a: Get Farm Enable Flag %d\n", __FUNCTION__, FarmEnableFlag));
-    if (FarmEnableFlag == TRUE) {
-      //
-      // Connect all devices, and regenerate all boot options
-      //
-      EfiBootManagerConnectAll ();
-      EfiBootManagerRefreshAllBootOption ();
-
-      BootOptions = EfiBootManagerGetLoadOptions (
-                      &BootOptionCount,
-                      LoadOptionTypeBoot
-                      );
-      for (Index = 0; Index < BootOptionCount; Index++) {
-        Str = ConvertDevicePathToText (BootOptions[Index].FilePath, FALSE, FALSE);
-        if (StrStr (Str, L"PciRoot(0x3)") != NULL) {
-          if (StrStr (BootOptions[Index].Description, L"UEFI PXEv4") != NULL) {
-            EfiBootManagerDeleteLoadOptionVariable (BootOptions[Index].OptionNumber, BootOptions[Index].OptionType);
-            EfiBootManagerAddLoadOptionVariable (&BootOptions[Index], 0);
-          }
-        }
-
-        if (Str != NULL) {
-          FreePool (Str);
-        }
-      }
-
-      EfiBootManagerFreeLoadOptions (BootOptions, BootOptionCount);
-    }
   }
 
   POST_CODE (BMAfterConsole);
