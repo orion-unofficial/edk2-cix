@@ -275,11 +275,7 @@ def gather_acpi_audit(build_dir: pathlib.Path, board: str, target: str) -> dict[
 
 def compare_audits(expected: dict[str, Any], actual: dict[str, Any]) -> list[str]:
     def normalize_table(entry: dict[str, Any]) -> dict[str, Any]:
-        return {
-            key: value
-            for key, value in entry.items()
-            if key != "sha256"
-        }
+        return dict(entry)
 
     def normalize_iasl(entry: dict[str, Any]) -> dict[str, Any]:
         return {
