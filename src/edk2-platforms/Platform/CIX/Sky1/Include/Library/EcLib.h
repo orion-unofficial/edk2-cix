@@ -68,7 +68,7 @@
 #define EC_CMD_GET_GREENPAK_VERSION    0x3E06
 #define EC_CMD_GET_PD_VERSION          0x3E07
 #define EC_CMD_GET_PWROFFRSN           0x3E09
-#define EC_CMD_GET_FRAM_ID             0x3E0A
+#define EC_CMD_GET_FARM_ID             0x3E0A
 #define EC_CMD_EC_AUTO_POWER_ON        0x3E0B
 #define EC_CMD_GET_PVT_TEMP            0x3E0C
 #define EC_CMD_SET_PD_UPDATE_INFO      0x3E0D
