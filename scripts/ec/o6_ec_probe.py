@@ -72,7 +72,7 @@ EC_CMD_GET_PMIC_VERSION = 0x3E03
 EC_CMD_GET_GREENPAK_VERSION = 0x3E06
 EC_CMD_GET_PD_VERSION = 0x3E07
 EC_CMD_GET_PWROFFRSN = 0x3E09
-EC_CMD_GET_FRAM_ID = 0x3E0A
+EC_CMD_GET_FARM_ID = 0x3E0A
 EC_CMD_GET_PVT_TEMP = 0x3E0C
 EC_CMD_GET_4S_FORCE_SHD_EVT = 0x3E23
 EC_CMD_GET_EC_VERSION = 0x3FFF
@@ -230,7 +230,7 @@ def decode_battery_dynamic(data: bytes) -> dict[str, Any]:
 def decode_farm_id(data: bytes) -> dict[str, Any]:
     if len(data) != 1:
         raise EcProtocolError(f"farm-id payload should be 1 byte, got {len(data)}")
-    return {"fram_id": data[0], "fram_id_hex": f"0x{data[0]:02x}"}
+    return {"farm_id": data[0], "farm_id_hex": f"0x{data[0]:02x}"}
 
 
 def decode_pmic_version(data: bytes) -> dict[str, Any]:
@@ -380,7 +380,7 @@ BASIC_COMMANDS: tuple[ReadOnlyCommand, ...] = (
 )
 
 EXTRA_READS: tuple[ReadOnlyCommand, ...] = (
-    ReadOnlyCommand("fram_id", EC_CMD_GET_FRAM_ID, b"", 1, decode_farm_id, "Read the FRAM identifier byte."),
+    ReadOnlyCommand("farm_id", EC_CMD_GET_FARM_ID, b"", 1, decode_farm_id, "Read the farm identifier byte."),
     ReadOnlyCommand(
         "poweroff_reason",
         EC_CMD_GET_PWROFFRSN,
@@ -940,8 +940,8 @@ def format_result(name: str, decoded: dict[str, Any]) -> str:
         return f"{decoded['pwm_duty_percent']}%"
     if name == "pvt_temp":
         return f"{decoded['celsius']:.2f} C"
-    if name == "fram_id":
-        return decoded["fram_id_hex"]
+    if name == "farm_id":
+        return decoded["farm_id_hex"]
     if name == "poweroff_reason":
         return decoded["poweroff_reason_hex"]
     return json.dumps(decoded, sort_keys=True)
@@ -1434,7 +1434,7 @@ def build_parser() -> argparse.ArgumentParser:
     survey.add_argument(
         "--include-extra",
         action="store_true",
-        help="Also query FRAM ID and power-off reason. These appear read-only but are less proven than the core survey.",
+        help="Also query Farm ID and power-off reason. These appear read-only but are less proven than the core survey.",
     )
     survey.add_argument("--json", action="store_true", help="Emit JSON instead of plain text.")
     survey.set_defaults(func=run_survey)
