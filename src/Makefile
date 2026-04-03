@@ -179,10 +179,12 @@ CUSTOM_SKY1_ACPI_OVERLAY_SOURCES := \
 	$(wildcard $(CUSTOM_SKY1_ACPI_OVERLAY_DIR)/*.h) \
 	$(wildcard $(CUSTOM_SKY1_ACPI_OVERLAY_DIR)/*.inf) \
 	$(wildcard $(CUSTOM_SKY1_ACPI_OVERLAY_DIR)/tool/python3/*)
+CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/PlatformBootManagerLib)
 CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Define.dsc.inc) \
 	$(CUSTOM_SKY1_ACPI_OVERLAY_SOURCES) \
+	$(wildcard $(CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_DIR)/*) \
 	$(abspath $(CUSTOM_O6_DRIVERS_OVERLAY_DIR)/LinuxAcpiConfig.h) \
 	$(wildcard $(CUSTOM_O6_ACPI_OVERLAY_DIR)/*) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
