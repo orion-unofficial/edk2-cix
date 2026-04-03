@@ -680,12 +680,12 @@
             "tables": {
               "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Csrt.acpi": {
                 "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Csrt.acpi",
-                "sha256": "84933053acad018df4cba742f7fb356fc532c9743f8673c2792ef203df2f653b",
-                "size": 352
+                "sha256": "38187596313f386d1ea4b8080c3346fe9fe89654335184bf70b4677ec3ba3744",
+                "size": 320
               },
               "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dbg2.acpi": {
                 "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dbg2.acpi",
-                "sha256": "e206a7ba5728ce9f50a6276887a1469f640b7a74682644e03b4599b22a9df4f1",
+                "sha256": "fae9e6202adad2927e81ac7f67607103bd67d5457aa5eda5df5b8b9535d3bf65",
                 "size": 288
               },
               "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml": {
@@ -695,33 +695,33 @@
               },
               "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Fadt.acpi": {
                 "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Fadt.acpi",
-                "sha256": "a1972119ec4731c976a05a79d572d09dadb7476d83b82238be364c1bc30b4d13",
-                "size": 480
+                "sha256": "22aa320ceed1ff0185d38b4d01d7971640cf12f1d5d1bc2da5962ffd8019e70d",
+                "size": 448
               },
               "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Gtdt.acpi": {
                 "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Gtdt.acpi",
-                "sha256": "da63345d14f402065339ce7f9d7c5570214a2578a6710a8223292624acc30fea",
+                "sha256": "0d46101cef2c423513c8492e14384730559f3d0025baa4ac5ab144535c6244f2",
                 "size": 320
               },
               "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort.acpi": {
                 "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort.acpi",
-                "sha256": "f52344ddc116b57484295b428ce72a75fa0028ae82adcd9a26e60dd3f90a0fdf",
+                "sha256": "fa5c9d7309e6d3392b808e2f797593d2304d22da7ad7510056f1782b5afeb098",
                 "size": 2976
               },
               "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Pcct.acpi": {
                 "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Pcct.acpi",
-                "sha256": "0ce0b935ef53c0ac8145d90b325dca0faee5c9cbba52e6a2afd29b8444658d37",
-                "size": 352
+                "sha256": "2658cba511d2e8a80f88a6ee8b3e68e8b072fe938c342346a1aec411acade591",
+                "size": 320
               },
               "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Sdei.acpi": {
                 "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Sdei.acpi",
-                "sha256": "48fdfd92fd75820e93230fdb7d7a8dfb16e126e95296769230fe6da119ea819f",
+                "sha256": "1b07a8b3396d69709eae7806d5a53ca4f21b59350f8cc87792fee2ca7067cce3",
                 "size": 224
               },
               "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Spcr.acpi": {
                 "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Spcr.acpi",
-                "sha256": "ca4c0fb4108d1ba9580a6573d2ec0b07b580aa36b936756d6b61d524bf02b323",
-                "size": 288
+                "sha256": "4b252039224f19950ca27113afdfbdeb2474243eb907362c19e75b9dced3d250",
+                "size": 256
               },
               "AARCH64/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml": {
                 "path": "AARCH64/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml",
@@ -1386,8 +1386,8 @@
                 "sha256": "e018186cdb46406df63df3697b98ed4b8c154be04ac6d21c9da5fe5a7cff15dc",
                 "size": 288
               },
-              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/DsdtTable.aml": {
-                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/DsdtTable.aml",
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml",
                 "sha256": "71ae1334c76467cbe346eebfc2046349f1c40e360a797c787667db3d3eed5902",
                 "size": 71872
               },
@@ -1421,8 +1421,8 @@
                 "sha256": "4e947b4b2640871f512b2467755482c0cfdb47da74a50fd5ca076667f83dc1e1",
                 "size": 256
               },
-              "AARCH64/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/SsdtTable.aml": {
-                "path": "AARCH64/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/SsdtTable.aml",
+              "AARCH64/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml": {
+                "path": "AARCH64/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml",
                 "sha256": "462f37efcfe427f1d7c5ab7f669894dba7787645b496198e2c3dee6e2265f65d",
                 "size": 12680
               }
