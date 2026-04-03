@@ -22,6 +22,7 @@ FV_ENTRY_RE = re.compile(r"^(0x[0-9a-fA-F]+)\s+([0-9A-Fa-f-]{36})$")
 BUILD_PATH_RE = re.compile(
     r"(?:^|[/\\\\])Build[/\\\\](?P<board>[^/\\\\]+)[/\\\\](?P<target>[^/\\\\]+)[/\\\\](?P<suffix>.+)$"
 )
+SRC_PATH_RE = re.compile(r"(?:^|[/\\\\])src[/\\\\](?P<suffix>.+)$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -115,6 +116,10 @@ def normalize_path(value: str, repo_root: pathlib.Path) -> str:
             f"{match.group('suffix')}"
         )
 
+    src_match = SRC_PATH_RE.search(normalized)
+    if src_match:
+        return f"src/{src_match.group('suffix')}"
+
     repo_root_str = repo_root.as_posix().rstrip("/")
     if normalized.startswith(repo_root_str + "/"):
         return normalized[len(repo_root_str) + 1 :]
@@ -122,7 +127,15 @@ def normalize_path(value: str, repo_root: pathlib.Path) -> str:
     return pathlib.PurePosixPath(normalized).name
 
 
-def parse_guid_xref(path: pathlib.Path) -> dict[str, str]:
+def normalize_path_like(value: str | None, repo_root: pathlib.Path) -> str | None:
+    if value is None:
+        return None
+    if "/" not in value and "\\" not in value:
+        return value
+    return normalize_path(value, repo_root)
+
+
+def parse_guid_xref(path: pathlib.Path, repo_root: pathlib.Path) -> dict[str, str]:
     mapping: dict[str, str] = {}
     if not path.is_file():
         return mapping
@@ -134,7 +147,7 @@ def parse_guid_xref(path: pathlib.Path) -> dict[str, str]:
         if len(parts) != 2:
             continue
         guid, name = parts
-        mapping[guid.upper()] = name
+        mapping[guid.upper()] = normalize_path_like(name, repo_root) or name
     return mapping
 
 
@@ -318,7 +331,7 @@ def parse_ffs_manifest(
             guid = tokens[index + 1].upper()
             index += 2
             continue
-        if token == "-i" and index + 1 < len(tokens):
+        if token in {"-i", "-oi"} and index + 1 < len(tokens):
             section_inputs.append(tokens[index + 1])
             index += 2
             continue
@@ -359,7 +372,7 @@ def gather_manifest(
     target: str,
 ) -> dict[str, Any]:
     fv_dir = build_dir / "FV"
-    guid_names = parse_guid_xref(fv_dir / "Guid.xref")
+    guid_names = parse_guid_xref(fv_dir / "Guid.xref", repo_root)
 
     fvs: dict[str, Any] = {}
     locations: dict[str, list[dict[str, str]]] = {}
@@ -400,13 +413,24 @@ def gather_manifest(
     }
 
 
-def compare_manifests(expected: dict[str, Any], actual: dict[str, Any]) -> list[str]:
+def compare_manifests(
+    expected: dict[str, Any],
+    actual: dict[str, Any],
+    repo_root: pathlib.Path = REPO_ROOT,
+) -> list[str]:
     def normalize_section(section: dict[str, Any]) -> dict[str, Any]:
         normalized = {
             key: value
             for key, value in section.items()
-            if key != "sha256"
+            if key not in {"sha256", "source"}
         }
+        if "path" in normalized:
+            normalized["path"] = normalize_path_like(normalized["path"], repo_root)
+        return normalized
+
+    def normalize_fv_entry(entry: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(entry)
+        normalized["module"] = normalize_path_like(normalized.get("module"), repo_root)
         return normalized
 
     def normalize_module(module: dict[str, Any]) -> dict[str, Any]:
@@ -415,15 +439,21 @@ def compare_manifests(expected: dict[str, Any], actual: dict[str, Any]) -> list[
             for key, value in module.items()
             if key not in {"sha256", "sections"}
         }
+        normalized["module"] = normalize_path_like(normalized.get("module"), repo_root)
         normalized["sections"] = [normalize_section(section) for section in module.get("sections", [])]
         return normalized
 
     def normalize_fv(fv: dict[str, Any]) -> dict[str, Any]:
-        return {
+        normalized = {
             key: value
             for key, value in fv.items()
             if key != "sha256"
         }
+        normalized["entries"] = [
+            normalize_fv_entry(entry)
+            for entry in fv.get("entries", [])
+        ]
+        return normalized
 
     expected_fd = {
         key: value
@@ -547,7 +577,7 @@ def main() -> int:
         )
         return 2
 
-    mismatches = compare_manifests(expected_manifest, manifest)
+    mismatches = compare_manifests(expected_manifest, manifest, repo_root=repo_root)
     report = {
         "profile": args.profile,
         "description": profile_meta.get("description"),
