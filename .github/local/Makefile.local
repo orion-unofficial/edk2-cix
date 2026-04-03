@@ -558,6 +558,7 @@ check-offline-audit-baselines:
 
 __check-offline-audit-baselines:
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_offline_audit_baselines.py"
+	$(Q)python3 "$(REPO_ROOT)/scripts/test_audit_final_image_manifest.py"
 
 .PHONY: audit-final-image-manifest __audit-final-image-manifest
 audit-final-image-manifest:
