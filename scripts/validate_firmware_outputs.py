@@ -28,6 +28,10 @@ DEFAULT_OPTIONAL_FILES = (
     "Firmwares/bootloader3.img",
 )
 SECTION_RE = re.compile(r"^\s*\d+\s+(\S+)\s+([0-9A-Fa-f]+)\s+[0-9A-Fa-f]+\s+(\S+)")
+BUILD_PATH_RE = re.compile(
+    r"(?:^|[/\\\\])Build[/\\\\](?P<board>[^/\\\\]+)[/\\\\](?P<target>[^/\\\\]+)[/\\\\](?P<suffix>.+)$"
+)
+SRC_PATH_RE = re.compile(r"(?:^|[/\\\\])src[/\\\\](?P<suffix>.+)$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -256,8 +260,24 @@ def compare_path_field(
     return []
 
 
-def should_record_exact_path(value: str) -> bool:
-    return not value.startswith("/") and re.match(r"^[A-Za-z]:[\\/]", value) is None
+def normalize_recorded_path(value: str, repo_root: pathlib.Path) -> str:
+    normalized = value.replace("\\", "/")
+    build_match = BUILD_PATH_RE.search(normalized)
+    if build_match:
+        return (
+            f"Build/{build_match.group('board')}/{build_match.group('target')}/"
+            f"{build_match.group('suffix')}"
+        )
+
+    src_match = SRC_PATH_RE.search(normalized)
+    if src_match:
+        return f"src/{src_match.group('suffix')}"
+
+    repo_root_str = repo_root.as_posix().rstrip("/")
+    if normalized.startswith(repo_root_str + "/"):
+        return normalized[len(repo_root_str) + 1 :]
+
+    return normalized
 
 
 def main() -> int:
@@ -461,11 +481,15 @@ def main() -> int:
                 "gCommandLineDefines": build_options_actual.get("gCommandLineDefines", {}),
             }
             if build_options_actual.get("active_platform"):
-                key = "active_platform" if should_record_exact_path(build_options_actual["active_platform"]) else "active_platform_suffix"
-                profile_entry["build_options"][key] = build_options_actual["active_platform"]
+                profile_entry["build_options"]["active_platform_suffix"] = normalize_recorded_path(
+                    build_options_actual["active_platform"],
+                    repo_root,
+                )
             if build_options_actual.get("flash_definition"):
-                key = "flash_definition" if should_record_exact_path(build_options_actual["flash_definition"]) else "flash_definition_suffix"
-                profile_entry["build_options"][key] = build_options_actual["flash_definition"]
+                profile_entry["build_options"]["flash_definition_suffix"] = normalize_recorded_path(
+                    build_options_actual["flash_definition"],
+                    repo_root,
+                )
         for relative_name, entry in report["pe_sections"].items():
             if entry.get("sections"):
                 profile_entry["pe_sections"][relative_name] = [
