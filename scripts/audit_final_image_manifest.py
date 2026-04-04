@@ -286,7 +286,7 @@ def parse_section_entry(
 ) -> dict[str, Any]:
     section_path = pathlib.Path(section_path_text)
     section_file = module_dir / section_path.name
-    section_text = pathlib.Path(section_path_text + ".txt")
+    section_text = module_dir / f"{section_path.name}.txt"
     if not section_file.is_file():
         raise FileNotFoundError(section_file)
 
