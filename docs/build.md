@@ -248,16 +248,15 @@ build. The same value is also passed into the O6 `pm_config`
 generator unless `PM_CONFIG_SOURCE_DATE_EPOCH` is set explicitly, so
 `csu_pm_config.bin` stops depending on wall-clock time.
 
-For exact replay of a previously published O6 image, we found that the
-vendor build embeds three independent timestamp domains. Set them
-explicitly and point `SIGNING_CERT_SOURCE_DIR=<path-to-cert-bundle>`
-at either:
+For exact replay of a previously published O6 or O6N image, we found that the
+vendor build embeds three independent timestamp domains. Set them explicitly
+and point `SIGNING_CERT_SOURCE_DIR=<path-to-cert-bundle>` at either:
 
 - `BUILD_DATE=<iso8601>` for the displayed firmware build timestamp
-- `SOURCE_DATE_EPOCH=<unix-seconds>` for compiler-provided `__DATE__`
-  and `__TIME__` uses
-- `PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>` for the O6 PM-config
-  blob
+- `SOURCE_DATE_EPOCH=<unix-seconds>` for compiler-provided `__DATE__` and
+  `__TIME__` uses
+- `PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>` for the selected board's
+  PM-config blob
 
 - a build tree `certs/` directory containing `trusted_key_no.crt`,
   `nt_fw_cert.crt`, and `nt_fw_key.crt`
@@ -277,10 +276,10 @@ The build also supports two output modes:
 - `ARTEFACT_MODE=upstream` keeps the historical output behavior for
   replay and byte-for-byte comparison work
 
-## Replay published O6 firmware
+## Replay published firmware
 
-To recover the replay settings from a published O6 release artefact and write
-helper files under a fresh temp directory, run:
+To recover the replay settings from a published O6 or O6N release artefact and
+write helper files under a fresh temp directory, run:
 
 ```bash
 python3 src/scripts/replay_o6_release.py <edk2-cix_*.deb>
@@ -367,7 +366,8 @@ make zip
 make targz
 ```
 
-Those targets reuse the same deployable `O6` payload that the package ships:
+Those targets reuse the same deployable board-specific payload that the package
+ships. By default the examples below show the `O6` paths:
 
 - top-level `startup.nsh`
 - `orion-o6/BuildOptions`
@@ -396,9 +396,9 @@ archive, so the archive members match the same product/version layout used by
 the staged payload.
 
 `make buildbox-firmware-stage` uses the same export path, and the staged files
-appear directly in the host checkout under `dist/firmware/orion-o6/<version>/`
-because the buildbox bind-mounts the repo root. You do not need to copy files
-back out of the container separately.
+appear directly in the host checkout under the default
+`dist/firmware/orion-o6/<version>/` path because the buildbox bind-mounts the
+repo root. You do not need to copy files back out of the container separately.
 
 To deploy that staged payload manually onto a target ESP or removable FAT
 volume, copy the contents of `dist/firmware/orion-o6/<version>/` into
@@ -438,6 +438,8 @@ python3 src/scripts/replay_o6_release.py \
   cix_flash_all.bin \
   --build-options BuildOptions
 ```
+
+Use `--board O6N` when replaying the O6N release artefacts.
 
 To start the replay build immediately in the current shell, add
 `--run-build`. If you are not already in a working build environment, run the

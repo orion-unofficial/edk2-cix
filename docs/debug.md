@@ -2,7 +2,7 @@
 
 ## Serial connection
 
-The following UARTs can be used to debug EDK2 on Radxa Orion O6:
+The following UARTs can be used to debug EDK2 on Radxa Orion O6 and O6N:
 
 - UART1: EC
 - UART2: AP
