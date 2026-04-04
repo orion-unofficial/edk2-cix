@@ -344,8 +344,8 @@ recover `BUILD_DATE`.
 
 If you want to keep the full transcript from a replay or local build, wrap the
 command with `./scripts/capture_build_log.sh build-logs <command ...>`. The
-convenience target `make buildbox-o6-log` does this for the standard local O6
-build.
+convenience target `make buildbox-firmware-log` does this for the standard
+selected-board build.
 
 For firmware builds, the underlying EDK2 build now defaults to silent mode so
 you see the higher-level `Building ...` progress without the full compiler
@@ -460,7 +460,7 @@ make buildbox-up
 make buildbox-metadata
 make buildbox-firmware-build
 make buildbox-firmware-stage
-make buildbox-o6-log
+make buildbox-firmware-log
 make buildbox-deb
 make buildbox-zip
 make buildbox-targz

@@ -164,7 +164,7 @@ delegate into `src`. Use `V=1` on the `make` command line to restore the raw
 EDK2 command output.
 
 To capture a full build transcript plus a warning summary under `build-logs/`,
-use `make buildbox-o6-log` or wrap any command with
+use `make buildbox-firmware-log` or wrap any command with
 `./scripts/capture_build_log.sh build-logs <command ...>`.
 
 For reproducible metadata on `main-monorepo`, the build uses the nearest
