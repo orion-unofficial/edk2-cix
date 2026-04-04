@@ -224,6 +224,54 @@ class AuditFinalImageManifestTests(unittest.TestCase):
         self.assertIn("Changed firmware volumes: FVMAIN", mismatches)
         self.assertIn(f"Changed FFS modules: {GUID}", mismatches)
 
+    def test_parse_ffs_manifest_reads_section_sidecars_from_module_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir_text:
+            repo_root = Path(tempdir_text)
+            module_dir = repo_root / "src" / "Build" / "O6N" / "RELEASE_GCC5" / "FV" / "Ffs" / f"{GUID}ExampleDxe"
+            module_dir.mkdir(parents=True)
+
+            ffs_path = module_dir / f"{GUID}ExampleDxe.ffs"
+            ffs_path.write_bytes(b"ffs")
+
+            pe32_name = f"{GUID}SEC1.1.pe32"
+            pe32_path = module_dir / pe32_name
+            pe32_path.write_bytes(b"pe32")
+            (module_dir / f"{pe32_name}.txt").write_text(
+                'GenSec -s EFI_SECTION_PE32 -o "ignored.pe32" "src/Build/O6N/RELEASE_GCC5/AARCH64/ExampleDxe.efi"\n',
+                encoding="utf-8",
+            )
+
+            manifest_path = module_dir / f"{GUID}ExampleDxe.ffs.txt"
+            manifest_path.write_text(
+                " ".join(
+                    (
+                        "GenFfs",
+                        "-t",
+                        "EFI_FV_FILETYPE_DRIVER",
+                        "-g",
+                        GUID,
+                        "-i",
+                        f"/workspaces/edk2-cix/src/Build/O6N/RELEASE_GCC5/FV/Ffs/{module_dir.name}/{pe32_name}",
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            manifest = parse_ffs_manifest(
+                module_dir,
+                repo_root,
+                {GUID: "ExampleDxe"},
+                {GUID: [{"fv": "FVMAIN", "offset": "0x00000000"}]},
+            )
+
+        self.assertEqual(len(manifest["sections"]), 1)
+        self.assertEqual(manifest["sections"][0]["type"], "EFI_SECTION_PE32")
+        self.assertEqual(
+            manifest["sections"][0]["source"],
+            "Build/O6N/RELEASE_GCC5/AARCH64/ExampleDxe.efi",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
