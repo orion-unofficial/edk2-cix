@@ -173,9 +173,9 @@ mapped upstream `main` commit as its default source identity. In the default
 timestamp used for reproducible metadata. You can inspect the resolved values
 with `make -C src print-build-metadata`.
 
-For exact replay of a published O6 image, `main-monorepo` can also reuse an
-extracted FIP cert bundle via `SIGNING_CERT_SOURCE_DIR=<path>`. The directory
-may contain either the build-tree filenames `trusted_key_no.crt`,
+For exact replay of a published O6 or O6N image, `main-monorepo` can also
+reuse an extracted FIP cert bundle via `SIGNING_CERT_SOURCE_DIR=<path>`. The
+directory may contain either the build-tree filenames `trusted_key_no.crt`,
 `nt_fw_cert.crt`, and `nt_fw_key.crt` or the extracted FIP filenames
 `trusted-key-cert.bin`, `nt-fw-cert.bin`, and `nt-fw-key-cert.bin`.
 
@@ -433,8 +433,8 @@ you want qualification checks, or set `FIRMWARE_VALIDATE_ON_BUILD=true` to
 restore the advisory post-build validation step.
 
 If you do not want a Debian package, the local Makefile extensions now provide
-several direct payload targets based on the same `O6` files that the `.deb`
-ships:
+several direct payload targets based on the same board-specific files that the
+`.deb` ships:
 
 ```bash
 make firmware-stage
@@ -444,7 +444,8 @@ make targz
 make validate-firmware
 ```
 
-By default those targets work on the `O6` payload and:
+By default those targets operate on the `O6` payload. Set
+`FIRMWARE_BOARD=O6N` to switch products; the default `O6` paths are:
 
 - stage files under `dist/firmware/orion-o6/<version>/`
 - install them under `/boot/efi/firmware/radxa/<version>/`
@@ -459,9 +460,9 @@ The `.zip` and `.tar.gz` exports keep the payload under
 same product/version layout as the staged payload.
 
 When you use `make buildbox-firmware-stage`, the staged payload is already
-written back into the host checkout at the same `dist/firmware/orion-o6/<version>/`
-path, because the buildbox bind-mounts the repo root. There is no separate
-`podman cp` or `docker cp` step.
+written back into the host checkout at the same default
+`dist/firmware/orion-o6/<version>/` path, because the buildbox bind-mounts the
+repo root. There is no separate `podman cp` or `docker cp` step.
 
 The staged payload includes:
 
