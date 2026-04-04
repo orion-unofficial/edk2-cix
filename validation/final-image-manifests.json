@@ -6525,7 +6525,7 @@
                   },
                   {
                     "guid": "8943387B-C4AD-3199-42A9-DABC5B411615",
-                    "module": "/workspaces/edk2-cix/src/edk2-platforms/Platform/CIX/Sky1/Bin/ntroot.cer",
+                    "module": "src/edk2-platforms/Platform/CIX/Sky1/Bin/ntroot.cer",
                     "offset": "0x00ab7cc0"
                   },
                   {
@@ -6565,7 +6565,7 @@
                   },
                   {
                     "guid": "9E21FD93-9C72-4C15-8C4B-E77F1DB2D792",
-                    "module": "/workspaces/edk2-cix/src/Build/O6N/RELEASE_GCC5/FV/FVMAIN.Fv",
+                    "module": "Build/O6N/RELEASE_GCC5/FV/FVMAIN.Fv",
                     "offset": "0x0000d7b8"
                   }
                 ],
@@ -6589,7 +6589,15 @@
                   }
                 ],
                 "module": "ArmPlatformPrePiUniCore",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "14BCE329-46A9-4B56-DD83-223B2D714EE1SEC1.1.te",
+                    "sha256": "4b63ec601987df2dc3231a7a583282ffbcc302f2963cd2d66b762c01317545b8",
+                    "size": 30212,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/14BCE329-46A9-4B56-DD83-223B2D714EE1ArmPlatformPrePiUniCore/14BCE329-46A9-4B56-DD83-223B2D714EE1Te.raw",
+                    "type": "EFI_SECTION_TE"
+                  }
+                ],
                 "sha256": "4b617d9cedb19f38b93ce41d9c90e9c584525f9f0694aa6ab1adb0bd99287d31",
                 "size": 30584,
                 "ui_name": "ArmPlatformPrePiUniCore"
@@ -6605,7 +6613,22 @@
                   }
                 ],
                 "module": "DxeCore",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "D6A2CB7F-6A18-4e2f-B43B-9920A733700ASEC1.1.pe32",
+                    "sha256": "b6c06894e83abb1ec4b1a26e375e3150c623550ea24f92f4e3b72617235e6143",
+                    "size": 237572,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Core/Dxe/DxeMain/OUTPUT/DxeCore.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "D6A2CB7F-6A18-4e2f-B43B-9920A733700ASEC2.ui",
+                    "sha256": "fadc83460d9d13857cb64993f6ef286083dcb2a950cd85ec730c87c74c18dca6",
+                    "size": 20,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "DxeCore"
+                  }
+                ],
                 "sha256": "726e7a3cfb5610fc8b8181c18070691ea24d78087d5e118e4eafaef84e86c32b",
                 "size": 237616,
                 "ui_name": "DxeCore"
@@ -6621,7 +6644,29 @@
                   }
                 ],
                 "module": "FwVersionDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "A74306CD-B65F-F936-7B5D-098350D717FASEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionDxe/OUTPUT/FwVersionDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "A74306CD-B65F-F936-7B5D-098350D717FASEC2.1.pe32",
+                    "sha256": "d202b232f3f6dc3792063f0f4f18500209ffd65787b41a960eef87a20d68d68d",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionDxe/OUTPUT/FwVersionDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "A74306CD-B65F-F936-7B5D-098350D717FASEC3.ui",
+                    "sha256": "1edff489075f16f4804e2e05ce218749a55040133276c3d7f642b63c56495030",
+                    "size": 30,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "FwVersionDxe"
+                  }
+                ],
                 "sha256": "41b568da7169ebf6c5db69cd5df4b2d036e81a17124aeafb6e049c2e12dfff92",
                 "size": 24658,
                 "ui_name": "FwVersionDxe"
@@ -6636,7 +6681,7 @@
                     "offset": "0x0000d7b8"
                   }
                 ],
-                "module": "/workspaces/edk2-cix/src/Build/O6N/RELEASE_GCC5/FV/FVMAIN.Fv",
+                "module": "Build/O6N/RELEASE_GCC5/FV/FVMAIN.Fv",
                 "sections": [
                   {
                     "attributes": [
@@ -6665,7 +6710,36 @@
                   }
                 ],
                 "module": "PcdDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "DXEPcdDataBaseSec.raw",
+                    "sha256": "66eeaa0741ba03aabc75a22cdd4547d551ec2bc8746d0a1610310541a66b2be7",
+                    "size": 788,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/PCD/Dxe/Pcd/OUTPUT/DXEPcdDataBase.raw",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "80CF7257-87AB-47f9-A3FE-D50B76D89541SEC1.1.dpx",
+                    "sha256": "f3b99510cf3812f2d17ca764d16fc3444876485edf0cbdfa7dd41b80141f6e81",
+                    "size": 6,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/PCD/Dxe/Pcd/OUTPUT/PcdDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "80CF7257-87AB-47f9-A3FE-D50B76D89541SEC2.1.pe32",
+                    "sha256": "85075d09fe252a0bf1abcf5a0582f682d187420201ac2b543ad64a2de3d0e088",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/PCD/Dxe/Pcd/OUTPUT/PcdDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "80CF7257-87AB-47f9-A3FE-D50B76D89541SEC3.ui",
+                    "sha256": "30d681a69f61a06aea7f5c8a9a79ac870c1c1ca4a0e6328b44223e308a34d1f4",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "PcdDxe"
+                  }
+                ],
                 "sha256": "fc3ec14577f687156eea91efd551559fd433e64745fb9d8e0c613713f6980b33",
                 "size": 25418,
                 "ui_name": "PcdDxe"
@@ -6681,7 +6755,29 @@
                   }
                 ],
                 "module": "ArmCpuDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "B8D9777E-D72A-451F-9BDB-BAFB52A68415SEC1.1.dpx",
+                    "sha256": "ed0481f74ded2de13490cfecf7359d9f427b6abe9e7933e106346c4974fd78b9",
+                    "size": 58,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/ArmPkg/Drivers/CpuDxe/CpuDxe/OUTPUT/ArmCpuDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "B8D9777E-D72A-451F-9BDB-BAFB52A68415SEC2.1.pe32",
+                    "sha256": "626be031853544f03b0ce54d44d25d7d17389c92c45c3e8af11fa3b8e851768e",
+                    "size": 40964,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/ArmPkg/Drivers/CpuDxe/CpuDxe/OUTPUT/ArmCpuDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "B8D9777E-D72A-451F-9BDB-BAFB52A68415SEC3.ui",
+                    "sha256": "90e407a2773f861cb2b9e93df86e3dccf0d95ef11dd95c40f42ba9f678952a0a",
+                    "size": 24,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ArmCpuDxe"
+                  }
+                ],
                 "sha256": "49bf6cc0017064a8428fcc2e4091f0038508f5ac40b2c28647b8f86e123ec3dc",
                 "size": 41072,
                 "ui_name": "ArmCpuDxe"
@@ -6697,7 +6793,29 @@
                   }
                 ],
                 "module": "RuntimeDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "B601F8C4-43B7-4784-95B1-F4226CB40CEESEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Core/RuntimeDxe/RuntimeDxe/OUTPUT/RuntimeDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "B601F8C4-43B7-4784-95B1-F4226CB40CEESEC2.1.pe32",
+                    "sha256": "67f3a0b34f5529375bff2f61bca0aed853f6a65d7450a00e31be22ebd22a7cbf",
+                    "size": 262148,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Core/RuntimeDxe/RuntimeDxe/OUTPUT/RuntimeDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "B601F8C4-43B7-4784-95B1-F4226CB40CEESEC3.ui",
+                    "sha256": "51e31931a61989b64bb52ca0fdcf3772c296881f4fe5ecc47f3afe7f9e95a25b",
+                    "size": 26,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "RuntimeDxe"
+                  }
+                ],
                 "sha256": "51ee8bd67b5a8a83e9b45c7da3e3137c83ceae7b55fdd4e5fe9f316efd15c8b9",
                 "size": 262222,
                 "ui_name": "RuntimeDxe"
@@ -6713,7 +6831,29 @@
                   }
                 ],
                 "module": "S3SaveStateDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "2e3fc9cc-9606-4279-bf3d-84183f298c0fSEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/S3SaveStateDxe/S3SaveStateDxe/OUTPUT/S3SaveStateDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "2e3fc9cc-9606-4279-bf3d-84183f298c0fSEC2.1.pe32",
+                    "sha256": "b9f9551f247ab6402b967b0658feb64b550981a4c950b989ae4a32a3924a785d",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/S3SaveStateDxe/S3SaveStateDxe/OUTPUT/S3SaveStateDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "2e3fc9cc-9606-4279-bf3d-84183f298c0fSEC3.ui",
+                    "sha256": "40a1453eec5c0d016ed5e569981d19f099937d74f68113a2b2ccaafa82fa61ab",
+                    "size": 34,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "S3SaveStateDxe"
+                  }
+                ],
                 "sha256": "7372fb4dd64990a6b9070a084d84e7300b7c41211f3eb2169ba727c9836c5da8",
                 "size": 24662,
                 "ui_name": "S3SaveStateDxe"
@@ -6729,7 +6869,29 @@
                   }
                 ],
                 "module": "PlatformConfigParamsManageDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "346E31BC-C80C-49D7-9D27-A10CC21A00D6SEC1.1.dpx",
+                    "sha256": "727b9a4eb69f136b06341c901cb20399790592dba0490e54f160f3b55bb01d2d",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/PlatformConfigParamsManageDxe/PlatformConfigParamsManageDxe/OUTPUT/PlatformConfigParamsManageDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "346E31BC-C80C-49D7-9D27-A10CC21A00D6SEC2.1.pe32",
+                    "sha256": "a7bf73693a7e1c6ddfb67e1afaf893a1e7bf65a5bf4d5e00e304a2736880b03c",
+                    "size": 40964,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/PlatformConfigParamsManageDxe/PlatformConfigParamsManageDxe/OUTPUT/PlatformConfigParamsManageDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "346E31BC-C80C-49D7-9D27-A10CC21A00D6SEC3.ui",
+                    "sha256": "be73a6acd46c82555e4e4e72313d9dfd5aae6a5204e3417af6367fd003deebe1",
+                    "size": 64,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "PlatformConfigParamsManageDxe"
+                  }
+                ],
                 "sha256": "6eb6387543759fae94d9915fc17011e8b0f56405477302e560b1e4862fd07970",
                 "size": 41092,
                 "ui_name": "PlatformConfigParamsManageDxe"
@@ -6745,7 +6907,29 @@
                   }
                 ],
                 "module": "ConfigParamsManageDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "8BA8F66D-B32A-4048-8325-8CC0A171C4E6SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/ConfigParamsManageDxe/ConfigParamsManageDxe/OUTPUT/ConfigParamsManageDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "8BA8F66D-B32A-4048-8325-8CC0A171C4E6SEC2.1.pe32",
+                    "sha256": "56aa5e7bb1734c70e38349a215e6d4be0fcadb5b8113b28d3865590650864427",
+                    "size": 135172,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/ConfigParamsManageDxe/ConfigParamsManageDxe/OUTPUT/ConfigParamsManageDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "8BA8F66D-B32A-4048-8325-8CC0A171C4E6SEC3.ui",
+                    "sha256": "b3af83761bcbc83bf4ef6c3e3361371fcc08b936e488c3fb2756a2c1c827b03c",
+                    "size": 48,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ConfigParamsManageDxe"
+                  }
+                ],
                 "sha256": "f5407ebecb2b29f11d4abeb3cd6c5f91012d75308be35861f092695a08b70acf",
                 "size": 135268,
                 "ui_name": "ConfigParamsManageDxe"
@@ -6799,7 +6983,29 @@
                   }
                 ],
                 "module": "PlatformDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "9804231A-EA80-EDB1-29C3-3D24A0EAD998SEC1.1.dpx",
+                    "sha256": "f11ebf2b14fe7be3a2f5953e387c7b5e886635b05664414babd6fd434ae25fd2",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/PlatformDxe/PlatformDxe/OUTPUT/PlatformDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "9804231A-EA80-EDB1-29C3-3D24A0EAD998SEC2.1.pe32",
+                    "sha256": "54ef5993a2b7228bad856c5532fdfdc0a939a9c1a0f001dfc52cd5dd5563da45",
+                    "size": 32772,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/PlatformDxe/PlatformDxe/OUTPUT/PlatformDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "9804231A-EA80-EDB1-29C3-3D24A0EAD998SEC3.ui",
+                    "sha256": "ce6540ea5421c41ba668d8ac5205793c47ece10d114f604818cf9d4de32bdd0a",
+                    "size": 28,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "PlatformDxe"
+                  }
+                ],
                 "sha256": "0f6f5767045c54161d91b5789dc1ee1c449dc3c063c0519ad34a8e7f06c7961d",
                 "size": 32864,
                 "ui_name": "PlatformDxe"
@@ -6815,7 +7021,29 @@
                   }
                 ],
                 "module": "SecurityStubDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "F80697E9-7FD6-4665-8646-88E33EF71DFCSEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe/OUTPUT/SecurityStubDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "F80697E9-7FD6-4665-8646-88E33EF71DFCSEC2.1.pe32",
+                    "sha256": "d47e82bfa9e30c83d0d940e461fc7e78190fbb20e39ac707b98e603120bd6a2d",
+                    "size": 483332,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe/OUTPUT/SecurityStubDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "F80697E9-7FD6-4665-8646-88E33EF71DFCSEC3.ui",
+                    "sha256": "d09b8e61a9d181f31236d071de010dd56f08ba67e36042713575394558321123",
+                    "size": 36,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SecurityStubDxe"
+                  }
+                ],
                 "sha256": "000daaf999c40c06b72d4d02ba6d56eec39d52c35dfaeea7abe35b7349c85436",
                 "size": 483416,
                 "ui_name": "SecurityStubDxe"
@@ -6831,7 +7059,29 @@
                   }
                 ],
                 "module": "RngDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "1E97605F-9DF2-4DE0-BCE9-7ADAEFE09345SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/RngDxe/RngDxe/OUTPUT/RngDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "1E97605F-9DF2-4DE0-BCE9-7ADAEFE09345SEC2.1.pe32",
+                    "sha256": "aa9edf92d6586ff7b8da3b696ba55239a020f7186793e794f9a57eb9a7aff0f7",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/RngDxe/RngDxe/OUTPUT/RngDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "1E97605F-9DF2-4DE0-BCE9-7ADAEFE09345SEC3.ui",
+                    "sha256": "d66446506753efe0d319ca70f94cfbcd2bc59fb8d109b75e1aea29ada6e25d80",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "RngDxe"
+                  }
+                ],
                 "sha256": "a552c41baa62d00956d1e98e2d31c0f91b30847a4f44414c4a723f81c8ac90c6",
                 "size": 24646,
                 "ui_name": "RngDxe"
@@ -6847,7 +7097,29 @@
                   }
                 ],
                 "module": "CapsuleRuntimeDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "42857F0A-13F2-4B21-8A23-53D3F714B840SEC1.1.dpx",
+                    "sha256": "8e9c442638fa617d1f741b86d246c7b83edc23a62b8a4c92bbe819384c337058",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/CapsuleRuntimeDxe/CapsuleRuntimeDxe/OUTPUT/CapsuleRuntimeDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "42857F0A-13F2-4B21-8A23-53D3F714B840SEC2.1.pe32",
+                    "sha256": "f89456581cd0511886a02c7691a33e8450ee54dd0c7844d4c18932f7ac389465",
+                    "size": 196612,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/CapsuleRuntimeDxe/CapsuleRuntimeDxe/OUTPUT/CapsuleRuntimeDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "42857F0A-13F2-4B21-8A23-53D3F714B840SEC3.ui",
+                    "sha256": "167a65add65e54104904f64e3f63cea8ba49e1e30e5878309ef5840219a4d4b5",
+                    "size": 40,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "CapsuleRuntimeDxe"
+                  }
+                ],
                 "sha256": "2ede45f01fc8f720230b8d78a545daf62aeea1c4a08fe53c940174d239f2431e",
                 "size": 196716,
                 "ui_name": "CapsuleRuntimeDxe"
@@ -6863,7 +7135,29 @@
                   }
                 ],
                 "module": "ArmScmiDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "9585984C-F027-45E9-AFDF-ADAA6DFAAAC7SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/ArmScmiDxe/ArmScmiDxe/OUTPUT/ArmScmiDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "9585984C-F027-45E9-AFDF-ADAA6DFAAAC7SEC2.1.pe32",
+                    "sha256": "a0aaa1afa7927264b6c8879ce4e324e3bfe651aee665b4694ac53b5949a249a8",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/ArmScmiDxe/ArmScmiDxe/OUTPUT/ArmScmiDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "9585984C-F027-45E9-AFDF-ADAA6DFAAAC7SEC3.ui",
+                    "sha256": "29477ebd1f423f5f33f5043cb8240af6ef6f6fb06fac94e466ae4c40d8aaa54c",
+                    "size": 26,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ArmScmiDxe"
+                  }
+                ],
                 "sha256": "93d50203866402f749a3c656b0881dea4597aac6cacd26cf5c09d4c09099e503",
                 "size": 24654,
                 "ui_name": "ArmScmiDxe"
@@ -7031,7 +7325,22 @@
                   }
                 ],
                 "module": "NonDiscoverablePciDeviceDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "71fd84cd-353b-464d-b7a4-6ea7b96995cbSEC2.1.pe32",
+                    "sha256": "13af38d3c71135997c939b8f5ad43fea8e79eae23478fa80a3eeccf716aaf849",
+                    "size": 20484,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Pci/NonDiscoverablePciDeviceDxe/NonDiscoverablePciDeviceDxe/OUTPUT/NonDiscoverablePciDeviceDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "71fd84cd-353b-464d-b7a4-6ea7b96995cbSEC3.ui",
+                    "sha256": "4a022aee07bcbba1016f10650996925bd719a181ed69b79f53f433c6556e2ffe",
+                    "size": 60,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "NonDiscoverablePciDeviceDxe"
+                  }
+                ],
                 "sha256": "a43848eed5fc5cf4004ecaee395e434c90579769ce233bc7019bb94b3749f9d9",
                 "size": 20568,
                 "ui_name": "NonDiscoverablePciDeviceDxe"
@@ -7047,7 +7356,22 @@
                   }
                 ],
                 "module": "UhciDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "2FB92EFA-2EE0-4bae-9EB6-7464125E1EF7SEC2.1.pe32",
+                    "sha256": "44188f80be420139859a086f4fb4086c2476a6b7637d4f11b8fe4ef4aa42ac40",
+                    "size": 28676,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Pci/UhciDxe/UhciDxe/OUTPUT/UhciDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "2FB92EFA-2EE0-4bae-9EB6-7464125E1EF7SEC3.ui",
+                    "sha256": "dfa0d07da593badee9635b73a2fbf2a1873570386cae9720c64eb09d8c74949d",
+                    "size": 20,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "UhciDxe"
+                  }
+                ],
                 "sha256": "43d628f919515efacce30bca1fb3d07281e1308848eca43b692bf19efb7a8cbc",
                 "size": 28720,
                 "ui_name": "UhciDxe"
@@ -7063,7 +7387,22 @@
                   }
                 ],
                 "module": "EhciDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "BDFE430E-8F2A-4db0-9991-6F856594777ESEC2.1.pe32",
+                    "sha256": "3af5943a10ea92f095373746c5804f4a8614ff6443639d2af6e3d4b4a2dff504",
+                    "size": 32772,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Pci/EhciDxe/EhciDxe/OUTPUT/EhciDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "BDFE430E-8F2A-4db0-9991-6F856594777ESEC3.ui",
+                    "sha256": "0f5f8873f2561265f940322969ce0ff0c5aeea52dcff4526ea66c0daea2983d8",
+                    "size": 20,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "EhciDxe"
+                  }
+                ],
                 "sha256": "08411cc3807bfe85b0b65309ebf6a39874d1d10750ed3d430369c70a44ea5972",
                 "size": 32816,
                 "ui_name": "EhciDxe"
@@ -7079,7 +7418,22 @@
                   }
                 ],
                 "module": "XhciDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "B7F50E91-A759-412c-ADE4-DCD03E7F7C28SEC2.1.pe32",
+                    "sha256": "71b8e84afdbb31273552cade6a5c3fa62b22f20b4fd0ae1d77be7829b372f470",
+                    "size": 40964,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe/OUTPUT/XhciDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "B7F50E91-A759-412c-ADE4-DCD03E7F7C28SEC3.ui",
+                    "sha256": "2fc5a7622871a1da2a4d7d2ef1ad1ef55c1f777a44c422b65c942d88987999d5",
+                    "size": 20,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "XhciDxe"
+                  }
+                ],
                 "sha256": "61adf26d8b2645fa98eab2484669b2f4b4c1db48e10e82d543cac4e2806fc957",
                 "size": 41008,
                 "ui_name": "XhciDxe"
@@ -7095,7 +7449,22 @@
                   }
                 ],
                 "module": "UsbBusDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "240612B7-A063-11d4-9A3A-0090273FC14DSEC2.1.pe32",
+                    "sha256": "b5a9c3eb1ec9117343311c14e39cd70f9088a8e63027a991c8c2ac1b856fc5cd",
+                    "size": 36868,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe/OUTPUT/UsbBusDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "240612B7-A063-11d4-9A3A-0090273FC14DSEC3.ui",
+                    "sha256": "a364b124c7b6a408c116bf20d8cca017108ac840e7a19c414e63f68b25dc549f",
+                    "size": 24,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "UsbBusDxe"
+                  }
+                ],
                 "sha256": "f0f19d174aba1a47b28ad3777c508f54f03803ef694849eef31584ecc70b84a7",
                 "size": 36916,
                 "ui_name": "UsbBusDxe"
@@ -7111,7 +7480,22 @@
                   }
                 ],
                 "module": "UsbMassStorageDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "9FB4B4A7-42C0-4bcd-8540-9BCC6711F83ESEC2.1.pe32",
+                    "sha256": "77c8dc6120ffb43ab3e7d069238d52e1b6918e9a402f5b793e6a4700db7c84ad",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe/OUTPUT/UsbMassStorageDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "9FB4B4A7-42C0-4bcd-8540-9BCC6711F83ESEC3.ui",
+                    "sha256": "a04f5999aff158a688e4046544d66d533a802e09215bc1cba140a68c98aa5dba",
+                    "size": 40,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "UsbMassStorageDxe"
+                  }
+                ],
                 "sha256": "903d686674592a511a38e29dc8c3a8c9bf7233f568d5a63c0a262cfed85746da",
                 "size": 24644,
                 "ui_name": "UsbMassStorageDxe"
@@ -7127,7 +7511,22 @@
                   }
                 ],
                 "module": "UsbKbDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "2D2E62CF-9ECF-43b7-8219-94E7FC713DFESEC2.1.pe32",
+                    "sha256": "e608709a905f84f857fbad496804093b562e27c455e848465ba72d56c0a3af2c",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe/OUTPUT/UsbKbDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "2D2E62CF-9ECF-43b7-8219-94E7FC713DFESEC3.ui",
+                    "sha256": "595ee24e9b0ba5e20d7f58f179c84d278dc51ebc440219820c967eacef2780b6",
+                    "size": 22,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "UsbKbDxe"
+                  }
+                ],
                 "sha256": "5eb25436b219f656ea25dc1ccc6782335c1f5a7ba97e5c0886e59266ad041132",
                 "size": 24626,
                 "ui_name": "UsbKbDxe"
@@ -7143,7 +7542,22 @@
                   }
                 ],
                 "module": "UsbMouseDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "2D2E62AA-9ECF-43b7-8219-94E7FC713DFESEC2.1.pe32",
+                    "sha256": "a00f554c16b3e6b92bbf47f88258359c1a7abf07b463d97f2f7ef9c2eca7f56d",
+                    "size": 20484,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Usb/UsbMouseDxe/UsbMouseDxe/OUTPUT/UsbMouseDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "2D2E62AA-9ECF-43b7-8219-94E7FC713DFESEC3.ui",
+                    "sha256": "4d82b88626a681a5e68e9747131f20b5887b6d4e4a335f7a9db9796a50faf741",
+                    "size": 28,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "UsbMouseDxe"
+                  }
+                ],
                 "sha256": "5db8611bd983dfbe4fe90825b7efaadb8eaf3299044f2c41843b83782140101c",
                 "size": 20536,
                 "ui_name": "UsbMouseDxe"
@@ -7311,7 +7725,29 @@
                   }
                 ],
                 "module": "NorFlashStmmRuntimeDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "A40F512E-7450-4CC6-99DB-ACC074EC5010SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/NorFlashStmmRuntimeDxe/NorFlashStmmRuntimeDxe/OUTPUT/NorFlashStmmRuntimeDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "A40F512E-7450-4CC6-99DB-ACC074EC5010SEC2.1.pe32",
+                    "sha256": "60966998c02146b7586a570d450e0465e5de71885e2f0dfef0e80f801e722522",
+                    "size": 262148,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/NorFlashStmmRuntimeDxe/NorFlashStmmRuntimeDxe/OUTPUT/NorFlashStmmRuntimeDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "A40F512E-7450-4CC6-99DB-ACC074EC5010SEC3.ui",
+                    "sha256": "9d41a2a6601c5722994d5ccb9113847f77bae2225246814d0ba163a9be698680",
+                    "size": 50,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "NorFlashStmmRuntimeDxe"
+                  }
+                ],
                 "sha256": "713691beb6de3cfd918f671628d789680f8f61d2c6cca7bafd4ce9a089edc957",
                 "size": 262246,
                 "ui_name": "NorFlashStmmRuntimeDxe"
@@ -7327,7 +7763,29 @@
                   }
                 ],
                 "module": "VariableSmmRuntimeDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "9F7DCADE-11EA-448a-A46F-76E003657DD1SEC1.1.dpx",
+                    "sha256": "3dc913de221fd440c5e517485662f9fc8c054a1c863ce5110c962257fc910d5a",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Variable/RuntimeDxe/VariableSmmRuntimeDxe/OUTPUT/VariableSmmRuntimeDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "9F7DCADE-11EA-448a-A46F-76E003657DD1SEC2.1.pe32",
+                    "sha256": "6de6c525284234ecdebb7cfb94379e6476c6fd6a8453d1831b77fd1dd87d38be",
+                    "size": 262148,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Variable/RuntimeDxe/VariableSmmRuntimeDxe/OUTPUT/VariableSmmRuntimeDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "9F7DCADE-11EA-448a-A46F-76E003657DD1SEC3.ui",
+                    "sha256": "fc8f57c374a83be309507ff201a9ec887d42a44cdadc89db11fb3b0485ab4925",
+                    "size": 48,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "VariableSmmRuntimeDxe"
+                  }
+                ],
                 "sha256": "563d8f40ea3f2d2575f915cdc018f21d6d6bbabe8a1cf565b2f70c44ab98a0b1",
                 "size": 262260,
                 "ui_name": "VariableSmmRuntimeDxe"
@@ -7529,7 +7987,36 @@
                   }
                 ],
                 "module": "SecureBootConfigDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "F0E6A44F-7195-41c3-AC64-54F202CD0A21SEC1.1.dpx",
+                    "sha256": "f3f16f881bd3aece7d13d90062d896e34ccc52f45bcb158f712913ef8d905309",
+                    "size": 130,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigDxe/OUTPUT/SecureBootConfigDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "SecureBootConfigDxeOffset.raw",
+                    "sha256": "1e4d25a121bbe900de63275daa32f474f90eae1f8094ebf55745a821776b35b4",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/F0E6A44F-7195-41c3-AC64-54F202CD0A21SecureBootConfigDxe/SecureBootConfigDxe.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "F0E6A44F-7195-41c3-AC64-54F202CD0A21SEC2.1.pe32",
+                    "sha256": "cefe62f2405bab261a5d5c15f05f02c1b2d0f7b954e4abe794c7af4aa93641ae",
+                    "size": 405508,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/SecurityPkg/VariableAuthenticated/SecureBootConfigDxe/SecureBootConfigDxe/OUTPUT/SecureBootConfigDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "F0E6A44F-7195-41c3-AC64-54F202CD0A21SEC3.ui",
+                    "sha256": "7b10829eb0685b70d4d7b5ae258864be3464e34b8feec6136cee251da5b3f91f",
+                    "size": 44,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SecureBootConfigDxe"
+                  }
+                ],
                 "sha256": "3b5c6c44387ef363bb25be0586e1277740e2ca574dc563f23ce20a97e098b768",
                 "size": 405760,
                 "ui_name": "SecureBootConfigDxe"
@@ -7545,7 +8032,29 @@
                   }
                 ],
                 "module": "SecureBootDefaultKeysDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "C937FCB7-25AC-4376-89A2-4EA8B317DE83SEC1.1.dpx",
+                    "sha256": "ced499bafcc9694f8ce16a5fdebeed539e6f7f6012a3d00b7382ba4c102f1b6a",
+                    "size": 58,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/SecurityPkg/VariableAuthenticated/SecureBootDefaultKeysDxe/SecureBootDefaultKeysDxe/OUTPUT/SecureBootDefaultKeysDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "C937FCB7-25AC-4376-89A2-4EA8B317DE83SEC2.1.pe32",
+                    "sha256": "9abc92e136f0d3dffe551f9913e59d3a166203529d9287911bfaefbb19d8e0fa",
+                    "size": 348164,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/SecurityPkg/VariableAuthenticated/SecureBootDefaultKeysDxe/SecureBootDefaultKeysDxe/OUTPUT/SecureBootDefaultKeysDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "C937FCB7-25AC-4376-89A2-4EA8B317DE83SEC3.ui",
+                    "sha256": "85c7d27431ace78d39d2d3e0433cf94c31c0076addd0b210ed923315bb554aab",
+                    "size": 54,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SecureBootDefaultKeysDxe"
+                  }
+                ],
                 "sha256": "665fc28aad800dac0f8c0de9bdd76c90505958e536b86d815b79c9e90b16f694",
                 "size": 348302,
                 "ui_name": "SecureBootDefaultKeysDxe"
@@ -7561,7 +8070,29 @@
                   }
                 ],
                 "module": "SecureBootDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "D1FED3CC-E80C-4B78-94F8-72DDA5B396E5SEC1.1.dpx",
+                    "sha256": "ced499bafcc9694f8ce16a5fdebeed539e6f7f6012a3d00b7382ba4c102f1b6a",
+                    "size": 58,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/SecureBootDxe/SecureBootDxe/OUTPUT/SecureBootDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "D1FED3CC-E80C-4B78-94F8-72DDA5B396E5SEC2.1.pe32",
+                    "sha256": "6ffcc0c0b9fc939d287a4a9feaceea4e9e22256fee0012f66d911259a27667a8",
+                    "size": 20484,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/SecureBootDxe/SecureBootDxe/OUTPUT/SecureBootDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "D1FED3CC-E80C-4B78-94F8-72DDA5B396E5SEC3.ui",
+                    "sha256": "099695616037087e6107eef2ab2694c5b0e6332c6d402c9e82829372fe086269",
+                    "size": 32,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SecureBootDxe"
+                  }
+                ],
                 "sha256": "50576bb481039ca852f7534bf442e6706053fb7a28db64e05c0851cb4bf675b7",
                 "size": 20600,
                 "ui_name": "SecureBootDxe"
@@ -7577,7 +8108,29 @@
                   }
                 ],
                 "module": "MonotonicCounterRuntimeDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "AD608272-D07F-4964-801E-7BD3B7888652SEC1.1.dpx",
+                    "sha256": "ced499bafcc9694f8ce16a5fdebeed539e6f7f6012a3d00b7382ba4c102f1b6a",
+                    "size": 58,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/MonotonicCounterRuntimeDxe/MonotonicCounterRuntimeDxe/OUTPUT/MonotonicCounterRuntimeDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "AD608272-D07F-4964-801E-7BD3B7888652SEC2.1.pe32",
+                    "sha256": "333fb5bc79d47a631f4d1ca8d49c174175d66750ba5b02e92033b2bcc8dd5bb1",
+                    "size": 196612,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/MonotonicCounterRuntimeDxe/MonotonicCounterRuntimeDxe/OUTPUT/MonotonicCounterRuntimeDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "AD608272-D07F-4964-801E-7BD3B7888652SEC3.ui",
+                    "sha256": "fc377e4ed7a8468625df7ea01f2106a24e171fe388cb7e1f78e6b356423baba3",
+                    "size": 58,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "MonotonicCounterRuntimeDxe"
+                  }
+                ],
                 "sha256": "64e9a6809641edaf7412a874d67a35b9e2d40b68b3c4b2e6b58caec9390b5cae",
                 "size": 196754,
                 "ui_name": "MonotonicCounterRuntimeDxe"
@@ -7593,7 +8146,29 @@
                   }
                 ],
                 "module": "Reset",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "16036A73-E8EF-46D0-953C-9B8E96527D13SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/ResetRuntimeDxe/ResetRuntimeDxe/OUTPUT/Reset.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "16036A73-E8EF-46D0-953C-9B8E96527D13SEC2.1.pe32",
+                    "sha256": "c2330112561d8b982e8714b9aa919cec7668a53259a07fd44cbbeb2f109c4620",
+                    "size": 196612,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/ResetRuntimeDxe/ResetRuntimeDxe/OUTPUT/Reset.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "16036A73-E8EF-46D0-953C-9B8E96527D13SEC3.ui",
+                    "sha256": "0868544e973b23363d8b40c3f49e4c3305a79eb4501104217c6a156a9a572411",
+                    "size": 16,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "Reset"
+                  }
+                ],
                 "sha256": "c0c37e5b7fd3b46f50a0ead51dc727b4f526c395aefa3b51a399ab34de7d0eab",
                 "size": 196676,
                 "ui_name": "Reset"
@@ -7609,7 +8184,29 @@
                   }
                 ],
                 "module": "RealTimeClock",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "B336F62D-4135-4A55-AE4E-4971BBF0885DSEC1.1.dpx",
+                    "sha256": "e143d8cfdee92bc478d526037ae0084ad50d6684a471088376e2fc40a40196da",
+                    "size": 76,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/RealTimeClockRuntimeDxe/RealTimeClockRuntimeDxe/OUTPUT/RealTimeClock.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "B336F62D-4135-4A55-AE4E-4971BBF0885DSEC2.1.pe32",
+                    "sha256": "407cd3513919023a3a96cc4fc4a1ee38e447136605ff1a7bc365f2cf73b7da9c",
+                    "size": 196612,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/RealTimeClockRuntimeDxe/RealTimeClockRuntimeDxe/OUTPUT/RealTimeClock.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "B336F62D-4135-4A55-AE4E-4971BBF0885DSEC3.ui",
+                    "sha256": "ac64a8273908690287e277dd4b1e54baa4fa4df808bd27a953550ac5ad0b2e0b",
+                    "size": 32,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "RealTimeClock"
+                  }
+                ],
                 "sha256": "b2692febd438614c69a07c31d730dc893b3ec9e012ea4c837d0f60ec718e7ac0",
                 "size": 196744,
                 "ui_name": "RealTimeClock"
@@ -7625,7 +8222,29 @@
                   }
                 ],
                 "module": "MetronomeDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "4C6E0267-C77D-410D-8100-1495911A989DSEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/MetronomeDxe/MetronomeDxe/OUTPUT/MetronomeDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "4C6E0267-C77D-410D-8100-1495911A989DSEC2.1.pe32",
+                    "sha256": "8e8fa9ab3aa238d4c1789430de423b73c97989505ce48a95c60cfc8c7373c21e",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/MetronomeDxe/MetronomeDxe/OUTPUT/MetronomeDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "4C6E0267-C77D-410D-8100-1495911A989DSEC3.ui",
+                    "sha256": "7942d4c7f73836b0e99347bcdf0284c605ed0782784f993de0feac6d93d16814",
+                    "size": 30,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "MetronomeDxe"
+                  }
+                ],
                 "sha256": "cd493197617b2d8fa9ba2268a9b1b33fadc5d9ac0164871b0acde08a0df3eacd",
                 "size": 16466,
                 "ui_name": "MetronomeDxe"
@@ -7641,7 +8260,29 @@
                   }
                 ],
                 "module": "HiiDatabase",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "348C4D62-BFBD-4882-9ECE-C80BB1C4783BSEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe/OUTPUT/HiiDatabase.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "348C4D62-BFBD-4882-9ECE-C80BB1C4783BSEC2.1.pe32",
+                    "sha256": "cffe6db12fd8b75c82bc6bc07ecb73d28591b8b46f30e5978659e3bf75e97acb",
+                    "size": 90116,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe/OUTPUT/HiiDatabase.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "348C4D62-BFBD-4882-9ECE-C80BB1C4783BSEC3.ui",
+                    "sha256": "bd9813465dc79c73625554781f0a3fa951c02f9f8bfbdf54cf07680c55e4152b",
+                    "size": 28,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "HiiDatabase"
+                  }
+                ],
                 "sha256": "a4fb70e79221c759f4e20275e9e6d0447b4a7226b4ef463ccd8ba8e14bdb8bbe",
                 "size": 90192,
                 "ui_name": "HiiDatabase"
@@ -7657,7 +8298,22 @@
                   }
                 ],
                 "module": "ConPlatformDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "51ccf399-4fdf-4e55-a45b-e123f84d456aSEC2.1.pe32",
+                    "sha256": "812743c84dafcfc272449de3c5148aabd7448663fb8634473b58d3621b771431",
+                    "size": 20484,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Console/ConPlatformDxe/ConPlatformDxe/OUTPUT/ConPlatformDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "51ccf399-4fdf-4e55-a45b-e123f84d456aSEC3.ui",
+                    "sha256": "202287d8a6d0f465365a8800219df55cbaff067a63f46aa2dcc395fd57a332b8",
+                    "size": 34,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ConPlatformDxe"
+                  }
+                ],
                 "sha256": "75afccf7492d4bc600ec970114c89b790fcf4a3753a8c22924478fa61e5cb357",
                 "size": 20542,
                 "ui_name": "ConPlatformDxe"
@@ -7673,7 +8329,22 @@
                   }
                 ],
                 "module": "ConSplitterDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "408edcec-cf6d-477c-a5a8-b4844e3de281SEC2.1.pe32",
+                    "sha256": "516df1e836d378a7c49e41cebe170da4ba45106c7cfb0ef0089affe5a62ed397",
+                    "size": 32772,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Console/ConSplitterDxe/ConSplitterDxe/OUTPUT/ConSplitterDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "408edcec-cf6d-477c-a5a8-b4844e3de281SEC3.ui",
+                    "sha256": "e75299ae8776d6aa7cde3519d4440375cf0501a5389ee52fb2c10bd2775d66e1",
+                    "size": 34,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ConSplitterDxe"
+                  }
+                ],
                 "sha256": "0e2a2ef0a579b7ac9a5f01ce505a070138b3809958363bfd931bb563d93a394c",
                 "size": 32830,
                 "ui_name": "ConSplitterDxe"
@@ -7689,7 +8360,22 @@
                   }
                 ],
                 "module": "GraphicsConsoleDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "CCCB0C28-4B24-11d5-9A5A-0090273FC14DSEC2.1.pe32",
+                    "sha256": "28a62aa89372595b0e2e8e5dd5e01af9eaaa05e7755d991d5ad4c9e636ba5575",
+                    "size": 28676,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Console/GraphicsConsoleDxe/GraphicsConsoleDxe/OUTPUT/GraphicsConsoleDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "CCCB0C28-4B24-11d5-9A5A-0090273FC14DSEC3.ui",
+                    "sha256": "70a82d7eb95335fde87c75aff5fe6e34e9f090d94f1c08eebd382f5e2198eaa0",
+                    "size": 42,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "GraphicsConsoleDxe"
+                  }
+                ],
                 "sha256": "87eb2f96800fa9acaf641641b89935df93da054a3030869ab4041f2affb65a0a",
                 "size": 28742,
                 "ui_name": "GraphicsConsoleDxe"
@@ -7705,7 +8391,22 @@
                   }
                 ],
                 "module": "TerminalDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "9E863906-A40F-4875-977F-5B93FF237FC6SEC2.1.pe32",
+                    "sha256": "8b03fc9a993bc47740c74f61795c551e54fb2d2acef346ff9c316cde36ff179c",
+                    "size": 32772,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Console/TerminalDxe/TerminalDxe/OUTPUT/TerminalDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "9E863906-A40F-4875-977F-5B93FF237FC6SEC3.ui",
+                    "sha256": "2fea2fd0b98b91dbc3dd6db9748f49d70591a98eb7fa647313a02027e6145d23",
+                    "size": 28,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "TerminalDxe"
+                  }
+                ],
                 "sha256": "7c252860ac0eb6aab50bb4fb2475ac8292151aa6b532280d6e4653887cef46cc",
                 "size": 32824,
                 "ui_name": "TerminalDxe"
@@ -7721,7 +8422,29 @@
                   }
                 ],
                 "module": "SerialDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "9A5163E7-5C29-453F-825C-837A46A81E15SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/SerialDxe/SerialDxe/OUTPUT/SerialDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "9A5163E7-5C29-453F-825C-837A46A81E15SEC2.1.pe32",
+                    "sha256": "d90665c89053abfcdb5492baabcbb3beba1ca05636dafd03f04960cd5119191f",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/SerialDxe/SerialDxe/OUTPUT/SerialDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "9A5163E7-5C29-453F-825C-837A46A81E15SEC3.ui",
+                    "sha256": "479d5f80f61e51e69c4ebbd1056ea7987239e1d7534bdaea52f4d3c04e7bc98b",
+                    "size": 24,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SerialDxe"
+                  }
+                ],
                 "sha256": "115a42690a423bfbf64527cfe45dcdf4a29bdc54bc79273d846ee9ae67711945",
                 "size": 16460,
                 "ui_name": "SerialDxe"
@@ -7737,7 +8460,36 @@
                   }
                 ],
                 "module": "ConsolePrefDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "bbe2668c-0efc-46fb-9137-4f2da8f419f3SEC1.1.dpx",
+                    "sha256": "ca62ed5d809ccdb88aec9533bb5a031e9bdcf22056fc21e5dc37906977f837b4",
+                    "size": 112,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/Drivers/ConsolePrefDxe/ConsolePrefDxe/OUTPUT/ConsolePrefDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "ConsolePrefDxeOffset.raw",
+                    "sha256": "b30e67ac4524ffda0047e06933f58978044fae5639878ad571cf80fbabf276a9",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/bbe2668c-0efc-46fb-9137-4f2da8f419f3ConsolePrefDxe/ConsolePrefDxe.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "bbe2668c-0efc-46fb-9137-4f2da8f419f3SEC2.1.pe32",
+                    "sha256": "ba3aa0467d5cf318b11c2dbed9a9dc9daa22890d99c67bcb37645b1fd946561e",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/Drivers/ConsolePrefDxe/ConsolePrefDxe/OUTPUT/ConsolePrefDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "bbe2668c-0efc-46fb-9137-4f2da8f419f3SEC3.ui",
+                    "sha256": "15e91b85ef32134f90b71f2c9c1fbc9b34197c77b4bf09c83016dc7ae03f3f57",
+                    "size": 34,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ConsolePrefDxe"
+                  }
+                ],
                 "sha256": "5d48e0f48974981d39e01e582b27f2750bb30be3dcc8d2ecb47e25470be0991e",
                 "size": 16610,
                 "ui_name": "ConsolePrefDxe"
@@ -7753,7 +8505,29 @@
                   }
                 ],
                 "module": "ArmGicDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "DE371F7C-DEC4-4D21-ADF1-593ABCC15882SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/ArmPkg/Drivers/ArmGic/ArmGicDxe/OUTPUT/ArmGicDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "DE371F7C-DEC4-4D21-ADF1-593ABCC15882SEC2.1.pe32",
+                    "sha256": "8ed533c43e7e3cde469af722f995fc3b579a1fabe205360233bf6134ea979be9",
+                    "size": 20484,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/ArmPkg/Drivers/ArmGic/ArmGicDxe/OUTPUT/ArmGicDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "DE371F7C-DEC4-4D21-ADF1-593ABCC15882SEC3.ui",
+                    "sha256": "401e2fea64427be281a1e0458983b2599f78bda19469497a99e21331c3119991",
+                    "size": 24,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ArmGicDxe"
+                  }
+                ],
                 "sha256": "b758b6e6a689f978013d9bbe04ed5304aad7b70c05c86b0aa988301b887b82a5",
                 "size": 20556,
                 "ui_name": "ArmGicDxe"
@@ -7769,7 +8543,29 @@
                   }
                 ],
                 "module": "ArmTimerDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "49ea041e-6752-42ca-b0b1-7344fe2546b7SEC1.1.dpx",
+                    "sha256": "77e19fdd506606c99f12c8010071af2fedefcc0b58cda05f8ef16346c299069d",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/ArmPkg/Drivers/TimerDxe/TimerDxe/OUTPUT/ArmTimerDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "49ea041e-6752-42ca-b0b1-7344fe2546b7SEC2.1.pe32",
+                    "sha256": "826bc46fb025323deeea74070ce2d1deaea422b4e0f71e60391b0db3effa6df5",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/ArmPkg/Drivers/TimerDxe/TimerDxe/OUTPUT/ArmTimerDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "49ea041e-6752-42ca-b0b1-7344fe2546b7SEC3.ui",
+                    "sha256": "9db21c655f716881bba766a57202700d7d6a967da517ca0131c7295ff678ffcc",
+                    "size": 28,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ArmTimerDxe"
+                  }
+                ],
                 "sha256": "26067d9b9fc788a17a87df9ab3e87866abddd6416dd577f65dfb7cfc965167cb",
                 "size": 16480,
                 "ui_name": "ArmTimerDxe"
@@ -7785,7 +8581,29 @@
                   }
                 ],
                 "module": "GenericWatchdogDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "0619f5c2-4858-4caa-a86a-73a21a18df6bSEC1.1.dpx",
+                    "sha256": "0580c9fa64e70001cec4deb7a664f04954bac5aeb513c9bbf27d9c0892ad9e24",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/GenericWatchdogDxe/GenericWatchdogDxe/OUTPUT/GenericWatchdogDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "0619f5c2-4858-4caa-a86a-73a21a18df6bSEC2.1.pe32",
+                    "sha256": "42d9aef38560ff95bf993705bc42d5c33e28a7d8a09c78b3ee9c4df4239bd743",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/GenericWatchdogDxe/GenericWatchdogDxe/OUTPUT/GenericWatchdogDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "0619f5c2-4858-4caa-a86a-73a21a18df6bSEC3.ui",
+                    "sha256": "7cd94098438d05038335d8100a225bbe6236ab5bca86b4ab6f6ea040954a7309",
+                    "size": 42,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "GenericWatchdogDxe"
+                  }
+                ],
                 "sha256": "f9985e5f07d25930012dc16a553e045f2e89f04a623b4dbd353c8dbad519e540",
                 "size": 16494,
                 "ui_name": "GenericWatchdogDxe"
@@ -7801,7 +8619,29 @@
                   }
                 ],
                 "module": "EbcDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "13AC6DD0-73D0-11D4-B06B-00AA00BD6DE7SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/EbcDxe/EbcDxe/OUTPUT/EbcDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "13AC6DD0-73D0-11D4-B06B-00AA00BD6DE7SEC2.1.pe32",
+                    "sha256": "0103649d18b854f081bf8f02538f60ea524a2a4529d9ab7e0e59ad11598e50b5",
+                    "size": 28676,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/EbcDxe/EbcDxe/OUTPUT/EbcDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "13AC6DD0-73D0-11D4-B06B-00AA00BD6DE7SEC3.ui",
+                    "sha256": "6adbbcf93f55764b6167c2f422647f72fd06ca93f39bbaccf75106e1018a579e",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "EbcDxe"
+                  }
+                ],
                 "sha256": "5d6d5f9435412ee6f6cf53e2932f69f6817b44e81e59d78705501995ccc6b458",
                 "size": 28742,
                 "ui_name": "EbcDxe"
@@ -7817,7 +8657,29 @@
                   }
                 ],
                 "module": "I2cDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "6D5E4989-3AEE-4B1F-9844-4F0A76D45B4DSEC1.1.dpx",
+                    "sha256": "727b9a4eb69f136b06341c901cb20399790592dba0490e54f160f3b55bb01d2d",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/I2cDxe/I2cDxe/OUTPUT/I2cDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "6D5E4989-3AEE-4B1F-9844-4F0A76D45B4DSEC2.1.pe32",
+                    "sha256": "ea0f43496cb9b8a0abbb537347e63075e96f87c21ad143438e86f89583c812d2",
+                    "size": 262148,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/I2cDxe/I2cDxe/OUTPUT/I2cDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "6D5E4989-3AEE-4B1F-9844-4F0A76D45B4DSEC3.ui",
+                    "sha256": "10eccc8e64cfd5350b5ff190466c37aaf895ffe942faa65e038a4041f673f62a",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "I2cDxe"
+                  }
+                ],
                 "sha256": "b8b5f3162edd608e46f2116cb487e967c8f009a9cd3d5368f939d5d42d3e5f89",
                 "size": 262230,
                 "ui_name": "I2cDxe"
@@ -7961,7 +8823,29 @@
                   }
                 ],
                 "module": "SpiDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "4A7306C0-0EA8-463B-8CA5-17E82F937E1DSEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/SpiDxe/SpiDxe/OUTPUT/SpiDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "4A7306C0-0EA8-463B-8CA5-17E82F937E1DSEC2.1.pe32",
+                    "sha256": "98f99c7f59f9015908251d7992092b85ed719b261a80a14856118d1ebcc5a05e",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Silicon/CIX/Sky1/Drivers/SpiDxe/SpiDxe/OUTPUT/SpiDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "4A7306C0-0EA8-463B-8CA5-17E82F937E1DSEC3.ui",
+                    "sha256": "73fbde0f5b5b4554f9dc6886d1794d33782f6b00aa9c1fada7b8cb98e0449243",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SpiDxe"
+                  }
+                ],
                 "sha256": "c376cb4fdd500b777fec593def6c861bc4215562b2851f823e5d025444abb18a",
                 "size": 24646,
                 "ui_name": "SpiDxe"
@@ -8084,7 +8968,22 @@
                   }
                 ],
                 "module": "DiskIoDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "6B38F7B4-AD98-40e9-9093-ACA2B5A253C4SEC2.1.pe32",
+                    "sha256": "50e445abc9b850b9a224873117e6bef01fd8028de465cb324d26a4a80e69b032",
+                    "size": 20484,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Disk/DiskIoDxe/DiskIoDxe/OUTPUT/DiskIoDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "6B38F7B4-AD98-40e9-9093-ACA2B5A253C4SEC3.ui",
+                    "sha256": "8fb2105cc088840ab5d6bfee0a8fdc989f2cd4a21603bea28e9770af6e5487bb",
+                    "size": 24,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "DiskIoDxe"
+                  }
+                ],
                 "sha256": "949b73ef1a019b42e35507697da7149c581b5a2920a89d074c102b05cd14f338",
                 "size": 20532,
                 "ui_name": "DiskIoDxe"
@@ -8100,7 +8999,22 @@
                   }
                 ],
                 "module": "PartitionDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "1FA1F39E-FEFF-4aae-BD7B-38A070A3B609SEC2.1.pe32",
+                    "sha256": "0f6a309c25c2887b0cbd87501c3779f4ae7754afdb52530285cb65f319259ac5",
+                    "size": 28676,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Disk/PartitionDxe/PartitionDxe/OUTPUT/PartitionDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "1FA1F39E-FEFF-4aae-BD7B-38A070A3B609SEC3.ui",
+                    "sha256": "1be2981706a008173089727e211f07b6f9a2981e65534f1f0d2909f5dd55ccb8",
+                    "size": 30,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "PartitionDxe"
+                  }
+                ],
                 "sha256": "d165f5a8697bdd2247bb0b0bb2f011ce94e0dfeae81fc01e24a3e03c43cb69e9",
                 "size": 28730,
                 "ui_name": "PartitionDxe"
@@ -8116,7 +9030,22 @@
                   }
                 ],
                 "module": "Fat",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "961578FE-B6B7-44c3-AF35-6BC705CD2B1FSEC2.1.pe32",
+                    "sha256": "a6ea5b1bca3586f569c56477ee34068ee4e0aebd6dc040f07e748c5f4f059909",
+                    "size": 36868,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/FatPkg/EnhancedFatDxe/Fat/OUTPUT/Fat.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "961578FE-B6B7-44c3-AF35-6BC705CD2B1FSEC3.ui",
+                    "sha256": "e71481ba5ae7b3279a8e24aa86d53cc72bbc521eff8f5c9f23e5dc6d25acefff",
+                    "size": 12,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "Fat"
+                  }
+                ],
                 "sha256": "69aad0a6390af4f61dd84e5611bcf0f859f3968a0b77396717c7fb34436d3d24",
                 "size": 36904,
                 "ui_name": "Fat"
@@ -8132,7 +9061,22 @@
                   }
                 ],
                 "module": "EnglishDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "CD3BAFB6-50FB-4fe8-8E4E-AB74D2C1A600SEC2.1.pe32",
+                    "sha256": "978c0069b42bfdf3a934a9ea3baabdd91c7d6f84f30e89967fe3dbeab3c0e98c",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe/OUTPUT/EnglishDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "CD3BAFB6-50FB-4fe8-8E4E-AB74D2C1A600SEC3.ui",
+                    "sha256": "cc4c3a4582a46d8401265a872154a032d473f49b54ad9c1074d7a228f003137d",
+                    "size": 26,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "EnglishDxe"
+                  }
+                ],
                 "sha256": "be76c911e8d517880c3089782694741f1bab9d2e3cbbfe7d2002784046dd2a13",
                 "size": 16438,
                 "ui_name": "EnglishDxe"
@@ -8148,7 +9092,29 @@
                   }
                 ],
                 "module": "AcpiTableDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "9622E42C-8E38-4a08-9E8F-54F784652F6BSEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe/OUTPUT/AcpiTableDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "9622E42C-8E38-4a08-9E8F-54F784652F6BSEC2.1.pe32",
+                    "sha256": "5ef94c28354a30b97a874495b44ef958e43174b651927d1af7bd78d364584934",
+                    "size": 28676,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe/OUTPUT/AcpiTableDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "9622E42C-8E38-4a08-9E8F-54F784652F6BSEC3.ui",
+                    "sha256": "09c233e8927d6d9a52f188583a66c99678627444af515223acff46fdac32a107",
+                    "size": 30,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "AcpiTableDxe"
+                  }
+                ],
                 "sha256": "3a59aa819f16fbd38d0c0138c859509ec9b1dafbd79c49460063a55485f7d382",
                 "size": 28754,
                 "ui_name": "AcpiTableDxe"
@@ -8164,7 +9130,71 @@
                   }
                 ],
                 "module": "gEfiAcpiTableStorageGuid",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "7E374E25-8E01-4FEE-87F2-390C23C606CDSEC1.1.raw",
+                    "sha256": "dc825c232ec0a6f02a8a50ae08b5f24165e4d60ee21f554dfac980903ca86efc",
+                    "size": 324,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Csrt.acpi",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "7E374E25-8E01-4FEE-87F2-390C23C606CDSEC1.2.raw",
+                    "sha256": "b72db1283b88db2b72ddcea56bd40b50f341fe202c90c4fe0ef42bf0661034de",
+                    "size": 292,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dbg2.acpi",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "7E374E25-8E01-4FEE-87F2-390C23C606CDSEC1.3.raw",
+                    "sha256": "e0c0da81c075cc08f8a99a69214d61b2f187c5dfe9f15aed2344853e8063c496",
+                    "size": 452,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Fadt.acpi",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "7E374E25-8E01-4FEE-87F2-390C23C606CDSEC1.4.raw",
+                    "sha256": "19b967b136095e2ea7a6835c8025d441c6dcd07052d9ecd47729a74ece32f7e7",
+                    "size": 324,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Gtdt.acpi",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "7E374E25-8E01-4FEE-87F2-390C23C606CDSEC1.5.raw",
+                    "sha256": "a74d38277623a5361387ac74728f4c382c13d57ca6c1785a922c80f69733c49b",
+                    "size": 2980,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort.acpi",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "7E374E25-8E01-4FEE-87F2-390C23C606CDSEC1.6.raw",
+                    "sha256": "0c1181a64d5b2692ed5e634d54b6b6b23eb9ccde48714483648c46101ec5e853",
+                    "size": 324,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Pcct.acpi",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "7E374E25-8E01-4FEE-87F2-390C23C606CDSEC1.7.raw",
+                    "sha256": "07c2633ca73f54d15255837a193f6ecb51b2e979a5f1905ede354cb413392165",
+                    "size": 228,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Sdei.acpi",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "7E374E25-8E01-4FEE-87F2-390C23C606CDSEC1.8.raw",
+                    "sha256": "7c79d4131334c23f914807b526b7f8dceb0be3b3c559516b9d8cec30a61b389f",
+                    "size": 260,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Spcr.acpi",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "7E374E25-8E01-4FEE-87F2-390C23C606CDSEC2.1.raw",
+                    "sha256": "ab30a5862146907a9b947d0ca3d0777a212f0f83403c88bf061a13aea0569553",
+                    "size": 71876,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml",
+                    "type": "EFI_SECTION_RAW"
+                  }
+                ],
                 "sha256": "e1489c7d5201b2794680e4fc69aa6c7bc0aa4ece7b7065673c86ac08820810a4",
                 "size": 77084,
                 "ui_name": "SocAcpiTables"
@@ -8180,7 +9210,29 @@
                   }
                 ],
                 "module": "AcpiSocDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "496EE240-DB1F-4A14-BD76-347FE9873624SEC1.1.dpx",
+                    "sha256": "91a3d6dfd62e816df50f8a2260daa0328a91df8acfaf268208c800ecdfadd2cd",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocDxe/AcpiSocDxe/OUTPUT/AcpiSocDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "496EE240-DB1F-4A14-BD76-347FE9873624SEC2.1.pe32",
+                    "sha256": "bef20e6e45aceee373ed6aa93a03beb0eb2d37f78866e2b1735a73a92736584d",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocDxe/AcpiSocDxe/OUTPUT/AcpiSocDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "496EE240-DB1F-4A14-BD76-347FE9873624SEC3.ui",
+                    "sha256": "041f1d0253854a034d614c9a67b2cc9d2bd1ce430f8750dca2199f0e51e1881f",
+                    "size": 26,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "AcpiSocDxe"
+                  }
+                ],
                 "sha256": "0ea8268532cd07ca4972d2490f1cf159c23ee5ffaedd74c0a8de3d5d3b9f9e28",
                 "size": 24670,
                 "ui_name": "AcpiSocDxe"
@@ -8196,7 +9248,29 @@
                   }
                 ],
                 "module": "ConfigurationManagerDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "d021a013-70ec-4b0d-9fbf-6bd1e245152dSEC1.1.dpx",
+                    "sha256": "b7c1a18458bcf1aa688af00a7e3058d453372894fa2631aa5c21da0d1da100d5",
+                    "size": 58,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/ConfigurationManagerDxe/ConfigurationManagerDxe/OUTPUT/ConfigurationManagerDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "d021a013-70ec-4b0d-9fbf-6bd1e245152dSEC2.1.pe32",
+                    "sha256": "57e48ad958581b93ae9610175d0b2f494308d3a18e0f8109d0cf69cb982b60f1",
+                    "size": 32772,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/ConfigurationManagerDxe/ConfigurationManagerDxe/OUTPUT/ConfigurationManagerDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "d021a013-70ec-4b0d-9fbf-6bd1e245152dSEC3.ui",
+                    "sha256": "61556f7121bacbe7f8bebe65c42481d3516b70792264d91607fe6eee5c770d00",
+                    "size": 52,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ConfigurationManagerDxe"
+                  }
+                ],
                 "sha256": "7f54cfa1ccb9af9313a6b7654cc54eef608d831ffd714f62677760c564cb9c9c",
                 "size": 32908,
                 "ui_name": "ConfigurationManagerDxe"
@@ -8212,7 +9286,29 @@
                   }
                 ],
                 "module": "DynamicTableFactoryDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "FE846898-7403-4932-B8AD-A0491F0C2CBASEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/DynamicTablesPkg/Drivers/DynamicTableFactoryDxe/DynamicTableFactoryDxe/OUTPUT/DynamicTableFactoryDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "FE846898-7403-4932-B8AD-A0491F0C2CBASEC2.1.pe32",
+                    "sha256": "622d9f702a210fb1a3a1aad1441f60dc6c7339f9a7e74494573d23b71acb0786",
+                    "size": 40964,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/DynamicTablesPkg/Drivers/DynamicTableFactoryDxe/DynamicTableFactoryDxe/OUTPUT/DynamicTableFactoryDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "FE846898-7403-4932-B8AD-A0491F0C2CBASEC3.ui",
+                    "sha256": "8292f84629bfb919df1062626f7bfe1d0cd0fed19db4abc9e5175ae500f70464",
+                    "size": 50,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "DynamicTableFactoryDxe"
+                  }
+                ],
                 "sha256": "94e79e31492ae8019c38d80fe7600204bd7daa30e45bcf095decc6db2474f1da",
                 "size": 41062,
                 "ui_name": "DynamicTableFactoryDxe"
@@ -8228,7 +9324,29 @@
                   }
                 ],
                 "module": "DynamicTableManagerDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "89122868-BCFD-49E8-88A3-06635CB7B3CFSEC1.1.dpx",
+                    "sha256": "bdc39b65bff576ce49394eb95853b7f47fe4ba3cc613172919678a403b858f87",
+                    "size": 76,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/DynamicTableManagerDxe/DynamicTableManagerDxe/OUTPUT/DynamicTableManagerDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "89122868-BCFD-49E8-88A3-06635CB7B3CFSEC2.1.pe32",
+                    "sha256": "55eed4d097569b7bd9de031bbc54a48889624985a755c7e5dc998e0c6529b8fa",
+                    "size": 12292,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/DynamicTableManagerDxe/DynamicTableManagerDxe/OUTPUT/DynamicTableManagerDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "89122868-BCFD-49E8-88A3-06635CB7B3CFSEC3.ui",
+                    "sha256": "10a08a44666a3cd14510516f729d224b2e2dbbdcd3c7128a282841f3c5155e99",
+                    "size": 50,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "DynamicTableManagerDxe"
+                  }
+                ],
                 "sha256": "e407c144c1a551e01918419f9fe1b895463493a165309d162184b091939a7361",
                 "size": 12442,
                 "ui_name": "DynamicTableManagerDxe"
@@ -8244,7 +9362,29 @@
                   }
                 ],
                 "module": "SmbiosDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "F9D88642-0737-49bc-81B5-6889CD57D9EASEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/SmbiosDxe/SmbiosDxe/OUTPUT/SmbiosDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "F9D88642-0737-49bc-81B5-6889CD57D9EASEC2.1.pe32",
+                    "sha256": "1b023ec1582554e3ada6c5adc526ac1491133a782f27ae827bc52432e26ed77f",
+                    "size": 20484,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/SmbiosDxe/SmbiosDxe/OUTPUT/SmbiosDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "F9D88642-0737-49bc-81B5-6889CD57D9EASEC3.ui",
+                    "sha256": "9ca80a85a20e1f3717379db67c05ce2586d61e1644932880638d592d6b1eb0c7",
+                    "size": 24,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SmbiosDxe"
+                  }
+                ],
                 "sha256": "156186bd2b633e4a96f76d526362d5d66892d574da2e245d1de7eb5a9ae52fff",
                 "size": 20556,
                 "ui_name": "SmbiosDxe"
@@ -8260,7 +9400,36 @@
                   }
                 ],
                 "module": "ProcessorSubClass",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "f3fe0e33-ea38-4069-9fb5-be23407207c7SEC1.1.dpx",
+                    "sha256": "4eb3f906ac12060d5299235564f1281c9ec5adb0143da7330893d398faf77762",
+                    "size": 130,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/ArmPkg/Universal/Smbios/ProcessorSubClassDxe/ProcessorSubClassDxe/OUTPUT/ProcessorSubClass.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "ProcessorSubClassOffset.raw",
+                    "sha256": "965a102b95e39c430c1ac204ae61001f53415791544f55593ca728bf20f20567",
+                    "size": 28,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/f3fe0e33-ea38-4069-9fb5-be23407207c7ProcessorSubClass/ProcessorSubClass.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "f3fe0e33-ea38-4069-9fb5-be23407207c7SEC2.1.pe32",
+                    "sha256": "df9d6c2cbf4f3802734305130b7c8b547b9882d73556a6883382307c28391b2b",
+                    "size": 28676,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/ArmPkg/Universal/Smbios/ProcessorSubClassDxe/ProcessorSubClassDxe/OUTPUT/ProcessorSubClass.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "f3fe0e33-ea38-4069-9fb5-be23407207c7SEC3.ui",
+                    "sha256": "c36f62ee13a474780d89016797d3d5274ee1a3b1b4c0aba42ad6e7b7a72529bd",
+                    "size": 40,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ProcessorSubClass"
+                  }
+                ],
                 "sha256": "7efdc38ec34db249758cbf9271a7c73a3abaa2703259dff367ef913b61a6b914",
                 "size": 28900,
                 "ui_name": "ProcessorSubClass"
@@ -8276,7 +9445,29 @@
                   }
                 ],
                 "module": "CixSmbiosDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "3BFC114C-98F1-492E-97D1-98567E4F20D0SEC1.1.dpx",
+                    "sha256": "7af930b0addfeee5f8bb723d844b5ab4f49d090c1555c4ebb58835ccf9b3bbb6",
+                    "size": 58,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/CixSmbiosDxe/CixSmbiosDxe/OUTPUT/CixSmbiosDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "3BFC114C-98F1-492E-97D1-98567E4F20D0SEC2.1.pe32",
+                    "sha256": "53694530c1219f5e33917b329e7ee31dbeb1f952a72cfbb88e77af959457d5ea",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/CixSmbiosDxe/CixSmbiosDxe/OUTPUT/CixSmbiosDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "3BFC114C-98F1-492E-97D1-98567E4F20D0SEC3.ui",
+                    "sha256": "2e6286dc9050c50415d027119dd0473195e7bdc69852598dd0a355c84ae4f5ec",
+                    "size": 30,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "CixSmbiosDxe"
+                  }
+                ],
                 "sha256": "0cdf7428c6e52f24917cf42cc3bebdb32a0a78a81bb33530934de0247319067b",
                 "size": 16502,
                 "ui_name": "CixSmbiosDxe"
@@ -8292,7 +9483,29 @@
                   }
                 ],
                 "module": "ArmPciCpuIo2Dxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "168D1A6E-F4A5-448A-9E95-795661BB3067SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/ArmPkg/Drivers/ArmPciCpuIo2Dxe/ArmPciCpuIo2Dxe/OUTPUT/ArmPciCpuIo2Dxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "168D1A6E-F4A5-448A-9E95-795661BB3067SEC2.1.pe32",
+                    "sha256": "0d37fcc41448f0cefa5056a06bdfdaa6a1b38de2dc2cd8bd4e76b431f05ad283",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/ArmPkg/Drivers/ArmPciCpuIo2Dxe/ArmPciCpuIo2Dxe/OUTPUT/ArmPciCpuIo2Dxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "168D1A6E-F4A5-448A-9E95-795661BB3067SEC3.ui",
+                    "sha256": "7ba7f22dc0d7147f2dda7fe091a555d392a2a987dc65e6c1e629692297a3ce33",
+                    "size": 36,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ArmPciCpuIo2Dxe"
+                  }
+                ],
                 "sha256": "10b7f02078eefe27608930619598745348ca34ab2cfb32eaef40c0298853c3d0",
                 "size": 16472,
                 "ui_name": "ArmPciCpuIo2Dxe"
@@ -8308,7 +9521,29 @@
                   }
                 ],
                 "module": "PciHostBridgeDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "128FB770-5E79-4176-9E51-9BB268A17DD1SEC1.1.dpx",
+                    "sha256": "91b152ce32379d9b3b1e05720f1fdec7835148e7a197a571d602875076c501b8",
+                    "size": 58,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridgeDxe/OUTPUT/PciHostBridgeDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "128FB770-5E79-4176-9E51-9BB268A17DD1SEC2.1.pe32",
+                    "sha256": "bd37400a5f424269be34fa6da4c29f4ae702bdf220f577e3675b662d552f3afe",
+                    "size": 28676,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridgeDxe/OUTPUT/PciHostBridgeDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "128FB770-5E79-4176-9E51-9BB268A17DD1SEC3.ui",
+                    "sha256": "2ec52d1ee6aa6e13f07315ac56da0f051748061db9dbb4821c3e5c85379fef6e",
+                    "size": 38,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "PciHostBridgeDxe"
+                  }
+                ],
                 "sha256": "2e084ac1e55cac821b38ca2a3e715fac8c505f7539fd196e2bf1dd9e201fca69",
                 "size": 28798,
                 "ui_name": "PciHostBridgeDxe"
@@ -8324,7 +9559,22 @@
                   }
                 ],
                 "module": "PciBusDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "93B80004-9FB3-11d4-9A3A-0090273FC14DSEC2.1.pe32",
+                    "sha256": "a57a421fbd5491faf5b6773401c029f068770ce8456917f6c9377e7ee85d924e",
+                    "size": 69636,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/Pci/PciBusDxe/PciBusDxe/OUTPUT/PciBusDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "93B80004-9FB3-11d4-9A3A-0090273FC14DSEC3.ui",
+                    "sha256": "8bc18f4d18d587f3df7e4eaf41735ed2cf892f95a92901d6e0ae8162372fef03",
+                    "size": 24,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "PciBusDxe"
+                  }
+                ],
                 "sha256": "4a3fad5c060cde8be407f9dcfa8ef37728a6aea0fabdbd2ac2b8eca3d30ea050",
                 "size": 69684,
                 "ui_name": "PciBusDxe"
@@ -8340,7 +9590,29 @@
                   }
                 ],
                 "module": "NonCoherentIoMmuDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "7ed510aa-9cdc-49d2-a306-6e11e359f9b3SEC1.1.dpx",
+                    "sha256": "3f2c642da2e578b5e6e5fac000d765093920f1a6f5c5f2c872b02ab8554cd8fa",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/Drivers/NonCoherentIoMmuDxe/NonCoherentIoMmuDxe/OUTPUT/NonCoherentIoMmuDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "7ed510aa-9cdc-49d2-a306-6e11e359f9b3SEC2.1.pe32",
+                    "sha256": "2f05874c9bcee7c0bcf2b7fd22c692ecc2e53fe185b49be4c3db4504bdf241a0",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/Drivers/NonCoherentIoMmuDxe/NonCoherentIoMmuDxe/OUTPUT/NonCoherentIoMmuDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "7ed510aa-9cdc-49d2-a306-6e11e359f9b3SEC3.ui",
+                    "sha256": "a50cf13ba75e5d0c290ee2273f1c1d75d1360bf531182e817e361f82b177cdad",
+                    "size": 44,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "NonCoherentIoMmuDxe"
+                  }
+                ],
                 "sha256": "cadcabfe25c8ba5159e83596f44b262f06959a3d0344ac13ba8f1de0a5c19168",
                 "size": 16496,
                 "ui_name": "NonCoherentIoMmuDxe"
@@ -8356,7 +9628,22 @@
                   }
                 ],
                 "module": "NvmExpressDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "5BE3BDF4-53CF-46a3-A6A9-73C34A6E5EE3SEC2.1.pe32",
+                    "sha256": "e71c803e0602a305ccef51240fd2041fe4e895f016ba36d4e5d94fe28060183e",
+                    "size": 36868,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/NvmExpressDxe/NvmExpressDxe/OUTPUT/NvmExpressDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "5BE3BDF4-53CF-46a3-A6A9-73C34A6E5EE3SEC3.ui",
+                    "sha256": "786ac8e7263077d57bec3d2ee345df3d95fa7ee52898ac467e61a3ad676429c5",
+                    "size": 32,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "NvmExpressDxe"
+                  }
+                ],
                 "sha256": "b214fe751e76eccffa56440087a1dd77e3bd33182c7b692eb780a011696fc3a1",
                 "size": 36924,
                 "ui_name": "NvmExpressDxe"
@@ -8372,7 +9659,29 @@
                   }
                 ],
                 "module": "CixFirmwareUpdateDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "16efdec8-3f12-490c-9c98-386b2329eaedSEC1.1.dpx",
+                    "sha256": "cfd76b584a3627e7733c0595d7b921e0d549d4cb5646a2c3d43ea1c09c0830a3",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/FirmwareUpdateDxe/FwUpdateProtocolDxe/OUTPUT/CixFirmwareUpdateDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "16efdec8-3f12-490c-9c98-386b2329eaedSEC2.1.pe32",
+                    "sha256": "d97a2d95f0a271ef17461600a0e723c34b3fc0a7538f834778413fb700fa128a",
+                    "size": 262148,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/FirmwareUpdateDxe/FwUpdateProtocolDxe/OUTPUT/CixFirmwareUpdateDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "16efdec8-3f12-490c-9c98-386b2329eaedSEC3.ui",
+                    "sha256": "3e766420820de406ee7634fd79048943d16f0e0e0d949b2371e981827b02a215",
+                    "size": 46,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "CixFirmwareUpdateDxe"
+                  }
+                ],
                 "sha256": "3fc4a91945e82c7af8ac50dba5fc1fef84ebf7614873e0a874b225408a10521e",
                 "size": 262258,
                 "ui_name": "CixFirmwareUpdateDxe"
@@ -8388,7 +9697,29 @@
                   }
                 ],
                 "module": "FwVersionProtocolTest",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "74C958A8-4905-9991-4560-1FB44569AF9ESEC1.1.dpx",
+                    "sha256": "611da227e7b3d0c669c60788944e2e4b775c019b075d48eabe54a0f398e1bc46",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionProtocolTest/OUTPUT/FwVersionProtocolTest.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "74C958A8-4905-9991-4560-1FB44569AF9ESEC2.1.pe32",
+                    "sha256": "70dc5af2af7caff4dc5864a9f46b9627070101ae9443230c52bd945c97ba0a43",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionProtocolTest/OUTPUT/FwVersionProtocolTest.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "74C958A8-4905-9991-4560-1FB44569AF9ESEC3.ui",
+                    "sha256": "daa6c3ad05c070d69f3ca96e847d929af19e1d0c8905c0c6d07236db4ab44a15",
+                    "size": 48,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "FwVersionProtocolTest"
+                  }
+                ],
                 "sha256": "f8ebb4eb1c3b6b7020af6fdad686af37376ee9c3c14adadb99823224f4565978",
                 "size": 16500,
                 "ui_name": "FwVersionProtocolTest"
@@ -8404,7 +9735,29 @@
                   }
                 ],
                 "module": "DpcDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "A210F973-229D-4f4d-AA37-9895E6C9EABASEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/DpcDxe/DpcDxe/OUTPUT/DpcDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "A210F973-229D-4f4d-AA37-9895E6C9EABASEC2.1.pe32",
+                    "sha256": "38892880ece0892aef8bebb6843ff5e303e3858a0d37fd0f19ed75f53f2ca6f3",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/DpcDxe/DpcDxe/OUTPUT/DpcDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "A210F973-229D-4f4d-AA37-9895E6C9EABASEC3.ui",
+                    "sha256": "59b772742586cb12f6f4e6dca522f0897be338982fdc551a6f76700cae88a738",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "DpcDxe"
+                  }
+                ],
                 "sha256": "0d3da8c7a77e5f9520118c0f6db67b9e0517171b406c205881f697738563fd66",
                 "size": 16454,
                 "ui_name": "DpcDxe"
@@ -8420,7 +9773,22 @@
                   }
                 ],
                 "module": "SnpDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "A2f436EA-A127-4EF8-957C-8048606FF670SEC2.1.pe32",
+                    "sha256": "9514cff97cbcb5c86e30a71920b4764e67ede084aa73d15418757ff0a52e168b",
+                    "size": 32772,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/SnpDxe/SnpDxe/OUTPUT/SnpDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "A2f436EA-A127-4EF8-957C-8048606FF670SEC3.ui",
+                    "sha256": "eec858274f146e1c2b6fef349b8565a71f92f1d2ca3acbbafac5d40353907b7c",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SnpDxe"
+                  }
+                ],
                 "sha256": "cca1fe52dc408697c6035c93bc65dfe7f2a0135ea5cd082a5811ef177e757191",
                 "size": 32814,
                 "ui_name": "SnpDxe"
@@ -8436,7 +9804,29 @@
                   }
                 ],
                 "module": "VlanConfigDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "VlanConfigDxeOffset.raw",
+                    "sha256": "102a8ef9028dc014f15ebbb5ad39b212b2b985831effe5ba5d31105adbbdbac0",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/E4F61863-FE2C-4b56-A8F4-08519BC439DFVlanConfigDxe/VlanConfigDxe.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "E4F61863-FE2C-4b56-A8F4-08519BC439DFSEC2.1.pe32",
+                    "sha256": "c27c0d8ea4a2a5c7cb0b8557702f61bda93f422914d7f7eab46112ace718f9e8",
+                    "size": 28676,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/VlanConfigDxe/VlanConfigDxe/OUTPUT/VlanConfigDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "E4F61863-FE2C-4b56-A8F4-08519BC439DFSEC3.ui",
+                    "sha256": "400c0fc782330cff01e58f79b6f2d3b629fbf0e87bbc629631c73d604fe822f0",
+                    "size": 32,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "VlanConfigDxe"
+                  }
+                ],
                 "sha256": "548eaa951804d238d51a77091b009de17d89df1937e77bc09aded65d3fae297c",
                 "size": 28784,
                 "ui_name": "VlanConfigDxe"
@@ -8452,7 +9842,22 @@
                   }
                 ],
                 "module": "MnpDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "025BBFC7-E6A9-4b8b-82AD-6815A1AEAF4ASEC2.1.pe32",
+                    "sha256": "ae9c9de5a4947033aca950f2b53527da9d72950bedda0a66b539c6c7b658d145",
+                    "size": 36868,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/MnpDxe/MnpDxe/OUTPUT/MnpDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "025BBFC7-E6A9-4b8b-82AD-6815A1AEAF4ASEC3.ui",
+                    "sha256": "038960bd2047bb3ea0621fc1bbf1f3eb89b4dc9db745d6324a27e7eb54656782",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "MnpDxe"
+                  }
+                ],
                 "sha256": "7ad642e9e7fd74baed2ede7e93b4906d32326091153198127119876746deae09",
                 "size": 36910,
                 "ui_name": "MnpDxe"
@@ -8468,7 +9873,22 @@
                   }
                 ],
                 "module": "ArpDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "529D3F93-E8E9-4e73-B1E1-BDF6A9D50113SEC2.1.pe32",
+                    "sha256": "6b771dbae2775c918920a2fccbd90d6190f09800bf77be36e1df49f5a631d899",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/ArpDxe/ArpDxe/OUTPUT/ArpDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "529D3F93-E8E9-4e73-B1E1-BDF6A9D50113SEC3.ui",
+                    "sha256": "d7a96e2e441a849caf472129365d3d7c66f2c7e56727cfc2936499b4ab4c5d4e",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ArpDxe"
+                  }
+                ],
                 "sha256": "4e2d5e645537d696999533f9b3189ca5a9fb3ebb1bd67379cb3c770205b8aa1b",
                 "size": 24622,
                 "ui_name": "ArpDxe"
@@ -8484,7 +9904,22 @@
                   }
                 ],
                 "module": "Dhcp4Dxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "94734718-0BBC-47fb-96A5-EE7A5AE6A2ADSEC2.1.pe32",
+                    "sha256": "a60e2cb86ba71ce54bda18a398d627236062a426f521506cab57eef7c857445b",
+                    "size": 36868,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/Dhcp4Dxe/Dhcp4Dxe/OUTPUT/Dhcp4Dxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "94734718-0BBC-47fb-96A5-EE7A5AE6A2ADSEC3.ui",
+                    "sha256": "0d7ef237b6e364e3d76593389a9ae528d17d1dcc2298cdc7c76600aaf6626e23",
+                    "size": 22,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "Dhcp4Dxe"
+                  }
+                ],
                 "sha256": "2f3ac940203c3d3dd901fba8ebefb8aba750dbeced6f5e1235ae1b3f86b73334",
                 "size": 36914,
                 "ui_name": "Dhcp4Dxe"
@@ -8500,7 +9935,29 @@
                   }
                 ],
                 "module": "Ip4Dxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "Ip4DxeOffset.raw",
+                    "sha256": "f30b4561399fd0974930f70f5e16606013ab59177db21756643d8ef50816ae33",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/9FB1A1F3-3B71-4324-B39A-745CBB015FFFIp4Dxe/Ip4Dxe.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "9FB1A1F3-3B71-4324-B39A-745CBB015FFFSEC2.1.pe32",
+                    "sha256": "5ef9f6f26316b64390910648b118258d31916d228832d0716de4128e87127c11",
+                    "size": 69636,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/Ip4Dxe/Ip4Dxe/OUTPUT/Ip4Dxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "9FB1A1F3-3B71-4324-B39A-745CBB015FFFSEC3.ui",
+                    "sha256": "9958099816cc5a21dba41e8d5ef31a19cf02defa17193668415e87cdef3c5867",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "Ip4Dxe"
+                  }
+                ],
                 "sha256": "65c3dcf91445b4a3ede40370a42d5c46b9b4469004cd6932e7b8ac6622f54338",
                 "size": 69730,
                 "ui_name": "Ip4Dxe"
@@ -8516,7 +9973,22 @@
                   }
                 ],
                 "module": "Udp4Dxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "6d6963ab-906d-4a65-a7ca-bd40e5d6af2bSEC2.1.pe32",
+                    "sha256": "210d98a3cfc567af0eeed7bc80bdaaea7963c8c6507edc8d7d152d49c2616ff6",
+                    "size": 36868,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/Udp4Dxe/Udp4Dxe/OUTPUT/Udp4Dxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "6d6963ab-906d-4a65-a7ca-bd40e5d6af2bSEC3.ui",
+                    "sha256": "d79b01bf0554343c3c22c2c07f37ab2c17f228ba2be8f49aba4b193e292230f7",
+                    "size": 20,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "Udp4Dxe"
+                  }
+                ],
                 "sha256": "d8cbb6646ca39a172caba7159a8a729c7df7fb55134b9b84ad1c42a3dee034ce",
                 "size": 36912,
                 "ui_name": "Udp4Dxe"
@@ -8532,7 +10004,22 @@
                   }
                 ],
                 "module": "Mtftp4Dxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "DC3641B8-2FA8-4ed3-BC1F-F9962A03454BSEC2.1.pe32",
+                    "sha256": "a1ca96d43daf603566edc5eed45f99327d284314d0eb6da78fed9117c7f917f5",
+                    "size": 40964,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/Mtftp4Dxe/Mtftp4Dxe/OUTPUT/Mtftp4Dxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "DC3641B8-2FA8-4ed3-BC1F-F9962A03454BSEC3.ui",
+                    "sha256": "70bd8c7c45c4cc8c2c4075294a2608b8dab308cadb0ce913e54d345c8e09f7ab",
+                    "size": 24,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "Mtftp4Dxe"
+                  }
+                ],
                 "sha256": "eb8f440967f4b6a539fc75081666ecfd96d5f368a0d26b68e0ce6de7de31cff5",
                 "size": 41012,
                 "ui_name": "Mtftp4Dxe"
@@ -8548,7 +10035,22 @@
                   }
                 ],
                 "module": "Dhcp6Dxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "95E3669D-34BE-4775-A651-7EA41B69D89ESEC2.1.pe32",
+                    "sha256": "23a7b97b5feb2ccbb711bb11487aaa5b109de4d5c9a27daa1962963b35062926",
+                    "size": 40964,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/Dhcp6Dxe/Dhcp6Dxe/OUTPUT/Dhcp6Dxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "95E3669D-34BE-4775-A651-7EA41B69D89ESEC3.ui",
+                    "sha256": "bcda9391f293df0219f4280ae7070ccfa4c3662efcd6a8d74e559e35f5cb5cd1",
+                    "size": 22,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "Dhcp6Dxe"
+                  }
+                ],
                 "sha256": "bba9608c27a03e3c07f946d7177f337f16cebbb38e46410d1a413dfc538f8fa4",
                 "size": 41010,
                 "ui_name": "Dhcp6Dxe"
@@ -8564,7 +10066,29 @@
                   }
                 ],
                 "module": "Ip6Dxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "Ip6DxeOffset.raw",
+                    "sha256": "0e92e988bb2ed36344f05496953d7fece4ac07ef3480110fada01004a34f4a06",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/5BEDB5CC-D830-4eb2-8742-2D4CC9B54F2CIp6Dxe/Ip6Dxe.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "5BEDB5CC-D830-4eb2-8742-2D4CC9B54F2CSEC2.1.pe32",
+                    "sha256": "2a5050c4ae917e6ab64fe4f46ae3e8f0f5c3662949ad0ca4b76c2d8cded62444",
+                    "size": 94212,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/Ip6Dxe/Ip6Dxe/OUTPUT/Ip6Dxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "5BEDB5CC-D830-4eb2-8742-2D4CC9B54F2CSEC3.ui",
+                    "sha256": "4b0ebe57657192d2e20996c42d8795c373353fb2f31439b3d733d0a90e2c9ed5",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "Ip6Dxe"
+                  }
+                ],
                 "sha256": "c235cf5b158cd8d5f08f36f08d8cb2f6c9fd7f53ec72b05ad0f7baf52a0f847c",
                 "size": 94306,
                 "ui_name": "Ip6Dxe"
@@ -8580,7 +10104,22 @@
                   }
                 ],
                 "module": "Udp6Dxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "D912C7BC-F098-4367-92BA-E911083C7B0ESEC2.1.pe32",
+                    "sha256": "891615dd0be922d8fadd28f384507af14b945f4ca9710339a2bcc617c0a6df81",
+                    "size": 36868,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/Udp6Dxe/Udp6Dxe/OUTPUT/Udp6Dxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "D912C7BC-F098-4367-92BA-E911083C7B0ESEC3.ui",
+                    "sha256": "c672b5831b343d925c6beb196b82f4e2afb8428e584ee85b6837cd83272c1b0c",
+                    "size": 20,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "Udp6Dxe"
+                  }
+                ],
                 "sha256": "5c06333d36719e5f0adfbb2091389095f57c1aabbb15426f36e0b5253d491e07",
                 "size": 36912,
                 "ui_name": "Udp6Dxe"
@@ -8596,7 +10135,22 @@
                   }
                 ],
                 "module": "Mtftp6Dxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "99F03B99-98D8-49dd-A8D3-3219D0FFE41ESEC2.1.pe32",
+                    "sha256": "2cb56f0198b2651e868736243914f2395baba1e61d049ce73880fb4b00dc5ed1",
+                    "size": 40964,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/Mtftp6Dxe/Mtftp6Dxe/OUTPUT/Mtftp6Dxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "99F03B99-98D8-49dd-A8D3-3219D0FFE41ESEC3.ui",
+                    "sha256": "46c0c57e51b2dc964c3d073a5b31f319f7407a939ad5a8b876af1735ca467d68",
+                    "size": 24,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "Mtftp6Dxe"
+                  }
+                ],
                 "sha256": "a60aa2192c7bcb45a3eed093ff89d001f06e9c80dffb7ca570457fbd5e165658",
                 "size": 41012,
                 "ui_name": "Mtftp6Dxe"
@@ -8612,7 +10166,22 @@
                   }
                 ],
                 "module": "TcpDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "1A7E4468-2F55-4a56-903C-01265EB7622BSEC2.1.pe32",
+                    "sha256": "dcd4f38070da5a77b901c80513d024ea691890084db8c42545b2bfeb821939b8",
+                    "size": 57348,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/TcpDxe/TcpDxe/OUTPUT/TcpDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "1A7E4468-2F55-4a56-903C-01265EB7622BSEC3.ui",
+                    "sha256": "133fdd0eff3ef174d674ab199472cd7a6f4f6a7e40e6bd4ac77985c9494d1c54",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "TcpDxe"
+                  }
+                ],
                 "sha256": "1367af64f98bdc94f65c6a627df5439cbffff4babc14ab914a29ff5893c46caf",
                 "size": 57390,
                 "ui_name": "TcpDxe"
@@ -8628,7 +10197,22 @@
                   }
                 ],
                 "module": "UefiPxeBcDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "B95E9FDA-26DE-48d2-8807-1F9107AC5E3ASEC2.1.pe32",
+                    "sha256": "0fd1dc5b9f257d211043e085cb29c15577502fcef5864e7b0f7c04ee40883e20",
+                    "size": 65540,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/UefiPxeBcDxe/UefiPxeBcDxe/OUTPUT/UefiPxeBcDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "B95E9FDA-26DE-48d2-8807-1F9107AC5E3ASEC3.ui",
+                    "sha256": "8dd0ba6f92156f558826f0e4a048cf2ac9f2dc51a722d9923aee179578b2b465",
+                    "size": 30,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "UefiPxeBcDxe"
+                  }
+                ],
                 "sha256": "31aeff2d90641a8bc837f931b89c7bfdf8f46013afde131ff9e5a08061017f44",
                 "size": 65594,
                 "ui_name": "UefiPxeBcDxe"
@@ -8644,7 +10228,22 @@
                   }
                 ],
                 "module": "DnsDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "b219e140-dffc-11e3-b956-0022681e6906SEC2.1.pe32",
+                    "sha256": "6854ea19b1d95238247caf7c00e7ec6be129713fe496855e1f47e9d5aa74d423",
+                    "size": 53252,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/DnsDxe/DnsDxe/OUTPUT/DnsDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "b219e140-dffc-11e3-b956-0022681e6906SEC3.ui",
+                    "sha256": "010f9c5edd497c0c533055db7b6fe5ddd0a9b0c3f8c8f3ede7317c34b3b9e7f9",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "DnsDxe"
+                  }
+                ],
                 "sha256": "7674c7b1de2f25cef246cb29193a5cc94bfb31b114faf54f9443d8dd1de67cb5",
                 "size": 53294,
                 "ui_name": "DnsDxe"
@@ -8660,7 +10259,22 @@
                   }
                 ],
                 "module": "HttpDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "2366c20f-e15a-11e3-8bf1-e4115b28bc50SEC2.1.pe32",
+                    "sha256": "544f17a0ca634f6acf9be2eacb2d1e2852b497816b25123e221dceb3afdb0f07",
+                    "size": 45060,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/HttpDxe/HttpDxe/OUTPUT/HttpDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "2366c20f-e15a-11e3-8bf1-e4115b28bc50SEC3.ui",
+                    "sha256": "2e5502537d5dec22f70d97908e103c1c416d1a3f21e3a08dd1b4cc1a6bead46d",
+                    "size": 20,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "HttpDxe"
+                  }
+                ],
                 "sha256": "640b4509201eeed3c1b5a2ea77e32d5c3b5cd52bee3caca008d3c425a7c4244b",
                 "size": 45104,
                 "ui_name": "HttpDxe"
@@ -8676,7 +10290,29 @@
                   }
                 ],
                 "module": "HttpUtilitiesDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "22ea234f-e72a-11e4-91f9-28d2447c4829SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/HttpUtilitiesDxe/HttpUtilitiesDxe/OUTPUT/HttpUtilitiesDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "22ea234f-e72a-11e4-91f9-28d2447c4829SEC2.1.pe32",
+                    "sha256": "ab1e7b19894c2c8d334babd94ff08c8324b6624e40e8af37da9b60218e9e9d1a",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/HttpUtilitiesDxe/HttpUtilitiesDxe/OUTPUT/HttpUtilitiesDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "22ea234f-e72a-11e4-91f9-28d2447c4829SEC3.ui",
+                    "sha256": "f67bf05c554fcae08c8210675a11dfef33d171537e9ee16256abc811b83627ba",
+                    "size": 38,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "HttpUtilitiesDxe"
+                  }
+                ],
                 "sha256": "fd0b8db4d4bf769dfff8c7cb9ad8469cc0355d59498bc75cf2164de268d857c3",
                 "size": 16474,
                 "ui_name": "HttpUtilitiesDxe"
@@ -8692,7 +10328,29 @@
                   }
                 ],
                 "module": "HttpBootDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "HttpBootDxeOffset.raw",
+                    "sha256": "3ac5abde04653b89389a64e68df8a9bee970a1bc408be81a2c8fa444867d1897",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/ecebcb00-d9c8-11e4-af3d-8cdcd426c973HttpBootDxe/HttpBootDxe.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "ecebcb00-d9c8-11e4-af3d-8cdcd426c973SEC2.1.pe32",
+                    "sha256": "03924ee9a79ab5748110747ca9de5521e3e0c60a463227f3c1e23a9db3995af5",
+                    "size": 61444,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/NetworkPkg/HttpBootDxe/HttpBootDxe/OUTPUT/HttpBootDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "ecebcb00-d9c8-11e4-af3d-8cdcd426c973SEC3.ui",
+                    "sha256": "f93d10843107a6df71b76c506b9de205b43d0334e10bbc9fdcee9d0468387673",
+                    "size": 28,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "HttpBootDxe"
+                  }
+                ],
                 "sha256": "544db59c3b3f7f983673e5fe79e5c2e9fb3a979f5c956a105512fdd1ca266d5f",
                 "size": 61548,
                 "ui_name": "HttpBootDxe"
@@ -8708,7 +10366,29 @@
                   }
                 ],
                 "module": "BootManagerPolicyDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "E622443C-284E-4b47-A984-FD66B482DAC0SEC1.1.dpx",
+                    "sha256": "e7a0f4c6233dd24f2de45e112a672aca7d5a267ce9168712edf7f99f5bbd61a8",
+                    "size": 76,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/BootManagerPolicyDxe/BootManagerPolicyDxe/OUTPUT/BootManagerPolicyDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "E622443C-284E-4b47-A984-FD66B482DAC0SEC2.1.pe32",
+                    "sha256": "560436f30f776f76ea122bd726a41e77238a13bd89e9c55d9dbb9b03fb97bf15",
+                    "size": 20484,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/BootManagerPolicyDxe/BootManagerPolicyDxe/OUTPUT/BootManagerPolicyDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "E622443C-284E-4b47-A984-FD66B482DAC0SEC3.ui",
+                    "sha256": "8c97f415ebb2c91ebdeafa01386fe545039c0882ab63fd5ee1063f6c90e3ca2e",
+                    "size": 46,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "BootManagerPolicyDxe"
+                  }
+                ],
                 "sha256": "56fa24338a17d572df3296bde11fa6e12720766fd168a9e010abc01529ef25be",
                 "size": 20630,
                 "ui_name": "BootManagerPolicyDxe"
@@ -8724,7 +10404,29 @@
                   }
                 ],
                 "module": "UiApp",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "462CAA21-7614-4503-836E-8AB6F4662331SEC1.ui",
+                    "sha256": "387a37ee50b1ccab63be9fc44be687c50b135587a1b2693bec5c128bb78765e6",
+                    "size": 16,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "UiApp"
+                  },
+                  {
+                    "path": "UiAppOffset.raw",
+                    "sha256": "3ae3a2d95e65e2f0e5e04211faa4a8f5a5fd564a020cea00c7885abca5e0cef6",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/462CAA21-7614-4503-836E-8AB6F4662331UiApp/UiApp.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "462CAA21-7614-4503-836E-8AB6F4662331SEC2.1.pe32",
+                    "sha256": "a8f3b8589a84b9437a1d5903ddd9e495627f7bc64f7fe9f006aa853b4213efb7",
+                    "size": 135172,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Application/UiApp/UiApp/OUTPUT/UiApp.efi",
+                    "type": "EFI_SECTION_PE32"
+                  }
+                ],
                 "sha256": "d19bb7483ba512ab3d67dd78aa96beb4086a82b557905ece09d04305ef51cf85",
                 "size": 135264,
                 "ui_name": "UiApp"
@@ -8740,7 +10442,29 @@
                   }
                 ],
                 "module": "DevicePathDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "9B680FCE-AD6B-4F3A-B60B-F59899003443SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/DevicePathDxe/DevicePathDxe/OUTPUT/DevicePathDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "9B680FCE-AD6B-4F3A-B60B-F59899003443SEC2.1.pe32",
+                    "sha256": "c0290e0478a80cc6eab6875eddadad101c7cd4f6d5cebcdca8f79b23b47d7ba0",
+                    "size": 53252,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/DevicePathDxe/DevicePathDxe/OUTPUT/DevicePathDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "9B680FCE-AD6B-4F3A-B60B-F59899003443SEC3.ui",
+                    "sha256": "e2734955aab55d5877c863e810d2fd9e060e7348eec300e1d25125c50e608362",
+                    "size": 32,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "DevicePathDxe"
+                  }
+                ],
                 "sha256": "a340549c9afdb811f7fbf46c9c828d59a4b748274ce927805f3c8fdf7e125a52",
                 "size": 53332,
                 "ui_name": "DevicePathDxe"
@@ -8756,7 +10480,36 @@
                   }
                 ],
                 "module": "DisplayEngine",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "E660EA85-058E-4b55-A54B-F02F83A24707SEC1.1.dpx",
+                    "sha256": "3217f0c0b6968402b0017a3789e3da9c940e11ed22cfc40f7f04edd59c6daf8e",
+                    "size": 94,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe/OUTPUT/DisplayEngine.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "DisplayEngineOffset.raw",
+                    "sha256": "19590d0fd4663436efdfeb7d320329a781a6ace9e481f60d9fd70462d5acb981",
+                    "size": 28,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/E660EA85-058E-4b55-A54B-F02F83A24707DisplayEngine/DisplayEngine.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "E660EA85-058E-4b55-A54B-F02F83A24707SEC2.1.pe32",
+                    "sha256": "090917a873cb21b3be658ebb029115e93042ada7cdcb143fdb4a45d38c6820fa",
+                    "size": 73732,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe/OUTPUT/DisplayEngine.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "E660EA85-058E-4b55-A54B-F02F83A24707SEC3.ui",
+                    "sha256": "b22f1d1d73b5b57a319d43e6acdd48b325e8d3168e74b1fffc5cb72b6b69ea52",
+                    "size": 32,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "DisplayEngine"
+                  }
+                ],
                 "sha256": "6c38d1dbf4f306ac7c1b8c0d3dc9716a7fa2c4683badd87d16f970bbdb109b3a",
                 "size": 73912,
                 "ui_name": "DisplayEngine"
@@ -8772,7 +10525,29 @@
                   }
                 ],
                 "module": "SetupBrowser",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "EBf342FE-B1D3-4EF8-957C-8048606FF671SEC1.1.dpx",
+                    "sha256": "785060ac359306503f5fe4b1085b14d4286cc2d07f74d576219344863cf439a6",
+                    "size": 76,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe/OUTPUT/SetupBrowser.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "EBf342FE-B1D3-4EF8-957C-8048606FF671SEC2.1.pe32",
+                    "sha256": "7d072df4504e10270ff7b4d1440cc891810b636d106b6d253cc5ed772ff1e6e2",
+                    "size": 77828,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe/OUTPUT/SetupBrowser.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "EBf342FE-B1D3-4EF8-957C-8048606FF671SEC3.ui",
+                    "sha256": "7b38c909534ea28b866de56a1db72bfb6f293f4bc550b0fc62f51dab7b73b62f",
+                    "size": 30,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SetupBrowser"
+                  }
+                ],
                 "sha256": "b8e535bf83e8ac4736c44dfb3d0139d32954bd3455ef4111ddad01680c743aa3",
                 "size": 77958,
                 "ui_name": "SetupBrowser"
@@ -8788,7 +10563,29 @@
                   }
                 ],
                 "module": "BdsDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "6D33944A-EC75-4855-A54D-809C75241F6CSEC1.1.dpx",
+                    "sha256": "e7a0f4c6233dd24f2de45e112a672aca7d5a267ce9168712edf7f99f5bbd61a8",
+                    "size": 76,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/BdsDxe/BdsDxe/OUTPUT/BdsDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "6D33944A-EC75-4855-A54D-809C75241F6CSEC2.1.pe32",
+                    "sha256": "ce6b6ce66f9ad2222f17d8473beaf6522d47cef98e8a7e0539936a3c5138fbf6",
+                    "size": 81924,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/BdsDxe/BdsDxe/OUTPUT/BdsDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "6D33944A-EC75-4855-A54D-809C75241F6CSEC3.ui",
+                    "sha256": "87bdfbef835a4d05af5c2242b65586b93430b92d22752e76842954a6af74eed3",
+                    "size": 18,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "BdsDxe"
+                  }
+                ],
                 "sha256": "826b2c6602b2ce7d65c6695888e65036dd3c87bb43efabfb8af8ed2a94fef7ee",
                 "size": 82042,
                 "ui_name": "BdsDxe"
@@ -8804,7 +10601,29 @@
                   }
                 ],
                 "module": "LogoDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "b8267b10-b0c8-4631-8ec4-442a62f7970fSEC1.1.dpx",
+                    "sha256": "a6ab5d6dc512153b66e4e4ae888aa752221badbb80fa47eef2e3759492858f63",
+                    "size": 58,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Drivers/Logo/LogoDxe/OUTPUT/LogoDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "b8267b10-b0c8-4631-8ec4-442a62f7970fSEC2.1.pe32",
+                    "sha256": "f2596d79665297687d8c748c08e4bec08094e47dd4cdcc89405de6f279e8b60a",
+                    "size": 425988,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Drivers/Logo/LogoDxe/OUTPUT/LogoDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "b8267b10-b0c8-4631-8ec4-442a62f7970fSEC3.ui",
+                    "sha256": "b1b6a7a8d10bb9bbba8a7862833007131668ec63e5954ecc967b0fe34f1be950",
+                    "size": 20,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "LogoDxe"
+                  }
+                ],
                 "sha256": "4aaefa70bb18da1e68f2cc5d752c7105daa5a96702786af1fd0d0fca6d78cf6e",
                 "size": 426092,
                 "ui_name": "LogoDxe"
@@ -8820,7 +10639,36 @@
                   }
                 ],
                 "module": "SystemInfoDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "edb82499-30d4-4481-b4f9-0f1685480096SEC1.1.dpx",
+                    "sha256": "e7a0f4c6233dd24f2de45e112a672aca7d5a267ce9168712edf7f99f5bbd61a8",
+                    "size": 76,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe/SystemInfoDxe/OUTPUT/SystemInfoDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "SystemInfoDxeOffset.raw",
+                    "sha256": "073cb4ce43b38e195f1345a63e818c096416368952dd8ff917f08d24d2a76403",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/edb82499-30d4-4481-b4f9-0f1685480096SystemInfoDxe/SystemInfoDxe.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "edb82499-30d4-4481-b4f9-0f1685480096SEC2.1.pe32",
+                    "sha256": "98c51cb522fdedf5fdddbecd70b4cc8e61846e73a9ef8a291089a9402b4acac1",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe/SystemInfoDxe/OUTPUT/SystemInfoDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "edb82499-30d4-4481-b4f9-0f1685480096SEC3.ui",
+                    "sha256": "64b0ff39e9fb5e31fe76e1b4ddd0ae419b8f829cec6eb89f5705b087b123458b",
+                    "size": 32,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SystemInfoDxe"
+                  }
+                ],
                 "sha256": "b0c80ac971275f73fba79b00de94556ecf46139346646110e4b1a3b82c243b1c",
                 "size": 24764,
                 "ui_name": "SystemInfoDxe"
@@ -8836,7 +10684,29 @@
                   }
                 ],
                 "module": "PlatformSetupVariableInitDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "4C7FCED5-9CD6-4F33-AD33-A2EC35DFDE71SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/PlatformSetupVariableInitDxe/PlatformSetupVariableInitDxe/OUTPUT/PlatformSetupVariableInitDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "4C7FCED5-9CD6-4F33-AD33-A2EC35DFDE71SEC2.1.pe32",
+                    "sha256": "998e5606a244cb4fbd49ef770e6d29f6d285a7558c5470a90bac5999beed10b1",
+                    "size": 28676,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/PlatformSetupVariableInitDxe/PlatformSetupVariableInitDxe/OUTPUT/PlatformSetupVariableInitDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "4C7FCED5-9CD6-4F33-AD33-A2EC35DFDE71SEC3.ui",
+                    "sha256": "1efc672c37f80cca4ad487bd3c9452c22cf6f80ec9aa0baa3842669260fa50e2",
+                    "size": 62,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "PlatformSetupVariableInitDxe"
+                  }
+                ],
                 "sha256": "f932c17851e689390826890ce0e98a471f425b209da0efeda746ec42a05f1f00",
                 "size": 28786,
                 "ui_name": "PlatformSetupVariableInitDxe"
@@ -8852,7 +10722,36 @@
                   }
                 ],
                 "module": "PlatformConfigDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "1ffdaa93-a1d1-40eb-adc8-37eeb86a7995SEC1.1.dpx",
+                    "sha256": "e7a0f4c6233dd24f2de45e112a672aca7d5a267ce9168712edf7f99f5bbd61a8",
+                    "size": 76,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigDxe/OUTPUT/PlatformConfigDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "PlatformConfigDxeOffset.raw",
+                    "sha256": "c429c33982861cb4062ddaa6a259093eb5834a6068df2aea9c4fcf15cf73f866",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/1ffdaa93-a1d1-40eb-adc8-37eeb86a7995PlatformConfigDxe/PlatformConfigDxe.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "1ffdaa93-a1d1-40eb-adc8-37eeb86a7995SEC2.1.pe32",
+                    "sha256": "c862c5fe107352af9c215c06ffb7899115e4015b9053567c41d73241a068599c",
+                    "size": 45060,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigDxe/OUTPUT/PlatformConfigDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "1ffdaa93-a1d1-40eb-adc8-37eeb86a7995SEC3.ui",
+                    "sha256": "2924ef28628c9b37c8bd8ddd271033d204b9bc6c4359e3e3ced90f8b58e9f466",
+                    "size": 40,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "PlatformConfigDxe"
+                  }
+                ],
                 "sha256": "16795f50ee836f76d511d8220717074d33a3b3a0a646a5888d2ae3cdc820fe3c",
                 "size": 45252,
                 "ui_name": "PlatformConfigDxe"
@@ -8868,7 +10767,29 @@
                   }
                 ],
                 "module": "RadxaSetupVariableInitDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "58ec6163-b79d-4397-be82-65f2db5ed645SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Platforms/CIX/Sky1/Drivers/RadxaSetupVariableInitDxe/RadxaSetupVariableInitDxe/OUTPUT/RadxaSetupVariableInitDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "58ec6163-b79d-4397-be82-65f2db5ed645SEC2.1.pe32",
+                    "sha256": "5d71c4b37aa2dd962f9bd1bf250f4d407e80209ac01348da673555fb7b1a318e",
+                    "size": 12292,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Platforms/CIX/Sky1/Drivers/RadxaSetupVariableInitDxe/RadxaSetupVariableInitDxe/OUTPUT/RadxaSetupVariableInitDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "58ec6163-b79d-4397-be82-65f2db5ed645SEC3.ui",
+                    "sha256": "4ad75f58456b6af6fbced80dae38fdbdf87fb329086417813d819f27907bdd91",
+                    "size": 56,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "RadxaSetupVariableInitDxe"
+                  }
+                ],
                 "sha256": "93c902e03fad11bc8cff6f946777d1c819ab1f71f9b7a98604fb7da6e0bbb1a9",
                 "size": 12396,
                 "ui_name": "RadxaSetupVariableInitDxe"
@@ -8884,7 +10805,29 @@
                   }
                 ],
                 "module": "FirmwareConfigUpdateDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "4a7ede18-8bdc-4ae1-9bd5-d1f1b2bccb5fSEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Platforms/CIX/Sky1/Drivers/FirmwareConfigUpdateDxe/FirmwareConfigUpdateDxe/OUTPUT/FirmwareConfigUpdateDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "4a7ede18-8bdc-4ae1-9bd5-d1f1b2bccb5fSEC2.1.pe32",
+                    "sha256": "07691608c7563fae8ae9a31e41cc4ef66ec457f27b7d7ca6d3d5917a16938cfc",
+                    "size": 12292,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Platforms/CIX/Sky1/Drivers/FirmwareConfigUpdateDxe/FirmwareConfigUpdateDxe/OUTPUT/FirmwareConfigUpdateDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "4a7ede18-8bdc-4ae1-9bd5-d1f1b2bccb5fSEC3.ui",
+                    "sha256": "6c2973223c6a7798ee7f08bfee1f16f605a30624fdcf2221b8fad6d72078daf1",
+                    "size": 52,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "FirmwareConfigUpdateDxe"
+                  }
+                ],
                 "sha256": "a36ecf4db11008513144d99a3baaaaeeb8e5784187058501878182930f370f80",
                 "size": 12392,
                 "ui_name": "FirmwareConfigUpdateDxe"
@@ -8900,7 +10843,36 @@
                   }
                 ],
                 "module": "SeConfigUpdateDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "D3BEA75B-165C-440f-830D-C972EFA4BED1SEC1.1.dpx",
+                    "sha256": "e7a0f4c6233dd24f2de45e112a672aca7d5a267ce9168712edf7f99f5bbd61a8",
+                    "size": 76,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SeConfigUpdateDxe/SeConfigUpdateDxe/OUTPUT/SeConfigUpdateDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "SeConfigUpdateDxeOffset.raw",
+                    "sha256": "f4c8357cb3c445cf1c13c8ba811ebe261919e811308ade080affb7f1ce6911e9",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/D3BEA75B-165C-440f-830D-C972EFA4BED1SeConfigUpdateDxe/SeConfigUpdateDxe.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "D3BEA75B-165C-440f-830D-C972EFA4BED1SEC2.1.pe32",
+                    "sha256": "88f59363da29ea5b30505a86c9870c1c67b0749d746817edfdf25c8bb4e3cd89",
+                    "size": 20484,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SeConfigUpdateDxe/SeConfigUpdateDxe/OUTPUT/SeConfigUpdateDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "D3BEA75B-165C-440f-830D-C972EFA4BED1SEC3.ui",
+                    "sha256": "8f6147a533b645853371eeb4e1b432be9b8d329702ac743071626faf74e12e3d",
+                    "size": 40,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SeConfigUpdateDxe"
+                  }
+                ],
                 "sha256": "dd1a5d011d745e074f95ac9f8ef2f34de283c410c702d9585f92dc156d794990",
                 "size": 20676,
                 "ui_name": "SeConfigUpdateDxe"
@@ -8916,7 +10888,36 @@
                   }
                 ],
                 "module": "DtPlatformDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "FC097B3C-2EBD-4A75-A3DA-121DCAB365CCSEC1.1.dpx",
+                    "sha256": "ca62ed5d809ccdb88aec9533bb5a031e9bdcf22056fc21e5dc37906977f837b4",
+                    "size": 112,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/Drivers/DtPlatformDxe/DtPlatformDxe/OUTPUT/DtPlatformDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "DtPlatformDxeOffset.raw",
+                    "sha256": "77b36adb7c9a785af7b8f41754bc9e2412e7b503c4eae818d2da5f3d1d06e975",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/FC097B3C-2EBD-4A75-A3DA-121DCAB365CCDtPlatformDxe/DtPlatformDxe.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "FC097B3C-2EBD-4A75-A3DA-121DCAB365CCSEC2.1.pe32",
+                    "sha256": "33bfaf6e7981d9ea718aac710ad676b5816095f442f4b975c28692dec520e435",
+                    "size": 12292,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/EmbeddedPkg/Drivers/DtPlatformDxe/DtPlatformDxe/OUTPUT/DtPlatformDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "FC097B3C-2EBD-4A75-A3DA-121DCAB365CCSEC3.ui",
+                    "sha256": "bef2d02573f75f133073d43214f02e5dec53922bd248c86a233a2ca3304118df",
+                    "size": 32,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "DtPlatformDxe"
+                  }
+                ],
                 "sha256": "70fb6a372294afedf46f9d0e01ef8fbecb9a21fb894793572ed78de387d6348e",
                 "size": 12512,
                 "ui_name": "DtPlatformDxe"
@@ -8932,7 +10933,22 @@
                   }
                 ],
                 "module": "VariableInfo",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "202A2922-8C27-4943-9855-26180BF9F113SEC1.ui",
+                    "sha256": "9c9a9cd5261f183a866062c505d223ac7be6c6b1855d023f3d8094cbb60218f9",
+                    "size": 30,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "VariableInfo"
+                  },
+                  {
+                    "path": "202A2922-8C27-4943-9855-26180BF9F113SEC2.1.pe32",
+                    "sha256": "973363a10a16ff240e53ca2532ce4281880961ff9c00f772ddebaca76a782fbf",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Application/VariableInfo/VariableInfo/OUTPUT/VariableInfo.efi",
+                    "type": "EFI_SECTION_PE32"
+                  }
+                ],
                 "sha256": "1da39ba4cee924a7529ef68a327b7cd7eb20b691bebc39ad8a91dfcd00b0ad97",
                 "size": 16444,
                 "ui_name": "VariableInfo"
@@ -8948,7 +10964,43 @@
                   }
                 ],
                 "module": "RamDiskDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "28A03FF4-12B3-4305-A417-BB1A4F94081ESEC1.1.dpx",
+                    "sha256": "1727b1d93ec3c8c210810bb9bd3ab9037876c132bdae71a686492bae3341bfc1",
+                    "size": 94,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe/OUTPUT/RamDiskDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "RamDiskDxeOffset.raw",
+                    "sha256": "f7b33c9370e2dd89b2abdeaacaf2375f09647c85a8e3fa04b8b7536015e04726",
+                    "size": 52,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/28A03FF4-12B3-4305-A417-BB1A4F94081ERamDiskDxe/RamDiskDxe.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "28A03FF4-12B3-4305-A417-BB1A4F94081ESEC2.1.pe32",
+                    "sha256": "8288da57b9fe09feb38082d724354b37ee33b82be5426e9ed839225d2d558ee7",
+                    "size": 45060,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe/OUTPUT/RamDiskDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "28A03FF4-12B3-4305-A417-BB1A4F94081ESEC3.ui",
+                    "sha256": "893a1682ba840c01525b2e71e0245b488673ab4106cf9e3968b70f9c5910e163",
+                    "size": 26,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "RamDiskDxe"
+                  },
+                  {
+                    "path": "28A03FF4-12B3-4305-A417-BB1A4F94081ESEC5.1.raw",
+                    "sha256": "50edbef1131b6a4c3e59f243261df266127eff39a612f6b6df682ba49d0fa3d3",
+                    "size": 128,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe/OUTPUT/RamDisk.aml",
+                    "type": "EFI_SECTION_RAW"
+                  }
+                ],
                 "sha256": "6570c4a58d3b09ce640b14de91f73b0c1b7a0e3aeb0827cc4beae0271bbe0ded",
                 "size": 45388,
                 "ui_name": "RamDiskDxe"
@@ -9023,7 +11075,22 @@
                   }
                 ],
                 "module": "AtaAtapiPassThruDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "5E523CB4-D397-4986-87BD-A6DD8B22F455SEC2.1.pe32",
+                    "sha256": "26edda0496cbb89f50065e5cdeee7d1bcc5d68d016fa8409c60a590e6c07c8d3",
+                    "size": 36868,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru/OUTPUT/AtaAtapiPassThruDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "5E523CB4-D397-4986-87BD-A6DD8B22F455SEC3.ui",
+                    "sha256": "27121670e7af8be57c23c7ac9f01cf2b96dce01fc41ed98f48c28d0268e48e44",
+                    "size": 44,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "AtaAtapiPassThruDxe"
+                  }
+                ],
                 "sha256": "f6d4152a7b12f265cd64b3164586d118e76575ee5a814d233f6759d0b9624127",
                 "size": 36936,
                 "ui_name": "AtaAtapiPassThruDxe"
@@ -9039,7 +11106,22 @@
                   }
                 ],
                 "module": "AtaBusDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "19DF145A-B1D4-453f-8507-38816676D7F6SEC2.1.pe32",
+                    "sha256": "4f15b2329cf9480c05af941da49a2eb292c8edd748db79ce8b864e9a5316df57",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe/OUTPUT/AtaBusDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "19DF145A-B1D4-453f-8507-38816676D7F6SEC3.ui",
+                    "sha256": "49a3e4c28e787e3c18ed2940822f5f1b46fff2b06f127b930c7f6bfc9d296e63",
+                    "size": 24,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "AtaBusDxe"
+                  }
+                ],
                 "sha256": "746e0374fa1cfc1f30db63464bbfaf7e91bec73408d381b7958d68cbd1803bd0",
                 "size": 24628,
                 "ui_name": "AtaBusDxe"
@@ -9055,7 +11137,22 @@
                   }
                 ],
                 "module": "SataController",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "820C59BB-274C-43B2-83EA-DAC673035A59SEC2.1.pe32",
+                    "sha256": "2548c19d40daed7e7731a1b2350c59171a549e81466718e77b7b5c9d5d0e74bb",
+                    "size": 16388,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Bus/Pci/SataControllerDxe/SataControllerDxe/OUTPUT/SataController.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "820C59BB-274C-43B2-83EA-DAC673035A59SEC3.ui",
+                    "sha256": "134b23cf91ee31baa5c8fb787ae264957f6cb1273ae502267d4f975fdb31b91c",
+                    "size": 34,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SataController"
+                  }
+                ],
                 "sha256": "73b1518d9a62f752e693fb92b4455d9bd8ada8ac5dc5c705e44cf2f2f5f6f802",
                 "size": 16446,
                 "ui_name": "SataController"
@@ -9071,7 +11168,29 @@
                   }
                 ],
                 "module": "ReportStatusCodeRouterRuntimeDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "D93CE3D8-A7EB-4730-8C8E-CC466A9ECC3CSEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/ReportStatusCodeRouter/RuntimeDxe/ReportStatusCodeRouterRuntimeDxe/OUTPUT/ReportStatusCodeRouterRuntimeDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "D93CE3D8-A7EB-4730-8C8E-CC466A9ECC3CSEC2.1.pe32",
+                    "sha256": "c4a4c4a509e36dd8ecb67e6bc643acc8402426e50ee6078c8e5dca9e7cee1e37",
+                    "size": 262148,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/ReportStatusCodeRouter/RuntimeDxe/ReportStatusCodeRouterRuntimeDxe/OUTPUT/ReportStatusCodeRouterRuntimeDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "D93CE3D8-A7EB-4730-8C8E-CC466A9ECC3CSEC3.ui",
+                    "sha256": "e52dbf28e35720f78080645729294b3229038d7939e31fddb5828bd72ee03967",
+                    "size": 70,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "ReportStatusCodeRouterRuntimeDxe"
+                  }
+                ],
                 "sha256": "8e87b66a922d25822ce929f220faf5c0cdf8e24752d87364ae3e362e8338da24",
                 "size": 262266,
                 "ui_name": "ReportStatusCodeRouterRuntimeDxe"
@@ -9087,7 +11206,29 @@
                   }
                 ],
                 "module": "FirmwarePerformanceDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "00160F8D-2B35-4df2-BBE0-B272A8D631F0SEC1.1.dpx",
+                    "sha256": "7192e8a0c51d3bcf4b74c3e8932e01c8f844868059b0d05f50a8518cef62bc7f",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Acpi/FirmwarePerformanceDataTableDxe/FirmwarePerformanceDxe/OUTPUT/FirmwarePerformanceDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "00160F8D-2B35-4df2-BBE0-B272A8D631F0SEC2.1.pe32",
+                    "sha256": "09df0d29c6bf6123339e4a630d41398f39e27c7fffe9242123977e32df4b85d6",
+                    "size": 12292,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/Acpi/FirmwarePerformanceDataTableDxe/FirmwarePerformanceDxe/OUTPUT/FirmwarePerformanceDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "00160F8D-2B35-4df2-BBE0-B272A8D631F0SEC3.ui",
+                    "sha256": "0404bd2072d0bb129b48a019c4bc7fe06a600b67e02c681cf9b3c790457d983d",
+                    "size": 50,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "FirmwarePerformanceDxe"
+                  }
+                ],
                 "sha256": "d49b9604efa28211c87e261058c642a19b624f65b9862e83c71cc05fc31f6455",
                 "size": 12406,
                 "ui_name": "FirmwarePerformanceDxe"
@@ -9103,7 +11244,29 @@
                   }
                 ],
                 "module": "EsrtDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "999BD818-7DF7-4A9A-A502-9B75033E6A0FSEC1.1.dpx",
+                    "sha256": "ced499bafcc9694f8ce16a5fdebeed539e6f7f6012a3d00b7382ba4c102f1b6a",
+                    "size": 58,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/EsrtDxe/EsrtDxe/OUTPUT/EsrtDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "999BD818-7DF7-4A9A-A502-9B75033E6A0FSEC2.1.pe32",
+                    "sha256": "8a04f7fa4b7945464dda39b2509bc124d9d8123d2e3ea5f29bca9f5fa949f9df",
+                    "size": 20484,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/MdeModulePkg/Universal/EsrtDxe/EsrtDxe/OUTPUT/EsrtDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "999BD818-7DF7-4A9A-A502-9B75033E6A0FSEC3.ui",
+                    "sha256": "2d5f59db886d88f1b9e1aeb792723aff52cac281566927287809f229ebc4a030",
+                    "size": 20,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "EsrtDxe"
+                  }
+                ],
                 "sha256": "eaf81de2589c01beaa3e7a0c89f80d27d0c27aca970f97a86a00cf38b06961c3",
                 "size": 20588,
                 "ui_name": "EsrtDxe"
@@ -9119,7 +11282,29 @@
                   }
                 ],
                 "module": "SystemFirmwareReportDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "590FAB35-88CA-9888-1198-E643B21A9824SEC1.1.dpx",
+                    "sha256": "b10b0febfaabb58a85e3a14b1d91e243bc4d776b3e517f5bd470005dc6253c5a",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/SystemFirmwareUpdate/SystemFirmwareReportDxe/OUTPUT/SystemFirmwareReportDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "590FAB35-88CA-9888-1198-E643B21A9824SEC2.1.pe32",
+                    "sha256": "6ff07991afd21f48993d9faffcee9e43442a04287f3e946926a1a98cab23ff6f",
+                    "size": 458756,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/SystemFirmwareUpdate/SystemFirmwareReportDxe/OUTPUT/SystemFirmwareReportDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "590FAB35-88CA-9888-1198-E643B21A9824SEC3.ui",
+                    "sha256": "c21f28675764475d987ff1aba0335c166f82d6a7045d930aa60e9a089fae5d36",
+                    "size": 52,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "SystemFirmwareReportDxe"
+                  }
+                ],
                 "sha256": "7e251ce60c5b331879403118b40fb605b669e6befef4c4581c129fd5fbba9592",
                 "size": 458872,
                 "ui_name": "SystemFirmwareReportDxe"
@@ -9135,7 +11320,29 @@
                   }
                 ],
                 "module": "DtbUpdateDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "479B6009-88D3-B397-CBFC-14BC904D1F68SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/DtbUpdateDxeSi/DtbUpdateDxe/OUTPUT/DtbUpdateDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "479B6009-88D3-B397-CBFC-14BC904D1F68SEC2.1.pe32",
+                    "sha256": "0b0415eb04fb398569fb33c86a874b72b1537755d33a14765bbc42fede4e0a2d",
+                    "size": 28676,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/DtbUpdateDxeSi/DtbUpdateDxe/OUTPUT/DtbUpdateDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "479B6009-88D3-B397-CBFC-14BC904D1F68SEC3.ui",
+                    "sha256": "0c3f24a2a009dbe2204de34cef286b9f89d37a72404de0c93112cc393ea7ecd5",
+                    "size": 30,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "DtbUpdateDxe"
+                  }
+                ],
                 "sha256": "a38731d694e4aff375486688df176b129a3ca1c7a4b9c14eadff63cc0cb6045d",
                 "size": 28754,
                 "ui_name": "DtbUpdateDxe"
@@ -9151,7 +11358,15 @@
                   }
                 ],
                 "module": "PlatformAcpiTables",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "c1bb2ead-c76a-45dd-90b5-d40255170a9cSEC1.1.raw",
+                    "sha256": "ee39a3a5c586713559ed355e733d74b40ebc167ddbc30ec8fb05263a4b6fb3a9",
+                    "size": 12684,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml",
+                    "type": "EFI_SECTION_RAW"
+                  }
+                ],
                 "sha256": "80ae00661b1f7578b2b0d16a7a67420516538a6c9edad9c6f480461333030841",
                 "size": 12708,
                 "ui_name": "PlatformAcpiTables"
@@ -9167,7 +11382,29 @@
                   }
                 ],
                 "module": "AcpiPlatformDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "dc92cda1-5d43-4e3f-a594-15b6886893f3SEC1.1.dpx",
+                    "sha256": "234b3b44320a400592e0e9c3c8e1fe9e3e8e13b2aa64de862b1c282efc5043b8",
+                    "size": 22,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Drivers/AcpiPlatformDxe/AcpiPlatformDxe/OUTPUT/AcpiPlatformDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "dc92cda1-5d43-4e3f-a594-15b6886893f3SEC2.1.pe32",
+                    "sha256": "0b59720364eb8cd061f62cb8e7f743e91592235f1b28cae63b625306d2f885ed",
+                    "size": 12292,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Drivers/AcpiPlatformDxe/AcpiPlatformDxe/OUTPUT/AcpiPlatformDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "dc92cda1-5d43-4e3f-a594-15b6886893f3SEC3.ui",
+                    "sha256": "9678066dcb3d1af20a27185f8621e5cade8165eaaf8bbb305214b6ca5583a11e",
+                    "size": 36,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "AcpiPlatformDxe"
+                  }
+                ],
                 "sha256": "c54b382a6392495eb825668005781bc9bb6aad6207f46a56944b5ba1c4fb1154",
                 "size": 12376,
                 "ui_name": "AcpiPlatformDxe"
@@ -9183,7 +11420,29 @@
                   }
                 ],
                 "module": "Shell",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "7C04A583-9E3E-4f1c-AD65-E05268D0B4D1SEC1.ui",
+                    "sha256": "17fec8159d767925601740057b4fe1fd67ea52e5590faf446ed70741406cab89",
+                    "size": 16,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "Shell"
+                  },
+                  {
+                    "path": "ShellOffset.raw",
+                    "sha256": "1f04257bdded13ae8554161efb698b9539603a6f462dd7d0be2192418e739b19",
+                    "size": 28,
+                    "source": "Build/O6N/RELEASE_GCC5/FV/Ffs/7C04A583-9E3E-4f1c-AD65-E05268D0B4D1Shell/Shell.offset",
+                    "type": "EFI_SECTION_RAW"
+                  },
+                  {
+                    "path": "7C04A583-9E3E-4f1c-AD65-E05268D0B4D1SEC2.1.pe32",
+                    "sha256": "fd11ee5ae6f0db090d9b6742e088f3593e7cb6700bb3fbfc00e12f58e29becfd",
+                    "size": 974852,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/ShellPkg/Application/Shell/Shell/OUTPUT/Shell.efi",
+                    "type": "EFI_SECTION_PE32"
+                  }
+                ],
                 "sha256": "3c604e02771325a68cae653365d980ea459987e7969797c101de7f59baa770c8",
                 "size": 974920,
                 "ui_name": "Shell"
@@ -9198,7 +11457,7 @@
                     "offset": "0x00ab7cc0"
                   }
                 ],
-                "module": "/workspaces/edk2-cix/src/edk2-platforms/Platform/CIX/Sky1/Bin/ntroot.cer",
+                "module": "src/edk2-platforms/Platform/CIX/Sky1/Bin/ntroot.cer",
                 "sections": [
                   {
                     "path": "8943387b-c4ad-3199-42a9-dabc5b411615SEC1.raw",
@@ -9223,7 +11482,29 @@
                   }
                 ],
                 "module": "PlatformSmbios",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "7ca4da59-3f21-4a7c-801d-018fabb96615SEC1.1.dpx",
+                    "sha256": "49a7df752dda26b16e4bbab8cf335974e9a4bfa06ba0347f11ad201fa93b90cc",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Orion/O6N/Drivers/PlatformSmbios/PlatformSmbios/OUTPUT/PlatformSmbios.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "7ca4da59-3f21-4a7c-801d-018fabb96615SEC2.1.pe32",
+                    "sha256": "a30888ae6912be380215330adda23e34825507a9679e28dc36780edd61fcc10d",
+                    "size": 24580,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/Radxa/Orion/O6N/Drivers/PlatformSmbios/PlatformSmbios/OUTPUT/PlatformSmbios.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "7ca4da59-3f21-4a7c-801d-018fabb96615SEC3.ui",
+                    "sha256": "2f75a1ad54112529d7b9b4ba8c94d1b6352c475cd7719b1d32862f5099f48331",
+                    "size": 34,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "PlatformSmbios"
+                  }
+                ],
                 "sha256": "fc2b30732ff4ea569c9bfe12db0f208649badfdafc3dd377a8c33196a1fc8ccd",
                 "size": 24678,
                 "ui_name": "PlatformSmbios"
@@ -9277,7 +11558,29 @@
                   }
                 ],
                 "module": "PdDxe",
-                "sections": [],
+                "sections": [
+                  {
+                    "path": "3b08b59e-b317-4824-8c53-871c9b8571f5SEC1.1.dpx",
+                    "sha256": "5467678a54e3bc7f928ddf5ce37c4623fc5fb600fa2862d14ff5422797b55738",
+                    "size": 40,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/PdDxe/PdDxe/OUTPUT/PdDxe.depex",
+                    "type": "EFI_SECTION_DXE_DEPEX"
+                  },
+                  {
+                    "path": "3b08b59e-b317-4824-8c53-871c9b8571f5SEC2.1.pe32",
+                    "sha256": "fcd225b7d63f373acfb5791e8a07f55d28f42fba2225b8a91db3c6bbc212737e",
+                    "size": 28676,
+                    "source": "Build/O6N/RELEASE_GCC5/AARCH64/Platform/CIX/Sky1/Drivers/PdDxe/PdDxe/OUTPUT/PdDxe.efi",
+                    "type": "EFI_SECTION_PE32"
+                  },
+                  {
+                    "path": "3b08b59e-b317-4824-8c53-871c9b8571f5SEC3.ui",
+                    "sha256": "cc1202c85a620bdbbe03be76d1a1f5bfb1924b110aa815e4bd1ee8235ff353a6",
+                    "size": 16,
+                    "type": "EFI_SECTION_USER_INTERFACE",
+                    "ui_name": "PdDxe"
+                  }
+                ],
                 "sha256": "7af40ebcfca04e65f0c7e34bd1c76e18badd9d14ca20a241e5ddb67296e1a6fe",
                 "size": 28756,
                 "ui_name": "PdDxe"
