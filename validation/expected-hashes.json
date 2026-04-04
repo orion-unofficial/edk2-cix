@@ -152,8 +152,8 @@
               "BOARD_NAME": "",
               "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE"
             },
-            "active_platform_suffix": "/workspaces/edk2-cix/src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.dsc",
-            "flash_definition_suffix": "/workspaces/edk2-cix/src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf"
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf"
           },
           "pe_sections": {
             "AARCH64/Shell.efi": [
