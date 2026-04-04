@@ -10,6 +10,11 @@ The current ACPI overlay areas are:
 - `custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/`
 - `custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/LinuxAcpiConfig.h`
 
+The `AcpiPlatfomTables` path above preserves an upstream Radxa/CIX directory
+name typo. We keep that path literal in source, overlay, and build references
+so future vendor imports stay straightforward, even though prose in this repo
+uses the correct spelling "platform".
+
 These are module-level mirrors, not patch fragments. Once EDK2 resolves a
 module from the overlay tree, its relative include and source paths are also
 resolved from that tree. That means some files stay byte-for-byte identical to
