@@ -58,6 +58,11 @@ Sky1 ACPI overlay uses targeted ACPICA suppressions for `2184` and `2095`
 because those remarks come from intentional vendor UUIDs and intentionally empty
 dependency packages rather than from ambiguous or malformed AML.
 
+The O6 ACPI overlay path intentionally keeps the upstream Radxa/CIX directory
+name `AcpiPlatfomTables`, including its missing `r` in "platform". That typo is
+part of the imported vendor path layout, and leaving the path name unchanged
+keeps future vendor imports and overlay diffs much easier to manage.
+
 For the ACPI module overlays specifically, `make -C src check-custom-acpi-overlays`
 verifies that the mirrored module file lists still match the imported source
 tree. See `docs/custom-acpi-overlays.md` for the maintenance rules and the
