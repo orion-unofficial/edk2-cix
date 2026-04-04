@@ -174,8 +174,8 @@ To capture a full build transcript plus a warning summary under `build-logs/`,
 use `make buildbox-firmware-log` or wrap any command with
 `./scripts/capture_build_log.sh build-logs <command ...>`.
 
-For exact replay of a published O6 image, `main-monorepo-edk2` can
-also reuse an extracted FIP cert bundle via
+For exact replay of a published O6 or O6N image,
+`main-monorepo-edk2` can also reuse an extracted FIP cert bundle via
 `SIGNING_CERT_SOURCE_DIR=<path>`. The directory may contain either
 the build-tree filenames `trusted_key_no.crt`, `nt_fw_cert.crt`, and
 `nt_fw_key.crt` or the extracted FIP filenames `trusted-key-cert.bin`,
@@ -185,8 +185,8 @@ the build-tree filenames `trusted_key_no.crt`, `nt_fw_cert.crt`, and
 required replay input and the build now fails immediately if the
 directory is missing or does not provide all three cert blobs.
 
-Replay-compatible builds can also override the three historical
-timestamp inputs independently:
+Replay-compatible builds can also override the three historical timestamp
+inputs independently:
 
 - `BUILD_DATE=<iso8601>` for the displayed firmware build timestamp
 - `SOURCE_DATE_EPOCH=<unix-seconds>` for compiler-provided `__DATE__`
@@ -434,8 +434,8 @@ you want qualification checks, or set `FIRMWARE_VALIDATE_ON_BUILD=true` to
 restore the advisory post-build validation step.
 
 If you do not want a Debian package, the local Makefile extensions now provide
-several direct payload targets based on the same `O6` files that the `.deb`
-ships:
+several direct payload targets based on the same board-specific files that the
+`.deb` ships:
 
 ```bash
 make firmware-stage
@@ -445,7 +445,8 @@ make targz
 make validate-firmware
 ```
 
-By default those targets work on the `O6` payload and:
+By default those targets operate on the `O6` payload. Set
+`FIRMWARE_BOARD=O6N` to switch products; the default `O6` paths are:
 
 - stage files under `dist/firmware/orion-o6/<version>/`
 - install them under `/boot/efi/firmware/radxa/<version>/`
@@ -460,9 +461,9 @@ The `.zip` and `.tar.gz` exports keep the payload under
 same product/version layout as the staged payload.
 
 When you use `make buildbox-firmware-stage`, the staged payload is already
-written back into the host checkout at the same `dist/firmware/orion-o6/<version>/`
-path, because the buildbox bind-mounts the repo root. There is no separate
-`podman cp` or `docker cp` step.
+written back into the host checkout at the same default
+`dist/firmware/orion-o6/<version>/` path, because the buildbox bind-mounts the
+repo root. There is no separate `podman cp` or `docker cp` step.
 
 The staged payload includes:
 

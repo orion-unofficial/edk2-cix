@@ -143,6 +143,8 @@ conventions, so an example command would be:
 fs0:\radxa\orion-o6\startup.nsh
 ```
 
+Use `orion-o6n` instead when flashing the O6N payload.
+
 ```admonish info
 Before `0.3.0-1`, `startup.nsh` was called `setup.nsh`.
 ```
