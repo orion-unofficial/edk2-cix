@@ -213,7 +213,7 @@ help:
 	printf '%s\n\n' 'edk2-cix common targets'; \
 	print_help_line '  firmware_build_dep' 'Install only the direct firmware-build host dependencies'; \
 	print_help_line '  devcontainer_setup' 'Install host build dependencies'; \
-	print_help_line '  firmware-build' 'Build the O6 firmware artefacts'; \
+	print_help_line '  firmware-build' 'Build the firmware artefacts for the selected board'; \
 	print_help_line '  firmware-stage' 'Stage deployable firmware files under dist/firmware/'; \
 	print_help_line '  install' 'Copy the staged payload under /boot/efi/firmware/radxa/'; \
 	print_help_line '  zip' 'Create a .zip firmware archive'; \
@@ -255,7 +255,7 @@ help-dev:
 	print_help_line '  deterministic-replay' 'Seed or reuse exact replay inputs, rebuild, and validate them strictly'; \
 	print_help_line '  buildbox-up' 'Start or reuse the persistent build container'; \
 	print_help_line '  buildbox-metadata' 'Print resolved build metadata inside the buildbox'; \
-	print_help_line '  buildbox-o6-log' 'Capture a full logged buildbox firmware build'; \
+	print_help_line '  buildbox-firmware-log' 'Capture a full logged buildbox firmware build for the selected board'; \
 	print_help_line '  buildbox-validate-firmware' 'Run validation inside the buildbox'; \
 	print_help_line '  buildbox-validate-firmware-strict' 'Run strict validation inside the buildbox'; \
 	print_help_line '  buildbox-audit-final-image-manifest' 'Run the final-image manifest audit inside the buildbox'; \
@@ -264,6 +264,8 @@ help-dev:
 	print_help_line '  buildbox-validate-secure-boot-defaults' 'Validate embedded Secure Boot payloads inside the buildbox'; \
 	print_help_line '  buildbox-capture-validation-profile' 'Capture a validation profile inside the buildbox'; \
 	print_help_line '  buildbox-down' 'Remove the persistent build container if it exists'; \
+	print_help_line '  clean-edk2' 'Remove only src/Build output and generated raw firmware artefacts'; \
+	print_help_line '  clean-buildbox' 'Remove only the local buildbox state and persistent container'; \
 	print_help_line '  gha-act-list' 'List workflows and jobs through the repo-local act wrapper'; \
 	print_help_line '  gha-act-dry-run' 'Dry-run a selected workflow or job through act'; \
 	print_help_line '  gha-act-run' 'Execute a selected workflow or job through act'; \
@@ -286,8 +288,6 @@ help-internal:
 	print_help_line '  preflight-wrapper-validation' 'Additional validation for public validation and profile-capture wrappers.'; \
 	print_help_line '  preflight-wrapper-buildbox' 'Additional validation for buildbox lifecycle and image selection wrappers.'; \
 	print_help_line '  preflight-wrapper-replay' 'Additional validation for deterministic-replay cache and seed inputs.'; \
-	print_help_line '  clean-edk2' 'Remove only src/Build output and generated raw firmware artefacts.'; \
-	print_help_line '  clean-buildbox' 'Remove only the local buildbox state and persistent container.'; \
 	print_section 'internal variables'; \
 	$(PRINT_TOP_LEVEL_INTERNAL_VARIABLES); \
 	printf '\n%s\n' 'Internal targets and variables are unstable and may change without compatibility guarantees.'; \
@@ -412,14 +412,14 @@ preflight-wrapper-replay: preflight-wrapper-buildbox
 	fi; \
 	"$${validate_cmd[@]}"
 
-.PHONY: build-edk2 firmware-build firmware-stage install zip targz validate-firmware validate-firmware-strict check-offline-audit-baselines audit-final-image-manifest audit-acpi-regression refresh-offline-audit-baselines audit-bundle capture-validation-profile deterministic-replay gha-act-list gha-act-dry-run gha-act-run gha-act-run-clean buildbox-up buildbox-deb buildbox-firmware-build buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile buildbox-metadata
+.PHONY: build-edk2 firmware-build firmware-stage install zip targz validate-firmware validate-firmware-strict check-offline-audit-baselines audit-final-image-manifest audit-acpi-regression refresh-offline-audit-baselines audit-bundle capture-validation-profile deterministic-replay gha-act-list gha-act-dry-run gha-act-run gha-act-run-clean buildbox-up buildbox-deb buildbox-firmware-build buildbox-firmware-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile buildbox-metadata
 build-edk2: preflight-wrapper-common
 firmware-build firmware-stage install zip targz: preflight-wrapper-firmware-build
 validate-firmware validate-firmware-strict refresh-offline-audit-baselines audit-final-image-manifest audit-acpi-regression audit-bundle capture-validation-profile: preflight-wrapper-validation
 deterministic-replay: preflight-wrapper-replay
 buildbox-up buildbox-deb: preflight-wrapper-buildbox
 buildbox-metadata: preflight-wrapper-common preflight-wrapper-buildbox
-buildbox-firmware-build buildbox-o6-log buildbox-firmware-stage buildbox-zip buildbox-targz: preflight-wrapper-firmware-build preflight-wrapper-buildbox
+buildbox-firmware-build buildbox-firmware-log buildbox-firmware-stage buildbox-zip buildbox-targz: preflight-wrapper-firmware-build preflight-wrapper-buildbox
 buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile: preflight-wrapper-validation preflight-wrapper-buildbox
 
 .PHONY: build-edk2 __build-edk2
@@ -950,11 +950,11 @@ __buildbox-firmware-build:
 		$(BUILDBOX_FIRMWARE_ARGS)
 	@printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)"
 
-.PHONY: buildbox-o6-log __buildbox-o6-log
-buildbox-o6-log:
-	$(Q)$(LOCKED_MAKE) __buildbox-o6-log V="$(V)"
+.PHONY: buildbox-firmware-log __buildbox-firmware-log
+buildbox-firmware-log:
+	$(Q)$(LOCKED_MAKE) __buildbox-firmware-log V="$(V)"
 
-__buildbox-o6-log:
+__buildbox-firmware-log:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/capture_build_log.sh" "$(BUILD_LOG_ROOT)" \
 		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
 		make --no-print-directory firmware-build V="$(V)" $(BUILDBOX_FIRMWARE_ARGS)
