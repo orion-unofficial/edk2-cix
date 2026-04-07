@@ -6,41 +6,15 @@ import abc
 
 import pytest
 
-import six
-
 from cryptography.utils import (
-    InterfaceNotImplemented, register_interface_if, verify_interface
+    InterfaceNotImplemented,
+    verify_interface,
 )
-
-
-def test_register_interface_if_true():
-    @six.add_metaclass(abc.ABCMeta)
-    class SimpleInterface(object):
-        pass
-
-    @register_interface_if(1 == 1, SimpleInterface)
-    class SimpleClass(object):
-        pass
-
-    assert issubclass(SimpleClass, SimpleInterface) is True
-
-
-def test_register_interface_if_false():
-    @six.add_metaclass(abc.ABCMeta)
-    class SimpleInterface(object):
-        pass
-
-    @register_interface_if(1 == 2, SimpleInterface)
-    class SimpleClass(object):
-        pass
-
-    assert issubclass(SimpleClass, SimpleInterface) is False
 
 
 class TestVerifyInterface(object):
     def test_verify_missing_method(self):
-        @six.add_metaclass(abc.ABCMeta)
-        class SimpleInterface(object):
+        class SimpleInterface(metaclass=abc.ABCMeta):
             @abc.abstractmethod
             def method(self):
                 """A simple method"""
@@ -52,8 +26,7 @@ class TestVerifyInterface(object):
             verify_interface(SimpleInterface, NonImplementer)
 
     def test_different_arguments(self):
-        @six.add_metaclass(abc.ABCMeta)
-        class SimpleInterface(object):
+        class SimpleInterface(metaclass=abc.ABCMeta):
             @abc.abstractmethod
             def method(self, a):
                 """Method with one argument"""
@@ -68,8 +41,7 @@ class TestVerifyInterface(object):
             verify_interface(SimpleInterface, NonImplementer)
 
     def test_handles_abstract_property(self):
-        @six.add_metaclass(abc.ABCMeta)
-        class SimpleInterface(object):
+        class SimpleInterface(metaclass=abc.ABCMeta):
             @abc.abstractproperty
             def property(self):
                 """An abstract property"""
@@ -82,3 +54,27 @@ class TestVerifyInterface(object):
         # Invoke this to ensure the line is covered
         NonImplementer().property
         verify_interface(SimpleInterface, NonImplementer)
+
+    def test_signature_mismatch(self):
+        class SimpleInterface(metaclass=abc.ABCMeta):
+            @abc.abstractmethod
+            def method(self, other: object) -> int:
+                """Method with signature"""
+
+        class ClassWithoutSignature:
+            def method(self, other):
+                """Method without signature"""
+
+        class ClassWithSignature:
+            def method(self, other: object) -> int:
+                """Method with signature"""
+
+        verify_interface(SimpleInterface, ClassWithoutSignature)
+        verify_interface(SimpleInterface, ClassWithSignature)
+        with pytest.raises(InterfaceNotImplemented):
+            verify_interface(
+                SimpleInterface, ClassWithoutSignature, check_annotations=True
+            )
+        verify_interface(
+            SimpleInterface, ClassWithSignature, check_annotations=True
+        )

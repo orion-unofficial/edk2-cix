@@ -2,12 +2,12 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
+
+import binascii
 
 import pytest
 
 from cryptography.exceptions import AlreadyFinalized, _Reasons
-from cryptography.hazmat.backends.interfaces import HashBackend
 from cryptography.hazmat.primitives import hashes
 
 from .utils import generate_base_hash_test
@@ -15,16 +15,15 @@ from ...doubles import DummyHashAlgorithm
 from ...utils import raises_unsupported_algorithm
 
 
-@pytest.mark.requires_backend_interface(interface=HashBackend)
 class TestHashContext(object):
     def test_hash_reject_unicode(self, backend):
         m = hashes.Hash(hashes.SHA1(), backend=backend)
         with pytest.raises(TypeError):
-            m.update(u"\u00FC")
+            m.update("\u00FC")  # type: ignore[arg-type]
 
     def test_hash_algorithm_instance(self, backend):
         with pytest.raises(TypeError):
-            hashes.Hash(hashes.SHA1, backend=backend)
+            hashes.Hash(hashes.SHA1, backend=backend)  # type: ignore[arg-type]
 
     def test_raises_after_finalize(self, backend):
         h = hashes.Hash(hashes.SHA1(), backend=backend)
@@ -48,9 +47,8 @@ class TestHashContext(object):
     only_if=lambda backend: backend.hash_supported(hashes.SHA1()),
     skip_message="Does not support SHA1",
 )
-@pytest.mark.requires_backend_interface(interface=HashBackend)
 class TestSHA1(object):
-    test_SHA1 = generate_base_hash_test(
+    test_sha1 = generate_base_hash_test(
         hashes.SHA1(),
         digest_size=20,
     )
@@ -60,9 +58,8 @@ class TestSHA1(object):
     only_if=lambda backend: backend.hash_supported(hashes.SHA224()),
     skip_message="Does not support SHA224",
 )
-@pytest.mark.requires_backend_interface(interface=HashBackend)
 class TestSHA224(object):
-    test_SHA224 = generate_base_hash_test(
+    test_sha224 = generate_base_hash_test(
         hashes.SHA224(),
         digest_size=28,
     )
@@ -72,9 +69,8 @@ class TestSHA224(object):
     only_if=lambda backend: backend.hash_supported(hashes.SHA256()),
     skip_message="Does not support SHA256",
 )
-@pytest.mark.requires_backend_interface(interface=HashBackend)
 class TestSHA256(object):
-    test_SHA256 = generate_base_hash_test(
+    test_sha256 = generate_base_hash_test(
         hashes.SHA256(),
         digest_size=32,
     )
@@ -84,9 +80,8 @@ class TestSHA256(object):
     only_if=lambda backend: backend.hash_supported(hashes.SHA384()),
     skip_message="Does not support SHA384",
 )
-@pytest.mark.requires_backend_interface(interface=HashBackend)
 class TestSHA384(object):
-    test_SHA384 = generate_base_hash_test(
+    test_sha384 = generate_base_hash_test(
         hashes.SHA384(),
         digest_size=48,
     )
@@ -96,9 +91,8 @@ class TestSHA384(object):
     only_if=lambda backend: backend.hash_supported(hashes.SHA512()),
     skip_message="Does not support SHA512",
 )
-@pytest.mark.requires_backend_interface(interface=HashBackend)
 class TestSHA512(object):
-    test_SHA512 = generate_base_hash_test(
+    test_sha512 = generate_base_hash_test(
         hashes.SHA512(),
         digest_size=64,
     )
@@ -108,9 +102,8 @@ class TestSHA512(object):
     only_if=lambda backend: backend.hash_supported(hashes.MD5()),
     skip_message="Does not support MD5",
 )
-@pytest.mark.requires_backend_interface(interface=HashBackend)
 class TestMD5(object):
-    test_MD5 = generate_base_hash_test(
+    test_md5 = generate_base_hash_test(
         hashes.MD5(),
         digest_size=16,
     )
@@ -118,12 +111,12 @@ class TestMD5(object):
 
 @pytest.mark.supported(
     only_if=lambda backend: backend.hash_supported(
-        hashes.BLAKE2b(digest_size=64)),
+        hashes.BLAKE2b(digest_size=64)
+    ),
     skip_message="Does not support BLAKE2b",
 )
-@pytest.mark.requires_backend_interface(interface=HashBackend)
 class TestBLAKE2b(object):
-    test_BLAKE2b = generate_base_hash_test(
+    test_blake2b = generate_base_hash_test(
         hashes.BLAKE2b(digest_size=64),
         digest_size=64,
     )
@@ -141,12 +134,12 @@ class TestBLAKE2b(object):
 
 @pytest.mark.supported(
     only_if=lambda backend: backend.hash_supported(
-        hashes.BLAKE2s(digest_size=32)),
+        hashes.BLAKE2s(digest_size=32)
+    ),
     skip_message="Does not support BLAKE2s",
 )
-@pytest.mark.requires_backend_interface(interface=HashBackend)
 class TestBLAKE2s(object):
-    test_BLAKE2s = generate_base_hash_test(
+    test_blake2s = generate_base_hash_test(
         hashes.BLAKE2s(digest_size=32),
         digest_size=32,
     )
@@ -166,4 +159,39 @@ def test_invalid_backend():
     pretend_backend = object()
 
     with raises_unsupported_algorithm(_Reasons.BACKEND_MISSING_INTERFACE):
-        hashes.Hash(hashes.SHA1(), pretend_backend)
+        hashes.Hash(hashes.SHA1(), pretend_backend)  # type:ignore[arg-type]
+
+
+def test_buffer_protocol_hash(backend):
+    data = binascii.unhexlify(b"b4190e")
+    h = hashes.Hash(hashes.SHA256(), backend)
+    h.update(bytearray(data))
+    assert h.finalize() == binascii.unhexlify(
+        b"dff2e73091f6c05e528896c4c831b9448653dc2ff043528f6769437bc7b975c2"
+    )
+
+
+class TestSHAKE(object):
+    @pytest.mark.parametrize("xof", [hashes.SHAKE128, hashes.SHAKE256])
+    def test_invalid_digest_type(self, xof):
+        with pytest.raises(TypeError):
+            xof(digest_size=object())
+
+    @pytest.mark.parametrize("xof", [hashes.SHAKE128, hashes.SHAKE256])
+    def test_invalid_digest_size(self, xof):
+        with pytest.raises(ValueError):
+            xof(digest_size=-5)
+
+        with pytest.raises(ValueError):
+            xof(digest_size=0)
+
+
+@pytest.mark.supported(
+    only_if=lambda backend: backend.hash_supported(hashes.SM3()),
+    skip_message="Does not support SM3",
+)
+class TestSM3(object):
+    test_sm3 = generate_base_hash_test(
+        hashes.SM3(),
+        digest_size=32,
+    )

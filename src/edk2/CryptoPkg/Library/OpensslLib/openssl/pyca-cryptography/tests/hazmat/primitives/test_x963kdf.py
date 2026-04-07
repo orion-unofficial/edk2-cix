@@ -2,23 +2,18 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 
 import pytest
 
-from cryptography.exceptions import (
-    AlreadyFinalized, InvalidKey, _Reasons
-)
-from cryptography.hazmat.backends.interfaces import HashBackend
+from cryptography.exceptions import AlreadyFinalized, InvalidKey, _Reasons
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.x963kdf import X963KDF
 
 from ...utils import raises_unsupported_algorithm
 
 
-@pytest.mark.requires_backend_interface(interface=HashBackend)
 class TestX963KDF(object):
     def test_length_limit(self, backend):
         big_length = hashes.SHA256().digest_size * (2 ** 32 - 1) + 1
@@ -45,6 +40,19 @@ class TestX963KDF(object):
 
         assert xkdf.derive(key) == derivedkey
 
+    def test_buffer_protocol(self, backend):
+        key = bytearray(
+            binascii.unhexlify(
+                b"96c05619d56c328ab95fe84b18264b08725b85e33fd34f08"
+            )
+        )
+
+        derivedkey = binascii.unhexlify(b"443024c3dae66b95e6f5670601558f71")
+
+        xkdf = X963KDF(hashes.SHA256(), 16, None, backend)
+
+        assert xkdf.derive(key) == derivedkey
+
     def test_verify(self, backend):
         key = binascii.unhexlify(
             b"22518b10e70f2a3f243810ae3254139efbee04aa57c7af7d"
@@ -61,7 +69,7 @@ class TestX963KDF(object):
 
         xkdf = X963KDF(hashes.SHA256(), 128, sharedinfo, backend)
 
-        assert xkdf.verify(key, derivedkey) is None
+        xkdf.verify(key, derivedkey)
 
     def test_invalid_verify(self, backend):
         key = binascii.unhexlify(
@@ -78,43 +86,39 @@ class TestX963KDF(object):
             X963KDF(
                 hashes.SHA256(),
                 16,
-                sharedinfo=u"foo",
-                backend=backend
+                sharedinfo="foo",  # type: ignore[arg-type]
+                backend=backend,
             )
 
         with pytest.raises(TypeError):
             xkdf = X963KDF(
-                hashes.SHA256(),
-                16,
-                sharedinfo=None,
-                backend=backend
+                hashes.SHA256(), 16, sharedinfo=None, backend=backend
             )
 
-            xkdf.derive(u"foo")
+            xkdf.derive("foo")  # type: ignore[arg-type]
 
         with pytest.raises(TypeError):
             xkdf = X963KDF(
-                hashes.SHA256(),
-                16,
-                sharedinfo=None,
-                backend=backend
+                hashes.SHA256(), 16, sharedinfo=None, backend=backend
             )
 
-            xkdf.verify(u"foo", b"bar")
+            xkdf.verify("foo", b"bar")  # type: ignore[arg-type]
 
         with pytest.raises(TypeError):
             xkdf = X963KDF(
-                hashes.SHA256(),
-                16,
-                sharedinfo=None,
-                backend=backend
+                hashes.SHA256(), 16, sharedinfo=None, backend=backend
             )
 
-            xkdf.verify(b"foo", u"bar")
+            xkdf.verify(b"foo", "bar")  # type: ignore[arg-type]
 
 
 def test_invalid_backend():
     pretend_backend = object()
 
     with raises_unsupported_algorithm(_Reasons.BACKEND_MISSING_INTERFACE):
-        X963KDF(hashes.SHA256(), 16, None, pretend_backend)
+        X963KDF(
+            hashes.SHA256(),
+            16,
+            None,
+            pretend_backend,  # type: ignore[arg-type]
+        )

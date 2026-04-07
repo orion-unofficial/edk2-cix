@@ -61,10 +61,6 @@ Glossary
         aren't distinguishable without knowing the encryption key. This is
         considered a basic, necessary property for a working encryption system.
 
-    text
-        This type corresponds to ``unicode`` on Python 2 and ``str`` on Python
-        3.  This is equivalent to ``six.text_type``.
-
     nonce
         A nonce is a **n**\ umber used **once**. Nonces are used in many
         cryptographic protocols. Generally, a nonce does not have to be secret
@@ -94,6 +90,11 @@ Glossary
         bit key, you can calculate the number of bytes by dividing by 8. 128
         divided by 8 is 16, so a 128 bit key is a 16 byte key.
 
+    bytes-like
+        A bytes-like object contains binary data and supports the
+        `buffer protocol`_. This includes ``bytes``, ``bytearray``, and
+        ``memoryview`` objects.
+
     U-label
         The presentational unicode form of an internationalized domain
         name. U-labels use unicode characters outside the ASCII range and
@@ -101,3 +102,4 @@ Glossary
 
 .. _`hardware security module`: https://en.wikipedia.org/wiki/Hardware_security_module
 .. _`idna`: https://pypi.org/project/idna/
+.. _`buffer protocol`: https://docs.python.org/3/c-api/buffer.html

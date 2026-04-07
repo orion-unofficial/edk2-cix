@@ -5,7 +5,7 @@ Message digests (Hashing)
 
 .. module:: cryptography.hazmat.primitives.hashes
 
-.. class:: Hash(algorithm, backend)
+.. class:: Hash(algorithm, backend=None)
 
     A cryptographic hash function takes an arbitrary block of data and
     calculates a fixed-size bit string (a digest), such that different data
@@ -20,9 +20,8 @@ Message digests (Hashing)
 
     .. doctest::
 
-        >>> from cryptography.hazmat.backends import default_backend
         >>> from cryptography.hazmat.primitives import hashes
-        >>> digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+        >>> digest = hashes.Hash(hashes.SHA256())
         >>> digest.update(b"abc")
         >>> digest.update(b"123")
         >>> digest.finalize()
@@ -42,7 +41,7 @@ Message digests (Hashing)
         :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`
         instance such as those described in
         :ref:`below <cryptographic-hash-algorithms>`.
-    :param backend: A
+    :param backend: An optional
         :class:`~cryptography.hazmat.backends.interfaces.HashBackend`
         instance.
 
@@ -102,6 +101,20 @@ SHA-2 family
     SHA-512 is a cryptographic hash function from the SHA-2 family and is
     standardized by NIST. It produces a 512-bit message digest.
 
+.. class:: SHA512_224()
+
+    .. versionadded:: 2.5
+
+    SHA-512/224 is a cryptographic hash function from the SHA-2 family and is
+    standardized by NIST. It produces a 224-bit message digest.
+
+.. class:: SHA512_256()
+
+    .. versionadded:: 2.5
+
+    SHA-512/256 is a cryptographic hash function from the SHA-2 family and is
+    standardized by NIST. It produces a 256-bit message digest.
+
 BLAKE2
 ~~~~~~
 
@@ -134,6 +147,73 @@ SHA-family of hashes.
 
     :raises ValueError: If the ``digest_size`` is invalid.
 
+SHA-3 family
+~~~~~~~~~~~~
+
+SHA-3 is the most recent NIST secure hash algorithm standard. Despite the
+larger number SHA-3 is not considered to be better than SHA-2. Instead, it uses
+a significantly different internal structure so that **if** an attack appears
+against SHA-2 it is unlikely to apply to SHA-3. SHA-3 is significantly slower
+than SHA-2 so at this time most users should choose SHA-2.
+
+.. class:: SHA3_224()
+
+    .. versionadded:: 2.5
+
+    SHA3/224 is a cryptographic hash function from the SHA-3 family and is
+    standardized by NIST. It produces a 224-bit message digest.
+
+.. class:: SHA3_256()
+
+    .. versionadded:: 2.5
+
+    SHA3/256 is a cryptographic hash function from the SHA-3 family and is
+    standardized by NIST. It produces a 256-bit message digest.
+
+.. class:: SHA3_384()
+
+    .. versionadded:: 2.5
+
+    SHA3/384 is a cryptographic hash function from the SHA-3 family and is
+    standardized by NIST. It produces a 384-bit message digest.
+
+.. class:: SHA3_512()
+
+    .. versionadded:: 2.5
+
+    SHA3/512 is a cryptographic hash function from the SHA-3 family and is
+    standardized by NIST. It produces a 512-bit message digest.
+
+.. class:: SHAKE128(digest_size)
+
+    .. versionadded:: 2.5
+
+    SHAKE128 is an extendable output function (XOF) based on the same core
+    permutations as SHA3. It allows the caller to obtain an arbitrarily long
+    digest length. Longer lengths, however, do not increase security or
+    collision resistance and lengths shorter than 128 bit (16 bytes) will
+    decrease it.
+
+    :param int digest_size: The length of output desired. Must be greater than
+        zero.
+
+    :raises ValueError: If the ``digest_size`` is invalid.
+
+.. class:: SHAKE256(digest_size)
+
+    .. versionadded:: 2.5
+
+    SHAKE256 is an extendable output function (XOF) based on the same core
+    permutations as SHA3. It allows the caller to obtain an arbitrarily long
+    digest length. Longer lengths, however, do not increase security or
+    collision resistance and lengths shorter than 256 bit (32 bytes) will
+    decrease it.
+
+    :param int digest_size: The length of output desired. Must be greater than
+        zero.
+
+    :raises ValueError: If the ``digest_size`` is invalid.
+
 SHA-1
 ~~~~~
 
@@ -163,6 +243,20 @@ MD5
 
     MD5 is a deprecated cryptographic hash function. It produces a 128-bit
     message digest and has practical known collision attacks.
+
+
+SM3
+~~~
+
+.. class:: SM3()
+
+    .. versionadded:: 35.0.0
+
+    SM3 is a cryptographic hash function standardized by the Chinese National
+    Cryptography Administration in `GM/T 0004-2012`_. It produces 256-bit
+    message digests. (An English description is available at
+    `draft-oscca-cfrg-sm3-02`_.) This hash should be used for compatibility
+    purposes where required and is not otherwise recommended for use.
 
 
 Interfaces
@@ -206,3 +300,5 @@ Interfaces
 .. _`Lifetimes of cryptographic hash functions`: https://valerieaurora.org/hash.html
 .. _`BLAKE2`: https://blake2.net
 .. _`length-extension attacks`: https://en.wikipedia.org/wiki/Length_extension_attack
+.. _`GM/T 0004-2012`: http://www.oscca.gov.cn/sca/xxgk/2010-12/17/1002389/files/302a3ada057c4a73830536d03e683110.pdf
+.. _`draft-oscca-cfrg-sm3-02`: https://tools.ietf.org/id/draft-oscca-cfrg-sm3-02.html

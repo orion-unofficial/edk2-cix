@@ -23,15 +23,59 @@ derivation function. This allows mixing of additional information into the
 key, derivation of multiple keys, and destroys any structure that may be
 present.
 
+.. warning::
+
+    This example does not give `forward secrecy`_ and is only provided as a
+    demonstration of the basic Diffie-Hellman construction. For real world
+    applications always use the ephemeral form described after this example.
+
 .. code-block:: pycon
 
-    >>> from cryptography.hazmat.backends import default_backend
     >>> from cryptography.hazmat.primitives import hashes
     >>> from cryptography.hazmat.primitives.asymmetric import dh
     >>> from cryptography.hazmat.primitives.kdf.hkdf import HKDF
     >>> # Generate some parameters. These can be reused.
-    >>> parameters = dh.generate_parameters(generator=2, key_size=2048,
-    ...                                     backend=default_backend())
+    >>> parameters = dh.generate_parameters(generator=2, key_size=2048)
+    >>> # Generate a private key for use in the exchange.
+    >>> server_private_key = parameters.generate_private_key()
+    >>> # In a real handshake the peer is a remote client. For this
+    >>> # example we'll generate another local private key though. Note that in
+    >>> # a DH handshake both peers must agree on a common set of parameters.
+    >>> peer_private_key = parameters.generate_private_key()
+    >>> shared_key = server_private_key.exchange(peer_private_key.public_key())
+    >>> # Perform key derivation.
+    >>> derived_key = HKDF(
+    ...     algorithm=hashes.SHA256(),
+    ...     length=32,
+    ...     salt=None,
+    ...     info=b'handshake data',
+    ... ).derive(shared_key)
+    >>> # And now we can demonstrate that the handshake performed in the
+    >>> # opposite direction gives the same final value
+    >>> same_shared_key = peer_private_key.exchange(
+    ...     server_private_key.public_key()
+    ... )
+    >>> same_derived_key = HKDF(
+    ...     algorithm=hashes.SHA256(),
+    ...     length=32,
+    ...     salt=None,
+    ...     info=b'handshake data',
+    ... ).derive(same_shared_key)
+    >>> derived_key == same_derived_key
+
+DHE (or EDH), the ephemeral form of this exchange, is **strongly
+preferred** over simple DH and provides `forward secrecy`_ when used.  You must
+generate a new private key using :func:`~DHParameters.generate_private_key` for
+each :meth:`~DHPrivateKey.exchange` when performing an DHE key exchange. An
+example of the ephemeral form:
+
+.. code-block:: pycon
+
+    >>> from cryptography.hazmat.primitives import hashes
+    >>> from cryptography.hazmat.primitives.asymmetric import dh
+    >>> from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+    >>> # Generate some parameters. These can be reused.
+    >>> parameters = dh.generate_parameters(generator=2, key_size=2048)
     >>> # Generate a private key for use in the exchange.
     >>> private_key = parameters.generate_private_key()
     >>> # In a real handshake the peer_public_key will be received from the
@@ -46,7 +90,6 @@ present.
     ...     length=32,
     ...     salt=None,
     ...     info=b'handshake data',
-    ...     backend=default_backend()
     ... ).derive(shared_key)
     >>> # For the next handshake we MUST generate another private key, but
     >>> # we can reuse the parameters.
@@ -58,14 +101,7 @@ present.
     ...     length=32,
     ...     salt=None,
     ...     info=b'handshake data',
-    ...     backend=default_backend()
     ... ).derive(shared_key_2)
-
-DHE (or EDH), the ephemeral form of this exchange, is **strongly
-preferred** over simple DH and provides `forward secrecy`_ when used.  You must
-generate a new private key using :func:`~DHParameters.generate_private_key` for
-each :meth:`~DHPrivateKey.exchange` when performing an DHE key exchange. This
-is demonstrated in the previous example.
 
 To assemble a :class:`~DHParameters` and a :class:`~DHPublicKey` from
 primitive integers, you must first create the
@@ -74,9 +110,9 @@ example, if **p**, **g**, and **y** are :class:`int` objects received from a
 peer::
 
     pn = dh.DHParameterNumbers(p, g)
-    parameters = pn.parameters(default_backend())
+    parameters = pn.parameters()
     peer_public_numbers = dh.DHPublicNumbers(y, pn)
-    peer_public_key = peer_public_numbers.public_key(default_backend())
+    peer_public_key = peer_public_numbers.public_key()
 
 
 See also the :class:`~cryptography.hazmat.backends.interfaces.DHBackend`
@@ -85,7 +121,7 @@ API for additional functionality.
 Group parameters
 ~~~~~~~~~~~~~~~~
 
-.. function:: generate_parameters(generator, key_size, backend)
+.. function:: generate_parameters(generator, key_size, backend=None)
 
     .. versionadded:: 1.7
 
@@ -96,7 +132,7 @@ Group parameters
 
     :param key_size: The bit length of the prime modulus to generate.
 
-    :param backend: A
+    :param backend: An optional
         :class:`~cryptography.hazmat.backends.interfaces.DHBackend`
         instance.
 
@@ -159,9 +195,6 @@ Key interfaces
 
     .. versionadded:: 1.7
 
-    A DH private key that is not an :term:`opaque key` also implements
-    :class:`DHPrivateKeyWithSerialization` to provide serialization methods.
-
     .. attribute:: key_size
 
         The bit length of the prime modulus.
@@ -186,15 +219,6 @@ Key interfaces
             the peer.
 
         :return bytes: The agreed key. The bytes are ordered in 'big' endian.
-
-
-.. class:: DHPrivateKeyWithSerialization
-
-    .. versionadded:: 1.7
-
-    This interface contains additional methods relating to serialization.
-    Any object with this interface also has all the methods from
-    :class:`DHPrivateKey`.
 
     .. method:: private_numbers()
 
@@ -228,6 +252,13 @@ Key interfaces
             interface.
 
         :return bytes: Serialized key.
+
+
+.. class:: DHPrivateKeyWithSerialization
+
+    .. versionadded:: 1.7
+
+    Alias for :class:`DHPrivateKey`.
 
 
 .. class:: DHPublicKey
@@ -305,11 +336,11 @@ Numbers
 
         p subgroup order value.
 
-    .. method:: parameters(backend)
+    .. method:: parameters(backend=None)
 
         .. versionadded:: 1.7
 
-        :param backend: An instance of
+        :param backend: An optional instance of
             :class:`~cryptography.hazmat.backends.interfaces.DHBackend`.
 
         :returns: A new instance of :class:`DHParameters`.
@@ -333,11 +364,11 @@ Numbers
 
         The private value.
 
-    .. method:: private_key(backend)
+    .. method:: private_key(backend=None)
 
         .. versionadded:: 1.7
 
-        :param backend: An instance of
+        :param backend: An optional instance of
             :class:`~cryptography.hazmat.backends.interfaces.DHBackend`.
 
         :returns: A new instance of :class:`DHPrivateKey`.
@@ -361,11 +392,11 @@ Numbers
 
         The public value.
 
-    .. method:: public_key(backend)
+    .. method:: public_key(backend=None)
 
         .. versionadded:: 1.7
 
-        :param backend: An instance of
+        :param backend: An optional instance of
             :class:`~cryptography.hazmat.backends.interfaces.DHBackend`.
 
         :returns: A new instance of :class:`DHPublicKey`.

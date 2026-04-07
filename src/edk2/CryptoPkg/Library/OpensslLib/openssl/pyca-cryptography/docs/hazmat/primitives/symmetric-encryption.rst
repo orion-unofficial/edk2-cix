@@ -11,7 +11,8 @@ where the sender and receiver both use the same secret key. Note that symmetric
 encryption is **not** sufficient for most applications because it only
 provides secrecy but not authenticity. That means an attacker can't see the
 message but an attacker can create bogus messages and force the application to
-decrypt them.
+decrypt them. In many contexts, a lack of authentication on encrypted messages
+can result in a loss of secrecy as well.
 
 For this reason it is **strongly** recommended to combine encryption with a
 message authentication code, such as :doc:`HMAC </hazmat/primitives/mac/hmac>`,
@@ -20,7 +21,7 @@ in an "encrypt-then-MAC" formulation as `described by Colin Percival`_.
 **To minimize the risk of security issues you should evaluate Fernet to see if
 it fits your needs before implementing anything using this module.**
 
-.. class:: Cipher(algorithm, mode, backend)
+.. class:: Cipher(algorithm, mode, backend=None)
 
     Cipher objects combine an algorithm such as
     :class:`~cryptography.hazmat.primitives.ciphers.algorithms.AES` with a
@@ -33,25 +34,23 @@ it fits your needs before implementing anything using this module.**
 
         >>> import os
         >>> from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-        >>> from cryptography.hazmat.backends import default_backend
-        >>> backend = default_backend()
         >>> key = os.urandom(32)
         >>> iv = os.urandom(16)
-        >>> cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
+        >>> cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
         >>> encryptor = cipher.encryptor()
         >>> ct = encryptor.update(b"a secret message") + encryptor.finalize()
         >>> decryptor = cipher.decryptor()
         >>> decryptor.update(ct) + decryptor.finalize()
         b'a secret message'
 
-    :param algorithms: A
+    :param algorithm: A
         :class:`~cryptography.hazmat.primitives.ciphers.CipherAlgorithm`
         instance such as those described
         :ref:`below <symmetric-encryption-algorithms>`.
     :param mode: A :class:`~cryptography.hazmat.primitives.ciphers.modes.Mode`
         instance such as those described
         :ref:`below <symmetric-encryption-modes>`.
-    :param backend: A
+    :param backend: An optional
         :class:`~cryptography.hazmat.backends.interfaces.CipherBackend`
         instance.
 
@@ -92,8 +91,9 @@ Algorithms
     AES is both fast, and cryptographically strong. It is a good default
     choice for encryption.
 
-    :param bytes key: The secret key. This must be kept secret. Either ``128``,
+    :param key: The secret key. This must be kept secret. Either ``128``,
         ``192``, or ``256`` :term:`bits` long.
+    :type key: :term:`bytes-like`
 
 .. class:: Camellia(key)
 
@@ -101,8 +101,9 @@ Algorithms
     It is considered to have comparable security and performance to AES but
     is not as widely studied or deployed.
 
-    :param bytes key: The secret key. This must be kept secret. Either ``128``,
+    :param key: The secret key. This must be kept secret. Either ``128``,
         ``192``, or ``256`` :term:`bits` long.
+    :type key: :term:`bytes-like`
 
 .. class:: ChaCha20(key)
 
@@ -120,15 +121,17 @@ Algorithms
     ChaCha20 is a stream cipher used in several IETF protocols. It is
     standardized in :rfc:`7539`.
 
-    :param bytes key: The secret key. This must be kept secret. ``256``
+    :param key: The secret key. This must be kept secret. ``256``
         :term:`bits` (32 bytes) in length.
+    :type key: :term:`bytes-like`
 
-    :param bytes nonce: Should be unique, a :term:`nonce`. It is
+    :param nonce: Should be unique, a :term:`nonce`. It is
         critical to never reuse a ``nonce`` with a given key.  Any reuse of a
         nonce with the same key compromises the security of every message
         encrypted with that key. The nonce does not need to be kept secret
         and may be included with the ciphertext. This must be ``128``
         :term:`bits` in length.
+    :type nonce: :term:`bytes-like`
 
         .. note::
 
@@ -143,10 +146,9 @@ Algorithms
     .. doctest::
 
         >>> from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-        >>> from cryptography.hazmat.backends import default_backend
         >>> nonce = os.urandom(16)
         >>> algorithm = algorithms.ChaCha20(key, nonce)
-        >>> cipher = Cipher(algorithm, mode=None, backend=default_backend())
+        >>> cipher = Cipher(algorithm, mode=None)
         >>> encryptor = cipher.encryptor()
         >>> ct = encryptor.update(b"a secret message")
         >>> decryptor = cipher.decryptor()
@@ -161,12 +163,13 @@ Algorithms
     Nonetheless, Triple DES is not recommended for new applications because it
     is incredibly slow; old applications should consider moving away from it.
 
-    :param bytes key: The secret key. This must be kept secret. Either ``64``,
+    :param key: The secret key. This must be kept secret. Either ``64``,
         ``128``, or ``192`` :term:`bits` long. DES only uses ``56``, ``112``,
         or ``168`` bits of the key as there is a parity byte in each component
         of the key.  Some writing refers to there being up to three separate
         keys that are each ``56`` bits long, they can simply be concatenated
         to produce the full key.
+    :type key: :term:`bytes-like`
 
 .. class:: CAST5(key)
 
@@ -177,8 +180,9 @@ Algorithms
     a variable key length cipher and supports keys from 40-128 :term:`bits` in
     length.
 
-    :param bytes key: The secret key, This must be kept secret. 40 to 128
+    :param key: The secret key, This must be kept secret. 40 to 128
         :term:`bits` in length in increments of 8 bits.
+    :type key: :term:`bytes-like`
 
 .. class:: SEED(key)
 
@@ -188,8 +192,24 @@ Algorithms
     (KISA). It is defined in :rfc:`4269` and is used broadly throughout South
     Korean industry, but rarely found elsewhere.
 
-    :param bytes key: The secret key. This must be kept secret. ``128``
+    :param key: The secret key. This must be kept secret. ``128``
         :term:`bits` in length.
+    :type key: :term:`bytes-like`
+
+.. class:: SM4(key)
+
+    .. versionadded:: 35.0.0
+
+    SM4 is a block cipher developed by the Chinese Government and standardized
+    in the GB/T 32907-2016. It is used in the Chinese WAPI
+    (Wired Authentication and Privacy Infrastructure) standard. (An English
+    description is available at `draft-ribose-cfrg-sm4-10`_.) This block
+    cipher should be used for compatibility purposes where required and is
+    not otherwise recommended for use.
+
+    :param key: The secret key. This must be kept secret. ``128``
+        :term:`bits` in length.
+    :type key: :term:`bytes-like`
 
 Weak ciphers
 ------------
@@ -206,8 +226,9 @@ Weak ciphers
     susceptible to attacks when using weak keys. The author has recommended
     that users of Blowfish move to newer algorithms such as :class:`AES`.
 
-    :param bytes key: The secret key. This must be kept secret. 32 to 448
+    :param key: The secret key. This must be kept secret. 32 to 448
         :term:`bits` in length in increments of 8 bits.
+    :type key: :term:`bytes-like`
 
 .. class:: ARC4(key)
 
@@ -215,16 +236,16 @@ Weak ciphers
     initial stream output. Its use is strongly discouraged. ARC4 does not use
     mode constructions.
 
-    :param bytes key: The secret key. This must be kept secret. Either ``40``,
+    :param key: The secret key. This must be kept secret. Either ``40``,
         ``56``, ``64``, ``80``, ``128``, ``192``, or ``256`` :term:`bits` in
         length.
+    :type key: :term:`bytes-like`
 
     .. doctest::
 
         >>> from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-        >>> from cryptography.hazmat.backends import default_backend
         >>> algorithm = algorithms.ARC4(key)
-        >>> cipher = Cipher(algorithm, mode=None, backend=default_backend())
+        >>> cipher = Cipher(algorithm, mode=None)
         >>> encryptor = cipher.encryptor()
         >>> ct = encryptor.update(b"a secret message")
         >>> decryptor = cipher.decryptor()
@@ -238,8 +259,9 @@ Weak ciphers
     is susceptible to attacks when using weak keys. It is recommended that you
     do not use this cipher for new applications.
 
-    :param bytes key: The secret key. This must be kept secret. ``128``
+    :param key: The secret key. This must be kept secret. ``128``
         :term:`bits` in length.
+    :type key: :term:`bytes-like`
 
 
 .. _symmetric-encryption-modes:
@@ -256,13 +278,14 @@ Modes
 
     **Padding is required when using this mode.**
 
-    :param bytes initialization_vector: Must be :doc:`random bytes
+    :param initialization_vector: Must be :doc:`random bytes
         </random-numbers>`. They do not need to be kept secret and they can be
         included in a transmitted message. Must be the same number of bytes as
         the ``block_size`` of the cipher. Each time something is encrypted a
         new ``initialization_vector`` should be generated. Do not reuse an
         ``initialization_vector`` with a given ``key``, and particularly do not
         use a constant ``initialization_vector``.
+    :type initialization_vector: :term:`bytes-like`
 
     A good construction looks like:
 
@@ -295,12 +318,13 @@ Modes
 
     **This mode does not require padding.**
 
-    :param bytes nonce: Should be unique, a :term:`nonce`. It is
+    :param nonce: Should be unique, a :term:`nonce`. It is
         critical to never reuse a ``nonce`` with a given key.  Any reuse of a
         nonce with the same key compromises the security of every message
         encrypted with that key. Must be the same number of bytes as the
         ``block_size`` of the cipher with a given key. The nonce does not need
         to be kept secret and may be included with the ciphertext.
+    :type nonce: :term:`bytes-like`
 
 .. class:: OFB(initialization_vector)
 
@@ -309,11 +333,12 @@ Modes
 
     **This mode does not require padding.**
 
-    :param bytes initialization_vector: Must be :doc:`random bytes
+    :param initialization_vector: Must be :doc:`random bytes
         </random-numbers>`. They do not need to be kept secret and they can be
         included in a transmitted message. Must be the same number of bytes as
         the ``block_size`` of the cipher. Do not reuse an
         ``initialization_vector`` with a given ``key``.
+    :type initialization_vector: :term:`bytes-like`
 
 .. class:: CFB(initialization_vector)
 
@@ -322,11 +347,12 @@ Modes
 
     **This mode does not require padding.**
 
-    :param bytes initialization_vector: Must be :doc:`random bytes
+    :param initialization_vector: Must be :doc:`random bytes
         </random-numbers>`. They do not need to be kept secret and they can be
         included in a transmitted message. Must be the same number of bytes as
         the ``block_size`` of the cipher. Do not reuse an
         ``initialization_vector`` with a given ``key``.
+    :type initialization_vector: :term:`bytes-like`
 
 .. class:: CFB8(initialization_vector)
 
@@ -336,11 +362,12 @@ Modes
 
     **This mode does not require padding.**
 
-    :param bytes initialization_vector: Must be :doc:`random bytes
+    :param initialization_vector: Must be :doc:`random bytes
         </random-numbers>`. They do not need to be kept secret and they can be
         included in a transmitted message. Must be the same number of bytes as
         the ``block_size`` of the cipher. Do not reuse an
         ``initialization_vector`` with a given ``key``.
+    :type initialization_vector: :term:`bytes-like`
 
 .. class:: GCM(initialization_vector, tag=None, min_tag_length=16)
 
@@ -368,12 +395,13 @@ Modes
 
     **This mode does not require padding.**
 
-    :param bytes initialization_vector: Must be unique, a :term:`nonce`.
+    :param initialization_vector: Must be unique, a :term:`nonce`.
         They do not need to be kept secret and they can be included in a
         transmitted message. NIST `recommends a 96-bit IV length`_ for
         performance critical situations but it can be up to 2\ :sup:`64` - 1
         :term:`bits`. Do not reuse an ``initialization_vector`` with a given
         ``key``.
+    :type initialization_vector: :term:`bytes-like`
 
     .. note::
 
@@ -402,9 +430,6 @@ Modes
     :raises ValueError: This is raised if ``len(tag) < min_tag_length`` or the
         ``initialization_vector`` is too short.
 
-    :raises NotImplementedError: This is raised if the version of the OpenSSL
-        backend used is 1.0.1 or earlier.
-
     An example of securely encrypting and decrypting data with ``AES`` in the
     ``GCM`` mode looks like:
 
@@ -412,7 +437,6 @@ Modes
 
         import os
 
-        from cryptography.hazmat.backends import default_backend
         from cryptography.hazmat.primitives.ciphers import (
             Cipher, algorithms, modes
         )
@@ -426,7 +450,6 @@ Modes
             encryptor = Cipher(
                 algorithms.AES(key),
                 modes.GCM(iv),
-                backend=default_backend()
             ).encryptor()
 
             # associated_data will be authenticated but not encrypted,
@@ -445,7 +468,6 @@ Modes
             decryptor = Cipher(
                 algorithms.AES(key),
                 modes.GCM(iv, tag),
-                backend=default_backend()
             ).decryptor()
 
             # We put associated_data back in or the tag will fail to verify
@@ -495,11 +517,11 @@ Modes
 
     **This mode does not require padding.**
 
-    :param bytes tweak: The tweak is a 16 byte value typically derived from
+    :param tweak: The tweak is a 16 byte value typically derived from
         something like the disk sector number. A given ``(tweak, key)`` pair
         should not be reused, although doing so is less catastrophic than
         in CTR mode.
-
+    :type tweak: :term:`bytes-like`
 
 Insecure modes
 --------------
@@ -544,7 +566,8 @@ Interfaces
 
     .. method:: update(data)
 
-        :param bytes data: The data you wish to pass into the context.
+        :param data: The data you wish to pass into the context.
+        :type data: :term:`bytes-like`
         :return bytes: Returns the data that was encrypted or decrypted.
         :raises cryptography.exceptions.AlreadyFinalized: See :meth:`finalize`
 
@@ -567,7 +590,8 @@ Interfaces
             requirement and you will be making many small calls to
             ``update_into``.
 
-        :param bytes data: The data you wish to pass into the context.
+        :param data: The data you wish to pass into the context.
+        :type data: :term:`bytes-like`
         :param buf: A writable Python buffer that the data will be written
             into. This buffer should be ``len(data) + n - 1`` bytes where ``n``
             is the block size (in bytes) of the cipher and mode combination.
@@ -580,11 +604,9 @@ Interfaces
 
             >>> import os
             >>> from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-            >>> from cryptography.hazmat.backends import default_backend
-            >>> backend = default_backend()
             >>> key = os.urandom(32)
             >>> iv = os.urandom(16)
-            >>> cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
+            >>> cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
             >>> encryptor = cipher.encryptor()
             >>> # the buffer needs to be at least len(data) + n - 1 where n is cipher/mode block size in bytes
             >>> buf = bytearray(31)
@@ -629,7 +651,8 @@ Interfaces
 
     .. method:: authenticate_additional_data(data)
 
-        :param bytes data: Any data you wish to authenticate but not encrypt.
+        :param data: Any data you wish to authenticate but not encrypt.
+        :type data: :term:`bytes-like`
         :raises: :class:`~cryptography.exceptions.AlreadyFinalized`
 
 .. class:: AEADEncryptionContext
@@ -662,18 +685,12 @@ Interfaces
 
     .. method:: finalize_with_tag(tag)
 
-        .. note::
-
-            This method is not supported when compiled against OpenSSL 1.0.1.
-
         :param bytes tag: The tag bytes to verify after decryption.
         :return bytes: Returns the remainder of the data.
         :raises ValueError: This is raised when the data provided isn't
             a multiple of the algorithm's block size, if ``min_tag_length`` is
             less than 4, or if ``len(tag) < min_tag_length``.
             ``min_tag_length`` is an argument to the ``GCM`` constructor.
-        :raises NotImplementedError: This is raised if the version of the
-            OpenSSL backend used is 1.0.1 or earlier.
 
         If the authentication tag was not already supplied to the constructor
         of the :class:`~cryptography.hazmat.primitives.ciphers.modes.GCM` mode
@@ -747,7 +764,7 @@ Interfaces used by the symmetric cipher modes described in
 
     .. attribute:: initialization_vector
 
-        :type: bytes
+        :type: :term:`bytes-like`
 
         Exact requirements of the initialization are described by the
         documentation of individual modes.
@@ -759,7 +776,7 @@ Interfaces used by the symmetric cipher modes described in
 
     .. attribute:: nonce
 
-        :type: bytes
+        :type: :term:`bytes-like`
 
         Exact requirements of the nonce are described by the documentation of
         individual modes.
@@ -771,7 +788,7 @@ Interfaces used by the symmetric cipher modes described in
 
     .. attribute:: tag
 
-        :type: bytes
+        :type: :term:`bytes-like`
 
         Exact requirements of the tag are described by the documentation of
         individual modes.
@@ -785,7 +802,7 @@ Interfaces used by the symmetric cipher modes described in
 
     .. attribute:: tweak
 
-        :type: bytes
+        :type: :term:`bytes-like`
 
         Exact requirements of the tweak are described by the documentation of
         individual modes.
@@ -803,13 +820,14 @@ Exceptions
 
 
 
-.. _`described by Colin Percival`: http://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
+.. _`described by Colin Percival`: https://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
 .. _`recommends a 96-bit IV length`: https://csrc.nist.gov/publications/detail/sp/800-38d/final
 .. _`NIST SP-800-38D`: https://csrc.nist.gov/publications/detail/sp/800-38d/final
 .. _`Communications Security Establishment`: https://www.cse-cst.gc.ca
-.. _`encrypt`: https://ssd.eff.org/en/module/what-encryption
+.. _`encrypt`: https://ssd.eff.org/en/module/what-should-i-know-about-encryption
 .. _`CRYPTREC`: https://www.cryptrec.go.jp/english/
-.. _`significant patterns in the output`: https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Electronic_Codebook_.28ECB.29
+.. _`significant patterns in the output`: https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation#Electronic_codebook_(ECB)
 .. _`International Data Encryption Algorithm`: https://en.wikipedia.org/wiki/International_Data_Encryption_Algorithm
-.. _`OpenPGP`: http://openpgp.org
+.. _`OpenPGP`: https://www.openpgp.org/
 .. _`disk encryption`: https://en.wikipedia.org/wiki/Disk_encryption_theory#XTS
+.. _`draft-ribose-cfrg-sm4-10`: https://tools.ietf.org/html/draft-ribose-cfrg-sm4-10

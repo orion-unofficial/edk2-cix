@@ -159,14 +159,13 @@ A specific ``backend`` may provide one or more of these interfaces.
     .. method:: create_cmac_ctx(algorithm)
 
         Create a
-        :class:`~cryptography.hazmat.primitives.mac.MACContext` that
+        context that
         uses the specified ``algorithm`` to calculate a message authentication code.
 
         :param algorithm: An instance of
             :class:`~cryptography.hazmat.primitives.ciphers.BlockCipherAlgorithm`.
 
-        :returns:
-            :class:`~cryptography.hazmat.primitives.mac.MACContext`
+        :returns: CMAC object.
 
 
 .. class:: PBKDF2HMACBackend
@@ -500,18 +499,6 @@ A specific ``backend`` may provide one or more of these interfaces.
     .. versionadded:: 0.7
 
     A backend with methods for working with X.509 objects.
-
-    .. method:: load_pem_x509_certificate(data)
-
-        :param bytes data: PEM formatted certificate data.
-
-        :returns: An instance of :class:`~cryptography.x509.Certificate`.
-
-    .. method:: load_der_x509_certificate(data)
-
-        :param bytes data: DER formatted certificate data.
-
-        :returns: An instance of :class:`~cryptography.x509.Certificate`.
 
     .. method:: load_pem_x509_csr(data)
 

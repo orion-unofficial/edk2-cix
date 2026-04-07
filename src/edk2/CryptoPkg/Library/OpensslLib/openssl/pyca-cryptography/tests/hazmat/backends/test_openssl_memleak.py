@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import json
 import os
@@ -83,27 +82,33 @@ def main(argv):
     assert result == 1
 
     # Trigger a bunch of initialization stuff.
-    import cryptography.hazmat.backends.openssl
+    from cryptography.hazmat.backends.openssl.backend import backend
 
     start_heap = set(heap)
 
-    func(*argv[1:])
-    gc.collect()
-    gc.collect()
-    gc.collect()
+    try:
+        func(*argv[1:])
+    finally:
+        gc.collect()
+        gc.collect()
+        gc.collect()
 
-    if lib.Cryptography_HAS_OPENSSL_CLEANUP:
-        lib.OPENSSL_cleanup()
+        if lib.CRYPTOGRAPHY_OPENSSL_300_OR_GREATER:
+            lib.OSSL_PROVIDER_unload(backend._binding._legacy_provider)
+            lib.OSSL_PROVIDER_unload(backend._binding._default_provider)
 
-    # Swap back to the original functions so that if OpenSSL tries to free
-    # something from its atexit handle it won't be going through a Python
-    # function, which will be deallocated when this function returns
-    result = lib.Cryptography_CRYPTO_set_mem_functions(
-        ffi.addressof(lib, "Cryptography_malloc_wrapper"),
-        ffi.addressof(lib, "Cryptography_realloc_wrapper"),
-        ffi.addressof(lib, "Cryptography_free_wrapper"),
-    )
-    assert result == 1
+        if lib.Cryptography_HAS_OPENSSL_CLEANUP:
+            lib.OPENSSL_cleanup()
+
+        # Swap back to the original functions so that if OpenSSL tries to free
+        # something from its atexit handle it won't be going through a Python
+        # function, which will be deallocated when this function returns
+        result = lib.Cryptography_CRYPTO_set_mem_functions(
+            ffi.addressof(lib, "Cryptography_malloc_wrapper"),
+            ffi.addressof(lib, "Cryptography_realloc_wrapper"),
+            ffi.addressof(lib, "Cryptography_free_wrapper"),
+        )
+        assert result == 1
 
     remaining = set(heap) - start_heap
 
@@ -127,8 +132,18 @@ main(sys.argv)
 def assert_no_memory_leaks(s, argv=[]):
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join(sys.path)
+
+    # When using pytest-cov it attempts to instrument subprocesses. This
+    # causes the memleak tests to raise exceptions.
+    # we don't need coverage so we remove the env vars.
+    env.pop("COV_CORE_CONFIG", None)
+    env.pop("COV_CORE_DATAFILE", None)
+    env.pop("COV_CORE_SOURCE", None)
+
     argv = [
-        sys.executable, "-c", "{0}\n\n{1}".format(s, MEMORY_LEAK_SCRIPT)
+        sys.executable,
+        "-c",
+        "{}\n\n{}".format(s, MEMORY_LEAK_SCRIPT),
     ] + argv
     # Shell out to a fresh Python process because OpenSSL does not allow you to
     # install new memory hooks after the first malloc/free occurs.
@@ -138,6 +153,8 @@ def assert_no_memory_leaks(s, argv=[]):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
+    assert proc.stdout is not None
+    assert proc.stderr is not None
     try:
         proc.wait()
         if proc.returncode == 255:
@@ -156,62 +173,86 @@ def assert_no_memory_leaks(s, argv=[]):
 def skip_if_memtesting_not_supported():
     return pytest.mark.skipif(
         not Binding().lib.Cryptography_HAS_MEM_FUNCTIONS,
-        reason="Requires OpenSSL memory functions (>=1.1.0)"
+        reason="Requires OpenSSL memory functions (>=1.1.0)",
     )
 
 
+@pytest.mark.skip_fips(reason="FIPS self-test sets allow_customize = 0")
 @skip_if_memtesting_not_supported()
 class TestAssertNoMemoryLeaks(object):
     def test_no_leak_no_malloc(self):
-        assert_no_memory_leaks(textwrap.dedent("""
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
         def func():
             pass
-        """))
+        """
+            )
+        )
 
     def test_no_leak_free(self):
-        assert_no_memory_leaks(textwrap.dedent("""
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
         def func():
             from cryptography.hazmat.bindings.openssl.binding import Binding
             b = Binding()
             name = b.lib.X509_NAME_new()
             b.lib.X509_NAME_free(name)
-        """))
+        """
+            )
+        )
 
     def test_no_leak_gc(self):
-        assert_no_memory_leaks(textwrap.dedent("""
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
         def func():
             from cryptography.hazmat.bindings.openssl.binding import Binding
             b = Binding()
             name = b.lib.X509_NAME_new()
             b.ffi.gc(name, b.lib.X509_NAME_free)
-        """))
+        """
+            )
+        )
 
     def test_leak(self):
         with pytest.raises(AssertionError):
-            assert_no_memory_leaks(textwrap.dedent("""
+            assert_no_memory_leaks(
+                textwrap.dedent(
+                    """
             def func():
                 from cryptography.hazmat.bindings.openssl.binding import (
                     Binding
                 )
                 b = Binding()
                 b.lib.X509_NAME_new()
-            """))
+            """
+                )
+            )
 
     def test_errors(self):
-        with pytest.raises(ValueError):
-            assert_no_memory_leaks(textwrap.dedent("""
+        with pytest.raises(ValueError, match="ZeroDivisionError"):
+            assert_no_memory_leaks(
+                textwrap.dedent(
+                    """
             def func():
                 raise ZeroDivisionError
-            """))
+            """
+                )
+            )
 
 
+@pytest.mark.skip_fips(reason="FIPS self-test sets allow_customize = 0")
 @skip_if_memtesting_not_supported()
 class TestOpenSSLMemoryLeaks(object):
-    @pytest.mark.parametrize("path", [
-        "x509/PKITS_data/certs/ValidcRLIssuerTest28EE.crt",
-    ])
-    def test_x509_certificate_extensions(self, path):
-        assert_no_memory_leaks(textwrap.dedent("""
+    @pytest.mark.parametrize(
+        "path", ["x509/PKITS_data/certs/ValidcRLIssuerTest28EE.crt"]
+    )
+    def test_der_x509_certificate_extensions(self, path):
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
         def func(path):
             from cryptography import x509
             from cryptography.hazmat.backends.openssl import backend
@@ -224,10 +265,37 @@ class TestOpenSSLMemoryLeaks(object):
                 )
 
             cert.extensions
-        """), [path])
+        """
+            ),
+            [path],
+        )
+
+    @pytest.mark.parametrize("path", ["x509/cryptography.io.pem"])
+    def test_pem_x509_certificate_extensions(self, path):
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
+        def func(path):
+            from cryptography import x509
+            from cryptography.hazmat.backends.openssl import backend
+
+            import cryptography_vectors
+
+            with cryptography_vectors.open_vector_file(path, "rb") as f:
+                cert = x509.load_pem_x509_certificate(
+                    f.read(), backend
+                )
+
+            cert.extensions
+        """
+            ),
+            [path],
+        )
 
     def test_x509_csr_extensions(self):
-        assert_no_memory_leaks(textwrap.dedent("""
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
         def func():
             from cryptography import x509
             from cryptography.hazmat.backends.openssl import backend
@@ -244,10 +312,14 @@ class TestOpenSSLMemoryLeaks(object):
             ).sign(private_key, hashes.SHA256(), backend)
 
             cert.extensions
-        """))
+        """
+            )
+        )
 
     def test_ec_private_numbers_private_key(self):
-        assert_no_memory_leaks(textwrap.dedent("""
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
         def func():
             from cryptography.hazmat.backends.openssl import backend
             from cryptography.hazmat.primitives.asymmetric import ec
@@ -269,20 +341,230 @@ class TestOpenSSLMemoryLeaks(object):
                     )
                 )
             ).private_key(backend)
-        """))
+        """
+            )
+        )
 
     def test_ec_derive_private_key(self):
-        assert_no_memory_leaks(textwrap.dedent("""
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
         def func():
             from cryptography.hazmat.backends.openssl import backend
             from cryptography.hazmat.primitives.asymmetric import ec
             ec.derive_private_key(1, ec.SECP256R1(), backend)
-        """))
+        """
+            )
+        )
 
     def test_x25519_pubkey_from_private_key(self):
-        assert_no_memory_leaks(textwrap.dedent("""
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
         def func():
             from cryptography.hazmat.primitives.asymmetric import x25519
             private_key = x25519.X25519PrivateKey.generate()
             private_key.public_key()
-        """))
+        """
+            )
+        )
+
+    def test_create_ocsp_request(self):
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
+        def func():
+            from cryptography import x509
+            from cryptography.hazmat.backends.openssl import backend
+            from cryptography.hazmat.primitives import hashes
+            from cryptography.x509 import ocsp
+            import cryptography_vectors
+
+            path = "x509/PKITS_data/certs/ValidcRLIssuerTest28EE.crt"
+            with cryptography_vectors.open_vector_file(path, "rb") as f:
+                cert = x509.load_der_x509_certificate(
+                    f.read(), backend
+                )
+            builder = ocsp.OCSPRequestBuilder()
+            builder = builder.add_certificate(
+                cert, cert, hashes.SHA1()
+            ).add_extension(x509.OCSPNonce(b"0000"), False)
+            req = builder.build()
+        """
+            )
+        )
+
+    @pytest.mark.parametrize(
+        "path",
+        ["pkcs12/cert-aes256cbc-no-key.p12", "pkcs12/cert-key-aes256cbc.p12"],
+    )
+    def test_load_pkcs12_key_and_certificates(self, path):
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
+        def func(path):
+            from cryptography import x509
+            from cryptography.hazmat.backends.openssl import backend
+            from cryptography.hazmat.primitives.serialization import pkcs12
+            import cryptography_vectors
+
+            with cryptography_vectors.open_vector_file(path, "rb") as f:
+                pkcs12.load_key_and_certificates(
+                    f.read(), b"cryptography", backend
+                )
+        """
+            ),
+            [path],
+        )
+
+    def test_create_crl_with_idp(self):
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
+        def func():
+            import datetime
+            from cryptography import x509
+            from cryptography.hazmat.backends.openssl import backend
+            from cryptography.hazmat.primitives import hashes
+            from cryptography.hazmat.primitives.asymmetric import ec
+            from cryptography.x509.oid import NameOID
+
+            key = ec.generate_private_key(ec.SECP256R1(), backend)
+            last_update = datetime.datetime(2002, 1, 1, 12, 1)
+            next_update = datetime.datetime(2030, 1, 1, 12, 1)
+            idp = x509.IssuingDistributionPoint(
+                full_name=None,
+                relative_name=x509.RelativeDistinguishedName([
+                    x509.NameAttribute(
+                        oid=x509.NameOID.ORGANIZATION_NAME, value=u"PyCA")
+                ]),
+                only_contains_user_certs=False,
+                only_contains_ca_certs=True,
+                only_some_reasons=None,
+                indirect_crl=False,
+                only_contains_attribute_certs=False,
+            )
+            builder = x509.CertificateRevocationListBuilder().issuer_name(
+                x509.Name([
+                    x509.NameAttribute(
+                        NameOID.COMMON_NAME, u"cryptography.io CA"
+                    )
+                ])
+            ).last_update(
+                last_update
+            ).next_update(
+                next_update
+            ).add_extension(
+                idp, True
+            )
+
+            crl = builder.sign(key, hashes.SHA256(), backend)
+            crl.extensions.get_extension_for_class(
+                x509.IssuingDistributionPoint
+            )
+        """
+            )
+        )
+
+    def test_create_certificate_with_extensions(self):
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
+        def func():
+            import datetime
+
+            from cryptography import x509
+            from cryptography.hazmat.backends.openssl import backend
+            from cryptography.hazmat.primitives import hashes
+            from cryptography.hazmat.primitives.asymmetric import ec
+            from cryptography.x509.oid import (
+                AuthorityInformationAccessOID, ExtendedKeyUsageOID, NameOID
+            )
+
+            private_key = ec.generate_private_key(ec.SECP256R1(), backend)
+
+            not_valid_before = datetime.datetime.now()
+            not_valid_after = not_valid_before + datetime.timedelta(days=365)
+
+            aia = x509.AuthorityInformationAccess([
+                x509.AccessDescription(
+                    AuthorityInformationAccessOID.OCSP,
+                    x509.UniformResourceIdentifier(u"http://ocsp.domain.com")
+                ),
+                x509.AccessDescription(
+                    AuthorityInformationAccessOID.CA_ISSUERS,
+                    x509.UniformResourceIdentifier(u"http://domain.com/ca.crt")
+                )
+            ])
+            sans = [u'*.example.org', u'foobar.example.net']
+            san = x509.SubjectAlternativeName(list(map(x509.DNSName, sans)))
+
+            ski = x509.SubjectKeyIdentifier.from_public_key(
+                private_key.public_key()
+            )
+            eku = x509.ExtendedKeyUsage([
+                ExtendedKeyUsageOID.CLIENT_AUTH,
+                ExtendedKeyUsageOID.SERVER_AUTH,
+                ExtendedKeyUsageOID.CODE_SIGNING,
+            ])
+
+            builder = x509.CertificateBuilder().serial_number(
+                777
+            ).issuer_name(x509.Name([
+                x509.NameAttribute(NameOID.COUNTRY_NAME, u'US'),
+            ])).subject_name(x509.Name([
+                x509.NameAttribute(NameOID.COUNTRY_NAME, u'US'),
+            ])).public_key(
+                private_key.public_key()
+            ).add_extension(
+                aia, critical=False
+            ).not_valid_before(
+                not_valid_before
+            ).not_valid_after(
+                not_valid_after
+            )
+
+            cert = builder.sign(private_key, hashes.SHA256(), backend)
+            cert.extensions
+        """
+            )
+        )
+
+    def test_write_pkcs12_key_and_certificates(self):
+        assert_no_memory_leaks(
+            textwrap.dedent(
+                """
+        def func():
+            import os
+            from cryptography import x509
+            from cryptography.hazmat.backends.openssl import backend
+            from cryptography.hazmat.primitives import serialization
+            from cryptography.hazmat.primitives.serialization import pkcs12
+            import cryptography_vectors
+
+            path = os.path.join('x509', 'custom', 'ca', 'ca.pem')
+            with cryptography_vectors.open_vector_file(path, "rb") as f:
+                cert = x509.load_pem_x509_certificate(
+                    f.read(), backend
+                )
+            path2 = os.path.join('x509', 'custom', 'dsa_selfsigned_ca.pem')
+            with cryptography_vectors.open_vector_file(path2, "rb") as f:
+                cert2 = x509.load_pem_x509_certificate(
+                    f.read(), backend
+                )
+            path3 = os.path.join('x509', 'letsencryptx3.pem')
+            with cryptography_vectors.open_vector_file(path3, "rb") as f:
+                cert3 = x509.load_pem_x509_certificate(
+                    f.read(), backend
+                )
+            key_path = os.path.join("x509", "custom", "ca", "ca_key.pem")
+            with cryptography_vectors.open_vector_file(key_path, "rb") as f:
+                key = serialization.load_pem_private_key(
+                    f.read(), None, backend
+                )
+            encryption = serialization.NoEncryption()
+            pkcs12.serialize_key_and_certificates(
+                b"name", key, cert, [cert2, cert3], encryption)
+        """
+            )
+        )

@@ -58,7 +58,7 @@ multiple of the block size.
 
     .. versionadded:: 1.3
 
-    `ANSI X.923`_ padding works by appending ``N-1`` bytes with the value of
+    `ANSI X9.23`_ padding works by appending ``N-1`` bytes with the value of
     ``0`` and a last byte with the value of ``chr(N)``, where ``N`` is the
     number of bytes required to make the final block of data the same size as
     the block size. A simple example of padding is:
@@ -107,7 +107,8 @@ multiple of the block size.
 
     .. method:: update(data)
 
-        :param bytes data: The data you wish to pass into the context.
+        :param data: The data you wish to pass into the context.
+        :type data: :term:`bytes-like`
         :return bytes: Returns the data that was padded or unpadded.
         :raises TypeError: Raised if data is not bytes.
         :raises cryptography.exceptions.AlreadyFinalized: See :meth:`finalize`.
@@ -126,4 +127,4 @@ multiple of the block size.
         :raises ValueError: When trying to remove padding from incorrectly
                             padded data.
 
-.. _`ANSI X.923`: https://en.wikipedia.org/wiki/Padding_%28cryptography%29#ANSI_X.923
+.. _`ANSI X9.23`: https://en.wikipedia.org/wiki/Padding_%28cryptography%29#ANSI_X9.23

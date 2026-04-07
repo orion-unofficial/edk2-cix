@@ -2,29 +2,36 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
+
+import typing
 
 from cryptography import utils
 from cryptography.exceptions import (
-    AlreadyFinalized, UnsupportedAlgorithm, _Reasons
+    AlreadyFinalized,
+    UnsupportedAlgorithm,
+    _Reasons,
 )
-from cryptography.hazmat.backends.interfaces import CMACBackend
-from cryptography.hazmat.primitives import ciphers, mac
+from cryptography.hazmat.backends import _get_backend
+from cryptography.hazmat.backends.interfaces import Backend, CMACBackend
+from cryptography.hazmat.primitives import ciphers
 
 
-@utils.register_interface(mac.MACContext)
 class CMAC(object):
-    def __init__(self, algorithm, backend, ctx=None):
+    def __init__(
+        self,
+        algorithm: ciphers.BlockCipherAlgorithm,
+        backend: typing.Optional[Backend] = None,
+        ctx=None,
+    ):
+        backend = _get_backend(backend)
         if not isinstance(backend, CMACBackend):
             raise UnsupportedAlgorithm(
                 "Backend object does not implement CMACBackend.",
-                _Reasons.BACKEND_MISSING_INTERFACE
+                _Reasons.BACKEND_MISSING_INTERFACE,
             )
 
         if not isinstance(algorithm, ciphers.BlockCipherAlgorithm):
-            raise TypeError(
-                "Expected instance of BlockCipherAlgorithm."
-            )
+            raise TypeError("Expected instance of BlockCipherAlgorithm.")
         self._algorithm = algorithm
 
         self._backend = backend
@@ -33,34 +40,31 @@ class CMAC(object):
         else:
             self._ctx = ctx
 
-    def update(self, data):
+    def update(self, data: bytes) -> None:
         if self._ctx is None:
             raise AlreadyFinalized("Context was already finalized.")
-        if not isinstance(data, bytes):
-            raise TypeError("data must be bytes.")
+
+        utils._check_bytes("data", data)
         self._ctx.update(data)
 
-    def finalize(self):
+    def finalize(self) -> bytes:
         if self._ctx is None:
             raise AlreadyFinalized("Context was already finalized.")
         digest = self._ctx.finalize()
         self._ctx = None
         return digest
 
-    def verify(self, signature):
-        if not isinstance(signature, bytes):
-            raise TypeError("signature must be bytes.")
+    def verify(self, signature: bytes) -> None:
+        utils._check_bytes("signature", signature)
         if self._ctx is None:
             raise AlreadyFinalized("Context was already finalized.")
 
         ctx, self._ctx = self._ctx, None
         ctx.verify(signature)
 
-    def copy(self):
+    def copy(self) -> "CMAC":
         if self._ctx is None:
             raise AlreadyFinalized("Context was already finalized.")
         return CMAC(
-            self._algorithm,
-            backend=self._backend,
-            ctx=self._ctx.copy()
+            self._algorithm, backend=self._backend, ctx=self._ctx.copy()
         )

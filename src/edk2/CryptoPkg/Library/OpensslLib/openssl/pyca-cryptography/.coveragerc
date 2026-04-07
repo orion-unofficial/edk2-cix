@@ -7,10 +7,13 @@ source =
 [paths]
 source =
    src/cryptography
-   .tox/*/lib/python*/site-packages/cryptography
+   .tox/*/lib*/python*/site-packages/cryptography
+   .tox\*\Lib\site-packages\cryptography
    .tox/pypy/site-packages/cryptography
 
 [report]
 exclude_lines =
     @abc.abstractmethod
     @abc.abstractproperty
+    @typing.overload
+    if typing.TYPE_CHECKING

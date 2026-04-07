@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 INCLUDES = """
 #include <openssl/pkcs7.h>
@@ -24,6 +23,7 @@ typedef struct {
 typedef ... PKCS7_DIGEST;
 typedef ... PKCS7_ENCRYPT;
 typedef ... PKCS7_ENVELOPE;
+typedef ... PKCS7_SIGNER_INFO;
 
 typedef struct {
     ASN1_OBJECT *type;
@@ -51,33 +51,33 @@ static const int PKCS7_NOSMIMECAP;
 static const int PKCS7_NOVERIFY;
 static const int PKCS7_STREAM;
 static const int PKCS7_TEXT;
+static const int PKCS7_PARTIAL;
 """
 
 FUNCTIONS = """
-PKCS7 *SMIME_read_PKCS7(BIO *, BIO **);
-int SMIME_write_PKCS7(BIO *, PKCS7 *, BIO *, int);
-
 void PKCS7_free(PKCS7 *);
-
 PKCS7 *PKCS7_sign(X509 *, EVP_PKEY *, Cryptography_STACK_OF_X509 *,
-                  BIO *, int);
+                   BIO *, int);
+int SMIME_write_PKCS7(BIO *, PKCS7 *, BIO *, int);
+int PEM_write_bio_PKCS7_stream(BIO *, PKCS7 *, BIO *, int);
+PKCS7_SIGNER_INFO *PKCS7_sign_add_signer(PKCS7 *, X509 *, EVP_PKEY *,
+                                         const EVP_MD *, int);
+int PKCS7_final(PKCS7 *, BIO *, int);
+/* Included verify due to external consumer, see
+   https://github.com/pyca/cryptography/issues/5433 */
 int PKCS7_verify(PKCS7 *, Cryptography_STACK_OF_X509 *, X509_STORE *, BIO *,
                  BIO *, int);
+PKCS7 *SMIME_read_PKCS7(BIO *, BIO **);
+/* Included due to external consumer, see
+   https://github.com/pyca/pyopenssl/issues/1031 */
 Cryptography_STACK_OF_X509 *PKCS7_get0_signers(PKCS7 *,
                                                Cryptography_STACK_OF_X509 *,
                                                int);
 
-PKCS7 *PKCS7_encrypt(Cryptography_STACK_OF_X509 *, BIO *,
-                     const EVP_CIPHER *, int);
-int PKCS7_decrypt(PKCS7 *, EVP_PKEY *, X509 *, BIO *, int);
-
-BIO *PKCS7_dataInit(PKCS7 *, BIO *);
-int PKCS7_type_is_encrypted(PKCS7 *);
 int PKCS7_type_is_signed(PKCS7 *);
 int PKCS7_type_is_enveloped(PKCS7 *);
 int PKCS7_type_is_signedAndEnveloped(PKCS7 *);
 int PKCS7_type_is_data(PKCS7 *);
-int PKCS7_type_is_digest(PKCS7 *);
 """
 
 CUSTOMIZATIONS = ""

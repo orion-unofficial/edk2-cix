@@ -2,7 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 INCLUDES = """
 #include <openssl/ec.h>
@@ -10,9 +9,7 @@ INCLUDES = """
 """
 
 TYPES = """
-static const int Cryptography_HAS_EC;
 static const int Cryptography_HAS_EC2M;
-static const int Cryptography_HAS_EC_1_0_2;
 
 static const int OPENSSL_EC_NAMED_CURVE;
 
@@ -35,8 +32,6 @@ FUNCTIONS = """
 void EC_GROUP_free(EC_GROUP *);
 
 EC_GROUP *EC_GROUP_new_by_curve_name(int);
-
-int EC_GROUP_get_degree(const EC_GROUP *);
 
 const EC_METHOD *EC_GROUP_method_of(const EC_GROUP *);
 const EC_POINT *EC_GROUP_get0_generator(const EC_GROUP *);
@@ -70,17 +65,8 @@ int EC_POINT_set_affine_coordinates_GFp(const EC_GROUP *, EC_POINT *,
 int EC_POINT_get_affine_coordinates_GFp(const EC_GROUP *,
     const EC_POINT *, BIGNUM *, BIGNUM *, BN_CTX *);
 
-int EC_POINT_set_compressed_coordinates_GFp(const EC_GROUP *, EC_POINT *,
-    const BIGNUM *, int, BN_CTX *);
-
-int EC_POINT_set_affine_coordinates_GF2m(const EC_GROUP *, EC_POINT *,
-    const BIGNUM *, const BIGNUM *, BN_CTX *);
-
 int EC_POINT_get_affine_coordinates_GF2m(const EC_GROUP *,
     const EC_POINT *, BIGNUM *, BIGNUM *, BN_CTX *);
-
-int EC_POINT_set_compressed_coordinates_GF2m(const EC_GROUP *, EC_POINT *,
-    const BIGNUM *, int, BN_CTX *);
 
 size_t EC_POINT_point2oct(const EC_GROUP *, const EC_POINT *,
     point_conversion_form_t,
@@ -106,31 +92,18 @@ int EC_POINT_mul(const EC_GROUP *, EC_POINT *, const BIGNUM *,
 int EC_METHOD_get_field_type(const EC_METHOD *);
 
 const char *EC_curve_nid2nist(int);
+
+int EC_GROUP_get_asn1_flag(const EC_GROUP *);
 """
 
 CUSTOMIZATIONS = """
-static const long Cryptography_HAS_EC = 1;
-
 #if defined(OPENSSL_NO_EC2M)
 static const long Cryptography_HAS_EC2M = 0;
-
-int (*EC_POINT_set_affine_coordinates_GF2m)(const EC_GROUP *, EC_POINT *,
-    const BIGNUM *, const BIGNUM *, BN_CTX *) = NULL;
 
 int (*EC_POINT_get_affine_coordinates_GF2m)(const EC_GROUP *,
     const EC_POINT *, BIGNUM *, BIGNUM *, BN_CTX *) = NULL;
 
-int (*EC_POINT_set_compressed_coordinates_GF2m)(const EC_GROUP *, EC_POINT *,
-    const BIGNUM *, int, BN_CTX *) = NULL;
 #else
 static const long Cryptography_HAS_EC2M = 1;
-#endif
-
-#if (!CRYPTOGRAPHY_IS_LIBRESSL && CRYPTOGRAPHY_OPENSSL_LESS_THAN_102) || \
-    (CRYPTOGRAPHY_IS_LIBRESSL && LIBRESSL_VERSION_NUMBER < 0x20020002L)
-static const long Cryptography_HAS_EC_1_0_2 = 0;
-const char *(*EC_curve_nid2nist)(int) = NULL;
-#else
-static const long Cryptography_HAS_EC_1_0_2 = 1;
 #endif
 """

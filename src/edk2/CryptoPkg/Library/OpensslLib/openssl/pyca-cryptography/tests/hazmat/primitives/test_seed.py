@@ -2,14 +2,12 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 import os
 
 import pytest
 
-from cryptography.hazmat.backends.interfaces import CipherBackend
 from cryptography.hazmat.primitives.ciphers import algorithms, modes
 
 from .utils import generate_encrypt_test
@@ -22,9 +20,8 @@ from ...utils import load_nist_vectors
     ),
     skip_message="Does not support SEED ECB",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestSEEDModeECB(object):
-    test_ECB = generate_encrypt_test(
+    test_ecb = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "SEED"),
         ["rfc-4269.txt"],
@@ -39,14 +36,13 @@ class TestSEEDModeECB(object):
     ),
     skip_message="Does not support SEED CBC",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestSEEDModeCBC(object):
-    test_CBC = generate_encrypt_test(
+    test_cbc = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "SEED"),
         ["rfc-4196.txt"],
         lambda key, **kwargs: algorithms.SEED(binascii.unhexlify((key))),
-        lambda iv, **kwargs: modes.CBC(binascii.unhexlify(iv))
+        lambda iv, **kwargs: modes.CBC(binascii.unhexlify(iv)),
     )
 
 
@@ -56,14 +52,13 @@ class TestSEEDModeCBC(object):
     ),
     skip_message="Does not support SEED OFB",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestSEEDModeOFB(object):
-    test_OFB = generate_encrypt_test(
+    test_ofb = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "SEED"),
         ["seed-ofb.txt"],
         lambda key, **kwargs: algorithms.SEED(binascii.unhexlify((key))),
-        lambda iv, **kwargs: modes.OFB(binascii.unhexlify(iv))
+        lambda iv, **kwargs: modes.OFB(binascii.unhexlify(iv)),
     )
 
 
@@ -73,12 +68,11 @@ class TestSEEDModeOFB(object):
     ),
     skip_message="Does not support SEED CFB",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestSEEDModeCFB(object):
-    test_CFB = generate_encrypt_test(
+    test_cfb = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "SEED"),
         ["seed-cfb.txt"],
         lambda key, **kwargs: algorithms.SEED(binascii.unhexlify((key))),
-        lambda iv, **kwargs: modes.CFB(binascii.unhexlify(iv))
+        lambda iv, **kwargs: modes.CFB(binascii.unhexlify(iv)),
     )

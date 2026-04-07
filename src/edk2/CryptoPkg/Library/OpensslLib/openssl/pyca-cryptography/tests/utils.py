@@ -2,19 +2,16 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 import collections
 import json
-import math
 import os
 import re
+import typing
 from contextlib import contextmanager
 
 import pytest
-
-import six
 
 from cryptography.exceptions import UnsupportedAlgorithm
 
@@ -30,9 +27,7 @@ KeyedHashVector = collections.namedtuple(
 def check_backend_support(backend, item):
     for mark in item.node.iter_markers("supported"):
         if not mark.kwargs["only_if"](backend):
-            pytest.skip("{0} ({1})".format(
-                mark.kwargs["skip_message"], backend
-            ))
+            pytest.skip("{} ({})".format(mark.kwargs["skip_message"], backend))
 
 
 @contextmanager
@@ -49,15 +44,18 @@ def load_vectors_from_file(filename, loader, mode="r"):
 
 
 def load_nist_vectors(vector_data):
-    test_data = None
+    test_data = {}
     data = []
 
     for line in vector_data:
         line = line.strip()
 
         # Blank lines, comments, and section headers are ignored
-        if not line or line.startswith("#") or (line.startswith("[") and
-                                                line.endswith("]")):
+        if (
+            not line
+            or line.startswith("#")
+            or (line.startswith("[") and line.endswith("]"))
+        ):
             continue
 
         if line.strip() == "FAIL":
@@ -102,18 +100,16 @@ def load_cryptrec_vectors(vector_data):
             ct = line.split(" : ")[1].replace(" ", "").encode("ascii")
             # after a C is found the K+P+C tuple is complete
             # there are many P+C pairs for each K
-            cryptrec_list.append({
-                "key": key,
-                "plaintext": pt,
-                "ciphertext": ct
-            })
+            cryptrec_list.append(
+                {"key": key, "plaintext": pt, "ciphertext": ct}
+            )
         else:
             raise ValueError("Invalid line in file '{}'".format(line))
     return cryptrec_list
 
 
 def load_hash_vectors(vector_data):
-    vectors = []
+    vectors: typing.List[typing.Union[KeyedHashVector, HashVector]] = []
     key = None
     msg = None
     md = None
@@ -134,7 +130,7 @@ def load_hash_vectors(vector_data):
             # string as hex 00, which is of course not actually an empty
             # string. So we parse the provided length and catch this edge case.
             msg = line.split(" = ")[1].encode("ascii") if length > 0 else b""
-        elif line.startswith("MD"):
+        elif line.startswith("MD") or line.startswith("Output"):
             md = line.split(" = ")[1]
             # after MD is found the Msg+MD (+ potential key) tuple is complete
             if key is not None:
@@ -155,23 +151,23 @@ def load_pkcs1_vectors(vector_data):
     """
     Loads data out of RSA PKCS #1 vector files.
     """
-    private_key_vector = None
-    public_key_vector = None
+    private_key_vector: typing.Optional[typing.Dict[str, typing.Any]] = None
+    public_key_vector: typing.Optional[typing.Dict[str, typing.Any]] = None
     attr = None
-    key = None
-    example_vector = None
+    key: typing.Any = None
+    example_vector: typing.Optional[typing.Dict[str, typing.Any]] = None
     examples = []
     vectors = []
     for line in vector_data:
         if (
-            line.startswith("# PSS Example") or
-            line.startswith("# OAEP Example") or
-            line.startswith("# PKCS#1 v1.5")
+            line.startswith("# PSS Example")
+            or line.startswith("# OAEP Example")
+            or line.startswith("# PKCS#1 v1.5")
         ):
             if example_vector:
-                for key, value in six.iteritems(example_vector):
-                    hex_str = "".join(value).replace(" ", "").encode("ascii")
-                    example_vector[key] = hex_str
+                for key, value in example_vector.items():
+                    hex_bytes = "".join(value).replace(" ", "").encode("ascii")
+                    example_vector[key] = hex_bytes
                 examples.append(example_vector)
 
             attr = None
@@ -192,13 +188,12 @@ def load_pkcs1_vectors(vector_data):
         elif line.startswith("# Encryption"):
             attr = "encryption"
             continue
-        elif (
-            example_vector and
-            line.startswith("# =============================================")
+        elif example_vector and line.startswith(
+            "# ============================================="
         ):
-            for key, value in six.iteritems(example_vector):
-                hex_str = "".join(value).replace(" ", "").encode("ascii")
-                example_vector[key] = hex_str
+            for key, value in example_vector.items():
+                hex_bytes = "".join(value).replace(" ", "").encode("ascii")
+                example_vector[key] = hex_bytes
             examples.append(example_vector)
             example_vector = None
             attr = None
@@ -209,19 +204,18 @@ def load_pkcs1_vectors(vector_data):
                 example_vector[attr].append(line.strip())
                 continue
 
-        if (
-            line.startswith("# Example") or
-            line.startswith("# =============================================")
+        if line.startswith("# Example") or line.startswith(
+            "# ============================================="
         ):
             if key:
                 assert private_key_vector
                 assert public_key_vector
 
-                for key, value in six.iteritems(public_key_vector):
+                for key, value in public_key_vector.items():
                     hex_str = "".join(value).replace(" ", "")
                     public_key_vector[key] = int(hex_str, 16)
 
-                for key, value in six.iteritems(private_key_vector):
+                for key, value in private_key_vector.items():
                     hex_str = "".join(value).replace(" ", "")
                     private_key_vector[key] = int(hex_str, 16)
 
@@ -229,18 +223,16 @@ def load_pkcs1_vectors(vector_data):
                 examples = []
 
                 assert (
-                    private_key_vector['public_exponent'] ==
-                    public_key_vector['public_exponent']
+                    private_key_vector["public_exponent"]
+                    == public_key_vector["public_exponent"]
                 )
 
                 assert (
-                    private_key_vector['modulus'] ==
-                    public_key_vector['modulus']
+                    private_key_vector["modulus"]
+                    == public_key_vector["modulus"]
                 )
 
-                vectors.append(
-                    (private_key_vector, public_key_vector)
-                )
+                vectors.append((private_key_vector, public_key_vector))
 
             public_key_vector = collections.defaultdict(list)
             private_key_vector = collections.defaultdict(list)
@@ -286,7 +278,7 @@ def load_pkcs1_vectors(vector_data):
 
 
 def load_rsa_nist_vectors(vector_data):
-    test_data = None
+    test_data: typing.Dict[str, typing.Any] = {}
     p = None
     salt_length = None
     data = []
@@ -322,15 +314,10 @@ def load_rsa_nist_vectors(vector_data):
                     "public_exponent": e,
                     "salt_length": salt_length,
                     "algorithm": value,
-                    "fail": False
+                    "fail": False,
                 }
             else:
-                test_data = {
-                    "modulus": n,
-                    "p": p,
-                    "q": q,
-                    "algorithm": value
-                }
+                test_data = {"modulus": n, "p": p, "q": q, "algorithm": value}
                 if salt_length is not None:
                     test_data["salt_length"] = salt_length
             data.append(test_data)
@@ -360,21 +347,24 @@ def load_fips_dsa_key_pair_vectors(vector_data):
             continue
 
         if line.startswith("P"):
-            vectors.append({'p': int(line.split("=")[1], 16)})
+            vectors.append({"p": int(line.split("=")[1], 16)})
         elif line.startswith("Q"):
-            vectors[-1]['q'] = int(line.split("=")[1], 16)
+            vectors[-1]["q"] = int(line.split("=")[1], 16)
         elif line.startswith("G"):
-            vectors[-1]['g'] = int(line.split("=")[1], 16)
-        elif line.startswith("X") and 'x' not in vectors[-1]:
-            vectors[-1]['x'] = int(line.split("=")[1], 16)
-        elif line.startswith("X") and 'x' in vectors[-1]:
-            vectors.append({'p': vectors[-1]['p'],
-                            'q': vectors[-1]['q'],
-                            'g': vectors[-1]['g'],
-                            'x': int(line.split("=")[1], 16)
-                            })
+            vectors[-1]["g"] = int(line.split("=")[1], 16)
+        elif line.startswith("X") and "x" not in vectors[-1]:
+            vectors[-1]["x"] = int(line.split("=")[1], 16)
+        elif line.startswith("X") and "x" in vectors[-1]:
+            vectors.append(
+                {
+                    "p": vectors[-1]["p"],
+                    "q": vectors[-1]["q"],
+                    "g": vectors[-1]["g"],
+                    "x": int(line.split("=")[1], 16),
+                }
+            )
         elif line.startswith("Y"):
-            vectors[-1]['y'] = int(line.split("=")[1], 16)
+            vectors[-1]["y"] = int(line.split("=")[1], 16)
 
     return vectors
 
@@ -396,7 +386,7 @@ def load_fips_dsa_sig_vectors(vector_data):
 
         sha_match = sha_regex.match(line)
         if sha_match:
-            digest_algorithm = "SHA-{0}".format(sha_match.group("sha"))
+            digest_algorithm = "SHA-{}".format(sha_match.group("sha"))
 
         if line.startswith("[mod"):
             continue
@@ -404,52 +394,54 @@ def load_fips_dsa_sig_vectors(vector_data):
         name, value = [c.strip() for c in line.split("=")]
 
         if name == "P":
-            vectors.append({'p': int(value, 16),
-                            'digest_algorithm': digest_algorithm})
+            vectors.append(
+                {"p": int(value, 16), "digest_algorithm": digest_algorithm}
+            )
         elif name == "Q":
-            vectors[-1]['q'] = int(value, 16)
+            vectors[-1]["q"] = int(value, 16)
         elif name == "G":
-            vectors[-1]['g'] = int(value, 16)
-        elif name == "Msg" and 'msg' not in vectors[-1]:
+            vectors[-1]["g"] = int(value, 16)
+        elif name == "Msg" and "msg" not in vectors[-1]:
             hexmsg = value.strip().encode("ascii")
-            vectors[-1]['msg'] = binascii.unhexlify(hexmsg)
-        elif name == "Msg" and 'msg' in vectors[-1]:
+            vectors[-1]["msg"] = binascii.unhexlify(hexmsg)
+        elif name == "Msg" and "msg" in vectors[-1]:
             hexmsg = value.strip().encode("ascii")
-            vectors.append({'p': vectors[-1]['p'],
-                            'q': vectors[-1]['q'],
-                            'g': vectors[-1]['g'],
-                            'digest_algorithm':
-                            vectors[-1]['digest_algorithm'],
-                            'msg': binascii.unhexlify(hexmsg)})
+            vectors.append(
+                {
+                    "p": vectors[-1]["p"],
+                    "q": vectors[-1]["q"],
+                    "g": vectors[-1]["g"],
+                    "digest_algorithm": vectors[-1]["digest_algorithm"],
+                    "msg": binascii.unhexlify(hexmsg),
+                }
+            )
         elif name == "X":
-            vectors[-1]['x'] = int(value, 16)
+            vectors[-1]["x"] = int(value, 16)
         elif name == "Y":
-            vectors[-1]['y'] = int(value, 16)
+            vectors[-1]["y"] = int(value, 16)
         elif name == "R":
-            vectors[-1]['r'] = int(value, 16)
+            vectors[-1]["r"] = int(value, 16)
         elif name == "S":
-            vectors[-1]['s'] = int(value, 16)
+            vectors[-1]["s"] = int(value, 16)
         elif name == "Result":
-            vectors[-1]['result'] = value.split("(")[0].strip()
+            vectors[-1]["result"] = value.split("(")[0].strip()
 
     return vectors
 
 
-# http://tools.ietf.org/html/rfc4492#appendix-A
+# https://tools.ietf.org/html/rfc4492#appendix-A
 _ECDSA_CURVE_NAMES = {
     "P-192": "secp192r1",
     "P-224": "secp224r1",
     "P-256": "secp256r1",
     "P-384": "secp384r1",
     "P-521": "secp521r1",
-
     "K-163": "sect163k1",
     "K-233": "sect233k1",
     "K-256": "secp256k1",
     "K-283": "sect283k1",
     "K-409": "sect409k1",
     "K-571": "sect571k1",
-
     "B-163": "sect163r2",
     "B-233": "sect233r1",
     "B-283": "sect283r1",
@@ -477,10 +469,7 @@ def load_fips_ecdsa_key_pair_vectors(vector_data):
             if key_data is not None:
                 vectors.append(key_data)
 
-            key_data = {
-                "curve": curve_name,
-                "d": int(line.split("=")[1], 16)
-            }
+            key_data = {"curve": curve_name, "d": int(line.split("=")[1], 16)}
 
         elif key_data is not None:
             if line.startswith("Qx = "):
@@ -511,7 +500,7 @@ def load_fips_ecdsa_signing_vectors(vector_data):
         curve_match = curve_rx.match(line)
         if curve_match:
             curve_name = _ECDSA_CURVE_NAMES[curve_match.group("curve")]
-            digest_name = "SHA-{0}".format(curve_match.group("sha"))
+            digest_name = "SHA-{}".format(curve_match.group("sha"))
 
         elif line.startswith("Msg = "):
             if data is not None:
@@ -522,7 +511,7 @@ def load_fips_ecdsa_signing_vectors(vector_data):
             data = {
                 "curve": curve_name,
                 "digest_algorithm": digest_name,
-                "message": binascii.unhexlify(hexmsg)
+                "message": binascii.unhexlify(hexmsg),
             }
 
         elif data is not None:
@@ -552,10 +541,7 @@ def load_kasvs_dh_vectors(vector_data):
     result_rx = re.compile(r"([FP]) \(([0-9]+) -")
 
     vectors = []
-    data = {
-        "fail_z": False,
-        "fail_agree": False
-    }
+    data: typing.Dict[str, typing.Any] = {"fail_z": False, "fail_agree": False}
 
     for line in vector_data:
         line = line.strip()
@@ -583,6 +569,7 @@ def load_kasvs_dh_vectors(vector_data):
         elif line.startswith("Result = "):
             result_str = line.split("=")[1].strip()
             match = result_rx.match(result_str)
+            assert match is not None
 
             if match.group(1) == "F":
                 if int(match.group(2)) in (5, 10):
@@ -597,7 +584,7 @@ def load_kasvs_dh_vectors(vector_data):
                 "q": data["q"],
                 "g": data["g"],
                 "fail_z": False,
-                "fail_agree": False
+                "fail_agree": False,
             }
 
     return vectors
@@ -647,7 +634,7 @@ def load_kasvs_ecdh_vectors(vector_data):
             tag = line
             curve = None
         elif line.startswith("[Curve selected:"):
-            curve = curve_name_map[line.split(':')[1].strip()[:-1]]
+            curve = curve_name_map[line.split(":")[1].strip()[:-1]]
 
         if tag is not None and curve is not None:
             sets[tag.strip("[]")] = curve
@@ -656,7 +643,7 @@ def load_kasvs_ecdh_vectors(vector_data):
             break
 
     # Data
-    data = {
+    data: typing.Dict[str, typing.Any] = {
         "CAVS": {},
         "IUT": {},
     }
@@ -692,6 +679,7 @@ def load_kasvs_ecdh_vectors(vector_data):
         elif line.startswith("Result = "):
             result_str = line.split("=")[1].strip()
             match = result_rx.match(result_str)
+            assert match is not None
 
             if match.group(1) == "F":
                 data["fail"] = True
@@ -744,15 +732,18 @@ def load_x963_vectors(vector_data):
             vector["key_data_length"] = key_data_len
         elif line.startswith("Z"):
             vector["Z"] = line.split("=")[1].strip()
-            assert math.ceil(shared_secret_len / 8) * 2 == len(vector["Z"])
+            assert vector["Z"] is not None
+            assert ((shared_secret_len + 7) // 8) * 2 == len(vector["Z"])
         elif line.startswith("SharedInfo"):
             if shared_info_len != 0:
                 vector["sharedinfo"] = line.split("=")[1].strip()
+                assert vector["sharedinfo"] is not None
                 silen = len(vector["sharedinfo"])
-                assert math.ceil(shared_info_len / 8) * 2 == silen
+                assert ((shared_info_len + 7) // 8) * 2 == silen
         elif line.startswith("key_data"):
             vector["key_data"] = line.split("=")[1].strip()
-            assert math.ceil(key_data_len / 8) * 2 == len(vector["key_data"])
+            assert vector["key_data"] is not None
+            assert ((key_data_len + 7) // 8) * 2 == len(vector["key_data"])
             vectors.append(vector)
             vector = {}
 
@@ -776,14 +767,14 @@ def load_nist_kbkdf_vectors(vector_data):
         if line.startswith("[") and line.endswith("]"):
             tag_data = line[1:-1]
             name, value = [c.strip() for c in tag_data.split("=")]
-            if value.endswith('_BITS'):
-                value = int(value.split('_')[0])
+            if value.endswith("_BITS"):
+                value = int(value.split("_")[0])
                 tag.update({name.lower(): value})
                 continue
 
             tag.update({name.lower(): value.lower()})
         elif line.startswith("COUNT="):
-            test_data = dict()
+            test_data = {}
             test_data.update(tag)
             vectors.append(test_data)
         elif line.startswith("L"):
@@ -799,22 +790,24 @@ def load_nist_kbkdf_vectors(vector_data):
 def load_ed25519_vectors(vector_data):
     data = []
     for line in vector_data:
-        secret_key, public_key, message, signature, _ = line.split(':')
+        secret_key, public_key, message, signature, _ = line.split(":")
         # In the vectors the first element is secret key + public key
         secret_key = secret_key[0:64]
         # In the vectors the signature section is signature + message
         signature = signature[0:128]
-        data.append({
-            "secret_key": secret_key,
-            "public_key": public_key,
-            "message": message,
-            "signature": signature
-        })
+        data.append(
+            {
+                "secret_key": secret_key,
+                "public_key": public_key,
+                "message": message,
+                "signature": signature,
+            }
+        )
     return data
 
 
 def load_nist_ccm_vectors(vector_data):
-    test_data = None
+    test_data = {}
     section_data = None
     global_data = {}
     new_section = False
@@ -887,13 +880,17 @@ def load_nist_ccm_vectors(vector_data):
 
 
 class WycheproofTest(object):
-    def __init__(self, testgroup, testcase):
+    def __init__(self, testfiledata, testgroup, testcase):
+        self.testfiledata = testfiledata
         self.testgroup = testgroup
         self.testcase = testcase
 
     def __repr__(self):
-        return "<WycheproofTest({!r}, {!r}, tcId={})>".format(
-            self.testgroup, self.testcase, self.testcase["tcId"],
+        return "<WycheproofTest({!r}, {!r}, {!r}, tcId={})>".format(
+            self.testfiledata,
+            self.testgroup,
+            self.testcase,
+            self.testcase["tcId"],
         )
 
     @property
@@ -912,18 +909,11 @@ class WycheproofTest(object):
         return flag in self.testcase["flags"]
 
 
-def skip_if_wycheproof_none(wycheproof):
-    # This is factored into its own function so we can easily test both
-    # branches
-    if wycheproof is None:
-        pytest.skip("--wycheproof-root not provided")
-
-
 def load_wycheproof_tests(wycheproof, test_file):
     path = os.path.join(wycheproof, "testvectors", test_file)
     with open(path) as f:
         data = json.load(f)
-        for group in data["testGroups"]:
+        for group in data.pop("testGroups"):
             cases = group.pop("tests")
             for c in cases:
-                yield WycheproofTest(group, c)
+                yield WycheproofTest(data, group, c)

@@ -2,8 +2,6 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
-
 import binascii
 
 from cryptography.hazmat.backends import default_backend
@@ -14,7 +12,7 @@ def encrypt(mode, key, iv, plaintext):
     cipher = base.Cipher(
         algorithms.CAST5(binascii.unhexlify(key)),
         mode(binascii.unhexlify(iv)),
-        default_backend()
+        default_backend(),
     )
     encryptor = cipher.encryptor()
     ct = encryptor.update(binascii.unhexlify(plaintext))
@@ -23,33 +21,36 @@ def encrypt(mode, key, iv, plaintext):
 
 
 def build_vectors(mode, filename):
-    vector_file = open(filename, "r")
-
     count = 0
     output = []
     key = None
     iv = None
     plaintext = None
-    for line in vector_file:
-        line = line.strip()
-        if line.startswith("KEY"):
-            if count != 0:
-                output.append("CIPHERTEXT = {}".format(
-                    encrypt(mode, key, iv, plaintext))
-                )
-            output.append("\nCOUNT = {}".format(count))
-            count += 1
-            name, key = line.split(" = ")
-            output.append("KEY = {}".format(key))
-        elif line.startswith("IV"):
-            name, iv = line.split(" = ")
-            iv = iv[0:16]
-            output.append("IV = {}".format(iv))
-        elif line.startswith("PLAINTEXT"):
-            name, plaintext = line.split(" = ")
-            output.append("PLAINTEXT = {}".format(plaintext))
 
-    output.append("CIPHERTEXT = {}".format(encrypt(mode, key, iv, plaintext)))
+    with open(filename, "r") as vector_file:
+        for line in vector_file:
+            line = line.strip()
+            if line.startswith("KEY"):
+                if count != 0:
+                    output.append(
+                        "CIPHERTEXT = {}".format(
+                            encrypt(mode, key, iv, plaintext)
+                        )
+                    )
+                output.append("\nCOUNT = {}".format(count))
+                count += 1
+                name, key = line.split(" = ")
+                output.append("KEY = {}".format(key))
+            elif line.startswith("IV"):
+                name, iv = line.split(" = ")
+                iv = iv[0:16]
+                output.append("IV = {}".format(iv))
+            elif line.startswith("PLAINTEXT"):
+                name, plaintext = line.split(" = ")
+                output.append("PLAINTEXT = {}".format(plaintext))
+        output.append(
+            "CIPHERTEXT = {}".format(encrypt(mode, key, iv, plaintext))
+        )
     return "\n".join(output)
 
 

@@ -14,9 +14,13 @@ Unlike symmetric cryptography, where the key is typically just a random series
 of bytes, RSA keys have a complex internal structure with `specific
 mathematical properties`_.
 
-.. function:: generate_private_key(public_exponent, key_size, backend)
+.. function:: generate_private_key(public_exponent, key_size, backend=None)
 
     .. versionadded:: 0.5
+
+    .. versionchanged:: 3.0
+
+        Tightened restrictions on ``public_exponent``.
 
     Generates a new RSA private key using the provided ``backend``.
     ``key_size`` describes how many :term:`bits` long the key should be. Larger
@@ -28,24 +32,22 @@ mathematical properties`_.
 
     .. doctest::
 
-        >>> from cryptography.hazmat.backends import default_backend
         >>> from cryptography.hazmat.primitives.asymmetric import rsa
         >>> private_key = rsa.generate_private_key(
         ...     public_exponent=65537,
         ...     key_size=2048,
-        ...     backend=default_backend()
         ... )
 
     :param int public_exponent: The public exponent of the new key.
-        Usually one of the small Fermat primes 3, 5, 17, 257, 65537. If in
-        doubt you should `use 65537`_.
+        Either 65537 or 3 (for legacy purposes). Almost everyone should
+        `use 65537`_.
 
     :param int key_size: The length of the modulus in :term:`bits`. For keys
         generated in 2015 it is strongly recommended to be
         `at least 2048`_ (See page 41). It must not be less than 512.
         Some backends may have additional limitations.
 
-    :param backend: A backend which implements
+    :param backend: An optional backend which implements
         :class:`~cryptography.hazmat.backends.interfaces.RSABackend`.
 
     :return: An instance of
@@ -64,14 +66,12 @@ markers), you can load it:
 
 .. code-block:: pycon
 
-    >>> from cryptography.hazmat.backends import default_backend
     >>> from cryptography.hazmat.primitives import serialization
 
     >>> with open("path/to/key.pem", "rb") as key_file:
     ...     private_key = serialization.load_pem_private_key(
     ...         key_file.read(),
     ...         password=None,
-    ...         backend=default_backend()
     ...     )
 
 Serialized keys may optionally be encrypted on disk using a password. In this
@@ -85,10 +85,8 @@ There is also support for :func:`loading public keys in the SSH format
 Key serialization
 ~~~~~~~~~~~~~~~~~
 
-If you have a private key that you've loaded or generated which implements the
-:class:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKeyWithSerialization`
-interface you can use
-:meth:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKeyWithSerialization.private_bytes`
+If you have a private key that you've loaded you can use
+:meth:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey.private_bytes`
 to serialize the key.
 
 .. doctest::
@@ -167,7 +165,7 @@ separately and pass that value using
 
     >>> from cryptography.hazmat.primitives.asymmetric import utils
     >>> chosen_hash = hashes.SHA256()
-    >>> hasher = hashes.Hash(chosen_hash, default_backend())
+    >>> hasher = hashes.Hash(chosen_hash)
     >>> hasher.update(b"data & ")
     >>> hasher.update(b"more data")
     >>> digest = hasher.finalize()
@@ -217,7 +215,7 @@ separately and pass that value using
 .. doctest::
 
     >>> chosen_hash = hashes.SHA256()
-    >>> hasher = hashes.Hash(chosen_hash, default_backend())
+    >>> hasher = hashes.Hash(chosen_hash)
     >>> hasher.update(b"data & ")
     >>> hasher.update(b"more data")
     >>> digest = hasher.finalize()
@@ -342,6 +340,11 @@ Padding
     :class:`OAEP` should be preferred for encryption and :class:`PSS` should be
     preferred for signatures.
 
+    .. warning::
+
+        Our implementation of PKCS1 v1.5 decryption is not constant time. See
+        :doc:`/limitations` for details.
+
 
 .. function:: calculate_max_pss_salt_length(key, hash_algorithm)
 
@@ -399,9 +402,9 @@ is unavailable.
 
         The public exponent.
 
-    .. method:: public_key(backend)
+    .. method:: public_key(backend=None)
 
-        :param backend: An instance of
+        :param backend: An optional instance of
             :class:`~cryptography.hazmat.backends.interfaces.RSABackend`.
 
         :returns: A new instance of
@@ -466,9 +469,9 @@ is unavailable.
         A `Chinese remainder theorem`_ coefficient used to speed up RSA
         operations. Calculated as: q\ :sup:`-1` mod p
 
-    .. method:: private_key(backend)
+    .. method:: private_key(backend=None)
 
-        :param backend: A new instance of
+        :param backend: An optional instance of
             :class:`~cryptography.hazmat.backends.interfaces.RSABackend`.
 
         :returns: An instance of
@@ -531,9 +534,7 @@ Key interfaces
 
     .. versionadded:: 0.2
 
-    An `RSA`_ private key. An RSA private key that is not an
-    :term:`opaque key` also implements :class:`RSAPrivateKeyWithSerialization`
-    to provide serialization methods.
+    An `RSA`_ private key.
 
     .. method:: decrypt(ciphertext, padding)
 
@@ -582,15 +583,6 @@ Key interfaces
 
         :return bytes: Signature.
 
-
-.. class:: RSAPrivateKeyWithSerialization
-
-    .. versionadded:: 0.8
-
-    This interface contains additional methods relating to serialization.
-    Any object with this interface also has all the methods from
-    :class:`RSAPrivateKey`.
-
     .. method:: private_numbers()
 
         Create a
@@ -607,7 +599,8 @@ Key interfaces
         :attr:`~cryptography.hazmat.primitives.serialization.Encoding.PEM` or
         :attr:`~cryptography.hazmat.primitives.serialization.Encoding.DER`),
         format (
-        :attr:`~cryptography.hazmat.primitives.serialization.PrivateFormat.TraditionalOpenSSL`
+        :attr:`~cryptography.hazmat.primitives.serialization.PrivateFormat.TraditionalOpenSSL`,
+        :attr:`~cryptography.hazmat.primitives.serialization.PrivateFormat.OpenSSH`
         or
         :attr:`~cryptography.hazmat.primitives.serialization.PrivateFormat.PKCS8`)
         and encryption algorithm (such as
@@ -629,6 +622,13 @@ Key interfaces
         :return bytes: Serialized key.
 
 
+.. class:: RSAPrivateKeyWithSerialization
+
+    .. versionadded:: 0.8
+
+    Alias for :class:`RSAPrivateKey`.
+
+
 .. class:: RSAPublicKey
 
     .. versionadded:: 0.2
@@ -647,6 +647,10 @@ Key interfaces
             :class:`~cryptography.hazmat.primitives.asymmetric.padding.AsymmetricPadding`.
 
         :return bytes: Encrypted data.
+
+        :raises ValueError: The data could not be encrypted. One possible cause
+            is if ``data`` is too large; RSA keys can only encrypt data that
+            is smaller than the key size.
 
     .. attribute:: key_size
 
@@ -708,6 +712,55 @@ Key interfaces
         :raises cryptography.exceptions.InvalidSignature: If the signature does
             not validate.
 
+    .. method:: recover_data_from_signature(signature, padding, algorithm)
+
+        .. versionadded:: 3.3
+
+        Recovers the signed data from the signature. The data typically contains
+        the digest of the original message string. The ``padding`` and
+        ``algorithm`` parameters must match the ones used when the signature
+        was created for the recovery to succeed.
+
+        The ``algorithm`` parameter can also be set to ``None`` to recover all
+        the data present in the signature, without regard to its format or the
+        hash algorithm used for its creation.
+
+        For
+        :class:`~cryptography.hazmat.primitives.asymmetric.padding.PKCS1v15`
+        padding, this method returns the data after removing the padding layer.
+        For standard signatures the data contains the full ``DigestInfo``
+        structure.  For non-standard signatures, any data can be returned,
+        including zero-length data.
+
+        Normally you should use the
+        :meth:`~cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey.verify`
+        function to validate the signature. But for some non-standard signature
+        formats you may need to explicitly recover and validate the signed
+        data. The following are some examples:
+
+        - Some old Thawte and Verisign timestamp certificates without ``DigestInfo``.
+        - Signed MD5/SHA1 hashes in TLS 1.1 or earlier (:rfc:`4346`, section 4.7).
+        - IKE version 1 signatures without ``DigestInfo`` (:rfc:`2409`, section 5.1).
+
+        :param bytes signature: The signature.
+
+        :param padding: An instance of
+            :class:`~cryptography.hazmat.primitives.asymmetric.padding.AsymmetricPadding`.
+            Recovery is only supported with some of the padding types. (Currently
+            only with
+            :class:`~cryptography.hazmat.primitives.asymmetric.padding.PKCS1v15`).
+
+        :param algorithm: An instance of
+            :class:`~cryptography.hazmat.primitives.hashes.HashAlgorithm`.
+            Can be ``None`` to return the all the data present in the signature.
+
+        :return bytes: The signed data.
+
+        :raises cryptography.exceptions.InvalidSignature: If the signature is
+            invalid.
+
+        :raises cryptography.exceptions.UnsupportedAlgorithm: If signature
+            data recovery is not supported with the provided ``padding`` type.
 
 .. class:: RSAPublicKeyWithSerialization
 
@@ -719,10 +772,10 @@ Key interfaces
 .. _`RSA`: https://en.wikipedia.org/wiki/RSA_(cryptosystem)
 .. _`public-key`: https://en.wikipedia.org/wiki/Public-key_cryptography
 .. _`specific mathematical properties`: https://en.wikipedia.org/wiki/RSA_(cryptosystem)#Key_generation
-.. _`use 65537`: http://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
-.. _`at least 2048`: http://www.ecrypt.eu.org/ecrypt2/documents/D.SPA.20.pdf
+.. _`use 65537`: https://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
+.. _`at least 2048`: https://www.cosic.esat.kuleuven.be/ecrypt/ecrypt2/documents/D.SPA.20.pdf
 .. _`OpenPGP`: https://en.wikipedia.org/wiki/Pretty_Good_Privacy
 .. _`Chinese Remainder Theorem`: https://en.wikipedia.org/wiki/RSA_%28cryptosystem%29#Using_the_Chinese_remainder_algorithm
 .. _`security proof`: https://eprint.iacr.org/2001/062.pdf
-.. _`recommended padding algorithm`: http://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
-.. _`proven secure`: https://cseweb.ucsd.edu/~mihir/papers/oae.pdf
+.. _`recommended padding algorithm`: https://www.daemonology.net/blog/2009-06-11-cryptographic-right-answers.html
+.. _`proven secure`: https://cseweb.ucsd.edu/~mihir/papers/oaep.pdf

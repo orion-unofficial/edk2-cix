@@ -2,17 +2,24 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import struct
+import typing
 
+from cryptography.hazmat.backends import _get_backend
+from cryptography.hazmat.backends.interfaces import Backend
 from cryptography.hazmat.primitives.ciphers import Cipher
 from cryptography.hazmat.primitives.ciphers.algorithms import AES
 from cryptography.hazmat.primitives.ciphers.modes import ECB
 from cryptography.hazmat.primitives.constant_time import bytes_eq
 
 
-def _wrap_core(wrapping_key, a, r, backend):
+def _wrap_core(
+    wrapping_key: bytes,
+    a: bytes,
+    r: typing.List[bytes],
+    backend: Backend,
+) -> bytes:
     # RFC 3394 Key Wrap - 2.2.1 (index method)
     encryptor = Cipher(AES(wrapping_key), ECB(), backend).encryptor()
     n = len(r)
@@ -33,7 +40,12 @@ def _wrap_core(wrapping_key, a, r, backend):
     return a + b"".join(r)
 
 
-def aes_key_wrap(wrapping_key, key_to_wrap, backend):
+def aes_key_wrap(
+    wrapping_key: bytes,
+    key_to_wrap: bytes,
+    backend: typing.Optional[Backend] = None,
+) -> bytes:
+    backend = _get_backend(backend)
     if len(wrapping_key) not in [16, 24, 32]:
         raise ValueError("The wrapping key must be a valid AES key length")
 
@@ -44,20 +56,28 @@ def aes_key_wrap(wrapping_key, key_to_wrap, backend):
         raise ValueError("The key to wrap must be a multiple of 8 bytes")
 
     a = b"\xa6\xa6\xa6\xa6\xa6\xa6\xa6\xa6"
-    r = [key_to_wrap[i:i + 8] for i in range(0, len(key_to_wrap), 8)]
+    r = [key_to_wrap[i : i + 8] for i in range(0, len(key_to_wrap), 8)]
     return _wrap_core(wrapping_key, a, r, backend)
 
 
-def _unwrap_core(wrapping_key, a, r, backend):
+def _unwrap_core(
+    wrapping_key: bytes,
+    a: bytes,
+    r: typing.List[bytes],
+    backend: Backend,
+) -> typing.Tuple[bytes, typing.List[bytes]]:
     # Implement RFC 3394 Key Unwrap - 2.2.2 (index method)
     decryptor = Cipher(AES(wrapping_key), ECB(), backend).decryptor()
     n = len(r)
     for j in reversed(range(6)):
         for i in reversed(range(n)):
             # pack/unpack are safe as these are always 64-bit chunks
-            atr = struct.pack(
-                ">Q", struct.unpack(">Q", a)[0] ^ ((n * j) + i + 1)
-            ) + r[i]
+            atr = (
+                struct.pack(
+                    ">Q", struct.unpack(">Q", a)[0] ^ ((n * j) + i + 1)
+                )
+                + r[i]
+            )
             # every decryption operation is a discrete 16 byte chunk so
             # it is safe to reuse the decryptor for the entire operation
             b = decryptor.update(atr)
@@ -68,7 +88,12 @@ def _unwrap_core(wrapping_key, a, r, backend):
     return a, r
 
 
-def aes_key_wrap_with_padding(wrapping_key, key_to_wrap, backend):
+def aes_key_wrap_with_padding(
+    wrapping_key: bytes,
+    key_to_wrap: bytes,
+    backend: typing.Optional[Backend] = None,
+) -> bytes:
+    backend = _get_backend(backend)
     if len(wrapping_key) not in [16, 24, 32]:
         raise ValueError("The wrapping key must be a valid AES key length")
 
@@ -83,11 +108,16 @@ def aes_key_wrap_with_padding(wrapping_key, key_to_wrap, backend):
         assert encryptor.finalize() == b""
         return b
     else:
-        r = [key_to_wrap[i:i + 8] for i in range(0, len(key_to_wrap), 8)]
+        r = [key_to_wrap[i : i + 8] for i in range(0, len(key_to_wrap), 8)]
         return _wrap_core(wrapping_key, aiv, r, backend)
 
 
-def aes_key_unwrap_with_padding(wrapping_key, wrapped_key, backend):
+def aes_key_unwrap_with_padding(
+    wrapping_key: bytes,
+    wrapped_key: bytes,
+    backend: typing.Optional[Backend] = None,
+) -> bytes:
+    backend = _get_backend(backend)
     if len(wrapped_key) < 16:
         raise InvalidUnwrap("Must be at least 16 bytes")
 
@@ -103,7 +133,7 @@ def aes_key_unwrap_with_padding(wrapping_key, wrapped_key, backend):
         data = b[8:]
         n = 1
     else:
-        r = [wrapped_key[i:i + 8] for i in range(0, len(wrapped_key), 8)]
+        r = [wrapped_key[i : i + 8] for i in range(0, len(wrapped_key), 8)]
         encrypted_aiv = r.pop(0)
         n = len(r)
         a, r = _unwrap_core(wrapping_key, encrypted_aiv, r, backend)
@@ -117,10 +147,9 @@ def aes_key_unwrap_with_padding(wrapping_key, wrapped_key, backend):
     (mli,) = struct.unpack(">I", a[4:])
     b = (8 * n) - mli
     if (
-        not bytes_eq(a[:4], b"\xa6\x59\x59\xa6") or not
-        8 * (n - 1) < mli <= 8 * n or (
-            b != 0 and not bytes_eq(data[-b:], b"\x00" * b)
-        )
+        not bytes_eq(a[:4], b"\xa6\x59\x59\xa6")
+        or not 8 * (n - 1) < mli <= 8 * n
+        or (b != 0 and not bytes_eq(data[-b:], b"\x00" * b))
     ):
         raise InvalidUnwrap()
 
@@ -130,7 +159,12 @@ def aes_key_unwrap_with_padding(wrapping_key, wrapped_key, backend):
         return data[:-b]
 
 
-def aes_key_unwrap(wrapping_key, wrapped_key, backend):
+def aes_key_unwrap(
+    wrapping_key: bytes,
+    wrapped_key: bytes,
+    backend: typing.Optional[Backend] = None,
+) -> bytes:
+    backend = _get_backend(backend)
     if len(wrapped_key) < 24:
         raise InvalidUnwrap("Must be at least 24 bytes")
 
@@ -141,7 +175,7 @@ def aes_key_unwrap(wrapping_key, wrapped_key, backend):
         raise ValueError("The wrapping key must be a valid AES key length")
 
     aiv = b"\xa6\xa6\xa6\xa6\xa6\xa6\xa6\xa6"
-    r = [wrapped_key[i:i + 8] for i in range(0, len(wrapped_key), 8)]
+    r = [wrapped_key[i : i + 8] for i in range(0, len(wrapped_key), 8)]
     a = r.pop(0)
     a, r = _unwrap_core(wrapping_key, a, r, backend)
     if not bytes_eq(a, aiv):

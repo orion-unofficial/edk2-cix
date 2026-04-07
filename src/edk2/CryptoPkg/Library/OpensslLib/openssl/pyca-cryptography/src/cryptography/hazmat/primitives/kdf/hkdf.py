@@ -2,35 +2,44 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
-import six
+import typing
 
 from cryptography import utils
 from cryptography.exceptions import (
-    AlreadyFinalized, InvalidKey, UnsupportedAlgorithm, _Reasons
+    AlreadyFinalized,
+    InvalidKey,
+    UnsupportedAlgorithm,
+    _Reasons,
 )
-from cryptography.hazmat.backends.interfaces import HMACBackend
-from cryptography.hazmat.primitives import constant_time, hmac
+from cryptography.hazmat.backends import _get_backend
+from cryptography.hazmat.backends.interfaces import Backend, HMACBackend
+from cryptography.hazmat.primitives import constant_time, hashes, hmac
 from cryptography.hazmat.primitives.kdf import KeyDerivationFunction
 
 
-@utils.register_interface(KeyDerivationFunction)
-class HKDF(object):
-    def __init__(self, algorithm, length, salt, info, backend):
+class HKDF(KeyDerivationFunction):
+    def __init__(
+        self,
+        algorithm: hashes.HashAlgorithm,
+        length: int,
+        salt: typing.Optional[bytes],
+        info: typing.Optional[bytes],
+        backend: typing.Optional[Backend] = None,
+    ):
+        backend = _get_backend(backend)
         if not isinstance(backend, HMACBackend):
             raise UnsupportedAlgorithm(
                 "Backend object does not implement HMACBackend.",
-                _Reasons.BACKEND_MISSING_INTERFACE
+                _Reasons.BACKEND_MISSING_INTERFACE,
             )
 
         self._algorithm = algorithm
 
-        if not (salt is None or isinstance(salt, bytes)):
-            raise TypeError("salt must be bytes.")
-
         if salt is None:
             salt = b"\x00" * self._algorithm.digest_size
+        else:
+            utils._check_bytes("salt", salt)
 
         self._salt = salt
 
@@ -38,29 +47,33 @@ class HKDF(object):
 
         self._hkdf_expand = HKDFExpand(self._algorithm, length, info, backend)
 
-    def _extract(self, key_material):
+    def _extract(self, key_material: bytes) -> bytes:
         h = hmac.HMAC(self._salt, self._algorithm, backend=self._backend)
         h.update(key_material)
         return h.finalize()
 
-    def derive(self, key_material):
-        if not isinstance(key_material, bytes):
-            raise TypeError("key_material must be bytes.")
-
+    def derive(self, key_material: bytes) -> bytes:
+        utils._check_byteslike("key_material", key_material)
         return self._hkdf_expand.derive(self._extract(key_material))
 
-    def verify(self, key_material, expected_key):
+    def verify(self, key_material: bytes, expected_key: bytes) -> None:
         if not constant_time.bytes_eq(self.derive(key_material), expected_key):
             raise InvalidKey
 
 
-@utils.register_interface(KeyDerivationFunction)
-class HKDFExpand(object):
-    def __init__(self, algorithm, length, info, backend):
+class HKDFExpand(KeyDerivationFunction):
+    def __init__(
+        self,
+        algorithm: hashes.HashAlgorithm,
+        length: int,
+        info: typing.Optional[bytes],
+        backend: typing.Optional[Backend] = None,
+    ):
+        backend = _get_backend(backend)
         if not isinstance(backend, HMACBackend):
             raise UnsupportedAlgorithm(
                 "Backend object does not implement HMACBackend.",
-                _Reasons.BACKEND_MISSING_INTERFACE
+                _Reasons.BACKEND_MISSING_INTERFACE,
             )
 
         self._algorithm = algorithm
@@ -71,23 +84,21 @@ class HKDFExpand(object):
 
         if length > max_length:
             raise ValueError(
-                "Can not derive keys larger than {0} octets.".format(
-                    max_length
-                ))
+                "Cannot derive keys larger than {} octets.".format(max_length)
+            )
 
         self._length = length
 
-        if not (info is None or isinstance(info, bytes)):
-            raise TypeError("info must be bytes.")
-
         if info is None:
             info = b""
+        else:
+            utils._check_bytes("info", info)
 
         self._info = info
 
         self._used = False
 
-    def _expand(self, key_material):
+    def _expand(self, key_material: bytes) -> bytes:
         output = [b""]
         counter = 1
 
@@ -95,22 +106,20 @@ class HKDFExpand(object):
             h = hmac.HMAC(key_material, self._algorithm, backend=self._backend)
             h.update(output[-1])
             h.update(self._info)
-            h.update(six.int2byte(counter))
+            h.update(bytes([counter]))
             output.append(h.finalize())
             counter += 1
 
-        return b"".join(output)[:self._length]
+        return b"".join(output)[: self._length]
 
-    def derive(self, key_material):
-        if not isinstance(key_material, bytes):
-            raise TypeError("key_material must be bytes.")
-
+    def derive(self, key_material: bytes) -> bytes:
+        utils._check_byteslike("key_material", key_material)
         if self._used:
             raise AlreadyFinalized
 
         self._used = True
         return self._expand(key_material)
 
-    def verify(self, key_material, expected_key):
+    def verify(self, key_material: bytes, expected_key: bytes) -> None:
         if not constant_time.bytes_eq(self.derive(key_material), expected_key):
             raise InvalidKey

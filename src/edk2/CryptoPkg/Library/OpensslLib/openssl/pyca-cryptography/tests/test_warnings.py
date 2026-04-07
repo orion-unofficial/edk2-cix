@@ -2,10 +2,10 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
-from __future__ import absolute_import, division, print_function
 
 import sys
 import types
+import typing
 import warnings
 
 import pytest
@@ -14,6 +14,7 @@ from cryptography.utils import deprecated
 
 
 class TestDeprecated(object):
+    @typing.no_type_check
     def test_deprecated(self, monkeypatch):
         mod = types.ModuleType("TestDeprecated/test_deprecated")
         monkeypatch.setitem(sys.modules, mod.__name__, mod)
@@ -21,7 +22,7 @@ class TestDeprecated(object):
             value=1,
             module_name=mod.__name__,
             message="deprecated message text",
-            warning_class=DeprecationWarning
+            warning_class=DeprecationWarning,
         )
         mod.Y = deprecated(
             value=2,
@@ -48,6 +49,7 @@ class TestDeprecated(object):
 
         assert "Y" in dir(mod)
 
+    @typing.no_type_check
     def test_deleting_deprecated_members(self, monkeypatch):
         mod = types.ModuleType("TestDeprecated/test_deprecated")
         monkeypatch.setitem(sys.modules, mod.__name__, mod)
@@ -55,7 +57,7 @@ class TestDeprecated(object):
             value=1,
             module_name=mod.__name__,
             message="deprecated message text",
-            warning_class=DeprecationWarning
+            warning_class=DeprecationWarning,
         )
         mod.Y = deprecated(
             value=2,

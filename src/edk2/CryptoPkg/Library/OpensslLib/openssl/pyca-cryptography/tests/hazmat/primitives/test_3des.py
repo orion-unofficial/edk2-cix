@@ -6,14 +6,12 @@
 Test using the NIST Test Vectors
 """
 
-from __future__ import absolute_import, division, print_function
 
 import binascii
 import os
 
 import pytest
 
-from cryptography.hazmat.backends.interfaces import CipherBackend
 from cryptography.hazmat.primitives.ciphers import algorithms, modes
 
 from .utils import generate_encrypt_test
@@ -26,9 +24,8 @@ from ...utils import load_nist_vectors
     ),
     skip_message="Does not support TripleDES CBC",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestTripleDESModeCBC(object):
-    test_KAT = generate_encrypt_test(
+    test_kat = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "3DES", "CBC"),
         [
@@ -42,14 +39,10 @@ class TestTripleDESModeCBC(object):
         lambda iv, **kwargs: modes.CBC(binascii.unhexlify(iv)),
     )
 
-    test_MMT = generate_encrypt_test(
+    test_mmt = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "3DES", "CBC"),
-        [
-            "TCBCMMT1.rsp",
-            "TCBCMMT2.rsp",
-            "TCBCMMT3.rsp",
-        ],
+        ["TCBCMMT1.rsp", "TCBCMMT2.rsp", "TCBCMMT3.rsp"],
         lambda key1, key2, key3, **kwargs: algorithms.TripleDES(
             binascii.unhexlify(key1 + key2 + key3)
         ),
@@ -63,9 +56,8 @@ class TestTripleDESModeCBC(object):
     ),
     skip_message="Does not support TripleDES OFB",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestTripleDESModeOFB(object):
-    test_KAT = generate_encrypt_test(
+    test_kat = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "3DES", "OFB"),
         [
@@ -79,14 +71,10 @@ class TestTripleDESModeOFB(object):
         lambda iv, **kwargs: modes.OFB(binascii.unhexlify(iv)),
     )
 
-    test_MMT = generate_encrypt_test(
+    test_mmt = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "3DES", "OFB"),
-        [
-            "TOFBMMT1.rsp",
-            "TOFBMMT2.rsp",
-            "TOFBMMT3.rsp",
-        ],
+        ["TOFBMMT1.rsp", "TOFBMMT2.rsp", "TOFBMMT3.rsp"],
         lambda key1, key2, key3, **kwargs: algorithms.TripleDES(
             binascii.unhexlify(key1 + key2 + key3)
         ),
@@ -100,9 +88,8 @@ class TestTripleDESModeOFB(object):
     ),
     skip_message="Does not support TripleDES CFB",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestTripleDESModeCFB(object):
-    test_KAT = generate_encrypt_test(
+    test_kat = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "3DES", "CFB"),
         [
@@ -116,14 +103,10 @@ class TestTripleDESModeCFB(object):
         lambda iv, **kwargs: modes.CFB(binascii.unhexlify(iv)),
     )
 
-    test_MMT = generate_encrypt_test(
+    test_mmt = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "3DES", "CFB"),
-        [
-            "TCFB64MMT1.rsp",
-            "TCFB64MMT2.rsp",
-            "TCFB64MMT3.rsp",
-        ],
+        ["TCFB64MMT1.rsp", "TCFB64MMT2.rsp", "TCFB64MMT3.rsp"],
         lambda key1, key2, key3, **kwargs: algorithms.TripleDES(
             binascii.unhexlify(key1 + key2 + key3)
         ),
@@ -137,9 +120,8 @@ class TestTripleDESModeCFB(object):
     ),
     skip_message="Does not support TripleDES CFB8",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestTripleDESModeCFB8(object):
-    test_KAT = generate_encrypt_test(
+    test_kat = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "3DES", "CFB"),
         [
@@ -153,14 +135,10 @@ class TestTripleDESModeCFB8(object):
         lambda iv, **kwargs: modes.CFB8(binascii.unhexlify(iv)),
     )
 
-    test_MMT = generate_encrypt_test(
+    test_mmt = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "3DES", "CFB"),
-        [
-            "TCFB8MMT1.rsp",
-            "TCFB8MMT2.rsp",
-            "TCFB8MMT3.rsp",
-        ],
+        ["TCFB8MMT1.rsp", "TCFB8MMT2.rsp", "TCFB8MMT3.rsp"],
         lambda key1, key2, key3, **kwargs: algorithms.TripleDES(
             binascii.unhexlify(key1 + key2 + key3)
         ),
@@ -174,9 +152,8 @@ class TestTripleDESModeCFB8(object):
     ),
     skip_message="Does not support TripleDES ECB",
 )
-@pytest.mark.requires_backend_interface(interface=CipherBackend)
 class TestTripleDESModeECB(object):
-    test_KAT = generate_encrypt_test(
+    test_kat = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "3DES", "ECB"),
         [
@@ -190,14 +167,10 @@ class TestTripleDESModeECB(object):
         lambda **kwargs: modes.ECB(),
     )
 
-    test_MMT = generate_encrypt_test(
+    test_mmt = generate_encrypt_test(
         load_nist_vectors,
         os.path.join("ciphers", "3DES", "ECB"),
-        [
-            "TECBMMT1.rsp",
-            "TECBMMT2.rsp",
-            "TECBMMT3.rsp",
-        ],
+        ["TECBMMT1.rsp", "TECBMMT2.rsp", "TECBMMT3.rsp"],
         lambda key1, key2, key3, **kwargs: algorithms.TripleDES(
             binascii.unhexlify(key1 + key2 + key3)
         ),

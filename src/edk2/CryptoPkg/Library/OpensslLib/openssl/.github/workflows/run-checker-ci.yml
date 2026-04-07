@@ -2,6 +2,9 @@
 name: Run-checker CI for 1.1.1
 # Jobs run per pull request submission
 on: [pull_request, push]
+permissions:
+  contents: read
+
 jobs:
   run-checker:
     strategy:
@@ -20,6 +23,7 @@ jobs:
           no-tests,
           no-threads,
           no-tls,
+          no-tls1_2,
           no-tls1_3,
           no-ts,
           no-ui,
