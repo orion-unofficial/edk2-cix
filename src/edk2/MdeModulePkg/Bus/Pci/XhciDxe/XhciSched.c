@@ -1503,7 +1503,7 @@ XhciInsertAsyncIntTransfer (
 
   Data = AllocateZeroPool (DataLen);
   if (Data == NULL) {
-    DEBUG ((DEBUG_ERROR, "%a: failed to allocate buffer\n", __FUNCTION__));
+    DEBUG ((DEBUG_ERROR, "%a: failed to allocate buffer\n", __func__));
     return NULL;
   }
 
@@ -1521,7 +1521,7 @@ XhciInsertAsyncIntTransfer (
           Context
           );
   if (Urb == NULL) {
-    DEBUG ((DEBUG_ERROR, "%a: failed to create URB\n", __FUNCTION__));
+    DEBUG ((DEBUG_ERROR, "%a: failed to create URB\n", __func__));
     FreePool (Data);
     return NULL;
   }
