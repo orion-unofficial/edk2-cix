@@ -737,7 +737,7 @@ XhcDequeueTrbFromEndpoint (
   Dci = XhcEndpointToDci (Urb->Ep.EpAddr, (UINT8)(Urb->Ep.Direction));
   ASSERT (Dci < 32);
 
-  DEBUG ((DEBUG_INFO, "Stop Slot = %x,Dci = %x\n", SlotId, Dci));
+  DEBUG ((DEBUG_VERBOSE, "Stop Slot = %x,Dci = %x\n", SlotId, Dci));
 
   //
   // 1) Send Stop endpoint command to stop xHC from executing of the TDs on the endpoint
@@ -3384,7 +3384,7 @@ XhcStopEndpoint (
   EVT_TRB_COMMAND_COMPLETION  *EvtTrb;
   CMD_TRB_STOP_ENDPOINT       CmdTrbStopED;
 
-  DEBUG ((DEBUG_INFO, "XhcStopEndpoint: Slot = 0x%x, Dci = 0x%x\n", SlotId, Dci));
+  DEBUG ((DEBUG_VERBOSE, "XhcStopEndpoint: Slot = 0x%x, Dci = 0x%x\n", SlotId, Dci));
 
   //
   // When XhcCheckUrbResult waits for the Stop_Endpoint completion, it also checks
@@ -3505,7 +3505,7 @@ XhcSetTrDequeuePointer (
   CMD_SET_TR_DEQ_POINTER      CmdSetTRDeq;
   EFI_PHYSICAL_ADDRESS        PhyAddr;
 
-  DEBUG ((DEBUG_INFO, "XhcSetTrDequeuePointer: Slot = 0x%x, Dci = 0x%x, Urb = 0x%x\n", SlotId, Dci, Urb));
+  DEBUG ((DEBUG_VERBOSE, "XhcSetTrDequeuePointer: Slot = 0x%x, Dci = 0x%x, Urb = 0x%x\n", SlotId, Dci, Urb));
 
   //
   // Send stop endpoint command to transit Endpoint from running to stop state
