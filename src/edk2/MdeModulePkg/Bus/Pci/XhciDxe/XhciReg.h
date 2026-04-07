@@ -622,10 +622,11 @@ XhcGetSupportedProtocolCapabilityAddr (
   );
 
 /**
-  Find SpeedField value match with Port Speed ID value.
+  Find PortSpeed value match case in XHCI Supported Protocol Capability
 
-  @param  Xhc    The XHCI Instance.
-  @param  Speed  The Port Speed filed in USB PortSc register
+  @param  Xhc         The XHCI Instance.
+  @param  PortSpeed   The Port Speed Field in USB PortSc register
+  @param  PortNumber  The Port Number (0-indexed)
 
   @return The USB Port Speed.
 
@@ -633,7 +634,8 @@ XhcGetSupportedProtocolCapabilityAddr (
 UINT16
 XhcCheckUsbPortSpeedUsedPsic (
   IN USB_XHCI_INSTANCE  *Xhc,
-  IN UINT8              Speed
+  IN UINT8              PortSpeed,
+  IN UINT8              PortNumber
   );
 
 #endif
