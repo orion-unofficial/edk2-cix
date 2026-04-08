@@ -31,12 +31,12 @@ int Cryptography_DH_check(const DH *, int *);
 int DH_generate_parameters_ex(DH *, int, int, BN_GENCB *);
 DH *d2i_DHparams_bio(BIO *, DH **);
 int i2d_DHparams_bio(BIO *, DH *);
-DH *Cryptography_d2i_DHxparams_bio(BIO *bp, DH **x);
-int Cryptography_i2d_DHxparams_bio(BIO *bp, DH *x);
+DH *Cryptography_d2i_DHxparams_bio(BIO *, DH **);
+int Cryptography_i2d_DHxparams_bio(BIO *, DH *);
 """
 
 CUSTOMIZATIONS = """
-#if CRYPTOGRAPHY_IS_LIBRESSL
+#if CRYPTOGRAPHY_LIBRESSL_LESS_THAN_350
 #ifndef DH_CHECK_Q_NOT_PRIME
 #define DH_CHECK_Q_NOT_PRIME            0x10
 #endif

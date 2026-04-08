@@ -6,6 +6,7 @@
 import binascii
 import itertools
 import os
+import textwrap
 import typing
 from binascii import hexlify
 
@@ -127,6 +128,15 @@ def test_derive_private_key_errors(backend):
 
     with pytest.raises(ValueError):
         ec.derive_private_key(-7, curve, backend)
+
+
+def test_derive_point_at_infinity(backend):
+    curve = ec.SECP256R1()
+    _skip_curve_unsupported(backend, curve)
+    # order of the curve
+    q = 0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
+    with pytest.raises(ValueError, match="Unable to derive"):
+        ec.derive_private_key(q, ec.SECP256R1())
 
 
 def test_ec_numbers():
@@ -265,7 +275,7 @@ def test_ec_key_key_size(backend):
     assert key.public_key().key_size == 256
 
 
-class TestECWithNumbers(object):
+class TestECWithNumbers:
     def test_with_numbers(self, backend, subtests):
         vectors = itertools.product(
             load_vectors_from_file(
@@ -299,7 +309,7 @@ class TestECWithNumbers(object):
                 assert curve_type().name == priv_num.public_numbers.curve.name
 
 
-class TestECDSAVectors(object):
+class TestECDSAVectors:
     def test_signing_with_example_keys(self, backend, subtests):
         vectors = itertools.product(
             load_vectors_from_file(
@@ -327,15 +337,13 @@ class TestECDSAVectors(object):
                 pkey = key.public_key()
                 assert pkey
 
-                with pytest.warns(CryptographyDeprecationWarning):
-                    signer = key.signer(ec.ECDSA(hash_type()))
-                signer.update(b"YELLOW SUBMARINE")
-                signature = signer.finalize()
+                signature = key.sign(
+                    b"YELLOW SUBMARINE", ec.ECDSA(hash_type())
+                )
 
-                with pytest.warns(CryptographyDeprecationWarning):
-                    verifier = pkey.verifier(signature, ec.ECDSA(hash_type()))
-                verifier.update(b"YELLOW SUBMARINE")
-                verifier.verify()
+                pkey.verify(
+                    signature, b"YELLOW SUBMARINE", ec.ECDSA(hash_type())
+                )
 
     @pytest.mark.parametrize("curve", ec._CURVE_TYPES.values())
     def test_generate_vector_curves(self, backend, curve):
@@ -371,18 +379,8 @@ class TestECDSAVectors(object):
 
         with raises_unsupported_algorithm(
             exceptions._Reasons.UNSUPPORTED_PUBLIC_KEY_ALGORITHM
-        ), pytest.warns(CryptographyDeprecationWarning):
-            key.signer(DummySignatureAlgorithm())
-
-        with raises_unsupported_algorithm(
-            exceptions._Reasons.UNSUPPORTED_PUBLIC_KEY_ALGORITHM
         ):
             key.sign(b"somedata", DummySignatureAlgorithm())
-
-        with raises_unsupported_algorithm(
-            exceptions._Reasons.UNSUPPORTED_PUBLIC_KEY_ALGORITHM
-        ), pytest.warns(CryptographyDeprecationWarning):
-            key.public_key().verifier(b"", DummySignatureAlgorithm())
 
         with raises_unsupported_algorithm(
             exceptions._Reasons.UNSUPPORTED_PUBLIC_KEY_ALGORITHM
@@ -474,6 +472,41 @@ class TestECDSAVectors(object):
         )
         with pytest.raises(ValueError):
             numbers.public_key(backend)
+
+    def test_load_invalid_ec_key_from_pem(self, backend):
+        _skip_curve_unsupported(backend, ec.SECP256R1())
+
+        # BoringSSL rejects infinity points before it ever gets to us, so it
+        # uses a more generic error message.
+        match = (
+            r"infinity|invalid form"
+            if not backend._lib.CRYPTOGRAPHY_IS_BORINGSSL
+            else None
+        )
+        with pytest.raises(ValueError, match=match):
+            serialization.load_pem_public_key(
+                textwrap.dedent(
+                    """
+            -----BEGIN PUBLIC KEY-----
+            MBkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDAgAA
+            -----END PUBLIC KEY-----
+            """
+                ).encode(),
+                backend=backend,
+            )
+        with pytest.raises(ValueError, match=match):
+            serialization.load_pem_private_key(
+                textwrap.dedent(
+                    """
+            -----BEGIN PRIVATE KEY-----
+            MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCD/////AAAAAP//////
+            ////vOb6racXnoTzucrC/GMlUQ==
+            -----END PRIVATE KEY-----
+            """
+                ).encode(),
+                password=None,
+                backend=backend,
+            )
 
     def test_signatures(self, backend, subtests):
         vectors = itertools.chain(
@@ -599,25 +632,8 @@ class TestECDSAVectors(object):
                 b"\x00" * 32, data, ec.ECDSA(Prehashed(hashes.SHA256()))
             )
 
-    def test_prehashed_unsupported_in_signer_ctx(self, backend):
-        _skip_curve_unsupported(backend, ec.SECP256R1())
-        private_key = ec.generate_private_key(ec.SECP256R1(), backend)
-        with pytest.raises(TypeError), pytest.warns(
-            CryptographyDeprecationWarning
-        ):
-            private_key.signer(ec.ECDSA(Prehashed(hashes.SHA1())))
 
-    def test_prehashed_unsupported_in_verifier_ctx(self, backend):
-        _skip_curve_unsupported(backend, ec.SECP256R1())
-        private_key = ec.generate_private_key(ec.SECP256R1(), backend)
-        public_key = private_key.public_key()
-        with pytest.raises(TypeError), pytest.warns(
-            CryptographyDeprecationWarning
-        ):
-            public_key.verifier(b"0" * 64, ec.ECDSA(Prehashed(hashes.SHA1())))
-
-
-class TestECNumbersEquality(object):
+class TestECNumbersEquality:
     def test_public_numbers_eq(self):
         pub = ec.EllipticCurvePublicNumbers(1, 2, ec.SECP192R1())
         assert pub == ec.EllipticCurvePublicNumbers(1, 2, ec.SECP192R1())
@@ -654,7 +670,7 @@ class TestECNumbersEquality(object):
         assert priv != object()
 
 
-class TestECSerialization(object):
+class TestECSerialization:
     @pytest.mark.parametrize(
         ("fmt", "password"),
         itertools.product(
@@ -843,7 +859,7 @@ class TestECSerialization(object):
         )
         with pytest.raises(TypeError):
             key.private_bytes(
-                "notencoding",
+                "notencoding",  # type: ignore[arg-type]
                 serialization.PrivateFormat.PKCS8,
                 serialization.NoEncryption(),
             )
@@ -859,7 +875,7 @@ class TestECSerialization(object):
         with pytest.raises(TypeError):
             key.private_bytes(
                 serialization.Encoding.PEM,
-                "invalidformat",
+                "invalidformat",  # type: ignore[arg-type]
                 serialization.NoEncryption(),
             )
 
@@ -875,7 +891,7 @@ class TestECSerialization(object):
             key.private_bytes(
                 serialization.Encoding.PEM,
                 serialization.PrivateFormat.TraditionalOpenSSL,
-                "notanencalg",
+                "notanencalg",  # type: ignore[arg-type]
             )
 
     def test_private_bytes_unsupported_encryption_type(self, backend):
@@ -910,7 +926,7 @@ class TestECSerialization(object):
         assert parsed_public
 
 
-class TestEllipticCurvePEMPublicKeySerialization(object):
+class TestEllipticCurvePEMPublicKeySerialization:
     @pytest.mark.parametrize(
         ("key_path", "loader_func", "encoding"),
         [
@@ -985,7 +1001,8 @@ class TestEllipticCurvePEMPublicKeySerialization(object):
         )
         with pytest.raises(TypeError):
             key.public_bytes(
-                "notencoding", serialization.PublicFormat.SubjectPublicKeyInfo
+                "notencoding",  # type: ignore[arg-type]
+                serialization.PublicFormat.SubjectPublicKeyInfo,
             )
 
     @pytest.mark.parametrize(
@@ -1030,7 +1047,10 @@ class TestEllipticCurvePEMPublicKeySerialization(object):
             ),
         )
         with pytest.raises(TypeError):
-            key.public_bytes(serialization.Encoding.PEM, "invalidformat")
+            key.public_bytes(
+                serialization.Encoding.PEM,
+                "invalidformat",  # type: ignore[arg-type]
+            )
 
     def test_public_bytes_pkcs1_unsupported(self, backend):
         _skip_curve_unsupported(backend, ec.SECP256R1())
@@ -1162,20 +1182,7 @@ class TestEllipticCurvePEMPublicKeySerialization(object):
         )
 
 
-class TestECDSAVerification(object):
-    def test_signature_not_bytes(self, backend):
-        _skip_curve_unsupported(backend, ec.SECP256R1())
-        key = ec.generate_private_key(ec.SECP256R1(), backend)
-        public_key = key.public_key()
-        with pytest.raises(TypeError), pytest.warns(
-            CryptographyDeprecationWarning
-        ):
-            public_key.verifier(
-                1234, ec.ECDSA(hashes.SHA256())  # type: ignore[arg-type]
-            )
-
-
-class TestECDH(object):
+class TestECDH:
     def test_key_exchange_with_vectors(self, backend, subtests):
         vectors = load_vectors_from_file(
             os.path.join(
@@ -1271,11 +1278,12 @@ class TestECDH(object):
                 pemfile.read().encode(), None, backend
             ),
         )
+        assert isinstance(key, ec.EllipticCurvePrivateKey)
 
         with raises_unsupported_algorithm(
             exceptions._Reasons.UNSUPPORTED_EXCHANGE_ALGORITHM
         ):
-            key.exchange(None, key.public_key())
+            key.exchange(None, key.public_key())  # type: ignore[arg-type]
 
     def test_exchange_non_matching_curve(self, backend):
         _skip_curve_unsupported(backend, ec.SECP256R1())
@@ -1287,6 +1295,7 @@ class TestECDH(object):
                 pemfile.read().encode(), None, backend
             ),
         )
+        assert isinstance(key, ec.EllipticCurvePrivateKey)
         public_key = EC_KEY_SECP384R1.public_numbers.public_key(backend)
 
         with pytest.raises(ValueError):

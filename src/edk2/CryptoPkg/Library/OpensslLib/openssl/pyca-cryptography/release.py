@@ -103,6 +103,11 @@ def release(version):
     """
     ``version`` should be a string like '0.4' or '1.0'.
     """
+    print(
+        f"Create a new GH PAT at: "
+        f"https://github.com/settings/tokens/new?"
+        f"description={version}&scopes=repo"
+    )
     github_token = getpass.getpass("Github person access token: ")
 
     # Tag and push the tag (this will trigger the wheel builder in Actions)
@@ -125,9 +130,9 @@ def release(version):
         github_token, version
     )
 
-    # Upload sdist and wheels
-    run("twine", "upload", "-s", *sdist)
+    # Upload wheels and sdist
     run("twine", "upload", *github_actions_wheel_paths)
+    run("twine", "upload", "-s", *sdist)
 
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@ if [[ "${TYPE}" == "openssl" ]]; then
   make install_sw install_ssldirs
   # For OpenSSL 3.0.0 set up the FIPS config. This does not activate it by
   # default, but allows programmatic activation at runtime
-  if [[ "${VERSION}" =~ 3.0.0 && "${CONFIG_FLAGS}" =~ enable-fips ]]; then
+  if [[ "${VERSION}" =~ ^3. && "${CONFIG_FLAGS}" =~ enable-fips ]]; then
       # As of alpha16 we have to install it separately and enable it in the config flags
       make -j"$(nproc)" install_fips
       pushd "${OSSL_PATH}"
@@ -42,5 +42,22 @@ elif [[ "${TYPE}" == "libressl" ]]; then
   ./config -Wl -Wl,-Bsymbolic-functions -fPIC shared --prefix="${OSSL_PATH}"
   shlib_sed
   make -j"$(nproc)" install
+  popd
+elif [[ "${TYPE}" == "boringssl" ]]; then
+  git clone https://boringssl.googlesource.com/boringssl
+  pushd boringssl
+  git checkout "${VERSION}"
+  mkdir build
+  pushd build
+  cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+  make -j"$(nproc)"
+  mkdir -p "${OSSL_PATH}/lib/"
+  mkdir -p "${OSSL_PATH}/include/"
+  mkdir -p "${OSSL_PATH}/bin/"
+  cp -r ../include/openssl "${OSSL_PATH}/include/"
+  cp ssl/libssl.a "${OSSL_PATH}/lib/"
+  cp crypto/libcrypto.a "${OSSL_PATH}/lib/"
+  cp tool/bssl "${OSSL_PATH}/bin/openssl"
+  popd
   popd
 fi

@@ -67,13 +67,13 @@ legacy libraries:
 * Lack of high level APIs.
 * Lack of PyPy and Python 3 support.
 * Absence of algorithms such as
-  :class:`AES-GCM <cryptography.hazmat.primitives.ciphers.modes.GCM>` and
+  :class:`AES-GCM <cryptography.hazmat.primitives.ciphers.aead.AESGCM>` and
   :class:`~cryptography.hazmat.primitives.kdf.hkdf.HKDF`.
 
 Why does ``cryptography`` require Rust?
 ---------------------------------------
 
-``cryptography`` uses OpenSSL for its cryptographic operations. OpenSSL is
+``cryptography`` uses OpenSSL (see: :doc:`/openssl`) for its cryptographic operations. OpenSSL is
 the de facto standard for cryptographic libraries and provides high performance
 along with various certifications that may be relevant to developers. However,
 it is written in C and lacks `memory safety`_.  We want ``cryptography`` to be
@@ -110,13 +110,6 @@ Please upgrade to a more recent version. If you are running OpenBSD 6.1 or
 earlier the default compiler is extremely old. Use ``pkg_add`` to install a
 newer ``gcc`` and then install ``cryptography`` using
 ``CC=/path/to/newer/gcc pip install cryptography``.
-
-Installing ``cryptography`` fails with ``Invalid environment marker: python_version < '3'``
--------------------------------------------------------------------------------------------
-
-Your ``pip`` and/or ``setuptools`` are outdated. Please upgrade to the latest
-versions with ``pip install -U pip setuptools`` (or on Windows
-``python -m pip install -U pip setuptools``).
 
 Installing cryptography with OpenSSL 0.9.8, 1.0.0, 1.0.1, 1.0.2 fails
 ---------------------------------------------------------------------
@@ -187,6 +180,19 @@ For example, this is a PEM file for a RSA Public Key: ::
    v0X0heUaV0j1HSNlBWamT4IR9+iJfKJHekOqvHQBcaCu7Ja4kXzx6GZ3M2j/Ja3A
    2QIDAQAB
    -----END PUBLIC KEY-----
+
+.. _faq-missing-backend:
+
+What happened to the backend argument?
+--------------------------------------
+``cryptography`` stopped requiring the use of ``backend`` arguments in
+version 3.1 and deprecated their use in version 36.0. If you are on an older
+version that requires these arguments please view the appropriate documentation
+version or upgrade to the latest release.
+
+Note that for forward compatibility ``backend`` is still silently accepted by
+functions that previously required it, but it is ignored and no longer
+documented.
 
 
 .. _`NaCl`: https://nacl.cr.yp.to/

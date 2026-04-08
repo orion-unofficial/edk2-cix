@@ -16,6 +16,7 @@ typedef ... EVP_MD_CTX;
 typedef ... EVP_PKEY;
 typedef ... EVP_PKEY_CTX;
 static const int EVP_PKEY_RSA;
+static const int EVP_PKEY_RSA_PSS;
 static const int EVP_PKEY_DSA;
 static const int EVP_PKEY_DH;
 static const int EVP_PKEY_DHX;
@@ -37,22 +38,25 @@ static const int Cryptography_HAS_ONESHOT_EVP_DIGEST_SIGN_VERIFY;
 static const long Cryptography_HAS_RAW_KEY;
 static const long Cryptography_HAS_EVP_DIGESTFINAL_XOF;
 static const long Cryptography_HAS_300_FIPS;
+static const long Cryptography_HAS_300_EVP_CIPHER;
+static const long Cryptography_HAS_EVP_PKEY_DH;
 """
 
 FUNCTIONS = """
 const EVP_CIPHER *EVP_get_cipherbyname(const char *);
+EVP_CIPHER *EVP_CIPHER_fetch(OSSL_LIB_CTX *, const char *, const char *);
+void EVP_CIPHER_free(EVP_CIPHER *);
+
 int EVP_CIPHER_CTX_set_padding(EVP_CIPHER_CTX *, int);
 int EVP_CipherInit_ex(EVP_CIPHER_CTX *, const EVP_CIPHER *, ENGINE *,
                       const unsigned char *, const unsigned char *, int);
 int EVP_CipherUpdate(EVP_CIPHER_CTX *, unsigned char *, int *,
                      const unsigned char *, int);
 int EVP_CipherFinal_ex(EVP_CIPHER_CTX *, unsigned char *, int *);
-int EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *);
 int EVP_CIPHER_CTX_reset(EVP_CIPHER_CTX *);
 EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void);
 void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *);
 int EVP_CIPHER_CTX_set_key_length(EVP_CIPHER_CTX *, int);
-const EVP_CIPHER *EVP_CIPHER_CTX_cipher(const EVP_CIPHER_CTX *);
 
 int EVP_MD_CTX_copy_ex(EVP_MD_CTX *, const EVP_MD_CTX *);
 int EVP_DigestInit_ex(EVP_MD_CTX *, const EVP_MD *, ENGINE *);
@@ -94,7 +98,6 @@ int EVP_DigestVerifyInit(EVP_MD_CTX *, EVP_PKEY_CTX **, const EVP_MD *,
 
 EVP_PKEY_CTX *EVP_PKEY_CTX_new(EVP_PKEY *, ENGINE *);
 EVP_PKEY_CTX *EVP_PKEY_CTX_new_id(int, ENGINE *);
-EVP_PKEY_CTX *EVP_PKEY_CTX_dup(EVP_PKEY_CTX *);
 void EVP_PKEY_CTX_free(EVP_PKEY_CTX *);
 int EVP_PKEY_sign_init(EVP_PKEY_CTX *);
 int EVP_PKEY_sign(EVP_PKEY_CTX *, unsigned char *, size_t *,
@@ -122,13 +125,9 @@ int EVP_PKEY_derive(EVP_PKEY_CTX *, unsigned char *, size_t *);
 int EVP_PKEY_set_type(EVP_PKEY *, int);
 
 int EVP_PKEY_id(const EVP_PKEY *);
-int Cryptography_EVP_PKEY_id(const EVP_PKEY *);
 
 EVP_MD_CTX *EVP_MD_CTX_new(void);
 void EVP_MD_CTX_free(EVP_MD_CTX *);
-/* Backwards compat aliases for pyOpenSSL */
-EVP_MD_CTX *Cryptography_EVP_MD_CTX_new(void);
-void Cryptography_EVP_MD_CTX_free(EVP_MD_CTX *);
 
 /* Added in 1.1.1 */
 int EVP_DigestSign(EVP_MD_CTX *, unsigned char *, size_t *,
@@ -179,9 +178,6 @@ const long Cryptography_HAS_EVP_PKEY_DHX = 0;
 const long EVP_PKEY_DHX = -1;
 #endif
 
-int Cryptography_EVP_PKEY_id(const EVP_PKEY *key) {
-    return EVP_PKEY_id(key);
-}
 EVP_MD_CTX *Cryptography_EVP_MD_CTX_new(void) {
     return EVP_MD_CTX_new();
 }
@@ -281,9 +277,27 @@ static const long Cryptography_HAS_EVP_DIGESTFINAL_XOF = 1;
 
 #if CRYPTOGRAPHY_OPENSSL_300_OR_GREATER
 static const long Cryptography_HAS_300_FIPS = 1;
+static const long Cryptography_HAS_300_EVP_CIPHER = 1;
 #else
 static const long Cryptography_HAS_300_FIPS = 0;
+static const long Cryptography_HAS_300_EVP_CIPHER = 0;
 int (*EVP_default_properties_is_fips_enabled)(OSSL_LIB_CTX *) = NULL;
 int (*EVP_default_properties_enable_fips)(OSSL_LIB_CTX *, int) = NULL;
+EVP_CIPHER * (*EVP_CIPHER_fetch)(OSSL_LIB_CTX *, const char *,
+                                 const char *) = NULL;
+void (*EVP_CIPHER_free)(EVP_CIPHER *) = NULL;
+#endif
+
+#if CRYPTOGRAPHY_IS_BORINGSSL
+static const long Cryptography_HAS_EVP_PKEY_DH = 0;
+int (*EVP_PKEY_set1_DH)(EVP_PKEY *, DH *) = NULL;
+#else
+static const long Cryptography_HAS_EVP_PKEY_DH = 1;
+#endif
+
+// This can be removed when we drop OpenSSL 1.1.0 support
+// OPENSSL_LESS_THAN_111
+#if !defined(EVP_PKEY_RSA_PSS)
+#define EVP_PKEY_RSA_PSS 912
 #endif
 """

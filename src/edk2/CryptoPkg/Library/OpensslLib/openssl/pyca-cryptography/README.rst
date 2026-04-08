@@ -12,9 +12,6 @@ pyca/cryptography
 .. image:: https://github.com/pyca/cryptography/workflows/CI/badge.svg?branch=main
     :target: https://github.com/pyca/cryptography/actions?query=workflow%3ACI+branch%3Amain
 
-.. image:: https://codecov.io/github/pyca/cryptography/coverage.svg?branch=main
-    :target: https://codecov.io/github/pyca/cryptography?branch=main
-
 
 ``cryptography`` is a package which provides cryptographic recipes and
 primitives to Python developers.  Our goal is for it to be your "cryptographic
@@ -65,7 +62,7 @@ documentation.
 
 
 .. _`documentation`: https://cryptography.io/
-.. _`the installation documentation`: https://cryptography.io/en/latest/installation.html
+.. _`the installation documentation`: https://cryptography.io/en/latest/installation/
 .. _`issue tracker`: https://github.com/pyca/cryptography/issues
 .. _`cryptography-dev`: https://mail.python.org/mailman/listinfo/cryptography-dev
-.. _`security reporting`: https://cryptography.io/en/latest/security.html
+.. _`security reporting`: https://cryptography.io/en/latest/security/

@@ -12,14 +12,14 @@ from cryptography.utils import (
 )
 
 
-class TestVerifyInterface(object):
+class TestVerifyInterface:
     def test_verify_missing_method(self):
         class SimpleInterface(metaclass=abc.ABCMeta):
             @abc.abstractmethod
             def method(self):
                 """A simple method"""
 
-        class NonImplementer(object):
+        class NonImplementer:
             pass
 
         with pytest.raises(InterfaceNotImplemented):
@@ -31,7 +31,7 @@ class TestVerifyInterface(object):
             def method(self, a):
                 """Method with one argument"""
 
-        class NonImplementer(object):
+        class NonImplementer:
             def method(self):
                 """Method with no arguments"""
 
@@ -46,7 +46,7 @@ class TestVerifyInterface(object):
             def property(self):
                 """An abstract property"""
 
-        class NonImplementer(object):
+        class NonImplementer:
             @property
             def property(self):
                 """A concrete property"""
@@ -58,7 +58,7 @@ class TestVerifyInterface(object):
     def test_signature_mismatch(self):
         class SimpleInterface(metaclass=abc.ABCMeta):
             @abc.abstractmethod
-            def method(self, other: object) -> int:
+            def method(self, other: object):
                 """Method with signature"""
 
         class ClassWithoutSignature:
@@ -66,7 +66,7 @@ class TestVerifyInterface(object):
                 """Method without signature"""
 
         class ClassWithSignature:
-            def method(self, other: object) -> int:
+            def method(self, other: object):
                 """Method with signature"""
 
         verify_interface(SimpleInterface, ClassWithoutSignature)
