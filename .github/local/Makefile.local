@@ -160,6 +160,7 @@ define PRINT_TOP_LEVEL_USER_VARIABLES
 	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Generate unmodified upstream firmware images or allow custom enhancements.\nDefault: custom.'; \
 	print_help_line '  FIRMWARE_BOARD=O6|O6N' 'Select the firmware board; replay follows the same board.\nDefault: O6.'; \
 	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG firmware build.\nDefault: RELEASE.'; \
+	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Select the default distro family for buildbox runs and deterministic replay.\nDefault: bookworm.'; \
 	print_help_line '  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Custom-only: enable the experimental Radxa UEFI settings overlay for O6/O6N, with SR-IOV remaining O6-only.\nDefault: false.'; \
 	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: expose UART3 to ACPI and mux its header pins as UART instead of GPIO.\nDefault: false.'; \
 	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
@@ -173,7 +174,6 @@ define PRINT_TOP_LEVEL_DEV_VARIABLES
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile from validation/expected-hashes.json, e.g. '\''upstream-1.2.1-bookworm'\'' or '\''upstream-1.2.1-trixie'\''\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
 	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory for validation and audit JSON reports.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
 	print_help_line '  MONOREPO_META_ROOT=<path>' 'Optional main-monorepo-meta checkout used by audit-bundle for the metadata-consistency check.\nDefault: unset.'; \
-	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Select the default distro family for buildbox runs and deterministic replay.\nDefault: bookworm.'; \
 	print_help_line '  BUILDBOX_PLATFORM=linux/amd64|linux/arm64' 'Select the container platform for buildbox runs.\nDefault: host-matched runtime platform.'; \
 	print_help_line '  BUILDBOX_IMAGE=<image>' 'Override the selected buildbox container image directly.\nDefault: '\''mcr.microsoft.com/devcontainers/base:$(FIRMWARE_DISTRO)'\'''; \
 	print_help_line '  REPLAY_INPUT=<path>' 'Seed replay inputs from a .deb, an extracted release dir, or cix_flash_all.bin.\nDefault: unset; reuse cached replay inputs if present.'; \
