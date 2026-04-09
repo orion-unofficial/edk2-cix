@@ -196,7 +196,7 @@ CreateAmlPsdNode (
 
   ASSERT (Node != NULL);
 
-  Status = AmlCreatePsdNode (
+  Status = CixAmlCreatePsdNode (
              PsdInfo.NumEntries,
              PsdInfo.Revision,
              PsdInfo.Domain,

@@ -3366,7 +3366,7 @@ error_handler:
 **/
 EFI_STATUS
 EFIAPI
-AmlCreatePsdNode (
+CixAmlCreatePsdNode (
   IN  UINT16                  NumEntries,
   IN  UINT8                   Revision,
   IN  UINT32                  Domain,
