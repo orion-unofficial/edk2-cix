@@ -192,6 +192,8 @@ CUSTOM_RADXA_SETUP_INCLUDE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platf
 CUSTOM_MERAK_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Merak/Library/PlatformEnvHookLib)
 CUSTOM_EDGE_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Edge/Library/PlatformEnvHookLib)
 CUSTOM_O6_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib)
+CUSTOM_BASETOOLS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2/BaseTools)
+CUSTOM_BASETOOLS_VFR_OVERLAY := $(CUSTOM_BASETOOLS_OVERLAY_DIR)/Source/C/VfrCompile/VfrSyntax.g
 CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Define.dsc.inc) \
@@ -212,6 +214,7 @@ CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
 	$(wildcard $(CUSTOM_RADXA_SETUP_INCLUDE_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_RADXA_SETUP_INIT_OVERLAY_DIR)/*) \
+	$(CUSTOM_BASETOOLS_VFR_OVERLAY) \
 	$(abspath ../custom/overlay/edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/SecureBootVariableProvisionLib.c) \
 	$(abspath ../custom/overlay/edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/SecureBootVariableProvisionLib.inf)
 EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
@@ -248,7 +251,10 @@ CIX_PACKAGE_TOOL_BIN := $(HOST_TOOLS_DIR)/cix_package_tool
 CIX_PACKAGE_TOOL_SOURCE_INPUTS := $(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py
 SIGNING_CERT_SOURCE_DIR ?=
 REQUIRE_SIGNING_CERT_SOURCE ?= $(if $(and $(filter upstream,$(ARTEFACT_MODE)),$(strip $(SIGNING_CERT_SOURCE_DIR))),1,0)
-BASETOOLS_C_BIN_DIR := edk2/BaseTools/Source/C/bin
+IMPORTED_BASETOOLS_DIR := $(abspath edk2/BaseTools)
+CUSTOM_BASETOOLS_DIR := $(CUSTOM_EDK2_WORKSPACE)/BaseTools
+ACTIVE_BASETOOLS_DIR := $(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_BASETOOLS_DIR),$(IMPORTED_BASETOOLS_DIR))
+BASETOOLS_C_BIN_DIR := $(ACTIVE_BASETOOLS_DIR)/Source/C/bin
 BASETOOLS_C_MARKER := $(BASETOOLS_C_BIN_DIR)/.edk2-cix-build-env
 # Docker Desktop bind mounts on Darwin have been flaky with EDK2's default
 # parallel build fan-out, so default to a single build thread there while
@@ -500,7 +506,14 @@ preflight-build-metadata:
 prepare-basetools-c:
 	@$(ENSURE_REPO_LOCK)
 	@set -euo pipefail; \
-	mkdir -p "$(BASETOOLS_C_BIN_DIR)"; \
+	base_tools_dir="$(ACTIVE_BASETOOLS_DIR)"; \
+	base_tools_bin_dir="$(BASETOOLS_C_BIN_DIR)"; \
+	base_tools_marker="$(BASETOOLS_C_MARKER)"; \
+	overlay_signature=''; \
+	if [[ "$(ARTEFACT_MODE)" == "custom" && -d "$(CUSTOM_BASETOOLS_OVERLAY_DIR)" ]]; then \
+		overlay_signature="$$(find "$(CUSTOM_BASETOOLS_OVERLAY_DIR)" -type f -print0 | sort -z | xargs -0 cksum 2>/dev/null || true)"; \
+	fi; \
+	mkdir -p "$$base_tools_bin_dir"; \
 	current_env_id="$$( \
 		{ source /etc/os-release >/dev/null 2>&1 && true; } || true; \
 		printf 'arch=%s;os=%s;version=%s;cc=%s;ldd=%s\n' \
@@ -509,15 +522,16 @@ prepare-basetools-c:
 			"$${VERSION_ID:-unknown}" \
 			"$$(cc --version 2>/dev/null | sed -n '1p' || echo unavailable)" \
 			"$$(ldd --version 2>/dev/null | sed -n '1p' || echo unavailable)"; \
+		printf 'artefact=%s;overlay=%s\n' "$(ARTEFACT_MODE)" "$$overlay_signature"; \
 	)"; \
 	rebuild=0; \
-	if [[ ! -f "$(BASETOOLS_C_MARKER)" ]]; then \
+	if [[ ! -f "$$base_tools_marker" ]]; then \
 		rebuild=1; \
-	elif ! grep -qxF "$$current_env_id" "$(BASETOOLS_C_MARKER)"; then \
+	elif ! grep -qxF "$$current_env_id" "$$base_tools_marker"; then \
 		rebuild=1; \
 	fi; \
 	for tool in $(BASETOOLS_C_REQUIRED_TOOLS); do \
-		if [[ ! -x "$(BASETOOLS_C_BIN_DIR)/$$tool" ]]; then \
+		if [[ ! -x "$$base_tools_bin_dir/$$tool" ]]; then \
 			rebuild=1; \
 			break; \
 		fi; \
@@ -525,15 +539,27 @@ prepare-basetools-c:
 	if [[ "$$rebuild" -eq 1 ]]; then \
 		printf '[build] Rebuilding BaseTools C binaries for %s\n' "$$current_env_id"; \
 		printf '[build] Cleaning stale BaseTools C objects and dependency files\n'; \
-		$(MAKE) -C edk2/BaseTools V="$(V)" clean; \
+		if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
+			rm -rf "$$base_tools_dir"; \
+			mkdir -p "$$(dirname "$$base_tools_dir")"; \
+			cp -a "$(IMPORTED_BASETOOLS_DIR)" "$$(dirname "$$base_tools_dir")/"; \
+			if [[ -d "$(CUSTOM_BASETOOLS_OVERLAY_DIR)" ]]; then \
+				while IFS= read -r -d '' overlay_src; do \
+					rel_path="$${overlay_src#$(CUSTOM_BASETOOLS_OVERLAY_DIR)/}"; \
+					mkdir -p "$$base_tools_dir/$$(dirname "$$rel_path")"; \
+					cp "$$overlay_src" "$$base_tools_dir/$$rel_path"; \
+				done < <(find "$(CUSTOM_BASETOOLS_OVERLAY_DIR)" -type f -print0); \
+			fi; \
+		fi; \
+		$(MAKE) -C "$$base_tools_dir" V="$(V)" clean; \
 		if [[ "$(V)" == "1" ]]; then \
-			$(MAKE) -C edk2/BaseTools -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C; \
+			$(MAKE) -C "$$base_tools_dir" -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C; \
 		else \
-			$(MAKE) -C edk2/BaseTools -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C 2>&1 | \
+			$(MAKE) -C "$$base_tools_dir" -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C 2>&1 | \
 				ARTEFACT_MODE="$(ARTEFACT_MODE)" \
 				python3 "$(EDK2_BUILD_OUTPUT_FILTER)"; \
 		fi; \
-		printf '%s\n' "$$current_env_id" > "$(BASETOOLS_C_MARKER)"; \
+		printf '%s\n' "$$current_env_id" > "$$base_tools_marker"; \
 	fi
 
 .PHONY: preflight preflight-% preflight-inputs
@@ -983,7 +1009,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 		export PACKAGES_PATH="$(EDK2_PACKAGES_PATH)"; \
 		mkdir -p "$$WORKSPACE"; \
 		rm -rf "$$WORKSPACE/Build/$*" "$$WORKSPACE/Conf"; \
-		export EDK_TOOLS_PATH="$(abspath edk2/BaseTools)"; \
+		export EDK_TOOLS_PATH="$(CUSTOM_BASETOOLS_DIR)"; \
 	else \
 		export WORKSPACE="$(shell pwd)"; \
 		export PACKAGES_PATH="$(IMPORTED_EDK2_PACKAGES_PATH)"; \
