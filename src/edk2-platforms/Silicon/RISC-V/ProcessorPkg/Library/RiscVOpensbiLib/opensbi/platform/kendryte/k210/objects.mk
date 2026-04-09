@@ -11,4 +11,3 @@ platform-objs-y += platform.o
 
 platform-objs-y += k210.o
 platform-varprefix-k210.o = dt_k210
-platform-padding-k210.o = 2048

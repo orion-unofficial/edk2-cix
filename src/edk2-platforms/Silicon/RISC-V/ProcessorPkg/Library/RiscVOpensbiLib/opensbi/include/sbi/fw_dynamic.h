@@ -40,7 +40,7 @@
 
 /* clang-format on */
 
-#ifndef __ASSEMBLER__
+#ifndef __ASSEMBLY__
 
 #include <sbi/sbi_types.h>
 

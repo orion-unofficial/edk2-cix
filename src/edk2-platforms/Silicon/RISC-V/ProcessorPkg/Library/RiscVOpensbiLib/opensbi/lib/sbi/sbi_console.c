@@ -12,7 +12,7 @@
 #include <sbi/sbi_platform.h>
 #include <sbi/sbi_scratch.h>
 
-static const struct sbi_console_device *console_dev = NULL;
+static const struct sbi_platform *console_plat = NULL;
 static spinlock_t console_out_lock	       = SPIN_LOCK_INITIALIZER;
 
 bool sbi_isprintable(char c)
@@ -26,18 +26,14 @@ bool sbi_isprintable(char c)
 
 int sbi_getc(void)
 {
-	if (console_dev && console_dev->console_getc)
-		return console_dev->console_getc();
-	return -1;
+	return sbi_platform_console_getc(console_plat);
 }
 
 void sbi_putc(char ch)
 {
-	if (console_dev && console_dev->console_putc) {
-		if (ch == '\n')
-			console_dev->console_putc('\r');
-		console_dev->console_putc(ch);
-	}
+	if (ch == '\n')
+		sbi_platform_console_putc(console_plat, '\r');
+	sbi_platform_console_putc(console_plat, ch);
 }
 
 void sbi_puts(const char *str)
@@ -394,20 +390,9 @@ int sbi_dprintf(const char *format, ...)
 	return retval;
 }
 
-const struct sbi_console_device *sbi_console_get_device(void)
-{
-	return console_dev;
-}
-
-void sbi_console_set_device(const struct sbi_console_device *dev)
-{
-	if (!dev || console_dev)
-		return;
-
-	console_dev = dev;
-}
-
 int sbi_console_init(struct sbi_scratch *scratch)
 {
-	return sbi_platform_console_init(sbi_platform_ptr(scratch));
+	console_plat = sbi_platform_ptr(scratch);
+
+	return sbi_platform_console_init(console_plat);
 }

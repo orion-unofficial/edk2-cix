@@ -61,19 +61,6 @@
 		PROVIDE(_data_end = .);
 	}
 
-	.dynsym : {
-		PROVIDE(__dyn_sym_start = .);
-		*(.dynsym)
-		PROVIDE(__dyn_sym_end = .);
-	}
-
-	.rela.dyn : {
-		PROVIDE(__rel_dyn_start = .);
-		*(.rela*)
-		. = ALIGN(8);
-		PROVIDE(__rel_dyn_end = .);
-	}
-
 	. = ALIGN(0x1000); /* Ensure next section is page aligned */
 
 	.bss :
