@@ -28,13 +28,13 @@ typedef enum CixObjectID {
 // A structure that map each cpu core number to corresponding LPI Name
 typedef CHAR8 CM_CIX_LPI_MAP_INFO[PLAT_CPU_COUNT][5];
 
-typedef struct AmlPsdInfo {
+typedef struct CixAmlPsdInfo {
   UINT16    NumEntries;
   UINT8     Revision;
   UINT32    Domain;
   UINT32    CoordType;
   UINT32    NumProcessors;
-} AML_PSD_INFO;
+} CIX_AML_PSD_INFO;
 
 typedef  UINTN CM_CIX_CPUUID_CORENUMBER_MAP;
 

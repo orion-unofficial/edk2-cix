@@ -152,7 +152,7 @@ GetCpcGranularity (
   EFI_STATUS                          Status;
   SCMI_PERFORMANCE_PROTOCOL           *ScmiPerfProtocol = NULL;
   UINT32                              DomainId;
-  AML_PSD_INFO                        PsdInfo[PLAT_CPU_COUNT] = PLAT_PSD_INFO;
+  CIX_AML_PSD_INFO                        PsdInfo[PLAT_CPU_COUNT] = PLAT_PSD_INFO;
   SCMI_PERFORMANCE_DOMAIN_ATTRIBUTES  DomainAttribute;
 
   if (CpuID >= PLAT_CPU_COUNT) {
@@ -197,7 +197,7 @@ GetCpuPerfData (
   UINT32                  DomainId;
   UINT32                  NumLevels;
   SCMI_PERFORMANCE_LEVEL  *LevelArra;
-  AML_PSD_INFO            PsdInfo[PLAT_CPU_COUNT] = PLAT_PSD_INFO;
+  CIX_AML_PSD_INFO            PsdInfo[PLAT_CPU_COUNT] = PLAT_PSD_INFO;
 
   if (CpuID >= PLAT_CPU_COUNT) {
     DEBUG ((DEBUG_ERROR, "Cpuid is over the max range, max cpuid = %d, current cpu id = %d\n", PLAT_CPU_COUNT - 1, CpuID));

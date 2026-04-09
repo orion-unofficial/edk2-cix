@@ -28,7 +28,7 @@
 #include <CIXAmlLib.h>
 
 CM_CIX_LPI_MAP_INFO  LpiMapInfo              = PLAT_LPI_MAP_INFO;
-AML_PSD_INFO         PsdInfo[PLAT_CPU_COUNT] = PLAT_PSD_INFO;
+CIX_AML_PSD_INFO         PsdInfo[PLAT_CPU_COUNT] = PLAT_PSD_INFO;
 
 /** This macro expands to a function that retrieves the GIC
     CPU interface Information from the Configuration Manager.
@@ -175,7 +175,7 @@ WriteCpuAslName (
       })
   }
 
-  @param [in]  PsdInfo                AML_PSD_INFO object
+  @param [in]  PsdInfo                CIX_AML_PSD_INFO object
                                       describing the P-State Dependency.
   @param [in]  Node                   CPU Node to which the _CPC node is
                                       attached.
@@ -188,7 +188,7 @@ STATIC
 EFI_STATUS
 EFIAPI
 CreateAmlPsdNode (
-  IN  AML_PSD_INFO            PsdInfo,
+  IN  CIX_AML_PSD_INFO            PsdInfo,
   IN  AML_OBJECT_NODE_HANDLE  *Node
   )
 {
