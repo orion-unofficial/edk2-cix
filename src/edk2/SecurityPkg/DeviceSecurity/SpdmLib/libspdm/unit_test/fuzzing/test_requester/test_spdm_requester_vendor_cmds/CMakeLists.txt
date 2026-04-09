@@ -1,72 +1,63 @@
 cmake_minimum_required(VERSION 2.8.12)
-
-INCLUDE_DIRECTORIES(${LIBSPDM_DIR}/unit_test/test_spdm_vendor_cmds
+INCLUDE_DIRECTORIES(${LIBSPDM_DIR}/unit_test/fuzzing/test_requester/test_spdm_requester_vendor_cmds
                     ${LIBSPDM_DIR}/include
                     ${LIBSPDM_DIR}/unit_test/include
-                    ${LIBSPDM_DIR}/os_stub/spdm_device_secret_lib_sample
                     ${LIBSPDM_DIR}/unit_test/cmockalib/cmocka/include
                     ${LIBSPDM_DIR}/unit_test/cmockalib/cmocka/include/cmockery
-                    ${LIBSPDM_DIR}/unit_test/spdm_unit_test_common
+                    ${LIBSPDM_DIR}/unit_test/fuzzing/spdm_unit_fuzzing_common
+                    ${LIBSPDM_DIR}/os_stub/spdm_device_secret_lib_sample
+                    ${LIBSPDM_DIR}/os_stub/include
                     ${LIBSPDM_DIR}/os_stub
 )
 
-if(CMAKE_SYSTEM_NAME MATCHES "Windows")
-    if((TOOLCHAIN STREQUAL "VS2015") OR (TOOLCHAIN STREQUAL "VS2019") OR (TOOLCHAIN STREQUAL "VS2022"))
-        ADD_COMPILE_OPTIONS(/wd4819)
-    endif()
+if(TOOLCHAIN STREQUAL "KLEE")
+    INCLUDE_DIRECTORIES($ENV{KLEE_SRC_PATH}/include)
 endif()
 
-SET(src_test_spdm_vendor_cmds
-    test_spdm_vendor_cmds.c
+SET(src_test_spdm_requester_vendor_cmds
     vendor_cmds.c
-    error_test/vendor_cmds_err.c
-    ${LIBSPDM_DIR}/unit_test/spdm_unit_test_common/common.c
-    ${LIBSPDM_DIR}/unit_test/spdm_unit_test_common/algo.c
-    ${LIBSPDM_DIR}/unit_test/spdm_unit_test_common/support.c
+    ${PROJECT_SOURCE_DIR}/unit_test/fuzzing/spdm_unit_fuzzing_common/common.c
+    ${PROJECT_SOURCE_DIR}/unit_test/fuzzing/spdm_unit_fuzzing_common/toolchain_harness.c
+    ${PROJECT_SOURCE_DIR}/unit_test/fuzzing/spdm_unit_fuzzing_common/algo.c
 )
 
-SET(test_spdm_vendor_cmds_LIBRARY
+SET(test_spdm_requester_vendor_cmds_LIBRARY
     memlib
     debuglib
-    spdm_responder_lib
     spdm_requester_lib
     spdm_common_lib
     ${CRYPTO_LIB_PATHS}
     rnglib
+    platform_lib_null
     cryptlib_${CRYPTO}
     malloclib
     spdm_crypt_lib
     spdm_crypt_ext_lib
     spdm_secured_message_lib
-    spdm_device_secret_lib_sample
     spdm_transport_test_lib
+    spdm_device_secret_lib_sample
     cmockalib
-    platform_lib
 )
 
-if(TOOLCHAIN STREQUAL "ARM_DS2022")
-    SET(test_spdm_vendor_cmds_LIBRARY ${test_spdm_vendor_cmds_LIBRARY} armbuild_lib)
-endif()
-
 if((TOOLCHAIN STREQUAL "KLEE") OR (TOOLCHAIN STREQUAL "CBMC"))
-    ADD_EXECUTABLE(test_spdm_vendor_cmds
-                   ${src_test_spdm_vendor_cmds}
+    ADD_EXECUTABLE(test_spdm_requester_vendor_cmds
+                   ${src_test_spdm_requester_vendor_cmds}
                    $<TARGET_OBJECTS:memlib>
                    $<TARGET_OBJECTS:debuglib>
                    $<TARGET_OBJECTS:spdm_requester_lib>
                    $<TARGET_OBJECTS:spdm_common_lib>
                    $<TARGET_OBJECTS:${CRYPTO_LIB_PATHS}>
                    $<TARGET_OBJECTS:rnglib>
+                   $<TARGET_OBJECTS:platform_lib_null>
                    $<TARGET_OBJECTS:cryptlib_${CRYPTO}>
                    $<TARGET_OBJECTS:malloclib>
                    $<TARGET_OBJECTS:spdm_crypt_lib>
                    $<TARGET_OBJECTS:spdm_secured_message_lib>
-                   $<TARGET_OBJECTS:spdm_device_secret_lib_sample>
                    $<TARGET_OBJECTS:spdm_transport_test_lib>
+                   $<TARGET_OBJECTS:spdm_device_secret_lib_sample>
                    $<TARGET_OBJECTS:cmockalib>
-                   $<TARGET_OBJECTS:platform_lib>
     )
 else()
-    ADD_EXECUTABLE(test_spdm_vendor_cmds ${src_test_spdm_vendor_cmds})
-    TARGET_LINK_LIBRARIES(test_spdm_vendor_cmds ${test_spdm_vendor_cmds_LIBRARY})
+    ADD_EXECUTABLE(test_spdm_requester_vendor_cmds ${src_test_spdm_requester_vendor_cmds})
+    TARGET_LINK_LIBRARIES(test_spdm_requester_vendor_cmds ${test_spdm_requester_vendor_cmds_LIBRARY})
 endif()
