@@ -44,9 +44,9 @@ GET_OBJECT_LIST (
   information from the Configuration Manager.
 */
 GET_OBJECT_LIST (
-  EObjNameSpaceArm,
-  EArmObjCpcInfo,
-  CM_ARM_CPC_INFO
+  EObjNameSpaceArchCommon,
+  EArchCommonObjCpcInfo,
+  CM_ARCH_COMMON_CPC_INFO
   );
 
 /**
@@ -269,29 +269,28 @@ EFI_STATUS
 EFIAPI
 CreateAmlCpcNode (
   IN  CONST EDKII_CONFIGURATION_MANAGER_PROTOCOL  *CONST  CfgMgrProtocol,
-  IN  UINTN                                               Coreid,
+  IN  CM_OBJECT_TOKEN                                     CpcToken,
   IN  AML_OBJECT_NODE_HANDLE                              *Node
   )
 {
-  EFI_STATUS       Status;
-  CM_ARM_CPC_INFO  *CpcInfo;
-  UINT32           CpcInfoCount;
+  EFI_STATUS               Status;
+  CM_ARCH_COMMON_CPC_INFO  *CpcInfo;
 
   ASSERT (CfgMgrProtocol != NULL);
   ASSERT (Node != NULL);
 
-  Status = GetEArmObjCpcInfo (
+  Status = GetEArchCommonObjCpcInfo (
              CfgMgrProtocol,
-             CM_NULL_TOKEN,
+             CpcToken,
              &CpcInfo,
-             &CpcInfoCount
+             NULL
              );
   if (EFI_ERROR (Status)) {
     return Status;
   }
 
   Status = AmlCreateCpcNode (
-             &CpcInfo[Coreid],
+             CpcInfo,
              Node,
              NULL
              );
@@ -805,7 +804,7 @@ CreateTopologyFromCpuTopoInfo (
         break;
       }
 
-      Status = CreateAmlCpcNode (CfgMgrProtocol, CpuCore->Coreid, CpuNode);
+      Status = CreateAmlCpcNode (CfgMgrProtocol, GicCInfo[CpuCore->Uid].CpcToken, CpuNode);
       if (Status == EFI_NOT_FOUND) {
         Status = EFI_SUCCESS;
         continue;
