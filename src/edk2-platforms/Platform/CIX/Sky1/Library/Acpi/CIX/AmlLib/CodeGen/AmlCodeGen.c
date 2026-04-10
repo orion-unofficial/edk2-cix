@@ -142,7 +142,7 @@ STATIC
 EFI_STATUS
 EFIAPI
 AmlCodeGenString (
-  IN  CHAR8            *String,
+  IN  CONST CHAR8      *String,
   OUT AML_OBJECT_NODE  **NewObjectNode
   )
 {
@@ -3470,7 +3470,7 @@ STATIC
 EFI_STATUS
 EFIAPI
 AmlAddNameStringToPackage (
-  IN CHAR8                   *NameString,
+  IN CONST CHAR8             *NameString,
   IN AML_OBJECT_NODE_HANDLE  PackageNode
   )
 {
