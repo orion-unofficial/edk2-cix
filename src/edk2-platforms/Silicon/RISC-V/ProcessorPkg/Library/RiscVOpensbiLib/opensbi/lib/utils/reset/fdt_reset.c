@@ -7,26 +7,22 @@
  *   Anup Patel <anup.patel@wdc.com>
  */
 
+#include <sbi/sbi_error.h>
 #include <sbi/sbi_scratch.h>
 #include <sbi_utils/fdt/fdt_helper.h>
 #include <sbi_utils/reset/fdt_reset.h>
 
 extern struct fdt_reset fdt_reset_sifive;
 extern struct fdt_reset fdt_reset_htif;
+extern struct fdt_reset fdt_reset_thead;
 
 static struct fdt_reset *reset_drivers[] = {
 	&fdt_reset_sifive,
 	&fdt_reset_htif,
+	&fdt_reset_thead,
 };
 
 static struct fdt_reset *current_driver = NULL;
-
-int fdt_system_reset(u32 reset_type)
-{
-	if (current_driver && current_driver->system_reset)
-		return current_driver->system_reset(reset_type);
-	return 0;
-}
 
 int fdt_reset_init(void)
 {
@@ -44,6 +40,8 @@ int fdt_reset_init(void)
 
 		if (drv->init) {
 			rc = drv->init(fdt, noff, match);
+			if (rc == SBI_ENODEV)
+				continue;
 			if (rc)
 				return rc;
 		}

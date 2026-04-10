@@ -8,6 +8,7 @@
  */
 
 #include <libfdt.h>
+#include <sbi/sbi_error.h>
 #include <sbi/sbi_scratch.h>
 #include <sbi_utils/fdt/fdt_helper.h>
 #include <sbi_utils/serial/fdt_serial.h>
@@ -16,41 +17,22 @@ extern struct fdt_serial fdt_serial_uart8250;
 extern struct fdt_serial fdt_serial_sifive;
 extern struct fdt_serial fdt_serial_htif;
 extern struct fdt_serial fdt_serial_shakti;
+extern struct fdt_serial fdt_serial_gaisler;
 
 static struct fdt_serial *serial_drivers[] = {
 	&fdt_serial_uart8250,
 	&fdt_serial_sifive,
 	&fdt_serial_htif,
 	&fdt_serial_shakti,
+	&fdt_serial_gaisler
 };
-
-static void dummy_putc(char ch)
-{
-}
-
-static int dummy_getc(void)
-{
-	return -1;
-}
 
 static struct fdt_serial dummy = {
 	.match_table = NULL,
 	.init = NULL,
-	.putc = dummy_putc,
-	.getc = dummy_getc,
 };
 
 static struct fdt_serial *current_driver = &dummy;
-
-void fdt_serial_putc(char ch)
-{
-	current_driver->putc(ch);
-}
-
-int fdt_serial_getc(void)
-{
-	return current_driver->getc();
-}
 
 int fdt_serial_init(void)
 {
@@ -60,12 +42,21 @@ int fdt_serial_init(void)
 	int pos, noff = -1, len, coff, rc;
 	void *fdt = sbi_scratch_thishart_arg1_ptr();
 
-	/* Find offset of node pointed by stdout-path */
+	/* Find offset of node pointed to by stdout-path */
 	coff = fdt_path_offset(fdt, "/chosen");
 	if (-1 < coff) {
 		prop = fdt_getprop(fdt, coff, "stdout-path", &len);
-		if (prop && len)
-			noff = fdt_path_offset(fdt, prop);
+		if (prop && len) {
+			const char *sep, *start = prop;
+
+			/* The device path may be followed by ':' */
+			sep = strchr(start, ':');
+			if (sep)
+				noff = fdt_path_offset_namelen(fdt, prop,
+							       sep - start);
+			else
+				noff = fdt_path_offset(fdt, prop);
+		}
 	}
 
 	/* First check DT node pointed by stdout-path */
@@ -78,6 +69,8 @@ int fdt_serial_init(void)
 
 		if (drv->init) {
 			rc = drv->init(fdt, noff, match);
+			if (rc == SBI_ENODEV)
+				continue;
 			if (rc)
 				return rc;
 		}
@@ -99,6 +92,8 @@ int fdt_serial_init(void)
 
 		if (drv->init) {
 			rc = drv->init(fdt, noff, match);
+			if (rc == SBI_ENODEV)
+				continue;
 			if (rc)
 				return rc;
 		}

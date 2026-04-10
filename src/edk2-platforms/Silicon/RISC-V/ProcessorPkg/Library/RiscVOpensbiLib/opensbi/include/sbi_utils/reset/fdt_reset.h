@@ -15,10 +15,7 @@
 struct fdt_reset {
 	const struct fdt_match *match_table;
 	int (*init)(void *fdt, int nodeoff, const struct fdt_match *match);
-	int (*system_reset)(u32 reset_type);
 };
-
-int fdt_system_reset(u32 reset_type);
 
 int fdt_reset_init(void);
 

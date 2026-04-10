@@ -22,15 +22,28 @@
 #define K210_SYSCTL_BASE_ADDR	0x50440000ULL
 #define K210_UART_BASE_ADDR	0x38000000ULL
 #define K210_CLINT_BASE_ADDR	0x02000000ULL
+#define K210_ACLINT_MSWI_ADDR	\
+		(K210_CLINT_BASE_ADDR + CLINT_MSWI_OFFSET)
+#define K210_ACLINT_MTIMER_ADDR \
+		(K210_CLINT_BASE_ADDR + CLINT_MTIMER_OFFSET)
 #define K210_PLIC_BASE_ADDR	0x0C000000ULL
 
 /* Registers */
 #define K210_PLL0		0x08
 #define K210_CLKSEL0		0x20
+#define K210_RESET		0x30
+
+/* Register bit masks */
+#define K210_RESET_MASK		0x01
 
 static inline u32 k210_read_sysreg(u32 reg)
 {
 	return readl((volatile void *)(K210_SYSCTL_BASE_ADDR + reg));
+}
+
+static inline void k210_write_sysreg(u32 val, u32 reg)
+{
+	writel(val, (volatile void *)(K210_SYSCTL_BASE_ADDR + reg));
 }
 
 #endif /* _K210_PLATFORM_H_ */

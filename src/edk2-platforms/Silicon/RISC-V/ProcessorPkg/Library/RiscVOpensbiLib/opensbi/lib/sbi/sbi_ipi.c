@@ -12,6 +12,7 @@
 #include <sbi/riscv_atomic.h>
 #include <sbi/riscv_barrier.h>
 #include <sbi/sbi_bitops.h>
+#include <sbi/sbi_domain.h>
 #include <sbi/sbi_error.h>
 #include <sbi/sbi_hart.h>
 #include <sbi/sbi_hsm.h>
@@ -24,7 +25,7 @@ struct sbi_ipi_data {
 };
 
 static unsigned long ipi_data_off;
-
+static const struct sbi_ipi_device *ipi_dev = NULL;
 static const struct sbi_ipi_event_ops *ipi_ops_array[SBI_IPI_EVENT_MAX];
 
 static int sbi_ipi_send(struct sbi_scratch *scratch, u32 remote_hartid,
@@ -32,7 +33,6 @@ static int sbi_ipi_send(struct sbi_scratch *scratch, u32 remote_hartid,
 {
 	int ret;
 	struct sbi_scratch *remote_scratch = NULL;
-	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
 	struct sbi_ipi_data *ipi_data;
 	const struct sbi_ipi_event_ops *ipi_ops;
 
@@ -60,7 +60,9 @@ static int sbi_ipi_send(struct sbi_scratch *scratch, u32 remote_hartid,
 	 */
 	atomic_raw_set_bit(event, &ipi_data->ipi_type);
 	smp_wmb();
-	sbi_platform_ipi_send(plat, remote_hartid);
+
+	if (ipi_dev && ipi_dev->ipi_send)
+		ipi_dev->ipi_send(remote_hartid);
 
 	if (ipi_ops->sync)
 		ipi_ops->sync(scratch);
@@ -77,10 +79,11 @@ int sbi_ipi_send_many(ulong hmask, ulong hbase, u32 event, void *data)
 {
 	int rc;
 	ulong i, m;
+	struct sbi_domain *dom = sbi_domain_thishart_ptr();
 	struct sbi_scratch *scratch = sbi_scratch_thishart_ptr();
 
 	if (hbase != -1UL) {
-		rc = sbi_hsm_hart_started_mask(hbase, &m);
+		rc = sbi_hsm_hart_interruptible_mask(dom, hbase, &m);
 		if (rc)
 			return rc;
 		m &= hmask;
@@ -92,7 +95,7 @@ int sbi_ipi_send_many(ulong hmask, ulong hbase, u32 event, void *data)
 		}
 	} else {
 		hbase = 0;
-		while (!sbi_hsm_hart_started_mask(hbase, &m)) {
+		while (!sbi_hsm_hart_interruptible_mask(dom, hbase, &m)) {
 			/* Send IPIs */
 			for (i = hbase; m; i++, m >>= 1) {
 				if (m & 1UL)
@@ -176,12 +179,12 @@ void sbi_ipi_process(void)
 	unsigned int ipi_event;
 	const struct sbi_ipi_event_ops *ipi_ops;
 	struct sbi_scratch *scratch = sbi_scratch_thishart_ptr();
-	const struct sbi_platform *plat = sbi_platform_ptr(scratch);
 	struct sbi_ipi_data *ipi_data =
 			sbi_scratch_offset_ptr(scratch, ipi_data_off);
-
 	u32 hartid = current_hartid();
-	sbi_platform_ipi_clear(plat, hartid);
+
+	if (ipi_dev && ipi_dev->ipi_clear)
+		ipi_dev->ipi_clear(hartid);
 
 	ipi_type = atomic_raw_xchg_ulong(&ipi_data->ipi_type, 0);
 	ipi_event = 0;
@@ -199,14 +202,32 @@ skip:
 	};
 }
 
+void sbi_ipi_raw_send(u32 target_hart)
+{
+	if (ipi_dev && ipi_dev->ipi_send)
+		ipi_dev->ipi_send(target_hart);
+}
+
+const struct sbi_ipi_device *sbi_ipi_get_device(void)
+{
+	return ipi_dev;
+}
+
+void sbi_ipi_set_device(const struct sbi_ipi_device *dev)
+{
+	if (!dev || ipi_dev)
+		return;
+
+	ipi_dev = dev;
+}
+
 int sbi_ipi_init(struct sbi_scratch *scratch, bool cold_boot)
 {
 	int ret;
 	struct sbi_ipi_data *ipi_data;
 
 	if (cold_boot) {
-		ipi_data_off = sbi_scratch_alloc_offset(sizeof(*ipi_data),
-							"IPI_DATA");
+		ipi_data_off = sbi_scratch_alloc_offset(sizeof(*ipi_data));
 		if (!ipi_data_off)
 			return SBI_ENOMEM;
 		ret = sbi_ipi_event_create(&ipi_smode_ops);
@@ -228,7 +249,10 @@ int sbi_ipi_init(struct sbi_scratch *scratch, bool cold_boot)
 	ipi_data = sbi_scratch_offset_ptr(scratch, ipi_data_off);
 	ipi_data->ipi_type = 0x00;
 
-	/* Platform init */
+	/*
+	 * Initialize platform IPI support. This will also clear any
+	 * pending IPIs for current/calling HART.
+	 */
 	ret = sbi_platform_ipi_init(sbi_platform_ptr(scratch), cold_boot);
 	if (ret)
 		return ret;
