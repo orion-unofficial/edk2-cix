@@ -525,20 +525,17 @@
   #
   # ARM Architectural Timer Frequency
   #
-  gArmTokenSpaceGuid.PcdArmArchTimerFreqInHz|1000000
 !elseif $(COMPILE_BOARD_NAME) == fpga
   gEfiMdePkgTokenSpaceGuid.PcdUartDefaultBaudRate|115200
   gArmPlatformTokenSpaceGuid.PL011UartClkInHz|5000000
   #
   # ARM Architectural Timer Frequency
   #
-  gArmTokenSpaceGuid.PcdArmArchTimerFreqInHz|100000000
 !else #post-silion setting for evb crb cloudbook batura
   # uart
   gEfiMdePkgTokenSpaceGuid.PcdUartDefaultBaudRate|115200 #115200 921600
   gArmPlatformTokenSpaceGuid.PL011UartClkInHz|100000000 #100Mhz 100000000 #25Mhz 25000000
   # timer
-  gArmTokenSpaceGuid.PcdArmArchTimerFreqInHz|1000000000 #1Ghz 1000000000 #1Mhz 1000000
 !endif
   gEfiMdePkgTokenSpaceGuid.PcdUartDefaultReceiveFifoDepth|0
   gArmPlatformTokenSpaceGuid.PL011UartInterrupt|330

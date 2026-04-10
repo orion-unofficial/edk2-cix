@@ -60,11 +60,6 @@ ArmGenericTimerGetTimerFreq (
   VOID
   )
 {
-  UINTN TimerFreq;
-  TimerFreq = PcdGet32 (PcdArmArchTimerFreqInHz);
-  if (TimerFreq != 0) {
-    return TimerFreq;
-  }
   return ArmReadCntFrq ();
 }
 

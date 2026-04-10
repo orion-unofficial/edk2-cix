@@ -27,6 +27,3 @@
 [LibraryClasses]
   ArmLib
   BaseLib
-
-[Pcd]
-  gArmTokenSpaceGuid.PcdArmArchTimerFreqInHz
