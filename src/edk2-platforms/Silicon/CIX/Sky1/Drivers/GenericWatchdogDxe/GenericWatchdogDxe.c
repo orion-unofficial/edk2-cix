@@ -18,8 +18,6 @@
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/UefiLib.h>
 #include <Library/ArmGenericTimerCounterLib.h>
-#include <Library/ArmSmcLib.h>
-#include <IndustryStandard/ArmStdSmc.h>
 #include <Library/HwHarvestLib.h>
 #include <Library/RebootReason.h>
 
@@ -43,26 +41,6 @@ STATIC UINT64  mNumTimerTicks = 0;
 
 STATIC EFI_HARDWARE_INTERRUPT2_PROTOCOL  *mInterruptProtocol;
 STATIC EFI_WATCHDOG_TIMER_NOTIFY         mWatchdogNotify;
-
-STATIC
-EFI_STATUS
-EFIAPI
-ResetSystemEarly (
-  )
-{
-  ARM_SMC_ARGS  ArmSmcArgs;
-
-      // Send a PSCI 0.2 SYSTEM_RESET command
-  ArmSmcArgs.Arg0 = ARM_SMC_ID_PSCI_SYSTEM_RESET;
-
-
-  ArmCallSmc (&ArmSmcArgs);
-
-  // We should never be here
-  DEBUG ((DEBUG_ERROR, "%a: PSCI Reset failed\n", __FUNCTION__));
-  CpuDeadLoop ();
-  return EFI_UNSUPPORTED;
-}
 
 STATIC
 VOID
@@ -130,7 +108,7 @@ WatchdogInterruptHandler (
   IN  EFI_SYSTEM_CONTEXT         SystemContext
   )
 {
-  // STATIC CONST CHAR16  ResetString[] = L"The generic watchdog timer ran out.";
+  STATIC CONST CHAR16  ResetString[] = L"The generic watchdog timer ran out.";
   UINT64               TimerPeriod;
 
   WatchdogDisable ();
@@ -151,7 +129,12 @@ WatchdogInterruptHandler (
   SET_REBOOT_REASON(WatchDogInterruptTrigger);
 #endif
 
-  ResetSystemEarly();
+  LibResetSystem (
+    EfiResetCold,
+    EFI_TIMEOUT,
+    StrSize (ResetString),
+    (CHAR16 *)ResetString
+    );
 
   // If we got here then the reset didn't work
   ASSERT (FALSE);

@@ -20,9 +20,11 @@
 
 [LibraryClasses]
   BaseLib
+  DebugLib
   IoLib
   PcdLib
   ArmSmcLib
+  UefiRuntimeServicesTableLib
 
 [Packages]
   ArmPkg/ArmPkg.dec

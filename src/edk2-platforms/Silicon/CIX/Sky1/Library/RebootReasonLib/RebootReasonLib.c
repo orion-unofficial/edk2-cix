@@ -6,12 +6,14 @@
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
+#include <Uefi.h>
 #include <Base.h>
 #include <Library/BaseLib.h>
 #include <Library/IoLib.h>
 #include <Library/PcdLib.h>
 #include <Library/DebugLib.h>
 #include <Library/ArmSmcLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
 #include <IndustryStandard/ArmStdSmc.h>
 #include <Library/RebootReason.h>
 #include <Library/CixSipLib.h>
@@ -61,6 +63,17 @@ LibResetSystem (
   )
 {
   ARM_SMC_ARGS  ArmSmcArgs;
+
+  if ((gRT != NULL) && (gRT->ResetSystem != NULL)) {
+    gRT->ResetSystem (ResetType, ResetStatus, DataSize, ResetData);
+
+    //
+    // If ResetSystem() returns then the runtime reset path failed or is not
+    // available in the current execution context. Fall back to a direct PSCI
+    // reset so fatal paths still terminate deterministically.
+    //
+    DEBUG ((DEBUG_ERROR, "%a: runtime ResetSystem() returned, falling back to PSCI\n", __FUNCTION__));
+  }
 
   switch (ResetType) {
     case EfiResetPlatformSpecific:
