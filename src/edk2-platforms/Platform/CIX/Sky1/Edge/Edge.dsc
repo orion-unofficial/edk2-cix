@@ -162,8 +162,10 @@
   TrngLib|Silicon/CIX/Sky1/Library/TrngLib/TrngLib.inf
   RngLib|Silicon/CIX/Sky1/Library/RngLib/RngLib.inf
   DtbUpdateLibSi|Platform/CIX/Sky1/Library/DtbUpdateLibSi/DtbUpdateLib.inf
+  EfiResetSystemLib|Platform/CIX/Sky1/Edge/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
   EfiResetSystemLib|Platform/CIX/Sky1/Edge/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
+  ResetSystemLib|Platform/CIX/Sky1/Edge/Library/ArmPsciResetSystemLib/ResetSystemLib.inf
   EcLib|Platform/CIX/Library/EcLibNull/EcLibNull.inf
 
 ################################################################################
