@@ -32,11 +32,11 @@
   DebugLib
   MemoryAllocationLib
   UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
   UefiDriverEntryPoint
   MemoryAllocationLib
   PostCodeLib
   EcLib
-  EfiResetSystemLib
 
 [Protocols]
   gCixPowerButtonProtocolGuid

@@ -267,8 +267,6 @@
 !else
   CixFwBootPerfLib|Platform/CIX/Sky1/Library/CixFwBootPerfLib/CixFwBootPerfLibNull.inf
 !endif
-  EfiResetSystemLib|Platform/CIX/Sky1/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
-
 !if $(DTPM_SUPPORT) == TRUE || $(FTPM_SUPPORT) == TRUE
   OpensslLib|CryptoPkg/Library/OpensslLib/OpensslLib.inf
   IntrinsicLib|CryptoPkg/Library/IntrinsicLib/IntrinsicLib.inf
@@ -355,7 +353,6 @@
 !endif
   MemoryAllocationLib|MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf
   CapsuleLib|MdeModulePkg/Library/DxeCapsuleLibNull/DxeCapsuleLibNull.inf
-  EfiResetSystemLib|Platform/CIX/Sky1/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
   ResetSystemLib|Platform/CIX/Sky1/Library/ArmPsciResetSystemLib/ResetSystemLib.inf
   ArmSmcLib|ArmPkg/Library/ArmSmcLib/ArmSmcLib.inf
   HwMutexLib|Silicon/CIX/Sky1/Library/HwMutexLib/HwMutexRuntimeLib.inf

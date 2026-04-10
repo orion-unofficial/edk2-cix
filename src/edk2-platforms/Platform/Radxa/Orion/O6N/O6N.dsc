@@ -159,10 +159,7 @@
   DtbUpdateLibSi|Platform/CIX/Sky1/Library/DtbUpdateLibSi/DtbUpdateLib.inf
 
   PdEcLib|Platform/Radxa/Library/Cs32g051EcLib/Cs32g051EcLib.inf
-  EfiResetSystemLib|Platform/Radxa/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
-
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
-  EfiResetSystemLib|Platform/Radxa/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
   ResetSystemLib|Platform/Radxa/Library/ArmPsciResetSystemLib/ResetSystemLib.inf
 
 ################################################################################

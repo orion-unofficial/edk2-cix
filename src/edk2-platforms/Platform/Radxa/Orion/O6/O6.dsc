@@ -157,10 +157,7 @@
   TrngLib|Silicon/CIX/Sky1/Library/TrngLib/TrngLib.inf
   RngLib|Silicon/CIX/Sky1/Library/RngLib/RngLib.inf
   DtbUpdateLibSi|Platform/CIX/Sky1/Library/DtbUpdateLibSi/DtbUpdateLib.inf
-  EfiResetSystemLib|Platform/Radxa/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
-
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
-  EfiResetSystemLib|Platform/Radxa/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.inf
   ResetSystemLib|Platform/Radxa/Library/ArmPsciResetSystemLib/ResetSystemLib.inf
   EcLib|Platform/CIX/Sky1/Library/Ite5570EcLib/Ite5570EcRuntimeLib.inf
 
