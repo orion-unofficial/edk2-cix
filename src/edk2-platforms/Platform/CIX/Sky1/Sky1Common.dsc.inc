@@ -647,9 +647,9 @@
   # PEI Phase modules
   #
 !if $(DIAGS_KERNEL_ENABLE) == TRUE
-  Edk2OverridePkg/ArmPlatformPkg/PrePi/PeiMPCore.inf
+  Platform/CIX/Sky1/PrePi/PeiMPCore.inf
 !else
-  ArmPlatformPkg/PrePi/PeiUniCore.inf{
+  Platform/CIX/Sky1/PrePi/PeiUniCore.inf{
     <LibraryClasses>
       #DebugLib|MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
   }

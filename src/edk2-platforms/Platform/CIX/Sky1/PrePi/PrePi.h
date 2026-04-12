@@ -57,6 +57,11 @@ PrimaryMain (
   IN  UINT64  StartTimeStamp
   );
 
+BOOLEAN
+ArmPlatformIsPrimaryCore (
+  IN  UINTN  MpId
+  );
+
 VOID
 SecondaryMain (
   IN  UINTN  MpId
