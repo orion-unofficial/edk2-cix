@@ -2170,6 +2170,7 @@ XhcInitializeDeviceSlot (
   DEVICE_CONTEXT              *ParentDeviceContext;
   EFI_PHYSICAL_ADDRESS        PhyAddr;
 
+  EvtTrb = NULL;
   ZeroMem (&CmdTrb, sizeof (CMD_TRB_ENABLE_SLOT));
   CmdTrb.CycleBit = 1;
   CmdTrb.Type     = TRB_TYPE_EN_SLOT;
@@ -2180,7 +2181,7 @@ XhcInitializeDeviceSlot (
              XHC_GENERIC_TIMEOUT,
              (TRB_TEMPLATE **)(UINTN)&EvtTrb
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcInitializeDeviceSlot: Enable Slot Failed, Status = %r\n", Status));
     return Status;
   }
@@ -2395,6 +2396,7 @@ XhcInitializeDeviceSlot64 (
   DEVICE_CONTEXT_64           *ParentDeviceContext;
   EFI_PHYSICAL_ADDRESS        PhyAddr;
 
+  EvtTrb = NULL;
   ZeroMem (&CmdTrb, sizeof (CMD_TRB_ENABLE_SLOT));
   CmdTrb.CycleBit = 1;
   CmdTrb.Type     = TRB_TYPE_EN_SLOT;
@@ -2405,7 +2407,7 @@ XhcInitializeDeviceSlot64 (
              XHC_GENERIC_TIMEOUT,
              (TRB_TEMPLATE **)(UINTN)&EvtTrb
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcInitializeDeviceSlot64: Enable Slot Failed, Status = %r\n", Status));
     return Status;
   }
@@ -2607,6 +2609,8 @@ XhcDisableSlotCmd (
   UINT8                 Index;
   VOID                  *RingSeg;
 
+  EvtTrb = NULL;
+
   //
   // Disable the device slots occupied by these devices on its downstream ports.
   // Entry 0 is reserved.
@@ -2642,7 +2646,7 @@ XhcDisableSlotCmd (
                              XHC_GENERIC_TIMEOUT,
                              (TRB_TEMPLATE **)(UINTN)&EvtTrb
                              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcDisableSlotCmd: Disable Slot Command Failed, Status = %r\n", Status));
     return Status;
   }
@@ -2718,6 +2722,8 @@ XhcDisableSlotCmd64 (
   UINT8                 Index;
   VOID                  *RingSeg;
 
+  EvtTrb = NULL;
+
   //
   // Disable the device slots occupied by these devices on its downstream ports.
   // Entry 0 is reserved.
@@ -2753,7 +2759,7 @@ XhcDisableSlotCmd64 (
                              XHC_GENERIC_TIMEOUT,
                              (TRB_TEMPLATE **)(UINTN)&EvtTrb
                              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcDisableSlotCmd: Disable Slot Command Failed, Status = %r\n", Status));
     return Status;
   }
@@ -3245,6 +3251,8 @@ XhcSetConfigCmd (
   DEVICE_CONTEXT              *OutputContext;
   EVT_TRB_COMMAND_COMPLETION  *EvtTrb;
 
+  EvtTrb = NULL;
+
   //
   // 4.6.6 Configure Endpoint
   //
@@ -3295,7 +3303,7 @@ XhcSetConfigCmd (
              XHC_GENERIC_TIMEOUT,
              (TRB_TEMPLATE **)(UINTN)&EvtTrb
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcSetConfigCmd: Config Endpoint Failed, Status = %r\n", Status));
   } else {
     Xhc->UsbDevContext[SlotId].ActiveConfiguration = ConfigDesc->ConfigurationValue;
@@ -3335,6 +3343,8 @@ XhcSetConfigCmd64 (
   INPUT_CONTEXT_64            *InputContext;
   DEVICE_CONTEXT_64           *OutputContext;
   EVT_TRB_COMMAND_COMPLETION  *EvtTrb;
+
+  EvtTrb = NULL;
 
   //
   // 4.6.6 Configure Endpoint
@@ -3386,7 +3396,7 @@ XhcSetConfigCmd64 (
              XHC_GENERIC_TIMEOUT,
              (TRB_TEMPLATE **)(UINTN)&EvtTrb
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcSetConfigCmd64: Config Endpoint Failed, Status = %r\n", Status));
   } else {
     Xhc->UsbDevContext[SlotId].ActiveConfiguration = ConfigDesc->ConfigurationValue;
@@ -3421,6 +3431,8 @@ XhcStopEndpoint (
   CMD_TRB_STOP_ENDPOINT       CmdTrbStopED;
 
   DEBUG ((DEBUG_VERBOSE, "XhcStopEndpoint: Slot = 0x%x, Dci = 0x%x\n", SlotId, Dci));
+
+  EvtTrb = NULL;
 
   //
   // When XhcCheckUrbResult waits for the Stop_Endpoint completion, it also checks
@@ -3459,7 +3471,7 @@ XhcStopEndpoint (
                             XHC_GENERIC_TIMEOUT,
                             (TRB_TEMPLATE **)(UINTN)&EvtTrb
                             );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcStopEndpoint: Stop Endpoint Failed, Status = %r\n", Status));
   }
 
@@ -3493,6 +3505,8 @@ XhcResetEndpoint (
 
   DEBUG ((DEBUG_INFO, "XhcResetEndpoint: Slot = 0x%x, Dci = 0x%x\n", SlotId, Dci));
 
+  EvtTrb = NULL;
+
   //
   // Send stop endpoint command to transit Endpoint from running to stop state
   //
@@ -3507,7 +3521,7 @@ XhcResetEndpoint (
                              XHC_GENERIC_TIMEOUT,
                              (TRB_TEMPLATE **)(UINTN)&EvtTrb
                              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcResetEndpoint: Reset Endpoint Failed, Status = %r\n", Status));
   }
 
@@ -3543,6 +3557,8 @@ XhcSetTrDequeuePointer (
 
   DEBUG ((DEBUG_VERBOSE, "XhcSetTrDequeuePointer: Slot = 0x%x, Dci = 0x%x, Urb = 0x%x\n", SlotId, Dci, Urb));
 
+  EvtTrb = NULL;
+
   //
   // Send stop endpoint command to transit Endpoint from running to stop state
   //
@@ -3560,7 +3576,7 @@ XhcSetTrDequeuePointer (
                            XHC_GENERIC_TIMEOUT,
                            (TRB_TEMPLATE **)(UINTN)&EvtTrb
                            );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcSetTrDequeuePointer: Set TR Dequeue Pointer Failed, Status = %r\n", Status));
   }
 
@@ -3609,6 +3625,7 @@ XhcSetInterface (
   EVT_TRB_COMMAND_COMPLETION  *EvtTrb;
 
   Status = EFI_SUCCESS;
+  EvtTrb = NULL;
 
   InputContext  = Xhc->UsbDevContext[SlotId].InputContext;
   OutputContext = Xhc->UsbDevContext[SlotId].OutputContext;
@@ -3760,7 +3777,7 @@ XhcSetInterface (
                XHC_GENERIC_TIMEOUT,
                (TRB_TEMPLATE **)(UINTN)&EvtTrb
                );
-    if (EFI_ERROR (Status)) {
+    if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
       DEBUG ((DEBUG_ERROR, "SetInterface: Config Endpoint Failed, Status = %r\n", Status));
     } else {
       //
@@ -3815,6 +3832,7 @@ XhcSetInterface64 (
   EVT_TRB_COMMAND_COMPLETION  *EvtTrb;
 
   Status = EFI_SUCCESS;
+  EvtTrb = NULL;
 
   InputContext  = Xhc->UsbDevContext[SlotId].InputContext;
   OutputContext = Xhc->UsbDevContext[SlotId].OutputContext;
@@ -3966,7 +3984,7 @@ XhcSetInterface64 (
                XHC_GENERIC_TIMEOUT,
                (TRB_TEMPLATE **)(UINTN)&EvtTrb
                );
-    if (EFI_ERROR (Status)) {
+    if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
       DEBUG ((DEBUG_ERROR, "SetInterface64: Config Endpoint Failed, Status = %r\n", Status));
     } else {
       //
@@ -4006,6 +4024,8 @@ XhcEvaluateContext (
 
   ASSERT (Xhc->UsbDevContext[SlotId].SlotId != 0);
 
+  EvtTrb = NULL;
+
   //
   // 4.6.7 Evaluate Context
   //
@@ -4033,7 +4053,7 @@ XhcEvaluateContext (
              XHC_GENERIC_TIMEOUT,
              (TRB_TEMPLATE **)(UINTN)&EvtTrb
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcEvaluateContext: Evaluate Context Failed, Status = %r\n", Status));
   }
 
@@ -4067,6 +4087,8 @@ XhcEvaluateContext64 (
 
   ASSERT (Xhc->UsbDevContext[SlotId].SlotId != 0);
 
+  EvtTrb = NULL;
+
   //
   // 4.6.7 Evaluate Context
   //
@@ -4094,7 +4116,7 @@ XhcEvaluateContext64 (
              XHC_GENERIC_TIMEOUT,
              (TRB_TEMPLATE **)(UINTN)&EvtTrb
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcEvaluateContext64: Evaluate Context Failed, Status = %r\n", Status));
   }
 
@@ -4130,6 +4152,7 @@ XhcConfigHubContext (
   EFI_PHYSICAL_ADDRESS        PhyAddr;
 
   ASSERT (Xhc->UsbDevContext[SlotId].SlotId != 0);
+  EvtTrb        = NULL;
   InputContext  = Xhc->UsbDevContext[SlotId].InputContext;
   OutputContext = Xhc->UsbDevContext[SlotId].OutputContext;
 
@@ -4163,7 +4186,7 @@ XhcConfigHubContext (
              XHC_GENERIC_TIMEOUT,
              (TRB_TEMPLATE **)(UINTN)&EvtTrb
              );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (EvtTrb == NULL)) {
     DEBUG ((DEBUG_ERROR, "XhcConfigHubContext: Config Endpoint Failed, Status = %r\n", Status));
   }
 
