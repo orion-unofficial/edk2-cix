@@ -21,7 +21,6 @@ size_t BIO_ctrl_pending(BIO *);
 int BIO_read(BIO *, void *, int);
 int BIO_gets(BIO *, char *, int);
 int BIO_write(BIO *, const void *, int);
-/* Added in 1.1.0 */
 int BIO_up_ref(BIO *);
 
 BIO *BIO_new(BIO_METHOD *);
@@ -43,7 +42,11 @@ void BIO_ADDR_free(BIO_ADDR *);
 
 CUSTOMIZATIONS = """
 #if CRYPTOGRAPHY_IS_LIBRESSL || CRYPTOGRAPHY_IS_BORINGSSL
+
+#if !defined(_WIN32)
 #include <sys/socket.h>
+#endif
+
 #include <stdlib.h>
 typedef struct sockaddr BIO_ADDR;
 

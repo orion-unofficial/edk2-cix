@@ -18,7 +18,6 @@ typedef STACK_OF(X509_OBJECT) Cryptography_STACK_OF_X509_OBJECT;
 """
 
 TYPES = """
-static const long Cryptography_HAS_110_VERIFICATION_PARAMS;
 static const long Cryptography_HAS_X509_STORE_CTX_GET_ISSUER;
 
 typedef ... Cryptography_STACK_OF_ASN1_OBJECT;
@@ -211,22 +210,12 @@ X509_VERIFY_PARAM *X509_STORE_get0_param(X509_STORE *);
 Cryptography_STACK_OF_X509_OBJECT *X509_STORE_get0_objects(X509_STORE *);
 X509 *X509_OBJECT_get0_X509(X509_OBJECT *);
 
-/* added in 1.1.0 */
 X509 *X509_STORE_CTX_get0_cert(X509_STORE_CTX *);
 X509_STORE_CTX_get_issuer_fn X509_STORE_get_get_issuer(X509_STORE *);
 void X509_STORE_set_get_issuer(X509_STORE *, X509_STORE_CTX_get_issuer_fn);
 """
 
 CUSTOMIZATIONS = """
-#if CRYPTOGRAPHY_IS_LIBRESSL && CRYPTOGRAPHY_LIBRESSL_LESS_THAN_322
-static const long Cryptography_HAS_110_VERIFICATION_PARAMS = 0;
-#ifndef X509_CHECK_FLAG_NEVER_CHECK_SUBJECT
-static const long X509_CHECK_FLAG_NEVER_CHECK_SUBJECT = 0;
-#endif
-#else
-static const long Cryptography_HAS_110_VERIFICATION_PARAMS = 1;
-#endif
-
 #if CRYPTOGRAPHY_IS_LIBRESSL
 static const long Cryptography_HAS_X509_STORE_CTX_GET_ISSUER = 0;
 typedef void *X509_STORE_CTX_get_issuer_fn;

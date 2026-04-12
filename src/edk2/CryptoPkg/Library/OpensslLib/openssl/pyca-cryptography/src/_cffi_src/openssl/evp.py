@@ -34,7 +34,6 @@ static const int EVP_CTRL_AEAD_SET_TAG;
 static const int Cryptography_HAS_SCRYPT;
 static const int Cryptography_HAS_EVP_PKEY_DHX;
 static const int Cryptography_HAS_EVP_PKEY_get_set_tls_encodedpoint;
-static const int Cryptography_HAS_ONESHOT_EVP_DIGEST_SIGN_VERIFY;
 static const long Cryptography_HAS_RAW_KEY;
 static const long Cryptography_HAS_EVP_DIGESTFINAL_XOF;
 static const long Cryptography_HAS_300_FIPS;
@@ -129,20 +128,16 @@ int EVP_PKEY_id(const EVP_PKEY *);
 EVP_MD_CTX *EVP_MD_CTX_new(void);
 void EVP_MD_CTX_free(EVP_MD_CTX *);
 
-/* Added in 1.1.1 */
 int EVP_DigestSign(EVP_MD_CTX *, unsigned char *, size_t *,
                    const unsigned char *, size_t);
 int EVP_DigestVerify(EVP_MD_CTX *, const unsigned char *, size_t,
                      const unsigned char *, size_t);
-/* Added in 1.1.0 */
 size_t EVP_PKEY_get1_tls_encodedpoint(EVP_PKEY *, unsigned char **);
 int EVP_PKEY_set1_tls_encodedpoint(EVP_PKEY *, const unsigned char *,
                                    size_t);
 
-/* EVP_PKEY * became const in 1.1.0 */
-int EVP_PKEY_bits(EVP_PKEY *);
+int EVP_PKEY_bits(const EVP_PKEY *);
 
-void OpenSSL_add_all_algorithms(void);
 int EVP_PKEY_assign_RSA(EVP_PKEY *, RSA *);
 
 EC_KEY *EVP_PKEY_get1_EC_KEY(EVP_PKEY *);
@@ -203,21 +198,11 @@ int (*EVP_PKEY_set1_tls_encodedpoint)(EVP_PKEY *, const unsigned char *,
                                       size_t) = NULL;
 #endif
 
-#if CRYPTOGRAPHY_LIBRESSL_LESS_THAN_340 || \
-    (CRYPTOGRAPHY_OPENSSL_LESS_THAN_111 && !CRYPTOGRAPHY_IS_LIBRESSL)
-static const long Cryptography_HAS_ONESHOT_EVP_DIGEST_SIGN_VERIFY = 0;
-int (*EVP_DigestSign)(EVP_MD_CTX *, unsigned char *, size_t *,
-                      const unsigned char *tbs, size_t) = NULL;
-int (*EVP_DigestVerify)(EVP_MD_CTX *, const unsigned char *, size_t,
-                        const unsigned char *, size_t) = NULL;
-#else
-static const long Cryptography_HAS_ONESHOT_EVP_DIGEST_SIGN_VERIFY = 1;
-#endif
-
-#if CRYPTOGRAPHY_OPENSSL_LESS_THAN_111
-static const long Cryptography_HAS_RAW_KEY = 0;
+#if CRYPTOGRAPHY_IS_LIBRESSL
 static const long Cryptography_HAS_EVP_DIGESTFINAL_XOF = 0;
 int (*EVP_DigestFinalXOF)(EVP_MD_CTX *, unsigned char *, size_t) = NULL;
+#if CRYPTOGRAPHY_LIBRESSL_LESS_THAN_370
+static const long Cryptography_HAS_RAW_KEY = 0;
 EVP_PKEY *(*EVP_PKEY_new_raw_private_key)(int, ENGINE *, const unsigned char *,
                                        size_t) = NULL;
 EVP_PKEY *(*EVP_PKEY_new_raw_public_key)(int, ENGINE *, const unsigned char *,
@@ -228,18 +213,10 @@ int (*EVP_PKEY_get_raw_public_key)(const EVP_PKEY *, unsigned char *,
                                    size_t *) = NULL;
 #else
 static const long Cryptography_HAS_RAW_KEY = 1;
+#endif
+#else
+static const long Cryptography_HAS_RAW_KEY = 1;
 static const long Cryptography_HAS_EVP_DIGESTFINAL_XOF = 1;
-#endif
-
-/* OpenSSL 1.1.0+ does this define for us, but if not present we'll do it */
-#if !defined(EVP_CTRL_AEAD_SET_IVLEN)
-# define EVP_CTRL_AEAD_SET_IVLEN EVP_CTRL_GCM_SET_IVLEN
-#endif
-#if !defined(EVP_CTRL_AEAD_GET_TAG)
-# define EVP_CTRL_AEAD_GET_TAG EVP_CTRL_GCM_GET_TAG
-#endif
-#if !defined(EVP_CTRL_AEAD_SET_TAG)
-# define EVP_CTRL_AEAD_SET_TAG EVP_CTRL_GCM_SET_TAG
 #endif
 
 /* This is tied to X25519 support so we reuse the Cryptography_HAS_X25519
@@ -293,11 +270,5 @@ static const long Cryptography_HAS_EVP_PKEY_DH = 0;
 int (*EVP_PKEY_set1_DH)(EVP_PKEY *, DH *) = NULL;
 #else
 static const long Cryptography_HAS_EVP_PKEY_DH = 1;
-#endif
-
-// This can be removed when we drop OpenSSL 1.1.0 support
-// OPENSSL_LESS_THAN_111
-#if !defined(EVP_PKEY_RSA_PSS)
-#define EVP_PKEY_RSA_PSS 912
 #endif
 """

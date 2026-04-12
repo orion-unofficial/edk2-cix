@@ -5,12 +5,16 @@
 #![deny(rust_2018_idioms)]
 // Temporarily allow `clippy::borrow_deref_ref` until we can upgrade to the
 // latest pyo3: https://github.com/PyO3/pyo3/pull/2503
+//
+// `clippy::uninlined_format_args` is required until our MSRV is >=1.58.0
+//
 // `unknown_lints` is required until GHA upgrades their rustc.
-#![allow(unknown_lints, clippy::borrow_deref_ref)]
+#![allow(unknown_lints, clippy::borrow_deref_ref, clippy::uninlined_format_args)]
 
 mod asn1;
 mod intern;
 pub(crate) mod oid;
+mod pkcs7;
 mod pool;
 mod x509;
 
@@ -85,6 +89,7 @@ fn _rust(py: pyo3::Python<'_>, m: &pyo3::types::PyModule) -> pyo3::PyResult<()> 
     m.add_class::<pool::FixedPool>()?;
 
     m.add_submodule(asn1::create_submodule(py)?)?;
+    m.add_submodule(pkcs7::create_submodule(py)?)?;
 
     let x509_mod = pyo3::prelude::PyModule::new(py, "x509")?;
     crate::x509::certificate::add_to_module(x509_mod)?;

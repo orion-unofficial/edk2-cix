@@ -91,11 +91,13 @@ personalization
 RHEL
 parsers
 Parsers
+PEM
 pickleable
 plaintext
 Poly
 pre
 precompute
+precomputed
 preprocessor
 preprocessors
 presentational
