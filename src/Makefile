@@ -194,6 +194,7 @@ CUSTOM_RADXA_SETUP_INCLUDE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platf
 CUSTOM_MERAK_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Merak/Library/PlatformEnvHookLib)
 CUSTOM_EDGE_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Edge/Library/PlatformEnvHookLib)
 CUSTOM_O6_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib)
+CUSTOM_ACPI_PLATFORM_DXE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Drivers/AcpiPlatformDxe)
 CUSTOM_BASETOOLS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2/BaseTools)
 CUSTOM_BASETOOLS_VFR_OVERLAY := $(CUSTOM_BASETOOLS_OVERLAY_DIR)/Source/C/VfrCompile/VfrSyntax.g
 CUSTOM_EDK2_OVERLAY_SOURCES := \
@@ -212,6 +213,7 @@ CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(abspath $(CUSTOM_O6_DRIVERS_OVERLAY_DIR)/LinuxAcpiConfig.h) \
 	$(wildcard $(CUSTOM_O6_ACPI_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_O6_ENV_HOOK_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_ACPI_PLATFORM_DXE_OVERLAY_DIR)/*) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
 	$(wildcard $(CUSTOM_RADXA_SETUP_INCLUDE_OVERLAY_DIR)/*) \
@@ -226,12 +228,14 @@ EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/CpuMenu/CpuConfig.uni) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/I2cMenu/I2cConfig.hfr) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/I2cMenu/I2cConfig.uni) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/MemMenu/MemoryConfig.hfr) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.hfr) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.uni) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/UsbMenu/UsbConfig.uni) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Include/RadxaSetupVar.h) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Include/ExperimentalPcieSrIovSetupVar.h) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/ComplianceMenu/ComplianceConfig.hfr) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/ComplianceMenu/ComplianceConfig.uni) \

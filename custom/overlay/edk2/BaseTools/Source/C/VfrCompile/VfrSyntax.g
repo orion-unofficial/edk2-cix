@@ -3526,6 +3526,7 @@ vfrStatementOptionalEndIfSemicolon :
    || LT(2)->getType() == Locked
    || LT(2)->getType() == Image
    || LT(2)->getType() == EndIf
+   || LT(2)->getType() == EndOneOf
    || LT(2)->getType() == InconsistentIf
    || LT(2)->getType() == DisableIf
    || LT(2)->getType() == SuppressIf
