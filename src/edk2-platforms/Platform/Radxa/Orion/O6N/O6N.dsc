@@ -170,7 +170,7 @@
 ################################################################################
 [Components.common]
 # Network stack
-  !include NetworkPkg/Network.dsc.inc
+  !include Platform/CIX/Sky1/Network.dsc.inc
 # This modification is to fix a PXE bug.
 # If the Code Base is upgraded, this modification will cause a compilation error and should be deleted.
   NetworkPkg/UefiPxeBcDxe/UefiPxeBcDxe.inf {
