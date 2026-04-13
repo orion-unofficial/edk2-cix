@@ -224,6 +224,16 @@ MemoryPeim (
     EfiReservedMemoryType
     );
 
+#ifdef ENABLE_FIRMWARE_FIXES
+  //
+  // Match the ACPI RSVL no-map buffers for the DSP, DMA1, and HDA audio
+  // engines so Linux keeps them out of the general allocator.
+  //
+  BuildMemoryAllocationHob (0xCDE08000, 0x00100000, EfiReservedMemoryType);
+  BuildMemoryAllocationHob (0xD0000000, 0x00700000, EfiReservedMemoryType);
+  BuildMemoryAllocationHob (0xD0700000, 0x00700000, EfiReservedMemoryType);
+#endif
+
  #ifdef ANDROID_BOOT
   // BuildMemoryAllocationHob (
   //   FixedPcdGet32 (PcdReservedAndroidBase),
