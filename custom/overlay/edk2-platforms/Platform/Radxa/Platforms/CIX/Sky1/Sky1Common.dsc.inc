@@ -160,6 +160,11 @@
 !else
   GCC:*_*_*_CC_FLAGS          = -UDEBUG_VERBOSE
 !endif
+!if $(ENABLE_FIRMWARE_FIXES) == TRUE
+  GCC:*_*_*_CC_FLAGS          = -DENABLE_FIRMWARE_FIXES=1
+!else
+  GCC:*_*_*_CC_FLAGS          = -UENABLE_FIRMWARE_FIXES
+!endif
 
 [PcdsPatchableInModule]
 !if $(TARGET) == RELEASE && $(DEBUG_VERBOSE) == TRUE
