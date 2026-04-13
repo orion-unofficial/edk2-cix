@@ -56,6 +56,7 @@ typedef enum {
   CacheLocationMax
 } CACHE_LOCATION;
 
+
 STATIC
 UINT64
 DecodeSmbiosCacheSizeKiB (
@@ -100,6 +101,85 @@ EncodeSmbiosCacheSizeKiB (
     CacheSize32->Granularity64K = 0;
   }
 }
+
+#ifdef ENABLE_FIRMWARE_FIXES
+#define CIX_LITTLE_CORE_COUNT            4U
+#define CIX_TOTAL_CORE_COUNT             12U
+#define CIX_LITTLE_CORE_L1_CACHE_SIZE    32U
+#define CIX_BIG_CORE_L1_CACHE_SIZE       64U
+#define CIX_BIG_CORE_L2_CACHE_SIZE       512U
+#define CIX_SHARED_L3_CACHE_SIZE         12288U
+
+STATIC
+EFI_STATUS
+GetEnabledCoreCounts (
+  OUT UINT8  *LittleCoreCount,
+  OUT UINT8  *BigCoreCount,
+  OUT UINT8  *EnabledLittleCoreCount,
+  OUT UINT8  *EnabledBigCoreCount
+  )
+{
+  EFI_STATUS                         Status;
+  UINT8                              CpuCoreNum;
+  UINT8                              TotalLittleCoreCount;
+  UINT8                              TotalBigCoreCount;
+  UINT32                             ConfigCpuIndex;
+  CONFIG_PARAMS_DATA_BLOCK           *ConfigData;
+  CIX_CONFIG_PARAMS_MANAGE_PROTOCOL  *ConfigManage;
+
+  if ((LittleCoreCount == NULL) ||
+      (BigCoreCount == NULL) ||
+      (EnabledLittleCoreCount == NULL) ||
+      (EnabledBigCoreCount == NULL))
+  {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  Status = gBS->LocateProtocol (
+                  &gCixConfigParamsManageProtocolGuid,
+                  NULL,
+                  (VOID **)&ConfigManage
+                  );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: config parameters invalid %r\n", __FUNCTION__, Status));
+    return Status;
+  }
+
+  ConfigData = ConfigManage->Data;
+  if (ConfigData == NULL) {
+    DEBUG ((DEBUG_ERROR, "%a: config parameters data is NULL\n", __FUNCTION__));
+    return EFI_NOT_READY;
+  }
+
+  GetValidCpuCoreNum (&CpuCoreNum);
+  if (CpuCoreNum > CIX_TOTAL_CORE_COUNT) {
+    DEBUG ((DEBUG_ERROR, "%a: unexpected core count %u\n", __FUNCTION__, CpuCoreNum));
+    return EFI_DEVICE_ERROR;
+  }
+
+  TotalLittleCoreCount = MIN (CpuCoreNum, CIX_LITTLE_CORE_COUNT);
+  TotalBigCoreCount    = CpuCoreNum - TotalLittleCoreCount;
+
+  *LittleCoreCount        = TotalLittleCoreCount;
+  *BigCoreCount           = TotalBigCoreCount;
+  *EnabledLittleCoreCount = 0;
+  *EnabledBigCoreCount    = 0;
+
+  for (ConfigCpuIndex = 0; ConfigCpuIndex < CpuCoreNum; ConfigCpuIndex++) {
+    if (ConfigData->Cpu.CoreEnable[ConfigCpuIndex] == 0) {
+      continue;
+    }
+
+    if (ConfigCpuIndex < TotalLittleCoreCount) {
+      (*EnabledLittleCoreCount)++;
+    } else {
+      (*EnabledBigCoreCount)++;
+    }
+  }
+
+  return EFI_SUCCESS;
+}
+#endif
 
 /** Gets the CPU frequency of the specified processor.
 
@@ -166,7 +246,11 @@ OemGetProcessorInformation (
                                 );
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a: config parameters invalid %r\n", __FUNCTION__, Status));
+#ifdef ENABLE_FIRMWARE_FIXES
+    return FALSE;
+#else
     return Status;
+#endif
   }
 
   ConfigData     = ConfigManage->Data;
@@ -197,6 +281,7 @@ OemGetProcessorInformation (
 
   @return TRUE on success, FALSE on failure.
 **/
+
 BOOLEAN
 EFIAPI
 OemGetCacheInformation (
@@ -207,16 +292,26 @@ OemGetCacheInformation (
   IN OUT SMBIOS_TABLE_TYPE7  *SmbiosCacheTable
   )
 {
-  EFI_STATUS                         Status;
+  EFI_STATUS         Status;
+  UINT64             CacheSize;
+  UINT64             MaximumCacheSize;
+  SMBIOS_CACHE_SIZE  CacheSize16;
+  SMBIOS_CACHE_SIZE  MaximumCacheSize16;
+  SMBIOS_CACHE_SIZE_2  CacheSize32;
+  SMBIOS_CACHE_SIZE_2  MaximumCacheSize32;
+#ifdef ENABLE_FIRMWARE_FIXES
+  UINT8              LittleCoreCount;
+  UINT8              BigCoreCount;
+  UINT8              EnabledLittleCoreCount;
+  UINT8              EnabledBigCoreCount;
+#else
   UINT8                              CpuBootCoreId;
   UINT8                              VBCoreNum = 0;
   UINT8                              VLCoreNum = 0;
   UINT8                              BCoreNum  = 0;
   UINT8                              LCoreNum  = 0;
   UINT8                              CpuCoreNum;
-  UINT64                             CacheSize;
   UINT64                             CacheUnitSize;
-  UINT64                             MaximumCacheSize;
   UINT64                             MaximumCacheUnitSize;
   UINT32                             CpuCoreMask;
   UINT32                             MaxCpuCoreNum;
@@ -224,11 +319,48 @@ OemGetCacheInformation (
   UINT32                             ConfigCpuIndex = 0;
   CONFIG_PARAMS_DATA_BLOCK           *ConfigData = NULL;
   CIX_CONFIG_PARAMS_MANAGE_PROTOCOL  *ConfigManage;
-  SMBIOS_CACHE_SIZE                  CacheSize16;
-  SMBIOS_CACHE_SIZE                  MaximumCacheSize16;
-  SMBIOS_CACHE_SIZE_2                CacheSize32;
-  SMBIOS_CACHE_SIZE_2                MaximumCacheSize32;
+#endif
 
+#ifdef ENABLE_FIRMWARE_FIXES
+  Status = GetEnabledCoreCounts (
+             &LittleCoreCount,
+             &BigCoreCount,
+             &EnabledLittleCoreCount,
+             &EnabledBigCoreCount
+             );
+  if (EFI_ERROR (Status)) {
+    return FALSE;
+  }
+
+  if (CacheLevel == CpuCacheL1) {
+    MaximumCacheSize = (BigCoreCount * CIX_BIG_CORE_L1_CACHE_SIZE) +
+                       (LittleCoreCount * CIX_LITTLE_CORE_L1_CACHE_SIZE);
+    CacheSize = (EnabledBigCoreCount * CIX_BIG_CORE_L1_CACHE_SIZE) +
+                (EnabledLittleCoreCount * CIX_LITTLE_CORE_L1_CACHE_SIZE);
+  } else if (CacheLevel == CpuCacheL2) {
+    MaximumCacheSize = BigCoreCount * CIX_BIG_CORE_L2_CACHE_SIZE;
+    CacheSize        = EnabledBigCoreCount * CIX_BIG_CORE_L2_CACHE_SIZE;
+  } else if (CacheLevel == CpuCacheL3) {
+    MaximumCacheSize = CIX_SHARED_L3_CACHE_SIZE;
+    CacheSize        = CIX_SHARED_L3_CACHE_SIZE;
+  } else {
+    MaximumCacheSize = DecodeSmbiosCacheSizeKiB (
+                         SmbiosCacheTable->MaximumCacheSize,
+                         SmbiosCacheTable->MaximumCacheSize2
+                         );
+    CacheSize = DecodeSmbiosCacheSizeKiB (
+                  SmbiosCacheTable->InstalledSize,
+                  SmbiosCacheTable->InstalledSize2
+                  );
+  }
+
+  EncodeSmbiosCacheSizeKiB (MaximumCacheSize, &MaximumCacheSize16, &MaximumCacheSize32);
+  EncodeSmbiosCacheSizeKiB (CacheSize, &CacheSize16, &CacheSize32);
+  SmbiosCacheTable->MaximumCacheSize  = MaximumCacheSize16;
+  SmbiosCacheTable->InstalledSize     = CacheSize16;
+  SmbiosCacheTable->MaximumCacheSize2 = MaximumCacheSize32;
+  SmbiosCacheTable->InstalledSize2    = CacheSize32;
+#else
   GetCpuBootCoreId (&CpuBootCoreId);
   if (CpuBootCoreId > 3) {
     VBCoreNum++;
@@ -243,7 +375,7 @@ OemGetCacheInformation (
       return Status;
     }
 
-    ConfigData     = ConfigManage->Data;
+    ConfigData = ConfigManage->Data;
 
     GetValidCpuCoreNum (&CpuCoreNum);
     GetCpuCoreMask (&CpuCoreMask, &MaxCpuCoreNum);
@@ -298,6 +430,7 @@ OemGetCacheInformation (
     SmbiosCacheTable->MaximumCacheSize2 = MaximumCacheSize32;
     SmbiosCacheTable->InstalledSize2    = CacheSize32;
   }
+#endif
 
   SmbiosCacheTable->CacheConfiguration = (CacheModeVariesWithAddress << CACHE_OPERATION_MODE_SHIFT) |
                                          (1 << CACHE_ENABLED_SHIFT) |
@@ -306,6 +439,7 @@ OemGetCacheInformation (
                                          (CacheLevel - 1);
   return TRUE;
 }
+
 
 /** Gets the maximum number of processors supported by the platform.
 

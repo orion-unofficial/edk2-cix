@@ -22,6 +22,7 @@ VALID_RAW_FIRMWARE_TARGETS = {f"{target}_GCC5" for target in VALID_FIRMWARE_TARG
 VALID_BOARDS = {"O6", "O6N"}
 VALID_FIRMWARE_DISTROS = {"bookworm", "trixie"}
 VALID_BUILDBOX_PLATFORMS = {"linux/amd64", "linux/arm64"}
+VALID_CORE_ORDERS = {"cix", "conventional", "performance"}
 TRUE_TOKENS = {"1", "true", "on", "yes"}
 FALSE_TOKENS = {"0", "false", "off", "no"}
 DEBUG_LIB_HEADER = REPO_ROOT / "src" / "edk2" / "MdePkg" / "Include" / "Library" / "DebugLib.h"
@@ -83,6 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--debug-verbose")
     validate.add_argument("--debug-print-error-level")
     validate.add_argument("--enable-firmware-fixes")
+    validate.add_argument("--enable-core-order")
     validate.add_argument("--enable-experimental-uefi-settings")
     validate.add_argument("--check-buildbox-image", action="store_true")
     return parser
@@ -409,6 +411,26 @@ def run_validate(args: argparse.Namespace) -> int:
                 raise ValueError(
                     "ENABLE_FIRMWARE_FIXES is only supported for FIRMWARE_BOARD=O6 or O6N"
                 )
+
+        if args.enable_core_order is not None and args.enable_core_order != "":
+            core_order = args.enable_core_order.strip().lower()
+            require_choice("ENABLE_CORE_ORDER", core_order, VALID_CORE_ORDERS)
+            if core_order != "cix":
+                if artefact_mode and artefact_mode != "custom":
+                    raise ValueError(
+                        "ENABLE_CORE_ORDER is only supported with ARTEFACT_MODE=custom"
+                    )
+                if normalize_bool(args.enable_firmware_fixes or "false") != "TRUE":
+                    raise ValueError(
+                        f"ENABLE_CORE_ORDER={core_order} requires ENABLE_FIRMWARE_FIXES=true"
+                    )
+                if (
+                    args.firmware_board is not None
+                    and args.firmware_board not in VALID_BOARDS
+                ):
+                    raise ValueError(
+                        "ENABLE_CORE_ORDER is only supported for FIRMWARE_BOARD=O6 or O6N"
+                    )
 
         if (
             args.enable_experimental_uefi_settings is not None
