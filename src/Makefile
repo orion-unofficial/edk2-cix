@@ -67,6 +67,8 @@ DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL
 DEBUG_PRINT_ERROR_LEVEL_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW)),,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW))
 DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT := $(if $(filter TRUE,$(DEBUG_VERBOSE_NORMALIZED)),$(MAX_DEBUG_PRINT_ERROR_LEVEL),)
 DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED),$(DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT))
+ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW := $(if $(strip $(ENABLE_FIRMWARE_FIXES)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_FIRMWARE_FIXES)" 2>/dev/null || printf '%s' __INVALID__),)
+ENABLE_FIRMWARE_FIXES_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW)),,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW))
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW := $(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" 2>/dev/null || printf '%s' __INVALID__),)
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW)),,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW))
 EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_PACKAGE_ROOTS := \
@@ -241,6 +243,12 @@ EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Define.dsc.inc)
 ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))),$(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES))
+PATCHED_EDK2_SOURCE_INPUTS := \
+	$(abspath edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.hfr) \
+	$(abspath edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.uni) \
+	$(abspath edk2-platforms/Platform/CIX/Sky1/Library/Acpi/CIX/AcpiPpttLibCIX/PpttGenerator.c) \
+	$(abspath edk2-platforms/Platform/CIX/Sky1/Library/MemoryInitPeiLib/MemoryInitPeiLib.c) \
+	$(abspath edk2-platforms/Platform/Radxa/Drivers/AcpiPlatformDxe/AcpiPlatformDxe.c)
 CUSTOM_EDK2_BUILD_INPUTS := \
 	$(if $(filter custom,$(ARTEFACT_MODE)),$(ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES) $(CUSTOM_EDK2_OVERLAY_SOURCES) $(MICROSOFT_SECURE_BOOT_PAYLOADS))
 CUSTOM_EDK2_ORDER_ONLY_PREREQS := \
@@ -332,6 +340,7 @@ define PRINT_SRC_VARIABLES
 	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG build.\nDefault: RELEASE.'; \
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile name shared with the top-level qualification checks.\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
 	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory where raw-build audit and validation reports are written.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
+	print_help_line '  ENABLE_FIRMWARE_FIXES=true|false' 'Custom-only: enable the opt-in firmware fixes bundle, including audio DMA reservations, HTTU flags, PCIe _OSC updates, DSU PMU exposure, corrected eDP metadata, conservative PPTT cache topology, and a PCIe device-model selector that coexists with ENABLE_EXPERIMENTAL_UEFI_SETTINGS.\nDefault: false.'; \
 	print_help_line '  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Custom-only: enable the experimental Radxa UEFI settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
 	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: mux the UART3 header pins for UART use and expose COM3 to the OS without moving firmware DEBUG() there.\nDefault: false.'; \
 	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
@@ -582,6 +591,9 @@ preflight-inputs:
 	if [ -n "$(strip $(FIRMWARE_BOARD))" ]; then \
 		validate_cmd+=(--firmware-board "$(strip $(FIRMWARE_BOARD))"); \
 	fi; \
+	if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-firmware-fixes "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))"); \
+	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
 	fi; \
@@ -606,6 +618,9 @@ preflight-inputs:
 	fi; \
 	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))" ]; then \
 		echo "[config] $$(python3 "$(MAKE_INPUT_VALIDATOR)" describe-debug-print-error-level --value "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)")"; \
+	fi; \
+	if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ] && [ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" = "TRUE" ]; then \
+		echo "[config] ENABLE_FIRMWARE_FIXES=true enables the opt-in firmware fixes bundle"; \
 	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ] && [ "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" = "TRUE" ]; then \
 		echo "[config] ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true enables the experimental Radxa UI overlay"; \
@@ -1000,7 +1015,7 @@ Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt: | $(TRUSTED_KEY_CERT_TOOL_
 	esac
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
-Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | preflight-% $(CUSTOM_EDK2_ORDER_ONLY_PREREQS)
+Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(PATCHED_EDK2_SOURCE_INPUTS) $(CUSTOM_EDK2_BUILD_INPUTS) | preflight-% $(CUSTOM_EDK2_ORDER_ONLY_PREREQS)
 	@$(ENSURE_REPO_LOCK)
 	$(MAKE) prepare-basetools-c
 	@set -euo pipefail; \
@@ -1083,6 +1098,14 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 			"RELEASE_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
 			"RELEASE_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
 		); \
+		if [[ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" ]]; then \
+			tool_def_overrides+=( \
+				'  DEBUG_GCC5_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
+				'RELEASE_GCC5_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
+				'  DEBUG_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
+				'RELEASE_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
+			); \
+		fi; \
 	fi; \
 	if [[ "$${#tool_def_overrides[@]}" -ne 0 ]]; then \
 		printf '\n%s\n' "$${tool_def_overrides[@]}" >> "$$tools_def_file"; \
@@ -1098,6 +1121,9 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(CUSTOM_EDK2_BUILD_INPUTS) | 
 	fi; \
 		if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)" ]]; then \
 			build_extra_defines+=(-D DEBUG_PRINT_ERROR_LEVEL=$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)); \
+		fi; \
+		if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" ]]; then \
+			build_extra_defines+=(-D ENABLE_FIRMWARE_FIXES=$(ENABLE_FIRMWARE_FIXES_NORMALIZED)); \
 		fi; \
 		if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" ]]; then \
 			build_extra_defines+=(-D ENABLE_EXPERIMENTAL_UEFI_SETTINGS=$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)); \
