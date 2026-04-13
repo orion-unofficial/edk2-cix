@@ -17,6 +17,11 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/PcdLib.h>
 
+#ifdef ENABLE_FIRMWARE_FIXES
+#define RAMOOPS_RES_BASE  0x83D00000U
+#define RAMOOPS_RES_SIZE  0x000A0000U
+#endif
+
 VOID
 BuildMemoryTypeInformationHob (
   VOID
@@ -223,6 +228,18 @@ MemoryPeim (
     FixedPcdGet32 (PcdArmLcdDdrFrameBufferSize),
     EfiReservedMemoryType
     );
+
+#ifdef ENABLE_FIRMWARE_FIXES
+  //
+  // Keep the ACPI-described ramoops window out of the general allocator so
+  // pstore backends can claim a stable reserved-memory region.
+  //
+  BuildMemoryAllocationHob (
+    RAMOOPS_RES_BASE,
+    RAMOOPS_RES_SIZE,
+    EfiReservedMemoryType
+    );
+#endif
 
 #ifdef ENABLE_FIRMWARE_FIXES
   //

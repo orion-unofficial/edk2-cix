@@ -8,6 +8,7 @@
 **/
 
 #include "AcpiSocDxe.h"
+#include <Library/CpuInfoLib.h>
 #include <Protocol/ArmScmiPerformanceProtocol.h>
 
 // Turn on debug message by enabling below define
@@ -29,7 +30,9 @@
 #define CPC_LOWEST_PERFORMANCE_OFFSET            5
 #define CPC_LOWEST_FREQUENCY_OFFSET              21
 #define CPC_NOMINAL_FREQUENCY_OFFSET             22
+#ifndef ENABLE_FIRMWARE_FIXES
 #define CPC_GRANULARITYMHZ                       1
+#endif
 
 CHAR8   *mCixAcpiDevId[]              = { "ACPI0007" };
 UINT32  mCpuUIDFastChannelMapping[12] = { 2, 2, 2, 2, 5, 5, 6, 6, 3, 3, 4, 4 };
@@ -109,6 +112,51 @@ GetCpuPerfData (
   return EFI_SUCCESS;
 }
 
+#ifdef ENABLE_FIRMWARE_FIXES
+STATIC
+EFI_STATUS
+GetCpcGranularity (
+  IN     UINTN   CpuID,
+  IN OUT UINT32  *CpcGranularity
+  )
+{
+  EFI_STATUS                          Status;
+  SCMI_PERFORMANCE_PROTOCOL           *ScmiPerfProtocol;
+  UINT32                              DomainId;
+  SCMI_PERFORMANCE_DOMAIN_ATTRIBUTES  DomainAttribute;
+
+  if (CpuID > ARRAY_SIZE (mCpuUIDFastChannelMapping)-1) {
+    DEBUG ((EFI_D_ERROR, " Cpuid is over the max range, max cpuid = %d, current cpu id = %d\n", ARRAY_SIZE (mCpuUIDFastChannelMapping)-1, CpuID));
+    return EFI_INVALID_PARAMETER;
+  }
+
+  Status = gBS->LocateProtocol (
+                  &gArmScmiPerformanceProtocolGuid,
+                  NULL,
+                  (VOID **)&ScmiPerfProtocol
+                  );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "gArmScmiPerformanceProtocolGuid NOT found.\n"));
+    return Status;
+  }
+
+  DomainId = mCpuUIDFastChannelMapping[CpuID];
+  Status   = ScmiPerfProtocol->GetDomainAttributes (ScmiPerfProtocol, DomainId, &DomainAttribute);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((EFI_D_ERROR, "Perfomance [%d] get domain attributes failed.\n", DomainId));
+    return Status;
+  }
+
+  if (DomainAttribute.SustainedPerfLevel == 0) {
+    DEBUG ((EFI_D_ERROR, "Perfomance [%d] sustained perf level is zero.\n", DomainId));
+    return EFI_DEVICE_ERROR;
+  }
+
+  *CpcGranularity = (DomainAttribute.SustainedFreq * 1000) / DomainAttribute.SustainedPerfLevel;
+  return EFI_SUCCESS;
+}
+#endif
+
 STATIC
 EFI_STATUS
 UpdatePerfInOption (
@@ -130,6 +178,9 @@ UpdatePerfInOption (
   UINTN               LowestNonlinearPerf;
   UINTN               LowestPerf;
   UINTN               PerfData;
+#ifdef ENABLE_FIRMWARE_FIXES
+  UINT32              CpcGranularity;
+#endif
   BOOLEAN             UpdatePerf;
 
   // Get NumEntries from package
@@ -159,6 +210,13 @@ UpdatePerfInOption (
     return Status;
   }
 
+#ifdef ENABLE_FIRMWARE_FIXES
+  Status = GetCpcGranularity (CpuUid, &CpcGranularity);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+#endif
+
   // Walk node in package
   for ( ; Index < NumEntries; Index++) {
     Status = AcpiTableProtocol->GetChild (ChildHandle, &CurrentHandle);
@@ -184,11 +242,19 @@ UpdatePerfInOption (
         UpdatePerf = TRUE;
         break;
       case CPC_LOWEST_FREQUENCY_OFFSET:
+#ifdef ENABLE_FIRMWARE_FIXES
+        PerfData   = ROUND_DIVISION (LowestPerf * CpcGranularity, 1000000);
+#else
         PerfData   = LowestPerf * CPC_GRANULARITYMHZ;
+#endif
         UpdatePerf = TRUE;
         break;
       case CPC_NOMINAL_FREQUENCY_OFFSET:
+#ifdef ENABLE_FIRMWARE_FIXES
+        PerfData   = ROUND_DIVISION (NominalPerf * CpcGranularity, 1000000);
+#else
         PerfData   = NominalPerf * CPC_GRANULARITYMHZ;
+#endif
         UpdatePerf = TRUE;
         break;
       default:
