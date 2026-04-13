@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,7 +20,7 @@
 #include "prov/implementations.h"
 
 #define SHA3_FLAGS PROV_DIGEST_FLAG_ALGID_ABSENT
-#define SHAKE_FLAGS PROV_DIGEST_FLAG_XOF
+#define SHAKE_FLAGS (PROV_DIGEST_FLAG_XOF | PROV_DIGEST_FLAG_ALGID_ABSENT)
 #define KMAC_FLAGS PROV_DIGEST_FLAG_XOF
 
 /*
@@ -33,6 +33,7 @@ static OSSL_FUNC_digest_init_fn keccak_init_params;
 static OSSL_FUNC_digest_update_fn keccak_update;
 static OSSL_FUNC_digest_final_fn keccak_final;
 static OSSL_FUNC_digest_freectx_fn keccak_freectx;
+static OSSL_FUNC_digest_copyctx_fn keccak_copyctx;
 static OSSL_FUNC_digest_dupctx_fn keccak_dupctx;
 static OSSL_FUNC_digest_squeeze_fn shake_squeeze;
 static OSSL_FUNC_digest_get_ctx_params_fn shake_get_ctx_params;
@@ -534,6 +535,7 @@ const OSSL_DISPATCH ossl_##name##_functions[] = {                              \
     { OSSL_FUNC_DIGEST_FINAL, (void (*)(void))keccak_final },                  \
     { OSSL_FUNC_DIGEST_FREECTX, (void (*)(void))keccak_freectx },              \
     { OSSL_FUNC_DIGEST_DUPCTX, (void (*)(void))keccak_dupctx },                \
+    { OSSL_FUNC_DIGEST_COPYCTX, (void (*)(void))keccak_copyctx },              \
     PROV_DISPATCH_FUNC_DIGEST_GET_PARAMS(name)
 
 #define PROV_FUNC_SHA3_DIGEST(name, bitlen, blksize, dgstsize, flags)          \
@@ -558,6 +560,14 @@ static void keccak_freectx(void *vctx)
     KECCAK1600_CTX *ctx = (KECCAK1600_CTX *)vctx;
 
     OPENSSL_clear_free(ctx,  sizeof(*ctx));
+}
+
+static void keccak_copyctx(void *voutctx, void *vinctx)
+{
+    KECCAK1600_CTX *outctx = (KECCAK1600_CTX *)voutctx;
+    KECCAK1600_CTX *inctx = (KECCAK1600_CTX *)vinctx;
+
+    *outctx = *inctx;
 }
 
 static void *keccak_dupctx(void *ctx)
@@ -589,7 +599,7 @@ static int shake_get_ctx_params(void *vctx, OSSL_PARAM params[])
 
     if (ctx == NULL)
         return 0;
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     p = OSSL_PARAM_locate(params, OSSL_DIGEST_PARAM_XOFLEN);
@@ -625,7 +635,7 @@ static int shake_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 
     if (ctx == NULL)
         return 0;
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     p = OSSL_PARAM_locate_const(params, OSSL_DIGEST_PARAM_XOFLEN);

@@ -37,9 +37,10 @@ typedef unsigned int u_int;
 
 #ifndef OPENSSL_NO_SOCK
 
+# include "internal/e_os.h"
 # include "apps.h"
 # include "s_apps.h"
-# include "internal/sockets.h"
+# include "internal/sockets.h" /* for openssl_fdset() */
 
 # include <openssl/bio.h>
 # include <openssl/err.h>
@@ -172,8 +173,16 @@ int init_client(int *sock, const char *host, const char *port,
         }
 
         /* Save the address */
-        if (tfo || !doconn)
+        if (tfo || !doconn) {
+            if (ba_ret == NULL) {
+                BIO_printf(bio_err, "Internal error\n");
+                BIO_closesocket(*sock);
+                *sock = INVALID_SOCKET;
+                goto out;
+            }
+
             *ba_ret = BIO_ADDR_dup(BIO_ADDRINFO_address(ai));
+        }
 
         /* Success, don't try any more addresses */
         break;

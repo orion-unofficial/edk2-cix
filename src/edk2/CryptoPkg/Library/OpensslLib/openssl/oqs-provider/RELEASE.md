@@ -1,3 +1,82 @@
+# oqs-provider 0.8.1-dev
+
+## About
+
+The **Open Quantum Safe (OQS) project** has the goal of developing and prototyping quantum-resistant cryptography.  More information on OQS can be found on the website: https://openquantumsafe.org/ and on Github at https://github.com/open-quantum-safe/.
+
+**oqs-provider** is a standalone [OpenSSL 3](https://github.com/openssl/openssl) [provider](https://www.openssl.org/docs/manmaster/man7/provider.html) enabling [liboqs](https://github.com/open-quantum-safe/liboqs)-based quantum-safe and [hybrid key exchange](https://datatracker.ietf.org/doc/draft-ietf-pquip-pqt-hybrid-terminology) for TLS 1.3, as well as quantum-safe and hybrid X.509 certificate generation, CMS, CMP and `dgst` (signature) operations.
+
+When deployed, the `oqs-provider` binary (shared library) thus adds support for quantum-safe cryptographic operations to any standard OpenSSL(v3) installation. The ultimate goal is that all `openssl` functionality shall be [PQC-enabled](https://csrc.nist.gov/projects/post-quantum-cryptography).
+
+In general, the oqs-provider `main` branch is meant to be usable in conjunction with the `main` branch of [liboqs](https://github.com/open-quantum-safe/liboqs) and the `master` branch of [OpenSSL](https://github.com/openssl/openssl).
+
+Further details on building, testing and use can be found in [README.md](https://github.com/open-quantum-safe/oqs-provider/blob/main/README.md). See in particular limitations on intended use.
+
+## Release notes
+
+This is in-development version 0.8.1-dev of oqs-provider which continues from the earlier 0.8.0 release. This release is fully tested to be used in conjunction with the main branch of [liboqs](https://github.com/open-quantum-safe/liboqs).
+
+Previous Release Notes
+======================
+
+# oqs-provider 0.8.0
+
+## About
+
+The **Open Quantum Safe (OQS) project** has the goal of developing and prototyping quantum-resistant cryptography.  More information on OQS can be found on the website: https://openquantumsafe.org/ and on Github at https://github.com/open-quantum-safe/.
+
+**oqs-provider** is a standalone [OpenSSL 3](https://github.com/openssl/openssl) [provider](https://www.openssl.org/docs/manmaster/man7/provider.html) enabling [liboqs](https://github.com/open-quantum-safe/liboqs)-based quantum-safe and [hybrid key exchange](https://datatracker.ietf.org/doc/draft-ietf-pquip-pqt-hybrid-terminology) for TLS 1.3, as well as quantum-safe and hybrid X.509 certificate generation, CMS, CMP and `dgst` (signature) operations.
+
+When deployed, the `oqs-provider` binary (shared library) thus adds support for quantum-safe cryptographic operations to any standard OpenSSL(v3) installation. The ultimate goal is that all `openssl` functionality shall be [PQC-enabled](https://csrc.nist.gov/projects/post-quantum-cryptography).
+
+In general, the oqs-provider `main` branch is meant to be usable in conjunction with the `main` branch of [liboqs](https://github.com/open-quantum-safe/liboqs) and the `master` branch of [OpenSSL](https://github.com/openssl/openssl).
+
+Further details on building, testing and use can be found in [README.md](https://github.com/open-quantum-safe/oqs-provider/blob/main/README.md). See in particular limitations on intended use.
+
+## Release notes
+
+This is version 0.8.0 of oqs-provider which continues from the earlier 0.7.0 release. This release is fully tested to be used in conjunction with the main branch of [liboqs](https://github.com/open-quantum-safe/liboqs) and is guaranteed to be in sync with v0.12.0 of `liboqs`.
+
+### Deprecation notice
+
+This is to notify users of Kyber and Dilithium (Round 3 version) to switch to the ML-KEM (FIPS 203 final version) and ML-DSA (FIPS 204 final version), respectively, as support for both will be removed with the next release of oqsprovider.
+
+### Security considerations
+
+* CVE-2024-54137: The associated liboqs v0.12.0 release fixed a bug in HQC decapsulation that leads to incorrect shared secret value during decapsulation when called with an invalid ciphertext. Thank you to Célian Glénaz and Dahmun Goudarzi from Quarkslab for identifying the issue.
+
+### What's New
+
+In addition to improving testing, CI, and fixing platform specific build issues this release of oqs-provider:
+
+* Updates IANA code points for ML-KEM and changes FrodoKEM code points.
+* Adds support for ML-DSA (FIPS 204 final version).
+* Adds support for context strings in OpenSSL versions >= 3.2.
+* Updates the implementation of draft-ietf-lamps-pq-composite-sigs from version 01 to version 02.
+* Adds a SBOM template in the CycloneDX 1.6 format.
+* Adds support for DTLS 1.3 (pending support in OpenSSL).
+
+## What's Changed
+* Switch to dev mode again by @praveksharma in https://github.com/open-quantum-safe/oqs-provider/pull/535
+* Add alexrow to CODEOWNERS by @praveksharma in https://github.com/open-quantum-safe/oqs-provider/pull/537
+* Correct 0.7.0 release notes by @praveksharma in https://github.com/open-quantum-safe/oqs-provider/pull/540
+* switch doc to release, add backlevel liboqs support by @baentsch in https://github.com/open-quantum-safe/oqs-provider/pull/544
+* fix file location error in P12 test by @baentsch in https://github.com/open-quantum-safe/oqs-provider/pull/546
+* update MLKEM code points by @baentsch in https://github.com/open-quantum-safe/oqs-provider/pull/559
+* Composite sigs update by @feventura in https://github.com/open-quantum-safe/oqs-provider/pull/549
+* Remove macos-12 runner due to GitHub deprecation. by @SWilson4 in https://github.com/open-quantum-safe/oqs-provider/pull/563
+* update IANA code points for ML-KEM by @baentsch in https://github.com/open-quantum-safe/oqs-provider/pull/577
+* Adding version-conditional context string support by @baentsch in https://github.com/open-quantum-safe/oqs-provider/pull/583
+* Tracker for FIPS204 / ML-DSA by @bhess in https://github.com/open-quantum-safe/oqs-provider/pull/568
+* Add a SBOM template in CycloneDX format by @hughsie in https://github.com/open-quantum-safe/oqs-provider/pull/585
+* Changes needed when building with a static libcrypto on Linux by @ashman-p in https://github.com/open-quantum-safe/oqs-provider/pull/584
+* Add DTLS 1.3 support by @baentsch in https://github.com/open-quantum-safe/oqs-provider/pull/586
+
+## New Contributors
+* @hughsie made their first contribution in https://github.com/open-quantum-safe/oqs-provider/pull/585
+
+**Full Changelog**: https://github.com/open-quantum-safe/oqs-provider/compare/0.7.0...0.8.0
+
 # oqs-provider 0.7.0
 
 ## About
@@ -113,9 +192,6 @@ This fixes potential buffer overrun problems in hybrid key decoding. Use of prio
 * @iyanmv made their first contribution in https://github.com/open-quantum-safe/oqs-provider/pull/400
 
 **Full Changelog**: https://github.com/open-quantum-safe/oqs-provider/compare/0.6.0...0.6.1
-
-Previous Release Notes
-======================
 
 # oqs-provider 0.6.0
 

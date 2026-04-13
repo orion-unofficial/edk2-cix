@@ -28,6 +28,7 @@
 #include <openssl/param_build.h>
 #include "internal/cryptlib.h"
 #include "internal/comp.h"
+#include "internal/ssl_unwrap.h"
 
 static MSG_PROCESS_RETURN tls_process_as_hello_retry_request(SSL_CONNECTION *s,
                                                              PACKET *pkt);
@@ -490,7 +491,7 @@ static WRITE_TRAN ossl_statem_client13_write_transition(SSL_CONNECTION *s)
         return WRITE_TRAN_CONTINUE;
 
     case TLS_ST_PENDING_EARLY_DATA_END:
-        if (s->ext.early_data == SSL_EARLY_DATA_ACCEPTED) {
+        if (s->ext.early_data == SSL_EARLY_DATA_ACCEPTED && !SSL_NO_EOED(s)) {
             st->hand_state = TLS_ST_CW_END_OF_EARLY_DATA;
             return WRITE_TRAN_CONTINUE;
         }
@@ -572,7 +573,8 @@ WRITE_TRAN ossl_statem_client_write_transition(SSL_CONNECTION *s)
         return WRITE_TRAN_CONTINUE;
 
     case TLS_ST_CW_CLNT_HELLO:
-        if (s->early_data_state == SSL_EARLY_DATA_CONNECTING) {
+        if (s->early_data_state == SSL_EARLY_DATA_CONNECTING
+                && !SSL_IS_QUIC_HANDSHAKE(s)) {
             /*
              * We are assuming this is a TLSv1.3 connection, although we haven't
              * actually selected a version yet.
@@ -906,6 +908,17 @@ WORK_STATE ossl_statem_client_post_work(SSL_CONNECTION *s, WORK_STATE wst)
             if (s->post_handshake_auth != SSL_PHA_REQUESTED) {
                 if (!ssl->method->ssl3_enc->change_cipher_state(s,
                         SSL3_CC_APPLICATION | SSL3_CHANGE_CIPHER_CLIENT_WRITE)) {
+                    /* SSLfatal() already called */
+                    return WORK_ERROR;
+                }
+                /*
+                 * For QUIC we deferred setting up these keys until now so
+                 * that we can ensure write keys are always set up before read
+                 * keys.
+                 */
+                if (SSL_IS_QUIC_HANDSHAKE(s)
+                        && !ssl->method->ssl3_enc->change_cipher_state(s,
+                            SSL3_CC_APPLICATION | SSL3_CHANGE_CIPHER_CLIENT_READ)) {
                     /* SSLfatal() already called */
                     return WORK_ERROR;
                 }
@@ -1786,8 +1799,7 @@ MSG_PROCESS_RETURN tls_process_server_hello(SSL_CONNECTION *s, PACKET *pkt)
      */
     if (SSL_CONNECTION_IS_TLS13(s)) {
         if (!ssl->method->ssl3_enc->setup_key_block(s)
-                || !ssl->method->ssl3_enc->change_cipher_state(s,
-                    SSL3_CC_HANDSHAKE | SSL3_CHANGE_CIPHER_CLIENT_READ)) {
+                || !tls13_store_handshake_traffic_hash(s)) {
             /* SSLfatal() already called */
             goto err;
         }
@@ -1800,10 +1812,17 @@ MSG_PROCESS_RETURN tls_process_server_hello(SSL_CONNECTION *s, PACKET *pkt)
          * are changed. Since QUIC doesn't do TLS early data or need middlebox
          * compat this doesn't cause a problem.
          */
-        if (s->early_data_state == SSL_EARLY_DATA_NONE
-                && (s->options & SSL_OP_ENABLE_MIDDLEBOX_COMPAT) == 0
-                && !ssl->method->ssl3_enc->change_cipher_state(s,
+        if (SSL_IS_QUIC_HANDSHAKE(s)
+                || (s->early_data_state == SSL_EARLY_DATA_NONE
+                    && (s->options & SSL_OP_ENABLE_MIDDLEBOX_COMPAT) == 0)) {
+            if (!ssl->method->ssl3_enc->change_cipher_state(s,
                     SSL3_CC_HANDSHAKE | SSL3_CHANGE_CIPHER_CLIENT_WRITE)) {
+                /* SSLfatal() already called */
+                goto err;
+                    }
+        }
+        if (!ssl->method->ssl3_enc->change_cipher_state(s,
+                    SSL3_CC_HANDSHAKE | SSL3_CHANGE_CIPHER_CLIENT_READ)) {
             /* SSLfatal() already called */
             goto err;
         }
@@ -2140,8 +2159,12 @@ WORK_STATE tls_post_process_server_certificate(SSL_CONNECTION *s,
         }
     }
 
+    if (!X509_up_ref(x)) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+        return WORK_ERROR;
+    }
+
     X509_free(s->session->peer);
-    X509_up_ref(x);
     s->session->peer = x;
     s->session->verify_result = s->verify_result;
     /* Ensure there is no RPK */
@@ -3810,6 +3833,7 @@ CON_FUNC_RETURN tls_construct_client_certificate(SSL_CONNECTION *s,
      * moment. We need to do it now.
      */
     if (SSL_CONNECTION_IS_TLS13(s)
+            && !SSL_IS_QUIC_HANDSHAKE(s)
             && SSL_IS_FIRST_HANDSHAKE(s)
             && (s->early_data_state != SSL_EARLY_DATA_NONE
                 || (s->options & SSL_OP_ENABLE_MIDDLEBOX_COMPAT) != 0)
@@ -3900,6 +3924,7 @@ CON_FUNC_RETURN tls_construct_client_compressed_certificate(SSL_CONNECTION *sc,
      * moment. We need to do it now.
      */
     if (SSL_IS_FIRST_HANDSHAKE(sc)
+            && !SSL_IS_QUIC_HANDSHAKE(sc)
             && (sc->early_data_state != SSL_EARLY_DATA_NONE
                 || (sc->options & SSL_OP_ENABLE_MIDDLEBOX_COMPAT) != 0)
             && (!ssl->method->ssl3_enc->change_cipher_state(sc,
