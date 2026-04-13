@@ -9,6 +9,25 @@
 /*
   See ACPI 6.1 Spec, 6.2.11, PCI Firmware Spec 3.0, 4.5
 */
+#ifdef ENABLE_FIRMWARE_FIXES
+Name (PCDM, 0) /* PCIe device model: 0 = Linux root bridges, 1 = CIX/Cadence */
+#define PCIE_ROOT_PORT_STA(LinkOffset) \
+  If (LEqual (PCDM, 0)) { \
+    If (\_SB.GETV (LinkOffset)) { \
+      Return (0xF) \
+    } \
+  } \
+  Return (0x0)
+#define PCIE_OSC_CONTROL_MASK  0xFD
+#else
+#define PCIE_ROOT_PORT_STA(LinkOffset) \
+  If (\_SB.GETV (LinkOffset)) { \
+    Return (0xF) \
+  } \
+  Return (0x0)
+#define PCIE_OSC_CONTROL_MASK  0x10
+#endif
+
 #define PCI_OSC_SUPPORT() \
   Name(SUPP, Zero) /* PCI _OSC Support Field value */ \
   Name(CTRL, Zero) /* PCI _OSC Control Field value */ \
@@ -29,9 +48,8 @@
         And(CTRL,0x1E,CTRL) \
       }\
       \
-      /* Do not allow native PME, AER */ \
-      /* Never allow SHPC (no SHPC controller in this system)*/ \
-      And(CTRL,0x10,CTRL) \
+      /* Keep SHPC masked; with firmware fixes enabled permit PME/AER/LTR. */ \
+      And(CTRL,PCIE_OSC_CONTROL_MASK,CTRL) \
       If(LNotEqual(Arg1,One)) { /* Unknown revision */ \
         Or(CDW1,0x08,CDW1) \
       } \
@@ -61,12 +79,7 @@ Device (PCI0)
 
   // PCIe is only available if PCIe link is up
   Method (_STA, 0x0, Serialized) {
-    // Check if link is already up
-    If(\_SB.GETV(ARV_PCIE_RP_00_LINK_STS_OFFSET)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    PCIE_ROOT_PORT_STA (ARV_PCIE_RP_00_LINK_STS_OFFSET)
   }
 
   // Declare the resources assigned to this root complex.
@@ -138,11 +151,7 @@ Device (PCI1)
 
   // PCIe is only available if PCIe link is up
   Method (_STA, 0x0, Serialized) {
-    If(\_SB.GETV(ARV_PCIE_RP_01_LINK_STS_OFFSET)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    PCIE_ROOT_PORT_STA (ARV_PCIE_RP_01_LINK_STS_OFFSET)
   }
 
   // Declare the resources assigned to this root complex.
@@ -212,12 +221,7 @@ Device (PCI2)
 
   // PCIe is only available if PCIe link is up
   Method (_STA, 0x0, Serialized) {
-    // Check if link is already up
-    If(\_SB.GETV(ARV_PCIE_RP_02_LINK_STS_OFFSET)){
-        Return (0xF)
-    } else {
-        Return (0x0)
-    }
+    PCIE_ROOT_PORT_STA (ARV_PCIE_RP_02_LINK_STS_OFFSET)
   }
 
   // Declare the resources assigned to this root complex.
@@ -289,12 +293,7 @@ Device (PCI3)
 
   // PCIe is only available if PCIe link is up
   Method (_STA, 0x0, Serialized) {
-    // Check if link is already up
-    If(\_SB.GETV(ARV_PCIE_RP_03_LINK_STS_OFFSET)){
-        Return (0xF)
-    } else {
-        Return (0x0)
-    }
+    PCIE_ROOT_PORT_STA (ARV_PCIE_RP_03_LINK_STS_OFFSET)
   }
 
   // Declare the resources assigned to this root complex.
@@ -366,12 +365,7 @@ Device (PCI4)
 
   // PCIe is only available if PCIe link is up
   Method (_STA, 0x0, Serialized) {
-    // Check if link is already up
-    If(\_SB.GETV(ARV_PCIE_RP_04_LINK_STS_OFFSET)){
-        Return (0xF)
-    } else {
-        Return (0x0)
-    }
+    PCIE_ROOT_PORT_STA (ARV_PCIE_RP_04_LINK_STS_OFFSET)
   }
 
   // Declare the resources assigned to this root complex.
