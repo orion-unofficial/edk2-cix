@@ -69,6 +69,8 @@ DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT := $(if $(filter TRUE,$(DEBUG_VERBOSE_NO
 DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED),$(DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT))
 ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW := $(if $(strip $(ENABLE_FIRMWARE_FIXES)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_FIRMWARE_FIXES)" 2>/dev/null || printf '%s' __INVALID__),)
 ENABLE_FIRMWARE_FIXES_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW)),,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW))
+ENABLE_CORE_ORDER ?=
+ENABLE_CORE_ORDER_NORMALIZED := $(if $(strip $(ENABLE_CORE_ORDER)),$(shell printf '%s' '$(ENABLE_CORE_ORDER)' | tr '[:upper:]' '[:lower:]'),)
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW := $(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" 2>/dev/null || printf '%s' __INVALID__),)
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW)),,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW))
 EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_PACKAGE_ROOTS := \
@@ -345,6 +347,7 @@ define PRINT_SRC_VARIABLES
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile name shared with the top-level qualification checks.\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
 	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory where raw-build audit and validation reports are written.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
 	print_help_line '  ENABLE_FIRMWARE_FIXES=true|false' 'Custom-only: enable the opt-in firmware fixes bundle, including audio DMA reservations, HTTU flags, PCIe _OSC updates, DSU PMU exposure, corrected eDP metadata, conservative PPTT cache topology, and a PCIe device-model selector that coexists with ENABLE_EXPERIMENTAL_UEFI_SETTINGS.\nDefault: false.'; \
+	print_help_line '  ENABLE_CORE_ORDER=cix|conventional|performance' 'Custom-only companion to ENABLE_FIRMWARE_FIXES. '\''cix'\'' preserves the vendor/default CPU UID order; '\''conventional'\'' remaps CPU UIDs to little-cores-first order; '\''performance'\'' remaps CPU UIDs to a highest-performance-first order.\nDefault: unset, which behaves like '\''cix'\''.'; \
 	print_help_line '  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Custom-only: enable the experimental Radxa UEFI settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
 	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: mux the UART3 header pins for UART use and expose COM3 to the OS without moving firmware DEBUG() there.\nDefault: false.'; \
 	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
@@ -598,6 +601,9 @@ preflight-inputs:
 	if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-firmware-fixes "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))"); \
 	fi; \
+	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-core-order "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))"); \
+	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
 	fi; \
@@ -625,6 +631,9 @@ preflight-inputs:
 	fi; \
 	if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ] && [ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" = "TRUE" ]; then \
 		echo "[config] ENABLE_FIRMWARE_FIXES=true enables the opt-in firmware fixes bundle"; \
+	fi; \
+	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ] && [ "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" != "cix" ]; then \
+		echo "[config] ENABLE_CORE_ORDER=$(ENABLE_CORE_ORDER_NORMALIZED) remaps exposed CPU UIDs"; \
 	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ] && [ "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" = "TRUE" ]; then \
 		echo "[config] ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true enables the experimental Radxa UI overlay"; \
@@ -1128,6 +1137,12 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(PATCHED_EDK2_SOURCE_INPUTS) 
 		fi; \
 		if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" ]]; then \
 			build_extra_defines+=(-D ENABLE_FIRMWARE_FIXES=$(ENABLE_FIRMWARE_FIXES_NORMALIZED)); \
+		fi; \
+		if [[ "$(ARTEFACT_MODE)" == "custom" && "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" && "$(ENABLE_CORE_ORDER_NORMALIZED)" == "conventional" ]]; then \
+			build_extra_defines+=(-D ENABLE_CORE_ORDER_CONVENTIONAL=1); \
+		fi; \
+		if [[ "$(ARTEFACT_MODE)" == "custom" && "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" && "$(ENABLE_CORE_ORDER_NORMALIZED)" == "performance" ]]; then \
+			build_extra_defines+=(-D ENABLE_CORE_ORDER_PERFORMANCE=1); \
 		fi; \
 		if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" ]]; then \
 			build_extra_defines+=(-D ENABLE_EXPERIMENTAL_UEFI_SETTINGS=$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)); \
