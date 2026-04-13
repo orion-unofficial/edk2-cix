@@ -82,6 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--uart3-enable")
     validate.add_argument("--debug-verbose")
     validate.add_argument("--debug-print-error-level")
+    validate.add_argument("--enable-firmware-fixes")
     validate.add_argument("--enable-experimental-uefi-settings")
     validate.add_argument("--check-buildbox-image", action="store_true")
     return parser
@@ -389,6 +390,24 @@ def run_validate(args: argparse.Namespace) -> int:
             if artefact_mode and artefact_mode != "custom":
                 raise ValueError(
                     "DEBUG_PRINT_ERROR_LEVEL is only supported with ARTEFACT_MODE=custom"
+                )
+
+        if (
+            args.enable_firmware_fixes is not None
+            and args.enable_firmware_fixes != ""
+        ):
+            firmware_fixes = normalize_bool(args.enable_firmware_fixes)
+            if artefact_mode and artefact_mode != "custom":
+                raise ValueError(
+                    "ENABLE_FIRMWARE_FIXES is only supported with ARTEFACT_MODE=custom"
+                )
+            if (
+                firmware_fixes == "TRUE"
+                and args.firmware_board is not None
+                and args.firmware_board not in VALID_BOARDS
+            ):
+                raise ValueError(
+                    "ENABLE_FIRMWARE_FIXES is only supported for FIRMWARE_BOARD=O6 or O6N"
                 )
 
         if (
