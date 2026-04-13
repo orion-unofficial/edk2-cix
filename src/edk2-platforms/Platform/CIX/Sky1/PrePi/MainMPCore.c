@@ -13,6 +13,89 @@
 
 #include <Ppi/ArmMpCoreInfo.h>
 
+// Upstream retired the SEC ArmGicLib/ArmGicArchLib instances in 202502,
+// but Sky1 PrePi still needs a small GIC bring-up subset before DXE.
+STATIC
+VOID
+ArmGicEnableDistributor (
+  IN UINTN  GicDistributorBase
+  )
+{
+  if ((MmioRead32 (GicDistributorBase + ARM_GIC_ICDDCR) & ARM_GIC_ICDDCR_ARE) != 0) {
+    MmioOr32 (GicDistributorBase + ARM_GIC_ICDDCR, 0x2);
+  } else {
+    MmioOr32 (GicDistributorBase + ARM_GIC_ICDDCR, 0x1);
+  }
+}
+
+STATIC
+VOID
+ArmGicSendSgiTo (
+  IN UINTN  GicDistributorBase,
+  IN UINTN  TargetListFilter,
+  IN UINTN  CPUTargetList,
+  IN UINTN  SgiId
+  )
+{
+  MmioWrite32 (
+    GicDistributorBase + ARM_GIC_ICDSGIR,
+    ((TargetListFilter & 0x3) << 24) | ((CPUTargetList & 0xFF) << 16) | (SgiId & 0xF)
+    );
+}
+
+STATIC
+UINTN
+ArmGicAcknowledgeInterrupt (
+  IN  UINTN  GicInterruptInterfaceBase,
+  OUT UINTN  *InterruptId
+  )
+{
+  UINTN  Value;
+
+#if defined (__aarch64__) || defined (MDE_CPU_AARCH64)
+  (VOID)GicInterruptInterfaceBase;
+  __asm__ volatile ("mrs %0, ICC_IAR1_EL1" : "=r" (Value));
+  if (InterruptId != NULL) {
+    *InterruptId = Value;
+  }
+#else
+  Value = MmioRead32 (GicInterruptInterfaceBase + ARM_GIC_ICCIAR);
+  if (InterruptId != NULL) {
+    *InterruptId = Value & ARM_GIC_ICCIAR_ACKINTID;
+  }
+#endif
+
+  return Value;
+}
+
+STATIC
+VOID
+ArmGicEndOfInterrupt (
+  IN UINTN  GicInterruptInterfaceBase,
+  IN UINTN  Source
+  )
+{
+#if defined (__aarch64__) || defined (MDE_CPU_AARCH64)
+  (VOID)GicInterruptInterfaceBase;
+  __asm__ volatile ("msr ICC_EOIR1_EL1, %0" :: "r" (Source));
+  __asm__ volatile ("isb");
+#else
+  MmioWrite32 (GicInterruptInterfaceBase + ARM_GIC_ICCEIOR, Source);
+#endif
+}
+
+STATIC
+UINTN
+ArmGicGetMaxNumInterrupts (
+  IN UINTN  GicDistributorBase
+  )
+{
+  UINTN  ItLines;
+
+  ItLines = MmioRead32 (GicDistributorBase + ARM_GIC_ICDICTR) & 0x1F;
+  return (ItLines == 0x1f) ? 1020 : 32 * (ItLines + 1);
+}
+
 VOID
 PrimaryMain (
   IN  UINTN   UefiMemoryBase,
