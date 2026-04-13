@@ -33,6 +33,114 @@
             }\
   })
 
+#ifdef ENABLE_FIRMWARE_FIXES
+#define DP_PORT_INIT(RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0, \
+                      RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1, \
+                      DpLaneNumber, DpMaxRate, AuxClockDivider, DpPhyRef, EdpPanelRef) \
+ Name (_DSD, Package () { \
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
+            Package () { \
+            /*  Package () { "cix,dp-lane-number", DpLaneNumber }, */  \
+            /*  Package () { "cix,dp-max-rate", DpMaxRate }, */  \
+            /*  Package () { "cix,aux-clock-divider", AuxClockDivider }, */  \
+                Package () { "dp_phy", DpPhyRef }, \
+                Package () { "enabled_by_gop", 0 }, \
+            },\
+            ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),\
+            Package () { \
+                          Package () { "port@0", "PRT0" },\
+                          Package () { "port@1", "PRT1" },\
+            }\
+        })\
+  Name (PRT0, Package() {\
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
+            Package () {\
+                Package () { "reg", 0 }, \
+            },\
+            ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),\
+            Package () {\
+                Package () { "endpoint@0", "EP00" },\
+            }\
+  })\
+  Name (EP00, Package() {\
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
+            Package () {\
+                Package () { "reg", 0 }, \
+                Package () { "remote-endpoint", Package() { RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0 } },\
+            }\
+  })\
+  Name (PRT1, Package() {\
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
+            Package () {\
+                Package () { "reg", 1 }, \
+            },\
+            ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),\
+            Package () {\
+                Package () { "endpoint@1", "EP01" },\
+            }\
+  })\
+  Name (EP01, Package() {\
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
+            Package () {\
+                Package () { "reg", 0 }, \
+                Package () { "remote-endpoint", Package() { RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1 } },\
+            }\
+  })
+
+#define EDP_PORT_INIT(RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0, \
+                      RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1, \
+                      DpLaneNumber, DpMaxRate, AuxClockDivider, DpPhyRef, EdpPanelRef) \
+ Name (_DSD, Package () { \
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
+            Package () { \
+            /*  Package () { "cix,dp-lane-number", DpLaneNumber }, */  \
+            /*  Package () { "cix,dp-max-rate", DpMaxRate }, */  \
+            /*  Package () { "cix,aux-clock-divider", AuxClockDivider }, */  \
+                Package () { "dp_phy", DpPhyRef }, \
+                Package () { "edp-panel", EdpPanelRef }, \
+                Package () { "enabled_by_gop", 0 }, \
+            },\
+            ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),\
+            Package () { \
+                          Package () { "port@0", "PRT0" },\
+                          Package () { "port@1", "PRT1" },\
+            }\
+        })\
+  Name (PRT0, Package() {\
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
+            Package () {\
+                Package () { "reg", 0 }, \
+            },\
+            ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),\
+            Package () {\
+                Package () { "endpoint@0", "EP00" },\
+            }\
+  })\
+  Name (EP00, Package() {\
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
+            Package () {\
+                Package () { "reg", 0 }, \
+                Package () { "remote-endpoint", Package() { RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0 } },\
+            }\
+  })\
+  Name (PRT1, Package() {\
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
+            Package () {\
+                Package () { "reg", 1 }, \
+            },\
+            ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),\
+            Package () {\
+                Package () { "endpoint@1", "EP01" },\
+            }\
+  })\
+  Name (EP01, Package() {\
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
+            Package () {\
+                Package () { "reg", 0 }, \
+                Package () { "remote-endpoint", Package() { RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1 } },\
+            }\
+  })
+#else
 #define DP_PORT_INIT(RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0, \
                       RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1, \
                       DpLaneNumber, DpMaxRate, AuxClockDivider, DpPhyRef, EdpPanelRef) \
@@ -87,6 +195,7 @@
                 Package () { "remote-endpoint", Package() { RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1 } },\
             }\
   })
+#endif
 
 #define DPU_PORT_INIT(RemoteDeviceReference1,RemotePort1,RemoteEndPoint1, \
                       RemoteDeviceReference2,RemotePort2,RemoteEndPoint2, DeviceId) \
@@ -333,7 +442,11 @@ Device (DP02) {
   })
 
   //DP_PORT_INIT(\_SB.DPU2, "pipeline@0", "port@0", "endpoint@0", 1, 540000, 200, EMPTY_STR, \_SB.EDP0)
+#ifdef ENABLE_FIRMWARE_FIXES
+  EDP_PORT_INIT(\_SB.DPU2, "pipeline@0", "port@0", "endpoint@0", \_SB.DPU2, "pipeline@1", "port@1", "endpoint@1", 1, 540000, 200, EMPTY_STR, \_SB.EDP0)
+#else
   DP_PORT_INIT(\_SB.DPU2, "pipeline@0", "port@0", "endpoint@0", \_SB.DPU2, "pipeline@1", "port@1", "endpoint@1", 1, 540000, 200, EMPTY_STR, \_SB.EDP0)
+#endif
 
   Name (CLKT, Package() {
     Package() {CLK_TREE_DPC2_VIDCLK0, "vid_clk0", \_SB.DP02},
