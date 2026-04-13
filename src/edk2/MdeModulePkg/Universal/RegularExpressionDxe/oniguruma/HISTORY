@@ -1,9 +1,155 @@
 History
 
+2024/XX/XX: Version 6.9.10
+
+2024/11/18: fix #312: Build failure with GCC 15 (C23)
+2024/09/11: Update to Unicode 16.0
+2024/06/20: fix #290: retry limit in match == 0 means unlimited
+2024/06/15: add new callout (*SKIP) #299
+2024/06/05: add new behavior ONIG_SYN_ALLOW_CHAR_TYPE_FOLLOWED_BY_MINUS_IN_CC (#298)
+2024/05/28: fix #296: ONIG_SYNTAX_EMACS doesn't support 'shy groups'
+2024/05/24: fix #295: Invalid result for empty match with anchors
+2024/04/03: fix #293: Literal escaped braces
+2024/04/02: fix total call with whole options
+2024/04/01: fix #292: ONIG_SYN_CONTEXT_INDEP_REPEAT_OPS not working for ^* pattern
+
+2023/10/14: Version 6.9.9
+
+2023/09/17: Update to Unicode 15.1.0
+2023/07/11: Make sure oniguruma.pc is removed on distclean
+2023/05/20: fix #284: .{0,99} and .* behave differently on short input
+2023/03/27: fix call by number (?n), (?+n), (?-n) of ONIG_SYNTAX_PERL_NG
+2023/03/27: fix #282: Dynamic library generated failed to support '(?-i)'
+2022/12/30: add a new behavior ONIG_SYN_BRE_ANCHOR_AT_EDGE_OF_SUBEXP
+2022/11/16: Changed the behavior of the FIND_LONGEST option to follow all alternatives
+2022/09/16: Update to Unicode 15.0.0
+2022/08/30: add ONIG_OPTION_MATCH_WHOLE_STRING
+2022/08/28: fix ctype punct in Unicode encodings
+2022/08/28: fix #268: [[:punct:]] isn't matching all expected symbols. [[:punct:]] = \p{PosixPunct} = \p{P} + \p{S}
+2022/06/25: Make the behavior of \p{Word} exactly the same as \w for ignorecase
+2022/06/24: (?I) invalid results for charcter classes (Issue #264)
+2022/06/15: fix negative POSIX bracket bug
+2022/06/03: Build tests with cmake+msvc
+
+2022/04/29: Version 6.9.8
+
+2022/04/11: implement whole option: (?C)
+2022/04/07: implement whole option: (?L)
+2022/04/04: implement whole option: (?I)
+2022/03/15: fix: Insufficient backreference matching for the same name groups
+2022/02/22: fix #250: ONIG_ESCAPE_REGEX_T_COLLISION doesn't work
+2021/10/17: Update to Unicode 14.0
+2021/08/29: fix: use CMAKE_INSTALL_LIBDIR as install lib dir, in some
+            platforms, lib could be installed in lib64 dir but the .pc file
+            is installed in lib dir.
+2021/08/22: fix: Stack overflow for some very long patterns
+2021/08/22: fix: Issue 37442 in oss-fuzz: Undefined-shift
+2021/08/05: fix #239: CMake build fails to detect alloca on some platforms
+            such as FreeBSD
+2021/08/04: CMake: Make documentation and examples optional
+2021/05/20: fix #235: 6.9.7 can't compile with Visual Studio 2005
+
+2021/04/15: Version 6.9.7 revised 1
+
+2021/04/14: fix: replace UChar to OnigUChar in oniguruma.h
+
+2021/04/14: Version 6.9.7
+
+2021/03/31: Release Candidate 1 for Version 6.9.7
+
+2021/03/23: fix Issue 32340, 32345, 32355 in oss-fuzz
+2021/03/12: fix invalid optimization info for if-pattern (?(cond)...)
+2021/02/21: NEW API: ONIG_OPTION_CALLBACK_EACH_MATCH
+2021/02/02: fix Issue 30144 in oss-fuzz: Timeout
+2021/01/18: NEW API: ONIG_SYNTAX_PYTHON
+2020/12/20: fix Issue 28795 in oss-fuzz: Timeout
+2020/12/13: fix Issue 28554 in oss-fuzz: Timeout, check very inefficient patterns at tune_tree(NODE_CALL)
+2020/12/04: fix Issue 28259 in oss-fuzz: Timeout
+2020/12/03: fix invalid reduction of nested quantifiers (?:<expr>+?)* and (?:<expr>+?)+
+2020/12/01: fix Issue 28104 in oss-fuzz: Timeout
+2020/11/28: NEW API: ONIG_OPTION_IGNORECASE_IS_ASCII
+2020/11/07: fix Issue 27015 in oss-fuzz: Timeout
+
+2020/11/05: Version 6.9.6
+
+2020/11/01: fix Issue 26798 in oss-fuzz: Timeout
+2020/10/27: fix Issue 26675 in oss-fuzz: Timeout
+
+2020/10/21: Release Candidate 4 for Version 6.9.6
+
+2020/10/20: #221: revert cbe9f8b and 8155473: Out-of-bounds write in #207 (Issues found with Coverity) is fake
+
+2020/10/16: Release Candidate 3 for Version 6.9.6
+
+2020/10/15: fix #220: autotools not building DLL using msys2 and mingw64 on windows 10
+2020/10/12: fix #219: Binary incompatibilty between 6.9.5_rev1 -> 6.9.2_rc2: reg_number_of_names
+
+2020/10/09: Release Candidate 2 for Version 6.9.6
+
+2020/10/09: fix #216: build fails on Windows
+
+2020/10/07: Release Candidate 1 for Version 6.9.6
+
+2020/09/30: add configure option --enable-binary-compatible-posix-api
+2020/09/24: fix: Issue 25893 in oss-fuzz: Stack-buffer-overflow
+2020/09/22: fix Issues found with Coverity (Issue #207)
+2020/08/27: fix Issue #204: define uint32_t and uint64_t for Visual Studio older than 2010
+2020/08/04: fix Issue 24544 in oss-fuzz: Timeout
+2020/07/21: add USE_CHECK_VALIDITY_OF_STRING_IN_TREE (fix Issue 24276 in oss-fuzz: Undefined-shift)
+2020/07/20: fix: Issue 24268 in oss-fuzz: Timeout
+2020/07/17: fix: Issue 24112 in oss-fuzz: Undefined-shift
+2020/07/14: fix: Issue 24066 in oss-fuzz: Timeout
+2020/07/05: fix: Incomplete application of ONIG_OPTION_NOTBOL to \A
+2020/07/05: fix: Incomplete application of ONIG_OPTION_NOT_END_STRING to \Z (Issue #192)
+2020/07/05: fix: Incomplete application of ONIG_OPTION_NOTEOL to \z
+2020/07/05: fix: Incomplete application of ONIG_OPTION_NOTEOL to \Z
+2020/07/01: add ONIG_OPTION_NOT_END_STRING (Issue #198)
+2020/06/28: add ONIG_OPTION_NOT_BEGIN_POSITION (Issue #198)
+2020/06/28: add ONIG_OPTION_NOT_BEGIN_STRING
+2020/06/28: fix: Issue 23754 in oss-fuzz: Timeout
+2020/06/21: fix: Issue 23525 in oss-fuzz: Timeout
+2020/06/15: fix: Issue 23311 in oss-fuzz: Timeout
+2020/06/03: fix: Issue 22925 in oss-fuzz: Index-out-of-bounds
+2020/06/03: fix: Issue 22917 in oss-fuzz: Out-of-memory
+2020/06/02: fix: Issue 22916 in oss-fuzz: Timeout
+2020/05/29: fix: Issue 22744 in oss-fuzz: Integer-overflow
+2020/05/28: fix: Issue 22658 in oss-fuzz: check backref with level
+2020/05/28: fix: Issue 22533 in oss-fuzz: memory leak
+2020/05/23: fix: Issue 22393 in oss-fuzz: Integer-overflow
+2020/05/13: fix: Issue 22154 in oss-fuzz: When the option FIND_LONGEST is specified, match_at() returns ONIG_MISMATCH unless there is no need to search any more.
+2020/05/06: Add SOVERSION info to library when using cmake
+2020/05/04: fix: 22008 in oss-fuzz
+2020/05/04: fix: 21998 in oss-fuzz
+2020/05/03: fix: 21944, 21977 in oss-fuzz
+
+2020/04/26: Version 6.9.5 revised 1
+
+2020/04/24: fix #192: Unexpected regex match
+
+2020/04/20: Version 6.9.5
+
+2020/04/12: Release Candidate 2 for Version 6.9.5
+2020/04/09: fix a problem (found by oss-fuzz test on my PC)
+2020/04/05: Release Candidate 1 for Version 6.9.5
+2020/03/30: remove src/*.py and src/*.sh from distribution files
+2020/03/27: NEW: Code point sequence notation \x{HHHH ...}, \o{OOOO ...}
+2020/03/24: NEW API: maximum nesting level of subexp call
+2020/03/22: #165: change enable-posix-api default from YES to NO
+2020/03/15: update Unicode version to 13.0.0
+2020/03/10: add test_back.c
+2020/03/08: tune output of debug in print_optimize_info()
+2020/03/02: fix #186: Allow regset search to succeed at end of string
+2020/02/13: NEW API: retry-limit-in-search functions
+2020/01/20: add ONIG_SYN_VARIABLE_LEN_LOOK_BEHIND flag
+2019/12/27: add USE_REGSET switch
+2019/12/20: remove OPTIMIZE_STR_CASE_FOLD
+2019/12/13: add test/test_syntax.c
+2019/12/13: add ONIG_SYN_ISOLATED_OPTION_CONTINUE_BRANCH flag
+
+
 2019/11/29: Version 6.9.4
 
 2019/11/22: Release Candidate 3 for Version 6.9.4
-
 2019/11/20: fix a problem found by libFuzzer test
 2019/11/14: Release Candidate 2 for Version 6.9.4
 2019/11/12: fix integer overflow by nested quantifier
@@ -602,7 +748,7 @@ History
                    Any, Assigned, C, Cc, L, Lm, Arabic, Greek etc...
 2006/09/21: [impl] add USE_UNICODE_PROPERTIES into regenc.h.
 2006/09/21: [impl] remove USE_UNICODE_FULL_RANGE_CTYPE.
-2006/09/20: [impl] change ONIGENC_CTYPE_XXXX to sequencial values.
+2006/09/20: [impl] change ONIGENC_CTYPE_XXXX to sequential values.
                    add BIT_CTYPE_XXXX bit flags to regenc.h.
                    update XXXX_CtypeTable[] for BIT_CTYPE_ALNUM.
 2006/09/19: [memo] move from CVS to Subversion (1.3.2).
@@ -1064,7 +1210,7 @@ History
 2004/12/16: [test] success in ruby 1.9.0 (2004-12-16) [i686-linux].
 2004/12/16: [dist] update hash.c.patch.
 2004/12/15: [bug]  (thanks matz)
-                   char > 127 should be casted to unsigned char. (utf8.c)
+                   char > 127 should be cast to unsigned char. (utf8.c)
 2004/12/13: [impl] add HAVE_PROTOTYPES and HAVE_STDARG_PROTOTYPES definition
                    to oniguruma.h in the case __cplusplus.
 2004/12/06: [dist] update doc/RE and doc/RE.ja.
@@ -1971,7 +2117,7 @@ History
 2003/03/08: [impl] remove check_backref_number().
 2003/03/08: [bug]  called group in 0-repeat should not be eliminated from
                    compile code.  ex. /(?*n)(?<n>){0}/   (thanks akr)
-                   add is_refered member to QualifierNode.
+                   add is_referred member to QualifierNode.
 2003/03/07: [impl] use hash table(st.[ch]) for implementation of name table.
                    (enable on Ruby in default)
 2003/03/07: [new]  add regex_foreach_names().
@@ -2024,7 +2170,7 @@ History
                    if it is set, then error /(\1)/, /\1(..)/ etc...
 2003/02/26: [spec] if backref number is greater than max group number,
                    then return compile error. (REGERR_INVALID_BACKREF_NUMBER)
-2003/02/26: [tune] bad implemented N_ALT case in get_min_match_length().
+2003/02/26: [tune] badly implemented N_ALT case in get_min_match_length().
 2003/02/26: [dist] auto update testc.c and win32/testc.c in dist target.
 2003/02/26: [impl] add -win option to testconv.rb.
 2003/02/25: [spec] allow to assign same name to different group.
@@ -2144,7 +2290,7 @@ History
 2003/01/18: [impl] change REGION_NOTPOS to REG_REGION_NOTPOS in regex.h.
 2003/01/17: [dist] add sample/simple.c.
 2003/01/17: [inst] add configure option --with-rubydir.
-2003/01/17: [bug]  bad implemeted POSIX API options.
+2003/01/17: [bug]  badly implemented POSIX API options.
                    default:     /./ not match "\n", anchor not match "\n"
                    REG_NEWLINE: /./ not match "\n", anchor match "\n"
 2003/01/16: [impl] rewrite POSIX API regexec() for speed up.
@@ -2338,10 +2484,17 @@ cvs history -T
 cvs rtag "VERSION_X_X_X" oniguruma
 
 
+<Homebrew install autotools>
+> brew install autoconf
+> brew install automake
+> brew install libtool
+
+
 <GNU Autotools: bootstrap>
 * write Makefile.am and configure.in.
+> libtoolize  or  glibtoolize
 > aclocal
-> libtoolize   or   glibtoolize
+> autoheader
 > automake --foreign --add-missing
 > autoconf
 > configure --with-rubydir=... CFLAGS="-O2 -Wall"
@@ -2355,5 +2508,14 @@ cvs rtag "VERSION_X_X_X" oniguruma
   revision: implementation number of same interface (from 0)
   age:      number of supported previous interfaces
             (if current only supported then age == 0)
+
+
+<add SHA256 checksum>
+MacOS X
+$ shasum -a 256 -b onig-X.Y.Z.tar.gz > onig-X.Y.Z.tar.gz.sha256
+
+<check SHA256 checksum>
+MacOS X
+$ shasum -a 256 -c onig-X.Y.Z.tar.gz.sha256
 
 //END

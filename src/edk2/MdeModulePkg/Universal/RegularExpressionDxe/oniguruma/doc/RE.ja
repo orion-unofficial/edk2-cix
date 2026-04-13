@@ -1,4 +1,4 @@
-鬼車 正規表現 Version 6.9.5    2020/01/28
+鬼車 正規表現 Version 6.9.9    2024/06/10
 
 使用文法: ONIG_SYNTAX_ONIGURUMA (既定値)
 
@@ -21,17 +21,26 @@
   \f              改頁             (0x0C)
   \a              鐘               (0x07)
   \e              退避修飾         (0x1B)
-  \nnn            八進数表現        符号化バイト値
-  \o{17777777777} 拡張八進数表現    コードポイント値
-  \uHHHH          拡張十六進数表現  コードポイント値
-  \xHH            十六進数表現      符号化バイト値
-  \x{7HHHHHHH}    拡張十六進数表現  コードポイント値
-  \cx             制御文字表現      コードポイント値
-  \C-x            制御文字表現      コードポイント値
-  \M-x            超  (x|0x80)     コードポイント値
-  \M-\C-x         超 + 制御文字表現 コードポイント値
+  \nnn            八進数表現                 符号化バイト値
+  \xHH            十六進数表現               符号化バイト値
+  \x{7HHHHHHH}    (1-8桁)  拡張十六進数表現  コードポイント値
+  \o{17777777777} (1-11桁) 拡張八進数表現    コードポイント値
+  \uHHHH          拡張十六進数表現           コードポイント値
+  \cx             制御文字表現               コードポイント値
+  \C-x            制御文字表現               コードポイント値
+  \M-x            超  (x|0x80)               コードポイント値
+  \M-\C-x         超 + 制御文字表現          コードポイント値
 
   ※ \bは、文字集合内でのみ有効
+
+
+2.1 コードポイント連続表記
+
+  十六進数表現コードポイント (1-8桁)
+  \x{7HHHHHHH 7HHHHHHH ... 7HHHHHHH}
+
+  八進数表現コードポイント (1-11桁)
+  \o{17777777777 17777777777 ... 17777777777}
 
 
 3. 文字種
@@ -225,24 +234,21 @@
 
     Unicodeの場合:
 
-      alnum    Letter | Mark | Decimal_Number
-      alpha    Letter | Mark
-      ascii    0000 - 007F
-      blank    Space_Separator | 0009
-      cntrl    Control | Format | Unassigned | Private_Use | Surrogate
+      alnum    Alphabetic | Decimal_Number
+      alpha    Alphabetic
+      ascii    U+0000 - U+007F
+      blank    Space_Separator | U+0009
+      cntrl    U+0000 - U+001F, U+007F - U+009F
       digit    Decimal_Number
-      graph    [[:^space:]] && ^Control && ^Unassigned && ^Surrogate
-      lower    Lowercase_Letter
-      print    [[:graph:]] | [[:space:]]
-      punct    Connector_Punctuation | Dash_Punctuation | Close_Punctuation |
-               Final_Punctuation | Initial_Punctuation | Other_Punctuation |
-               Open_Punctuation
-      space    Space_Separator | Line_Separator | Paragraph_Separator |
-               U+0009 | U+000A | U+000B | U+000C | U+000D | U+0085
-      upper    Uppercase_Letter
+      graph    ^White_Space && ^[[:cntrl:]] && ^Unassigned && ^Surrogate
+      lower    Lowercase
+      print    [[:graph:]] | Space_Separator
+      punct    Punctuation | Symbol
+      space    White_Space
+      upper    Uppercase
       xdigit   U+0030 - U+0039 | U+0041 - U+0046 | U+0061 - U+0066
                (0-9, a-f, A-F)
-      word     Letter | Mark | Decimal_Number | Connector_Punctuation
+      word     Alphabetic | Mark | Decimal_Number | Connector_Punctuation
 
 
 
@@ -275,6 +281,17 @@
                       * これは次の')'またはパターンの終わりまでのグループを形成する
                         /ab(?i)c|def|gh/ == /ab(?i:c|def|gh)/
 
+  * (?i)オプションは、wordタイプ(\w, \p{Word})には有効ではない。但しwordタイプが文字クラスの中で使用された場合は有効になる。しかし、このことはwordタイプを(?W)オプションと共に使用した時にしか気にする必要はないであろう。
+
+
+  /(?CIL).../, /(?CIL:...)/   全体オプション
+
+                            このオプションは、正規表現全体に影響を及ぼす位置
+                            に置かれなければならない
+
+                            C: ONIG_OPTION_DONT_CAPTURE_GROUP
+                            I: ONIG_OPTION_IGNORECASE_IS_ASCII
+                            L: ONIG_OPTION_FIND_LONGEST
 
   (式)              捕獲式集合
   (?:式)            非捕獲式集合
@@ -358,7 +375,7 @@
                     <不在>に適合する文字列を含まない範囲に制限される。
 
   (?~|)             範囲消去
-                    不在停止の効果を消して、それ以前の状態にする。
+                    不在停止の効果を消して、初期の状態にする。
 
      * 不在機能の入れ子には対応しておらず、その場合の挙動は不定とする。
 
@@ -527,7 +544,7 @@
    + 名前指定後方参照        \k<name>
    + 部分式呼出し            \g<name>, \g<group-num>
    + 不在式                 (?~|...|...)
-   + 不在停止               (?|...)
+   + 不在停止               (?~|...)
 
 
 補記 3. Perl 5.8.0と比較して存在しない機能

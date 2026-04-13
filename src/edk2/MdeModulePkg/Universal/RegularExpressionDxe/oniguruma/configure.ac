@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(onig, 6.9.4)
+AC_INIT(onig, 6.9.10)
 
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -7,26 +7,37 @@ AM_INIT_AUTOMAKE([-Wno-portability])
 AC_CONFIG_HEADERS([src/config.h])
 
 
-dnl default value for STATISTICS
-STATISTICS=""
 AC_ARG_WITH([statistics],
   [AS_HELP_STRING([--with-statistics],
     [take matching time statistical data])],
-  [STATISTICS=-DONIG_DEBUG_STATISTICS])
-AC_SUBST(STATISTICS)
+  AS_VAR_APPEND([CFLAGS], [" -DONIG_DEBUG_STATISTICS"]))
 
 
 dnl check for POSIX API
 AC_ARG_ENABLE([posix-api],
   [AS_HELP_STRING([--enable-posix-api],
-    [turn on to include POSIX API [default=yes]])],
+    [turn on to include POSIX API [default=no]])],
 [\
 case "${enableval}" in
  yes) enable_posix_api=yes ;;
  no)  enable_posix_api=no ;;
  *)   AC_MSG_ERROR(bad value for --enable-posix-api) ;;
 esac],
-enable_posix_api=yes)
+enable_posix_api=no)
+
+dnl check for Binary compatible POSIX API
+AC_ARG_ENABLE([binary-compatible-posix-api],
+  [AS_HELP_STRING([--enable-binary-compatible-posix-api],
+    [turn on to Binary compatible POSIX API [default=no]])],
+[\
+case "${enableval}" in
+ yes) enable_binary_compatible_posix_api=yes; enable_posix_api=yes ;;
+ no)  enable_binary_compatible_posix_api=no ;;
+ *)   AC_MSG_ERROR(bad value for --enable-binary-compatible-posix-api) ;;
+esac],
+enable_binary_compatible_posix_api=no)
+
+AM_CONDITIONAL(ENABLE_BINARY_COMPATIBLE_POSIX_API, test x"${enable_binary_compatible_posix_api}" = xyes)
 AM_CONDITIONAL(ENABLE_POSIX_API, test x"${enable_posix_api}" = xyes)
 
 
@@ -43,7 +54,7 @@ fi
 dnl Checks for programs.
 AC_PROG_CC
 LT_INIT
-LTVERSION="5:0:0"
+LTVERSION="10:0:5"
 AC_SUBST(LTVERSION)
 
 AC_PROG_INSTALL
@@ -65,4 +76,23 @@ AC_FUNC_ALLOCA
 
 AC_CONFIG_FILES([Makefile src/Makefile test/Makefile sample/Makefile onig-config])
 AC_CONFIG_COMMANDS([default],[chmod +x onig-config],[])
+
+# for Issue #220
+LIBONIG_DEF_FILE=
+FIX_TO_LDFLAGS=
+case $host_os in
+  cygwin* | mingw* )
+    if test X"$enable_shared" = Xyes; then
+      LIBONIG_DEF_FILE=libonig.def
+      FIX_TO_LDFLAGS="-no-undefined"
+    fi
+    ;;
+esac
+
+EXTRA_LIBONIG_LDFLAGS="$EXTRA_LIBONIG_LDFLAGS $FIX_TO_LDFLAGS"
+AC_SUBST(EXTRA_LIBONIG_LDFLAGS)
+
+AM_CONDITIONAL(USE_LIBONIG_DEF_FILE, test -n "${LIBONIG_DEF_FILE}")
+AC_SUBST(LIBONIG_DEF_FILE)
+
 AC_OUTPUT

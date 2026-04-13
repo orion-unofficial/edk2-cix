@@ -4,7 +4,7 @@
   regint.h -  Oniguruma (regular expression library)
 **********************************************************************/
 /*-
- * Copyright (c) 2002-2020  K.Kosako
+ * Copyright (c) 2002-2024  K.Kosako
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,18 +34,25 @@
 /* #define ONIG_DEBUG_COMPILE */
 /* #define ONIG_DEBUG_SEARCH */
 /* #define ONIG_DEBUG_MATCH */
+/* #define ONIG_DEBUG_MATCH_COUNTER */
+/* #define ONIG_DEBUG_CALL */
 /* #define ONIG_DONT_OPTIMIZE */
+/* #define ONIG_DEBUG */
 
 /* for byte-code statistical data. */
 /* #define ONIG_DEBUG_STATISTICS */
 
 #if defined(ONIG_DEBUG_PARSE) || defined(ONIG_DEBUG_MATCH) || \
     defined(ONIG_DEBUG_SEARCH) || defined(ONIG_DEBUG_COMPILE) || \
+    defined(ONIG_DEBUG_MATCH_COUNTER) || defined(ONIG_DEBUG_CALL) || \
     defined(ONIG_DEBUG_STATISTICS)
 #ifndef ONIG_DEBUG
 #define ONIG_DEBUG
-#define DBGFP   stderr
 #endif
+#endif
+
+#ifdef ONIG_DEBUG
+#define DBGFP   stderr
 #endif
 
 #ifndef ONIG_DISABLE_DIRECT_THREADING
@@ -54,13 +61,23 @@
 #endif
 #endif
 
+#ifndef ONIG_PRINTFLIKE
+#if defined(__clang__) || defined(__GNUC__)
+#define ONIG_PRINTFLIKE(x, y) __attribute__((format(printf, x, y)))
+#else
+#define ONIG_PRINTFLIKE(x, y)
+#endif
+#endif
+
 /* config */
 /* spec. config */
 #define USE_REGSET
 #define USE_CALL
 #define USE_CALLOUT
+#define USE_SKIP_SEARCH
 #define USE_BACKREF_WITH_LEVEL        /* \k<name+n>, \k<name-n> */
-#define USE_STUBBORN_CHECK_CAPTURES_IN_EMPTY_REPEAT     /* /(?:()|())*\2/ */
+#define USE_WHOLE_OPTIONS
+#define USE_RIGID_CHECK_CAPTURES_IN_EMPTY_REPEAT        /* /(?:()|())*\2/ */
 #define USE_NEWLINE_AT_END_OF_STRING_HAS_EMPTY_LINE     /* /\n$/ =~ "\n" */
 #define USE_WARNING_REDUNDANT_NESTED_REPEAT_OPERATOR
 #define USE_RETRY_LIMIT
@@ -70,24 +87,30 @@
 #endif
 
 /* internal config */
+#define USE_CHECK_VALIDITY_OF_STRING_IN_TREE
 #define USE_OP_PUSH_OR_JUMP_EXACT
 #define USE_QUANT_PEEK_NEXT
 #define USE_ST_LIBRARY
 #define USE_TIMEOFDAY
+#define USE_STRICT_POINTER_ADDRESS
+#define USE_STRICT_POINTER_COMPARISON
 
 #define USE_WORD_BEGIN_END   /* "\<", "\>" */
 #define USE_CAPTURE_HISTORY
 #define USE_VARIABLE_META_CHARS
-#define USE_POSIX_API_REGION_OPTION
 #define USE_FIND_LONGEST_SEARCH_ALL_OF_RANGE
 /* #define USE_REPEAT_AND_EMPTY_CHECK_LOCAL_VAR */
 
+/* enabled by configure --enable-posix-api=yes */
+/* #define USE_POSIX_API */
+
+#define DEFAULT_PARSE_DEPTH_LIMIT           4096
 #define INIT_MATCH_STACK_SIZE                160
 #define DEFAULT_MATCH_STACK_LIMIT_SIZE         0 /* unlimited */
 #define DEFAULT_RETRY_LIMIT_IN_MATCH    10000000
 #define DEFAULT_RETRY_LIMIT_IN_SEARCH          0 /* unlimited */
-#define DEFAULT_PARSE_DEPTH_LIMIT           4096
-#define SUBEXP_CALL_MAX_NEST_LEVEL            16
+#define DEFAULT_SUBEXP_CALL_LIMIT_IN_SEARCH    0 /* unlimited */
+#define DEFAULT_SUBEXP_CALL_MAX_NEST_LEVEL    20
 
 
 #include "regenc.h"
@@ -105,7 +128,7 @@
 #include <stdint.h>
 #endif
 
-#if defined(HAVE_ALLOCA_H) && !defined(__GNUC__)
+#if defined(HAVE_ALLOCA_H)
 #include <alloca.h>
 #endif
 
@@ -181,6 +204,12 @@
 #define CHECK_NULL_RETURN_MEMERR(p)   if (IS_NULL(p)) return ONIGERR_MEMORY
 #define NULL_UCHARP                   ((UChar* )0)
 
+#ifdef USE_STRICT_POINTER_COMPARISON
+#define PTR_GE(p,q)   ((p) != NULL && (p) >= (q))
+#else
+#define PTR_GE(p,q)   (p) >= (q)
+#endif
+
 #ifndef ONIG_INT_MAX
 #define ONIG_INT_MAX    INT_MAX
 #endif
@@ -255,11 +284,22 @@
 
 
 #ifdef _WIN32
-#if defined(_MSC_VER) && (_MSC_VER < 1300)
+#ifdef _MSC_VER
+
+#if _MSC_VER < 1300
 typedef int           intptr_t;
 typedef unsigned int  uintptr_t;
 #endif
+
+#if _MSC_VER < 1600
+typedef __int32 int32_t;
+typedef unsigned __int32 uint32_t;
+typedef __int64 int64_t;
+typedef unsigned __int64 uint64_t;
 #endif
+
+#endif
+#endif /* _WIN32 */
 
 #if SIZEOF_VOIDP == SIZEOF_LONG
 typedef unsigned long hash_data_type;
@@ -364,10 +404,10 @@ typedef unsigned int  MemStatusType;
   (IS_CODE_DIGIT_ASCII(enc,code) ? DIGITVAL(code) \
    : (ONIGENC_IS_CODE_UPPER(enc,code) ? (code) - 'A' + 10 : (code) - 'a' + 10))
 
+#define OPTON_CALLBACK_EACH_MATCH(option) \
+        ((option) & ONIG_OPTION_CALLBACK_EACH_MATCH)
 #define OPTON_FIND_LONGEST(option)   ((option) & ONIG_OPTION_FIND_LONGEST)
 #define OPTON_FIND_NOT_EMPTY(option) ((option) & ONIG_OPTION_FIND_NOT_EMPTY)
-#define OPTON_FIND_CONDITION(option) ((option) & \
-          (ONIG_OPTION_FIND_LONGEST | ONIG_OPTION_FIND_NOT_EMPTY))
 #define OPTON_NEGATE_SINGLELINE(option) ((option) & \
                                           ONIG_OPTION_NEGATE_SINGLELINE)
 #define OPTON_DONT_CAPTURE_GROUP(option) ((option) & \
@@ -378,9 +418,11 @@ typedef unsigned int  MemStatusType;
 #define OPTON_POSIX_REGION(option)   ((option) & ONIG_OPTION_POSIX_REGION)
 #define OPTON_CHECK_VALIDITY_OF_STRING(option)  ((option) & \
                                       ONIG_OPTION_CHECK_VALIDITY_OF_STRING)
+#define OPTON_NOT_BEGIN_STRING(option)    ((option) & ONIG_OPTION_NOT_BEGIN_STRING)
+#define OPTON_NOT_END_STRING(option)      ((option) & ONIG_OPTION_NOT_END_STRING)
+#define OPTON_NOT_BEGIN_POSITION(option)  ((option) & ONIG_OPTION_NOT_BEGIN_POSITION)
+#define OPTON_MATCH_WHOLE_STRING(option)  ((option) & ONIG_OPTION_MATCH_WHOLE_STRING)
 
-#define DISABLE_CASE_FOLD_MULTI_CHAR(case_fold_flag) \
-  ((case_fold_flag) & ~INTERNAL_ONIGENC_CASE_FOLD_MULTI_CHAR)
 
 #define INFINITE_REPEAT         -1
 #define IS_INFINITE_REPEAT(n)   ((n) == INFINITE_REPEAT)
@@ -409,81 +451,6 @@ typedef Bits*     BitSetRef;
 #define BITSET_SET_BIT(bs, pos)     BS_ROOM(bs,pos) |= BS_BIT(pos)
 #define BITSET_CLEAR_BIT(bs, pos)   BS_ROOM(bs,pos) &= ~(BS_BIT(pos))
 #define BITSET_INVERT_BIT(bs, pos)  BS_ROOM(bs,pos) ^= BS_BIT(pos)
-
-/* bytes buffer */
-typedef struct _BBuf {
-  UChar* p;
-  unsigned int used;
-  unsigned int alloc;
-} BBuf;
-
-#define BB_INIT(buf,size)    bbuf_init((BBuf* )(buf), (size))
-
-#define BB_EXPAND(buf,low) do{\
-  do { (buf)->alloc *= 2; } while ((buf)->alloc < (unsigned int )low);\
-  (buf)->p = (UChar* )xrealloc((buf)->p, (buf)->alloc);\
-  if (IS_NULL((buf)->p)) return(ONIGERR_MEMORY);\
-} while (0)
-
-#define BB_ENSURE_SIZE(buf,size) do{\
-  unsigned int new_alloc = (buf)->alloc;\
-  while (new_alloc < (unsigned int )(size)) { new_alloc *= 2; }\
-  if ((buf)->alloc != new_alloc) {\
-    (buf)->p = (UChar* )xrealloc((buf)->p, new_alloc);\
-    if (IS_NULL((buf)->p)) return(ONIGERR_MEMORY);\
-    (buf)->alloc = new_alloc;\
-  }\
-} while (0)
-
-#define BB_WRITE(buf,pos,bytes,n) do{\
-  int used = (pos) + (n);\
-  if ((buf)->alloc < (unsigned int )used) BB_EXPAND((buf),used);\
-  xmemcpy((buf)->p + (pos), (bytes), (n));\
-  if ((buf)->used < (unsigned int )used) (buf)->used = used;\
-} while (0)
-
-#define BB_WRITE1(buf,pos,byte) do{\
-  int used = (pos) + 1;\
-  if ((buf)->alloc < (unsigned int )used) BB_EXPAND((buf),used);\
-  (buf)->p[(pos)] = (byte);\
-  if ((buf)->used < (unsigned int )used) (buf)->used = used;\
-} while (0)
-
-#define BB_ADD(buf,bytes,n)       BB_WRITE((buf),(buf)->used,(bytes),(n))
-#define BB_ADD1(buf,byte)         BB_WRITE1((buf),(buf)->used,(byte))
-#define BB_GET_ADD_ADDRESS(buf)   ((buf)->p + (buf)->used)
-#define BB_GET_OFFSET_POS(buf)    ((buf)->used)
-
-/* from < to */
-#define BB_MOVE_RIGHT(buf,from,to,n) do {\
-  if ((unsigned int )((to)+(n)) > (buf)->alloc) BB_EXPAND((buf),(to) + (n));\
-  xmemmove((buf)->p + (to), (buf)->p + (from), (n));\
-  if ((unsigned int )((to)+(n)) > (buf)->used) (buf)->used = (to) + (n);\
-} while (0)
-
-/* from > to */
-#define BB_MOVE_LEFT(buf,from,to,n) do {\
-  xmemmove((buf)->p + (to), (buf)->p + (from), (n));\
-} while (0)
-
-/* from > to */
-#define BB_MOVE_LEFT_REDUCE(buf,from,to) do {\
-  xmemmove((buf)->p + (to), (buf)->p + (from), (buf)->used - (from));\
-  (buf)->used -= (from - to);\
-} while (0)
-
-#define BB_INSERT(buf,pos,bytes,n) do {\
-  if (pos >= (buf)->used) {\
-    BB_WRITE(buf,pos,bytes,n);\
-  }\
-  else {\
-    BB_MOVE_RIGHT((buf),(pos),(pos) + (n),((buf)->used - (pos)));\
-    xmemcpy((buf)->p + (pos), (bytes), (n));\
-  }\
-} while (0)
-
-#define BB_GET_BYTE(buf, pos) (buf)->p[(pos)]
-
 
 /* has body */
 #define ANCR_PREC_READ        (1<<0)
@@ -516,8 +483,8 @@ typedef struct _BBuf {
 /* operation code */
 enum OpCode {
   OP_FINISH = 0,  /* matching process terminator (no more alternative) */
-  OP_END    = 1,  /* pattern code terminator (success end) */
-  OP_STR_1 = 2,   /* single byte, N = 1 */
+  OP_END,         /* pattern code terminator (success end) */
+  OP_STR_1,       /* single byte, N = 1 */
   OP_STR_2,       /* single byte, N = 2 */
   OP_STR_3,       /* single byte, N = 3 */
   OP_STR_4,       /* single byte, N = 4 */
@@ -562,10 +529,14 @@ enum OpCode {
   OP_BACKREF_N_IC,
   OP_BACKREF_MULTI,
   OP_BACKREF_MULTI_IC,
+#ifdef USE_BACKREF_WITH_LEVEL
   OP_BACKREF_WITH_LEVEL,        /* \k<xxx+n>, \k<xxx-n> */
   OP_BACKREF_WITH_LEVEL_IC,     /* \k<xxx+n>, \k<xxx-n> */
+#endif
   OP_BACKREF_CHECK,             /* (?(n)), (?('name')) */
+#ifdef USE_BACKREF_WITH_LEVEL
   OP_BACKREF_CHECK_WITH_LEVEL,  /* (?(n-level)), (?('name-level')) */
+#endif
   OP_MEM_START,
   OP_MEM_START_PUSH,     /* push back-tracker to stack */
   OP_MEM_END_PUSH,       /* push back-tracker to stack */
@@ -853,6 +824,7 @@ typedef struct {
     } empty_check_start;
     struct {
       MemNumType mem;
+      MemStatusType empty_status_mem;
     } empty_check_end; /* EMPTY_CHECK_END, EMPTY_CHECK_END_MEMST, EMPTY_CHECK_END_MEMST_PUSH */
     struct {
       RelAddrType addr;
@@ -891,6 +863,9 @@ typedef struct {
     } update_var;
     struct {
       AbsAddrType addr;
+#if defined(ONIG_DEBUG_MATCH_COUNTER) || defined(ONIG_DEBUG_CALL)
+      MemNumType called_mem;
+#endif
     } call;
 #ifdef USE_CALLOUT
     struct {
@@ -943,7 +918,6 @@ struct re_pattern_buffer {
   MemStatusType  capture_history;  /* (?@...) flag (1-31) */
   MemStatusType  push_mem_start;   /* need backtrack flag */
   MemStatusType  push_mem_end;     /* need backtrack flag */
-  MemStatusType  empty_status_mem;
   int            stack_pop_level;
   int            repeat_range_alloc;
   RepeatRange*   repeat_range;
@@ -979,7 +953,7 @@ struct re_pattern_buffer {
 extern void onig_add_end_call(void (*func)(void));
 extern void onig_warning(const char* s);
 extern UChar* onig_error_code_to_format P_((int code));
-extern void ONIG_VARIADIC_FUNC_ATTR onig_snprintf_with_pattern PV_((UChar buf[], int bufsize, OnigEncoding enc, UChar* pat, UChar* pat_end, const UChar *fmt, ...));
+extern void ONIG_VARIADIC_FUNC_ATTR ONIG_PRINTFLIKE(6, 7) onig_snprintf_with_pattern PV_((UChar buf[], int bufsize, OnigEncoding enc, UChar* pat, UChar* pat_end, const char *fmt, ...));
 extern int onig_compile P_((regex_t* reg, const UChar* pattern, const UChar* pattern_end, OnigErrorInfo* einfo));
 extern int onig_is_code_in_cc_len P_((int enclen, OnigCodePoint code, void* /* CClassNode* */ cc));
 extern RegexExt* onig_get_regex_ext(regex_t* reg);

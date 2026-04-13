@@ -2,7 +2,7 @@
   regerror.c -  Oniguruma (regular expression library)
 **********************************************************************/
 /*-
- * Copyright (c) 2002-2020  K.Kosako
+ * Copyright (c) 2002-2022  K.Kosako
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,6 +56,8 @@ onig_error_code_to_format(int code)
     p = "retry-limit-in-match over"; break;
   case ONIGERR_RETRY_LIMIT_IN_SEARCH_OVER:
     p = "retry-limit-in-search over"; break;
+  case ONIGERR_SUBEXP_CALL_LIMIT_IN_SEARCH_OVER:
+    p = "subexp-call-limit-in-search over"; break;
   case ONIGERR_TYPE_BUG:
     p = "undefined type (bug)"; break;
   case ONIGERR_PARSER_BUG:
@@ -66,8 +68,8 @@ onig_error_code_to_format(int code)
     p = "undefined bytecode (bug)"; break;
   case ONIGERR_UNEXPECTED_BYTECODE:
     p = "unexpected bytecode (bug)"; break;
-  case ONIGERR_DEFAULT_ENCODING_IS_NOT_SETTED:
-    p = "default multibyte-encoding is not setted"; break;
+  case ONIGERR_DEFAULT_ENCODING_IS_NOT_SET:
+    p = "default multibyte-encoding is not set"; break;
   case ONIGERR_SPECIFIED_ENCODING_CANT_CONVERT_TO_WIDE_CHAR:
     p = "can't convert to wide-char on specified multibyte-encoding"; break;
   case ONIGERR_FAIL_TO_INITIALIZE:
@@ -112,6 +114,8 @@ onig_error_code_to_format(int code)
     p = "end pattern in group"; break;
   case ONIGERR_UNDEFINED_GROUP_OPTION:
     p = "undefined group option"; break;
+  case ONIGERR_INVALID_GROUP_OPTION:
+    p = "invalid group option"; break;
   case ONIGERR_INVALID_POSIX_BRACKET_TYPE:
     p = "invalid POSIX bracket type"; break;
   case ONIGERR_INVALID_LOOK_BEHIND_PATTERN:
@@ -144,6 +148,8 @@ onig_error_code_to_format(int code)
     p = "too big wide-char value"; break;
   case ONIGERR_TOO_LONG_WIDE_CHAR_VALUE:
     p = "too long wide-char value"; break;
+  case ONIGERR_UNDEFINED_OPERATOR:
+    p = "undefined operator"; break;
   case ONIGERR_INVALID_CODE_POINT_VALUE:
     p = "invalid code point value"; break;
   case ONIGERR_EMPTY_GROUP_NAME:
@@ -188,6 +194,8 @@ onig_error_code_to_format(int code)
     p = "not supported encoding combination"; break;
   case ONIGERR_INVALID_COMBINATION_OF_OPTIONS:
     p = "invalid combination of options"; break;
+  case ONIGERR_VERY_INEFFICIENT_PATTERN:
+    p = "very inefficient pattern"; break;
   case ONIGERR_LIBRARY_IS_NOT_INITIALIZED:
     p = "library is not initialized"; break;
 
@@ -344,7 +352,7 @@ onig_error_code_to_str(UChar* s, int code, ...)
 
 void ONIG_VARIADIC_FUNC_ATTR
 onig_snprintf_with_pattern(UChar buf[], int bufsize, OnigEncoding enc,
-                           UChar* pat, UChar* pat_end, const UChar *fmt, ...)
+                           UChar* pat, UChar* pat_end, const char *fmt, ...)
 {
   int n, need, len;
   UChar *p, *s, *bp;
@@ -352,7 +360,7 @@ onig_snprintf_with_pattern(UChar buf[], int bufsize, OnigEncoding enc,
   va_list args;
 
   va_start(args, fmt);
-  n = xvsnprintf((char* )buf, bufsize, (const char* )fmt, args);
+  n = xvsnprintf((char* )buf, bufsize, fmt, args);
   va_end(args);
 
   need = (int )(pat_end - pat) * 4 + 4;

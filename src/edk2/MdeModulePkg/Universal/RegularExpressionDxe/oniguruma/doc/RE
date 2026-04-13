@@ -1,6 +1,6 @@
-Oniguruma Regular Expressions Version 6.9.5    2020/01/28
+Oniguruma Regular Expressions Version 6.9.9    2024/06/10
 
-syntax: ONIG_SYNTAX_ONIGURUMA (default)
+syntax: ONIG_SYNTAX_ONIGURUMA (default syntax)
 
 
 1. Syntax elements
@@ -21,17 +21,26 @@ syntax: ONIG_SYNTAX_ONIGURUMA (default)
   \f           form feed              (0x0C)
   \a           bell                   (0x07)
   \e           escape                 (0x1B)
-  \nnn         octal char             (encoded byte value)
-  \o{17777777777} wide octal char     (character code point value)
-  \uHHHH       wide hexadecimal char  (character code point value)
-  \xHH         hexadecimal char       (encoded byte value)
-  \x{7HHHHHHH} wide hexadecimal char  (character code point value)
-  \cx          control char           (character code point value)
-  \C-x         control char           (character code point value)
-  \M-x         meta  (x|0x80)         (character code point value)
-  \M-\C-x      meta control char      (character code point value)
+  \nnn         octal char                    (encoded byte value)
+  \xHH         hexadecimal char              (encoded byte value)
+  \x{7HHHHHHH} (1-8 digits) hexadecimal char (code point value)
+  \o{17777777777} (1-11 digits) octal char   (code point value)
+  \uHHHH       hexadecimal char              (code point value)
+  \cx          control char                  (code point value)
+  \C-x         control char                  (code point value)
+  \M-x         meta  (x|0x80)                (code point value)
+  \M-\C-x      meta control char             (code point value)
 
  (* \b as backspace is effective in character class only)
+
+
+2.1 Code point sequences
+
+  Hexadecimal code point  (1-8 digits)
+  \x{7HHHHHHH 7HHHHHHH ... 7HHHHHHH}
+
+  Octal code point  (1-11 digits)
+  \o{17777777777 17777777777 ... 17777777777}
 
 
 3. Character types
@@ -228,24 +237,21 @@ syntax: ONIG_SYNTAX_ONIGURUMA (default)
 
     Unicode Case:
 
-      alnum    Letter | Mark | Decimal_Number
-      alpha    Letter | Mark
-      ascii    0000 - 007F
-      blank    Space_Separator | 0009
-      cntrl    Control | Format | Unassigned | Private_Use | Surrogate
+      alnum    Alphabetic | Decimal_Number
+      alpha    Alphabetic
+      ascii    U+0000 - U+007F
+      blank    Space_Separator | U+0009
+      cntrl    U+0000 - U+001F, U+007F - U+009F
       digit    Decimal_Number
-      graph    [[:^space:]] && ^Control && ^Unassigned && ^Surrogate
-      lower    Lowercase_Letter
-      print    [[:graph:]] | [[:space:]]
-      punct    Connector_Punctuation | Dash_Punctuation | Close_Punctuation |
-               Final_Punctuation | Initial_Punctuation | Other_Punctuation |
-               Open_Punctuation
-      space    Space_Separator | Line_Separator | Paragraph_Separator |
-               U+0009 | U+000A | U+000B | U+000C | U+000D | U+0085
-      upper    Uppercase_Letter
+      graph    ^White_Space && ^[[:cntrl:]] && ^Unassigned && ^Surrogate
+      lower    Lowercase
+      print    [[:graph:]] | Space_Separator
+      punct    Punctuation | Symbol
+      space    White_Space
+      upper    Uppercase
       xdigit   U+0030 - U+0039 | U+0041 - U+0046 | U+0061 - U+0066
                (0-9, a-f, A-F)
-      word     Letter | Mark | Decimal_Number | Connector_Punctuation
+      word     Alphabetic | Mark | Decimal_Number | Connector_Punctuation
 
 
 
@@ -279,6 +285,17 @@ syntax: ONIG_SYNTAX_ONIGURUMA (default)
                       * It makes a group to the next ')' or end of the pattern.
                         /ab(?i)c|def|gh/ == /ab(?i:c|def|gh)/
 
+  * (?i) option has no effect on word types (\w, \p{Word}). However, if the word types are used within a character class, it is valid. But, this would only be a concern when word types are used with the (?W) option.
+
+
+  /(?CIL).../, /(?CIL:...)/   whole option
+
+                            This option must be placed in a position that
+                            affects the entire regular expression.
+
+                            C: ONIG_OPTION_DONT_CAPTURE_GROUP
+                            I: ONIG_OPTION_IGNORECASE_IS_ASCII
+                            L: ONIG_OPTION_FIND_LONGEST
 
   (?:subexp)         non-capturing group
   (subexp)           capturing group
@@ -357,7 +374,7 @@ syntax: ONIG_SYNTAX_ONIGURUMA (default)
 
   (?~|absent)        Absent stopper (* original)
                      After passed this operator, string right range is limited
-                     at the point that does not include the string match whth
+                     at the point that does not include the string match with
                      <absent>.
 
   (?~|)              Range clear
@@ -520,7 +537,7 @@ A-2. Original extensions
    + named backref                   \k<name>
    + subexp call                     \g<name>, \g<group-num>
    + absent expression               (?~|...|...)
-   + absent stopper                  (?|...)
+   + absent stopper                  (?~|...)
 
 
 A-3. Missing features compared with perl 5.8.0

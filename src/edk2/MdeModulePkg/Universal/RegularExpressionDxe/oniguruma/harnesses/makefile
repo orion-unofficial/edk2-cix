@@ -1,4 +1,8 @@
 # makefile for harness
+DEBUG_OUT =
+#DEBUG_OUT = -DONIG_DEBUG_PARSE -DONIG_DEBUG_COMPILE
+#DEBUG_OUT = -DONIG_DEBUG_PARSE -DONIG_DEBUG_COMPILE -DONIG_DEBUG_MATCH_COUNTER
+
 SRC = ../src
 CFLAGS   = -I$(SRC) -Wall -g -fsanitize=fuzzer,address -fno-omit-frame-pointer
 CFLAGS_M = -I$(SRC) -Wall -g -fsanitize=fuzzer-no-link,address -fno-omit-frame-pointer -DSTANDALONE
@@ -12,7 +16,8 @@ TARGETS = fuzzer-encode fuzzer-syntax fuzzer-utf16-be fuzzer-utf16-le \
 OTHER_TARGETS = libfuzzer-onig libfuzzer-onig-full fuzzer-deluxe read-deluxe
 
 
-default: $(TARGETS)
+#default: $(TARGETS)
+default: read-syntax
 
 fuzzer-encode: base.c $(ONIG_LIB)
 	clang $(CFLAGS) $< $(LIBS) -o $@
@@ -60,7 +65,7 @@ libfuzzer-onig-full: libfuzzer-onig.cpp $(ONIG_LIB)
 $(ONIG_LIB):
 	cd ..; make clean
 	#cd ..; autoreconf -vfi
-	cd ..; ./configure CC=clang LD=clang CFLAGS="-g -fsanitize=address -fno-omit-frame-pointer" LDFLAGS="-g -fsanitize=address -fno-omit-frame-pointer"
+	cd ..; ./configure CC=clang LD=clang CFLAGS="-g -fsanitize=address -fno-omit-frame-pointer $(DEBUG_OUT)" LDFLAGS="-g -fsanitize=address -fno-omit-frame-pointer"
 	cd ..; make -j4
 
 
