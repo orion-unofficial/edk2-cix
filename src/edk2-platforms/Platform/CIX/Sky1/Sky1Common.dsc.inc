@@ -756,7 +756,7 @@
 !if $(DIAGS_KERNEL_ENABLE) == TRUE
   Edk2OverridePkg/ArmPkg/Drivers/ArmGic/ArmGicDxe.inf
 !else
-  ArmPkg/Drivers/ArmGic/ArmGicDxe.inf
+  ArmPkg/Drivers/ArmGicDxe/ArmGicDxe.inf
 !endif
 
   ArmPkg/Drivers/TimerDxe/TimerDxe.inf

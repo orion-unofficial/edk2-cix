@@ -139,7 +139,7 @@
 !if $(DIAGS_KERNEL_ENABLE) == TRUE
   INF Edk2OverridePkg/ArmPkg/Drivers/ArmGic/ArmGicDxe.inf
 !else
-  INF ArmPkg/Drivers/ArmGic/ArmGicDxe.inf
+  INF ArmPkg/Drivers/ArmGicDxe/ArmGicDxe.inf
 !endif
   INF ArmPkg/Drivers/TimerDxe/TimerDxe.inf
 !if $(POWER_BUTTON_ENABLE) == TRUE
