@@ -9,6 +9,16 @@
         title  = STRING_TOKEN(STR_PCIE_FORM_SET_TITLE);
         subtitle text = STRING_TOKEN(STR_EMPTY_STRING);
 
+#ifdef ENABLE_FIRMWARE_FIXES
+        oneof varid     = RadxaSetupVar.PcieDeviceModel,
+            prompt      = STRING_TOKEN(STR_PCIE_DEVICE_MODEL_PROMPT),
+            help        = STRING_TOKEN(STR_PCIE_DEVICE_MODEL_HELP),
+            default     = 0,
+            option text = STRING_TOKEN(STR_PCIE_DEVICE_MODEL_LINUX), value = 0, flags = RESET_REQUIRED;
+            option text = STRING_TOKEN(STR_PCIE_DEVICE_MODEL_CIX),   value = 1, flags = RESET_REQUIRED;
+        endoneof;
+#endif
+
 #if (EXPERIMENTAL_UEFI_SETTINGS_O6_ONLY_ENABLE == TRUE)
         oneof varid     = ExperimentalPcieSrIovSetupVar.SrIovSupport,
             prompt      = STRING_TOKEN(STR_PCIE_SRIOV_PROMPT),
@@ -71,7 +81,7 @@ suppressif ideqval PlatformSetupVar.PcieRpEnable[0] == 0x0;
             option text = STRING_TOKEN (STR_GEN3), value = 2, flags = RESET_REQUIRED;
             option text = STRING_TOKEN (STR_GEN4), value = 3, flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieTargetLinkSpeed[0],
             prompt      = STRING_TOKEN(STR_LINK_SPEED_PROMPT),
             help        = STRING_TOKEN(STR_LINK_SPEED_HELP),
@@ -81,7 +91,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_8_0G), value = 3, flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_16_0G),value = 4, flags = RESET_REQUIRED;
         endoneof;
-endif;
+#endif
         oneof varid     = PlatformSetupVar.PcieAspmMaxSupport[0],
             prompt      = STRING_TOKEN(STR_PCIE_ASPM_CONFIG_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_ASPM_CONFIG_HELP),
@@ -91,7 +101,7 @@ endif;
             option text = STRING_TOKEN(STR_PCIE_ASPM_L1_STRING),    value = 2, flags = RESET_REQUIRED;
             //option text = STRING_TOKEN(STR_PCIE_ASPM_L0SL1_STRING), value = 3, flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieAspm[0],
             prompt      = STRING_TOKEN(STR_PCIE_ASPM_PROMPT0),
             help        = STRING_TOKEN(STR_PCIE_ASPM_HELP),
@@ -107,7 +117,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_PCIE_ASPM_L0SL1_STRING), value = 3, flags = RESET_REQUIRED;
             endif;
         endoneof;
-endif;
+#endif
         oneof varid     = PlatformSetupVar.PcieMaxPayload[0],
             prompt      = STRING_TOKEN(STR_PCIE_MAX_PAYLOAD_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_MAX_PAYLOAD_HELP),
@@ -116,7 +126,7 @@ endif;
             option text = STRING_TOKEN(STR_MAX_256),  value = 1,    flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_MAX_512),  value = 2,    flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieMaxReadRequest[0],
             prompt      = STRING_TOKEN(STR_PCIE_MAX_READ_REQUEST_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_MAX_READ_REQUEST_HELP),
@@ -136,7 +146,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_DISABLED), value = 0, flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_ENABLED),  value = 1, flags = RESET_REQUIRED;
         endoneof;
-endif;
+#endif
         numeric varid   = PlatformSetupVar.PcieLinkTimeout[0],
             questionid = 0x3000,
             prompt  = STRING_TOKEN(STR_PCIE_LINK_TIMEOUT_PROMPT),
@@ -184,7 +194,7 @@ suppressif ideqval PlatformSetupVar.PcieRpEnable[1] == 0x0;
             option text = STRING_TOKEN (STR_GEN3), value = 2, flags = RESET_REQUIRED;
             option text = STRING_TOKEN (STR_GEN4), value = 3, flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieTargetLinkSpeed[1],
             prompt      = STRING_TOKEN(STR_LINK_SPEED_PROMPT),
             help        = STRING_TOKEN(STR_LINK_SPEED_HELP),
@@ -194,7 +204,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_8_0G), value = 3, flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_16_0G),value = 4, flags = RESET_REQUIRED;
         endoneof;
-endif;
+#endif
         oneof varid     = PlatformSetupVar.PcieAspmMaxSupport[1],
             prompt      = STRING_TOKEN(STR_PCIE_ASPM_CONFIG_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_ASPM_CONFIG_HELP),
@@ -204,7 +214,7 @@ endif;
             option text = STRING_TOKEN(STR_PCIE_ASPM_L1_STRING),    value = 2, flags = RESET_REQUIRED;
             //option text = STRING_TOKEN(STR_PCIE_ASPM_L0SL1_STRING), value = 3, flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieAspm[1],
             prompt      = STRING_TOKEN(STR_PCIE_ASPM_PROMPT1),
             help        = STRING_TOKEN(STR_PCIE_ASPM_HELP),
@@ -220,7 +230,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_PCIE_ASPM_L0SL1_STRING), value = 3, flags = RESET_REQUIRED;
             endif;
         endoneof;
-endif;
+#endif
         oneof varid     = PlatformSetupVar.PcieMaxPayload[1],
             prompt      = STRING_TOKEN(STR_PCIE_MAX_PAYLOAD_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_MAX_PAYLOAD_HELP),
@@ -229,7 +239,7 @@ endif;
             option text = STRING_TOKEN(STR_MAX_256),  value = 1,    flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_MAX_512),  value = 2,    flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieMaxReadRequest[1],
             prompt      = STRING_TOKEN(STR_PCIE_MAX_READ_REQUEST_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_MAX_READ_REQUEST_HELP),
@@ -249,7 +259,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_DISABLED), value = 0, flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_ENABLED),  value = 1, flags = RESET_REQUIRED;
         endoneof;
-endif;
+#endif
         numeric varid   = PlatformSetupVar.PcieLinkTimeout[1],
             questionid = 0x3001,
             prompt  = STRING_TOKEN(STR_PCIE_LINK_TIMEOUT_PROMPT),
@@ -296,7 +306,7 @@ suppressif ideqval PlatformSetupVar.PcieRpEnable[2] == 0x0;
             option text = STRING_TOKEN (STR_GEN3), value = 2, flags = RESET_REQUIRED;
             option text = STRING_TOKEN (STR_GEN4), value = 3, flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieTargetLinkSpeed[2],
             prompt      = STRING_TOKEN(STR_LINK_SPEED_PROMPT),
             help        = STRING_TOKEN(STR_LINK_SPEED_HELP),
@@ -306,7 +316,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_8_0G), value = 3, flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_16_0G),value = 4, flags = RESET_REQUIRED;
         endoneof;
-endif;
+#endif
         oneof varid     = PlatformSetupVar.PcieAspmMaxSupport[2],
             prompt      = STRING_TOKEN(STR_PCIE_ASPM_CONFIG_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_ASPM_CONFIG_HELP),
@@ -316,7 +326,7 @@ endif;
             option text = STRING_TOKEN(STR_PCIE_ASPM_L1_STRING),    value = 2, flags = RESET_REQUIRED;
             //option text = STRING_TOKEN(STR_PCIE_ASPM_L0SL1_STRING), value = 3, flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieAspm[2],
             prompt      = STRING_TOKEN(STR_PCIE_ASPM_PROMPT2),
             help        = STRING_TOKEN(STR_PCIE_ASPM_HELP),
@@ -332,7 +342,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_PCIE_ASPM_L0SL1_STRING), value = 3, flags = RESET_REQUIRED;
             endif;
         endoneof;
-endif;
+#endif
         oneof varid     = PlatformSetupVar.PcieMaxPayload[2],
             prompt      = STRING_TOKEN(STR_PCIE_MAX_PAYLOAD_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_MAX_PAYLOAD_HELP),
@@ -341,7 +351,7 @@ endif;
             option text = STRING_TOKEN(STR_MAX_256),  value = 1,    flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_MAX_512),  value = 2,    flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieMaxReadRequest[2],
             prompt      = STRING_TOKEN(STR_PCIE_MAX_READ_REQUEST_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_MAX_READ_REQUEST_HELP),
@@ -361,7 +371,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_DISABLED), value = 0, flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_ENABLED),  value = 1, flags = RESET_REQUIRED;
         endoneof;
-endif;
+#endif
         numeric varid   = PlatformSetupVar.PcieLinkTimeout[2],
             questionid = 0x3002,
             prompt  = STRING_TOKEN(STR_PCIE_LINK_TIMEOUT_PROMPT),
@@ -407,7 +417,7 @@ suppressif ideqval PlatformSetupVar.PcieRpEnable[3] == 0x0;
             option text = STRING_TOKEN (STR_GEN3), value = 2, flags = RESET_REQUIRED;
             option text = STRING_TOKEN (STR_GEN4), value = 3, flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieTargetLinkSpeed[3],
             prompt      = STRING_TOKEN(STR_LINK_SPEED_PROMPT),
             help        = STRING_TOKEN(STR_LINK_SPEED_HELP),
@@ -417,7 +427,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_8_0G), value = 3, flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_16_0G),value = 4, flags = RESET_REQUIRED;
         endoneof;
-endif;
+#endif
         oneof varid     = PlatformSetupVar.PcieAspmMaxSupport[3],
             prompt      = STRING_TOKEN(STR_PCIE_ASPM_CONFIG_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_ASPM_CONFIG_HELP),
@@ -427,7 +437,7 @@ endif;
             option text = STRING_TOKEN(STR_PCIE_ASPM_L1_STRING),    value = 2, flags = RESET_REQUIRED;
             //option text = STRING_TOKEN(STR_PCIE_ASPM_L0SL1_STRING), value = 3, flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieAspm[3],
             prompt      = STRING_TOKEN(STR_PCIE_ASPM_PROMPT3),
             help        = STRING_TOKEN(STR_PCIE_ASPM_HELP),
@@ -443,7 +453,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_PCIE_ASPM_L0SL1_STRING), value = 3, flags = RESET_REQUIRED;
             endif;
         endoneof;
-endif;
+#endif
         oneof varid     = PlatformSetupVar.PcieMaxPayload[3],
             prompt      = STRING_TOKEN(STR_PCIE_MAX_PAYLOAD_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_MAX_PAYLOAD_HELP),
@@ -452,7 +462,7 @@ endif;
             option text = STRING_TOKEN(STR_MAX_256),  value = 1,    flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_MAX_512),  value = 2,    flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieMaxReadRequest[3],
             prompt      = STRING_TOKEN(STR_PCIE_MAX_READ_REQUEST_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_MAX_READ_REQUEST_HELP),
@@ -472,7 +482,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_DISABLED), value = 0, flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_ENABLED),  value = 1, flags = RESET_REQUIRED;
         endoneof;
-endif;
+#endif
         numeric varid   = PlatformSetupVar.PcieLinkTimeout[3],
             questionid = 0x3003,
             prompt  = STRING_TOKEN(STR_PCIE_LINK_TIMEOUT_PROMPT),
@@ -518,7 +528,7 @@ suppressif ideqval PlatformSetupVar.PcieRpEnable[4] == 0x0;
             option text = STRING_TOKEN (STR_GEN3), value = 2, flags = RESET_REQUIRED;
             option text = STRING_TOKEN (STR_GEN4), value = 3, flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieTargetLinkSpeed[4],
             prompt      = STRING_TOKEN(STR_LINK_SPEED_PROMPT),
             help        = STRING_TOKEN(STR_LINK_SPEED_HELP),
@@ -528,7 +538,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_8_0G), value = 3, flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_16_0G),value = 4, flags = RESET_REQUIRED;
         endoneof;
-endif;
+#endif
         oneof varid     = PlatformSetupVar.PcieAspmMaxSupport[4],
             prompt      = STRING_TOKEN(STR_PCIE_ASPM_CONFIG_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_ASPM_CONFIG_HELP),
@@ -538,7 +548,7 @@ endif;
             option text = STRING_TOKEN(STR_PCIE_ASPM_L1_STRING),    value = 2, flags = RESET_REQUIRED;
             //option text = STRING_TOKEN(STR_PCIE_ASPM_L0SL1_STRING), value = 3, flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieAspm[4],
             prompt      = STRING_TOKEN(STR_PCIE_ASPM_PROMPT4),
             help        = STRING_TOKEN(STR_PCIE_ASPM_HELP),
@@ -554,7 +564,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_PCIE_ASPM_L0SL1_STRING), value = 3, flags = RESET_REQUIRED;
             endif;
         endoneof;
-endif;
+#endif
         oneof varid     = PlatformSetupVar.PcieMaxPayload[4],
             prompt      = STRING_TOKEN(STR_PCIE_MAX_PAYLOAD_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_MAX_PAYLOAD_HELP),
@@ -563,7 +573,7 @@ endif;
             option text = STRING_TOKEN(STR_MAX_256),  value = 1,    flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_MAX_512),  value = 2,    flags = RESET_REQUIRED;
         endoneof;
-suppressif TRUE;
+#if 0
         oneof varid     = PlatformSetupVar.PcieMaxReadRequest[4],
             prompt      = STRING_TOKEN(STR_PCIE_MAX_READ_REQUEST_PROMPT),
             help        = STRING_TOKEN(STR_PCIE_MAX_READ_REQUEST_HELP),
@@ -583,7 +593,7 @@ suppressif TRUE;
             option text = STRING_TOKEN(STR_DISABLED), value = 0, flags = RESET_REQUIRED;
             option text = STRING_TOKEN(STR_ENABLED),  value = 1, flags = RESET_REQUIRED;
         endoneof;
-endif;
+#endif
         numeric varid   = PlatformSetupVar.PcieLinkTimeout[4],
             questionid = 0x3004,
             prompt  = STRING_TOKEN(STR_PCIE_LINK_TIMEOUT_PROMPT),
