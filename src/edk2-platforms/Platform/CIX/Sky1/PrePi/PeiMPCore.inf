@@ -70,8 +70,6 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString
 
 [FixedPcd]
-  gArmTokenSpaceGuid.PcdVFPEnabled
-
   gArmTokenSpaceGuid.PcdFdBaseAddress
   gArmTokenSpaceGuid.PcdFdSize
 
@@ -101,3 +99,6 @@
   gEmbeddedTokenSpaceGuid.PcdMemoryTypeEfiBootServicesData
   gEmbeddedTokenSpaceGuid.PcdMemoryTypeEfiLoaderCode
   gEmbeddedTokenSpaceGuid.PcdMemoryTypeEfiLoaderData
+
+[FixedPcd.ARM]
+  gArmTokenSpaceGuid.PcdVFPEnabled
