@@ -85,6 +85,45 @@ SKY1_PLATFORM_REPOSITORY_INFO  Sky1PlatformRepositoryInfo = {
 STATIC BOOLEAN               CppcEnable = TRUE;
 STATIC CM_CIX_CPU_TOPO_INFO  mCpuTopoInfo;
 
+#if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
+#if defined (ENABLE_CORE_ORDER_CONVENTIONAL) && defined (ENABLE_CORE_ORDER_PERFORMANCE)
+#error "ENABLE_CORE_ORDER_CONVENTIONAL and ENABLE_CORE_ORDER_PERFORMANCE are mutually exclusive"
+#endif
+
+#ifdef ENABLE_CORE_ORDER_PERFORMANCE
+STATIC CONST UINT32  mPerformanceCoreOrderUidMap[PLAT_CPU_COUNT] = {
+  8,  9, 10, 11, 4, 5, 6, 7, 2, 3, 0, 1
+};
+#endif
+
+STATIC
+UINT32
+GetExposedCpuUid (
+  IN UINT32  CoreId,
+  IN UINT32  FirmwareUid
+  )
+{
+#ifdef ENABLE_CORE_ORDER_CONVENTIONAL
+  //
+  // Keep the alternative UID policy in one place so future verified ordering
+  // tweaks can update a single helper instead of several ACPI generators.
+  //
+  ASSERT (CoreId < PLAT_CPU_COUNT);
+  return CoreId;
+#elif defined (ENABLE_CORE_ORDER_PERFORMANCE)
+  //
+  // Match the performance-first UID policy used by the Unlocked tree while
+  // keeping the remap centralized here rather than spreading ordering logic
+  // across individual ACPI generators.
+  //
+  ASSERT (CoreId < PLAT_CPU_COUNT);
+  return mPerformanceCoreOrderUidMap[CoreId];
+#else
+  return FirmwareUid;
+#endif
+}
+#endif
+
 VOID
 EFIAPI
 SetCpuMaxFreqOnExitBootService (
@@ -250,15 +289,15 @@ InitializeCmArmCpcInfo (
   IN  CONST EDKII_CONFIGURATION_MANAGER_PROTOCOL  *CONST  This
   )
 {
-  EFI_STATUS       Status;
-  CM_ARM_CPC_INFO  *CpuCpcInfo;
-  UINT32           HighestPerf;
-  UINT32           NominalPerf;
-  UINT32           LowestNonlinearPerf;
-  UINT32           LowestPerf;
-  UINT32           i;
-  UINT32           CpuCoreMask, MaxCpuCoreNum;
-  UINT32           CpcGranularity;
+  EFI_STATUS               Status;
+  CM_ARCH_COMMON_CPC_INFO  *CpuCpcInfo;
+  UINT32                   HighestPerf;
+  UINT32                   NominalPerf;
+  UINT32                   LowestNonlinearPerf;
+  UINT32                   LowestPerf;
+  UINT32                   i;
+  UINT32                   CpuCoreMask, MaxCpuCoreNum;
+  UINT32                   CpcGranularity;
 
   GetCpuCoreMask (&CpuCoreMask, &MaxCpuCoreNum);
 
@@ -319,6 +358,9 @@ InitializeCmCixCpuTopoInfo (
   CpuTopology                    *CpuTopo = NULL;
   CIX_CLUSTER_TOPO               *CixClusterTopo;
   CIX_CPU_CORE                   *CixCoreTopo;
+#if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
+  UINT32                         FirmwareUid;
+#endif
 
   CpuCoreEnableIndex = 0;
   GetValidCpuCoreNum (&CpuCoreNum);
@@ -347,7 +389,12 @@ InitializeCmCixCpuTopoInfo (
     for (CoreIndex = 0; CoreIndex < mCpuTopoInfo.ClusterTopo[ClusterIndex].CoreNumber; CoreIndex++) {
       CixCoreTopo         = &CixClusterTopo->Core[CoreIndex];
       CixCoreTopo->Coreid = CpuTopo->SocketTopo[0].ClusterTopo[ClusterIndex].Core[CoreIndex].Coreid;
+#if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
+      FirmwareUid         = CpuTopo->SocketTopo[0].ClusterTopo[ClusterIndex].Core[CoreIndex].Uid;
+      CixCoreTopo->Uid    = GetExposedCpuUid (CixCoreTopo->Coreid, FirmwareUid);
+#else
       CixCoreTopo->Uid    = CpuTopo->SocketTopo[0].ClusterTopo[ClusterIndex].Core[CoreIndex].Uid;
+#endif
       CixCoreTopo->Enable = ConfigData->Cpu.CoreEnable[CpuCoreEnableIndex];
       CpuCoreEnableIndex++;
     }
@@ -374,6 +421,9 @@ InitializeCmArmGiccInfo (
   EFI_STATUS                     Status;
   SKY1_PLATFORM_REPOSITORY_INFO  *PlatformRepo;
   UINT8                          ClusterIndex, CoreIndex, GicCIndex, CpuCoreNum;
+#if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
+  UINT32                         UidIndex;
+#endif
   CIX_CLUSTER_TOPO               *ClusterTopo;
   CIX_CPU_CORE                   *CpuCore;
   CM_ARM_GICC_INFO               DefalutGicCInfo[PLAT_CPU_COUNT] = PLAT_GIC_CPU_INTERFACE;
@@ -395,16 +445,31 @@ InitializeCmArmGiccInfo (
     ClusterTopo = &PlatformRepo->CpuTopoInfo->ClusterTopo[ClusterIndex];
     for (CoreIndex = 0; CoreIndex < ClusterTopo->CoreNumber; CoreIndex++) {
       CpuCore = &ClusterTopo->Core[CoreIndex];
+#if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
+      UidIndex = CpuCore->Uid;
+      ASSERT (UidIndex < CpuCoreNum);
 
+      PlatformRepo->GicCInfo[UidIndex]                    = DefalutGicCInfo[CpuCore->Coreid];
+      PlatformRepo->GicCInfo[UidIndex].CPUInterfaceNumber = 0;
+      PlatformRepo->GicCInfo[UidIndex].AcpiProcessorUid   = CpuCore->Uid;
+      PlatformRepo->GicCInfo[UidIndex].CpcToken           = CppcEnable ? (CM_OBJECT_TOKEN)&PlatformRepo->CpuCpcInfo[CpuCore->Coreid] : CM_NULL_TOKEN;
+      if (!CpuCore->Enable) {
+        PlatformRepo->GicCInfo[UidIndex].Flags &= ~EFI_ACPI_6_2_GIC_ENABLED;
+      }
+
+      PlatformRepo->CpuUidtoCoreNumberMap[UidIndex] = CpuCore->Coreid;
+#else
       PlatformRepo->GicCInfo[GicCIndex]                    = DefalutGicCInfo[CpuCore->Coreid];
       PlatformRepo->GicCInfo[GicCIndex].CPUInterfaceNumber = 0;
       PlatformRepo->GicCInfo[GicCIndex].AcpiProcessorUid   = CpuCore->Uid;
+      PlatformRepo->GicCInfo[GicCIndex].CpcToken           = CppcEnable ? (CM_OBJECT_TOKEN)&PlatformRepo->CpuCpcInfo[CpuCore->Coreid] : CM_NULL_TOKEN;
       if (!CpuCore->Enable) {
         PlatformRepo->GicCInfo[GicCIndex].Flags &= ~EFI_ACPI_6_2_GIC_ENABLED;
       }
 
       PlatformRepo->CpuUidtoCoreNumberMap[GicCIndex] = CpuCore->Coreid;
       GicCIndex++;
+#endif
     }
   }
 
@@ -428,7 +493,7 @@ InitializePlatformRepository (
   EFI_EVENT                          Event  = NULL;
   CIX_CONFIG_PARAMS_MANAGE_PROTOCOL  *ConfigManage;
   CONFIG_PARAMS_DATA_BLOCK           *ConfigData                   = NULL;
-  CM_ARM_CPC_INFO                    CpuCpcInfoPcc[PLAT_CPU_COUNT] = PLAT_CPC_INFO_PCC;
+  CM_ARCH_COMMON_CPC_INFO            CpuCpcInfoPcc[PLAT_CPU_COUNT] = PLAT_CPC_INFO_PCC;
 
   CpuTopology  *CpuTopo = NULL;
 
@@ -699,6 +764,75 @@ GetCixNameSpaceObject (
 **/
 EFI_STATUS
 EFIAPI
+GetArchCommonNameSpaceObject (
+  IN  CONST EDKII_CONFIGURATION_MANAGER_PROTOCOL  *CONST  This,
+  IN  CONST CM_OBJECT_ID                                  CmObjectId,
+  IN  CONST CM_OBJECT_TOKEN                               Token OPTIONAL,
+  IN  OUT   CM_OBJ_DESCRIPTOR                     *CONST  CmObject
+  )
+{
+  EFI_STATUS                     Status;
+  SKY1_PLATFORM_REPOSITORY_INFO  *PlatformRepo;
+  UINT32                         Index;
+
+  Status = EFI_SUCCESS;
+  if ((This == NULL) || (CmObject == NULL)) {
+    ASSERT (This != NULL);
+    ASSERT (CmObject != NULL);
+    return EFI_INVALID_PARAMETER;
+  }
+
+  PlatformRepo = This->PlatRepoInfo;
+
+  switch (GET_CM_OBJECT_ID (CmObjectId)) {
+    case EArchCommonObjCpcInfo:
+      if (!CppcEnable) {
+        return EFI_NOT_FOUND;
+      }
+
+      if (Token == CM_NULL_TOKEN) {
+        return HandleCmObject (
+                 CmObjectId,
+                 &PlatformRepo->CpuCpcInfo,
+                 PLAT_CPU_COUNT * sizeof (CM_ARCH_COMMON_CPC_INFO),
+                 PLAT_CPU_COUNT,
+                 CmObject
+                 );
+      }
+
+      for (Index = 0; Index < PLAT_CPU_COUNT; Index++) {
+        if (Token == (CM_OBJECT_TOKEN)&PlatformRepo->CpuCpcInfo[Index]) {
+          CmObject->ObjectId = CmObjectId;
+          CmObject->Size     = sizeof (PlatformRepo->CpuCpcInfo[Index]);
+          CmObject->Data     = (VOID *)&PlatformRepo->CpuCpcInfo[Index];
+          CmObject->Count    = 1;
+          return EFI_SUCCESS;
+        }
+      }
+
+      Status = EFI_NOT_FOUND;
+      break;
+
+    default:
+    {
+      Status = EFI_NOT_FOUND;
+      DEBUG (
+        (
+         DEBUG_ERROR,
+         "WARNING: Object 0x%x. Status = %r\n",
+         CmObjectId,
+         Status
+        )
+        );
+      break;
+    }
+  }
+
+  return Status;
+}
+
+EFI_STATUS
+EFIAPI
 GetArmNameSpaceObject (
   IN  CONST EDKII_CONFIGURATION_MANAGER_PROTOCOL  *CONST  This,
   IN  CONST CM_OBJECT_ID                                  CmObjectId,
@@ -757,20 +891,6 @@ GetArmNameSpaceObject (
                  &PlatformRepo->GicItsInfo,
                  sizeof (PlatformRepo->GicItsInfo),
                  PLAT_GIC_ITS_COUNT,
-                 CmObject
-                 );
-      break;
-
-    case EArmObjCpcInfo:
-      if (!CppcEnable) {
-        return EFI_NOT_FOUND;
-      }
-
-      Status = HandleCmObject (
-                 CmObjectId,
-                 &PlatformRepo->CpuCpcInfo,
-                 PLAT_CPU_COUNT*sizeof (CM_ARM_CPC_INFO),
-                 PLAT_CPU_COUNT,
                  CmObject
                  );
       break;
@@ -878,6 +998,9 @@ Sky1PlatformGetObject (
   switch (GET_CM_NAMESPACE_ID (CmObjectId)) {
     case EObjNameSpaceStandard:
       Status = GetStandardNameSpaceObject (This, CmObjectId, Token, CmObject);
+      break;
+    case EObjNameSpaceArchCommon:
+      Status = GetArchCommonNameSpaceObject (This, CmObjectId, Token, CmObject);
       break;
     case EObjNameSpaceArm:
       Status = GetArmNameSpaceObject (This, CmObjectId, Token, CmObject);
