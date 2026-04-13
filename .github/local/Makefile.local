@@ -36,6 +36,7 @@ BUILDBOX_ENV = \
 PROJECT ?= edk2-cix
 ARTEFACT_MODE ?= custom
 ENABLE_FIRMWARE_FIXES ?=
+ENABLE_CORE_ORDER ?=
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS ?=
 DEBUG_ON_UART3 ?=
 UART3_ENABLE ?=
@@ -51,6 +52,8 @@ FIRMWARE_STAGE_ROOT ?= $(REPO_ROOT)/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE
 FIRMWARE_INSTALL_ROOT ?= /boot/efi/firmware/radxa
 FIRMWARE_ARCHIVE_ROOT ?= $(REPO_ROOT)/dist
 FIRMWARE_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)
+FIPTOOL_BUILD_DIR ?= $(REPO_ROOT)/src/tools/arm-trusted-firmware-fiptool/build
+FIPTOOL_DISTRO_STAMP ?= $(FIPTOOL_BUILD_DIR)/.buildbox-distro
 FIRMWARE_VALIDATION_PROFILE ?= upstream-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(REPO_ROOT)/build-validation
 MONOREPO_META_ROOT ?=
@@ -68,6 +71,7 @@ DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT := $(if $(filter TRUE,$(DEBUG_VERBOSE_NO
 DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED),$(DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT))
 ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW := $(if $(strip $(ENABLE_FIRMWARE_FIXES)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_FIRMWARE_FIXES)" 2>/dev/null || printf '%s' __INVALID__),)
 ENABLE_FIRMWARE_FIXES_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW)),,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW))
+ENABLE_CORE_ORDER_NORMALIZED := $(if $(strip $(ENABLE_CORE_ORDER)),$(shell printf '%s' '$(ENABLE_CORE_ORDER)' | tr '[:upper:]' '[:lower:]'),)
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW := $(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" 2>/dev/null || printf '%s' __INVALID__),)
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW)),,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW))
 FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW := $(if $(strip $(FIRMWARE_VALIDATE_ON_BUILD)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(FIRMWARE_VALIDATE_ON_BUILD)" 2>/dev/null || printf '%s' __INVALID__),)
@@ -94,6 +98,7 @@ ACT_CLEAN_KEEP ?=
 SRC_COMMON_ARGS = \
 	ARTEFACT_MODE="$(ARTEFACT_MODE)" \
 	$(if $(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED)),ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES_NORMALIZED)") \
+	$(if $(strip $(ENABLE_CORE_ORDER_NORMALIZED)),ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER_NORMALIZED)") \
 	$(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)),ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)") \
 	$(if $(strip $(DEBUG_ON_UART3_NORMALIZED)),DEBUG_ON_UART3="$(DEBUG_ON_UART3_NORMALIZED)") \
 	$(if $(strip $(UART3_ENABLE_EFFECTIVE)),UART3_ENABLE="$(UART3_ENABLE_EFFECTIVE)") \
@@ -166,6 +171,7 @@ define PRINT_TOP_LEVEL_USER_VARIABLES
 	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG firmware build.\nDefault: RELEASE.'; \
 	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Select the default distro family for buildbox runs and deterministic replay.\nDefault: bookworm.'; \
 	print_help_line '  ENABLE_FIRMWARE_FIXES=true|false' 'Custom-only: enable the opt-in firmware fixes bundle (ACPI fixes, DSU PMU exposure, PCIe mode selector, and conservative PPTT cache topology) for O6/O6N.\nDefault: false.'; \
+	print_help_line '  ENABLE_CORE_ORDER=cix|conventional|performance' 'Custom-only companion to ENABLE_FIRMWARE_FIXES. '\''cix'\'' preserves the vendor/default CPU UID order; '\''conventional'\'' remaps CPU UIDs to little-cores-first order; '\''performance'\'' remaps CPU UIDs to a highest-performance-first order.\nDefault: unset, which behaves like '\''cix'\''.'; \
 	print_help_line '  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Custom-only: enable the experimental Radxa UEFI settings overlay for O6/O6N, with SR-IOV remaining O6-only.\nDefault: false.'; \
 	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: expose UART3 to ACPI and mux its header pins as UART instead of GPIO.\nDefault: false.'; \
 	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
@@ -322,12 +328,15 @@ preflight-wrapper-common:
 			--profile-file "$(VALIDATION_PROFILE_FILE)" \
 			--v "$(V)" \
 			--artefact-mode "$(ARTEFACT_MODE)"); \
-		if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ]; then \
-			validate_cmd+=(--enable-firmware-fixes "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))"); \
-		fi; \
-		if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
-			validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
-		fi; \
+	if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-firmware-fixes "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-core-order "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
+	fi; \
 		if [ -n "$(strip $(FIRMWARE_TARGET))" ]; then \
 			validate_cmd+=(--firmware-target "$(strip $(FIRMWARE_TARGET))"); \
 		fi; \
@@ -355,12 +364,15 @@ preflight-wrapper-firmware-build: preflight-wrapper-common
 			--firmware-target "$(FIRMWARE_TARGET)" \
 			--firmware-board "$(FIRMWARE_BOARD)" \
 			--firmware-validate-on-build "$(FIRMWARE_VALIDATE_ON_BUILD)"); \
-		if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ]; then \
-			validate_cmd+=(--enable-firmware-fixes "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))"); \
-		fi; \
-		if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
-			validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
-		fi; \
+	if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-firmware-fixes "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-core-order "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
+	fi; \
 		if [ -n "$(strip $(FIRMWARE_VALIDATION_PROFILE))" ] && [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
 			validate_cmd+=(--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" --validation-board "$(FIRMWARE_BOARD)" --validation-target "$(RAW_FIRMWARE_TARGET)"); \
 		fi; \
@@ -379,12 +391,15 @@ preflight-wrapper-validation: preflight-wrapper-common
 			--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" \
 			--validation-board "$(FIRMWARE_BOARD)" \
 			--validation-target "$(RAW_FIRMWARE_TARGET)"); \
-		if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ]; then \
-			validate_cmd+=(--enable-firmware-fixes "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))"); \
-		fi; \
-		if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
-			validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
-		fi; \
+	if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-firmware-fixes "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-core-order "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
+	fi; \
 		"$${validate_cmd[@]}"
 
 preflight-wrapper-buildbox:
@@ -426,15 +441,42 @@ preflight-wrapper-replay: preflight-wrapper-buildbox
 	fi; \
 	"$${validate_cmd[@]}"
 
-.PHONY: build-edk2 firmware-build firmware-stage install zip targz validate-firmware validate-firmware-strict check-offline-audit-baselines audit-final-image-manifest audit-acpi-regression refresh-offline-audit-baselines audit-bundle capture-validation-profile deterministic-replay gha-act-list gha-act-dry-run gha-act-run gha-act-run-clean buildbox-up buildbox-deb buildbox-firmware-build buildbox-firmware-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile buildbox-metadata
+.PHONY: build-edk2 firmware-build firmware-stage install zip targz validate-firmware validate-firmware-strict check-offline-audit-baselines audit-final-image-manifest audit-acpi-regression refresh-offline-audit-baselines audit-bundle capture-validation-profile deterministic-replay gha-act-list gha-act-dry-run gha-act-run gha-act-run-clean buildbox-up buildbox-deb buildbox-firmware-build buildbox-firmware-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile buildbox-metadata prepare-buildbox-fiptool record-buildbox-fiptool-distro
 build-edk2: preflight-wrapper-common
 firmware-build firmware-stage install zip targz: preflight-wrapper-firmware-build
 validate-firmware validate-firmware-strict refresh-offline-audit-baselines audit-final-image-manifest audit-acpi-regression audit-bundle capture-validation-profile: preflight-wrapper-validation
 deterministic-replay: preflight-wrapper-replay
-buildbox-up buildbox-deb: preflight-wrapper-buildbox
+buildbox-up: preflight-wrapper-buildbox
+buildbox-deb: preflight-wrapper-buildbox prepare-buildbox-fiptool
 buildbox-metadata: preflight-wrapper-common preflight-wrapper-buildbox
-buildbox-firmware-build buildbox-firmware-log buildbox-firmware-stage buildbox-zip buildbox-targz: preflight-wrapper-firmware-build preflight-wrapper-buildbox
+buildbox-firmware-build buildbox-firmware-log buildbox-firmware-stage buildbox-zip buildbox-targz: preflight-wrapper-firmware-build preflight-wrapper-buildbox prepare-buildbox-fiptool
 buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile: preflight-wrapper-validation preflight-wrapper-buildbox
+
+prepare-buildbox-fiptool:
+	@set -euo pipefail; \
+	fiptool_build_dir="$(FIPTOOL_BUILD_DIR)"; \
+	stamp_path="$(FIPTOOL_DISTRO_STAMP)"; \
+	requested_distro="$(FIRMWARE_DISTRO)"; \
+	clean_reason=""; \
+	if [ ! -d "$$fiptool_build_dir" ]; then \
+		exit 0; \
+	fi; \
+	if [ -f "$$stamp_path" ]; then \
+		built_distro="$$(cat "$$stamp_path")"; \
+		if [ "$$built_distro" != "$$requested_distro" ]; then \
+			clean_reason="built for $$built_distro"; \
+		fi; \
+	elif find "$$fiptool_build_dir" -type f -name fiptool -print -quit | grep -q . && [ "$$requested_distro" = "bookworm" ]; then \
+		clean_reason="existing build predates distro stamp"; \
+	fi; \
+	if [ -n "$$clean_reason" ]; then \
+		printf '[buildbox] Removing stale fiptool build (%s) before %s run\n' "$$clean_reason" "$$requested_distro"; \
+		rm -rf "$$fiptool_build_dir"; \
+	fi
+
+record-buildbox-fiptool-distro:
+	@mkdir -p "$(FIPTOOL_BUILD_DIR)"
+	@printf '%s\n' "$(FIRMWARE_DISTRO)" >"$(FIPTOOL_DISTRO_STAMP)"
 
 .PHONY: build-edk2 __build-edk2
 build-edk2:
@@ -953,6 +995,7 @@ buildbox-deb:
 __buildbox-deb:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" --dep-profile packaging \
 		make --no-print-directory deb V="$(V)"
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
 	@printf '[output] Debian packages available under %s\n' "$(BUILDBOX_DEB_RESULT_ROOT)"
 
 .PHONY: buildbox-firmware-build __buildbox-firmware-build
@@ -962,6 +1005,7 @@ buildbox-firmware-build:
 __buildbox-firmware-build:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-build V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
 		$(BUILDBOX_FIRMWARE_ARGS)
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
 	@printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)"
 
 .PHONY: buildbox-firmware-log __buildbox-firmware-log
@@ -972,6 +1016,7 @@ __buildbox-firmware-log:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/capture_build_log.sh" "$(BUILD_LOG_ROOT)" \
 		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
 		make --no-print-directory firmware-build V="$(V)" $(BUILDBOX_FIRMWARE_ARGS)
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
 
 .PHONY: buildbox-firmware-stage __buildbox-firmware-stage
 buildbox-firmware-stage:
@@ -980,6 +1025,7 @@ buildbox-firmware-stage:
 __buildbox-firmware-stage:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-stage V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
 		$(BUILDBOX_FIRMWARE_ARGS)
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
 	@printf '[output] Staged firmware payload available under %s\n' "$(FIRMWARE_STAGE_ROOT)"
 
 .PHONY: buildbox-zip __buildbox-zip
@@ -989,6 +1035,7 @@ buildbox-zip:
 __buildbox-zip:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory zip V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
 		$(BUILDBOX_FIRMWARE_ARGS)
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
 	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
 
 .PHONY: buildbox-targz __buildbox-targz
@@ -998,6 +1045,7 @@ buildbox-targz:
 __buildbox-targz:
 	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory targz V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
 		$(BUILDBOX_FIRMWARE_ARGS)
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
 	@printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
 
 .PHONY: buildbox-validate-firmware __buildbox-validate-firmware

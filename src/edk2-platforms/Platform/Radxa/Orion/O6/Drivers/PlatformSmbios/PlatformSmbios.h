@@ -13,8 +13,13 @@
 #include <Protocol/Smbios.h>
 #include <IndustryStandard/SmBios.h>
 
+#ifdef ENABLE_FIRMWARE_FIXES
+#define PLATFORM_SMBIOS_TABLE_HOOK  AddSmbiosType0,AddSmbiosType1,AddSmbiosType2,AddSmbiosType3,AddSmbiosType32
+#define PLATFORM_SMBIOS_TABLE_NAME  "AddSmbiosType0","AddSmbiosType1","AddSmbiosType2","AddSmbiosType3","AddSmbiosType32"
+#else
 #define PLATFORM_SMBIOS_TABLE_HOOK  AddSmbiosType0,AddSmbiosType1,AddSmbiosType2,AddSmbiosType3,AddSmbiosType4,AddSmbiosType7,AddSmbiosType32
 #define PLATFORM_SMBIOS_TABLE_NAME  "AddSmbiosType0","AddSmbiosType1","AddSmbiosType2","AddSmbiosType3","AddSmbiosType4","AddSmbiosType7","AddSmbiosType32"
+#endif
 
 typedef EFI_STATUS (ADD_PLATFORM_SMBIOS_TABLE)(
   IN EFI_SMBIOS_PROTOCOL  *Smbios
