@@ -24,6 +24,10 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #string STR_PCIERP2_OPTIONS_FORM_HELP           #language en-US "Configure PCIe Port 2. This port is routed to the M.2 E-key Wi-Fi/Bluetooth slot. Default: enabled, x2, Gen4."
 #string STR_PCIERP3_OPTIONS_FORM_HELP           #language en-US "Configure PCIe Port 4. This port is routed to an onboard Ethernet controller. Default: enabled, x1, Gen4."
 #string STR_PCIERP4_OPTIONS_FORM_HELP           #language en-US "Configure PCIe Port 3. This port is routed to an onboard Ethernet controller. Default: enabled, x1, Gen4."
+#string STR_PCIE_DEVICE_MODEL_PROMPT            #language en-US "PCIe Device Model"
+#string STR_PCIE_DEVICE_MODEL_HELP              #language en-US "Choose which ACPI PCIe device model firmware exposes to the OS. Linux exposes standard PNP0A08 root bridges and is the safest choice for upstream kernels. CIX exposes Cadence-style CIXH2020 devices for vendor kernels and may require an initramfs that rescans PCIe before NVMe root storage becomes visible."
+#string STR_PCIE_DEVICE_MODEL_LINUX             #language en-US "Linux (PNP0A08)"
+#string STR_PCIE_DEVICE_MODEL_CIX               #language en-US "CIX (CIXH2020)"
 
 #string STR_ENABLED                             #language en-US "Enabled"
 #string STR_DISABLED                            #language en-US "Disabled"
