@@ -2434,7 +2434,7 @@ XhcGetElapsedTicks (
     // Counter counts upwards, check for an overflow condition
     //
     if (*PreviousTick > CurrentTick) {
-      Delta = (mXhciPerformanceCounterEndValue - *PreviousTick) + CurrentTick;
+      Delta = (CurrentTick - mXhciPerformanceCounterStartValue) + (mXhciPerformanceCounterEndValue - *PreviousTick);
     } else {
       Delta = CurrentTick - *PreviousTick;
     }
@@ -2443,7 +2443,7 @@ XhcGetElapsedTicks (
     // Counter counts downwards, check for an underflow condition
     //
     if (*PreviousTick < CurrentTick) {
-      Delta = (mXhciPerformanceCounterStartValue - CurrentTick) + *PreviousTick;
+      Delta = (mXhciPerformanceCounterStartValue - CurrentTick) + (*PreviousTick - mXhciPerformanceCounterEndValue);
     } else {
       Delta = *PreviousTick - CurrentTick;
     }
