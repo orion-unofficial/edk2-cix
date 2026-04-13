@@ -80,6 +80,131 @@ GetValidProcTopoNodeNum (
   return ValidNodeCount;
 }
 
+#ifdef ENABLE_FIRMWARE_FIXES
+#define CIX_A520_MAX_CORE_ID              3U
+#define CIX_PPTT_PACKAGE_RESOURCE_COUNT   1U
+#define CIX_PPTT_PRIVATE_RESOURCE_COUNT   2U
+#define CIX_PPTT_CACHE_LINE_SIZE          64U
+#define CIX_PPTT_A520_L1_SIZE             SIZE_32KB
+#define CIX_PPTT_A520_L1_SETS             128U
+#define CIX_PPTT_A520_L1_ASSOCIATIVITY    4U
+#define CIX_PPTT_A720_L1_SIZE             SIZE_64KB
+#define CIX_PPTT_A720_L1_SETS             256U
+#define CIX_PPTT_A720_L1_ASSOCIATIVITY    4U
+#define CIX_PPTT_A720_L2_SIZE             SIZE_512KB
+#define CIX_PPTT_A720_L2_SETS             1024U
+#define CIX_PPTT_A720_L2_ASSOCIATIVITY    8U
+#define CIX_PPTT_SHARED_L3_SIZE           (12U * SIZE_1MB)
+#define CIX_PPTT_SHARED_L3_SETS           16384U
+#define CIX_PPTT_SHARED_L3_ASSOCIATIVITY  12U
+
+STATIC
+BOOLEAN
+IsA520Core (
+  IN CONST CIX_CPU_CORE  *CpuCore
+  )
+{
+  ASSERT (CpuCore != NULL);
+  return (BOOLEAN)(CpuCore->Coreid <= CIX_A520_MAX_CORE_ID);
+}
+
+STATIC
+UINT32
+GetProcTopologyTableSize (
+  IN CM_CIX_CPU_TOPO_INFO  *CpuTopoInfo
+  )
+{
+  UINT32            ClusterIndex;
+  UINT32            CoreIndex;
+  UINT32            TableSize;
+  CIX_CLUSTER_TOPO  *ClusterTopo;
+
+  TableSize = sizeof (EFI_ACPI_6_3_PROCESSOR_PROPERTIES_TOPOLOGY_TABLE_HEADER) +
+              sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR) +
+              (CIX_PPTT_PACKAGE_RESOURCE_COUNT * sizeof (UINT32));
+
+  for (ClusterIndex = 0; ClusterIndex < CpuTopoInfo->ClusterNumber; ClusterIndex++) {
+    ClusterTopo = &CpuTopoInfo->ClusterTopo[ClusterIndex];
+    if (GetClusterValidCoreNum (ClusterTopo) == 0) {
+      continue;
+    }
+
+    TableSize += sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR);
+    for (CoreIndex = 0; CoreIndex < ClusterTopo->CoreNumber; CoreIndex++) {
+      if (!ClusterTopo->Core[CoreIndex].Enable) {
+        continue;
+      }
+
+      TableSize += sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR) +
+                   (CIX_PPTT_PRIVATE_RESOURCE_COUNT * sizeof (UINT32));
+    }
+  }
+
+  return TableSize;
+}
+
+STATIC
+UINT32
+GetCacheStructCount (
+  IN CM_CIX_CPU_TOPO_INFO  *CpuTopoInfo
+  )
+{
+  UINT32            ClusterIndex;
+  UINT32            CoreIndex;
+  UINT32            CacheCount;
+  CIX_CLUSTER_TOPO  *ClusterTopo;
+
+  CacheCount = 1; // Shared L3 cache for the package.
+
+  for (ClusterIndex = 0; ClusterIndex < CpuTopoInfo->ClusterNumber; ClusterIndex++) {
+    ClusterTopo = &CpuTopoInfo->ClusterTopo[ClusterIndex];
+    for (CoreIndex = 0; CoreIndex < ClusterTopo->CoreNumber; CoreIndex++) {
+      if (!ClusterTopo->Core[CoreIndex].Enable) {
+        continue;
+      }
+
+      CacheCount += IsA520Core (&ClusterTopo->Core[CoreIndex]) ? 2 : 3;
+    }
+  }
+
+  return CacheCount;
+}
+
+STATIC
+VOID
+InitCacheNode (
+  OUT EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE  *CacheNode,
+  IN  UINT32                              NextLevelOfCache,
+  IN  UINT32                              Size,
+  IN  UINT32                              NumberOfSets,
+  IN  UINT8                               Associativity,
+  IN  UINT8                               AllocationType,
+  IN  UINT8                               CacheType
+  )
+{
+  ASSERT (CacheNode != NULL);
+
+  ZeroMem (CacheNode, sizeof (*CacheNode));
+  CacheNode->Type                        = EFI_ACPI_6_3_PPTT_TYPE_CACHE;
+  CacheNode->Length                      = sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE);
+  CacheNode->Flags.SizePropertyValid     = EFI_ACPI_6_3_PPTT_CACHE_SIZE_VALID;
+  CacheNode->Flags.NumberOfSetsValid     = EFI_ACPI_6_3_PPTT_NUMBER_OF_SETS_VALID;
+  CacheNode->Flags.AssociativityValid    = EFI_ACPI_6_3_PPTT_ASSOCIATIVITY_VALID;
+  CacheNode->Flags.AllocationTypeValid   = EFI_ACPI_6_3_PPTT_ALLOCATION_TYPE_VALID;
+  CacheNode->Flags.CacheTypeValid        = EFI_ACPI_6_3_PPTT_CACHE_TYPE_VALID;
+  CacheNode->Flags.WritePolicyValid      = EFI_ACPI_6_3_PPTT_WRITE_POLICY_VALID;
+  CacheNode->Flags.LineSizeValid         = EFI_ACPI_6_3_PPTT_LINE_SIZE_VALID;
+  CacheNode->NextLevelOfCache            = NextLevelOfCache;
+  CacheNode->Size                        = Size;
+  CacheNode->NumberOfSets                = NumberOfSets;
+  CacheNode->Associativity               = Associativity;
+  CacheNode->Attributes.AllocationType   = AllocationType;
+  CacheNode->Attributes.CacheType        = CacheType;
+  CacheNode->Attributes.WritePolicy      = EFI_ACPI_6_3_CACHE_ATTRIBUTES_WRITE_POLICY_WRITE_BACK;
+  CacheNode->LineSize                    = CIX_PPTT_CACHE_LINE_SIZE;
+}
+#endif
+
 /**
   Construct the PPTT ACPI table.
 
@@ -119,7 +244,7 @@ BuildPpttTable (
   UINT32                CpuTopoInfoCount;
   UINT32                ProcTopologyStructCount;
   UINT32                ClusterIndex, CoreIndex;
-  UINT32                SocketOffset, ClusterOffset;
+  UINT32                SocketOffset;
   UINT32                ValidCoreCount;
   UINT8                 *New;
   CIX_CLUSTER_TOPO      *ClusterTopo;
@@ -168,8 +293,20 @@ BuildPpttTable (
   ProcTopologyStructCount = GetValidProcTopoNodeNum (CpuTopoInfo);
 
   // Calculate the size of the PPTT table
+#ifdef ENABLE_FIRMWARE_FIXES
+  {
+    UINT32  ProcTopologyTableSize;
+    UINT32  CacheStructCount;
+
+    ProcTopologyTableSize = GetProcTopologyTableSize (CpuTopoInfo);
+    CacheStructCount      = GetCacheStructCount (CpuTopoInfo);
+    TableSize             = ProcTopologyTableSize +
+                            (CacheStructCount * sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE));
+  }
+#else
   TableSize  = sizeof (EFI_ACPI_6_3_PROCESSOR_PROPERTIES_TOPOLOGY_TABLE_HEADER);
   TableSize += ProcTopologyStructCount*sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR);
+#endif
   DEBUG (
     (
      DEBUG_INFO,
@@ -253,6 +390,187 @@ BuildPpttTable (
     EFI_ACPI_6_3_PPTT_IMPLEMENTATION_IDENTICAL
   };
 
+#ifdef ENABLE_FIRMWARE_FIXES
+  {
+    UINT32                                    ProcTopologyTableSize;
+    UINT32                                    ProcOffset;
+    UINT32                                    CoreOffset;
+    UINT32                                    L3Offset;
+    UINT32                                    L2Offset;
+    UINT32                                    L1DOffset;
+    UINT32                                    L1IOffset;
+    UINT32                                    CurrentClusterOffset;
+    UINT32                                    *SocketResources;
+    UINT32                                    *PrivateResources;
+    EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR     *ProcNode;
+    EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE         *CacheNode;
+    EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR     Socket;
+    EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR     Cluster;
+    EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR     Core;
+
+    ProcTopologyTableSize = GetProcTopologyTableSize (CpuTopoInfo);
+
+    Socket = (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR)ACPI_PROCESSOR_HIERARCHY_NODE_STRUCTURE_INIT (
+                                                        SocketFlags,
+                                                        0,
+                                                        0,
+                                                        CIX_PPTT_PACKAGE_RESOURCE_COUNT
+                                                        );
+
+    CopyMem (New, &Socket, sizeof (Socket));
+    SocketOffset = sizeof (EFI_ACPI_6_3_PROCESSOR_PROPERTIES_TOPOLOGY_TABLE_HEADER);
+    ProcOffset   = SocketOffset + sizeof (Socket) +
+                   (CIX_PPTT_PACKAGE_RESOURCE_COUNT * sizeof (UINT32));
+
+    for (ClusterIndex = 0; ClusterIndex < CpuTopoInfo->ClusterNumber; ClusterIndex++) {
+      ClusterTopo    = &CpuTopoInfo->ClusterTopo[ClusterIndex];
+      ValidCoreCount = GetClusterValidCoreNum (ClusterTopo);
+      if (ValidCoreCount == 0) {
+        continue;
+      }
+
+      CurrentClusterOffset = ProcOffset;
+      Cluster = (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR)ACPI_PROCESSOR_HIERARCHY_NODE_STRUCTURE_INIT (
+                                                           ClusterFlags,
+                                                           SocketOffset,
+                                                           ClusterTopo->Uid,
+                                                           0
+                                                           );
+      CopyMem ((UINT8 *)Pptt + CurrentClusterOffset, &Cluster, sizeof (Cluster));
+      ProcOffset += sizeof (Cluster);
+
+      for (CoreIndex = 0; CoreIndex < ClusterTopo->CoreNumber; CoreIndex++) {
+        CpuCore = &ClusterTopo->Core[CoreIndex];
+        if (!CpuCore->Enable) {
+          continue;
+        }
+
+        Core = (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR)ACPI_PROCESSOR_HIERARCHY_NODE_STRUCTURE_INIT (
+                                                        CoreFlags,
+                                                        CurrentClusterOffset,
+                                                        CpuCore->Uid,
+                                                        CIX_PPTT_PRIVATE_RESOURCE_COUNT
+                                                        );
+        CopyMem ((UINT8 *)Pptt + ProcOffset, &Core, sizeof (Core));
+        ProcOffset += sizeof (Core) + (CIX_PPTT_PRIVATE_RESOURCE_COUNT * sizeof (UINT32));
+      }
+    }
+
+    ASSERT (ProcOffset == ProcTopologyTableSize);
+
+    L3Offset = ProcTopologyTableSize;
+    CacheNode = (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE *)((UINT8 *)Pptt + L3Offset);
+    InitCacheNode (
+      CacheNode,
+      0,
+      CIX_PPTT_SHARED_L3_SIZE,
+      CIX_PPTT_SHARED_L3_SETS,
+      CIX_PPTT_SHARED_L3_ASSOCIATIVITY,
+      EFI_ACPI_6_3_CACHE_ATTRIBUTES_ALLOCATION_READ_WRITE,
+      EFI_ACPI_6_3_CACHE_ATTRIBUTES_CACHE_TYPE_UNIFIED
+      );
+
+    SocketResources    = (UINT32 *)((UINT8 *)Pptt + SocketOffset + sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR));
+    SocketResources[0] = L3Offset;
+    ProcOffset         = SocketOffset + sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR) +
+                         (CIX_PPTT_PACKAGE_RESOURCE_COUNT * sizeof (UINT32));
+    New        = (UINT8 *)Pptt + L3Offset + sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE);
+
+    for (ClusterIndex = 0; ClusterIndex < CpuTopoInfo->ClusterNumber; ClusterIndex++) {
+      ClusterTopo    = &CpuTopoInfo->ClusterTopo[ClusterIndex];
+      ValidCoreCount = GetClusterValidCoreNum (ClusterTopo);
+      if (ValidCoreCount == 0) {
+        continue;
+      }
+
+      CurrentClusterOffset = ProcOffset;
+      ProcOffset          += sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR);
+
+      for (CoreIndex = 0; CoreIndex < ClusterTopo->CoreNumber; CoreIndex++) {
+        CpuCore = &ClusterTopo->Core[CoreIndex];
+        if (!CpuCore->Enable) {
+          continue;
+        }
+
+        CoreOffset = ProcOffset;
+        ProcOffset += sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR) +
+                      (CIX_PPTT_PRIVATE_RESOURCE_COUNT * sizeof (UINT32));
+
+        ProcNode = (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR *)((UINT8 *)Pptt + CoreOffset);
+        PrivateResources = (UINT32 *)((UINT8 *)ProcNode + sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR));
+
+        if (IsA520Core (CpuCore)) {
+          L1DOffset = (UINT32)(UINTN)(New - (UINT8 *)Pptt);
+          InitCacheNode (
+            (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE *)New,
+            0,
+            CIX_PPTT_A520_L1_SIZE,
+            CIX_PPTT_A520_L1_SETS,
+            CIX_PPTT_A520_L1_ASSOCIATIVITY,
+            EFI_ACPI_6_3_CACHE_ATTRIBUTES_ALLOCATION_READ_WRITE,
+            EFI_ACPI_6_3_CACHE_ATTRIBUTES_CACHE_TYPE_DATA
+            );
+          New += sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE);
+
+          L1IOffset = (UINT32)(UINTN)(New - (UINT8 *)Pptt);
+          InitCacheNode (
+            (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE *)New,
+            0,
+            CIX_PPTT_A520_L1_SIZE,
+            CIX_PPTT_A520_L1_SETS,
+            CIX_PPTT_A520_L1_ASSOCIATIVITY,
+            EFI_ACPI_6_3_CACHE_ATTRIBUTES_ALLOCATION_READ,
+            EFI_ACPI_6_3_CACHE_ATTRIBUTES_CACHE_TYPE_INSTRUCTION
+            );
+          New += sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE);
+        } else {
+          L2Offset = (UINT32)(UINTN)(New - (UINT8 *)Pptt);
+          InitCacheNode (
+            (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE *)New,
+            0,
+            CIX_PPTT_A720_L2_SIZE,
+            CIX_PPTT_A720_L2_SETS,
+            CIX_PPTT_A720_L2_ASSOCIATIVITY,
+            EFI_ACPI_6_3_CACHE_ATTRIBUTES_ALLOCATION_READ_WRITE,
+            EFI_ACPI_6_3_CACHE_ATTRIBUTES_CACHE_TYPE_UNIFIED
+            );
+          New += sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE);
+
+          L1DOffset = (UINT32)(UINTN)(New - (UINT8 *)Pptt);
+          InitCacheNode (
+            (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE *)New,
+            L2Offset,
+            CIX_PPTT_A720_L1_SIZE,
+            CIX_PPTT_A720_L1_SETS,
+            CIX_PPTT_A720_L1_ASSOCIATIVITY,
+            EFI_ACPI_6_3_CACHE_ATTRIBUTES_ALLOCATION_READ_WRITE,
+            EFI_ACPI_6_3_CACHE_ATTRIBUTES_CACHE_TYPE_DATA
+            );
+          New += sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE);
+
+          L1IOffset = (UINT32)(UINTN)(New - (UINT8 *)Pptt);
+          InitCacheNode (
+            (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE *)New,
+            L2Offset,
+            CIX_PPTT_A720_L1_SIZE,
+            CIX_PPTT_A720_L1_SETS,
+            CIX_PPTT_A720_L1_ASSOCIATIVITY,
+            EFI_ACPI_6_3_CACHE_ATTRIBUTES_ALLOCATION_READ,
+            EFI_ACPI_6_3_CACHE_ATTRIBUTES_CACHE_TYPE_INSTRUCTION
+            );
+          New += sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_CACHE);
+        }
+
+        PrivateResources[0] = L1DOffset;
+        PrivateResources[1] = L1IOffset;
+      }
+    }
+
+    ASSERT ((UINT32)(UINTN)(New - (UINT8 *)Pptt) == TableSize);
+  }
+#else
+  UINT32  ClusterOffset;
+
   // Add the Socket PPTT structure
   EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR  Socket = ACPI_PROCESSOR_HIERARCHY_NODE_STRUCTURE_INIT (
                                                     SocketFlags,
@@ -300,6 +618,7 @@ BuildPpttTable (
 
     ClusterOffset += ValidCoreCount*sizeof (EFI_ACPI_6_3_PPTT_STRUCTURE_PROCESSOR);
   }
+#endif
 
   return Status;
 
