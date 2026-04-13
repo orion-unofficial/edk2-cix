@@ -473,3 +473,20 @@ Device (CP11)
 }
 #endif
 #endif
+
+#ifdef ENABLE_FIRMWARE_FIXES
+// DSU PMU (DynamIQ Shared Unit Performance Monitoring Unit)
+// Exposes shared L3/interconnect counters to perf via ARMHD500.
+Device (DSUP)
+{
+    Name (_HID, "ARMHD500")
+    Name (_UID, 0)
+    Method (_STA)
+    {
+        Return (0xF)
+    }
+    Name (_CRS, ResourceTemplate () {
+        Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 34 }
+    })
+}
+#endif
