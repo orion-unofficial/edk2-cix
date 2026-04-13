@@ -21,10 +21,13 @@ RadxaSetupVariableInitDxeEntry (
   )
 {
   EFI_STATUS        Status = EFI_SUCCESS;
+  BOOLEAN           NeedsRewrite;
   UINTN             VarSize;
   RADXA_SETUP_DATA  RadxaSetupVar;
 
+  NeedsRewrite = FALSE;
   VarSize = sizeof (RADXA_SETUP_DATA);
+  ZeroMem (&RadxaSetupVar, sizeof (RadxaSetupVar));
 
   Status = gRT->GetVariable (
                   RADXA_SETUP_VAR,
@@ -34,7 +37,6 @@ RadxaSetupVariableInitDxeEntry (
                   &RadxaSetupVar
                   );
   if (EFI_ERROR (Status)) {
-    ZeroMem (&RadxaSetupVar, VarSize);
     //
     // Variable does not exist yet - create it
     //
@@ -50,6 +52,24 @@ RadxaSetupVariableInitDxeEntry (
       return Status;
     }
   } else {
+    if (VarSize < sizeof (RADXA_SETUP_DATA)) {
+      NeedsRewrite = TRUE;
+    }
+
+    if (NeedsRewrite) {
+      Status = gRT->SetVariable (
+                      RADXA_SETUP_VAR,
+                      &gRadxaSetupVariableGuid,
+                      EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
+                      sizeof (RADXA_SETUP_DATA),
+                      &RadxaSetupVar
+                      );
+      if (EFI_ERROR (Status)) {
+        DEBUG ((DEBUG_ERROR, "%a: EfiSetVariable update failed - %r\n", __FUNCTION__, Status));
+        return Status;
+      }
+    }
+
     DEBUG ((DEBUG_INFO, "%a: EfiGetVariable Success - %r\n", __FUNCTION__, Status));
   }
 
