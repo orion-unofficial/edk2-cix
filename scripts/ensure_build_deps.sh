@@ -57,7 +57,7 @@ apt_get() {
 
 usage() {
     cat <<'EOF'
-usage: scripts/ensure_build_deps.sh [--profile firmware|packaging]
+usage: scripts/ensure_build_deps.sh [--profile firmware|packaging|replay]
 EOF
 }
 
@@ -143,7 +143,7 @@ while (( $# > 0 )); do
 done
 
 case "$dep_profile" in
-    firmware|packaging)
+    firmware|packaging|replay)
         ;;
     *)
         printf '[deps] Unsupported dependency profile: %s\n' "$dep_profile" >&2
@@ -175,6 +175,75 @@ package_installed() {
     local package="$1"
     dpkg-query -W -f='${Status}\n' "$package" 2>/dev/null | grep -qx 'install ok installed'
 }
+
+package_version() {
+    local package="$1"
+    dpkg-query -W -f='${Version}\n' "$package" 2>/dev/null || true
+}
+
+if [[ "$dep_profile" == "replay" ]]; then
+    replay_manifest=""
+    replay_missing_specs=()
+    replay_wrong_specs=()
+
+    case "$host_dpkg_arch" in
+        amd64)
+            replay_manifest="${repo_root}/containers/replay-bookworm/packages.bookworm-amd64.txt"
+            if ! dpkg --print-foreign-architectures | grep -qx 'arm64'; then
+                replay_missing_specs+=("dpkg-foreign-architecture:arm64")
+            fi
+            ;;
+        arm64)
+            replay_manifest="${repo_root}/containers/replay-bookworm/packages.bookworm-arm64.txt"
+            ;;
+        *)
+            printf '[deps] Unsupported replay host architecture: %s\n' "$host_dpkg_arch" >&2
+            exit 2
+            ;;
+    esac
+
+    if [[ ! -f "$replay_manifest" ]]; then
+        printf '[deps] Missing replay package manifest: %s\n' "$replay_manifest" >&2
+        exit 1
+    fi
+
+    while IFS= read -r package_spec || [[ -n "$package_spec" ]]; do
+        package_spec="${package_spec%%#*}"
+        package_spec="${package_spec%"${package_spec##*[![:space:]]}"}"
+        package_spec="${package_spec#"${package_spec%%[![:space:]]*}"}"
+        [[ -n "$package_spec" ]] || continue
+        package_name="${package_spec%%=*}"
+        expected_version="${package_spec#*=}"
+        installed_version="$(package_version "$package_name")"
+        if [[ -z "$installed_version" ]]; then
+            replay_missing_specs+=("$package_spec")
+            continue
+        fi
+        if [[ "$installed_version" != "$expected_version" ]]; then
+            replay_wrong_specs+=("${package_name}=${installed_version} (expected ${expected_version})")
+        fi
+    done <"$replay_manifest"
+
+    if (( ${#replay_missing_specs[@]} == 0 )) && (( ${#replay_wrong_specs[@]} == 0 )); then
+        status "Build dependencies already installed for profile: ${dep_profile}."
+        exit 0
+    fi
+
+    {
+        printf '[deps] Replay dependency profile requires the pinned replay buildbox image.\n'
+        printf '[deps] Manifest: %s\n' "$replay_manifest"
+        if (( ${#replay_missing_specs[@]} > 0 )); then
+            printf '[deps] Missing exact dependencies:\n'
+            printf '  - %s\n' "${replay_missing_specs[@]}"
+        fi
+        if (( ${#replay_wrong_specs[@]} > 0 )); then
+            printf '[deps] Version drift detected:\n'
+            printf '  - %s\n' "${replay_wrong_specs[@]}"
+        fi
+        printf '[deps] Rebuild the image with scripts/ensure_replay_buildbox_image.sh and rerun the replay or validation target.\n'
+    } >&2
+    exit 1
+fi
 
 toolchain_packages=()
 need_arm64_arch=0
