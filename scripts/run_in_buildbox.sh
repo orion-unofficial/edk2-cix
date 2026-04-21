@@ -63,6 +63,24 @@ status() {
     printf '[buildbox] %s\n' "$*"
 }
 
+mirror_status_to_container_logs() {
+    local message="$*"
+
+    if [[ -z "${container_name:-}" ]]; then
+        return 0
+    fi
+    if ! runtime container inspect "$container_name" >/dev/null 2>&1; then
+        return 0
+    fi
+    if ! container_running; then
+        return 0
+    fi
+
+    runtime exec "$container_name" \
+        bash -lc 'printf "%s\n" "$1" >>/proc/1/fd/1' \
+        bash "[buildbox] ${message}" >/dev/null 2>&1 || true
+}
+
 describe_command() {
     local cmd="$1"
     shift || true
@@ -406,6 +424,51 @@ EOF
     exit 1
 }
 
+runtime_exec_command() {
+    local mirror_logs="$1"
+    shift
+
+    local -a exec_args=()
+    local -a command_args=()
+
+    while (( $# > 0 )); do
+        if [[ "$1" == "--" ]]; then
+            shift
+            break
+        fi
+        exec_args+=("$1")
+        shift
+    done
+
+    command_args=("$@")
+    if (( ${#command_args[@]} == 0 )); then
+        cat >&2 <<'EOF'
+[buildbox] runtime_exec_command requires a command after --.
+EOF
+        exit 2
+    fi
+
+    if [[ "$mirror_logs" != "1" ]]; then
+        runtime exec "${exec_args[@]}" "$container_name" "${command_args[@]}"
+        return 0
+    fi
+
+    runtime exec "${exec_args[@]}" "$container_name" \
+        bash -lc '
+set -euo pipefail
+mirror_stdout=/proc/1/fd/1
+mirror_stderr=/proc/1/fd/2
+
+if [[ -w "$mirror_stdout" && -w "$mirror_stderr" ]]; then
+    "$@" \
+        > >(tee "$mirror_stdout") \
+        2> >(tee "$mirror_stderr" >&2)
+else
+    "$@"
+fi
+' bash "${command_args[@]}"
+}
+
 ensure_container() {
     if runtime container inspect "$container_name" >/dev/null 2>&1; then
         local mounts existing_image existing_platform expected_mount
@@ -457,7 +520,7 @@ while (( $# > 0 )); do
             shift
             if (( $# == 0 )); then
                 cat >&2 <<'EOF'
-usage: scripts/run_in_buildbox.sh [--dep-profile firmware|packaging] <command> [args...]
+usage: scripts/run_in_buildbox.sh [--dep-profile firmware|packaging|replay] <command> [args...]
 EOF
                 exit 2
             fi
@@ -475,7 +538,7 @@ EOF
 done
 
 case "$dep_profile" in
-    firmware|packaging)
+    firmware|packaging|replay)
         ;;
     *)
         cat >&2 <<EOF
@@ -487,7 +550,7 @@ esac
 
 if (( $# == 0 )); then
     cat >&2 <<'EOF'
-usage: scripts/run_in_buildbox.sh [--dep-profile firmware|packaging] <command> [args...]
+usage: scripts/run_in_buildbox.sh [--dep-profile firmware|packaging|replay] <command> [args...]
 EOF
     exit 2
 fi
@@ -506,22 +569,25 @@ ensure_container
 verify_workspace
 
 status "Ensuring ${dep_profile} build dependencies are present"
-runtime exec \
+mirror_status_to_container_logs "Ensuring ${dep_profile} build dependencies are present"
+runtime_exec_command 1 \
     -e "EDK2_CIX_VERBOSE=${verbose}" \
     -w "$workspace_path" \
-    "$container_name" \
+    -- \
     bash -lc "./scripts/ensure_build_deps.sh --profile ${dep_profile}"
 ensure_git_safe_directory
 
 if [[ "$verbose" == "1" ]]; then
     status "Running in ${container_name}: $*"
+    mirror_status_to_container_logs "Running in ${container_name}: $*"
 else
     status "Running $(describe_command "$@") in ${container_name}"
+    mirror_status_to_container_logs "Running $(describe_command "$@") in ${container_name}"
 fi
-runtime exec \
+runtime_exec_command 1 \
     -e "EDK2_CIX_REPO_LOCK_HELD=${EDK2_CIX_REPO_LOCK_HELD:-}" \
     -e "EDK2_CIX_HOST_OS=${host_os}" \
     -e "EDK2_CIX_VERBOSE=${verbose}" \
     -w "$workspace_path" \
-    "$container_name" \
+    -- \
     "$@"

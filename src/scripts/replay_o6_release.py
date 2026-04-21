@@ -34,8 +34,18 @@ DEFAULT_CONTAINER_TMPDIR = pathlib.PurePosixPath(
     os.environ.get("EDK2_CIX_CONTAINER_TMPDIR", "/hosttmp")
 )
 DEFAULT_BUILDBOX_WORKSPACE_ROOT = pathlib.PurePosixPath("/workspaces/edk2-cix")
-DEFAULT_REPLAY_BUILDBOX_IMAGE = "mcr.microsoft.com/devcontainers/base:bookworm"
-DEFAULT_REPLAY_BUILDBOX_PLATFORM = "linux/amd64"
+DEFAULT_REPLAY_BUILDBOX_IMAGE = os.environ.get(
+    "EDK2_CIX_REPLAY_BUILDBOX_IMAGE",
+    os.environ.get("EDK2_CIX_BUILDBOX_IMAGE", "mcr.microsoft.com/devcontainers/base:bookworm"),
+)
+DEFAULT_REPLAY_BUILDBOX_PLATFORM = os.environ.get(
+    "EDK2_CIX_REPLAY_BUILDBOX_PLATFORM",
+    os.environ.get("EDK2_CIX_BUILDBOX_PLATFORM", "linux/amd64"),
+)
+DEFAULT_REPLAY_DEP_PROFILE = os.environ.get(
+    "EDK2_CIX_REPLAY_DEP_PROFILE",
+    os.environ.get("EDK2_CIX_DEP_PROFILE", "firmware"),
+)
 
 BOARD_CONFIG = {
     "O6": {
@@ -259,6 +269,7 @@ make -C "$pm" csupm_bin_config >/dev/null
         {
             "EDK2_CIX_BUILDBOX_IMAGE": DEFAULT_REPLAY_BUILDBOX_IMAGE,
             "EDK2_CIX_BUILDBOX_PLATFORM": DEFAULT_REPLAY_BUILDBOX_PLATFORM,
+            "EDK2_CIX_DEP_PROFILE": DEFAULT_REPLAY_DEP_PROFILE,
             "EDK2_CIX_HOST_TMPDIR": str(host_tmp_root),
             "EDK2_CIX_CONTAINER_TMPDIR": str(container_tmp_root),
         }
@@ -372,12 +383,14 @@ cd {shlex.quote(str(REPO_ROOT))}
 EDK2_CIX_WORKSPACE_ROOT={shlex.quote(str(DEFAULT_BUILDBOX_WORKSPACE_ROOT))} \\
 EDK2_CIX_BUILDBOX_IMAGE={shlex.quote(DEFAULT_REPLAY_BUILDBOX_IMAGE)} \\
 EDK2_CIX_BUILDBOX_PLATFORM={shlex.quote(DEFAULT_REPLAY_BUILDBOX_PLATFORM)} \\
+EDK2_CIX_DEP_PROFILE={shlex.quote(DEFAULT_REPLAY_DEP_PROFILE)} \\
 EDK2_CIX_HOST_TMPDIR={shlex.quote(str(host_tmp_root))} \\
 EDK2_CIX_CONTAINER_TMPDIR={shlex.quote(str(container_tmp_root))} \\
 ./scripts/run_in_buildbox.sh make --no-print-directory -C src clean
 EDK2_CIX_WORKSPACE_ROOT={shlex.quote(str(DEFAULT_BUILDBOX_WORKSPACE_ROOT))} \\
 EDK2_CIX_BUILDBOX_IMAGE={shlex.quote(DEFAULT_REPLAY_BUILDBOX_IMAGE)} \\
 EDK2_CIX_BUILDBOX_PLATFORM={shlex.quote(DEFAULT_REPLAY_BUILDBOX_PLATFORM)} \\
+EDK2_CIX_DEP_PROFILE={shlex.quote(DEFAULT_REPLAY_DEP_PROFILE)} \\
 EDK2_CIX_HOST_TMPDIR={shlex.quote(str(host_tmp_root))} \\
 EDK2_CIX_CONTAINER_TMPDIR={shlex.quote(str(container_tmp_root))} \\
 ./scripts/run_in_buildbox.sh make --no-print-directory -C src {' '.join(make_vars)} {quoted_targets}
