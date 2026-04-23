@@ -53,7 +53,7 @@ FIRMWARE_INSTALL_ROOT ?= /boot/efi/firmware/radxa
 FIRMWARE_ARCHIVE_ROOT ?= $(REPO_ROOT)/dist
 FIRMWARE_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)
 FIPTOOL_BUILD_DIR ?= $(REPO_ROOT)/src/tools/arm-trusted-firmware-fiptool/build
-FIPTOOL_DISTRO_STAMP ?= $(FIPTOOL_BUILD_DIR)/.buildbox-distro
+FIPTOOL_DISTRO_STAMP ?= $(REPO_ROOT)/.buildbox/fiptool/.buildbox-distro
 FIRMWARE_VALIDATION_PROFILE ?= upstream-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(REPO_ROOT)/build-validation
 MONOREPO_META_ROOT ?=
@@ -466,7 +466,7 @@ prepare-buildbox-fiptool:
 		if [ "$$built_distro" != "$$requested_distro" ]; then \
 			clean_reason="built for $$built_distro"; \
 		fi; \
-	elif find "$$fiptool_build_dir" -type f -name fiptool -print -quit | grep -q . && [ "$$requested_distro" = "bookworm" ]; then \
+	elif find "$$fiptool_build_dir" -type f -name fiptool -print -quit | grep -q .; then \
 		clean_reason="existing build predates distro stamp"; \
 	fi; \
 	if [ -n "$$clean_reason" ]; then \
@@ -475,7 +475,7 @@ prepare-buildbox-fiptool:
 	fi
 
 record-buildbox-fiptool-distro:
-	@mkdir -p "$(FIPTOOL_BUILD_DIR)"
+	@mkdir -p "$(dir $(FIPTOOL_DISTRO_STAMP))"
 	@printf '%s\n' "$(FIRMWARE_DISTRO)" >"$(FIPTOOL_DISTRO_STAMP)"
 
 .PHONY: build-edk2 __build-edk2
