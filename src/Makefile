@@ -860,6 +860,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		return 1; \
 	}; \
 	reused_trusted_key_cert=0; \
+	reused_nt_fw_certs=0; \
 	validator_extra_args=(); \
 	if [[ -n "$$SIGNING_CERT_SOURCE_DIR" ]]; then \
 		if [[ ! -d "$$SIGNING_CERT_SOURCE_DIR" ]]; then \
@@ -902,6 +903,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 			echo "Reusing non-trusted FIP certs from $$SIGNING_CERT_SOURCE_DIR"; \
 			cp "$$nt_fw_cert_src" Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt; \
 			cp "$$nt_fw_key_cert_src" Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt; \
+			reused_nt_fw_certs=1; \
 		elif [[ -n "$$nt_fw_cert_src" || -n "$$nt_fw_key_cert_src" ]]; then \
 			echo "SIGNING_CERT_SOURCE_DIR must provide both nt-fw cert blobs together" >&2; \
 			exit 1; \
@@ -912,7 +914,8 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 	if [[ "$(ARTEFACT_MODE)" == "upstream" && "$$reused_trusted_key_cert" == "1" ]]; then \
 		validator_extra_args+=(--allow-reused-trusted-key-cert); \
 	fi; \
-	if [[ ! -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt || ! -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt ]]; then \
+	if [[ "$$reused_nt_fw_certs" != "1" ]]; then \
+		rm -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt; \
 		run_success_only "$$SOURCE_CERT_TOOL_BIN" --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
 			--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
 			--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
