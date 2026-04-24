@@ -166,22 +166,20 @@ def validate_custom_build_options(
         )
 
 
+def should_stage_load_op_rom(board: str, artefact_mode: str) -> bool:
+    return artefact_mode == "custom" and board.upper() == "O6"
+
+
 def audit_custom_payload(
     stage_root: pathlib.Path,
     build_dir: pathlib.Path,
-    product: str,
     board: str,
     target: str,
 ) -> None:
-    product_root = stage_root / product
     targets: list[tuple[str, pathlib.Path]] = []
-    for path in sorted(product_root.glob("cix_flash*.bin")):
-        targets.append((path.relative_to(stage_root).as_posix(), path))
-    for path in sorted(product_root.glob("*.efi")):
-        targets.append((path.relative_to(stage_root).as_posix(), path))
-    build_options_path = product_root / "BuildOptions"
-    if build_options_path.is_file():
-        targets.append((build_options_path.relative_to(stage_root).as_posix(), build_options_path))
+    for path in sorted(stage_root.rglob("*")):
+        if path.is_file():
+            targets.append((path.relative_to(stage_root).as_posix(), path))
 
     bootloader3_path = build_dir / "Firmwares" / "bootloader3.img"
     targets.append((f"Build/{board}/{target}/Firmwares/bootloader3.img", bootloader3_path))
@@ -196,36 +194,49 @@ def audit_custom_payload(
 
 
 def payload_mapping(
-    repo_root: pathlib.Path, board: str, product: str, target: str
+    repo_root: pathlib.Path, board: str, target: str, artefact_mode: str
 ) -> list[tuple[pathlib.Path, pathlib.Path]]:
     build_dir = repo_root / "src" / "Build" / board / target
     flash_tool_dir = (
         repo_root / "src" / "edk2-non-osi" / "Platform" / "CIX" / "Sky1" / "FlashTool"
     )
-    return [
-        (repo_root / "src" / "scripts" / "welcome.nsh", pathlib.Path("startup.nsh")),
-        (build_dir / "cix_flash_all.bin", pathlib.Path(product) / "cix_flash_all.bin"),
-        (build_dir / "cix_flash_ota.bin", pathlib.Path(product) / "cix_flash_ota.bin"),
-        (build_dir / "BuildOptions", pathlib.Path(product) / "BuildOptions"),
+    payload = [
+        (build_dir / "cix_flash_all.bin", pathlib.Path("cix_flash_all.bin")),
+        (build_dir / "cix_flash_ota.bin", pathlib.Path("cix_flash_ota.bin")),
+        (build_dir / "BuildOptions", pathlib.Path("BuildOptions")),
         (
             build_dir / "AARCH64" / "EnrollFromDefaultKeysApp.efi",
-            pathlib.Path(product) / "EnrollFromDefaultKeysApp.efi",
+            pathlib.Path("EnrollFromDefaultKeysApp.efi"),
         ),
         (
             build_dir / "AARCH64" / "VariableInfo.efi",
-            pathlib.Path(product) / "VariableInfo.efi",
+            pathlib.Path("VariableInfo.efi"),
         ),
-        (build_dir / "AARCH64" / "Shell.efi", pathlib.Path(product) / "Shell.efi"),
+        (build_dir / "AARCH64" / "Shell.efi", pathlib.Path("Shell.efi")),
         (
             flash_tool_dir / "BurnImage.efi",
-            pathlib.Path(product) / "BurnImage.efi",
+            pathlib.Path("BurnImage.efi"),
         ),
         (
             flash_tool_dir / "FlashUpdate.efi",
-            pathlib.Path(product) / "FlashUpdate.efi",
+            pathlib.Path("FlashUpdate.efi"),
         ),
-        (repo_root / "src" / "scripts" / "startup.nsh", pathlib.Path(product) / "startup.nsh"),
+        (repo_root / "src" / "scripts" / "startup.nsh", pathlib.Path("startup.nsh")),
     ]
+    if should_stage_load_op_rom(board, artefact_mode):
+        payload.append(
+            (
+                repo_root
+                / "src"
+                / "edk2-non-osi"
+                / "Emulator"
+                / "X86EmulatorDxe"
+                / "AArch64"
+                / "LoadOpRom.efi",
+                pathlib.Path("tools") / "LoadOpRom.efi",
+            )
+        )
+    return payload
 
 
 def stage_payload(
@@ -241,10 +252,13 @@ def stage_payload(
     expected_active_platform = resolve_repo_relative_board_file(repo_root, board, ".dsc")
     expected_flash_definition = resolve_repo_relative_board_file(repo_root, board, ".fdf")
     genfw = resolve_genfw(repo_root) if artefact_mode == "custom" else None
+    zero_debug_names = {"BurnImage.efi", "FlashUpdate.efi"}
+    if should_stage_load_op_rom(board, artefact_mode):
+        zero_debug_names.add("LoadOpRom.efi")
 
-    for source, relative_destination in payload_mapping(repo_root, board, product, target):
+    for source, relative_destination in payload_mapping(repo_root, board, target, artefact_mode):
         destination = output_dir / relative_destination
-        if artefact_mode == "custom" and source.name in {"BurnImage.efi", "FlashUpdate.efi"}:
+        if artefact_mode == "custom" and source.name in zero_debug_names:
             assert genfw is not None
             zero_debug_metadata(genfw, source, destination)
         else:
@@ -252,11 +266,11 @@ def stage_payload(
 
     if artefact_mode == "custom":
         validate_custom_build_options(
-            output_dir / product / "BuildOptions",
+            output_dir / "BuildOptions",
             expected_active_platform,
             expected_flash_definition,
         )
-        audit_custom_payload(output_dir, build_dir, product, board, target)
+        audit_custom_payload(output_dir, build_dir, board, target)
     return output_dir
 
 
@@ -282,7 +296,7 @@ def install_payload(
                 f"Cannot install firmware payload to {destination}: {exc.strerror}. "
                 "Use the stage/zip/targz commands for packaging workflows, or pass "
                 "--install-root to a writable live-system mount such as "
-                "/boot/efi/firmware/radxa."
+                "/boot/efi/edk2/radxa/orion-o6."
             ) from exc
     return destination
 
