@@ -449,7 +449,7 @@ By default those targets operate on the `O6` payload. Set
 `FIRMWARE_BOARD=O6N` to switch products; the default `O6` paths are:
 
 - stage files under `dist/firmware/orion-o6/<version>/`
-- install them under `/boot/efi/firmware/radxa/<version>/`
+- install them under `/boot/efi/edk2/radxa/orion-o6/<version>/`
 - `make install` is intended for a live system with a writable EFI system
   partition
 - Debian package builds do not use `make install`; they collect files from the
@@ -465,9 +465,9 @@ written back into the host checkout at the same default
 `dist/firmware/orion-o6/<version>/` path, because the buildbox bind-mounts the
 repo root. There is no separate `podman cp` or `docker cp` step.
 
-The staged payload includes:
+The staged payload is self-contained inside that `<version>/` directory and
+includes:
 
-- top-level `startup.nsh` from `welcome.nsh`
 - `BuildOptions`
 - `cix_flash_all.bin`
 - `cix_flash_ota.bin`
@@ -476,18 +476,31 @@ The staged payload includes:
 - `EnrollFromDefaultKeysApp.efi`
 - `VariableInfo.efi`
 - `Shell.efi`
-- product-local `startup.nsh`
+- `startup.nsh`
+- `tools/LoadOpRom.efi` on `ARTEFACT_MODE=custom` `O6` exports
 
 To deploy that staged payload manually onto a target machine or removable FAT
-volume, copy the contents of `dist/firmware/orion-o6/<version>/` into
-`edk2/radxa/` on the EFI System Partition. That gives you:
+volume, copy `dist/firmware/orion-o6/` into `edk2/radxa/` on the EFI System
+Partition. That gives you:
 
-- `edk2/radxa/startup.nsh` as the top-level launcher
-- `edk2/radxa/orion-o6/` with the board-specific flash binaries and `.efi`
-  helpers
+- `edk2/radxa/orion-o6/<version>/BuildOptions`
+- `edk2/radxa/orion-o6/<version>/cix_flash_all.bin`
+- `edk2/radxa/orion-o6/<version>/cix_flash_ota.bin`
+- `edk2/radxa/orion-o6/<version>/BurnImage.efi`
+- `edk2/radxa/orion-o6/<version>/FlashUpdate.efi`
+- `edk2/radxa/orion-o6/<version>/EnrollFromDefaultKeysApp.efi`
+- `edk2/radxa/orion-o6/<version>/VariableInfo.efi`
+- `edk2/radxa/orion-o6/<version>/Shell.efi`
+- `edk2/radxa/orion-o6/<version>/startup.nsh`
+- `edk2/radxa/orion-o6/<version>/tools/LoadOpRom.efi` on custom `O6` exports
 
-From the UEFI Shell, run `startup.nsh` to list available products, or go
-straight to `orion-o6/startup.nsh` to flash that payload directly.
+From the UEFI Shell, run
+`fs0:\edk2\radxa\orion-o6\<version>\startup.nsh` directly to flash that
+payload.
+
+For custom-path builds, `O6N` now omits `X86EmulatorDxe` from the firmware
+image, and custom `O6` non-`deb` exports scrub `tools/LoadOpRom.efi` with
+`GenFw --zero` before staging it for manual OpROM debugging.
 
 Override these knobs if needed:
 

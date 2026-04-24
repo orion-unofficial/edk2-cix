@@ -367,23 +367,25 @@ make targz
 ```
 
 Those targets reuse the same deployable board-specific payload that the package
-ships. By default the examples below show the `O6` paths:
+ships, but the non-`deb` exports keep it as a self-contained versioned tree per
+product. By default the examples below show the `O6` files inside
+`dist/firmware/orion-o6/<version>/`:
 
-- top-level `startup.nsh`
-- `orion-o6/BuildOptions`
-- `orion-o6/cix_flash_all.bin`
-- `orion-o6/cix_flash_ota.bin`
-- `orion-o6/BurnImage.efi`
-- `orion-o6/FlashUpdate.efi`
-- `orion-o6/EnrollFromDefaultKeysApp.efi`
-- `orion-o6/VariableInfo.efi`
-- `orion-o6/Shell.efi`
-- `orion-o6/startup.nsh`
+- `BuildOptions`
+- `cix_flash_all.bin`
+- `cix_flash_ota.bin`
+- `BurnImage.efi`
+- `FlashUpdate.efi`
+- `EnrollFromDefaultKeysApp.efi`
+- `VariableInfo.efi`
+- `Shell.efi`
+- `startup.nsh`
+- `tools/LoadOpRom.efi` on `ARTEFACT_MODE=custom` `O6` exports
 
 By default:
 
 - `make firmware-stage` writes to `dist/firmware/orion-o6/<version>/`
-- `make install` writes to `/boot/efi/firmware/radxa/<version>/`
+- `make install` writes to `/boot/efi/edk2/radxa/orion-o6/<version>/`
 - `make zip` writes `dist/edk2-cix-orion-o6-<version>.zip`
 - `make targz` writes `dist/edk2-cix-orion-o6-<version>.tar.gz`
 
@@ -401,23 +403,27 @@ appear directly in the host checkout under the default
 repo root. You do not need to copy files back out of the container separately.
 
 To deploy that staged payload manually onto a target ESP or removable FAT
-volume, copy the contents of `dist/firmware/orion-o6/<version>/` into
-`edk2/radxa/` on that filesystem. That layout matches the payload shipped by
-the Debian package:
+volume, copy `dist/firmware/orion-o6/` into `edk2/radxa/` on that filesystem.
+That gives you:
 
-- `edk2/radxa/startup.nsh`
-- `edk2/radxa/orion-o6/BuildOptions`
-- `edk2/radxa/orion-o6/cix_flash_all.bin`
-- `edk2/radxa/orion-o6/cix_flash_ota.bin`
-- `edk2/radxa/orion-o6/BurnImage.efi`
-- `edk2/radxa/orion-o6/FlashUpdate.efi`
-- `edk2/radxa/orion-o6/EnrollFromDefaultKeysApp.efi`
-- `edk2/radxa/orion-o6/VariableInfo.efi`
-- `edk2/radxa/orion-o6/Shell.efi`
-- `edk2/radxa/orion-o6/startup.nsh`
+- `edk2/radxa/orion-o6/<version>/BuildOptions`
+- `edk2/radxa/orion-o6/<version>/cix_flash_all.bin`
+- `edk2/radxa/orion-o6/<version>/cix_flash_ota.bin`
+- `edk2/radxa/orion-o6/<version>/BurnImage.efi`
+- `edk2/radxa/orion-o6/<version>/FlashUpdate.efi`
+- `edk2/radxa/orion-o6/<version>/EnrollFromDefaultKeysApp.efi`
+- `edk2/radxa/orion-o6/<version>/VariableInfo.efi`
+- `edk2/radxa/orion-o6/<version>/Shell.efi`
+- `edk2/radxa/orion-o6/<version>/startup.nsh`
+- `edk2/radxa/orion-o6/<version>/tools/LoadOpRom.efi` on custom `O6` exports
 
-From the UEFI Shell, run `startup.nsh` to get the product picker, or run
-`orion-o6/startup.nsh` directly to launch that board's flash flow.
+From the UEFI Shell, run
+`fs0:\edk2\radxa\orion-o6\<version>\startup.nsh` directly to launch that
+board's flash flow.
+
+For custom-path builds, `O6N` now omits `X86EmulatorDxe` from the firmware
+image, and custom `O6` non-`deb` exports scrub `tools/LoadOpRom.efi` with
+`GenFw --zero` before staging it for manual OpROM debugging.
 
 Use these variables to change the defaults:
 

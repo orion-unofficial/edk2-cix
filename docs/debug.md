@@ -70,7 +70,8 @@ this command.
 After `make firmware-stage` completes, you can find the staged deployable files
 under `dist/firmware/<product>/<version>/`.
 
-Follow [Installation guide](install.md#create-the-bios-update-disk) to continue.
+For the non-`deb` staged layout and direct UEFI Shell entry points, continue in
+[Build](build.md#build).
 
 If you enable `devenv`, then you can run
 `edk2-install </dev/data_partition>` from the project root as a faster way to
