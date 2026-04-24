@@ -1,3 +1,8 @@
+SHELL := bash
+.SHELLFLAGS := -eu -o pipefail -c
+
+HOST_ARCH_RAW ?= $(shell uname -m)
+HOST_ARCH := $(if $(filter arm64,$(HOST_ARCH_RAW)),aarch64,$(HOST_ARCH_RAW))
 PKG_CONFIG ?= $(or $(shell command -v pkg-config 2>/dev/null),$(shell command -v pkgconf 2>/dev/null))
 CC ?= cc
 CPPFLAGS ?=
@@ -34,20 +39,28 @@ LDLIBS += $(OPENSSL_LIBS)
 
 BUILD_NAME := cix_regen_trusted_key_cert
 SRCS := cix_regen_trusted_key_cert.c
-OBJS := $(SRCS:.c=.o)
+BUILD_DIR := build/$(HOST_ARCH)
+OUTPUT := $(BUILD_DIR)/$(BUILD_NAME)
+OBJS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(SRCS))
 
-all: $(BUILD_NAME)
+.PHONY: all clean print-output-path
 
-$(BUILD_NAME): $(OBJS)
+all: $(OUTPUT)
+
+print-output-path:
+	printf '%s\n' '$(OUTPUT)'
+
+$(BUILD_DIR):
+	$(Q)mkdir -p '$@'
+
+$(OUTPUT): $(OBJS)
 	$(PRINT_LD)
-	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) -o '$@' $(OBJS) $(LDLIBS)
 
-$(OBJS): %.o: %.c
+$(BUILD_DIR)/%.o: %.c | $(BUILD_DIR)
 	$(PRINT_CC)
-	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) -c -o '$@' '$<'
 
 clean:
 	$(PRINT_CLEAN)
-	$(Q)rm -f $(BUILD_NAME) $(OBJS)
-
-.PHONY: all clean
+	$(Q)rm -rf build
