@@ -57,7 +57,7 @@ FIRMWARE_TARGET ?= $(DEFAULT_FIRMWARE_TARGET)
 RAW_FIRMWARE_TARGET := $(FIRMWARE_TARGET)_GCC5
 FIRMWARE_VERSION ?= $(shell cd "$(REPO_ROOT)" && (dpkg-parsechangelog -S Version 2>/dev/null || sed -n '1s/^[^(]*(\([^)]*\)).*/\1/p' debian/changelog))
 FIRMWARE_STAGE_ROOT ?= $(REPO_ROOT)/dist/firmware/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)
-FIRMWARE_INSTALL_ROOT ?= /boot/efi/firmware/radxa
+FIRMWARE_INSTALL_ROOT ?= /boot/efi/edk2/radxa/$(FIRMWARE_PRODUCT)
 FIRMWARE_ARCHIVE_ROOT ?= $(REPO_ROOT)/dist
 FIRMWARE_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)
 FIPTOOL_BUILD_DIR ?= $(REPO_ROOT)/src/tools/arm-trusted-firmware-fiptool/build
@@ -240,7 +240,7 @@ help:
 	print_help_line '  devcontainer_setup' 'Install host build dependencies'; \
 	print_help_line '  firmware-build' 'Build the firmware artefacts for the selected board'; \
 	print_help_line '  firmware-stage' 'Stage deployable firmware files under dist/firmware/'; \
-	print_help_line '  install' 'Copy the staged payload under /boot/efi/firmware/radxa/'; \
+	print_help_line '  install' 'Copy the staged payload under /boot/efi/edk2/radxa/<product>/<version>/'; \
 	print_help_line '  zip' 'Create a .zip firmware archive'; \
 	print_help_line '  targz' 'Create a .tar.gz firmware archive'; \
 	print_help_line '  deb' 'Build the Debian package and copy it under dist/deb/'; \
