@@ -155,12 +155,14 @@ FIPTOOL_SOURCE_INPUTS := \
 	$(FIPTOOL_SOURCE_DIR)/include/tools_share/uuid.h \
 	$(FIPTOOL_SOURCE_DIR)/upstream.json
 TRUSTED_KEY_CERT_TOOL_SOURCE_DIR := $(TOOLS_DIR)/cix_regen_trusted_key_cert
-TRUSTED_KEY_CERT_TOOL_BIN := $(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trusted_key_cert
+TRUSTED_KEY_CERT_TOOL_BUILD_DIR := $(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/build/$(HOST_ARCH)
+TRUSTED_KEY_CERT_TOOL_BIN := $(TRUSTED_KEY_CERT_TOOL_BUILD_DIR)/cix_regen_trusted_key_cert
 TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS := \
 	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/Makefile \
 	$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/cix_regen_trusted_key_cert.c
 CERT_UEFI_CREATE_RSA_SOURCE_DIR := $(TOOLS_DIR)/cert_uefi_create_rsa
-CERT_UEFI_CREATE_RSA_BIN := $(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/cert_uefi_create_rsa
+CERT_UEFI_CREATE_RSA_BUILD_DIR := $(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/build/$(HOST_ARCH)
+CERT_UEFI_CREATE_RSA_BIN := $(CERT_UEFI_CREATE_RSA_BUILD_DIR)/cert_uefi_create_rsa
 CERT_UEFI_CREATE_RSA_SOURCE_INPUTS := \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/Makefile \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/cert_uefi_create_rsa.c
@@ -260,7 +262,8 @@ CUSTOM_EDK2_BUILD_INPUTS := \
 	$(if $(filter custom,$(ARTEFACT_MODE)),$(ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES) $(CUSTOM_EDK2_OVERLAY_SOURCES) $(MICROSOFT_SECURE_BOOT_PAYLOADS))
 CUSTOM_EDK2_ORDER_ONLY_PREREQS := \
 	$(if $(filter custom,$(ARTEFACT_MODE)),refresh-microsoft-secure-boot-defaults check-microsoft-secure-boot-release)
-HOST_TOOLS_DIR := Build/HostTools
+HOST_TOOLS_ROOT := Build/HostTools
+HOST_TOOLS_DIR := $(HOST_TOOLS_ROOT)/$(HOST_ARCH)
 CIX_PACKAGE_TOOL_SOURCE_DIR := $(TOOLS_DIR)/cix_package_tool
 CIX_PACKAGE_TOOL_BIN := $(HOST_TOOLS_DIR)/cix_package_tool
 CIX_PACKAGE_TOOL_SOURCE_INPUTS := $(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py
@@ -400,7 +403,7 @@ help:
 	print_help_line '  check-microsoft-secure-boot-release' 'Advisory check for a newer pinned Microsoft Secure Boot firmware release'; \
 	print_help_line '  host-fiptool' 'Build the vendored TF-A fiptool from source'; \
 	print_help_line '  host-cert-uefi-create-rsa' 'Build the source non-trusted cert helper'; \
-	print_help_line '  host-cix-package-tool' 'Refresh the cix_package_tool wrapper in Build/HostTools/'; \
+	print_help_line '  host-cix-package-tool' 'Refresh the cix_package_tool wrapper in Build/HostTools/<host-arch>/'; \
 	print_help_line '  host-cix-regen-trusted-key-cert' 'Build the source trusted-key cert helper'; \
 	print_help_line '  clean' 'Remove Build/ output and generated helper artefacts'; \
 	print_help_line '  help-debug' 'Explain the DEBUG_PRINT_ERROR_LEVEL bit values derived from DebugLib.h'; \
@@ -454,19 +457,20 @@ $(FIPTOOL_BIN): $(FIPTOOL_SOURCE_INPUTS)
 $(TRUSTED_KEY_CERT_TOOL_BIN): $(TRUSTED_KEY_CERT_TOOL_SOURCE_INPUTS)
 	$(Q)$(ENSURE_REPO_LOCK)
 	$(PRINT_HOST_TOOL)
-	$(Q)$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" V="$(V)" clean all
+	$(Q)$(MAKE) -C "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)" HOST_ARCH="$(HOST_ARCH)" V="$(V)" clean all
 
 $(CERT_UEFI_CREATE_RSA_BIN): $(CERT_UEFI_CREATE_RSA_SOURCE_INPUTS)
 	$(Q)$(ENSURE_REPO_LOCK)
 	$(PRINT_HOST_TOOL)
-	$(Q)$(MAKE) -C "$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)" V="$(V)" clean all
+	$(Q)$(MAKE) -C "$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)" HOST_ARCH="$(HOST_ARCH)" V="$(V)" clean all
 
 $(CIX_PACKAGE_TOOL_BIN): $(CIX_PACKAGE_TOOL_SOURCE_INPUTS)
 	$(Q)$(ENSURE_REPO_LOCK)
 	$(PRINT_HOST_TOOL)
 	$(Q)mkdir -p "$(HOST_TOOLS_DIR)"
 	$(Q)printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' \
-		'exec python3 "$(abspath $(CIX_PACKAGE_TOOL_SOURCE_DIR))/cix_package_tool.py" "$$@"' >"$@"
+		'script_dir="$$(CDPATH= cd -- "$$(dirname -- "$${BASH_SOURCE[0]}")" && pwd)"' \
+		'exec python3 "$$script_dir/../../../tools/cix_package_tool/cix_package_tool.py" "$$@"' >"$@"
 	$(Q)chmod +x "$@" "$(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py"
 
 .PHONY: print-build-metadata preflight-build-metadata
@@ -533,13 +537,14 @@ prepare-basetools-c:
 	mkdir -p "$$base_tools_bin_dir"; \
 	current_env_id="$$( \
 		{ source /etc/os-release >/dev/null 2>&1 && true; } || true; \
-		printf 'arch=%s;os=%s;version=%s;cc=%s;ldd=%s\n' \
+		printf 'arch=%s;os=%s;version=%s;cc=%s;ldd=%s;artefact=%s;overlay=%s\n' \
 			"$$(uname -sm)" \
 			"$${ID:-unknown}" \
 			"$${VERSION_ID:-unknown}" \
 			"$$(cc --version 2>/dev/null | sed -n '1p' || echo unavailable)" \
-			"$$(ldd --version 2>/dev/null | sed -n '1p' || echo unavailable)"; \
-		printf 'artefact=%s;overlay=%s\n' "$(ARTEFACT_MODE)" "$$overlay_signature"; \
+			"$$(ldd --version 2>/dev/null | sed -n '1p' || echo unavailable)" \
+			"$(ARTEFACT_MODE)" \
+			"$$overlay_signature"; \
 	)"; \
 	rebuild=0; \
 	if [[ ! -f "$$base_tools_marker" ]]; then \
@@ -1278,8 +1283,7 @@ __clean:
 	rm -rf "$(CUSTOM_EDK2_WORKSPACE)"
 	printf '[clean] Removing host-built helper tools\n'
 	rm -rf "$(FIPTOOL_SOURCE_DIR)/build"
-	rm -f "$(TRUSTED_KEY_CERT_TOOL_BIN)" "$(CERT_UEFI_CREATE_RSA_BIN)" "$(CIX_PACKAGE_TOOL_BIN)"
-	rm -f "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)"/*.o "$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)"/*.o
+	rm -rf "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/build" "$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/build"
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type f -name '*.pyc' -delete
 	find "$(CIX_PACKAGE_TOOL_SOURCE_DIR)" -type d -name '__pycache__' -prune -exec rm -rf {} +
 	printf '[clean] Cleaning BaseTools output without invoking host toolchain checks\n'
