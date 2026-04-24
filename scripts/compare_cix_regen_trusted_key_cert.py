@@ -2,6 +2,7 @@
 
 import argparse
 import datetime as dt
+import platform
 import pathlib
 import re
 import subprocess
@@ -13,11 +14,22 @@ from vendor_tool_resolver import resolve_vendor_tool
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 SOURCE_TOOL_DIR = REPO_ROOT / "src/tools/cix_regen_trusted_key_cert"
-SOURCE_TOOL = SOURCE_TOOL_DIR / "cix_regen_trusted_key_cert"
 VENDOR_TOOL_REPO_RELPATH = "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/X86_64/cix_regen_trusted_key_cert"
 DEFAULT_PUBLIC_KEY = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Keys/oem_publickey.pem"
 DEFAULT_PRIVATE_KEY = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Keys/oem_privatekey.pem"
 CUSTOM_OID = "1.3.6.1.4.1.4128.2100.303"
+
+
+def host_arch_tag() -> str:
+    machine = platform.machine()
+    if machine in {"arm64", "aarch64"}:
+        return "aarch64"
+    if machine in {"amd64", "x86_64"}:
+        return "x86_64"
+    return machine
+
+
+SOURCE_TOOL = SOURCE_TOOL_DIR / "build" / host_arch_tag() / "cix_regen_trusted_key_cert"
 
 
 def run(cmd, *, input_text=None):
@@ -38,7 +50,7 @@ def run(cmd, *, input_text=None):
 
 
 def build_source_tool():
-    run(["make", "-C", str(SOURCE_TOOL_DIR)])
+    run(["make", "-C", str(SOURCE_TOOL_DIR), f"HOST_ARCH={host_arch_tag()}", "clean", "all"])
 
 
 def pem_pubkey_to_der(path: pathlib.Path) -> bytes:

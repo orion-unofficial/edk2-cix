@@ -32,10 +32,12 @@ def load_cert_compare_module():
 CERT_COMPARE = load_cert_compare_module()
 VENDOR_TOOL_REPO_RELPATH = "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/X86_64/cix_regen_trusted_key_cert"
 DEFAULT_SOURCE_TOOL_DIR = REPO_ROOT / "src/tools/cix_regen_trusted_key_cert"
-DEFAULT_SOURCE_TOOL = DEFAULT_SOURCE_TOOL_DIR / "cix_regen_trusted_key_cert"
-DEFAULT_FIPTOOL = REPO_ROOT / "src/tools/arm-trusted-firmware-fiptool/build" / (
-    "aarch64" if platform.machine() in {"aarch64", "arm64"} else "x86_64"
-) / "fiptool"
+DEFAULT_SOURCE_TOOL = (
+    DEFAULT_SOURCE_TOOL_DIR / "build" / CERT_COMPARE.host_arch_tag() / "cix_regen_trusted_key_cert"
+)
+DEFAULT_FIPTOOL = (
+    REPO_ROOT / "src/tools/arm-trusted-firmware-fiptool/build" / CERT_COMPARE.host_arch_tag() / "fiptool"
+)
 DEFAULT_PUBLIC_KEY = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Keys/oem_publickey.pem"
 DEFAULT_PRIVATE_KEY = REPO_ROOT / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Keys/oem_privatekey.pem"
 
@@ -151,8 +153,16 @@ def main() -> int:
     if not args.skip_build:
         if not args.source_tool_dir.is_dir():
             raise FileNotFoundError(args.source_tool_dir)
-        CERT_COMPARE.run(["make", "-C", str(args.source_tool_dir), "clean"])
-        CERT_COMPARE.run(["make", "-C", str(args.source_tool_dir), "all"])
+        CERT_COMPARE.run(
+            [
+                "make",
+                "-C",
+                str(args.source_tool_dir),
+                f"HOST_ARCH={CERT_COMPARE.host_arch_tag()}",
+                "clean",
+                "all",
+            ]
+        )
         if not args.fiptool.exists():
             CERT_COMPARE.run(["make", "-C", str(REPO_ROOT / "src"), "host-fiptool"])
     required_paths.append(args.source_tool)
