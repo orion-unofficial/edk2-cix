@@ -21,7 +21,9 @@ form formid = COMPLIANCE_CONFIG_FORM_ID,
     prompt = STRING_TOKEN(STR_COMPLIANCE_ACPI),
     help   = STRING_TOKEN(STR_COMPLIANCE_ACPI_HELP),
     flags  = CHECKBOX_DEFAULT | RESET_REQUIRED,
+#ifndef EDK2_CIX_CUSTOM_BUILD
     default = TRUE,
+#endif
   endcheckbox;
 
 suppressif ideqval DtAcpiPref.Pref == DT_ACPI_SELECT_DT;
