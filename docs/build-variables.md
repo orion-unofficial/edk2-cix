@@ -299,6 +299,50 @@ This setting is only valid with:
 
 Default: unset
 
+### `O6_SMBIOS_ASSET_TAG=<text>`
+
+To set both O6 SMBIOS asset-tag fields together on the custom path, set this
+variable.
+
+When set:
+
+- SMBIOS Type 2 `Asset Tag` uses this value
+- SMBIOS Type 3 `Asset Tag` uses this value
+- a more specific override variable wins if you also set one
+
+This setting is only valid with:
+
+- `ARTEFACT_MODE=custom`
+- `FIRMWARE_BOARD=O6`
+
+Leaving it unset keeps both asset-tag fields absent (`0` / no string).
+
+### `O6_SMBIOS_BASEBOARD_ASSET_TAG=<text>`
+
+To override only the O6 SMBIOS Type 2 baseboard asset tag on the custom path,
+set this variable.
+
+This setting is only valid with:
+
+- `ARTEFACT_MODE=custom`
+- `FIRMWARE_BOARD=O6`
+
+Leaving it unset falls back to `O6_SMBIOS_ASSET_TAG`, and if both are unset the
+Type 2 asset-tag field stays absent.
+
+### `O6_SMBIOS_CHASSIS_ASSET_TAG=<text>`
+
+To override only the O6 SMBIOS Type 3 chassis asset tag on the custom path, set
+this variable.
+
+This setting is only valid with:
+
+- `ARTEFACT_MODE=custom`
+- `FIRMWARE_BOARD=O6`
+
+Leaving it unset falls back to `O6_SMBIOS_ASSET_TAG`, and if both are unset the
+Type 3 asset-tag field stays absent.
+
 ### `V=0|1`
 
 To change build verbosity, set this variable.
@@ -324,6 +368,8 @@ The most important compatibility rules are:
 - `ENABLE_CORE_ORDER=...` requires `ENABLE_FIRMWARE_FIXES=true`
 - `DEBUG_ON_UART3=true` implies `UART3_ENABLE=true`
 - `CIX_RELEASE=1.2` is custom-only and board-limited to `O6` / `O6N`
+- the `O6_SMBIOS_*` asset-tag variables are custom-only and board-limited to
+  `O6`
 - `ENABLE_FIRMWARE_FIXES=true` and
   `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true` are designed to coexist
 

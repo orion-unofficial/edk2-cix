@@ -77,6 +77,15 @@ CIX_RELEASE_NORMALIZED_RAW := $(if $(strip $(CIX_RELEASE)),$(shell python3 "$(MA
 CIX_RELEASE_NORMALIZED := $(if $(filter __INVALID__,$(CIX_RELEASE_NORMALIZED_RAW)),,$(CIX_RELEASE_NORMALIZED_RAW))
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW := $(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" 2>/dev/null || printf '%s' __INVALID__),)
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW)),,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW))
+O6_SMBIOS_ASSET_TAG ?=
+O6_SMBIOS_BASEBOARD_ASSET_TAG ?=
+O6_SMBIOS_CHASSIS_ASSET_TAG ?=
+O6_SMBIOS_BASEBOARD_ASSET_TAG_EFFECTIVE := $(if $(strip $(O6_SMBIOS_BASEBOARD_ASSET_TAG)),$(strip $(O6_SMBIOS_BASEBOARD_ASSET_TAG)),$(strip $(O6_SMBIOS_ASSET_TAG)))
+O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE := $(if $(strip $(O6_SMBIOS_CHASSIS_ASSET_TAG)),$(strip $(O6_SMBIOS_CHASSIS_ASSET_TAG)),$(strip $(O6_SMBIOS_ASSET_TAG)))
+O6_SMBIOS_BASEBOARD_ASSET_TAG_C_LITERAL_RAW := $(if $(strip $(O6_SMBIOS_BASEBOARD_ASSET_TAG_EFFECTIVE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" emit-c-string-literal --value "$(O6_SMBIOS_BASEBOARD_ASSET_TAG_EFFECTIVE)" 2>/dev/null || printf '%s' __INVALID__),)
+O6_SMBIOS_BASEBOARD_ASSET_TAG_C_LITERAL := $(if $(filter __INVALID__,$(O6_SMBIOS_BASEBOARD_ASSET_TAG_C_LITERAL_RAW)),,$(O6_SMBIOS_BASEBOARD_ASSET_TAG_C_LITERAL_RAW))
+O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL_RAW := $(if $(strip $(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" emit-c-string-literal --value "$(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE)" 2>/dev/null || printf '%s' __INVALID__),)
+O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL := $(if $(filter __INVALID__,$(O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL_RAW)),,$(O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL_RAW))
 EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_PACKAGE_ROOTS := \
 	$(wildcard $(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)/edk2) \
 	$(wildcard $(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)/edk2-platforms) \
@@ -204,7 +213,12 @@ CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platfor
 CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_SOURCES := $(wildcard $(CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_DIR)/*)
 CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe)
 CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_SOURCES := \
-	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/*.c) \
+	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/*.h) \
+	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/*.inf) \
+	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/*.uni) \
+	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/*.vfr) \
+	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/*.hfr) \
 	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/MemMenu/*) \
 	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/PcieMenu/*)
 CUSTOM_SKY1_EC_PROTOCOL_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Include/Protocol)
@@ -213,12 +227,15 @@ CUSTOM_SKY1_EC_DRIVER_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/
 CUSTOM_SKY1_EC_LIBRARY_SOURCES_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/Ite5570EcLib)
 CUSTOM_ECLIB_NULL_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Library/EcLibNull)
 CUSTOM_COMMON_LIB_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/CommonLib)
+CUSTOM_CIX_SMBIOS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/CixSmbiosDxe)
 CUSTOM_RADXA_SETUP_INIT_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/RadxaSetupVariableInitDxe)
 CUSTOM_RADXA_SETUP_INCLUDE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Include)
 CUSTOM_MERAK_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Merak/Library/PlatformEnvHookLib)
 CUSTOM_EDGE_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Edge/Library/PlatformEnvHookLib)
 CUSTOM_O6_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib)
+CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/PlatformSmbios)
 CUSTOM_ACPI_PLATFORM_DXE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Drivers/AcpiPlatformDxe)
+CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe)
 CUSTOM_BASETOOLS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2/BaseTools)
 CUSTOM_BASETOOLS_VFR_OVERLAY := $(CUSTOM_BASETOOLS_OVERLAY_DIR)/Source/C/VfrCompile/VfrSyntax.g
 CUSTOM_EDK2_OVERLAY_SOURCES := \
@@ -233,17 +250,31 @@ CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_SOURCES) \
 	$(wildcard $(CUSTOM_ECLIB_NULL_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_COMMON_LIB_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_CIX_SMBIOS_OVERLAY_DIR)/*.c) \
+	$(wildcard $(CUSTOM_CIX_SMBIOS_OVERLAY_DIR)/*.h) \
+	$(wildcard $(CUSTOM_CIX_SMBIOS_OVERLAY_DIR)/*.inf) \
 	$(CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_SOURCES) \
 	$(wildcard $(CUSTOM_MERAK_ENV_HOOK_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_EDGE_ENV_HOOK_OVERLAY_DIR)/*) \
 	$(abspath $(CUSTOM_O6_DRIVERS_OVERLAY_DIR)/LinuxAcpiConfig.h) \
 	$(wildcard $(CUSTOM_O6_ACPI_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_O6_ENV_HOOK_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.c) \
+	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.h) \
+	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.inf) \
 	$(wildcard $(CUSTOM_ACPI_PLATFORM_DXE_OVERLAY_DIR)/*) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
+	$(wildcard $(CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR)/*.c) \
+	$(wildcard $(CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR)/*.h) \
+	$(wildcard $(CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR)/*.inf) \
+	$(wildcard $(CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR)/*.vfr) \
+	$(wildcard $(CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR)/*.uni) \
 	$(wildcard $(CUSTOM_RADXA_SETUP_INCLUDE_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_RADXA_SETUP_INIT_OVERLAY_DIR)/*) \
+	$(abspath ../custom/overlay/edk2/ArmPlatformPkg/Library/PL011UartLib/PL011Uart.h) \
+	$(abspath ../custom/overlay/edk2/ArmPlatformPkg/Library/PL011UartLib/PL011UartLib.c) \
+	$(abspath ../custom/overlay/edk2/ArmPlatformPkg/Library/PL011UartLib/PL011UartLib.inf) \
 	$(CUSTOM_BASETOOLS_VFR_OVERLAY) \
 	$(abspath ../custom/overlay/edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/SecureBootVariableProvisionLib.c) \
 	$(abspath ../custom/overlay/edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/SecureBootVariableProvisionLib.inf)
@@ -260,7 +291,10 @@ EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/UsbMenu/UsbConfig.uni) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Include/ExperimentalConsoleModeSetupVar.h) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Include/RadxaSetupVar.h) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Include/ExperimentalPcieSrIovSetupVar.h) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/ComplianceMenu/ComplianceConfig.hfr) \
@@ -644,6 +678,15 @@ preflight-inputs:
 	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))" ]; then \
 		validate_cmd+=(--debug-print-error-level "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))"); \
 	fi; \
+	if [ -n "$(strip $(O6_SMBIOS_ASSET_TAG))" ]; then \
+		validate_cmd+=(--o6-smbios-asset-tag "$(strip $(O6_SMBIOS_ASSET_TAG))"); \
+	fi; \
+	if [ -n "$(strip $(O6_SMBIOS_BASEBOARD_ASSET_TAG))" ]; then \
+		validate_cmd+=(--o6-smbios-baseboard-asset-tag "$(strip $(O6_SMBIOS_BASEBOARD_ASSET_TAG))"); \
+	fi; \
+	if [ -n "$(strip $(O6_SMBIOS_CHASSIS_ASSET_TAG))" ]; then \
+		validate_cmd+=(--o6-smbios-chassis-asset-tag "$(strip $(O6_SMBIOS_CHASSIS_ASSET_TAG))"); \
+	fi; \
 	"$${validate_cmd[@]}"; \
 	if [ -n "$(strip $(DEBUG_ON_UART3_NORMALIZED))" ] && [ "$(DEBUG_ON_UART3_NORMALIZED)" = "TRUE" ] && [ "$(strip $(UART3_ENABLE_NORMALIZED))" != "TRUE" ]; then \
 		echo "[config] DEBUG_ON_UART3=true implies UART3_ENABLE=true"; \
@@ -665,6 +708,12 @@ preflight-inputs:
 	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ] && [ "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" = "TRUE" ]; then \
 		echo "[config] ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true enables the experimental Radxa UI overlay"; \
+	fi; \
+	if [ -n "$(strip $(O6_SMBIOS_BASEBOARD_ASSET_TAG_EFFECTIVE))" ]; then \
+		echo "[config] O6 Type 2 asset tag = $(O6_SMBIOS_BASEBOARD_ASSET_TAG_EFFECTIVE)"; \
+	fi; \
+	if [ -n "$(strip $(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE))" ]; then \
+		echo "[config] O6 Type 3 asset tag = $(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE)"; \
 	fi; \
 	if [ "$(ARTEFACT_MODE)" = "custom" ] && [ -d "$(CUSTOM_OVERLAY_ROOT)" ]; then \
 		python3 "$(CUSTOM_OVERLAY_SHADOW_CHECK)" \
@@ -1272,10 +1321,16 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(PATCHED_EDK2_SOURCE_INPUTS) 
 		if [[ "$(ARTEFACT_MODE)" == "custom" && "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" && "$(ENABLE_CORE_ORDER_NORMALIZED)" == "performance" ]]; then \
 			build_extra_defines+=(-D ENABLE_CORE_ORDER_PERFORMANCE=1); \
 		fi; \
-		if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" ]]; then \
-			build_extra_defines+=(-D ENABLE_EXPERIMENTAL_UEFI_SETTINGS=$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)); \
-		fi; \
-		run_edk2_build() { \
+			if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" ]]; then \
+				build_extra_defines+=(-D ENABLE_EXPERIMENTAL_UEFI_SETTINGS=$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)); \
+			fi; \
+			if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(O6_SMBIOS_BASEBOARD_ASSET_TAG_C_LITERAL)" ]]; then \
+				build_extra_defines+=("-D" "O6_SMBIOS_BASEBOARD_ASSET_TAG=$(O6_SMBIOS_BASEBOARD_ASSET_TAG_C_LITERAL)"); \
+			fi; \
+			if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL)" ]]; then \
+				build_extra_defines+=("-D" "O6_SMBIOS_CHASSIS_ASSET_TAG=$(O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL)"); \
+			fi; \
+			run_edk2_build() { \
 		export EDK2_CIX_QUIET_PREBUILD="$(if $(filter 1,$(V)),0,1)"; \
 		build -a AARCH64 -t GCC5 -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
 			$(if $(strip $(EDK2_BUILD_JOBS)),-n $(EDK2_BUILD_JOBS)) \
