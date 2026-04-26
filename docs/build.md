@@ -3,7 +3,7 @@
 You can build this repo either directly on a supported Debian host or inside a
 containerized environment.
 
-If you want a quick overview of the common top-level workflows first, run:
+To start with a quick overview of the common top-level workflows, run:
 
 ```bash
 make help
@@ -14,6 +14,9 @@ For lower-level firmware targets, use:
 ```bash
 make -C src help
 ```
+
+For the fuller explanation of the user-facing build variables and their side
+effects, see [`build-variables.md`](build-variables.md).
 
 For documentation builds, run `make docs-build` when `mdbook` is already
 available, or `devenv shell make docs-build` to use the repo's managed docs
@@ -53,7 +56,7 @@ make gha-act-run-clean \
 That helper clones a scratch checkout, overlays the current tracked and
 untracked non-ignored working tree changes, and runs `act` there so stale
 ignored artefacts from your main checkout cannot skew the result. Set
-`ACT_CLEAN_KEEP=1` if you want to preserve that scratch checkout for debugging.
+`ACT_CLEAN_KEEP=1` to preserve that scratch checkout for debugging.
 
 Common variables:
 
@@ -65,7 +68,7 @@ Common variables:
 - `ACT_EXTRA_ARGS='...'` for any extra raw act flags
 - `ACT_CLEAN_KEEP=1` to keep the temporary checkout used by `gha-act-run-clean`
 
-If you want to pass the runner image or container architecture yourself, call
+To pass the runner image or container architecture yourself, call
 `scripts/run_github_actions_with_act.sh --no-defaults ...` directly.
 
 The first run downloads the pinned `act` release plus the selected runner
@@ -75,11 +78,12 @@ networking before the run can start.
 
 ## Supported host environments
 
-- Debian `bookworm` on `x86_64` for the preferred exact-upstream replay path
+- Debian `bookworm` on `x86_64` for the preferred upstream vendor path,
+  including byte-identical replay when you provide the published replay inputs
 - Debian `bookworm` on `arm64` / `aarch64` for the default `main-monorepo`
   build path, including exact replay when you reuse the extracted cert bundle
-- Debian `trixie` on `arm64` / `aarch64` when you want the newer distro /
-  toolchain family on `main-monorepo`
+- Debian `trixie` on `arm64` / `aarch64` for the newer distro / toolchain
+  family on `main-monorepo`
 
 The untouched upstream repo contents still need Debian `trixie` for native
 `arm64` / `aarch64` builds because they shipped closed-source helper binaries.
@@ -113,8 +117,8 @@ make zip
 make targz
 ```
 
-If you prefer to reuse a warmed build container instead of installing the
-dependencies onto the host, use:
+To reuse a warmed build container instead of installing the dependencies onto
+the host, use:
 
 ```bash
 make buildbox-up
@@ -145,7 +149,7 @@ To select the distro generation explicitly:
 - use `FIRMWARE_DISTRO=bookworm` for the default general buildbox environment
 - use `FIRMWARE_DISTRO=trixie` for the Trixie general buildbox environment
 - use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:...` (or
-  `EDK2_CIX_BUILDBOX_IMAGE=...`) when you want to override the image directly;
+  `EDK2_CIX_BUILDBOX_IMAGE=...`) to override the image directly;
   when unset, the effective default is
   `mcr.microsoft.com/devcontainers/base:${FIRMWARE_DISTRO}`
 The firmware-oriented `buildbox-*` targets install the slimmer firmware
@@ -178,9 +182,14 @@ Before a longer build, run `make -C src preflight` to fail early if the
 expected package-tool binaries, source directories, or cross-compiler are
 missing.
 
-Set `FIRMWARE_TARGET=DEBUG` on the `make -C src ...` command line when you want
+Set `FIRMWARE_TARGET=DEBUG` on the `make -C src ...` command line to build
 debug artefacts instead of the default release output tree under
 `Build/.../RELEASE_GCC5/`.
+
+For the detailed explanation of how `ARTEFACT_MODE`,
+`ENABLE_FIRMWARE_FIXES`, `ENABLE_EXPERIMENTAL_UEFI_SETTINGS`,
+`ENABLE_CORE_ORDER`, `CIX_RELEASE`, `UART3_ENABLE`, and the `DEBUG_*`
+variables interact, see [`build-variables.md`](build-variables.md).
 
 The top-level firmware targets accept the same switch. For example:
 
@@ -216,8 +225,8 @@ keeps the imported source behavior unchanged. Run `make help-debug` for the
 derived `DEBUG_PRINT_ERROR_LEVEL` bit values from `DebugLib.h`. See
 `docs/debug.md` for the board-specific serial details.
 
-If you are validating the custom Microsoft Secure Boot defaults on real
-hardware, use [`docs/secure-boot-hardware-validation.md`](secure-boot-hardware-validation.md)
+To validate the custom Microsoft Secure Boot defaults on real hardware, use
+[`docs/secure-boot-hardware-validation.md`](secure-boot-hardware-validation.md)
 as the field checklist after the build succeeds.
 
 Edit `DSC` in `src/Makefile` to reduce amount of variants that will be built.
@@ -248,9 +257,10 @@ build. The same value is also passed into the O6 `pm_config`
 generator unless `PM_CONFIG_SOURCE_DATE_EPOCH` is set explicitly, so
 `csu_pm_config.bin` stops depending on wall-clock time.
 
-For exact replay of a previously published O6 or O6N image, we found that the
-vendor build embeds three independent timestamp domains. Set them explicitly
-and point `SIGNING_CERT_SOURCE_DIR=<path-to-cert-bundle>` at either:
+For a byte-identical rebuild of a previously published O6 or O6N image, use
+`ARTEFACT_MODE=upstream`. The vendor build embeds three independent timestamp
+domains, so set them explicitly and point
+`SIGNING_CERT_SOURCE_DIR=<path-to-cert-bundle>` at either:
 
 - `BUILD_DATE=<iso8601>` for the displayed firmware build timestamp
 - `SOURCE_DATE_EPOCH=<unix-seconds>` for compiler-provided `__DATE__` and
@@ -274,7 +284,7 @@ The build also supports two output modes:
   strips embedded PE/COFF debug path records from release firmware
   images
 - `ARTEFACT_MODE=upstream` keeps the historical output behavior for
-  replay and byte-for-byte comparison work
+  the upstream vendor path, replay, and byte-for-byte comparison work
 
 ## Replay published firmware
 
@@ -306,6 +316,11 @@ mapped upstream source commit in Git history. On the custom path, that keeps
 the displayed build metadata tied to the upstream tag or commit being built
 rather than the local overlay commit.
 
+Those ordinary `ARTEFACT_MODE=upstream` builds still stay on the upstream
+vendor path. The explicit replay inputs are what promote that path from an
+ordinary upstream build to a byte-identical rebuild of a published vendor
+image.
+
 It also writes:
 
 - `replay.env`
@@ -334,19 +349,19 @@ and then:
 - when the input is the published `1.2.1` release plus the extracted release
   cert bundle, qualifies the Bookworm path against the published release data
 
-You can also switch to `FIRMWARE_DISTRO=trixie` when you want a same-input
-Trixie replay. In that mode the goal is matching `amd64` and `arm64` outputs
+You can also switch to `FIRMWARE_DISTRO=trixie` for a same-input Trixie
+replay. In that mode the goal is matching `amd64` and `arm64` outputs
 against the same cert bundle and injected timestamps, not comparison with a
 published upstream release.
 
-If you already prepared `.buildbox/replay/<profile>/` once, later reruns can
+When you already prepared `.buildbox/replay/<profile>/` once, later reruns can
 omit `REPLAY_INPUT=...` and will reuse the cached `replay.env` plus cert
 bundle. When the replay input is only `cix_flash_all.bin`, also provide
 `REPLAY_BUILD_OPTIONS=/path/to/BuildOptions` when available so the helper can
 recover `BUILD_DATE`.
 
-If you want to keep the full transcript from a replay or local build, wrap the
-command with `./scripts/capture_build_log.sh build-logs <command ...>`. The
+To keep the full transcript from a replay or local build, wrap the command
+with `./scripts/capture_build_log.sh build-logs <command ...>`. The
 convenience target `make buildbox-firmware-log` does this for the standard
 selected-board build.
 
@@ -354,9 +369,9 @@ For firmware builds, the underlying EDK2 build now defaults to silent mode so
 you see the higher-level `Building ...` progress without the full compiler
 command flood. That applies both to direct `make -C src ...` invocations and
 to the top-level `make` targets that recurse into `src`. Use `V=1` on the
-`make` command line if you want the raw EDK2 command lines.
+`make` command line to show the raw EDK2 command lines.
 
-If you want deployable firmware files without creating a Debian package, the
+To produce deployable firmware files without creating a Debian package, the
 top-level Makefile extensions now provide:
 
 ```bash
@@ -436,7 +451,7 @@ Use these variables to change the defaults:
 
 If you only have a standalone `cix_flash_all.bin`, the helper can still
 recover the compiler and PM-config timestamps plus the cert bundle. Supply a
-matching `BuildOptions` file, or pass `--build-date <iso8601>`, if you want a
+matching `BuildOptions` file, or pass `--build-date <iso8601>`, to produce a
 complete replay build:
 
 ```bash
@@ -511,8 +526,29 @@ both `amd64` and native `arm64` exact replay.
 Native arm64 packaging no longer depends on the old closed-source
 `cert_uefi_create_rsa` helper: both that tool and `fiptool` are now built from
 source in-tree, and the flash-image packaging step uses the source
-`cix_package_tool` implementation too. The maintained helper sources now live
-under `src/tools/`.
+`cix_package_tool` implementation too. The source replacements now live under
+`src/tools/`.
+
+Custom builds also support a curated CIX release selector:
+
+```bash
+make buildbox-firmware-build \
+  ARTEFACT_MODE=custom \
+  FIRMWARE_BOARD=O6 \
+  CIX_RELEASE=1.2
+```
+
+`CIX_RELEASE=1.2` (also accepted as `v1.2`) is a custom-only mode. It uses the
+public CIX BIOS V1.2 source snapshot for TF-A and OP-TEE, stages the later
+public CIX community-release `bootloader1.img` payload that matches community
+hardware logs, and source-builds `bootloader2.img` during packaging. The
+materialised curated sources live under `src/cix-v1.2/`.
+
+This is a curated mode rather than an exact replay of one public CIX
+superproject commit, because the best public source and payload provenance is
+split across the public `bios` and release repositories. For the variable-level
+summary of what this selector does and how it combines with the other custom
+switches, see [`build-variables.md`](build-variables.md).
 
 If you reuse existing cert blobs, native arm64 reproduces the checked-in
 Bookworm qualification profile byte-for-byte and can also match the checked-in
@@ -523,15 +559,15 @@ entropy.
 So:
 
 - use the default Bookworm buildbox on either `x86_64` or `arm64` / `aarch64`
-  when you want the standard `main-monorepo` environment or the exact Bookworm
+  for the standard `main-monorepo` environment or the exact Bookworm
   replay baseline
-- use `FIRMWARE_DISTRO=trixie` when you want the Trixie family for general
+- use `FIRMWARE_DISTRO=trixie` for the Trixie family in general
   buildbox use or for exact deterministic replay
-- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:...` when you want
-  to override `FIRMWARE_DISTRO` with a specific image
-- use `make -C src host-fiptool` if you want to prebuild the vendored TF-A
+- use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:...` to override
+  `FIRMWARE_DISTRO` with a specific image
+- use `make -C src host-fiptool` to prebuild the vendored TF-A
   `fiptool` before the first packaging run
-- use `make -C src host-cert-uefi-create-rsa` if you want to prebuild the
+- use `make -C src host-cert-uefi-create-rsa` to prebuild the
   source replacement for the non-trusted FIP cert helper
 - the dependency bootstrap now includes `libssl-dev`, because the source-built
   `fiptool` needs the OpenSSL development headers
@@ -572,8 +608,8 @@ make validate-firmware \
   FIRMWARE_VALIDATION_PROFILE=upstream-1.2.1-trixie
 ```
 
-The shared `upstream-<version>-<distro>` form is now the only maintained
-replay-profile naming scheme.
+Use the shared `upstream-<version>-<distro>` form for replay-profile names on
+this branch.
 
 For deeper offline regression checks against the currently checked-in Bookworm
 replay baselines, use:
@@ -588,9 +624,8 @@ make buildbox-audit-bundle ARTEFACT_MODE=upstream FIRMWARE_BOARD=O6
 
 Those checks write JSON reports under `build-validation/`.
 The checked-in offline baseline files currently cover the shared
-`upstream-1.2.1-bookworm` profile for both `O6` and `O6N`; seed additional
-profiles later with the audit scripts' `--emit-baseline` mode if you want to
-extend that coverage.
+`upstream-1.2.1-bookworm` profile for both `O6` and `O6N`; use the audit
+scripts' `--emit-baseline` mode later to extend that coverage.
 
 - the final-image manifest audit baselines the final BL33 FV / FFS / section
   composition
@@ -644,9 +679,9 @@ branch rather than running `git submodule` commands in this checkout.
 
 ## Host-side Python checks
 
-The maintained Python helpers now run cleanly on recent host Python versions
-without the previous `SyntaxWarning` noise from invalid escape sequences. To
-re-check that set outside the devcontainer, run:
+The Python helpers in this branch now run cleanly on recent host Python
+versions without the previous `SyntaxWarning` noise from invalid escape
+sequences. To re-check them outside the devcontainer, run:
 
 ```bash
 python3 -W default -m compileall -q -f \
