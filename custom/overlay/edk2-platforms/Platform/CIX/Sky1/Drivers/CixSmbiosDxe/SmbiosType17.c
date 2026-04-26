@@ -5,6 +5,7 @@
  */
 
 #include "CixSmbiosDxe.h"
+#include <Protocol/EcPlatformProtocol.h>
 #include <Protocol/MemOutputBuffer.h>
 
 #define TYPE17_STRINGS                                                         \
@@ -12,7 +13,50 @@
   "BANK 0\0"         /* bank description */                                    \
   "BANK 1\0"         /* bank description */                                    \
   "BANK 2\0"         /* bank description */                                    \
-  "BANK 3\0"         /* bank description */
+  "BANK 3\0"         /* bank description */                                    \
+  "Samsung\0"        /* manufacturer */                                        \
+  "K3LKCKC0BM-MGCP\0" /* part number */
+
+#define RADXA_ORION_O6_PCB_SKU            4
+#define RADXA_ORION_O6_SAMSUNG_MEMTYPE    11
+#define RADXA_ORION_O6_REV_A_BOARD_REV    0
+#define TYPE17_MANUFACTURER_STRING_INDEX  6
+#define TYPE17_PART_NUMBER_STRING_INDEX   7
+
+STATIC
+BOOLEAN
+IsValidatedSamsungO6RevA (
+  VOID
+  )
+{
+  EFI_STATUS               Status;
+  EC_PLATFORM_PROTOCOL  *EcPlatformProtocol;
+  EC_RESPONSE           EcResponse;
+  UINTN                 PcbSku;
+  UINTN                 MemType;
+
+  Status = gBS->LocateProtocol (
+                  &gCixEcPlatformProtocolGuid,
+                  NULL,
+                  (VOID **)&EcPlatformProtocol
+                  );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_INFO, "%a: EC platform protocol not found: %r\n", __FUNCTION__, Status));
+    return FALSE;
+  }
+
+  Status = EcPlatformProtocol->Transfer (EcPlatformProtocol, EC_COMMAND_GET_BOARD_ID, NULL, &EcResponse);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_INFO, "%a: GET_BOARD_ID failed: %r\n", __FUNCTION__, Status));
+    return FALSE;
+  }
+
+  PcbSku  = EcResponse.BoardId.Id.Sku + (EcResponse.BoardId.Id.SkuExt << 3);
+  MemType = EcResponse.BoardId.Id.Memory + (EcResponse.BoardId.Id.MemExt << 3);
+  return (PcbSku == RADXA_ORION_O6_PCB_SKU) &&
+         (MemType == RADXA_ORION_O6_SAMSUNG_MEMTYPE) &&
+         (EcResponse.BoardId.Id.Rev == RADXA_ORION_O6_REV_A_BOARD_REV);
+}
 
 #pragma pack(1)
 typedef struct {
@@ -62,35 +106,42 @@ AddSmbiosType17 (
   UINT8              MemoryDevNum;
   UINT8              i;
   UINT16             MemorySize;
+  CIX_TYPE17         Type17Record;
 
+  Type17Record = mCixDefaultType17;
   MemoryDevNum = COUNT_MEMORY_DEVICE_NUMBER (MemoryInfo->ChannelMask);
   MemorySize   = MemoryInfo->TotalSize/MemoryDevNum;
   if (MemorySize >= 0x7fff) {
-    mCixDefaultType17.Base.Size         = 0x7fff;
-    mCixDefaultType17.Base.ExtendedSize = MemorySize;
+    Type17Record.Base.Size         = 0x7fff;
+    Type17Record.Base.ExtendedSize = MemorySize;
   } else {
-    mCixDefaultType17.Base.Size = MemorySize;
+    Type17Record.Base.Size = MemorySize;
   }
 
   if (MemoryInfo->DdrType == DDR_TYPE_LPDDR4X) {
-    mCixDefaultType17.Base.MemoryType = MemoryTypeLpddr4;
+    Type17Record.Base.MemoryType = MemoryTypeLpddr4;
   } else if (MemoryInfo->DdrType == DDR_TYPE_LPDDR5) {
-    mCixDefaultType17.Base.MemoryType = MemoryTypeLpddr5;
+    Type17Record.Base.MemoryType = MemoryTypeLpddr5;
   }
 
-  mCixDefaultType17.Base.Speed                      = MemoryInfo->MaxFreq*2;
-  mCixDefaultType17.Base.Attributes                 = MemoryInfo->RanksPerChannel;
-  mCixDefaultType17.Base.ConfiguredMemoryClockSpeed = MemoryInfo->MaxFreq*2;
-  mCixDefaultType17.Base.MemoryTechnology           = 0x03;
+  Type17Record.Base.Speed                      = MemoryInfo->MaxFreq*2;
+  Type17Record.Base.Attributes                 = MemoryInfo->RanksPerChannel;
+  Type17Record.Base.ConfiguredMemoryClockSpeed = MemoryInfo->MaxFreq*2;
+  Type17Record.Base.MemoryTechnology           = MemoryTechnologyDram;
+  if (IsValidatedSamsungO6RevA ()) {
+    Type17Record.Base.Manufacturer = TYPE17_MANUFACTURER_STRING_INDEX;
+    Type17Record.Base.PartNumber   = TYPE17_PART_NUMBER_STRING_INDEX;
+    Type17Record.Base.MemoryOperatingModeCapability.Bits.VolatileMemory = 1;
+  }
 
   for (i = 0; i < MemoryDevNum; i++) {
-    mCixDefaultType17.Base.BankLocator = 2+i;
-    SmbiosHandle                       = SMBIOS_HANDLE_PI_RESERVED;
-    Status                             = Smbios->Add (
+    Type17Record.Base.BankLocator = 2+i;
+    SmbiosHandle                  = SMBIOS_HANDLE_PI_RESERVED;
+    Status                        = Smbios->Add (
                                                    Smbios,
                                                    NULL,
                                                    &SmbiosHandle,
-                                                   (EFI_SMBIOS_TABLE_HEADER *)&mCixDefaultType17
+                                                   (EFI_SMBIOS_TABLE_HEADER *)&Type17Record
                                                    );
     if (EFI_ERROR (Status)) {
       DEBUG (
