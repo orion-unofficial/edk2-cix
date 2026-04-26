@@ -1,14 +1,18 @@
 # Debug
 
+For the broader explanation of how the custom build variables interact, see
+[`build-variables.md`](build-variables.md). This page focuses only on the
+serial and firmware-debug side of those build choices.
+
 ## Serial connection
 
 The following UARTs can be used to debug EDK2 on Radxa Orion O6 and O6N:
 
-- UART1: EC
-- UART2: AP
+- UART1: EC (Embedded Controller)
+- UART2: AP (Application Processor, the host system console)
 - UART3: dedicated firmware debug channel
-- UART4: PM
-- UART5: SE
+- UART4: PM (power-management controller)
+- UART5: SE (Security Engine)
 
 UART2 is the default management console for EDK2 and the operating system.
 
