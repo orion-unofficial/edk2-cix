@@ -23,6 +23,7 @@ VALID_BOARDS = {"O6", "O6N"}
 VALID_FIRMWARE_DISTROS = {"bookworm", "trixie"}
 VALID_BUILDBOX_PLATFORMS = {"linux/amd64", "linux/arm64"}
 VALID_CORE_ORDERS = {"cix", "conventional", "performance"}
+VALID_CIX_RELEASES = {"1.2"}
 TRUE_TOKENS = {"1", "true", "on", "yes"}
 FALSE_TOKENS = {"0", "false", "off", "no"}
 DEBUG_LIB_HEADER = REPO_ROOT / "src" / "edk2" / "MdePkg" / "Include" / "Library" / "DebugLib.h"
@@ -38,6 +39,12 @@ def build_parser() -> argparse.ArgumentParser:
         "normalize-bool", help="Normalize a human-readable boolean to TRUE/FALSE"
     )
     normalize_bool.add_argument("--value", required=True)
+
+    normalize_cix_release = subparsers.add_parser(
+        "normalize-cix-release",
+        help="Normalize a curated CIX release selector to its canonical form",
+    )
+    normalize_cix_release.add_argument("--value", required=True)
 
     normalize_u32 = subparsers.add_parser(
         "normalize-u32", help="Normalize a decimal or 0x-prefixed uint32 to canonical hex"
@@ -85,6 +92,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--debug-print-error-level")
     validate.add_argument("--enable-firmware-fixes")
     validate.add_argument("--enable-core-order")
+    validate.add_argument("--cix-release")
     validate.add_argument("--enable-experimental-uefi-settings")
     validate.add_argument("--check-buildbox-image", action="store_true")
     return parser
@@ -99,6 +107,14 @@ def normalize_bool(value: str) -> str:
     raise ValueError(
         f"Expected one of true/false/1/0/on/off, got: {value}"
     )
+
+
+def normalize_cix_release(value: str) -> str:
+    lowered = value.strip().lower()
+    if lowered.startswith("v"):
+        lowered = lowered[1:]
+    require_choice("CIX_RELEASE", lowered, VALID_CIX_RELEASES)
+    return lowered
 
 
 def fail(message: str) -> int:
@@ -432,6 +448,21 @@ def run_validate(args: argparse.Namespace) -> int:
                         "ENABLE_CORE_ORDER is only supported for FIRMWARE_BOARD=O6 or O6N"
                     )
 
+        if args.cix_release is not None and args.cix_release != "":
+            normalized_cix_release = normalize_cix_release(args.cix_release)
+            if artefact_mode and artefact_mode != "custom":
+                raise ValueError(
+                    "CIX_RELEASE is only supported with ARTEFACT_MODE=custom"
+                )
+            if (
+                normalized_cix_release == "1.2"
+                and args.firmware_board is not None
+                and args.firmware_board not in VALID_BOARDS
+            ):
+                raise ValueError(
+                    "CIX_RELEASE is only supported for FIRMWARE_BOARD=O6 or O6N"
+                )
+
         if (
             args.enable_experimental_uefi_settings is not None
             and args.enable_experimental_uefi_settings != ""
@@ -501,6 +532,13 @@ def main() -> int:
     if args.command == "normalize-bool":
         try:
             print(normalize_bool(args.value))
+        except ValueError as exc:
+            return fail(str(exc))
+        return 0
+
+    if args.command == "normalize-cix-release":
+        try:
+            print(normalize_cix_release(args.value))
         except ValueError as exc:
             return fail(str(exc))
         return 0
