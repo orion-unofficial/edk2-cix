@@ -24,6 +24,7 @@ VALID_FIRMWARE_DISTROS = {"bookworm", "trixie"}
 VALID_BUILDBOX_PLATFORMS = {"linux/amd64", "linux/arm64"}
 VALID_CORE_ORDERS = {"cix", "conventional", "performance"}
 VALID_CIX_RELEASES = {"1.2"}
+VALID_O6_SMBIOS_BOARDS = {"O6"}
 TRUE_TOKENS = {"1", "true", "on", "yes"}
 FALSE_TOKENS = {"0", "false", "off", "no"}
 DEBUG_LIB_HEADER = REPO_ROOT / "src" / "edk2" / "MdePkg" / "Include" / "Library" / "DebugLib.h"
@@ -50,6 +51,12 @@ def build_parser() -> argparse.ArgumentParser:
         "normalize-u32", help="Normalize a decimal or 0x-prefixed uint32 to canonical hex"
     )
     normalize_u32.add_argument("--value", required=True)
+
+    emit_c_string_literal = subparsers.add_parser(
+        "emit-c-string-literal",
+        help="Emit a validated printable ASCII value as a C string literal",
+    )
+    emit_c_string_literal.add_argument("--value", required=True)
 
     describe_debug_level = subparsers.add_parser(
         "describe-debug-print-error-level",
@@ -94,6 +101,9 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--enable-core-order")
     validate.add_argument("--cix-release")
     validate.add_argument("--enable-experimental-uefi-settings")
+    validate.add_argument("--o6-smbios-asset-tag")
+    validate.add_argument("--o6-smbios-baseboard-asset-tag")
+    validate.add_argument("--o6-smbios-chassis-asset-tag")
     validate.add_argument("--check-buildbox-image", action="store_true")
     return parser
 
@@ -115,6 +125,29 @@ def normalize_cix_release(value: str) -> str:
         lowered = lowered[1:]
     require_choice("CIX_RELEASE", lowered, VALID_CIX_RELEASES)
     return lowered
+
+
+def validate_smbios_string(name: str, value: str) -> str:
+    if value == "":
+        raise ValueError(f"{name} must not be empty when provided")
+    if not value.isascii():
+        raise ValueError(f"{name} must contain only ASCII characters")
+
+    disallowed = {'"', "\\", "$", "`"}
+    for character in value:
+        if ord(character) < 0x20 or ord(character) == 0x7F:
+            raise ValueError(f"{name} must not contain control characters")
+        if character in disallowed:
+            raise ValueError(
+                f"{name} must not contain any of: " + ", ".join(sorted(disallowed))
+            )
+
+    return value
+
+
+def emit_c_string_literal(value: str) -> str:
+    validated = validate_smbios_string("value", value)
+    return json.dumps(validated, ensure_ascii=True)
 
 
 def fail(message: str) -> int:
@@ -483,6 +516,25 @@ def run_validate(args: argparse.Namespace) -> int:
                     "ENABLE_EXPERIMENTAL_UEFI_SETTINGS is only supported for FIRMWARE_BOARD=O6 or O6N"
                 )
 
+        o6_smbios_asset_values = {
+            "O6_SMBIOS_ASSET_TAG": args.o6_smbios_asset_tag,
+            "O6_SMBIOS_BASEBOARD_ASSET_TAG": args.o6_smbios_baseboard_asset_tag,
+            "O6_SMBIOS_CHASSIS_ASSET_TAG": args.o6_smbios_chassis_asset_tag,
+        }
+        for name, value in o6_smbios_asset_values.items():
+            if value is None or value == "":
+                continue
+            validate_smbios_string(name, value)
+            if artefact_mode and artefact_mode != "custom":
+                raise ValueError(f"{name} is only supported with ARTEFACT_MODE=custom")
+            if (
+                args.firmware_board is not None
+                and args.firmware_board not in VALID_O6_SMBIOS_BOARDS
+            ):
+                raise ValueError(
+                    f"{name} is only supported for FIRMWARE_BOARD={', '.join(sorted(VALID_O6_SMBIOS_BOARDS))}"
+                )
+
         if args.validation_profile:
             profile_file = args.profile_file.resolve()
             validate_profile(
@@ -546,6 +598,13 @@ def main() -> int:
     if args.command == "normalize-u32":
         try:
             print(format_u32(parse_u32("value", args.value)))
+        except ValueError as exc:
+            return fail(str(exc))
+        return 0
+
+    if args.command == "emit-c-string-literal":
+        try:
+            print(emit_c_string_literal(args.value))
         except ValueError as exc:
             return fail(str(exc))
         return 0

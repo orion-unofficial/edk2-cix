@@ -56,8 +56,9 @@
 [Protocols]
   gEfiSmbiosProtocolGuid                      # PROTOCOL ALWAYS_CONSUMED
   gCixSocInfoProtocolGuid
+  gCixEcPlatformProtocolGuid
 
 [Guids]
 
 [Depex]
-  gEfiSmbiosProtocolGuid AND gCixSocInfoProtocolGuid
+  gEfiSmbiosProtocolGuid AND gCixSocInfoProtocolGuid AND gCixEcPlatformProtocolGuid
