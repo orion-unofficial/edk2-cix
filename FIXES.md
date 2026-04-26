@@ -1,252 +1,211 @@
-# Firmware Fixes Bundle
+# Firmware Fixes
 
-`main-monorepo` now supports an opt-in firmware fixes bundle for custom builds:
-
-```bash
-make -C src FIRMWARE_BOARD=O6 ARTEFACT_MODE=custom ENABLE_FIRMWARE_FIXES=true
-```
-
-This bundle is intentionally separate from the default custom build so that we
-can stage a set of higher-impact firmware changes together without changing the
-baseline image for every user immediately.
-
-## Scope
-
-`ENABLE_FIRMWARE_FIXES=true` is only valid with `ARTEFACT_MODE=custom`.
-
-The optional CPU UID ordering switch is only active inside the same gated
-surface:
+This repository can either follow the upstream vendor firmware path, including
+byte-identical rebuilds when you use `ARTEFACT_MODE=upstream` with the
+published replay inputs, or build a custom image with additional fixes
+applied. To build the custom image with the fixes described below, run:
 
 ```bash
-make -C src FIRMWARE_BOARD=O6 \
-  ARTEFACT_MODE=custom \
-  ENABLE_FIRMWARE_FIXES=true \
-  ENABLE_CORE_ORDER=conventional
+make ARTEFACT_MODE=custom ENABLE_FIRMWARE_FIXES=true
 ```
 
-It is also designed to coexist with:
+The short variable reference is also available from `make help-vars` or
+`make -C src help-vars` when you have the repo checked out, but this page is
+intended to stand on its own.
 
-```bash
-make -C src FIRMWARE_BOARD=O6 \
-  ARTEFACT_MODE=custom \
-  ENABLE_FIRMWARE_FIXES=true \
-  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true
-```
-
-When the bundle is enabled, firmware applies the following fixes and
-enhancements inspired by investigation against stock firmware and the Unlocked
-tree.
-
-The entries below are ordered by likely user impact rather than by the order in
-which they were discovered or implemented.
+To stay on the upstream vendor path instead, set `ARTEFACT_MODE=upstream` and
+leave `ENABLE_FIRMWARE_FIXES` unset. The fixes below only apply on the custom
+build path.
 
 ## Included Fixes
 
-### Audio DMA reserved-memory alignment
+### Audio DMA Reserved-Memory Alignment
 
-The stock firmware ACPI tables describe several audio/DMA regions as reserved,
-but PEI did not reserve those same ranges before handing memory to later boot
-stages.
+Stock ACPI tables describe several audio and DMA buffers as reserved, but PEI
+(Pre-EFI Initialization, the early firmware phase that discovers memory and
+hands it to later stages) did not reserve those same ranges.
 
-When the fixes bundle is enabled, PEI now reserves the DSP, DMA1, and HDA audio
+With `ENABLE_FIRMWARE_FIXES=true`, PEI reserves the DSP, DMA1, and HDA audio
 buffers so that the runtime memory map matches the ACPI metadata Linux already
-consumes.
+uses.
 
-This is one of the highest-impact correctness fixes in the bundle because it
-stops firmware from describing memory as reserved while still leaving it
-available to the general allocator.
+### PCIe Capability Handoff (`_OSC`)
 
-### PCIe `_OSC` ownership handoff
+`_OSC` is the ACPI “Operating System Capabilities” handshake for PCIe. It tells
+the firmware and the operating system which side owns features such as hot-plug
+and error reporting.
 
-The stock PCIe `_OSC` implementation keeps too much control in firmware and
-denies the OS ownership of capabilities that Linux expects to manage itself.
+Stock firmware keeps too much control in firmware. With
+`ENABLE_FIRMWARE_FIXES=true`, firmware only keeps SHPC (Standard Hot-Plug
+Controller) masked and lets the OS own PME (Power Management Events), AER
+(Advanced Error Reporting), and LTR (Latency Tolerance Reporting).
 
-With the fixes bundle enabled, firmware only keeps SHPC masked and allows the
-OS to retain PME, AER, and LTR ownership.
+This makes the PCIe description closer to what upstream kernels expect from a
+normal host-bridge implementation.
 
-This improves standards compliance and makes the ACPI PCIe model closer to what
-upstream kernels expect from normal host bridges.
+### PCIe Device-Model Selector
 
-### PCIe device-model selector
-
-When the fixes bundle is enabled, the PCIe setup page adds a selector for the
-ACPI PCIe model that firmware exposes:
+With `ENABLE_FIRMWARE_FIXES=true`, the PCIe setup page adds a selector for the
+ACPI PCIe model the firmware exposes:
 
 - `Linux (PNP0A08)`
 - `CIX (CIXH2020)`
 
-`Linux (PNP0A08)` is the default and is the safest choice for upstream kernels.
-It exposes standard PCI root bridges and hides the vendor-style Cadence ACPI
-devices.
+`Linux (PNP0A08)` is the safer default for upstream kernels. It exposes
+standard PCI root bridges and hides the vendor-style Cadence ACPI devices.
 
 `CIX (CIXH2020)` exposes the vendor-style Cadence ACPI devices instead and
-hides the standard root bridges. This is intended for kernels that use the CIX
-/ Cadence PCIe host driver. Some vendor kernels may still require an initramfs
-step that rescans PCIe before the NVMe root device becomes visible.
+hides the standard root bridges. Select it when you are deliberately booting a
+kernel that uses the CIX / Cadence PCIe host driver.
 
-This setting exists because the two ACPI PCIe models are mutually exclusive in
+Some vendor kernels may still require an initramfs step that rescans PCIe
+before any NVMe or other PCIe-connected root device becomes visible. This
+setting exists because the two ACPI PCIe models are mutually exclusive in
 practice on Linux, and exposing both at once is not a stable long-term answer.
 
-### `_CPC` nominal and lowest frequency repair
+### CPU Performance Description Repair (`_CPC` / CPPC)
 
-The stock static ACPI `_CPC` update path treats SCMI performance levels as if
-they were already expressed in MHz. In practice that can publish wrong nominal
-and lowest frequency integers even when the performance levels themselves are
-correct.
+The ACPI `_CPC` objects are part of CPPC (Collaborative Processor Performance
+Control). They describe CPU performance levels to the operating system.
 
-With the fixes bundle enabled, firmware now derives the CPPC frequency scaling
-from SCMI domain attributes instead of assuming a fixed `1 MHz` granularity.
+Stock firmware treats SCMI (System Control and Management Interface)
+performance levels as if they were already expressed in MHz. With
+`ENABLE_FIRMWARE_FIXES=true`, the firmware derives the CPPC frequency scaling
+from the SCMI domain attributes instead.
 
-This keeps the static DSDT CPPC view aligned with the same SCMI performance
-model that the dynamic-table path already understood more accurately.
+That keeps the static ACPI CPU-performance view aligned with the same SCMI
+performance model the firmware is already using underneath.
 
-### Optional CPU UID ordering modes
+### Optional CPU Numbering Modes
 
-By default, the fixes bundle preserves the existing CIX/vendor CPU UID order:
+If you also set `ENABLE_CORE_ORDER` to one of the two additional modes below,
+the firmware can change the CPU UIDs it exposes to the operating system. This
+does not change the physical core layout. It only changes the numbering the OS
+sees.
 
-- `ENABLE_CORE_ORDER=cix`
+The available modes are:
 
-That is also the effective behavior when `ENABLE_CORE_ORDER` is not set at all.
+- `cix`
+  - keep the vendor/default CPU numbering
+- `conventional`
+  - expose CPUs with the "LITTLE" A520 cores before the A720 cores
+- `performance`
+  - expose CPUs with the A720 cores before the A520 cores, starting with the
+    highest-performance A720 pair
 
-Two alternative UID-ordering modes are available inside the same gated surface.
+`conventional` gives you a more standard heterogeneous-core layout.
+`performance` puts the A720 cores before the A520 cores.
 
-When a user enables:
+### IOMMU Capability Description in IORT
 
-- `ENABLE_CORE_ORDER=conventional`
+IORT is the Arm I/O Remapping Table. Its SMMUv3 entries describe the Arm
+System MMU v3 IOMMU blocks. For more background on the SMMUv3 hardware family,
+see the Linux `arm,smmu-v3` binding:
 
-firmware remaps the exposed CPU UIDs to the more conventional
-little-cores-first ordering while leaving the physical-core keyed policy data
-such as `_PSD` and `_CPC` attached to the same underlying cores.
+- <https://www.kernel.org/doc/Documentation/devicetree/bindings/iommu/arm%2Csmmu-v3.txt>
 
-This makes the Linux-visible CPU numbering easier to reason about on a
-heterogeneous desktop/workstation system without forcing the default custom
-build away from the current vendor-visible layout.
+With `ENABLE_FIRMWARE_FIXES=true`, the firmware advertises HTTU (Hardware
+Translation Table Updates) override support in the IORT SMMUv3 entries, so
+Linux no longer has to fall back to a more limited default capability view.
 
-When a user instead enables:
+### `ramoops` Reserved-Memory Alignment
 
-- `ENABLE_CORE_ORDER=performance`
+The ACPI tables already describe a reserved memory range for the `ramoops`
+device, but PEI did not reserve that same range in the firmware memory handoff.
 
-firmware remaps the exposed CPU UIDs to a highest-performance-first ordering
-inspired by the same policy used by the Unlocked tree.
+With `ENABLE_FIRMWARE_FIXES=true`, PEI also reserves the ACPI-described
+`ramoops` range so the reserved-memory story is internally consistent.
 
-This mode is intentionally opt-in because it is more likely to surprise users
-and tooling that expect a conventional little-first heterogeneous layout, but
-it is useful for users who explicitly want the fastest clusters to appear at
-the lowest CPU numbers.
+### SMBIOS Fixes
 
-### IORT HTTU override
+With `ENABLE_FIRMWARE_FIXES=true`, SMBIOS reporting becomes more consistent and
+reliable for operating systems, inventory tools, and debugging utilities:
 
-The stock IORT SMMUv3 nodes do not advertise HTTU override support, which leads
-Linux to assume that the override path is absent and to log that the effective
-HTTU state is forced down.
+- hardware inventory and diagnostic tools no longer see some firmware error
+  paths as successful results
+- cache totals come from a stable topology model instead of depending on
+  whichever CPU happened to boot first
+- processor and cache identity come from the Cix/Arm source, while board,
+  system, and chassis identity remain identified as Radxa
 
-With the fixes bundle enabled, firmware advertises HTTU override support in the
-SMMUv3 nodes instead of forcing Linux to fall back to the more limited default
-view.
+### DSU PMU Exposure
 
-This is a targeted metadata fix: small on the firmware side, but important for
-accurate IOMMU capability description.
+The DSU PMU is the DynamIQ Shared Unit Performance Monitor Unit: the shared
+cluster / L3 performance counter block, mainly useful for diagnostics and
+observability.
 
-### `ramoops` reserved-memory alignment
+With `ENABLE_FIRMWARE_FIXES=true`, the firmware exposes the DSU PMU ACPI device
+so Linux can discover the shared PMU path that matches the SoC’s cluster / L3
+layout.
 
-The ACPI tables already describe a reserved memory window for the `ramoops`
-device, but PEI did not reserve that same window in the memory handoff.
+### Conservative Cache Topology in PPTT
 
-With the fixes bundle enabled, firmware now reserves the ACPI-described
-`ramoops` range in PEI so the reserved-memory story is internally consistent.
+PPTT is the ACPI Processor Properties Topology Table. It describes CPU and
+cache topology to the operating system.
 
-This does **not** guarantee that Linux will prefer `ramoops` over `efi_pstore`
-on every system, but it does remove one obvious firmware-side mismatch that
-could otherwise make the `ramoops` path unreliable.
-
-### SMBIOS OEM hook and cache stability fixes
-
-Three SMBIOS-related issues are corrected when the fixes bundle is enabled.
-
-First, the CIX OEM SMBIOS hooks no longer return an `EFI_STATUS` value through
-a `BOOLEAN` API on failure paths. In the stock code that can collapse some
-errors into a truthy value instead of a clean `FALSE`.
-
-Second, the package-level SMBIOS cache totals are no longer tied to which core
-booted first. The fixes bundle switches that path to a stable topology-driven
-model so the reported cache totals reflect the SoC layout rather than a
-boot-core accident.
-
-Third, the O6 board-specific SMBIOS producer no longer emits its hard-coded
-Type `4` and Type `7` CPU/cache records when the fixes bundle is enabled. That
-leaves processor/cache ownership with the common CIX/Arm SMBIOS path while
-keeping the Radxa board/system/chassis records in place.
-
-In practice this means the fixes-enabled O6 image now follows the cleaner split
-we want long-term:
-
-- Cix describes the SoC / CPU / cache identity
-- Radxa describes the board / system / chassis identity
-
-### DSU PMU ACPI exposure
-
-The stock firmware does not expose the DSU PMU through ACPI, which means Linux
-cannot discover the shared cluster PMU path even though the SoC uses a DSU/L3
-arrangement where that information matters.
-
-With the fixes bundle enabled, firmware exposes the DSU PMU ACPI device so that
-Linux can discover the shared cluster PMU path that is missing in stock
-firmware.
-
-This is mainly a diagnostics and observability improvement, but it is a real
-hardware-description fix rather than a cosmetic change.
-
-### Conservative PPTT cache topology
-
-The stock PPTT path exposed processor hierarchy without a usable cache
-topology. That left the OS with CPU nodes but little or no trustworthy cache
-information.
-
-With the fixes bundle enabled, PPTT uses a conservative cache model derived
-from public platform documentation, SMBIOS, and runtime investigation:
+Stock firmware exposes CPU hierarchy without a useful cache topology. With
+`ENABLE_FIRMWARE_FIXES=true`, the firmware uses a conservative cache model
+derived from public platform documentation, SMBIOS, and runtime investigation:
 
 - A520 cores: `32 KiB` L1I + `32 KiB` L1D
 - A720 cores: `64 KiB` L1I + `64 KiB` L1D
 - A720 cores: private `512 KiB` L2
-- Shared `12 MiB` L3
+- shared `12 MiB` L3
 
-The little-core A520 L2 arrangement is still not fully confirmed. To avoid
-inventing a possibly wrong shared/private L2 relationship, the conservative
-model does **not** currently describe an A520 L2 cache. That is deliberate: it
-is better to under-describe the uncertain part than to encode the wrong shared
-cache topology.
+The A520 L2 arrangement is still not fully confirmed, so the current model does
+not describe an A520 L2 cache.
 
-### `edp-panel` ACPI property cleanup
+### eDP Panel Property Cleanup
 
-The stock display ACPI metadata attaches the `edp-panel` property to non-eDP
+Stock display ACPI metadata attaches the `edp-panel` property to non-eDP
 display paths with empty-string placeholder values.
 
-With the fixes bundle enabled, firmware only emits the `edp-panel` property for
-the actual eDP path instead of attaching empty-string placeholders to DP/UCP
-outputs that are not panels.
+With `ENABLE_FIRMWARE_FIXES=true`, the firmware only emits the `edp-panel`
+property for the real eDP path instead of attaching empty placeholders to DP
+or USB-C display outputs that are not panels.
 
-This is a smaller fix than the items above, but it corrects a real firmware
-metadata bug and makes the display topology description less misleading.
+## How to Enable These Fixes
 
-## What Is Not Included Yet
+These are `make` variables. Pass them on the `make` command line when you
+build.
 
-Two investigated areas are still intentionally outside the bundle, or only
-partially addressed, pending more runtime confirmation from end users:
+`ARTEFACT_MODE` selects the build path:
 
-- The `ramoops` memory-window mismatch is fixed, but the final Linux backend
-  choice and end-to-end persistence behaviour still need more confirmation on
-  real systems.
-- USB reboot state handling is still not changed by this bundle.
+- `ARTEFACT_MODE=custom`
+  - enables the local enhancement path
+- `ARTEFACT_MODE=upstream`
+  - follows the upstream vendor behavior and rejects these fixes
 
-Those can be revisited later without needing to reshape the current
-`ENABLE_FIRMWARE_FIXES` surface.
+`ENABLE_FIRMWARE_FIXES=true` turns the fixes in this document on.
 
-## Build Discovery
-
-To see the new make variable in the build help:
+For example:
 
 ```bash
-make -C src help-vars
+make buildbox-firmware-build \
+  ARTEFACT_MODE=custom \
+  FIRMWARE_BOARD=O6 \
+  ENABLE_FIRMWARE_FIXES=true
 ```
 
-The help text there describes the bundle as opt-in and custom-only.
+You can also combine that with an optional CPU-numbering mode:
+
+```bash
+make buildbox-firmware-build \
+  ARTEFACT_MODE=custom \
+  FIRMWARE_BOARD=O6 \
+  ENABLE_FIRMWARE_FIXES=true \
+  ENABLE_CORE_ORDER=conventional
+```
+
+You can also combine it with the separate experimental UEFI settings overlay:
+
+```bash
+make buildbox-firmware-build \
+  ARTEFACT_MODE=custom \
+  FIRMWARE_BOARD=O6 \
+  ENABLE_FIRMWARE_FIXES=true \
+  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true
+```
+
+For the broader explanation of those `make` variables and how they interact,
+see [`docs/build-variables.md`](docs/build-variables.md).
