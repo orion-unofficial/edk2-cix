@@ -71,6 +71,10 @@ ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW := $(if $(strip $(ENABLE_FIRMWARE_FIXES)),$
 ENABLE_FIRMWARE_FIXES_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW)),,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW))
 ENABLE_CORE_ORDER ?=
 ENABLE_CORE_ORDER_NORMALIZED := $(if $(strip $(ENABLE_CORE_ORDER)),$(shell printf '%s' '$(ENABLE_CORE_ORDER)' | tr '[:upper:]' '[:lower:]'),)
+CIX_RELEASE ?=
+CIX_RELEASE_VALIDATION_VALUE := $(if $(strip $(CIX_RELEASE)),$(shell printf '%s' '$(CIX_RELEASE)' | tr '[:upper:]' '[:lower:]'),)
+CIX_RELEASE_NORMALIZED_RAW := $(if $(strip $(CIX_RELEASE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-cix-release --value "$(CIX_RELEASE)" 2>/dev/null || printf '%s' __INVALID__),)
+CIX_RELEASE_NORMALIZED := $(if $(filter __INVALID__,$(CIX_RELEASE_NORMALIZED_RAW)),,$(CIX_RELEASE_NORMALIZED_RAW))
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW := $(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" 2>/dev/null || printf '%s' __INVALID__),)
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW)),,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW))
 EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_PACKAGE_ROOTS := \
@@ -141,6 +145,17 @@ GCC5_AARCH64_PREFIX := aarch64-linux-gnu-
 endif
 
 PACKAGE_TOOL := edk2-non-osi/Platform/CIX/Sky1/PackageTool
+CIX_RELEASE_SOURCE_DIR := cix-v1.2
+CIX_RELEASE_V12_TFA_SOURCE_DIR := $(CIX_RELEASE_SOURCE_DIR)/tf-a
+CIX_RELEASE_V12_TEE_SOURCE_DIR := $(CIX_RELEASE_SOURCE_DIR)/tee
+CIX_RELEASE_V12_PAYLOAD_DIR := $(CIX_RELEASE_SOURCE_DIR)/release-payloads
+CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD := $(CIX_RELEASE_V12_PAYLOAD_DIR)/bootloader1-2026q1.img
+CIX_RELEASE_BOOTLOADER2_HELPER := scripts/build_cix_release_bootloader2.sh
+CIX_RELEASE_V12_REQUIRED_FILES := \
+	$(CIX_RELEASE_V12_TFA_SOURCE_DIR)/Makefile \
+	$(CIX_RELEASE_V12_TEE_SOURCE_DIR)/Makefile \
+	$(CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD) \
+	$(CIX_RELEASE_BOOTLOADER2_HELPER)
 TOOLS_DIR := tools
 FIPTOOL_SOURCE_DIR := $(TOOLS_DIR)/arm-trusted-firmware-fiptool
 FIPTOOL_BIN := $(FIPTOOL_SOURCE_DIR)/build/$(HOST_ARCH)/fiptool
@@ -187,6 +202,11 @@ CUSTOM_SKY1_ACPI_OVERLAY_SOURCES := \
 	$(wildcard $(CUSTOM_SKY1_ACPI_OVERLAY_DIR)/tool/python3/*)
 CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/PlatformBootManagerLib)
 CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_SOURCES := $(wildcard $(CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_DIR)/*)
+CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe)
+CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_SOURCES := \
+	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/MemMenu/*) \
+	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/PcieMenu/*)
 CUSTOM_SKY1_EC_PROTOCOL_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Include/Protocol)
 CUSTOM_SKY1_EC_LIBRARY_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Include/Library)
 CUSTOM_SKY1_EC_DRIVER_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/EcPlatformDxe)
@@ -210,6 +230,7 @@ CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(wildcard $(CUSTOM_SKY1_EC_PROTOCOL_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_SKY1_EC_DRIVER_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_SKY1_EC_LIBRARY_SOURCES_DIR)/*) \
+	$(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_SOURCES) \
 	$(wildcard $(CUSTOM_ECLIB_NULL_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_COMMON_LIB_OVERLAY_DIR)/*) \
 	$(CUSTOM_SKY1_BOOT_MANAGER_OVERLAY_SOURCES) \
@@ -300,6 +321,8 @@ DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name 
 FIRMWARE_BOARDS := $(foreach i,$(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)),$(lastword $(subst /, ,$(i))))
 CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_all.bin) \
 				 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
+BUILD_OUTPUT_DIR = Build/$1/$(UEFI_TARGET)_GCC5
+BUILD_STAGE_DIR = Build/$1/$(UEFI_TARGET)_GCC5.build
 .PHONY: build __build host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool
 build:
 	$(Q)$(LOCKED_MAKE) __build V="$(V)"
@@ -344,19 +367,12 @@ define PRINT_SRC_VARIABLES
 					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
 		fi; \
 	}; \
-	printf '%s\n\n' 'useful variables'; \
+	printf '%s\n\n' 'Raw Build Variables'; \
+	printf '%s\n' 'See make help-vars for common options such as ARTEFACT_MODE, FIRMWARE_BOARD,'; \
+	printf '%s\n\n' 'FIRMWARE_TARGET, ENABLE_FIRMWARE_FIXES, CIX_RELEASE, and the DEBUG_* switches.'; \
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
-	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Generate unmodified upstream firmware images or allow custom enhancements.\nDefault: custom.'; \
-	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG build.\nDefault: RELEASE.'; \
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile name shared with the top-level qualification checks.\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
 	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory where raw-build audit and validation reports are written.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
-	print_help_line '  ENABLE_FIRMWARE_FIXES=true|false' 'Custom-only: enable the opt-in firmware fixes bundle, including audio DMA reservations, HTTU flags, PCIe _OSC updates, DSU PMU exposure, corrected eDP metadata, conservative PPTT cache topology, and a PCIe device-model selector that coexists with ENABLE_EXPERIMENTAL_UEFI_SETTINGS.\nDefault: false.'; \
-	print_help_line '  ENABLE_CORE_ORDER=cix|conventional|performance' 'Custom-only companion to ENABLE_FIRMWARE_FIXES. '\''cix'\'' preserves the vendor/default CPU UID order; '\''conventional'\'' remaps CPU UIDs to little-cores-first order; '\''performance'\'' remaps CPU UIDs to a highest-performance-first order.\nDefault: unset, which behaves like '\''cix'\''.'; \
-	print_help_line '  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Custom-only: enable the experimental Radxa UEFI settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
-	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: mux the UART3 header pins for UART use and expose COM3 to the OS without moving firmware DEBUG() there.\nDefault: false.'; \
-	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
-	print_help_line '  DEBUG_VERBOSE=true|false' 'Custom-only: on RELEASE builds, re-enable DEBUG() logging with minimal runtime side effects and default to the full DEBUG_* mask unless DEBUG_PRINT_ERROR_LEVEL is set.\nDefault: false.'; \
-	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug message mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; builds use 0x80000040 by default or $(MAX_DEBUG_PRINT_ERROR_LEVEL) when DEBUG_VERBOSE=true.\nSee '\''make -C src help-debug'\'''; \
 	print_help_line '  GCC5_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
 	print_help_line '  SIGNING_CERT_SOURCE_DIR=<dir>' 'Path to extracted or built cert blobs for exact replay.\nDefault: unset.'; \
 	print_help_line '  SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the compiler-facing reproducible timestamp.\nDefault: resolved from mapped upstream source metadata.'; \
@@ -391,7 +407,7 @@ help:
 	print_help_line '  Build/O6/{RELEASE|DEBUG}_GCC5/cix_flash_ota.bin' 'Build the OTA flash image for O6'; \
 	print_help_line '  Build/O6N/{RELEASE|DEBUG}_GCC5/cix_flash_all.bin' 'Build the full flash image for O6N'; \
 	print_help_line '  Build/O6N/{RELEASE|DEBUG}_GCC5/cix_flash_ota.bin' 'Build the OTA flash image for O6N'; \
-	printf '\n%s\n\n' 'host tools and checks'; \
+	printf '\n%s\n\n' 'Host Tools and Checks'; \
 	print_help_line '  preflight' 'Check host tools, metadata, and toolchain prerequisites'; \
 	print_help_line '  print-build-metadata' 'Show the resolved reproducible build metadata'; \
 	print_help_line '  prepare-basetools-c' 'Build or refresh the EDK2 BaseTools C helpers'; \
@@ -407,11 +423,11 @@ help:
 	print_help_line '  host-cix-regen-trusted-key-cert' 'Build the source trusted-key cert helper'; \
 	print_help_line '  clean' 'Remove Build/ output and generated helper artefacts'; \
 	print_help_line '  help-debug' 'Explain the DEBUG_PRINT_ERROR_LEVEL bit values derived from DebugLib.h'; \
-	print_help_line '  help-vars' 'Show accepted raw-build control variables'; \
-	printf '\n%s\n' 'For accepted control variables, run: make -C src help-vars'
+	print_help_line '  help-vars' 'Show raw-build control variables that are specific to make -C src'
 
 help-vars:
-	$(PRINT_SRC_VARIABLES)
+	@$(PRINT_SRC_VARIABLES); \
+	printf '\n%s\n' 'For the fuller user-facing explanation of the build variables, see: docs/build-variables.md'
 
 help-debug:
 	@set -eu; \
@@ -435,7 +451,7 @@ help-debug:
 					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
 		fi; \
 	}; \
-	printf '%s\n\n' 'debug print levels'; \
+	printf '%s\n\n' 'Debug Print Levels'; \
 	printf '%s\n' 'Custom-only: set DEBUG_PRINT_ERROR_LEVEL to a decimal or '\
 '0x-prefixed 32-bit value to choose which DEBUG() message classes are '\
 'printed. Combine entries by ORing or summing their values. Default: '\
@@ -610,6 +626,9 @@ preflight-inputs:
 	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-core-order "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))"); \
 	fi; \
+	if [ -n "$(strip $(CIX_RELEASE_VALIDATION_VALUE))" ]; then \
+		validate_cmd+=(--cix-release "$(strip $(CIX_RELEASE_VALIDATION_VALUE))"); \
+	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
 	fi; \
@@ -636,10 +655,13 @@ preflight-inputs:
 		echo "[config] $$(python3 "$(MAKE_INPUT_VALIDATOR)" describe-debug-print-error-level --value "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)")"; \
 	fi; \
 	if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ] && [ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" = "TRUE" ]; then \
-		echo "[config] ENABLE_FIRMWARE_FIXES=true enables the opt-in firmware fixes bundle"; \
+		echo "[config] ENABLE_FIRMWARE_FIXES=true enables the opt-in firmware fixes"; \
 	fi; \
 	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ] && [ "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" != "cix" ]; then \
 		echo "[config] ENABLE_CORE_ORDER=$(ENABLE_CORE_ORDER_NORMALIZED) remaps exposed CPU UIDs"; \
+	fi; \
+	if [ -n "$(strip $(CIX_RELEASE_NORMALIZED))" ]; then \
+		echo "[config] CIX_RELEASE=$(CIX_RELEASE_NORMALIZED) enables the curated CIX V1.2 source-and-payload path"; \
 	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ] && [ "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" = "TRUE" ]; then \
 		echo "[config] ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true enables the experimental Radxa UI overlay"; \
@@ -695,6 +717,14 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
+	if [[ -n "$(strip $(CIX_RELEASE_NORMALIZED))" ]]; then \
+		for required_file in $(CIX_RELEASE_V12_REQUIRED_FILES); do \
+			if [[ ! -e "$$required_file" ]]; then \
+				echo "[preflight] Missing curated CIX release input: $$required_file" >&2; \
+				missing=1; \
+			fi; \
+		done; \
+	fi; \
 	if [[ ! -f "$(CERT_VALIDATOR)" ]]; then \
 		echo "[preflight] Missing certificate validation helper: $(CERT_VALIDATOR)" >&2; \
 		missing=1; \
@@ -704,7 +734,7 @@ preflight-tools:
 	fi
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin
-Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
+Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
 	@$(ENSURE_REPO_LOCK)
 	@find_platform_match() { \
 		local relative_path="$$1"; \
@@ -721,20 +751,23 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET
 		done; \
 		return 1; \
 	}; \
+	stage_dir="$(call BUILD_STAGE_DIR,$*)" && \
+	final_dir="$(call BUILD_OUTPUT_DIR,$*)" && \
+	mkdir -p "$$stage_dir" "$$final_dir" && \
 	export CFG="$$(find_platform_match "$*/spi_flash_config_ota.json" f || true)" && \
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	if [[ -f "$$CFG" ]]; then \
 		if [[ "$(V)" == "1" ]]; then echo "Found custom flash config."; fi; \
-		cp "$$CFG" Build/$*/$(UEFI_TARGET)_GCC5/; \
+		cp "$$CFG" "$$stage_dir/"; \
 	else \
-		cp "$$PATH_PACKAGE_TOOL/spi_flash_config_ota.json" Build/$*/$(UEFI_TARGET)_GCC5/; \
+		cp "$$PATH_PACKAGE_TOOL/spi_flash_config_ota.json" "$$stage_dir/"; \
 	fi
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export CIX_PACKAGE_TOOL_BIN="$(shell realpath "$(CIX_PACKAGE_TOOL_BIN)")" && \
 	printf '[build/%s] Packaging OTA flash image\n' "$*" && \
 	( \
-		cd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
+		cd "$$stage_dir" && \
 		tmp_ota="./cix_flash_ota.bin.tmp" && \
 		rm -f "$$tmp_ota" && \
 		TERM=dumb "$$CIX_PACKAGE_TOOL_BIN" -c "./spi_flash_config_ota.json" -O "$$tmp_ota" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
@@ -743,13 +776,22 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET
 			exit 1; \
 		fi && \
 		mv -f "$$tmp_ota" "./cix_flash_ota.bin" \
-	)
+	) && \
+	cp -f "$$stage_dir/cix_flash_ota.bin" "$@" && \
+	if [[ -d "$$stage_dir/Firmwares" ]]; then \
+		mkdir -p "$$final_dir/Firmwares" && \
+		cp -a "$$stage_dir/Firmwares/." "$$final_dir/Firmwares/"; \
+	fi && \
+	if [[ -d "$$stage_dir/certs" ]]; then \
+		mkdir -p "$$final_dir/certs" && \
+		cp -a "$$stage_dir/certs/." "$$final_dir/certs/"; \
+	fi
 
 # MEM_CFG_MEMFREQ ?= 2750
 MEM_CFG_MEMFREQ ?= 3000
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin
-Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
+Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
 	@$(ENSURE_REPO_LOCK)
 	@find_platform_match() { \
 		local relative_path="$$1"; \
@@ -766,29 +808,32 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 		done; \
 		return 1; \
 	}; \
+	stage_dir="$(call BUILD_STAGE_DIR,$*)" && \
+	final_dir="$(call BUILD_OUTPUT_DIR,$*)" && \
+	mkdir -p "$$stage_dir/Firmwares" "$$final_dir" && \
 	export MEM="$$(find_platform_match "$*/mem_config" d || true)" && \
 	if [[ -d "$$MEM" ]]; then \
 		printf '[build/%s] Regenerating memory configuration\n' "$*" && \
 		if [[ "$(V)" == "1" ]]; then echo "Found custom memory configuration."; fi; \
-		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/memory_config.bin; \
+		rm -f "$$stage_dir/Firmwares/memory_config.bin"; \
 		$(MAKE) -C "$$MEM" $(if $(strip $(HELPER_BUILD_JOBS)),-j$(HELPER_BUILD_JOBS)) -e CFLAG:="-DMEM_CFG_MEMFREQ=$(MEM_CFG_MEMFREQ)" clean main; \
 		if [[ ! -s "$$MEM/memory_config.bin" ]]; then \
 			echo "[build/$*] Expected memory_config.bin was not generated in $$MEM" >&2; \
 			exit 1; \
 		fi; \
-		mv "$$MEM/memory_config.bin" Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
+		mv "$$MEM/memory_config.bin" "$$stage_dir/Firmwares/"; \
 	fi
 	export PM="$$(find_platform_match "$*/pm_config" d || true)" && \
 	if [[ -d "$$PM" ]]; then \
 		printf '[build/%s] Regenerating PM configuration\n' "$*" && \
 		if [[ "$(V)" == "1" ]]; then echo "Found custom PM configuration."; fi; \
-		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/csu_pm_config.bin; \
+		rm -f "$$stage_dir/Firmwares/csu_pm_config.bin"; \
 		PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)" $(MAKE) -C "$$PM" $(if $(strip $(HELPER_BUILD_JOBS)),-j$(HELPER_BUILD_JOBS)); \
 		if [[ ! -s "$$PM/csu_pm_config.bin" ]]; then \
 			echo "[build/$*] Expected csu_pm_config.bin was not generated in $$PM" >&2; \
 			exit 1; \
 		fi; \
-		mv "$$PM/csu_pm_config.bin" Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
+		mv "$$PM/csu_pm_config.bin" "$$stage_dir/Firmwares/"; \
 	fi
 
 	export CFG="$$(find_platform_match "$*/spi_flash_config_all.json" f || true)" && \
@@ -796,15 +841,15 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 	export CIX_PACKAGE_TOOL_BIN="$(shell realpath "$(CIX_PACKAGE_TOOL_BIN)")" && \
 	if [[ -f "$$CFG" ]]; then \
 		if [[ "$(V)" == "1" ]]; then echo "Found custom flash config."; fi; \
-		cp "$$CFG" Build/$*/$(UEFI_TARGET)_GCC5/; \
+		cp "$$CFG" "$$stage_dir/"; \
 	else \
-		cp "$$PATH_PACKAGE_TOOL/spi_flash_config_all.json" Build/$*/$(UEFI_TARGET)_GCC5/; \
+		cp "$$PATH_PACKAGE_TOOL/spi_flash_config_all.json" "$$stage_dir/"; \
 	fi
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	printf '[build/%s] Packaging full flash image\n' "$*" && \
 	( \
-		cd "Build/$*/$(UEFI_TARGET)_GCC5/" && \
+		cd "$$stage_dir" && \
 		TERM=dumb "$$CIX_PACKAGE_TOOL_BIN" -c "./spi_flash_config_all.json" -o "./cix_flash_all.raw" 2>&1 | perl -pe 's/\e\[[0-9;]*m//g' && \
 		if [[ ! -s "./cix_flash_all.raw" ]]; then \
 			echo "[build/$*] Expected cix_flash_all.raw was not created" >&2; \
@@ -813,27 +858,79 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 	)
 
 	# \377 = 0xFF
-	tmp_all="Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.bin.tmp" && \
+	tmp_all="$@.tmp" && \
 	rm -f "$$tmp_all" && \
 	head -c 8M < /dev/zero | tr '\000' '\377' > "$$tmp_all" && \
-	dd if="Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.raw" of="$$tmp_all" conv=notrunc status=none && \
+	dd if="$$stage_dir/cix_flash_all.raw" of="$$tmp_all" conv=notrunc status=none && \
 	if [[ ! -s "$$tmp_all" ]]; then \
 		echo "[build/$*] Expected full flash image $$tmp_all was not created" >&2; \
 		exit 1; \
 	fi && \
-	mv -f "$$tmp_all" "Build/$*/$(UEFI_TARGET)_GCC5/cix_flash_all.bin"
+	mv -f "$$tmp_all" "$@" && \
+	if [[ -d "$$stage_dir/Firmwares" ]]; then \
+		mkdir -p "$$final_dir/Firmwares" && \
+		cp -a "$$stage_dir/Firmwares/." "$$final_dir/Firmwares/"; \
+	fi && \
+	if [[ -d "$$stage_dir/certs" ]]; then \
+		mkdir -p "$$final_dir/certs" && \
+		cp -a "$$stage_dir/certs/." "$$final_dir/certs/"; \
+	fi
 
 .NOTINTERMEDIATE: \
 	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd) \
-	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin) \
-	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt) \
+	$(foreach board,$(FIRMWARE_BOARDS),$(call BUILD_STAGE_DIR,$(board))/Firmwares/dummy.bin) \
+	$(foreach board,$(FIRMWARE_BOARDS),$(call BUILD_STAGE_DIR,$(board))/certs/trusted_key_no.crt) \
+	$(foreach board,$(FIRMWARE_BOARDS),$(call BUILD_STAGE_DIR,$(board))/Firmwares/bootloader2.img) \
+	$(foreach board,$(FIRMWARE_BOARDS),$(call BUILD_STAGE_DIR,$(board))/Firmwares/bootloader3.img) \
+	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img) \
 	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img)
 
-.SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
-Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
+.SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img
+$(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
+	$(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin \
+	$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt \
+	$(abspath $(CIX_RELEASE_BOOTLOADER2_HELPER)) \
+	| $(FIPTOOL_BIN)
+
+	@$(ENSURE_REPO_LOCK)
+	@if [[ "$(ARTEFACT_MODE)" != "custom" || "$(CIX_RELEASE_NORMALIZED)" != "1.2" ]]; then \
+		if [[ ! -s "$@" ]]; then \
+			echo "[build/$*] Expected staged bootloader2 image $@ was not found" >&2; \
+			exit 1; \
+		fi; \
+		exit 0; \
+	fi; \
+	printf '[build/%s] Building bootloader2 from curated CIX V1.2 TF-A and OP-TEE sources\n' "$*" && \
+	tmp_output="$@.tmp" && \
+	rm -f "$$tmp_output" && \
+	bash "$(abspath $(CIX_RELEASE_BOOTLOADER2_HELPER))" \
+		--tfa-dir "$(abspath $(CIX_RELEASE_V12_TFA_SOURCE_DIR))" \
+		--tee-dir "$(abspath $(CIX_RELEASE_V12_TEE_SOURCE_DIR))" \
+		--build-root "$(abspath $(call BUILD_STAGE_DIR,$*))" \
+		--fiptool "$(abspath $(FIPTOOL_BIN))" \
+		--output "$$tmp_output" \
+		--cross-compile "$(GCC5_AARCH64_PREFIX)" \
+		--jobs "$(HELPER_BUILD_JOBS)" \
+		--mode "$(shell printf '%s' '$(FIRMWARE_TARGET)' | tr '[:upper:]' '[:lower:]')" \
+		$(if $(filter 1,$(V)),--verbose,) && \
+	if [[ ! -s "$$tmp_output" ]]; then \
+		echo "[build/$*] Expected generated bootloader2 image $$tmp_output was not created" >&2; \
+		exit 1; \
+	fi && \
+	mv -f "$$tmp_output" "$@"
+
+.SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img
+Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img: \
+	$(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img
+	@$(ENSURE_REPO_LOCK)
+	@mkdir -p "$(call BUILD_OUTPUT_DIR,$*)/Firmwares"
+	@cp -f "$<" "$@"
+
+.SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img
+$(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 	Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd \
-	Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin \
-	Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
+	$(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin \
+	$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt \
 	| $(FIPTOOL_BIN) $(CERT_UEFI_CREATE_RSA_BIN)
 
 	@$(ENSURE_REPO_LOCK)
@@ -868,6 +965,9 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 	reused_trusted_key_cert=0; \
 	reused_nt_fw_certs=0; \
 	validator_extra_args=(); \
+	stage_dir="$(call BUILD_STAGE_DIR,$*)" && \
+	mkdir -p "$$stage_dir/Keys" && \
+	cp -a $(PACKAGE_TOOL)/Keys/. "$$stage_dir/Keys/" && \
 	if [[ -n "$$SIGNING_CERT_SOURCE_DIR" ]]; then \
 		if [[ ! -d "$$SIGNING_CERT_SOURCE_DIR" ]]; then \
 			echo "Exact upstream replay requested with SIGNING_CERT_SOURCE_DIR=$$SIGNING_CERT_SOURCE_DIR, but that directory does not exist." >&2; \
@@ -902,13 +1002,13 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		fi; \
 		if [[ -n "$$trusted_key_cert_src" ]]; then \
 			echo "Reusing trusted-key cert from $$trusted_key_cert_src"; \
-			cp "$$trusted_key_cert_src" Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt; \
+			cp "$$trusted_key_cert_src" "$$stage_dir/certs/trusted_key_no.crt"; \
 			reused_trusted_key_cert=1; \
 		fi; \
 		if [[ -n "$$nt_fw_cert_src" && -n "$$nt_fw_key_cert_src" ]]; then \
 			echo "Reusing non-trusted FIP certs from $$SIGNING_CERT_SOURCE_DIR"; \
-			cp "$$nt_fw_cert_src" Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt; \
-			cp "$$nt_fw_key_cert_src" Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt; \
+			cp "$$nt_fw_cert_src" "$$stage_dir/certs/nt_fw_cert.crt"; \
+			cp "$$nt_fw_key_cert_src" "$$stage_dir/certs/nt_fw_key.crt"; \
 			reused_nt_fw_certs=1; \
 		elif [[ -n "$$nt_fw_cert_src" || -n "$$nt_fw_key_cert_src" ]]; then \
 			echo "SIGNING_CERT_SOURCE_DIR must provide both nt-fw cert blobs together" >&2; \
@@ -921,30 +1021,30 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		validator_extra_args+=(--allow-reused-trusted-key-cert); \
 	fi; \
 	if [[ "$$reused_nt_fw_certs" != "1" ]]; then \
-		rm -f Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt; \
+		rm -f "$$stage_dir/certs/nt_fw_cert.crt" "$$stage_dir/certs/nt_fw_key.crt"; \
 		run_success_only "$$SOURCE_CERT_TOOL_BIN" --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
-			--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
-			--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
-			--nt-fw-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
-			--non-trusted-world-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
+			--nt-fw-cert "$$stage_dir/certs/nt_fw_cert.crt" \
+			--nt-fw-key-cert "$$stage_dir/certs/nt_fw_key.crt" \
+			--nt-fw-key "$$stage_dir/Keys/oem_privatekey.pem" \
+			--non-trusted-world-key "$$stage_dir/Keys/oem_privatekey.pem" \
 			--nt-fw "$(shell realpath "$<")"; \
 	fi && \
 	run_success_only python3 "$(CERT_VALIDATOR)" \
-		--trusted-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
-		--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
-		--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
-		--oem-public-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
-		--trusted-sign-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
-		--nt-fw-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
-		--non-trusted-world-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
+		--trusted-key-cert "$$stage_dir/certs/trusted_key_no.crt" \
+		--nt-fw-key-cert "$$stage_dir/certs/nt_fw_key.crt" \
+		--nt-fw-cert "$$stage_dir/certs/nt_fw_cert.crt" \
+		--oem-public-key "$$stage_dir/Keys/oem_publickey.pem" \
+		--trusted-sign-key "$$stage_dir/Keys/oem_privatekey.pem" \
+		--nt-fw-key "$$stage_dir/Keys/oem_privatekey.pem" \
+		--non-trusted-world-key "$$stage_dir/Keys/oem_privatekey.pem" \
 		--nt-fw "$(shell realpath "$<")" \
 		--ntfw-nvctr 223 \
 		--fiptool "$(FIPTOOL_BIN)" \
 		"$${validator_extra_args[@]}" && \
 	run_success_only "$(FIPTOOL_BIN)" create \
-		--trusted-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
-		--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
-		--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
+		--trusted-key-cert "$$stage_dir/certs/trusted_key_no.crt" \
+		--nt-fw-key-cert "$$stage_dir/certs/nt_fw_key.crt" \
+		--nt-fw-cert "$$stage_dir/certs/nt_fw_cert.crt" \
 		--nt-fw "$(shell realpath "$<")" \
 		$@ && \
 	if [[ ! -s "$@" ]]; then \
@@ -952,10 +1052,22 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 		exit 1; \
 	fi
 
-.SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin
-Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
+.SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
+Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
+	$(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img
 	@$(ENSURE_REPO_LOCK)
-	@cp -aR $(PACKAGE_TOOL)/Firmwares/ Build/$*/$(UEFI_TARGET)_GCC5/
+	@mkdir -p "$(call BUILD_OUTPUT_DIR,$*)/Firmwares" "$(call BUILD_OUTPUT_DIR,$*)/certs"
+	@cp -f "$<" "$@"
+	@if [[ -d "$(call BUILD_STAGE_DIR,$*)/certs" ]]; then \
+		cp -a "$(call BUILD_STAGE_DIR,$*)/certs/." "$(call BUILD_OUTPUT_DIR,$*)/certs/"; \
+	fi
+
+.SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin
+$(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin:
+	@$(ENSURE_REPO_LOCK)
+	@mkdir -p "$(call BUILD_STAGE_DIR,$*)"
+	@rm -rf "$(call BUILD_STAGE_DIR,$*)/Firmwares"
+	@cp -aR $(PACKAGE_TOOL)/Firmwares/ "$(call BUILD_STAGE_DIR,$*)/"
 	# \377 = 0xFF
 	head -c 8192 < /dev/zero | tr '\000' '\377' > $@
 
@@ -977,15 +1089,18 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/dummy.bin:
 	export FW="$$(find_platform_match "$*/Firmwares" d || true)" && \
 	if [[ -d "$$FW" ]]; then \
 		if [[ "$(V)" == "1" ]]; then echo "Found custom firmware."; fi; \
-		cp -r "$$FW/." Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
+		cp -r "$$FW/." "$(call BUILD_STAGE_DIR,$*)/Firmwares/"; \
 	fi; \
 	if [[ ! -e "$$FW" ]] || [[ ! -f "$$FW/ec_fw.bin" ]]; then \
 		echo "Found EC-less platform."; \
-		ln -sf dummy.bin Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/ec_fw.bin; \
+		ln -sf dummy.bin "$(call BUILD_STAGE_DIR,$*)/Firmwares/ec_fw.bin"; \
+	fi; \
+	if [[ "$(ARTEFACT_MODE)" == "custom" && "$(CIX_RELEASE_NORMALIZED)" == "1.2" ]]; then \
+		cp -f "$(CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD)" "$(call BUILD_STAGE_DIR,$*)/Firmwares/bootloader1.img"; \
 	fi
 
-.SILENT: Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt
-Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt: | $(TRUSTED_KEY_CERT_TOOL_BIN)
+.SILENT: $(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt
+$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt: | $(TRUSTED_KEY_CERT_TOOL_BIN)
 	@$(ENSURE_REPO_LOCK)
 	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export SOURCE_TOOL_BIN="$(abspath $(TRUSTED_KEY_CERT_TOOL_BIN))" && \
@@ -1001,9 +1116,11 @@ Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt: | $(TRUSTED_KEY_CERT_TOOL_
 		fi; \
 		return 0; \
 	}; \
-	mkdir -p Build/$*/$(UEFI_TARGET)_GCC5/Keys Build/$*/$(UEFI_TARGET)_GCC5/certs && \
-	cp -a $(PACKAGE_TOOL)/Keys/. Build/$*/$(UEFI_TARGET)_GCC5/Keys/ && \
-	cp -a $(PACKAGE_TOOL)/certs/. Build/$*/$(UEFI_TARGET)_GCC5/certs/ && \
+	stage_dir="$(call BUILD_STAGE_DIR,$*)" && \
+	rm -rf "$$stage_dir/Keys" "$$stage_dir/certs" && \
+	mkdir -p "$$stage_dir/Keys" "$$stage_dir/certs" && \
+	cp -a $(PACKAGE_TOOL)/Keys/. "$$stage_dir/Keys/" && \
+	cp -a $(PACKAGE_TOOL)/certs/. "$$stage_dir/certs/" && \
 	select_cert_source() { \
 		local base_dir="$$1"; \
 		shift; \
@@ -1026,8 +1143,8 @@ Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt: | $(TRUSTED_KEY_CERT_TOOL_
 	case "$(ARTEFACT_MODE)" in \
 		custom|upstream) \
 			run_success_only "$$SOURCE_TOOL_BIN" \
-				-p Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_publickey.pem \
-				-s Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
+				-p "$$stage_dir/Keys/oem_publickey.pem" \
+				-s "$$stage_dir/Keys/oem_privatekey.pem" \
 				-o $@; \
 			;; \
 		*) \

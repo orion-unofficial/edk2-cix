@@ -42,9 +42,15 @@ VALIDATION_BUILDBOX_ENV = \
 	EDK2_CIX_DEP_PROFILE="$(VALIDATION_BUILDBOX_DEP_PROFILE)"
 
 PROJECT ?= edk2-cix
+SIGNING_CERT_SOURCE_DIR_ABS := $(if $(strip $(SIGNING_CERT_SOURCE_DIR)),$(abspath $(SIGNING_CERT_SOURCE_DIR)),)
+SIGNING_CERT_SOURCE_DIR_IN_CONTAINER := $(strip \
+	$(if $(filter $(REPO_ROOT)%,$(SIGNING_CERT_SOURCE_DIR_ABS)),\
+		$(patsubst $(REPO_ROOT)%,$(BUILDBOX_WORKSPACE_ROOT)%,$(SIGNING_CERT_SOURCE_DIR_ABS)),\
+		$(SIGNING_CERT_SOURCE_DIR)))
 ARTEFACT_MODE ?= custom
 ENABLE_FIRMWARE_FIXES ?=
 ENABLE_CORE_ORDER ?=
+CIX_RELEASE ?=
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS ?=
 DEBUG_ON_UART3 ?=
 UART3_ENABLE ?=
@@ -80,6 +86,9 @@ DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORM
 ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW := $(if $(strip $(ENABLE_FIRMWARE_FIXES)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_FIRMWARE_FIXES)" 2>/dev/null || printf '%s' __INVALID__),)
 ENABLE_FIRMWARE_FIXES_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW)),,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW))
 ENABLE_CORE_ORDER_NORMALIZED := $(if $(strip $(ENABLE_CORE_ORDER)),$(shell printf '%s' '$(ENABLE_CORE_ORDER)' | tr '[:upper:]' '[:lower:]'),)
+CIX_RELEASE_VALIDATION_VALUE := $(if $(strip $(CIX_RELEASE)),$(shell printf '%s' '$(CIX_RELEASE)' | tr '[:upper:]' '[:lower:]'),)
+CIX_RELEASE_NORMALIZED_RAW := $(if $(strip $(CIX_RELEASE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-cix-release --value "$(CIX_RELEASE)" 2>/dev/null || printf '%s' __INVALID__),)
+CIX_RELEASE_NORMALIZED := $(if $(filter __INVALID__,$(CIX_RELEASE_NORMALIZED_RAW)),,$(CIX_RELEASE_NORMALIZED_RAW))
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW := $(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" 2>/dev/null || printf '%s' __INVALID__),)
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW)),,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW))
 FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW := $(if $(strip $(FIRMWARE_VALIDATE_ON_BUILD)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(FIRMWARE_VALIDATE_ON_BUILD)" 2>/dev/null || printf '%s' __INVALID__),)
@@ -108,6 +117,7 @@ SRC_COMMON_ARGS = \
 	ARTEFACT_MODE="$(ARTEFACT_MODE)" \
 	$(if $(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED)),ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES_NORMALIZED)") \
 	$(if $(strip $(ENABLE_CORE_ORDER_NORMALIZED)),ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER_NORMALIZED)") \
+	$(if $(strip $(CIX_RELEASE_NORMALIZED)),CIX_RELEASE="$(CIX_RELEASE_NORMALIZED)") \
 	$(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)),ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)") \
 	$(if $(strip $(DEBUG_ON_UART3_NORMALIZED)),DEBUG_ON_UART3="$(DEBUG_ON_UART3_NORMALIZED)") \
 	$(if $(strip $(UART3_ENABLE_EFFECTIVE)),UART3_ENABLE="$(UART3_ENABLE_EFFECTIVE)") \
@@ -127,6 +137,7 @@ BUILDBOX_FIRMWARE_ARGS = \
 	FIRMWARE_ARCHIVE_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/dist" \
 	FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
 	FIRMWARE_VALIDATION_REPORT_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/build-validation" \
+	$(if $(strip $(SIGNING_CERT_SOURCE_DIR_IN_CONTAINER)),SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR_IN_CONTAINER)") \
 	$(if $(strip $(BUILD_DATE)),BUILD_DATE="$(BUILD_DATE)") \
 	$(if $(strip $(SOURCE_DATE_EPOCH)),SOURCE_DATE_EPOCH="$(SOURCE_DATE_EPOCH)") \
 	$(if $(strip $(PM_CONFIG_SOURCE_DATE_EPOCH)),PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)") \
@@ -175,16 +186,17 @@ define PRINT_HELP_SHELL_PROLOGUE
 endef
 
 define PRINT_TOP_LEVEL_USER_VARIABLES
-	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Generate unmodified upstream firmware images or allow custom enhancements.\nDefault: custom.'; \
+	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Choose between the upstream vendor path and the local custom path. With the published replay inputs, '\''upstream'\'' supports byte-identical vendor rebuilds; '\''custom'\'' allows local feature switches.\nDefault: custom.'; \
 	print_help_line '  FIRMWARE_BOARD=O6|O6N' 'Select the firmware board; replay follows the same board.\nDefault: O6.'; \
 	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG firmware build.\nDefault: RELEASE.'; \
 	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Select the default distro family for buildbox runs and deterministic replay.\nDefault: bookworm.'; \
-	print_help_line '  ENABLE_FIRMWARE_FIXES=true|false' 'Custom-only: enable the opt-in firmware fixes bundle (ACPI fixes, DSU PMU exposure, PCIe mode selector, and conservative PPTT cache topology) for O6/O6N.\nDefault: false.'; \
-	print_help_line '  ENABLE_CORE_ORDER=cix|conventional|performance' 'Custom-only companion to ENABLE_FIRMWARE_FIXES. '\''cix'\'' preserves the vendor/default CPU UID order; '\''conventional'\'' remaps CPU UIDs to little-cores-first order; '\''performance'\'' remaps CPU UIDs to a highest-performance-first order.\nDefault: unset, which behaves like '\''cix'\''.'; \
-	print_help_line '  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Custom-only: enable the experimental Radxa UEFI settings overlay for O6/O6N, with SR-IOV remaining O6-only.\nDefault: false.'; \
-	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: expose UART3 to ACPI and mux its header pins as UART instead of GPIO.\nDefault: false.'; \
+	print_help_line '  ENABLE_FIRMWARE_FIXES=true|false' 'Custom-only: enable the opt-in firmware fixes for O6/O6N. This changes firmware metadata and setup behavior; see FIXES.md for the details.\nDefault: false.'; \
+	print_help_line '  ENABLE_CORE_ORDER=cix|conventional|performance' 'Custom-only: choose how the firmware numbers CPUs it exposes to the OS when ENABLE_FIRMWARE_FIXES=true. '\''cix'\'' keeps the vendor order; '\''conventional'\'' puts the A520 cores before the A720 cores; '\''performance'\'' puts the A720 cores first, starting with the highest-performance pair.\nDefault: unset, which behaves like '\''cix'\''.'; \
+	print_help_line '  CIX_RELEASE=1.2|v1.2' 'Custom-only curated CIX early-boot path. '\''1.2'\'' imports the public CIX BIOS V1.2 TF-A and OP-TEE sources, stages the curated community-release bootloader1 payload, and source-builds bootloader2.\nDefault: unset.'; \
+	print_help_line '  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Custom-only: enable the experimental Radxa settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
+	print_help_line '  UART3_ENABLE=true|false' 'Custom-only: expose UART3 to ACPI and mux its header pins as UART instead of GPIO. This consumes header GPIO105/GPIO106 while enabled.\nDefault: false.'; \
 	print_help_line '  DEBUG_ON_UART3=true|false' 'Custom-only: route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
-	print_help_line '  DEBUG_VERBOSE=true|false' 'Custom-only: on RELEASE builds, re-enable DEBUG() logging with minimal runtime side effects and default to the full DEBUG_* mask unless DEBUG_PRINT_ERROR_LEVEL is set.\nDefault: false.'; \
+	print_help_line '  DEBUG_VERBOSE=true|false' 'Custom-only: on RELEASE builds, re-enable DEBUG() logging without switching the whole image to a DEBUG build, and default to the full DEBUG_* mask unless DEBUG_PRINT_ERROR_LEVEL is set.\nDefault: false.'; \
 	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Custom-only: override the firmware debug message mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; builds use 0x80000040 by default or $(MAX_DEBUG_PRINT_ERROR_LEVEL) when DEBUG_VERBOSE=true.\nSee '\''make help-debug'\'''
 endef
 
@@ -251,22 +263,23 @@ help:
 	print_help_line '  buildbox-zip' 'Create a .zip archive inside the buildbox'; \
 	print_help_line '  buildbox-targz' 'Create a .tar.gz archive inside the buildbox'; \
 	print_help_line '  buildbox-deb' 'Build the Debian package inside the buildbox under dist/deb/'; \
-	printf '\n%s\n\n' 'more help'; \
-	print_help_line '  help-vars' 'Show accepted top-level control variables'; \
+	printf '\n%s\n\n' 'More Help'; \
+	print_help_line '  help-vars' 'Show common top-level build variables'; \
 	print_help_line '  help-dev' 'Show maintainer and developer targets plus advanced control variables'; \
 	print_help_line '  help-internal' 'Show internal wrapper targets and unstable implementation knobs'; \
 	printf '\n%s\n' 'For lower-level firmware targets, run: make -C src help'
 
 help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
-	printf '%s\n\n' 'common build variables'; \
+	printf '%s\n\n' 'Common Build Variables'; \
 	$(PRINT_TOP_LEVEL_USER_VARIABLES); \
+	printf '\n%s\n' 'For the fuller user-facing explanation of the build variables, see: docs/build-variables.md'; \
 	printf '\n%s\n' 'For maintainer and developer targets plus advanced variables, run: make help-dev'; \
 	printf '%s\n' 'For internal wrapper targets and unstable implementation knobs, run: make help-internal'
 
 help-dev:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
-	printf '%s\n\n' 'maintainer and developer targets'; \
+	printf '%s\n\n' 'Maintainer and Developer Targets'; \
 	print_help_line '  arm64_crossbuild_dep' 'Install Debian arm64 cross-build dependencies'; \
 	print_help_line '  build-edk2' 'Run the raw src/ firmware build directly'; \
 	print_help_line '  validate-firmware' 'Check outputs against the active validation profile'; \
@@ -275,7 +288,7 @@ help-dev:
 	print_help_line '  audit-final-image-manifest' 'Check final BL33 firmware composition against the stored baseline'; \
 	print_help_line '  audit-acpi-regression' 'Check final ACPI tables and IASL diagnostics against the stored baseline'; \
 	print_help_line '  refresh-offline-audit-baselines' 'Refresh both offline audit baseline files from the selected board build'; \
-	print_help_line '  audit-bundle' 'Run the maintainer-focused structural audit bundle for the selected board'; \
+	print_help_line '  audit-bundle' 'Run the structural audit checks for the selected board'; \
 	print_help_line '  capture-validation-profile' 'Snapshot the current build into a profile JSON'; \
 	print_help_line '  deterministic-replay' 'Seed or reuse exact replay inputs, rebuild, and validate them strictly'; \
 	print_help_line '  prepare-replay-buildbox-image' 'Build or refresh the pinned Debian replay image used by Bookworm replay and validation wrappers'; \
@@ -286,7 +299,7 @@ help-dev:
 	print_help_line '  buildbox-validate-firmware-strict' 'Run strict validation inside the buildbox'; \
 	print_help_line '  buildbox-audit-final-image-manifest' 'Run the final-image manifest audit inside the buildbox'; \
 	print_help_line '  buildbox-audit-acpi-regression' 'Run the ACPI regression audit inside the buildbox'; \
-	print_help_line '  buildbox-audit-bundle' 'Run the full maintainer audit bundle inside the buildbox'; \
+	print_help_line '  buildbox-audit-bundle' 'Run the full structural audit checks inside the buildbox'; \
 	print_help_line '  buildbox-validate-secure-boot-defaults' 'Validate embedded Secure Boot payloads inside the buildbox'; \
 	print_help_line '  buildbox-capture-validation-profile' 'Capture a validation profile inside the buildbox'; \
 	print_help_line '  buildbox-down' 'Remove the persistent build container if it exists'; \
@@ -301,27 +314,27 @@ help-dev:
 	print_help_line '  dch' 'Generate and commit a Debian changelog release entry'; \
 	print_help_line '  release' 'Trigger the retained GitHub release workflow for the current branch'; \
 	print_help_line '  help-debug' 'Explain the DEBUG_PRINT_ERROR_LEVEL bit values derived from DebugLib.h'; \
-	print_section 'maintainer and developer variables'; \
+	print_section 'Maintainer and Developer Variables'; \
 	$(PRINT_TOP_LEVEL_DEV_VARIABLES); \
 	printf '\n%s\n' 'For regular firmware build usage, run: make help'; \
 	printf '%s\n' 'For internal wrapper targets and unstable implementation knobs, run: make help-internal'
 
 help-internal:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
-	printf '%s\n\n' 'internal wrapper targets'; \
+	printf '%s\n\n' 'Internal Wrapper Targets'; \
 	print_help_line '  preflight-wrapper-common' 'Shared top-level input validation used by most public wrapper targets.'; \
 	print_help_line '  preflight-wrapper-firmware-build' 'Additional validation for public firmware build and staging wrappers.'; \
 	print_help_line '  preflight-wrapper-validation' 'Additional validation for public validation and profile-capture wrappers.'; \
 	print_help_line '  preflight-wrapper-buildbox' 'Additional validation for buildbox lifecycle and image selection wrappers.'; \
 	print_help_line '  preflight-wrapper-replay' 'Additional validation for deterministic-replay cache and seed inputs.'; \
-	print_section 'internal variables'; \
+	print_section 'Internal Variables'; \
 	$(PRINT_TOP_LEVEL_INTERNAL_VARIABLES); \
 	printf '\n%s\n' 'Internal targets and variables are unstable and may change without compatibility guarantees.'; \
 	printf '%s\n' 'For regular usage, run: make help'
 
 help-debug:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
-	printf '%s\n\n' 'debug print levels'; \
+	printf '%s\n\n' 'Debug Print Levels'; \
 	printf '%s\n' 'Custom-only: set DEBUG_PRINT_ERROR_LEVEL to a decimal or '\
 '0x-prefixed 32-bit value to choose which DEBUG() message classes are '\
 'printed. Combine entries by ORing or summing their values. Default: '\
@@ -348,6 +361,9 @@ preflight-wrapper-common:
 	fi; \
 	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-core-order "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(CIX_RELEASE_VALIDATION_VALUE))" ]; then \
+		validate_cmd+=(--cix-release "$(strip $(CIX_RELEASE_VALIDATION_VALUE))"); \
 	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
@@ -385,6 +401,9 @@ preflight-wrapper-firmware-build: preflight-wrapper-common
 	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-core-order "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))"); \
 	fi; \
+	if [ -n "$(strip $(CIX_RELEASE_VALIDATION_VALUE))" ]; then \
+		validate_cmd+=(--cix-release "$(strip $(CIX_RELEASE_VALIDATION_VALUE))"); \
+	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
 	fi; \
@@ -411,6 +430,9 @@ preflight-wrapper-validation: preflight-wrapper-common
 	fi; \
 	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-core-order "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(CIX_RELEASE_VALIDATION_VALUE))" ]; then \
+		validate_cmd+=(--cix-release "$(strip $(CIX_RELEASE_VALIDATION_VALUE))"); \
 	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
