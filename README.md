@@ -2,6 +2,26 @@
 
 [![Release](https://github.com/radxa-pkg/edk2-cix/actions/workflows/release.yaml/badge.svg)](https://github.com/radxa-pkg/edk2-cix/actions/workflows/release.yaml)
 
+This repo is a fork of the upstream Radxa Orion O6/O6N firmware tree. That
+Radxa tree is itself built on CIX-published forks and payloads around
+Tianocore `edk2`, Arm Trusted Firmware-A, and OP-TEE. This branch aims to
+achieve two main things: preserve the upstream vendor build path,
+including byte-identical rebuilds when the published replay inputs are
+available, with a cleaner and more flexible build system; and let you build
+custom firmware with targeted improvements that are intentionally kept off that
+upstream vendor path.
+
+Key custom additions on `main-monorepo` include:
+
+- source-built replacements for several vendor helper binaries
+- reproducible replay and validation tooling around the published O6/O6N
+  releases
+- opt-in firmware fixes for ACPI, PCIe, SMBIOS, PPTT, and related
+  platform-description issues
+- an opt-in experimental UEFI-settings overlay for additional board controls
+- an opt-in curated `CIX_RELEASE=1.2` path that uses public CIX TF-A and
+  OP-TEE sources for the early boot stages
+
 ## Build
 
 1. `git clone -b main-monorepo-edk2 https://github.com/radxa-pkg/edk2-cix.git`
@@ -14,9 +34,13 @@ To see the common end-user targets first, run:
 make help
 ```
 
+For the build-variable reference, including which switches are custom-only,
+which ones can be combined, and what they change on the board, see
+[`docs/build-variables.md`](docs/build-variables.md).
+
 To build the documentation locally, run `make docs-build` when `mdbook` is
-already installed, or `devenv shell make docs-build` when you want the repo's
-managed docs toolchain. The rendered site is written to `book/html/`. Keep any
+already installed, or `devenv shell make docs-build` to use the repo's managed
+docs toolchain. The rendered site is written to `book/html/`. Keep any
 machine-specific `devenv` overrides, including optional Git hook installation,
 in a local `devenv.local.nix` based on `devenv.local.nix.example`.
 
@@ -35,7 +59,7 @@ keeps its cache under `.buildbox/act-cache/`, and applies the repo's default
 runner mapping for `ubuntu-latest`. See [docs/build.md](docs/build.md) for the
 full local-workflow testing notes and variables.
 
-If a workflow touches generated paths such as `src/Build/` or `.buildbox/`,
+When a workflow touches generated paths such as `src/Build/` or `.buildbox/`,
 prefer the clean helper so ignored local artefacts do not leak into the run:
 
 ```bash
@@ -47,14 +71,14 @@ make gha-act-run-clean \
 
 ### Without `devcontainer`
 
-If you are building on a headless Linux host over SSH, you do not need VS Code
-or any IDE integration.
+To build on a headless Linux host over SSH, you do not need VS Code or any IDE
+integration.
 
 On a supported Debian host:
 
 - `x86_64`: prefer Debian `bookworm`
 - `arm64` / `aarch64` on `main-monorepo`: use Debian `bookworm` by default,
-  or Debian `trixie` when you want the newer distro/toolchain family
+  or Debian `trixie` for the newer distro/toolchain family
 
 The untouched upstream repo contents still need Debian `trixie` for native
 `arm64` / `aarch64` builds because they shipped closed-source helper binaries.
@@ -84,8 +108,8 @@ make zip
 make targz
 ```
 
-If you would rather keep the host cleaner and reuse a prepared build container,
-use the buildbox helpers instead:
+To keep the host cleaner and reuse a prepared build container, use the
+buildbox helpers instead:
 
 ```bash
 make buildbox-up
@@ -117,7 +141,7 @@ To select the distro generation explicitly:
 - use `FIRMWARE_DISTRO=bookworm` for the default general buildbox environment
 - use `FIRMWARE_DISTRO=trixie` for the Trixie general buildbox environment
 - use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:...` (or
-  `EDK2_CIX_BUILDBOX_IMAGE=...`) when you want to override the image directly;
+  `EDK2_CIX_BUILDBOX_IMAGE=...`) to override the image directly;
   when unset, the effective default is
   `mcr.microsoft.com/devcontainers/base:${FIRMWARE_DISTRO}`
 
@@ -138,7 +162,7 @@ tools. You can also invoke them from another working directory with
 
 ### With `devcontainer`
 
-If you do want the full containerized developer environment, open the repo in a
+To use the full containerized developer environment, open the repo in a
 [`devcontainer`](https://code.visualstudio.com/docs/devcontainers/containers)
 and then run:
 
@@ -162,6 +186,12 @@ this branch, so the supported local host environments are:
 
 Before a longer build, run `make -C src preflight` to fail early if the
 expected package-tool binaries or cross-compiler are missing.
+
+The short `make help-vars` output is meant to be a quick reminder. For the
+more detailed “what does this actually change?” explanation of variables such
+as `ARTEFACT_MODE`, `ENABLE_FIRMWARE_FIXES`, `ENABLE_EXPERIMENTAL_UEFI_SETTINGS`,
+`ENABLE_CORE_ORDER`, `CIX_RELEASE`, `UART3_ENABLE`, and the `DEBUG_*` switches,
+use [`docs/build-variables.md`](docs/build-variables.md).
 
 For the firmware build itself, the repo now defaults the underlying EDK2 build
 to silent mode, so the transcript keeps the higher-level `Building ...`
@@ -218,8 +248,8 @@ The generated `rebuild-o6-docker.sh` wrapper recreates the upstream
 `/workspaces/edk2-cix` path layout so that `ARTEFACT_MODE=upstream` can
 reproduce the vendor release payloads byte-for-byte. By default it writes its
 helper directory under the current system temp root and mounts that directory
-into the build container automatically. If you want to stage those helper
-files somewhere else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
+into the build container automatically. To stage those helper files somewhere
+else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
 `EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper.
 
 For the common qualification/replay flow, you can drive the same process from
@@ -238,8 +268,8 @@ input is the published `1.2.1` release plus its extracted cert bundle, this is
 the qualification path that proves the Bookworm build can still reproduce the
 published payloads byte-for-byte.
 
-You can also switch to `FIRMWARE_DISTRO=trixie` when you want a same-input
-Trixie replay. In that mode the goal is matching `amd64` and `arm64` outputs
+You can also switch to `FIRMWARE_DISTRO=trixie` for a same-input Trixie
+replay. In that mode the goal is matching `amd64` and `arm64` outputs
 against the same cert bundle and injected timestamps, not comparison with a
 published upstream release.
 
@@ -283,12 +313,12 @@ enough for the Bookworm arm64 path. On `main-monorepo`, those helpers are now
 reimplemented from source, so both `amd64` and native `arm64` can use the
 same default `bookworm` buildbox for exact replay and local builds.
 
-If you want to pick the buildbox distro family explicitly, set either:
+To pick the buildbox distro family explicitly, set either:
 
 - `FIRMWARE_DISTRO=bookworm`
 - `FIRMWARE_DISTRO=trixie`
 
-If you need a specific image instead, `BUILDBOX_IMAGE=...` overrides
+To use a specific image instead, `BUILDBOX_IMAGE=...` overrides
 `FIRMWARE_DISTRO`. When unset, the default effective image is
 `mcr.microsoft.com/devcontainers/base:${FIRMWARE_DISTRO}`.
 
@@ -297,7 +327,7 @@ Native `arm64` / `aarch64` work no longer depends on the old closed-source
 `fiptool` from source, and the packaging step runs the in-tree source
 `cix_package_tool` implementation too.
 
-The maintained helper sources now live under [src/tools](src/tools):
+The source replacements now live under [src/tools](src/tools):
 
 - [src/tools/arm-trusted-firmware-fiptool](src/tools/arm-trusted-firmware-fiptool)
 - [src/tools/cert_uefi_create_rsa](src/tools/cert_uefi_create_rsa)
@@ -317,8 +347,8 @@ make -C src host-cix-package-tool
 That source build depends on the normal OpenSSL development headers, so the
 host dependency bootstrap now includes `libssl-dev`.
 
-If you are specifically qualifying reproducibility, the checked-in validation
-profiles serve two different purposes:
+For reproducibility qualification, the checked-in validation profiles serve two
+different purposes:
 
 - `upstream-1.2.1-bookworm`
   - shared validation profile for the published `1.2.1` upstream release
@@ -372,11 +402,11 @@ make validate-firmware \
   FIRMWARE_VALIDATION_PROFILE=upstream-1.2.1-trixie
 ```
 
-The shared `upstream-<version>-<distro>` form is now the only maintained
-replay-profile naming scheme.
+Use the shared `upstream-<version>-<distro>` form for replay-profile names on
+this branch.
 
 For deeper offline regression checks against the currently checked-in Bookworm
-replay baselines, the maintained tree now also includes:
+replay baselines, this branch also includes:
 
 ```bash
 make check-offline-audit-baselines
@@ -388,9 +418,8 @@ make buildbox-audit-bundle ARTEFACT_MODE=upstream FIRMWARE_BOARD=O6
 
 Those checks write JSON reports under `build-validation/`.
 The checked-in offline baseline files currently cover the shared
-`upstream-1.2.1-bookworm` profile for both `O6` and `O6N`; seed additional
-profiles later with the audit scripts' `--emit-baseline` mode if you want to
-extend that coverage.
+`upstream-1.2.1-bookworm` profile for both `O6` and `O6N`; use the audit
+scripts' `--emit-baseline` mode later to extend that coverage.
 
 - the final-image manifest audit baselines the final BL33 FV / FFS / section
   composition
@@ -401,10 +430,9 @@ extend that coverage.
 - `make refresh-offline-audit-baselines ARTEFACT_MODE=upstream` refreshes both
   offline audit baseline files together from the already-built selected board
   tree for the active `FIRMWARE_VALIDATION_PROFILE`
-- the maintainer `audit-bundle` target combines the qualification checks plus
-  the payload metadata self-test, and optionally also runs the metadata branch
-  consistency checker if `MONOREPO_META_ROOT=/path/to/main-monorepo-meta` is
-  set
+- the `audit-bundle` target combines the qualification checks plus the payload
+  metadata self-test, and optionally also runs the metadata branch consistency
+  checker if `MONOREPO_META_ROOT=/path/to/main-monorepo-meta` is set
 
 The deterministic replay workflow now also uploads the generated
 `build-validation/*.json` files as CI artefacts and emits a short Markdown job
