@@ -281,6 +281,8 @@ common_packages=(
     libssl-dev
     perl
     python3
+    python3-cryptography
+    python3-pyelftools
 )
 
 packaging_packages=(
