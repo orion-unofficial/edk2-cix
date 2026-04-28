@@ -37,6 +37,11 @@
 !else
   gCixTokenSpaceGuid.PcdAcpiUart3Enable|FALSE
 !endif
+!if $(ENABLE_FIRMWARE_FIXES) == TRUE
+  gCixTokenSpaceGuid.PcdCustomFirmwareFixesEnable|TRUE
+!else
+  gCixTokenSpaceGuid.PcdCustomFirmwareFixesEnable|FALSE
+!endif
 
   # Default hardware description should be ACPI
   gEmbeddedTokenSpaceGuid.PcdDefaultDtPref|FALSE
@@ -149,28 +154,8 @@
 !endif
 
 [BuildOptions]
-!if $(UART3_ENABLE) == TRUE
-  GCC:*_*_*_CC_FLAGS          = -DUART3_ENABLE=1
-!else
-  GCC:*_*_*_CC_FLAGS          = -UUART3_ENABLE
-!endif
-!if $(DEBUG_ON_UART3) == TRUE
-  GCC:*_*_*_CC_FLAGS          = -DDEBUG_ON_UART3=1
-  GCC:*_*_*_ASLPP_FLAGS       = -DDEBUG_ON_UART3=1
-!else
-  GCC:*_*_*_CC_FLAGS          = -UDEBUG_ON_UART3
-  GCC:*_*_*_ASLPP_FLAGS       = -UDEBUG_ON_UART3
-!endif
 !if $(DEBUG_VERBOSE) == TRUE
-  GCC:*_*_*_CC_FLAGS          = -DDEBUG_VERBOSE=1
   GCC:RELEASE_*_*_CC_FLAGS    = -UMDEPKG_NDEBUG -UNDEBUG
-!else
-  GCC:*_*_*_CC_FLAGS          = -UDEBUG_VERBOSE
-!endif
-!if $(ENABLE_FIRMWARE_FIXES) == TRUE
-  GCC:*_*_*_CC_FLAGS          = -DENABLE_FIRMWARE_FIXES=1
-!else
-  GCC:*_*_*_CC_FLAGS          = -UENABLE_FIRMWARE_FIXES
 !endif
 
 [PcdsPatchableInModule]
