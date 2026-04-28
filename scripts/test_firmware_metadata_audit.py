@@ -30,6 +30,14 @@ class FirmwareMetadataAuditTests(unittest.TestCase):
         self.assertIn("NB10", findings[0].reasons)
         self.assertIn("Jenkins workspace", findings[0].reasons)
 
+    def test_mixed_case_codeview_noise_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir_text:
+            payload = Path(tempdir_text) / "bootloader3.img"
+            payload.write_bytes(b"\x00\x01random-bytes-rSds-more-random\x02\x03")
+            findings = audit_targets([(payload.name, payload)])
+
+        self.assertEqual(findings, [])
+
     def test_utf16_workspace_path_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir_text:
             payload = Path(tempdir_text) / "Shell.efi"
