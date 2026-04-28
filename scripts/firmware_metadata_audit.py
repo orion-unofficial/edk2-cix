@@ -10,8 +10,6 @@ import re
 
 MIN_TEXT_LENGTH = 4
 BASE_BANNED_TEXT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("NB10", re.compile(r"NB10", re.IGNORECASE)),
-    ("RSDS", re.compile(r"RSDS", re.IGNORECASE)),
     (".pdb", re.compile(r"\.pdb\b", re.IGNORECASE)),
     ("/Users/", re.compile(r"/Users/", re.IGNORECASE)),
     ("/workspaces/", re.compile(r"/workspaces/", re.IGNORECASE)),
@@ -25,6 +23,7 @@ BASE_BANNED_TEXT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("GitHub Actions workspace", re.compile(r"(?:/home/runner/work/|/__w/|/github/workspace/)", re.IGNORECASE)),
     ("GitLab workspace", re.compile(r"/builds/", re.IGNORECASE)),
 )
+CODEVIEW_SIGNATURES: tuple[bytes, ...] = (b"NB10", b"RSDS")
 WINDOWS_DRIVE_PATH_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])"
     r"[A-Za-z]:[\\/]"
@@ -126,6 +125,15 @@ def _iter_text_candidates(path: Path) -> list[str]:
     return strings
 
 
+def _codeview_signature_reasons(data: bytes) -> tuple[str, ...]:
+    reasons = [
+        signature.decode("ascii")
+        for signature in CODEVIEW_SIGNATURES
+        if signature in data
+    ]
+    return tuple(reasons)
+
+
 def _match_reasons(
     text: str,
     banned_text_patterns: tuple[tuple[str, re.Pattern[str]], ...],
@@ -148,10 +156,27 @@ def audit_targets(targets: list[tuple[str, Path]]) -> list[AuditFinding]:
     for display_path, path in targets:
         if not path.is_file():
             continue
-        for text in _iter_text_candidates(path):
-            reasons = _match_reasons(text, banned_text_patterns)
+        data = path.read_bytes()
+        signature_reasons = _codeview_signature_reasons(data)
+        matched_signatures: set[str] = set()
+        seen: set[str] = set()
+        strings: list[str] = []
+        for text in _iter_ascii_strings(data) + _iter_utf16le_strings(data):
+            if text in seen:
+                continue
+            seen.add(text)
+            strings.append(text)
+        for text in strings:
+            reasons = list(_match_reasons(text, banned_text_patterns))
+            for signature_reason in signature_reasons:
+                if signature_reason in text:
+                    reasons.append(signature_reason)
+                    matched_signatures.add(signature_reason)
             if reasons:
-                findings.append(AuditFinding(display_path, text, reasons))
+                findings.append(AuditFinding(display_path, text, tuple(dict.fromkeys(reasons))))
+        for signature_reason in signature_reasons:
+            if signature_reason not in matched_signatures:
+                findings.append(AuditFinding(display_path, signature_reason, (signature_reason,)))
     return findings
 
 
