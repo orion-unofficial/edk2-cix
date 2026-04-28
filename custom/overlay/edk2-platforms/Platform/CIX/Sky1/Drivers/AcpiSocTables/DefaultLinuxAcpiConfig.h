@@ -7,7 +7,7 @@
  * %USBCx_PD_EN set 1 if USB work with a PD controller.
  * Typec usb device or typc display device will be recognized by PD
  * controller, as well as forward or backward insertion.
- * if USBCx_PD_EN set, USBCx_PD_DEVICE must be sepcified, and the
+ * if USBCx_PD_EN set, USBCx_PD_DEVICE must be specified, and the
  * usb phy mode config USBCx_DEF_PMODE will be ignored.
  *
  * %USBCx_PD_DEVICE USB PD controller device.
