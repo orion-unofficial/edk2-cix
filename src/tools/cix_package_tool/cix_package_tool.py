@@ -15,11 +15,42 @@ MAGIC = 0x55AA55AA
 HEADER_WORDS = 4
 ENTRY_WORDS = 4
 ENTRY_SIZE = ENTRY_WORDS * 4
+DEFAULT_ALIGN_SIZE = 4096
 
 TYPE_NAME_OVERRIDES = {
     "ec_file": "ec_firmware.bin",
     "xip_file": "brom_xip.bin",
 }
+
+HELP_TEXT = (
+    "\033[1;33m    ./cix_package_tool <option>\n\n"
+    "\033[m    options:\n"
+    "        -h, --help         show the help information\n"
+    "        -c, --config       point config file with json format\n"
+    "        -o, --output       output file/path\n"
+    "        -d, --dump         dump target file\n"
+    "        -O, --OTA          Package OTA package\n\n"
+    "    examples:\n"
+    "        If you want to package a flash package, you can run:\n"
+    "\033[0;32;32m            ./cix_package_tool -c yyy/xxx.json\n"
+    "\033[m        If you want to package a flash package & assign output, you can run: \n"
+    "\033[0;32;32m            ./cix_package_tool -c yyy/xxx.json -o outFile\n"
+    "\033[m        If you want to package a OTA package, you can run:\n"
+    "\033[0;32;32m            ./cix_package_tool -c yyy/xxx.json -O cix_flash_ota.bin\n"
+    "\033[m        If you want to dump a target, you can run: \n"
+    "\033[0;32;32m            ./cix_package_tool -d xxx -c yyy/xxx.json\n"
+    "\033[m"
+)
+
+
+def print_help() -> None:
+    print(HELP_TEXT, end="")
+
+
+def fail_with_help(message: str) -> None:
+    print(message, end="")
+    print_help()
+    raise SystemExit(255)
 
 
 def parse_int(value: object) -> int:
@@ -53,6 +84,7 @@ class Config:
     path: Path
     cfs_version: int
     fip_version: int | None
+    align_size: int
     flash_size: int
     image_count: int
     image_entries: tuple[ImageEntry, ...]
@@ -81,7 +113,12 @@ def resolve_optional_file(base_dir: Path, raw_path: object) -> Path | None:
 
 
 def load_config(config_path: Path, *, load_payloads: bool = True) -> Config:
-    raw = json.loads(config_path.read_text())
+    try:
+        raw = json.loads(config_path.read_text())
+    except FileNotFoundError:
+        fail_with_help(f"\033[1;31m[src/cix_file_oper.c:154] \033[mOpen File({config_path}) fail\n")
+    except json.JSONDecodeError:
+        fail_with_help(f"\033[1;31m[src/cix_json.c:230] \033[mLoad json file({config_path}) failed.\n")
     base_dir = config_path.parent
     entries = []
     for item in raw["image_header_groups"]:
@@ -101,6 +138,7 @@ def load_config(config_path: Path, *, load_payloads: bool = True) -> Config:
         path=config_path,
         cfs_version=parse_int(raw["cfs_version"]),
         fip_version=parse_int(raw["fip_version"]) if "fip_version" in raw else None,
+        align_size=parse_int(raw.get("align_size", DEFAULT_ALIGN_SIZE)),
         flash_size=parse_int(raw["flash_size"]),
         image_count=parse_int(raw["image_count"]),
         image_entries=tuple(entries),
@@ -226,6 +264,9 @@ def build_ota_flash(config: Config) -> bytes:
         )
         payload[cursor : cursor + entry.actual_size] = entry.data
         cursor += entry.actual_size
+    padded_len = max(cursor, config.align_size + HEADER_WORDS * 4)
+    if len(payload) < padded_len:
+        payload.extend(b"\x00" * (padded_len - len(payload)))
     return bytes(payload)
 
 
@@ -290,17 +331,134 @@ def dump_ota_flash(config: Config, blob: bytes, output_dir: Path) -> None:
         cursor += actual_size
 
 
+def full_flash_header_entries(config: Config, blob: bytes) -> list[tuple[int, int, int]]:
+    assert config.firmware_header_addr is not None
+    _magic, _version, count, _flags = struct.unpack_from("<4I", blob, config.firmware_header_addr)
+    entries = []
+    for index in range(count):
+        image_type, address, actual_size, _reserved = struct.unpack_from(
+            "<4I",
+            blob,
+            config.firmware_header_addr + HEADER_WORDS * 4 + index * ENTRY_SIZE,
+        )
+        entries.append((image_type, address, actual_size))
+    return entries
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Source replacement for cix_package_tool")
-    parser.add_argument("-c", "--config", required=True, help="JSON configuration file")
+    if not argv:
+        fail_with_help("Please input right parameter\n")
+
+    if any(arg in ("-h", "--help") for arg in argv):
+        print_help()
+        raise SystemExit(0)
+
+    for index, arg in enumerate(argv):
+        if arg.startswith("--") and arg not in {"--config", "--output", "--dump", "--OTA"}:
+            print(f"./cix_package_tool: unrecognized option '{arg}'", file=sys.stderr)
+            fail_with_help("\033[1;31m[src/main.c:140] \033[munknown option : \x00\n")
+        if arg in {"-c", "--config", "-o", "--output", "-d", "--dump", "-O", "--OTA"}:
+            if index + 1 >= len(argv) or argv[index + 1].startswith("-"):
+                option = arg[1] if arg.startswith("-") and not arg.startswith("--") else arg
+                print(f"./cix_package_tool: option requires an argument -- '{option}'", file=sys.stderr)
+                fail_with_help(f"\033[1;31m[src/main.c:140] \033[munknown option : {option}\n")
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("-c", "--config", help="JSON configuration file")
     parser.add_argument("-o", "--output", help="Package a flash image and write this output path")
     parser.add_argument("-O", "--OTA", dest="ota_output", help="Package an OTA image and write this output path")
     parser.add_argument("-d", "--dump", help="Dump the target flash image into ./unpack")
-    args = parser.parse_args(argv)
+    try:
+        args, extras = parser.parse_known_args(argv)
+    except SystemExit:
+        print_help()
+        raise SystemExit(255)
+    if extras or not args.config:
+        print_help()
+        raise SystemExit(255)
     modes = sum(bool(value) for value in (args.output, args.ota_output, args.dump))
     if modes != 1:
-        parser.error("choose exactly one of --output, --OTA, or --dump")
+        print_help()
+        raise SystemExit(255)
     return args
+
+
+def print_full_flash_success(config: Config, output_arg: str) -> None:
+    if config.sec_debug_file is None:
+        print("\033[1;32m[src/cix_json.c:332] \033[mSkip package secure debug fw")
+    bootloader1 = next((entry for entry in config.image_entries if entry.image_type == 1), None)
+    if bootloader1 is not None:
+        print(f"\033[1;32m[src/cix_package_tool.c:298] \033[mImage address: 0x{bootloader1.address:x}")
+    print("====================================================")
+    print("Package flash binary successful, it name was:")
+    print(output_arg)
+    print("====================================================")
+
+
+def print_ota_success(output_arg: str) -> None:
+    print("====================================================")
+    print("Package flash binary for OTA successful, it name was:")
+    print(output_arg)
+    print("====================================================")
+
+
+def print_dump_summary(config: Config, blob: bytes, output_dir: Path) -> None:
+    if not config.is_full_flash:
+        for path in sorted(output_dir.iterdir()):
+            if path.is_file():
+                print(f"Save file: {path}")
+        return
+
+    assert config.firmware_header_addr is not None
+    assert config.ec_addr is not None
+    assert config.xip_addr is not None
+
+    if config.sec_debug_file is None:
+        print("\033[1;32m[src/cix_json.c:332] \033[mSkip package secure debug fw")
+
+    magic, version, count, _flags = struct.unpack_from("<4I", blob, config.firmware_header_addr)
+    header_entries = full_flash_header_entries(config, blob)
+    entry_by_type = {entry.image_type: entry for entry in config.image_entries}
+    bootloader1 = entry_by_type.get(1)
+    first_entry_addr = min((address for _image_type, address, _size in header_entries), default=config.firmware_header_addr)
+    header_len = first_entry_addr - config.firmware_header_addr + HEADER_WORDS * 4
+    ec_len = config.firmware_header_addr - config.ec_addr
+    xip_len = (config.firmware_header_addr - config.xip_addr + config.align_size) & 0xFFFFFFFF
+
+    print("=============================================")
+    print("Fixed Firmware Address in target image was:")
+    print(f"         EC addr: 0x{config.ec_addr:08x};        EC len: 0x{ec_len:08x}")
+    print(f" Img header addr: 0x{config.firmware_header_addr:08x};    Header Len: 0x{header_len:08x}")
+    print(f"        XIP addr: 0x{config.xip_addr:08x};       XIP Len: 0x{xip_len:08x}")
+    if bootloader1 is not None:
+        print(f"Bootloader1 addr: 0x{bootloader1.address:08x};")
+    print("=============================================")
+    print("Detail info about sub images just like follow:")
+    print(f"Magic: 0x{magic:x}")
+    print(f"CFS_version: 0x{version:x}")
+    print(f"Count of sub iamges: 0x{count:x}")
+    print("=============================================")
+
+    for index, (image_type, address, actual_size) in enumerate(header_entries, start=1):
+        entry = entry_by_type.get(image_type)
+        image_name = entry.file_path.name if entry is not None else ""
+        print(f"Sub_image [{index}]:")
+        print(f"Image Type: {image_type}")
+        print(f"Image Name: {image_name}")
+        print(f"Image Addr: 0x{address:x}({address})")
+        print(f"Image Size: 0x{actual_size:x}({actual_size})")
+        print()
+
+    save_paths: list[Path] = []
+    if config.ec_file is not None:
+        save_paths.append(output_dir / TYPE_NAME_OVERRIDES["ec_file"])
+    if config.xip_file is not None:
+        save_paths.append(output_dir / TYPE_NAME_OVERRIDES["xip_file"])
+    save_paths.extend(output_dir / entry_by_type[image_type].file_path.name for image_type, _address, _size in header_entries)
+    for path in save_paths:
+        print(f"Save file: {path}")
+        if path.name == TYPE_NAME_OVERRIDES["xip_file"]:
+            print(f"\033[1;31m[src/cix_file_oper.c:185] \033[mWrite data into file({path}) fail")
 
 
 def main(argv: list[str]) -> int:
@@ -309,9 +467,11 @@ def main(argv: list[str]) -> int:
 
     if args.output:
         Path(args.output).write_bytes(build_full_flash(config))
+        print_full_flash_success(config, args.output)
         return 0
     if args.ota_output:
         Path(args.ota_output).write_bytes(build_ota_flash(config))
+        print_ota_success(args.ota_output)
         return 0
 
     dump_path = Path(args.dump)
@@ -321,6 +481,7 @@ def main(argv: list[str]) -> int:
         dump_full_flash(config, blob, output_dir)
     else:
         dump_ota_flash(config, blob, output_dir)
+    print_dump_summary(config, blob, output_dir)
     return 0
 
 
