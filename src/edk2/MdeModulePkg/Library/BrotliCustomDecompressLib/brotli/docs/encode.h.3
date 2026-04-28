@@ -535,6 +535,11 @@ Result is only valid if quality is at least \fC2\fP and, in case \fBBrotliEncode
 .PP
 Prepares a shared dictionary from the given file format for the encoder\&. \fCalloc_func\fP and \fCfree_func\fP \fBMUST\fP be both zero or both non-zero\&. In the case they are both zero, default memory allocators are used\&. \fCopaque\fP is passed to \fCalloc_func\fP and \fCfree_func\fP when they are called\&. \fCfree_func\fP has to return without doing anything when asked to free a NULL pointer\&.
 .PP
+\fBWarning:\fP
+.RS 4
+Created instance is 'lean'; it does not contain copy of \fCdata\fP, rather it contains only pointer to it; therefore, \fCdata\fP \fBMUST\fP outlive the created instance\&.
+.RE
+.PP
 \fBParameters:\fP
 .RS 4
 \fItype\fP type of dictionary stored in data 
@@ -587,7 +592,7 @@ invalid values might be accepted in case they would not break encoding process\&
 .PP
 Acquires pointer to internal output buffer\&. This method is used to make language bindings easier and more efficient:
 .IP "1." 4
-push data to \fBBrotliEncoderCompressStream\fP, until \fBBrotliEncoderHasMoreOutput\fP returns BROTL_TRUE
+push data to \fBBrotliEncoderCompressStream\fP, until \fBBrotliEncoderHasMoreOutput\fP returns BROTLI_TRUE
 .IP "2." 4
 use \fBBrotliEncoderTakeOutput\fP to peek bytes and copy to language-specific entity
 .PP
@@ -624,7 +629,7 @@ pointer to output data
 .SS "uint32_t BrotliEncoderVersion (void)"
 
 .PP
-Gets an encoder library version\&. Look at BROTLI_VERSION for more information\&. 
+Gets an encoder library version\&. Look at BROTLI_MAKE_HEX_VERSION for more information\&. 
 .SH "Author"
 .PP 
 Generated automatically by Doxygen for Brotli from the source code\&.

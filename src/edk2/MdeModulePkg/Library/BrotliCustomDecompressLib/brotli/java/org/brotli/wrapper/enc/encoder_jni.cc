@@ -6,8 +6,11 @@
 
 #include <jni.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <new>
 
+#include <brotli/shared_dictionary.h>
 #include <brotli/encode.h>
 
 namespace {
