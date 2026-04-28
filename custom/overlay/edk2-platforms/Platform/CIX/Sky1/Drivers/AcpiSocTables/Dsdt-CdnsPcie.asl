@@ -26,21 +26,19 @@ External (PCIE_X1_1_VCC_REGULATOR, DeviceObj)
 External (PCIE_X1_0_VCC_REGULATOR, DeviceObj)
 #endif
 
-#ifdef ENABLE_FIRMWARE_FIXES
 #define PCIE_CDNS_PORT_STA(LinkOffset) \
-  If (LEqual (PCDM, 1)) { \
+  If (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) { \
+    If (LEqual (PCDM, 1)) { \
+      If (\_SB.GETV (LinkOffset)) { \
+        Return (0xF) \
+      } \
+    } \
+  } else { \
     If (\_SB.GETV (LinkOffset)) { \
       Return (0xF) \
     } \
   } \
   Return (0x0)
-#else
-#define PCIE_CDNS_PORT_STA(LinkOffset) \
-  If (\_SB.GETV (LinkOffset)) { \
-    Return (0xF) \
-  } \
-  Return (0x0)
-#endif
 
 Device (PRC0) { /* PCIE0 X8 */
   Name (_HID, "CIXH2020")
@@ -1235,8 +1233,21 @@ Device (PCP2) //PCIE PHY1
 
   // PCIe is only available if PCIe link is up
   Method (_STA, 0x0, Serialized) {
-#ifdef ENABLE_FIRMWARE_FIXES
-    If (LEqual (PCDM, 1)) {
+    If (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
+      If (LEqual (PCDM, 1)) {
+        If(\_SB.GETV(ARV_PCIE_RP_02_LINK_STS_OFFSET)) {
+          Return (0xF)
+        } Else {
+          If (\_SB.GETV(ARV_PCIE_RP_03_LINK_STS_OFFSET)) {
+            Return (0xF)
+          } Else {
+            If (\_SB.GETV(ARV_PCIE_RP_04_LINK_STS_OFFSET)) {
+              Return (0xF)
+            }
+          }
+        }
+      }
+    } Else {
       If(\_SB.GETV(ARV_PCIE_RP_02_LINK_STS_OFFSET)) {
         Return (0xF)
       } Else {
@@ -1250,21 +1261,6 @@ Device (PCP2) //PCIE PHY1
       }
     }
     Return (0x0)
-#else
-    If(\_SB.GETV(ARV_PCIE_RP_02_LINK_STS_OFFSET)) {
-      Return (0xF)
-    } Else {
-      If (\_SB.GETV(ARV_PCIE_RP_03_LINK_STS_OFFSET)) {
-        Return (0xF)
-      } Else {
-        If (\_SB.GETV(ARV_PCIE_RP_04_LINK_STS_OFFSET)) {
-          Return (0xF)
-        } Else {
-          Return (0x0)
-        }
-      }
-    }
-#endif
   }
 
   Name (_CRS, ResourceTemplate () {

@@ -9,10 +9,9 @@
 #include <Base.h>
 #include <Library/AcpiLib.h>
 #include <Library/AslUpdateLib.h>
-#ifdef ENABLE_FIRMWARE_FIXES
 #include <Library/BaseMemoryLib.h>
-#endif
 #include <Library/DebugLib.h>
+#include <Library/PcdLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Protocol/PlatformConfigParamsManageProtocol.h>
@@ -39,9 +38,9 @@ AcpiHookFunctionOnReadyToBoot (
   DEBUG ((DEBUG_INFO, "Enter %a\n", __func__));
 
   VarSize = sizeof (RADXA_SETUP_DATA);
-#ifdef ENABLE_FIRMWARE_FIXES
-  ZeroMem (&RadxaSetupVar, sizeof (RadxaSetupVar));
-#endif
+  if (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
+    ZeroMem (&RadxaSetupVar, sizeof (RadxaSetupVar));
+  }
   Status = gRT->GetVariable (
                   RADXA_SETUP_VAR,
                   &gRadxaSetupVariableGuid,
@@ -72,12 +71,12 @@ AcpiHookFunctionOnReadyToBoot (
     DEBUG ((DEBUG_ERROR, "%a: Update SCMS failed, Status=%r\n", __FUNCTION__, Status));
   }
 
-#ifdef ENABLE_FIRMWARE_FIXES
-  Status = UpdateNameAslCode (SIGNATURE_32 ('P', 'C', 'D', 'M'), &(RadxaSetupVar.PcieDeviceModel), sizeof (RadxaSetupVar.PcieDeviceModel));
-  if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "%a: Update PCDM failed, Status=%r\n", __FUNCTION__, Status));
+  if (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
+    Status = UpdateNameAslCode (SIGNATURE_32 ('P', 'C', 'D', 'M'), &(RadxaSetupVar.PcieDeviceModel), sizeof (RadxaSetupVar.PcieDeviceModel));
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a: Update PCDM failed, Status=%r\n", __FUNCTION__, Status));
+    }
   }
-#endif
 
   //
   // Close the event, so it will not be signalled again.
