@@ -138,20 +138,22 @@ first on Linux. If the preferred runtime is installed but not usable, they
 automatically try the other one before failing. Set
 `EDK2_CIX_CONTAINER_RUNTIME=docker` or `EDK2_CIX_CONTAINER_RUNTIME=podman` to
 force a specific runtime.
-By default the buildbox follows the host architecture: `linux/amd64` with the
-Bookworm base image on both `x86_64` and `arm64` / `aarch64`. Override that
-with `FIRMWARE_DISTRO=trixie`, `EDK2_CIX_BUILDBOX_PLATFORM`,
+By default the buildbox follows the host architecture, uses the Bookworm base
+image for `ARTEFACT_MODE=upstream`, and uses the Trixie base image for
+`ARTEFACT_MODE=custom`. Override that with `FIRMWARE_DISTRO=bookworm`,
+`FIRMWARE_DISTRO=trixie`, `EDK2_CIX_BUILDBOX_PLATFORM`,
 `EDK2_CIX_BUILDBOX_IMAGE`, `BUILDBOX_PLATFORM=...`, or `BUILDBOX_IMAGE=...`
 when you need a specific container environment.
 
 To select the distro generation explicitly:
 
-- use `FIRMWARE_DISTRO=bookworm` for the default general buildbox environment
-- use `FIRMWARE_DISTRO=trixie` for the Trixie general buildbox environment
+- use `FIRMWARE_DISTRO=bookworm` to force Bookworm for any buildbox run
+- use `FIRMWARE_DISTRO=trixie` to force Trixie for any buildbox run
 - use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:...` (or
   `EDK2_CIX_BUILDBOX_IMAGE=...`) to override the image directly;
   when unset, the effective default is
-  `mcr.microsoft.com/devcontainers/base:${FIRMWARE_DISTRO}`
+  `mcr.microsoft.com/devcontainers/base:bookworm` for upstream and
+  `mcr.microsoft.com/devcontainers/base:trixie` for custom
 The firmware-oriented `buildbox-*` targets install the slimmer firmware
 dependency profile inside the reusable container; `buildbox-deb` switches that
 same container to the fuller packaging profile when needed.
@@ -384,7 +386,7 @@ make targz
 Those targets reuse the same deployable board-specific payload that the package
 ships, but the non-`deb` exports keep it as a self-contained versioned tree per
 product. By default the examples below show the `O6` files inside
-`dist/firmware/orion-o6/<version>/`:
+`dist/firmware/edk2/radxa/orion-o6/<version>/`:
 
 - `BuildOptions`
 - `cix_flash_all.bin`
@@ -399,27 +401,44 @@ product. By default the examples below show the `O6` files inside
 
 By default:
 
-- `make firmware-stage` writes to `dist/firmware/orion-o6/<version>/`
+- `make firmware-stage` writes to `dist/firmware/edk2/radxa/orion-o6/<version>/`
 - `make install` writes to `/boot/efi/edk2/radxa/orion-o6/<version>/`
 - `make zip` writes `dist/edk2-cix-orion-o6-<version>.zip`
 - `make targz` writes `dist/edk2-cix-orion-o6-<version>.tar.gz`
+- `make build-all` aliases `make build-all-targz` and writes
+  `dist/edk2-cix-orion-o6-<version>-all.tar.gz`
+- `make build-all-zip` writes `dist/edk2-cix-orion-o6-<version>-all.zip`
 
 `make install` is intended for a live system with a writable EFI system
 partition. Debian package builds do not use this target; they collect files
 directly from the build tree with `dh_install`.
 
-Both archive formats store the payload under `orion-o6/<version>/` inside the
-archive, so the archive members match the same product/version layout used by
-the staged payload.
+For non-`deb` builds, firmware versioning now comes from the repo-root
+`VERSION` file. `make deb` validates that the Debian changelog upstream
+version matches it instead of defining the firmware version for every other
+target.
+
+Both archive formats store the payload under `edk2/radxa/orion-o6/<version>/`
+inside the archive, so the archive members match the same product/version
+layout used by the staged payload. `build-all` is buildbox-orchestrated: the
+upstream leaf defaults to Bookworm and the custom leaves default to Trixie.
+The traversal keeps every RELEASE variant ahead of every DEBUG variant, walks
+the broader custom invalidators before the UART/debug leaves, and then toggles
+the narrower curated `cix` path inside each compile bucket to reduce avoidable
+rebuild churn. `build-all` archives the curated preset leaves for each
+container instead of every legal flag combination.
+Single-build custom exports reuse the same subtree naming scheme, including
+curated `custom/cix/...` leaves when `CIX_RELEASE=v1.2` is selected, even when
+you request a combination that is not part of the preset variant set.
 
 `make buildbox-firmware-stage` uses the same export path, and the staged files
 appear directly in the host checkout under the default
-`dist/firmware/orion-o6/<version>/` path because the buildbox bind-mounts the
-repo root. You do not need to copy files back out of the container separately.
+`dist/firmware/edk2/radxa/orion-o6/<version>/` path because the buildbox
+bind-mounts the repo root. You do not need to copy files back out of the
+container separately.
 
 To deploy that staged payload manually onto a target ESP or removable FAT
-volume, copy `dist/firmware/orion-o6/` into `edk2/radxa/` on that filesystem.
-That gives you:
+volume, copy `dist/firmware/edk2/` into that filesystem root. That gives you:
 
 - `edk2/radxa/orion-o6/<version>/BuildOptions`
 - `edk2/radxa/orion-o6/<version>/cix_flash_all.bin`
@@ -520,8 +539,8 @@ The preferred local distribution for `x86_64` builds remains Debian
 In the original upstream tree, native `arm64` / `aarch64` builds needed the
 `trixie` buildbox because the shipped closed-source helpers were not portable
 enough for the Bookworm arm64 path. On `main-monorepo`, those helpers are now
-reimplemented from source, so the same default `bookworm` buildbox works for
-both `amd64` and native `arm64` exact replay.
+reimplemented from source, so both `amd64` and native `arm64` can use
+Bookworm for exact replay and Trixie for the default custom build path.
 
 Native arm64 packaging no longer depends on the old closed-source
 `cert_uefi_create_rsa` helper: both that tool and `fiptool` are now built from
@@ -535,11 +554,11 @@ Custom builds also support a curated CIX release selector:
 make buildbox-firmware-build \
   ARTEFACT_MODE=custom \
   FIRMWARE_BOARD=O6 \
-  CIX_RELEASE=1.2
+  CIX_RELEASE=v1.2
 ```
 
-`CIX_RELEASE=1.2` (also accepted as `v1.2`) is a custom-only mode. It uses the
-public CIX BIOS V1.2 source snapshot for TF-A and OP-TEE, stages the later
+`CIX_RELEASE=v1.2` is a custom-only mode. It uses the public CIX BIOS V1.2
+source snapshot for TF-A and OP-TEE, stages the later
 public CIX community-release `bootloader1.img` payload that matches community
 hardware logs, and source-builds `bootloader2.img` during packaging. The
 materialised curated sources live under `src/cix-v1.2/`.
@@ -559,10 +578,10 @@ entropy.
 So:
 
 - use the default Bookworm buildbox on either `x86_64` or `arm64` / `aarch64`
-  for the standard `main-monorepo` environment or the exact Bookworm
-  replay baseline
-- use `FIRMWARE_DISTRO=trixie` for the Trixie family in general
-  buildbox use or for exact deterministic replay
+  for exact replay and upstream-oriented validation
+- use the default Trixie buildbox for general custom buildbox runs
+- use `FIRMWARE_DISTRO=trixie` to force Trixie for any upstream-oriented run
+  that you want to compare against the newer distro family
 - use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:...` to override
   `FIRMWARE_DISTRO` with a specific image
 - use `make -C src host-fiptool` to prebuild the vendored TF-A

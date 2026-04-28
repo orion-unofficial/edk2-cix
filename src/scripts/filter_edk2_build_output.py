@@ -14,6 +14,8 @@ IASL_SUMMARY_RE = re.compile(
 IASL_COMMAND_RE = re.compile(r'(^|[/\s"])iasl(?:\.exe)?(?:"|\s)')
 STRIP_NOOP_RE = re.compile(r'^"?echo"?\s+--strip-unneeded -R \.eh_frame ')
 STRIP_FLAGS_RE = re.compile(r"^--strip-unneeded -R \.eh_frame ")
+DEBUGLINK_NOOP_RE = re.compile(r'^"?echo"?\s+--add-gnu-debuglink=')
+DEBUGLINK_FLAGS_RE = re.compile(r"^--add-gnu-debuglink=")
 CONFIG_COPY_RE = re.compile(r"^Copying \$EDK_TOOLS_PATH/Conf/.+template$")
 EDK2_ENV_RE = re.compile(
     r"^(WORKSPACE|PACKAGES_PATH|EDK_TOOLS_PATH|CONF_PATH|PYTHON_COMMAND|PREBUILD)\s*="
@@ -45,6 +47,10 @@ def should_drop_line(line: str) -> bool:
     if STRIP_NOOP_RE.match(line):
         return True
     if STRIP_FLAGS_RE.match(line):
+        return True
+    if DEBUGLINK_NOOP_RE.match(line):
+        return True
+    if DEBUGLINK_FLAGS_RE.match(line):
         return True
     if line.startswith("Intel ACPI Component Architecture"):
         return True
