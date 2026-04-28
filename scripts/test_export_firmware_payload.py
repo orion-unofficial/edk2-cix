@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path
@@ -73,6 +74,14 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
             root / "src" / "edk2-platforms" / "Platform" / "Radxa" / "Orion" / board / f"{board}.fdf",
             "# fdf\n",
         )
+        self.write_text(root / "VERSION", "1.2.1\n")
+
+    def test_detect_version_reads_repo_version_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir_text:
+            repo_root = Path(tempdir_text)
+            self.write_text(repo_root / "VERSION", "9.9.9\n")
+
+            self.assertEqual(export_firmware_payload.detect_version(repo_root, None), "9.9.9")
 
     def test_payload_mapping_flattens_custom_o6_exports(self) -> None:
         mapping = export_firmware_payload.payload_mapping(
@@ -133,10 +142,64 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
             self.assertTrue((output_dir / "BuildOptions").is_file())
             self.assertTrue((output_dir / "startup.nsh").is_file())
             self.assertTrue((output_dir / "tools" / "LoadOpRom.efi").is_file())
+            self.assertFalse((output_dir / "BurnImage.txt").exists())
+            self.assertFalse((output_dir / "FlashUpdate.txt").exists())
+            self.assertFalse((output_dir / "tools" / "LoadOpRom.txt").exists())
             self.assertFalse((output_dir / "orion-o6").exists())
             self.assertEqual(
                 sorted(zeroed_sources),
                 ["BurnImage.efi", "FlashUpdate.efi", "LoadOpRom.efi"],
+            )
+
+    def test_stage_payload_replaces_existing_leaf_contents(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir_text:
+            repo_root = Path(tempdir_text)
+            self.create_repo(repo_root, "O6")
+            output_dir = repo_root / "out"
+            self.write_text(output_dir / "stale.txt", "old\n")
+
+            with mock.patch.object(
+                export_firmware_payload,
+                "resolve_genfw",
+                return_value=repo_root / "GenFw",
+            ), mock.patch.object(
+                export_firmware_payload,
+                "zero_debug_metadata",
+                side_effect=lambda _genfw, source, destination: (
+                    destination.parent.mkdir(parents=True, exist_ok=True),
+                    shutil.copy2(source, destination),
+                )[-1],
+            ):
+                export_firmware_payload.stage_payload(
+                    repo_root,
+                    "O6",
+                    "orion-o6",
+                    "RELEASE_GCC5",
+                    "custom",
+                    output_dir,
+                )
+
+            self.assertFalse((output_dir / "stale.txt").exists())
+
+    def test_validate_custom_build_options_accepts_repo_absolute_buildbox_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir_text:
+            repo_root = Path(tempdir_text)
+            build_options = repo_root / "BuildOptions"
+            self.write_text(
+                build_options,
+                "\n".join(
+                    (
+                        "Active Platform: /workspaces/edk2-cix/src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+                        "Flash Image Definition: /workspaces/edk2-cix/src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
+                    )
+                ),
+            )
+
+            export_firmware_payload.validate_custom_build_options(
+                build_options,
+                Path("/workspaces/edk2-cix"),
+                "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+                "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
             )
 
     def test_audit_custom_payload_includes_nested_tool_paths(self) -> None:
@@ -168,6 +231,74 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
             target_names = [name for name, _ in captured["targets"]]
             self.assertIn("tools/LoadOpRom.efi", target_names)
             self.assertIn("Build/O6/RELEASE_GCC5/Firmwares/bootloader3.img", target_names)
+
+    def test_audit_custom_payload_skips_debug_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir_text:
+            tempdir = Path(tempdir_text)
+            stage_root = tempdir / "stage"
+            build_dir = tempdir / "build"
+            self.write_bytes(stage_root / "BuildOptions", b"options")
+            self.write_bytes(build_dir / "Firmwares" / "bootloader3.img", b"bootloader")
+
+            with mock.patch.object(export_firmware_payload, "audit_targets") as audit_targets:
+                export_firmware_payload.audit_custom_payload(
+                    stage_root,
+                    build_dir,
+                    "O6",
+                    "DEBUG_GCC5",
+                )
+
+            audit_targets.assert_not_called()
+
+    def test_archive_root_path_uses_edk2_radxa_prefix(self) -> None:
+        relative_leaf = Path("custom") / "fixes"
+        archive_root = export_firmware_payload.archive_root_path("orion-o6", "1.2.1", relative_leaf)
+
+        self.assertEqual(
+            archive_root.as_posix(),
+            "edk2/radxa/orion-o6/1.2.1/custom/fixes",
+        )
+
+    def test_create_targz_uses_versioned_edk2_radxa_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir_text:
+            repo_root = Path(tempdir_text)
+            self.create_repo(repo_root, "O6")
+            output_path = repo_root / "dist" / "payload.tar.gz"
+
+            with mock.patch.object(
+                export_firmware_payload,
+                "resolve_genfw",
+                return_value=repo_root / "GenFw",
+            ), mock.patch.object(
+                export_firmware_payload,
+                "zero_debug_metadata",
+                side_effect=lambda _genfw, source, destination: (
+                    destination.parent.mkdir(parents=True, exist_ok=True),
+                    shutil.copy2(source, destination),
+                )[-1],
+            ):
+                export_firmware_payload.create_targz(
+                    repo_root,
+                    "O6",
+                    "orion-o6",
+                    "RELEASE_GCC5",
+                    "custom",
+                    output_path,
+                    "1.2.1",
+                    Path("custom") / "fixes",
+                )
+
+            with tarfile.open(output_path, "r:gz") as archive:
+                members = archive.getnames()
+
+            self.assertIn(
+                "edk2/radxa/orion-o6/1.2.1/custom/fixes/startup.nsh",
+                members,
+            )
+            self.assertIn(
+                "edk2/radxa/orion-o6/1.2.1/custom/fixes/tools/LoadOpRom.efi",
+                members,
+            )
 
 
 if __name__ == "__main__":
