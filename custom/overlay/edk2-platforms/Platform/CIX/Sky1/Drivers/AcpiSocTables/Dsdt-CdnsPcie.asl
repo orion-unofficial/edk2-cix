@@ -57,7 +57,7 @@ Device (PRC0) { /* PCIE0 X8 */
   Name (ASPM, 0)
 
   Method(_INI, 0) {
-    // init pcie bandwitdh
+    // init pcie bandwidth
     Local0 = GETV(ARV_PCIE_RP_00_BANDWITCH_OFFSET)
     Local1 = 0
     Switch(ToInteger(Local0)) {
@@ -299,7 +299,7 @@ Device (PCP0) //PCIE PHY1
     Name (NUML, 8)
 
     Method(_INI, 0) {
-      // init pcie bandwitdh
+      // init pcie bandwidth
       Local0 = GETV(ARV_PCIE_RP_00_BANDWITCH_OFFSET)
       Local1 = 0
       Switch(ToInteger(Local0)) {
@@ -345,7 +345,7 @@ Device (PRC1) { /* PCIE2 X4 */
   Name (ASPM, 0)
 
   Method(_INI, 0) {
-    // init pcie bandwitdh
+    // init pcie bandwidth
     Local0 = GETV(ARV_PCIE_RP_01_BANDWITCH_OFFSET)
     Local1 = 0
     Switch(ToInteger(Local0)) {
@@ -573,7 +573,7 @@ Device (PCP1) //PCIE PHY1
     Name (NUML, 4)
 
     Method(_INI, 0) {
-      // init pcie bandwitdh
+      // init pcie bandwidth
       Local0 = GETV(ARV_PCIE_RP_01_BANDWITCH_OFFSET)
       Local1 = 0
       Switch(ToInteger(Local0)) {
@@ -617,7 +617,7 @@ Device (PRC2) { /* PCIE3 X2 */
   Name (ASPM, 0)
 
   Method(_INI, 0) {
-    // init pcie bandwitdh
+    // init pcie bandwidth
     Local0 = GETV(ARV_PCIE_RP_02_BANDWITCH_OFFSET)
     Local1 = 0
     Switch(ToInteger(Local0)) {
@@ -1313,7 +1313,7 @@ Device (PCP2) //PCIE PHY1
     Name (NUML, 2)
 
     Method(_INI, 0) {
-      // init pcie bandwitdh
+      // init pcie bandwidth
       Local0 = GETV(ARV_PCIE_RP_02_BANDWITCH_OFFSET)
       Local1 = 0
       Switch(ToInteger(Local0)) {
