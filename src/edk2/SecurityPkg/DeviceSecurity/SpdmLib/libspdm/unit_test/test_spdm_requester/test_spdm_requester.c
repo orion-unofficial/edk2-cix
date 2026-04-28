@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2022 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -61,6 +61,10 @@ int libspdm_requester_encap_certificate_test_main(void);
 int libspdm_requester_encap_challenge_auth_test_main(void);
 #endif /* LIBSPDM_ENABLE_CAPABILITY_CERT_CAP */
 #endif /* LIBSPDM_ENABLE_CAPABILITY_MUT_AUTH_CAP */
+#if LIBSPDM_EVENT_RECIPIENT_SUPPORT
+int libspdm_requester_encap_event_ack_test_main(void);
+int libspdm_requester_encap_event_ack_error_test_main(void);
+#endif /* #if LIBSPDM_EVENT_RECIPIENT_SUPPORT */
 int libspdm_requester_encap_key_update_test_main(void);
 #endif /* LIBSPDM_ENABLE_CAPABILITY_ENCAP_CAP */
 
@@ -93,6 +97,11 @@ int libspdm_requester_get_key_pair_info_error_test_main(void);
 int libspdm_requester_set_key_pair_info_test_main(void);
 int libspdm_requester_set_key_pair_info_error_test_main(void);
 #endif /* LIBSPDM_ENABLE_CAPABILITY_SET_KEY_PAIR_INFO_CAP */
+
+#if LIBSPDM_SEND_GET_ENDPOINT_INFO_SUPPORT
+int libspdm_requester_get_endpoint_info_test_main(void);
+int libspdm_requester_get_endpoint_info_error_test_main(void);
+#endif /* LIBSPDM_SEND_GET_ENDPOINT_INFO_SUPPORT */
 
 int main(void)
 {
@@ -190,6 +199,15 @@ int main(void)
     }
     #endif /* (LIBSPDM_ENABLE_CAPABILITY_KEY_EX_CAP) || (LIBSPDM_ENABLE_CAPABILITY_PSK_CAP) */
 
+    #if LIBSPDM_SEND_GET_ENDPOINT_INFO_SUPPORT
+    if (libspdm_requester_get_endpoint_info_test_main() != 0) {
+        return_value = 1;
+    }
+    if (libspdm_requester_get_endpoint_info_error_test_main() != 0) {
+        return_value = 1;
+    }
+    #endif /* LIBSPDM_SEND_GET_ENDPOINT_INFO_SUPPORT */
+
     #if LIBSPDM_ENABLE_CAPABILITY_ENCAP_CAP
     if (libspdm_requester_encap_request_test_main() != 0) {
         return_value = 1;
@@ -212,6 +230,14 @@ int main(void)
     if (libspdm_requester_encap_key_update_test_main() != 0) {
         return_value = 1;
     }
+    #if LIBSPDM_EVENT_RECIPIENT_SUPPORT
+    if (libspdm_requester_encap_event_ack_test_main() != 0) {
+        return_value = 1;
+    }
+    if (libspdm_requester_encap_event_ack_error_test_main() != 0) {
+        return_value = 1;
+    }
+    #endif /* LIBSPDM_EVENT_RECIPIENT_SUPPORT */
     #endif /* LIBSPDM_ENABLE_CAPABILITY_ENCAP_CAP */
 
     #if LIBSPDM_ENABLE_CAPABILITY_SET_CERT_CAP

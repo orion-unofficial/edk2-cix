@@ -313,16 +313,16 @@ bool libspdm_x509_verify_cert(const uint8_t *cert, size_t cert_size,
  *
  * @param[in]      cert_chain         One or more ASN.1 DER-encoded X.509 certificates
  *                                  where the first certificate is signed by the Root
- *                                  Certificate or is the Root Cerificate itself. and
- *                                  subsequent cerificate is signed by the preceding
- *                                  cerificate.
+ *                                  Certificate or is the Root Certificate itself. and
+ *                                  subsequent certificate is signed by the preceding
+ *                                  certificate.
  * @param[in]      cert_chain_length   Total length of the certificate chain, in bytes.
  *
  * @param[in]      root_cert          Trusted Root Certificate buffer
  *
  * @param[in]      root_cert_length    Trusted Root Certificate buffer length
  *
- * @retval  true   All cerificates was issued by the first certificate in X509Certchain.
+ * @retval  true   All certificates was issued by the first certificate in X509Certchain.
  * @retval  false  Invalid certificate or the certificate was not issued by the given
  *                trusted CA.
  **/
@@ -338,9 +338,9 @@ bool libspdm_x509_verify_cert_chain(const uint8_t *root_cert, size_t root_cert_l
  *
  * @param[in]      cert_chain         One or more ASN.1 DER-encoded X.509 certificates
  *                                  where the first certificate is signed by the Root
- *                                  Certificate or is the Root Cerificate itself. and
- *                                  subsequent cerificate is signed by the preceding
- *                                  cerificate.
+ *                                  Certificate or is the Root Certificate itself. and
+ *                                  subsequent certificate is signed by the preceding
+ *                                  certificate.
  * @param[in]      cert_chain_length   Total length of the certificate chain, in bytes.
  *
  * @param[in]      cert_index         index of certificate.
@@ -596,7 +596,7 @@ bool libspdm_x509_get_extension_data(const uint8_t *cert, size_t cert_size,
  * @param[out]     to           notAfter Pointer to date_time object.
  * @param[in,out]  to_size       notAfter date_time object size.
  *
- * Note: libspdm_x509_compare_date_time to compare date_time oject
+ * Note: libspdm_x509_compare_date_time to compare date_time object
  *      x509SetDateTime to get a date_time object from a date_time_str
  *
  * @retval  true   The certificate Validity retrieved successfully.
@@ -712,7 +712,7 @@ bool libspdm_x509_set_date_time(const char *date_time_str, void *date_time, size
  * If date_time1 > date_time2, then return 1
  * If date_time1 < date_time2, then return -1
  *
- * @param[in]      date_time1         Pointer to a date_time Ojbect
+ * @param[in]      date_time1         Pointer to a date_time Object
  * @param[in]      date_time2         Pointer to a date_time Object
  *
  * @retval  0      If date_time1 == date_time2

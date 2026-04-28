@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2022 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -780,7 +780,7 @@ void libspdm_test_responder_chunk_get_rsp_case11(void** state)
 }
 
 /**
- * Test 12: Succesful request of last chunk where size is exactly max chunk size
+ * Test 12: Successful request of last chunk where size is exactly max chunk size
  **/
 void libspdm_test_responder_chunk_get_rsp_case12(void** state)
 {
@@ -876,7 +876,7 @@ void libspdm_test_responder_chunk_get_rsp_case12(void** state)
     assert_int_equal(spdm_response->chunk_seq_no, chunk_seq_no);
     assert_int_equal(spdm_response->chunk_size, third_chunk_size);
 
-    /* Verify the 3nd chunk is filled with 3 */
+    /* Verify the 3rd chunk is filled with 3 */
     chunk_ptr = (uint8_t*) (spdm_response + 1);
     for (i = 0; i < spdm_response->chunk_size; i++) {
         assert_int_equal(chunk_ptr[i], 3);
@@ -884,7 +884,7 @@ void libspdm_test_responder_chunk_get_rsp_case12(void** state)
 }
 
 /**
- * Test 13: Succesful request of last chunk where size is exactly 1.
+ * Test 13: Successful request of last chunk where size is exactly 1.
  **/
 void libspdm_test_responder_chunk_get_rsp_case13(void** state)
 {
@@ -996,6 +996,101 @@ void libspdm_test_responder_chunk_get_rsp_case13(void** state)
     }
 }
 
+
+/**
+ * Test 14: Responder has response exceed chunk seq no
+ **/
+void libspdm_test_responder_chunk_get_rsp_case14(void** state)
+{
+    libspdm_return_t status;
+    libspdm_test_context_t* spdm_test_context;
+    libspdm_context_t* spdm_context;
+    size_t response_size;
+    uint8_t response[LIBSPDM_MAX_SPDM_MSG_SIZE];
+    spdm_error_response_t* spdm_response;
+    spdm_chunk_get_request_t spdm_request;
+    void* scratch_buffer;
+    size_t scratch_buffer_size;
+
+    uint8_t chunk_handle;
+    uint32_t data_transfer_size;
+    uint32_t total_chunk_size;
+
+    spdm_test_context = *state;
+    spdm_context = spdm_test_context->spdm_context;
+    spdm_test_context->case_id = 10;
+    spdm_context->connection_info.version = SPDM_MESSAGE_VERSION_12 <<
+                                            SPDM_VERSION_NUMBER_SHIFT_BIT;
+
+    spdm_context->connection_info.connection_state =
+        LIBSPDM_CONNECTION_STATE_NEGOTIATED;
+    spdm_context->connection_info.algorithm.base_hash_algo =
+        m_libspdm_use_hash_algo;
+
+    data_transfer_size = CHUNK_GET_RESPONDER_UNIT_TEST_DATA_TRANSFER_SIZE;
+    spdm_context->local_context.capability.data_transfer_size = data_transfer_size;
+    spdm_context->local_context.capability.flags |=
+        SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_CHUNK_CAP;
+    spdm_context->connection_info.capability.flags |=
+        SPDM_GET_CAPABILITIES_REQUEST_FLAGS_CHUNK_CAP;
+
+    /* large response need a large scratch buffer */
+    spdm_context->connection_info.capability.max_spdm_msg_size = data_transfer_size * 65536;
+    spdm_context->local_context.capability.max_spdm_msg_size = data_transfer_size * 65536;
+    spdm_test_context->scratch_buffer_size =
+        libspdm_get_sizeof_required_scratch_buffer(spdm_context);
+    spdm_test_context->scratch_buffer = (void *)malloc(spdm_test_context->scratch_buffer_size);
+    libspdm_set_scratch_buffer (spdm_context,
+                                spdm_test_context->scratch_buffer,
+                                spdm_test_context->scratch_buffer_size);
+
+
+    libspdm_get_scratch_buffer(spdm_context, &scratch_buffer, &scratch_buffer_size);
+
+    scratch_buffer = (uint8_t*)scratch_buffer +
+                     libspdm_get_scratch_buffer_large_message_offset(spdm_context);
+    scratch_buffer_size = scratch_buffer_size -
+                          libspdm_get_scratch_buffer_large_message_offset(spdm_context);
+    libspdm_zero_mem(scratch_buffer, scratch_buffer_size);
+
+    /* a huge chunk size to cause the chunk seq no wrap */
+    total_chunk_size = data_transfer_size * 65536;
+
+    LIBSPDM_ASSERT(total_chunk_size <= scratch_buffer_size);
+
+    chunk_handle = (uint8_t) spdm_test_context->case_id; /* Any number is fine */
+    spdm_context->chunk_context.get.chunk_in_use = true;
+    spdm_context->chunk_context.get.chunk_handle = chunk_handle;
+    spdm_context->chunk_context.get.chunk_seq_no = 0;
+    spdm_context->chunk_context.get.large_message = scratch_buffer;
+    spdm_context->chunk_context.get.large_message_size = total_chunk_size;
+    spdm_context->chunk_context.get.chunk_bytes_transferred = 0;
+
+    libspdm_zero_mem(&spdm_request, sizeof(spdm_request));
+    spdm_request.header.spdm_version = SPDM_MESSAGE_VERSION_12;
+    spdm_request.header.request_response_code = SPDM_CHUNK_GET;
+    spdm_request.header.param1 = 0;
+    spdm_request.header.param2 = chunk_handle;
+    spdm_request.chunk_seq_no = 0;
+
+    response_size = sizeof(response);
+    status = libspdm_get_response_chunk_get(
+        spdm_context,
+        sizeof(spdm_request), &spdm_request,
+        &response_size, response);
+
+    assert_int_equal(status, LIBSPDM_STATUS_SUCCESS);
+    assert_int_equal(response_size, sizeof(spdm_error_response_t));
+
+    spdm_response = (spdm_error_response_t*) response;
+
+    assert_int_equal(spdm_response->header.spdm_version, SPDM_MESSAGE_VERSION_12);
+    assert_int_equal(spdm_response->header.request_response_code, SPDM_ERROR);
+    assert_int_equal(spdm_response->header.param1, SPDM_ERROR_CODE_RESPONSE_TOO_LARGE);
+    assert_int_equal(spdm_response->header.param2, 0);
+}
+
+
 int libspdm_responder_chunk_get_rsp_test_main(void)
 {
     const struct CMUnitTest spdm_responder_chunk_get_tests[] = {
@@ -1021,10 +1116,12 @@ int libspdm_responder_chunk_get_rsp_test_main(void)
         cmocka_unit_test(libspdm_test_responder_chunk_get_rsp_case10),
         /* Successful request of middle chunk */
         cmocka_unit_test(libspdm_test_responder_chunk_get_rsp_case11),
-        /* Succesful request of last chunk, where size is exactly max chunk size */
+        /* Successful request of last chunk, where size is exactly max chunk size */
         cmocka_unit_test(libspdm_test_responder_chunk_get_rsp_case12),
         /* Successful request of last chunk where chunk size is exactly 1 byte */
         cmocka_unit_test(libspdm_test_responder_chunk_get_rsp_case13),
+        /* Responder has response exceed chunk seq no */
+        cmocka_unit_test(libspdm_test_responder_chunk_get_rsp_case14),
     };
 
     libspdm_test_context_t test_context = {

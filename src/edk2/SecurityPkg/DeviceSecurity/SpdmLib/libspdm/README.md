@@ -6,7 +6,7 @@
 
    The SPDM and secured message libraries follow :
 
-   [DSP0274](https://www.dmtf.org/dsp/DSP0274)  Security Protocol and Data Model (SPDM) Specification (version [1.0.2](https://www.dmtf.org/sites/default/files/standards/documents/DSP0274_1.0.2.pdf), version [1.1.3](https://www.dmtf.org/sites/default/files/standards/documents/DSP0274_1.1.3.pdf), version [1.2.2](https://www.dmtf.org/sites/default/files/standards/documents/DSP0274_1.2.2.pdf) and version [1.3.1](https://www.dmtf.org/sites/default/files/standards/documents/DSP0274_1.3.1.pdf))
+   [DSP0274](https://www.dmtf.org/dsp/DSP0274)  Security Protocol and Data Model (SPDM) Specification (version [1.0.2](https://www.dmtf.org/sites/default/files/standards/documents/DSP0274_1.0.2.pdf), version [1.1.4](https://www.dmtf.org/sites/default/files/standards/documents/DSP0274_1.1.4.pdf), version [1.2.3](https://www.dmtf.org/sites/default/files/standards/documents/DSP0274_1.2.3.pdf) and version [1.3.2](https://www.dmtf.org/sites/default/files/standards/documents/DSP0274_1.3.2.pdf))
 
    [DSP0277](https://www.dmtf.org/dsp/DSP0277)  Secured Messages using SPDM Specification (version [1.0.1](https://www.dmtf.org/sites/default/files/standards/documents/DSP0277_1.0.1.pdf), version [1.1.1](https://www.dmtf.org/sites/default/files/standards/documents/DSP0277_1.1.1.pdf), version [1.2.0](https://www.dmtf.org/sites/default/files/standards/documents/DSP0277_1.2.0.pdf))
 
@@ -14,9 +14,9 @@
 
    [DSP0275](https://www.dmtf.org/dsp/DSP0275)  Security Protocol and Data Model (SPDM) over MCTP Binding Specification (version [1.0.2](https://www.dmtf.org/sites/default/files/standards/documents/DSP0275_1.0.2.pdf))
 
-   [DSP0276](https://www.dmtf.org/dsp/DSP0276)  Secured Messages using SPDM over MCTP Binding Specification (version [1.1.1](https://www.dmtf.org/sites/default/files/standards/documents/DSP0276_1.1.1.pdf))
+   [DSP0276](https://www.dmtf.org/dsp/DSP0276)  Secured Messages using SPDM over MCTP Binding Specification (version [1.2.0](https://www.dmtf.org/sites/default/files/standards/documents/DSP0276_1.2.0.pdf))
 
-   PCIE follows :
+   PCIe follows :
 
    PCI Express Base Specification [Revision 6.2](https://members.pcisig.com/wg/PCI-SIG/document/20590)
 
@@ -53,10 +53,10 @@
 
    The endianness is defined in [crypto_endianness](https://github.com/DMTF/libspdm/blob/main/doc/crypto_endianness.md).
 
-   An [Mbed TLS](https://tls.mbed.org/) wrapper is included in [cryptlib_mbedtls](https://github.com/DMTF/libspdm/tree/main/os_stub/mbedtlslib).
+   An [Mbed TLS](https://tls.mbed.org/) wrapper is included in [cryptlib_mbedtls](https://github.com/DMTF/libspdm/tree/main/os_stub/cryptlib_mbedtls).
    NOTE: SMx and EdDSA are not supported.
 
-   An [OpenSSL](https://www.openssl.org/) wrapper is included in [cryptlib_openssl](https://github.com/DMTF/libspdm/tree/main/os_stub/openssllib).
+   An [OpenSSL](https://www.openssl.org/) wrapper is included in [cryptlib_openssl](https://github.com/DMTF/libspdm/tree/main/os_stub/cryptlib_openssl).
    NOTE: SM2-KeyExchange and SM4_GCM are not supported.
 
    libspdm provides support for [FIPS 140-3](https://csrc.nist.gov/publications/detail/fips/140/3/final). Refer to [libspdm FIPS](https://github.com/DMTF/libspdm/blob/main/doc/fips.md) for more information.
@@ -71,9 +71,13 @@
 
    Support to build as part of the NVIDIA Linux kernel module driver in [open-gpu-kernel-modules](https://github.com/NVIDIA/open-gpu-kernel-modules).
 
-   Support to build as backend server for [qemu](https://gitlab.com/alistair23/qemu/-/blob/mainline/alistair/spdm-socket.next/docs/specs/spdm.rst).
+   Support to build as backend server for [QEMU](https://gitlab.com/qemu-project/qemu/-/blob/master/docs/specs/spdm.rst).
 
    Support is included in UEFI host environment [EDKII](https://github.com/tianocore/edk2/tree/master/SecurityPkg/DeviceSecurity).
+
+   Support is included in ARM Trusted Firmware Implementation of the Realm Management Monitor [TF-RMM](https://github.com/TF-RMM/tf-rmm).
+
+   Support is included in [wolfSSL](https://www.wolfssl.com/wolfssl-libspdm-support).
 
    Support to be included in [OpenBMC](https://github.com/openbmc). It is in planning, see [SPDM Integration](https://www.youtube.com/watch?v=PmgXkLJYI-E).
 
@@ -169,7 +173,7 @@ For other architectures, refer to [build](https://github.com/DMTF/libspdm/blob/m
 
 1) [Mbed TLS](https://tls.mbed.org) as cryptography library. Version 3.6.2.
 
-2) [OpenSSL](https://www.openssl.org) as cryptography library. Version 3.0.9.
+2) [OpenSSL](https://www.openssl.org) as cryptography library. Version 3.0.14.
 
 ### Unit Test framework
 

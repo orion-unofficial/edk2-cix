@@ -2,7 +2,7 @@
 // 2.0, and the BSD License. See the LICENSE file in the root of this repository
 // for complete details.
 
-use crate::asn1::{oid_to_py_oid, py_oid_to_oid, PyAsn1Error, PyAsn1Result};
+use crate::asn1::{encode_der_data, oid_to_py_oid, py_oid_to_oid, PyAsn1Error, PyAsn1Result};
 use crate::x509;
 use crate::x509::{certificate, oid};
 use asn1::SimpleAsn1Readable;
@@ -22,17 +22,19 @@ struct CertificationRequestInfo<'a> {
     subject: x509::Name<'a>,
     spki: certificate::SubjectPublicKeyInfo<'a>,
     #[implicit(0, required)]
-    attributes: x509::Asn1ReadableOrWritable<
-        'a,
-        asn1::SetOf<'a, Attribute<'a>>,
-        asn1::SetOfWriter<'a, Attribute<'a>, Vec<Attribute<'a>>>,
-    >,
+    attributes: Attributes<'a>,
 }
 
+pub(crate) type Attributes<'a> = x509::Asn1ReadableOrWritable<
+    'a,
+    asn1::SetOf<'a, Attribute<'a>>,
+    asn1::SetOfWriter<'a, Attribute<'a>, Vec<Attribute<'a>>>,
+>;
+
 #[derive(asn1::Asn1Read, asn1::Asn1Write)]
-struct Attribute<'a> {
-    type_id: asn1::ObjectIdentifier,
-    values: x509::Asn1ReadableOrWritable<
+pub(crate) struct Attribute<'a> {
+    pub(crate) type_id: asn1::ObjectIdentifier,
+    pub(crate) values: x509::Asn1ReadableOrWritable<
         'a,
         asn1::SetOf<'a, asn1::Tlv<'a>>,
         asn1::SetOfWriter<'a, x509::common::RawTlv<'a>, [x509::common::RawTlv<'a>; 1]>,
@@ -169,33 +171,11 @@ impl CertificateSigningRequest {
     fn public_bytes<'p>(
         &self,
         py: pyo3::Python<'p>,
-        encoding: &pyo3::PyAny,
+        encoding: &'p pyo3::PyAny,
     ) -> PyAsn1Result<&'p pyo3::types::PyBytes> {
-        let encoding_class = py
-            .import("cryptography.hazmat.primitives.serialization")?
-            .getattr(crate::intern!(py, "Encoding"))?;
-
         let result = asn1::write_single(self.raw.borrow_value())?;
-        if encoding == encoding_class.getattr(crate::intern!(py, "DER"))? {
-            Ok(pyo3::types::PyBytes::new(py, &result))
-        } else if encoding == encoding_class.getattr(crate::intern!(py, "PEM"))? {
-            let pem = pem::encode_config(
-                &pem::Pem {
-                    tag: "CERTIFICATE REQUEST".to_string(),
-                    contents: result,
-                },
-                pem::EncodeConfig {
-                    line_ending: pem::LineEnding::LF,
-                },
-            )
-            .into_bytes();
-            Ok(pyo3::types::PyBytes::new(py, &pem))
-        } else {
-            Err(pyo3::exceptions::PyTypeError::new_err(
-                "encoding must be Encoding.DER or Encoding.PEM",
-            )
-            .into())
-        }
+
+        encode_der_data(py, "CERTIFICATE REQUEST".to_string(), result, encoding)
     }
 
     fn get_attribute_for_oid<'p>(
@@ -294,28 +274,6 @@ impl CertificateSigningRequest {
             .import("cryptography.hazmat.backends.openssl.backend")?
             .getattr(crate::intern!(py, "backend"))?;
         backend.call_method1("_csr_is_signature_valid", (slf,))
-    }
-
-    // This getter exists for compatibility with pyOpenSSL and will be removed.
-    // DO NOT RELY ON IT. WE WILL BREAK YOU WHEN WE FEEL LIKE IT.
-    #[getter]
-    fn _x509_req<'p>(
-        slf: pyo3::PyRef<'_, Self>,
-        py: pyo3::Python<'p>,
-    ) -> Result<&'p pyo3::PyAny, PyAsn1Error> {
-        let cryptography_warning = py
-            .import("cryptography.utils")?
-            .getattr(crate::intern!(py, "DeprecatedIn35"))?;
-        pyo3::PyErr::warn(
-            py,
-            cryptography_warning,
-            "This version of cryptography contains a temporary pyOpenSSL fallback path. Upgrade pyOpenSSL now.",
-            1,
-        )?;
-        let backend = py
-            .import("cryptography.hazmat.backends.openssl.backend")?
-            .getattr(crate::intern!(py, "backend"))?;
-        Ok(backend.call_method1("_csr2ossl", (slf,))?)
     }
 }
 

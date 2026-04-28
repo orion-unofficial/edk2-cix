@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2024 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -55,8 +55,10 @@
 #define SPDM_CHUNK_RESPONSE 0x06
 
 /* SPDM response code (1.3) */
+#define SPDM_ENDPOINT_INFO 0x07
 #define SPDM_SUPPORTED_EVENT_TYPES 0x62
 #define SPDM_SUBSCRIBE_EVENT_TYPES_ACK 0x70
+#define SPDM_EVENT_ACK 0x71
 #define SPDM_MEASUREMENT_EXTENSION_LOG 0x6F
 #define SPDM_KEY_PAIR_INFO 0x7C
 #define SPDM_SET_KEY_PAIR_INFO_ACK 0x7D
@@ -90,8 +92,10 @@
 #define SPDM_CHUNK_GET 0x86
 
 /* SPDM request code (1.3) */
+#define SPDM_GET_ENDPOINT_INFO 0x87
 #define SPDM_GET_SUPPORTED_EVENT_TYPES 0xE2
 #define SPDM_SUBSCRIBE_EVENT_TYPES 0xF0
+#define SPDM_SEND_EVENT 0xF1
 #define SPDM_GET_MEASUREMENT_EXTENSION_LOG 0xEF
 #define SPDM_GET_KEY_PAIR_INFO 0xFC
 #define SPDM_SET_KEY_PAIR_INFO 0xFD
@@ -348,6 +352,15 @@ typedef struct {
 #define SPDM_NEGOTIATE_ALGORITHMS_STRUCT_TABLE_ALG_TYPE_REQ_BASE_ASYM_ALG 4
 #define SPDM_NEGOTIATE_ALGORITHMS_STRUCT_TABLE_ALG_TYPE_KEY_SCHEDULE 5
 
+#define SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_DHE_11_MASK 0x003f
+#define SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_AEAD_11_MASK 0x0007
+#define SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_REQ_BASE_ASYM_ALG_11_MASK 0x01ff
+#define SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_KEY_SCHEDULE_11_MASK 0x0001
+
+#define SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_DHE_12_MASK 0x007f
+#define SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_AEAD_12_MASK 0x000f
+#define SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_REQ_BASE_ASYM_ALG_12_MASK 0x0fff
+
 typedef struct {
     uint8_t alg_type;
     uint8_t alg_count;
@@ -366,10 +379,14 @@ typedef struct {
 #define SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_ECDSA_ECC_NIST_P384 0x00000080
 #define SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_ECDSA_ECC_NIST_P521 0x00000100
 
+#define SPDM_ALGORITHMS_BASE_ASYM_ALGO_10_MASK 0x000001FF
+
 /* SPDM NEGOTIATE_ALGORITHMS request base_asym_algo/REQ_BASE_ASYM_ALG (1.2) */
 #define SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_SM2_ECC_SM2_P256 0x00000200
 #define SPDM_ALGORITHMS_BASE_ASYM_ALGO_EDDSA_ED25519 0x00000400
 #define SPDM_ALGORITHMS_BASE_ASYM_ALGO_EDDSA_ED448 0x00000800
+
+#define SPDM_ALGORITHMS_BASE_ASYM_ALGO_12_MASK 0x00000FFF
 
 /* SPDM NEGOTIATE_ALGORITHMS request base_hash_algo */
 #define SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA_256 0x00000001
@@ -379,8 +396,12 @@ typedef struct {
 #define SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA3_384 0x00000010
 #define SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SHA3_512 0x00000020
 
+#define SPDM_ALGORITHMS_BASE_HASH_ALGO_10_MASK 0x0000003F
+
 /* SPDM NEGOTIATE_ALGORITHMS request base_hash_algo (1.2) */
 #define SPDM_ALGORITHMS_BASE_HASH_ALGO_TPM_ALG_SM3_256 0x00000040
+
+#define SPDM_ALGORITHMS_BASE_HASH_ALGO_12_MASK 0x0000007F
 
 /* SPDM NEGOTIATE_ALGORITHMS request DHE */
 #define SPDM_ALGORITHMS_DHE_NAMED_GROUP_FFDHE_2048 0x00000001
@@ -402,7 +423,10 @@ typedef struct {
 #define SPDM_ALGORITHMS_AEAD_CIPHER_SUITE_AEAD_SM4_GCM 0x00000008
 
 /* SPDM NEGOTIATE_ALGORITHMS request KEY_SCHEDULE */
-#define SPDM_ALGORITHMS_KEY_SCHEDULE_HMAC_HASH 0x00000001
+#define SPDM_ALGORITHMS_KEY_SCHEDULE_SPDM 0x00000001
+
+/* Legacy macro. Will be removed in libspdm 4.0. */
+#define SPDM_ALGORITHMS_KEY_SCHEDULE_HMAC_HASH SPDM_ALGORITHMS_KEY_SCHEDULE_SPDM
 
 /* SPDM NEGOTIATE_ALGORITHMS response */
 typedef struct {
@@ -439,8 +463,12 @@ typedef struct {
 #define SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_TPM_ALG_SHA3_384 0x00000020
 #define SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_TPM_ALG_SHA3_512 0x00000040
 
+#define SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_10_MASK 0x0000007F
+
 /* SPDM NEGOTIATE_ALGORITHMS response measurement_hash_algo (1.2) */
 #define SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_TPM_ALG_SM3_256 0x00000080
+
+#define SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_12_MASK 0x000000FF
 
 /* SPDM Opaque Data Format (1.2) */
 #define SPDM_ALGORITHMS_OPAQUE_DATA_FORMAT_NONE 0x0
@@ -478,6 +506,65 @@ typedef struct {
 #define SPDM_REGISTRY_ID_IANA_CBOR 0xa
 #define SPDM_REGISTRY_ID_MAX  0xa
 
+typedef struct {
+    uint8_t id;
+    uint8_t vendor_id_len;
+    /* uint8_t vendor_id[vendor_id_len]; */
+} spdm_svh_header_t;
+
+typedef struct {
+    spdm_svh_header_t header; /* SPDM_REGISTRY_ID_DMTF */
+} spdm_svh_dmtf_header_t;
+
+typedef struct {
+    spdm_svh_header_t header; /* SPDM_REGISTRY_ID_TCG */
+    uint16_t vendor_id;
+} spdm_svh_tcg_header_t;
+
+typedef struct {
+    spdm_svh_header_t header; /* SPDM_REGISTRY_ID_USB */
+    uint16_t vendor_id;
+} spdm_svh_usb_header_t;
+
+typedef struct {
+    spdm_svh_header_t header; /* SPDM_REGISTRY_ID_PCISIG */
+    uint16_t vendor_id;
+} spdm_svh_pcisig_header_t;
+
+typedef struct {
+    spdm_svh_header_t header; /* SPDM_REGISTRY_ID_IANA */
+    uint32_t vendor_id;
+} spdm_svh_iana_header_t;
+
+typedef struct {
+    spdm_svh_header_t header; /* SPDM_REGISTRY_ID_HDBASET */
+    uint32_t vendor_id;
+} spdm_svh_hdbaset_header_t;
+
+typedef struct {
+    spdm_svh_header_t header; /* SPDM_REGISTRY_ID_MIPI */
+    uint16_t vendor_id;
+} spdm_svh_mipi_header_t;
+
+typedef struct {
+    spdm_svh_header_t header; /* SPDM_REGISTRY_ID_CXL */
+    uint16_t vendor_id;
+} spdm_svh_cxl_header_t;
+
+typedef struct {
+    spdm_svh_header_t header; /* SPDM_REGISTRY_ID_JEDEC */
+    uint16_t vendor_id;
+} spdm_svh_jedec_header_t;
+
+typedef struct {
+    spdm_svh_header_t header; /* SPDM_REGISTRY_ID_VESA */
+} spdm_svh_vesa_header_t;
+
+typedef struct {
+    spdm_svh_header_t header; /* SPDM_REGISTRY_ID_IANA_CBOR */
+    /* uint8_t vendor_id[vendor_id_len]; */
+} spdm_svh_iana_cbor_header_t;
+
 /* SPDM GET_DIGESTS request */
 typedef struct {
     spdm_message_header_t header;
@@ -489,7 +576,7 @@ typedef struct {
 typedef struct {
     spdm_message_header_t header;
     /* param1 == RSVD (supported_slot_mask in 1.3)
-     * param2 == slot_mask (provisioned_slot_mask in 1.3) determing slot_count
+     * param2 == slot_mask (provisioned_slot_mask in 1.3) determine slot_count
      * cert slot state:
      * 1) not exist:           supported_slot_mask[slot_id] = 0
      * 2) exist and empty:     supported_slot_mask[slot_id] = 1 && provisioned_slot_mask[slot_id] = 0
@@ -653,6 +740,8 @@ typedef struct {
 
 #define SPDM_MEASUREMENT_SPECIFICATION_DMTF 0x01
 
+#define SPDM_MEASUREMENT_SPECIFICATION_10_MASK 0x01
+
 /* SPDM MEASUREMENTS block DMTF header */
 typedef struct {
     uint8_t dmtf_spec_measurement_value_type;
@@ -751,6 +840,8 @@ typedef struct {
 
 #define SPDM_MEL_SPECIFICATION_DMTF 0x01
 
+#define SPDM_MEL_SPECIFICATION_13_MASK 0x01
+
 /* SPDM ERROR response */
 typedef struct {
     spdm_message_header_t header;
@@ -761,7 +852,7 @@ typedef struct {
 
 #define SPDM_EXTENDED_ERROR_DATA_MAX_SIZE 32
 
-/* SPDM error code */
+/* SPDM error code (1.0) */
 #define SPDM_ERROR_CODE_INVALID_REQUEST 0x01
 #define SPDM_ERROR_CODE_BUSY 0x03
 #define SPDM_ERROR_CODE_UNEXPECTED_REQUEST 0x04
@@ -787,7 +878,9 @@ typedef struct {
 #define SPDM_ERROR_CODE_MESSAGE_LOST 0x10
 
 /* SPDM error code (1.3) */
+#define SPDM_ERROR_CODE_INVALID_POLICY 0x11
 #define SPDM_ERROR_CODE_OPERATION_FAILED 0x44
+#define SPDM_ERROR_CODE_NO_PENDING_REQUESTS 0x45
 
 /* SPDM ResponseNotReady extended data */
 typedef struct {
@@ -1188,6 +1281,65 @@ typedef struct {
 
 #define SPDM_CHUNK_GET_RESPONSE_ATTRIBUTE_LAST_CHUNK (1 << 0)
 
+/* SPDM GET_ENDPOINT_INFO request */
+typedef struct {
+    spdm_message_header_t header;
+    /* param1 - subcode of the request
+     * param2 - Bit[7:4]: reserved
+     *          Bit[3:0]: slot_id */
+    uint8_t request_attributes;
+    uint8_t reserved[3];
+    /* uint8_t nonce[32]; */
+} spdm_get_endpoint_info_request_t;
+
+#define SPDM_GET_ENDPOINT_INFO_REQUEST_SLOT_ID_MASK 0xF
+
+/* SPDM GET_ENDPOINT_INFO request subcode */
+#define SPDM_GET_ENDPOINT_INFO_REQUEST_SUBCODE_DEVICE_CLASS_IDENTIFIER 0x01
+
+/* SPDM GET_ENDPOINT_INFO request attribute */
+#define SPDM_GET_ENDPOINT_INFO_REQUEST_ATTRIBUTE_SIGNATURE_REQUESTED (1 << 0)
+
+/* SPDM ENDPOINT_INFO response */
+typedef struct {
+    spdm_message_header_t header;
+    /* param1 - reserved
+     * param2 - Bit[7:4]: reserved
+     *          Bit[3:0]: slot_id*/
+    uint32_t reserved;
+    /* uint8_t nonce[32];
+     * uint32_t ep_info_len
+     * uint8_t ep_info[ep_info_len];
+     * uint8_t signature[sig_len]; */
+} spdm_endpoint_info_response_t;
+
+#define SPDM_ENDPOINT_INFO_RESPONSE_SLOT_ID_MASK 0xF
+
+typedef struct {
+    uint8_t num_identifiers;
+    uint8_t reserved[3];
+    /* uint8_t identifier_elements; */
+} spdm_endpoint_info_device_class_identifier_t;
+
+typedef struct {
+    uint8_t id_elem_length;
+    spdm_svh_header_t svh;
+    /* size of svh is 2 + vendor_id_len */
+
+    /* uint8_t num_sub_ids;
+     * uint8_t subordinate_id[]; */
+} spdm_endpoint_info_device_class_identifier_element_t;
+
+typedef struct {
+    uint8_t sub_id_len;
+    /* uint8_t sub_identifier[sub_id_len]; */
+} spdm_endpoint_info_device_class_identifier_subordinate_id_t;
+
+#define SPDM_ENDPOINT_INFO_SIGN_CONTEXT "responder-endpoint_info signing"
+#define SPDM_ENDPOINT_INFO_SIGN_CONTEXT_SIZE (sizeof(SPDM_ENDPOINT_INFO_SIGN_CONTEXT) - 1)
+#define SPDM_MUT_ENDPOINT_INFO_SIGN_CONTEXT "requester-endpoint_info signing"
+#define SPDM_MUT_ENDPOINT_INFO_SIGN_CONTEXT_SIZE (sizeof(SPDM_MUT_ENDPOINT_INFO_SIGN_CONTEXT) - 1)
+
 typedef struct {
     spdm_message_header_t header;
     /* param1 == RSVD
@@ -1217,6 +1369,20 @@ typedef struct {
     /* param1 == RSVD
      * param2 == RSVD */
 } spdm_subscribe_event_types_ack_response_t;
+
+typedef struct {
+    spdm_message_header_t header;
+    /* param1 == RSVD
+     * param2 == RSVD */
+    uint32_t event_count;
+    /* event_list[event_count]*/
+} spdm_send_event_request_t;
+
+typedef struct {
+    spdm_message_header_t header;
+    /* param1 == RSVD
+     * param2 == RSVD */
+} spdm_event_ack_response_t;
 
 /* SPDM GET_MEASUREMENT_EXTENSION_LOG request */
 typedef struct {
@@ -1328,8 +1494,6 @@ typedef struct {
      * param2 == RSVD*/
 } spdm_set_key_pair_info_ack_response_t;
 
-#pragma pack()
-
 #define SPDM_VERSION_1_1_BIN_CONCAT_LABEL "spdm1.1 "
 #define SPDM_VERSION_1_2_BIN_CONCAT_LABEL "spdm1.2 "
 #define SPDM_VERSION_1_3_BIN_CONCAT_LABEL "spdm1.3 "
@@ -1381,9 +1545,34 @@ typedef struct {
 #define SPDM_DMTF_EVENT_TYPE_MEASUREMENT_PRE_UPDATE 3
 #define SPDM_DMTF_EVENT_TYPE_CERTIFICATE_CHANGED 4
 
+/* DMTF Event sizes in bytes. */
+#define SPDM_DMTF_EVENT_TYPE_EVENT_LOST_SIZE 8
+#define SPDM_DMTF_EVENT_TYPE_MEASUREMENT_CHANGED_SIZE 32
+#define SPDM_DMTF_EVENT_TYPE_MEASUREMENT_PRE_UPDATE_SIZE 32
+#define SPDM_DMTF_EVENT_TYPE_CERTIFICATE_CHANGED_SIZE 1
+
+typedef struct {
+    uint32_t last_acked_event_inst_id;
+    uint32_t last_lost_event_inst_id;
+} spdm_dmtf_event_type_event_lost_t;
+
+typedef struct {
+    uint8_t changed_measurements[SPDM_DMTF_EVENT_TYPE_MEASUREMENT_CHANGED_SIZE];
+} spdm_dmtf_event_type_measurement_changed_t;
+
+typedef struct {
+    uint8_t pre_update_measurement_changes[SPDM_DMTF_EVENT_TYPE_MEASUREMENT_PRE_UPDATE_SIZE];
+} spdm_dmtf_event_type_measurement_pre_update_t;
+
+typedef struct {
+    uint8_t certificate_changed;
+} spdm_dmtf_event_type_certificate_changed_t;
+
 /*SPDM SET_KEY_PAIR_INFO operation*/
 #define SPDM_SET_KEY_PAIR_INFO_CHANGE_OPERATION 0
 #define SPDM_SET_KEY_PAIR_INFO_ERASE_OPERATION 1
 #define SPDM_SET_KEY_PAIR_INFO_GENERATE_OPERATION 2
+
+#pragma pack()
 
 #endif /* SPDM_H */

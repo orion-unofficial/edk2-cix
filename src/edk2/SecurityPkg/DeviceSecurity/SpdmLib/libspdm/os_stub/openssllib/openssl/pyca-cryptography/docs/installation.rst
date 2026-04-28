@@ -17,12 +17,13 @@ Currently we test ``cryptography`` on Python 3.6+ and PyPy3 on these
 operating systems.
 
 * x86-64 RHEL 8.x
+* x86-64 CentOS 9 Stream
 * x86-64 Fedora (latest)
 * x86-64 macOS 12 Monterey
 * ARM64 macOS 12 Monterey
 * x86-64 Ubuntu 18.04, 20.04, 22.04, rolling
 * ARM64 Ubuntu 20.04
-* x86-64 Debian Stretch (9.x), Buster (10.x), Bullseye (11.x), Bookworm (12.x)
+* x86-64 Debian Buster (10.x), Bullseye (11.x), Bookworm (12.x)
   and Sid (unstable)
 * x86-64 Alpine (latest)
 * ARM64 Alpine (latest)
@@ -31,16 +32,12 @@ operating systems.
 We test compiling with ``clang`` as well as ``gcc`` and use the following
 OpenSSL releases:
 
-* ``OpenSSL 1.1.0-latest``
 * ``OpenSSL 1.1.1-latest``
 * ``OpenSSL 3.0-latest``
 
-In addition we test against several versions of LibreSSL and the latest commit
-in BoringSSL.
-
-.. warning::
-
-    Cryptography 37.0.0 has deprecated support for OpenSSL 1.1.0.
+In addition we test against versions of LibreSSL that are available in
+versions of OpenBSD that are receiving security support at the time of a given
+``cryptography`` release, and the latest commit in BoringSSL.
 
 
 Building cryptography on Windows
@@ -274,8 +271,8 @@ To build cryptography and dynamically link it:
 
 .. code-block:: console
 
-    $ brew install openssl@1.1 rust
-    $ env LDFLAGS="-L$(brew --prefix openssl@1.1)/lib" CFLAGS="-I$(brew --prefix openssl@1.1)/include" pip install cryptography
+    $ brew install openssl@3 rust
+    $ env LDFLAGS="-L$(brew --prefix openssl@3)/lib" CFLAGS="-I$(brew --prefix openssl@3)/include" pip install cryptography
 
 `MacPorts`_:
 
@@ -290,8 +287,8 @@ You can also build cryptography statically:
 
 .. code-block:: console
 
-    $ brew install openssl@1.1 rust
-    $ env CRYPTOGRAPHY_SUPPRESS_LINK_FLAGS=1 LDFLAGS="$(brew --prefix openssl@1.1)/lib/libssl.a $(brew --prefix openssl@1.1)/lib/libcrypto.a" CFLAGS="-I$(brew --prefix openssl@1.1)/include" pip install cryptography
+    $ brew install openssl@3 rust
+    $ env CRYPTOGRAPHY_SUPPRESS_LINK_FLAGS=1 LDFLAGS="$(brew --prefix openssl@3)/lib/libssl.a $(brew --prefix openssl@3)/lib/libcrypto.a" CFLAGS="-I$(brew --prefix openssl@3)/include" pip install cryptography
 
 `MacPorts`_:
 

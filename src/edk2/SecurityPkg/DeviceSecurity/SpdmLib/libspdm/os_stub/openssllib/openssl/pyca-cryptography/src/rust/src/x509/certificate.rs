@@ -3,7 +3,8 @@
 // for complete details.
 
 use crate::asn1::{
-    big_byte_slice_to_py_int, oid_to_py_oid, py_uint_to_big_endian_bytes, PyAsn1Error, PyAsn1Result,
+    big_byte_slice_to_py_int, encode_der_data, oid_to_py_oid, py_uint_to_big_endian_bytes,
+    PyAsn1Error, PyAsn1Result,
 };
 use crate::x509;
 use crate::x509::{crl, extensions, oid, sct, Asn1ReadableOrWritable};
@@ -151,33 +152,11 @@ impl Certificate {
     fn public_bytes<'p>(
         &self,
         py: pyo3::Python<'p>,
-        encoding: &pyo3::PyAny,
+        encoding: &'p pyo3::PyAny,
     ) -> PyAsn1Result<&'p pyo3::types::PyBytes> {
-        let encoding_class = py
-            .import("cryptography.hazmat.primitives.serialization")?
-            .getattr(crate::intern!(py, "Encoding"))?;
-
         let result = asn1::write_single(self.raw.borrow_value())?;
-        if encoding == encoding_class.getattr(crate::intern!(py, "DER"))? {
-            Ok(pyo3::types::PyBytes::new(py, &result))
-        } else if encoding == encoding_class.getattr(crate::intern!(py, "PEM"))? {
-            let pem = pem::encode_config(
-                &pem::Pem {
-                    tag: "CERTIFICATE".to_string(),
-                    contents: result,
-                },
-                pem::EncodeConfig {
-                    line_ending: pem::LineEnding::LF,
-                },
-            )
-            .into_bytes();
-            Ok(pyo3::types::PyBytes::new(py, &pem))
-        } else {
-            Err(pyo3::exceptions::PyTypeError::new_err(
-                "encoding must be Encoding.DER or Encoding.PEM",
-            )
-            .into())
-        }
+
+        encode_der_data(py, "CERTIFICATE".to_string(), result, encoding)
     }
 
     #[getter]
@@ -340,27 +319,6 @@ impl Certificate {
             },
         )
     }
-    // This getter exists for compatibility with pyOpenSSL and will be removed.
-    // DO NOT RELY ON IT. WE WILL BREAK YOU WHEN WE FEEL LIKE IT.
-    #[getter]
-    fn _x509<'p>(
-        slf: pyo3::PyRef<'_, Self>,
-        py: pyo3::Python<'p>,
-    ) -> Result<&'p pyo3::PyAny, PyAsn1Error> {
-        let cryptography_warning = py
-            .import("cryptography.utils")?
-            .getattr(crate::intern!(py, "DeprecatedIn35"))?;
-        pyo3::PyErr::warn(
-            py,
-            cryptography_warning,
-            "This version of cryptography contains a temporary pyOpenSSL fallback path. Upgrade pyOpenSSL now.",
-            1
-        )?;
-        let backend = py
-            .import("cryptography.hazmat.backends.openssl.backend")?
-            .getattr(crate::intern!(py, "backend"))?;
-        Ok(backend.call_method1("_cert2ossl", (slf,))?)
-    }
 }
 
 fn cert_version(py: pyo3::Python<'_>, version: u8) -> Result<&pyo3::PyAny, PyAsn1Error> {
@@ -390,6 +348,21 @@ fn load_pem_x509_certificate(py: pyo3::Python<'_>, data: &[u8]) -> PyAsn1Result<
         "Valid PEM but no BEGIN CERTIFICATE/END CERTIFICATE delimiters. Are you sure this is a certificate?",
     )?;
     load_der_x509_certificate(py, &parsed.contents)
+}
+
+#[pyo3::prelude::pyfunction]
+fn load_pem_x509_certificates(py: pyo3::Python<'_>, data: &[u8]) -> PyAsn1Result<Vec<Certificate>> {
+    let certs = pem::parse_many(data)?
+        .iter()
+        .filter(|p| p.tag == "CERTIFICATE" || p.tag == "X509 CERTIFICATE")
+        .map(|p| load_der_x509_certificate(py, &p.contents))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    if certs.is_empty() {
+        return Err(PyAsn1Error::from(pem::PemError::MalformedFraming));
+    }
+
+    Ok(certs)
 }
 
 #[pyo3::prelude::pyfunction]
@@ -978,6 +951,10 @@ pub fn parse_cert_ext<'p>(
 
 pub(crate) fn time_from_py(py: pyo3::Python<'_>, val: &pyo3::PyAny) -> PyAsn1Result<x509::Time> {
     let dt = x509::py_to_chrono(py, val)?;
+    time_from_chrono(dt)
+}
+
+pub(crate) fn time_from_chrono(dt: chrono::DateTime<chrono::Utc>) -> PyAsn1Result<x509::Time> {
     if dt.year() >= 2050 {
         Ok(x509::Time::GeneralizedTime(asn1::GeneralizedTime::new(dt)?))
     } else {
@@ -1060,6 +1037,7 @@ pub(crate) fn set_bit(vals: &mut [u8], n: usize, set: bool) {
 pub(crate) fn add_to_module(module: &pyo3::prelude::PyModule) -> pyo3::PyResult<()> {
     module.add_wrapped(pyo3::wrap_pyfunction!(load_der_x509_certificate))?;
     module.add_wrapped(pyo3::wrap_pyfunction!(load_pem_x509_certificate))?;
+    module.add_wrapped(pyo3::wrap_pyfunction!(load_pem_x509_certificates))?;
     module.add_wrapped(pyo3::wrap_pyfunction!(create_x509_certificate))?;
 
     module.add_class::<Certificate>()?;

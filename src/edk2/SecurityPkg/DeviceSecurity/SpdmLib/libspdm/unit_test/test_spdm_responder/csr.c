@@ -284,14 +284,14 @@ bool libspdm_check_csr_basic_constraints(uint8_t *csr, uint16_t csr_len, bool is
     if (!result) {
         return false;
     }
-    /*basic constriants oid*/
+    /*basic constraints oid*/
     result = libspdm_asn1_get_tag(&ptr, end, &obj_len, LIBSPDM_CRYPTO_ASN1_OID);
     if (!result) {
         return false;
     }
     ptr += obj_len;
 
-    /*basic constriants*/
+    /*basic constraints*/
     result = libspdm_asn1_get_tag(&ptr, end, &obj_len, LIBSPDM_CRYPTO_ASN1_OCTET_STRING);
     if (!result) {
         return false;
@@ -1483,7 +1483,7 @@ void libspdm_test_responder_csr_case13(void **state)
 /**
  * Test 14: receives a valid GET_CSR request message from Requester with need_reset for SPDM 1.3
  * Expected Behavior: the first get_csr with csr_tracking_tag 0: responder return need reset and available csr_tracking_tag;
- *                    Afer reset, then send get_csr with csr_tracking_tag 0 six times: responder return need reset and available csr_tracking_tag;
+ *                    After reset, then send get_csr with csr_tracking_tag 0 six times: responder return need reset and available csr_tracking_tag;
  *                    Then send get_csr with csr_tracking_tag 0: responder return busy error;
  **/
 void libspdm_test_responder_csr_case14(void **state)
@@ -1628,10 +1628,10 @@ void libspdm_test_responder_csr_case14(void **state)
     assert_int_equal(status, LIBSPDM_STATUS_SUCCESS);
     assert_int_equal(response_size, sizeof(spdm_error_response_t));
     spdm_response = (void *)response;
-    assert_int_equal(spdm_response->header.request_response_code,
-                     SPDM_ERROR);
-    assert_int_equal(spdm_response->header.param1,
-                     SPDM_ERROR_CODE_BUSY);
+    assert_int_equal(spdm_response->header.request_response_code, SPDM_ERROR);
+    (LIBSPDM_SET_CERT_CSR_PARAMS) ?
+    assert_int_equal(spdm_response->header.param1, SPDM_ERROR_CODE_BUSY) :
+    assert_int_equal(spdm_response->header.param1, SPDM_ERROR_CODE_INVALID_REQUEST);
     assert_int_equal(spdm_response->header.param2, 0);
 #else
     assert_int_equal(status, LIBSPDM_STATUS_SUCCESS);
@@ -1793,10 +1793,10 @@ void libspdm_test_responder_csr_case15(void **state)
     assert_int_equal(status, LIBSPDM_STATUS_SUCCESS);
     assert_int_equal(response_size, sizeof(spdm_error_response_t));
     spdm_response = (void *)response;
-    assert_int_equal(spdm_response->header.request_response_code,
-                     SPDM_ERROR);
-    assert_int_equal(spdm_response->header.param1,
-                     SPDM_ERROR_CODE_BUSY);
+    assert_int_equal(spdm_response->header.request_response_code, SPDM_ERROR);
+    (LIBSPDM_SET_CERT_CSR_PARAMS) ?
+    assert_int_equal(spdm_response->header.param1, SPDM_ERROR_CODE_BUSY) :
+    assert_int_equal(spdm_response->header.param1, SPDM_ERROR_CODE_INVALID_REQUEST);
     assert_int_equal(spdm_response->header.param2, 0);
 
 

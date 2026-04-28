@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2022 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -650,6 +650,7 @@ static libspdm_return_t libspdm_requester_get_capabilities_test_receive_message(
                                               response_size, response);
     }
         return LIBSPDM_STATUS_SUCCESS;
+
 
     case 0x16: {
         spdm_capabilities_response_t *spdm_response;
@@ -1516,8 +1517,6 @@ static void libspdm_test_requester_get_capabilities_err_case20(void **state)
     spdm_context->local_context.capability.flags = LIBSPDM_DEFAULT_CAPABILITY_FLAG_VERSION_11;
     status = libspdm_get_capabilities(spdm_context);
     assert_int_equal(status, LIBSPDM_STATUS_INVALID_MSG_FIELD);
-    /*assert_int_equal (spdm_context->connection_info.capability.ct_exponent, 0);
-     * assert_int_equal (spdm_context->connection_info.capability.flags, LIBSPDM_DEFAULT_CAPABILITY_RESPONSE_FLAG_VERSION_11 & (0xFFFFFFFF^(SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_ENCRYPT_CAP | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MAC_CAP | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_HANDSHAKE_IN_THE_CLEAR_CAP)));*/
 }
 
 static void libspdm_test_requester_get_capabilities_err_case21(void **state)
@@ -1538,8 +1537,6 @@ static void libspdm_test_requester_get_capabilities_err_case21(void **state)
     spdm_context->local_context.capability.flags = LIBSPDM_DEFAULT_CAPABILITY_FLAG_VERSION_11;
     status = libspdm_get_capabilities(spdm_context);
     assert_int_equal(status, LIBSPDM_STATUS_INVALID_MSG_FIELD);
-    /*assert_int_equal (spdm_context->connection_info.capability.ct_exponent, 0);
-     * assert_int_equal (spdm_context->connection_info.capability.flags, LIBSPDM_DEFAULT_CAPABILITY_RESPONSE_FLAG_VERSION_11 & (0xFFFFFFFF^(SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_ENCRYPT_CAP | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MAC_CAP | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PSK_CAP | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_HANDSHAKE_IN_THE_CLEAR_CAP)));*/
 }
 
 static void libspdm_test_requester_get_capabilities_err_case22(void **state)
@@ -1560,8 +1557,6 @@ static void libspdm_test_requester_get_capabilities_err_case22(void **state)
     spdm_context->local_context.capability.flags = LIBSPDM_DEFAULT_CAPABILITY_FLAG_VERSION_11;
     status = libspdm_get_capabilities(spdm_context);
     assert_int_equal(status, LIBSPDM_STATUS_INVALID_MSG_FIELD);
-    /*assert_int_equal (spdm_context->connection_info.capability.ct_exponent, 0);
-     * assert_int_equal (spdm_context->connection_info.capability.flags, LIBSPDM_DEFAULT_CAPABILITY_RESPONSE_FLAG_VERSION_11 & (0xFFFFFFFF^(SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_ENCRYPT_CAP | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MAC_CAP | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_KEY_EX_CAP | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_HANDSHAKE_IN_THE_CLEAR_CAP)));*/
 }
 
 static void libspdm_test_requester_get_capabilities_err_case23(void **state)
@@ -1626,8 +1621,6 @@ static void libspdm_test_requester_get_capabilities_err_case25(void **state)
     spdm_context->local_context.capability.flags = LIBSPDM_DEFAULT_CAPABILITY_FLAG_VERSION_11;
     status = libspdm_get_capabilities(spdm_context);
     assert_int_equal(status, LIBSPDM_STATUS_INVALID_MSG_FIELD);
-    /*assert_int_equal (spdm_context->connection_info.capability.ct_exponent, 0);
-     * assert_int_equal (spdm_context->connection_info.capability.flags, LIBSPDM_DEFAULT_CAPABILITY_RESPONSE_FLAG_VERSION_11 & (0xFFFFFFFF^(SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_ENCRYPT_CAP | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MAC_CAP | SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_PSK_CAP)));*/
 }
 
 static void libspdm_test_requester_get_capabilities_err_case26(void **state)

@@ -197,23 +197,25 @@ bool libspdm_x509_construct_certificate_stack(uint8_t **x509_stack, ...)
 /**
  * Release the specified X509 object.
  *
- * If x509_cert is NULL, then return false.
+ * If x509_cert is NULL, then return early.
  *
  * @param[in]  x509_cert  Pointer to the X509 object to be released.
  *
  **/
 void libspdm_x509_free(void *x509_cert)
 {
-    if (x509_cert) {
-        mbedtls_x509_crt_free(x509_cert);
-        free_pool(x509_cert);
+    if (x509_cert == NULL) {
+        return;
     }
+
+    mbedtls_x509_crt_free(x509_cert);
+    free_pool(x509_cert);
 }
 
 /**
  * Release the specified X509 stack object.
  *
- * If x509_stack is NULL, then return false.
+ * If x509_stack is NULL, then return early.
  *
  * @param[in]  x509_stack  Pointer to the X509 stack object to be released.
  *
@@ -236,7 +238,7 @@ void libspdm_x509_stack_free(void *x509_stack)
  * @param tag      The expected tag
  *
  * @retval      true   Get tag successful
- * @retval      FALSe  Failed to get tag or tag not match
+ * @retval      false  Failed to get tag or tag not match
  **/
 bool libspdm_asn1_get_tag(uint8_t **ptr, const uint8_t *end, size_t *length,
                           uint32_t tag)
@@ -678,16 +680,16 @@ bool libspdm_x509_verify_cert(const uint8_t *cert, size_t cert_size,
  *
  * @param[in]      cert_chain         One or more ASN.1 DER-encoded X.509 certificates
  *                                  where the first certificate is signed by the Root
- *                                  Certificate or is the Root Cerificate itself. and
- *                                  subsequent cerificate is signed by the preceding
- *                                  cerificate.
+ *                                  Certificate or is the Root Certificate itself. and
+ *                                  subsequent certificate is signed by the preceding
+ *                                  certificate.
  * @param[in]      cert_chain_length   Total length of the certificate chain, in bytes.
  *
  * @param[in]      root_cert          Trusted Root Certificate buffer
  *
  * @param[in]      root_cert_length    Trusted Root Certificate buffer length
  *
- * @retval  true   All cerificates was issued by the first certificate in X509Certchain.
+ * @retval  true   All certificates were issued by the first certificate in X509Certchain.
  * @retval  false  Invalid certificate or the certificate was not issued by the given
  *                trusted CA.
  **/
@@ -710,7 +712,7 @@ bool libspdm_x509_verify_cert_chain(const uint8_t *root_cert, size_t root_cert_l
     current_cert = (const unsigned char *)cert_chain;
 
 
-    /* Get Current certificate from certificates buffer and Verify with preciding cert*/
+    /* Get Current certificate from certificates buffer and Verify with preceding cert*/
 
     do {
         tmp_ptr = current_cert;
@@ -760,9 +762,9 @@ bool libspdm_x509_verify_cert_chain(const uint8_t *root_cert, size_t root_cert_l
  *
  * @param[in]      cert_chain         One or more ASN.1 DER-encoded X.509 certificates
  *                                  where the first certificate is signed by the Root
- *                                  Certificate or is the Root Cerificate itself. and
- *                                  subsequent cerificate is signed by the preceding
- *                                  cerificate.
+ *                                  Certificate or is the Root Certificate itself. and
+ *                                  subsequent certificate is signed by the preceding
+ *                                  certificate.
  * @param[in]      cert_chain_length   Total length of the certificate chain, in bytes.
  *
  * @param[in]      cert_index         index of certificate.
@@ -1340,7 +1342,7 @@ cleanup:
  * @param[out]     to           notAfter Pointer to date_time object.
  * @param[in,out]  to_size       notAfter date_time object size.
  *
- * Note: libspdm_x509_compare_date_time to compare date_time oject
+ * Note: libspdm_x509_compare_date_time to compare date_time object
  *      x509SetDateTime to get a date_time object from a date_time_str
  *
  * @retval  true   The certificate Validity retrieved successfully.
@@ -1659,7 +1661,7 @@ cleanup:
  * If date_time1 > date_time2, then return 1
  * If date_time1 < date_time2, then return -1
  *
- * @param[in]      date_time1         Pointer to a date_time Ojbect
+ * @param[in]      date_time1         Pointer to a date_time Object
  * @param[in]      date_time2         Pointer to a date_time Object
  *
  * @retval  0      If date_time1 == date_time2
@@ -1748,7 +1750,7 @@ static bool libspdm_convert_subject_to_string(uint8_t *ptr, size_t obj_len,
         /*move to next SET*/
         ptr += obj_len;
 
-        /*sequece*/
+        /*sequence*/
         ret = libspdm_asn1_get_tag(&internal_p, end, &obj_len,
                                    LIBSPDM_CRYPTO_ASN1_SEQUENCE | LIBSPDM_CRYPTO_ASN1_CONSTRUCTED);
         if (!ret) {
@@ -1853,7 +1855,7 @@ bool libspdm_set_attribute_for_req(mbedtls_x509write_csr *req,
 
     /*integer:version*/
     ret = libspdm_asn1_get_tag(&ptr, end, &obj_len, LIBSPDM_CRYPTO_ASN1_INTEGER);
-    /*check req_info verson. spec PKCS#10: It shall be 0 for this version of the standard.*/
+    /*check req_info version. spec PKCS#10: It shall be 0 for this version of the standard.*/
     if ((obj_len != 1) || (*ptr != 0)) {
         return false;
     }
@@ -1908,7 +1910,7 @@ bool libspdm_set_attribute_for_req(mbedtls_x509write_csr *req,
                                    LIBSPDM_CRYPTO_ASN1_SEQUENCE |
                                    LIBSPDM_CRYPTO_ASN1_CONSTRUCTED);
         if (ret) {
-            /*save old positon*/
+            /*save old position*/
             ptr_old = ptr;
 
             /*move to the next sequence*/

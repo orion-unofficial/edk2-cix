@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2024 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -48,6 +48,7 @@ const char *libspdm_get_code_str(uint8_t request_code)
         { SPDM_MEASUREMENT_EXTENSION_LOG, "SPDM_MEASUREMENT_EXTENSION_LOG" },
         { SPDM_KEY_PAIR_INFO, "SPDM_KEY_PAIR_INFO" },
         { SPDM_SET_KEY_PAIR_INFO_ACK, "SPDM_SET_KEY_PAIR_INFO_ACK" },
+        { SPDM_ENDPOINT_INFO, "SPDM_ENDPOINT_INFO" },
         /* SPDM request code (1.0) */
         { SPDM_GET_DIGESTS, "SPDM_GET_DIGESTS" },
         { SPDM_GET_CERTIFICATE, "SPDM_GET_CERTIFICATE" },
@@ -79,6 +80,7 @@ const char *libspdm_get_code_str(uint8_t request_code)
         { SPDM_GET_MEASUREMENT_EXTENSION_LOG, "SPDM_GET_MEASUREMENT_EXTENSION_LOG" },
         { SPDM_GET_KEY_PAIR_INFO, "SPDM_GET_KEY_PAIR_INFO" },
         { SPDM_GET_SUPPORTED_EVENT_TYPES, "SPDM_SET_KEY_PAIR_INFO" },
+        { SPDM_GET_ENDPOINT_INFO, "SPDM_GET_ENDPOINT_INFO" },
     };
 
     for (index = 0; index < LIBSPDM_ARRAY_SIZE(code_str_struct); index++) {
@@ -372,5 +374,111 @@ uint32_t libspdm_mask_capability_flags(libspdm_context_t *spdm_context,
     default:
         LIBSPDM_ASSERT(false);
         return 0;
+    }
+}
+
+uint32_t libspdm_mask_base_hash_algo(libspdm_context_t *spdm_context, uint32_t base_hash_algo)
+{
+    const uint8_t spdm_version = libspdm_get_connection_version(spdm_context);
+
+    if (spdm_version >= SPDM_MESSAGE_VERSION_12) {
+        return (base_hash_algo & SPDM_ALGORITHMS_BASE_HASH_ALGO_12_MASK);
+    } else {
+        return (base_hash_algo & SPDM_ALGORITHMS_BASE_HASH_ALGO_10_MASK);
+    }
+}
+
+uint32_t libspdm_mask_measurement_hash_algo(libspdm_context_t *spdm_context,
+                                            uint32_t measurement_hash_algo)
+{
+    const uint8_t spdm_version = libspdm_get_connection_version(spdm_context);
+
+    if (spdm_version >= SPDM_MESSAGE_VERSION_12) {
+        return (measurement_hash_algo & SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_12_MASK);
+    } else {
+        return (measurement_hash_algo & SPDM_ALGORITHMS_MEASUREMENT_HASH_ALGO_10_MASK);
+    }
+}
+
+uint8_t libspdm_mask_measurement_specification(libspdm_context_t *spdm_context,
+                                               uint8_t measurement_specification)
+{
+    return (measurement_specification & SPDM_MEASUREMENT_SPECIFICATION_10_MASK);
+}
+
+uint8_t libspdm_mask_mel_specification(libspdm_context_t *spdm_context, uint8_t mel_specification)
+{
+    LIBSPDM_ASSERT(libspdm_get_connection_version(spdm_context) >= SPDM_MESSAGE_VERSION_13);
+
+    return (mel_specification & SPDM_MEL_SPECIFICATION_13_MASK);
+}
+
+uint32_t libspdm_mask_base_asym_algo(libspdm_context_t *spdm_context, uint32_t base_asym_algo)
+{
+    const uint8_t spdm_version = libspdm_get_connection_version(spdm_context);
+
+    if (spdm_version >= SPDM_MESSAGE_VERSION_12) {
+        return (base_asym_algo & SPDM_ALGORITHMS_BASE_ASYM_ALGO_12_MASK);
+    } else {
+        return (base_asym_algo & SPDM_ALGORITHMS_BASE_ASYM_ALGO_10_MASK);
+    }
+}
+
+uint16_t libspdm_mask_alg_supported(libspdm_context_t *spdm_context, uint8_t alg_type,
+                                    uint16_t alg_supported)
+{
+    const uint8_t spdm_version = libspdm_get_connection_version(spdm_context);
+
+    LIBSPDM_ASSERT(spdm_version >= SPDM_MESSAGE_VERSION_11);
+
+    switch (alg_type) {
+    case SPDM_NEGOTIATE_ALGORITHMS_STRUCT_TABLE_ALG_TYPE_DHE:
+        if (spdm_version >= SPDM_MESSAGE_VERSION_12) {
+            return (alg_supported & SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_DHE_12_MASK);
+        } else {
+            return (alg_supported & SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_DHE_11_MASK);
+        }
+    case SPDM_NEGOTIATE_ALGORITHMS_STRUCT_TABLE_ALG_TYPE_AEAD:
+        if (spdm_version >= SPDM_MESSAGE_VERSION_12) {
+            return (alg_supported & SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_AEAD_12_MASK);
+        } else {
+            return (alg_supported & SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_AEAD_11_MASK);
+        }
+    case SPDM_NEGOTIATE_ALGORITHMS_STRUCT_TABLE_ALG_TYPE_REQ_BASE_ASYM_ALG:
+        if (spdm_version >= SPDM_MESSAGE_VERSION_12) {
+            return (alg_supported &
+                    SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_REQ_BASE_ASYM_ALG_12_MASK);
+        } else {
+            return (alg_supported &
+                    SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_REQ_BASE_ASYM_ALG_11_MASK);
+        }
+    case SPDM_NEGOTIATE_ALGORITHMS_STRUCT_TABLE_ALG_TYPE_KEY_SCHEDULE:
+        return (alg_supported & SPDM_NEGOTIATE_ALGORITHMS_ALG_SUPPORTED_KEY_SCHEDULE_11_MASK);
+    default:
+        LIBSPDM_ASSERT(false);
+        return 0;
+    }
+}
+
+bool libspdm_validate_svh_vendor_id_len(uint8_t id, uint8_t vendor_id_len)
+{
+    switch (id) {
+    case SPDM_REGISTRY_ID_DMTF:
+    case SPDM_REGISTRY_ID_VESA:
+        return (vendor_id_len == 0);
+    case SPDM_REGISTRY_ID_TCG:
+    case SPDM_REGISTRY_ID_USB:
+    case SPDM_REGISTRY_ID_PCISIG:
+    case SPDM_REGISTRY_ID_MIPI:
+    case SPDM_REGISTRY_ID_CXL:
+    case SPDM_REGISTRY_ID_JEDEC:
+        return ((vendor_id_len == 0) || (vendor_id_len == 2));
+    case SPDM_REGISTRY_ID_IANA:
+    case SPDM_REGISTRY_ID_HDBASET:
+        return ((vendor_id_len == 0) || (vendor_id_len == 4));
+    case SPDM_REGISTRY_ID_IANA_CBOR:
+        return true;
+    default:
+        return false;
     }
 }

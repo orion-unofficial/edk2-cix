@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2024 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -141,6 +141,36 @@ libspdm_return_t libspdm_get_certificate_ex(void *spdm_context,
                                             void *cert_chain,
                                             const void **trust_anchor,
                                             size_t *trust_anchor_size);
+
+/**
+ * This function sends GET_CERTIFICATE to get certificate chain in one slot from the device,
+ * and allows the Integrator to specify the size of the certificate chain blocks.
+ *
+ * This function verify the integrity of the certificate chain.
+ * root_hash -> Root certificate -> Intermediate certificate -> Leaf certificate.
+ *
+ * If the peer root certificate hash is deployed,
+ * this function also verifies the digest with the root hash in the certificate chain.
+ *
+ * @param  spdm_context       A pointer to the SPDM context.
+ * @param  session_id         Indicates if it is a secured message protected via SPDM session.
+ *                            If session_id is NULL, it is a normal message.
+ * @param  slot_id            The number of slot for the certificate chain.
+ * @param  length             The length of the certificate chain block to retrieve.
+ * @param  cert_chain_size    On input, indicate the size in bytes of the destination buffer to store the digest buffer.
+ *                            On output, indicate the size in bytes of the certificate chain.
+ * @param  cert_chain         A pointer to a destination buffer to store the certificate chain.
+ * @param  trust_anchor       A buffer to hold the trust_anchor which is used to validate the peer certificate, if not NULL.
+ * @param  trust_anchor_size  A buffer to hold the trust_anchor_size, if not NULL.
+ **/
+libspdm_return_t libspdm_get_certificate_choose_length_ex(void *spdm_context,
+                                                          const uint32_t *session_id,
+                                                          uint8_t slot_id,
+                                                          uint32_t length,
+                                                          size_t *cert_chain_size,
+                                                          void *cert_chain,
+                                                          const void **trust_anchor,
+                                                          size_t *trust_anchor_size);
 #endif /* LIBSPDM_SEND_GET_CERTIFICATE_SUPPORT */
 
 /**
@@ -351,6 +381,40 @@ libspdm_return_t libspdm_get_measurement_ex2(void *spdm_context, const uint32_t 
                                              void *opaque_data,
                                              size_t *opaque_data_size);
 #endif /* LIBSPDM_ENABLE_CAPABILITY_MEAS_CAP*/
+
+#if LIBSPDM_SEND_GET_ENDPOINT_INFO_SUPPORT
+/**
+ * This function sends GET_ENDPOINT_INFO from the device *
+ *
+ *
+ * @param  context                    A pointer to the SPDM context.
+ * @param  session_id                 Indicates if it is a secured message protected via SPDM session.
+ *                                    If session_id is NULL, it is a normal message.
+ *                                    If session_id is not NULL, it is a secured message.
+ * @param  request_attributes         The request attribute of the request message.
+ * @param  sub_code                   The subcode of endpoint info.
+ * @param  slot_id                    The number of slot for the endpoint info.
+ * @param  ep_info_len                On input, indicate the size in bytes of the destination buffer
+ *                                    to store the endpoint info record.
+ *                                    On output, indicate the size in bytes of the endpoint info record.
+ * @param  ep_info                    A pointer to a destination buffer to store the endpoint info record.
+ * @param  requester_nonce_in         A buffer to hold the requester nonce (32 bytes) as input, if not NULL.
+ * @param  requester_nonce            A buffer to hold the requester nonce (32 bytes), if not NULL.
+ * @param  responder_nonce            A buffer to hold the responder nonce (32 bytes), if not NULL.
+ *
+ **/
+libspdm_return_t libspdm_get_endpoint_info(void *spdm_context,
+                                           const uint32_t *session_id,
+                                           uint8_t request_attributes,
+                                           uint8_t sub_code,
+                                           uint8_t slot_id,
+                                           uint32_t *ep_info_len,
+                                           void *ep_info,
+                                           const void *requester_nonce_in,
+                                           void *requester_nonce,
+                                           void *responder_nonce);
+#endif /* LIBSPDM_SEND_GET_ENDPOINT_INFO_SUPPORT */
+
 
 #if LIBSPDM_ENABLE_CAPABILITY_MEL_CAP
 /**

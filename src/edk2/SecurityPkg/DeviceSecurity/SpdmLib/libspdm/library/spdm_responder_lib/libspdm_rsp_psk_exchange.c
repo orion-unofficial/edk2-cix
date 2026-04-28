@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2024 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -132,6 +132,19 @@ libspdm_return_t libspdm_get_response_psk_exchange(libspdm_context_t *spdm_conte
             spdm_context, SPDM_ERROR_CODE_UNSUPPORTED_REQUEST,
             SPDM_PSK_EXCHANGE, response_size, response);
     }
+
+    /* While clearing MAC_CAP and setting ENCRYPT_CAP is legal according to DSP0274, libspdm
+     * also implements DSP0277 secure messages, which requires at least MAC_CAP to be set.
+     */
+    if (!libspdm_is_capabilities_flag_supported(
+            spdm_context, false,
+            SPDM_GET_CAPABILITIES_REQUEST_FLAGS_MAC_CAP,
+            SPDM_GET_CAPABILITIES_RESPONSE_FLAGS_MAC_CAP)) {
+        return libspdm_generate_error_response(
+            spdm_context, SPDM_ERROR_CODE_INVALID_REQUEST,
+            SPDM_KEY_EXCHANGE, response_size, response);
+    }
+
     if (spdm_context->connection_info.connection_state < LIBSPDM_CONNECTION_STATE_NEGOTIATED) {
         return libspdm_generate_error_response(spdm_context,
                                                SPDM_ERROR_CODE_UNEXPECTED_REQUEST,
@@ -183,7 +196,7 @@ libspdm_return_t libspdm_get_response_psk_exchange(libspdm_context_t *spdm_conte
                 0, response_size, response);
         }
         if (spdm_context->connection_info.algorithm.key_schedule !=
-            SPDM_ALGORITHMS_KEY_SCHEDULE_HMAC_HASH) {
+            SPDM_ALGORITHMS_KEY_SCHEDULE_SPDM) {
             return libspdm_generate_error_response(
                 spdm_context,
                 SPDM_ERROR_CODE_INVALID_REQUEST,

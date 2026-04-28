@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2024 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -30,6 +30,8 @@
  * because unit test uses it own way to track transcript. */
 #if LIBSPDM_RECORD_TRANSCRIPT_DATA_SUPPORT == 0
 
+#define LIBSPDM_MAX_ENDPOINT_INFO_LENGTH 1024
+
 #define LIBSPDM_MAX_MESSAGE_B_BUFFER_SIZE (24 + \
                                            LIBSPDM_MAX_HASH_SIZE * SPDM_MAX_SLOT_COUNT + \
                                            LIBSPDM_MAX_CERT_CHAIN_SIZE)
@@ -49,12 +51,18 @@
 #define LIBSPDM_MAX_MESSAGE_F_BUFFER_SIZE (8 + LIBSPDM_MAX_HASH_SIZE * 2 + \
                                            LIBSPDM_MAX_ASYM_KEY_SIZE)
 
+#define LIBSPDM_MAX_MESSAGE_E_BUFFER_SIZE (20 + SPDM_NONCE_SIZE * 2 + \
+                                           LIBSPDM_MAX_ENDPOINT_INFO_LENGTH)
+
 #define LIBSPDM_MAX_MESSAGE_L1L2_BUFFER_SIZE \
     (LIBSPDM_MAX_MESSAGE_VCA_BUFFER_SIZE + LIBSPDM_MAX_MESSAGE_M_BUFFER_SIZE)
 
 #define LIBSPDM_MAX_MESSAGE_M1M2_BUFFER_SIZE \
     (LIBSPDM_MAX_MESSAGE_VCA_BUFFER_SIZE + \
      LIBSPDM_MAX_MESSAGE_B_BUFFER_SIZE + LIBSPDM_MAX_MESSAGE_C_BUFFER_SIZE)
+
+#define LIBSPDM_MAX_MESSAGE_IL1IL2_BUFFER_SIZE \
+    (LIBSPDM_MAX_MESSAGE_VCA_BUFFER_SIZE + LIBSPDM_MAX_MESSAGE_E_BUFFER_SIZE)
 
 #define LIBSPDM_MAX_MESSAGE_TH_BUFFER_SIZE \
     (LIBSPDM_MAX_MESSAGE_VCA_BUFFER_SIZE + \
@@ -165,5 +173,8 @@ void libspdm_release_error (libspdm_error_target_t target);
 void generate_dmtf_event_group(void *buffer, uint8_t *total_bytes, uint32_t attributes,
                                bool inc_event_lost, bool inc_meas_changed,
                                bool inc_meas_pre_update, bool inc_cert_changed);
+
+void generate_dmtf_event_data(void *buffer, uint8_t *total_bytes, uint32_t event_instance_id,
+                              uint16_t event_type_id, void *event_detail);
 
 #endif

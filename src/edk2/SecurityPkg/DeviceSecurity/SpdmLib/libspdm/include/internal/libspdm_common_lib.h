@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2024 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -21,6 +21,7 @@
 #include "hal/library/responder/key_pair_info.h"
 #include "hal/library/responder/psklib.h"
 #include "hal/library/responder/setcertlib.h"
+#include "hal/library/endpointinfolib.h"
 #include "hal/library/eventlib.h"
 #include "hal/library/cryptlib.h"
 
@@ -243,6 +244,15 @@ typedef struct {
 #define LIBSPDM_MAX_MESSAGE_F_BUFFER_SIZE (8 + LIBSPDM_MAX_HASH_SIZE * 2 + \
                                            LIBSPDM_MAX_ASYM_KEY_SIZE)
 
+/*
+ * +--------------------------+------------------------------------------+---------+
+ * | GET_EP_INFO 1.3          | 8 + Nonce (0 or 32) = [8, 40]            | 1       |
+ * | EP_INFO 1.3              | 12 + Nonce + EPInfoLen = [12, 1024]      | [1, 25] |
+ * +--------------------------+------------------------------------------+---------+
+ */
+#define LIBSPDM_MAX_MESSAGE_E_BUFFER_SIZE (20 + SPDM_NONCE_SIZE * 2 + \
+                                           LIBSPDM_MAX_ENDPOINT_INFO_LENGTH)
+
 #define LIBSPDM_MAX_MESSAGE_L1L2_BUFFER_SIZE \
     (LIBSPDM_MAX_MESSAGE_VCA_BUFFER_SIZE + LIBSPDM_MAX_MESSAGE_M_BUFFER_SIZE)
 
@@ -256,6 +266,9 @@ typedef struct {
      LIBSPDM_MAX_HASH_SIZE + LIBSPDM_MAX_MESSAGE_K_BUFFER_SIZE + \
      LIBSPDM_MAX_MESSAGE_D_BUFFER_SIZE + \
      LIBSPDM_MAX_HASH_SIZE + LIBSPDM_MAX_MESSAGE_F_BUFFER_SIZE)
+
+#define LIBSPDM_MAX_MESSAGE_IL1IL2_BUFFER_SIZE \
+    (LIBSPDM_MAX_MESSAGE_VCA_BUFFER_SIZE + LIBSPDM_MAX_MESSAGE_E_BUFFER_SIZE)
 
 typedef struct {
     size_t max_buffer_size;
@@ -290,6 +303,12 @@ typedef struct {
 typedef struct {
     size_t max_buffer_size;
     size_t buffer_size;
+    uint8_t buffer[LIBSPDM_MAX_MESSAGE_E_BUFFER_SIZE];
+} libspdm_message_e_managed_buffer_t;
+
+typedef struct {
+    size_t max_buffer_size;
+    size_t buffer_size;
     uint8_t buffer[LIBSPDM_MAX_MESSAGE_L1L2_BUFFER_SIZE];
 } libspdm_l1l2_managed_buffer_t;
 
@@ -298,6 +317,12 @@ typedef struct {
     size_t buffer_size;
     uint8_t buffer[LIBSPDM_MAX_MESSAGE_M1M2_BUFFER_SIZE];
 } libspdm_m1m2_managed_buffer_t;
+
+typedef struct {
+    size_t max_buffer_size;
+    size_t buffer_size;
+    uint8_t buffer[LIBSPDM_MAX_MESSAGE_IL1IL2_BUFFER_SIZE];
+} libspdm_il1il2_managed_buffer_t;
 
 typedef struct {
     size_t max_buffer_size;
@@ -325,6 +350,12 @@ typedef struct {
 /* L1/L2 = Concatenate (M)
  * M = Concatenate (GET_MEASUREMENT, MEASUREMENT\signature)*/
 
+/* IL1/IL2 = Concatenate (A, E)
+ * E = Concatenate (GET_ENDPOINT_INFO, ENDPOINT_INFO\signature)*/
+
+/* Encap IL1/IL2 = Concatenate (A, Encap E)
+ * Encap E = Concatenate (GET_ENDPOINT_INFO, ENDPOINT_INFO\signature)*/
+
 typedef struct {
     /* the message_a must be plan text because we do not know the algorithm yet.*/
     libspdm_vca_managed_buffer_t message_a;
@@ -335,10 +366,14 @@ typedef struct {
     libspdm_message_b_managed_buffer_t message_mut_b;
     libspdm_message_c_managed_buffer_t message_mut_c;
     libspdm_message_m_managed_buffer_t message_m;
+    libspdm_message_e_managed_buffer_t message_e;
+    libspdm_message_e_managed_buffer_t message_encap_e;
 #else
     void *digest_context_m1m2;
     void *digest_context_mut_m1m2;
     void *digest_context_l1l2;
+    void *digest_context_il1il2;
+    void *digest_context_encap_il1il2;
 #endif
 } libspdm_transcript_t;
 
@@ -405,10 +440,14 @@ typedef struct {
     libspdm_message_k_managed_buffer_t message_k;
     libspdm_message_f_managed_buffer_t message_f;
     libspdm_message_m_managed_buffer_t message_m;
+    libspdm_message_e_managed_buffer_t message_e;
+    libspdm_message_e_managed_buffer_t message_encap_e;
 #else
     bool message_f_initialized;
     void *digest_context_th;
     void *digest_context_l1l2;
+    void *digest_context_il1il2;
+    void *digest_context_encap_il1il2;
     /* this is back up for message F reset.*/
     void *digest_context_th_backup;
 #endif
@@ -482,7 +521,7 @@ typedef struct {
      * See LIBSPDM_FIPS_SELF_TEST_xxx;
      **/
     uint32_t self_test_result;
-} libspdm_fips_selftest_context;
+} libspdm_fips_selftest_context_t;
 #endif /* LIBSPDM_FIPS_MODE */
 
 #define LIBSPDM_CONTEXT_STRUCT_VERSION 0x3
@@ -612,7 +651,7 @@ typedef struct {
 #endif /* LIBSPDM_ENABLE_MSG_LOG */
 
 #if LIBSPDM_FIPS_MODE
-    libspdm_fips_selftest_context fips_selftest_context;
+    libspdm_fips_selftest_context_t fips_selftest_context;
 #endif /* LIBSPDM_FIPS_MODE */
 
     /* Endianness (BE/LE/Both) to use for signature verification on SPDM 1.0 and 1.1
@@ -623,6 +662,10 @@ typedef struct {
     libspdm_vendor_response_callback_func vendor_response_callback;
     libspdm_vendor_get_id_callback_func vendor_response_get_id;
 #endif /* LIBSPDM_ENABLE_VENDOR_DEFINED_MESSAGES */
+
+#if LIBSPDM_EVENT_RECIPIENT_SUPPORT
+    libspdm_process_event_func process_event;
+#endif /* LIBSPDM_EVENT_RECIPIENT_SUPPORT */
 } libspdm_context_t;
 
 #define LIBSPDM_CONTEXT_SIZE_WITHOUT_SECURED_CONTEXT (sizeof(libspdm_context_t))
@@ -1002,6 +1045,40 @@ uint32_t libspdm_get_measurement_summary_hash_size(libspdm_context_t *spdm_conte
                                                    bool is_requester,
                                                    uint8_t measurement_summary_hash_type);
 
+/**
+ * This function generates the endpoint info signature based upon il1il2 for authentication.
+ *
+ * @param  spdm_context                  A pointer to the SPDM context.
+ * @param  session_info                  A pointer to the SPDM session context.
+ * @param  is_requester                  Indicate of the signature generation for a requester or a responder.
+ * @param  signature                     The buffer to store the endpoint info signature.
+ *
+ * @retval true  challenge signature is generated.
+ * @retval false challenge signature is not generated.
+ **/
+bool libspdm_generate_endpoint_info_signature(libspdm_context_t *spdm_context,
+                                              libspdm_session_info_t *session_info,
+                                              bool is_requester,
+                                              uint8_t *signature);
+
+/**
+ * This function verifies the challenge signature based upon m1m2.
+ *
+ * @param  spdm_context                  A pointer to the SPDM context.
+ * @param  session_info                  A pointer to the SPDM session context.
+ * @param  is_requester                  Indicate of the signature verification for a requester or a responder.
+ * @param  sign_data                     The signature data buffer.
+ * @param  sign_data_size                size in bytes of the signature data buffer.
+ *
+ * @retval true  signature verification pass.
+ * @retval false signature verification fail.
+ **/
+bool libspdm_verify_endpoint_info_signature(libspdm_context_t *spdm_context,
+                                            libspdm_session_info_t *session_info,
+                                            bool is_requester,
+                                            const void *sign_data,
+                                            size_t sign_data_size);
+
 #if LIBSPDM_RECORD_TRANSCRIPT_DATA_SUPPORT
 /*
  * This function calculates l1l2.
@@ -1303,6 +1380,26 @@ void libspdm_reset_message_encap_d(libspdm_context_t *spdm_context, void *spdm_s
 void libspdm_reset_message_f(libspdm_context_t *spdm_context, void *spdm_session_info);
 
 /**
+ * Reset message E cache in SPDM context.
+ * If session_info is NULL, this function will use E cache of SPDM context,
+ * else will use E cache of SPDM session context.
+ *
+ * @param  spdm_context                  A pointer to the SPDM context.
+ * @param  spdm_session_info              A pointer to the SPDM session context.
+ **/
+void libspdm_reset_message_e(libspdm_context_t *spdm_context, void *session_info);
+
+/**
+ * Reset message encap E cache in SPDM context.
+ * If session_info is NULL, this function will use encap E cache of SPDM context,
+ * else will use encap E cache of SPDM session context.
+ *
+ * @param  spdm_context                  A pointer to the SPDM context.
+ * @param  spdm_session_info              A pointer to the SPDM session context.
+ **/
+void libspdm_reset_message_encap_e(libspdm_context_t *spdm_context, void *session_info);
+
+/**
  * Append message A cache in SPDM context.
  *
  * @param  spdm_context  A pointer to the SPDM context.
@@ -1447,6 +1544,38 @@ libspdm_return_t libspdm_append_message_f(libspdm_context_t *spdm_context,
                                           void *spdm_session_info,
                                           bool is_requester, const void *message,
                                           size_t message_size);
+
+/**
+ * Append message E cache in SPDM context.
+ * If session_info is NULL, this function will use E cache of SPDM context,
+ * else will use E cache of SPDM session context.
+ *
+ * @param  spdm_context                  A pointer to the SPDM context.
+ * @param  session_info                  A pointer to the SPDM session context.
+ * @param  message                      message buffer.
+ * @param  message_size                  size in bytes of message buffer.
+ *
+ * @return RETURN_SUCCESS          message is appended.
+ * @return RETURN_OUT_OF_RESOURCES message is not appended because the internal cache is full.
+ **/
+libspdm_return_t libspdm_append_message_e(libspdm_context_t *spdm_context, void *session_info,
+                                          const void *message, size_t message_size);
+
+/**
+ * Append message encap E cache in SPDM context.
+ * If session_info is NULL, this function will use encap E cache of SPDM context,
+ * else will use encap E cache of SPDM session context.
+ *
+ * @param  spdm_context                  A pointer to the SPDM context.
+ * @param  session_info                  A pointer to the SPDM session context.
+ * @param  message                      message buffer.
+ * @param  message_size                  size in bytes of message buffer.
+ *
+ * @return RETURN_SUCCESS          message is appended.
+ * @return RETURN_OUT_OF_RESOURCES message is not appended because the internal cache is full.
+ **/
+libspdm_return_t libspdm_append_message_encap_e(libspdm_context_t *spdm_context, void *session_info,
+                                                const void *message, size_t message_size);
 
 /**
  * This function generates a session ID by concatenating req_session_id and rsp_session_id.
@@ -1727,5 +1856,68 @@ static inline uint64_t libspdm_le_to_be_64(uint64_t value)
  */
 uint32_t libspdm_mask_capability_flags(libspdm_context_t *spdm_context,
                                        bool is_request_flags, uint32_t flags);
+
+/**
+ * Return BaseHashAlgo that is masked by the negotiated SPDM version.
+ *
+ * @param  spdm_context    A pointer to the SPDM context.
+ * @param  base_hash_algo  Unmasked BaseHashAlgo.
+ *
+ * @return The masked BaseHashAlgo.
+ */
+uint32_t libspdm_mask_base_hash_algo(libspdm_context_t *spdm_context, uint32_t base_hash_algo);
+
+/**
+ * Return MeasurementHashAlgo that is masked by the negotiated SPDM version.
+ *
+ * @param  spdm_context           A pointer to the SPDM context.
+ * @param  measurement_hash_algo  Unmasked MeasurementHashAlgo.
+ *
+ * @return The masked MeasurementHashAlgo.
+ */
+uint32_t libspdm_mask_measurement_hash_algo(libspdm_context_t *spdm_context,
+                                            uint32_t measurement_hash_algo);
+
+/**
+ * Return MeasurementSpecification that is masked by the negotiated SPDM version.
+ *
+ * @param  spdm_context               A pointer to the SPDM context.
+ * @param  measurement_specification  Unmasked MeasurementSpecification.
+ *
+ * @return The masked MeasurementSpecification.
+ */
+uint8_t libspdm_mask_measurement_specification(libspdm_context_t *spdm_context,
+                                               uint8_t measurement_specification);
+
+/**
+ * Return MELspecification that is masked by the negotiated SPDM version.
+ *
+ * @param  spdm_context       A pointer to the SPDM context.
+ * @param  mel_specification  Unmasked MELspecification.
+ *
+ * @return The masked MELspecification.
+ */
+uint8_t libspdm_mask_mel_specification(libspdm_context_t *spdm_context, uint8_t mel_specification);
+
+/**
+ * Return BaseAsymAlgo that is masked by the negotiated SPDM version.
+ *
+ * @param  spdm_context    A pointer to the SPDM context.
+ * @param  base_asym_algo  Unmasked BaseAsymAlgo.
+ *
+ * @return The masked BaseAsymAlgo.
+ */
+uint32_t libspdm_mask_base_asym_algo(libspdm_context_t *spdm_context, uint32_t base_asym_algo);
+
+/**
+ * Check if the combination of SVH ID and VendorIDLen are legal.
+ *
+ * @param  id             Registry or standards body identifier (SPDM_REGISTRY_ID_*).
+ * @param  vendor_id_len  Length, in bytes, of the VendorID field.
+ *
+ * @retval true  The ID and VendorIDLen are legal.
+ * @retval false The ID and VendorIDLen are illegal.
+ */
+bool libspdm_validate_svh_vendor_id_len(uint8_t id, uint8_t vendor_id_len);
 
 #endif /* SPDM_COMMON_LIB_INTERNAL_H */

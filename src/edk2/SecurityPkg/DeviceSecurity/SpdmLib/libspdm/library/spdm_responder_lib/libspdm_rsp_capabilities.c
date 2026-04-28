@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2024 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -71,11 +71,8 @@ static bool libspdm_check_request_flag_compatibility(uint32_t capabilities_flag,
         }
 
         /* Checks that originate from key exchange capabilities. */
-        if ((key_ex_cap == 1) || (psk_cap == 1)) {
-            /* While clearing MAC_CAP and setting ENCRYPT_CAP is legal according to DSP0274, libspdm
-             * also implements DSP0277 secure messages, which requires at least MAC_CAP to be set.
-             */
-            if (mac_cap == 0) {
+        if ((key_ex_cap == 1) || (psk_cap != 0)) {
+            if ((mac_cap == 0) && (encrypt_cap == 0)) {
                 return false;
             }
         } else {
@@ -101,8 +98,16 @@ static bool libspdm_check_request_flag_compatibility(uint32_t capabilities_flag,
             if ((cert_cap == 1) && (pub_key_id_cap == 1)) {
                 return false;
             }
+            /* If certificates or public keys are enabled then at least one of these capabilities
+             * must be enabled to use the key. */
             if ((chal_cap == 0) && (key_ex_cap == 0)) {
-                return false;
+                if (version >= SPDM_MESSAGE_VERSION_13) {
+                    if ((ep_info_cap == 0) || (ep_info_cap == 1)) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
             }
         } else {
             /* If certificates or public keys are not enabled then these capabilities
@@ -119,6 +124,9 @@ static bool libspdm_check_request_flag_compatibility(uint32_t capabilities_flag,
 
         /* Checks that originate from mutual authentication capabilities. */
         if (mut_auth_cap == 1) {
+            /* Mutual authentication with asymmetric keys can only occur through the basic mutual
+             * authentication flow (CHAL_CAP == 1) or the session-based mutual authentication flow
+             * (KEY_EX_CAP == 1). */
             if ((key_ex_cap == 0) && (chal_cap == 0)) {
                 return false;
             }
@@ -143,6 +151,13 @@ static bool libspdm_check_request_flag_compatibility(uint32_t capabilities_flag,
             return false;
         }
     }
+
+    /* Checks that are deferred to when a message is received.
+     *
+     * If the Requester supports key exchange then MAC_CAP must be set. In addition, if the
+     * negotiated SPDM version is greater than 1.1 then the negotiated opaque data format must be
+     * OpaqueDataFmt1.
+     */
 
     return true;
 }

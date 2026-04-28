@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2024 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -119,8 +119,8 @@ typedef bool (*libspdm_asym_get_public_key_from_x509_func)(const uint8_t *cert,
  *
  * @return asymmetric GET_PUBLIC_KEY_FROM_X509 function
  **/
-libspdm_asym_get_public_key_from_x509_func
-static libspdm_get_asym_get_public_key_from_x509(uint32_t base_asym_algo)
+static libspdm_asym_get_public_key_from_x509_func
+libspdm_get_asym_get_public_key_from_x509(uint32_t base_asym_algo)
 {
     switch (base_asym_algo) {
     case SPDM_ALGORITHMS_BASE_ASYM_ALGO_TPM_ALG_RSASSA_2048:
@@ -408,7 +408,7 @@ static uint32_t libspdm_get_public_key_algo_OID_len(uint32_t base_asym_algo)
  * @param[in,out]  oid_other                      Other SPDM public key encryption algorithm OID
  *                                                because of ASN1 code for integer
  *
- * @retval  true   get OID sucessful.
+ * @retval  true   get OID successful.
  * @retval  false  get OID fail.
  **/
 static bool libspdm_get_public_key_algo_OID(uint32_t base_asym_algo, uint8_t *oid,
@@ -1495,9 +1495,9 @@ bool libspdm_get_dmtf_subject_alt_name_from_bytes(
         return false;
     }
 
-    /* the src and dst adress are overlap,
-    * When the function is called by libspdm_get_dmtf_subject_alt_name.
-    * libspdm_copy_mem can not be uesed */
+    /* the src and dst address are overlap,
+     * When the function is called by libspdm_get_dmtf_subject_alt_name.
+     * libspdm_copy_mem can not be used. */
     if ((name_buffer != NULL) && (ptr != NULL)) {
         dst = (volatile uint8_t*) name_buffer;
         src = (const volatile uint8_t*) ptr;

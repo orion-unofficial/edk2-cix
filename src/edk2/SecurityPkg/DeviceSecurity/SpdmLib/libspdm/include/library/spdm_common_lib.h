@@ -1,6 +1,6 @@
 /**
  *  Copyright Notice:
- *  Copyright 2021-2024 DMTF. All rights reserved.
+ *  Copyright 2021-2025 DMTF. All rights reserved.
  *  License: BSD 3-Clause License. For full text see link: https://github.com/DMTF/libspdm/blob/main/LICENSE.md
  **/
 
@@ -17,9 +17,9 @@ extern "C" {
 #include "library/spdm_return_status.h"
 
 #define LIBSPDM_MAJOR_VERSION 0x03
-#define LIBSPDM_MINOR_VERSION 0x06
+#define LIBSPDM_MINOR_VERSION 0x07
 #define LIBSPDM_PATCH_VERSION 0x00
-#define LIBSPDM_ALPHA         0xFF
+#define LIBSPDM_ALPHA         0x00
 
 /* Connection: When a host sends messages to a device, they create a connection.
  *             The host can and only can create one connection with one device.
@@ -473,31 +473,27 @@ size_t libspdm_get_context_size(void);
 size_t libspdm_get_context_size_without_secured_context(void);
 
 /**
- * Send an SPDM transport layer message to a device.
+ * Send an SPDM transport layer message to an endpoint.
  *
- * The message is an SPDM message with transport layer wrapper,
- * or a secured SPDM message with transport layer wrapper.
+ * The message is an SPDM message with transport layer wrapper, or a secured SPDM message with
+ * transport layer wrapper.
  *
- * For requester, the message is a transport layer SPDM request.
- * For responder, the message is a transport layer SPDM response.
+ * For Requester, the message is a transport layer SPDM request.
+ * For Responder, the message is a transport layer SPDM response.
  *
  * @param  spdm_context  A pointer to the SPDM context.
- * @param  message_size  Size in bytes of the message data buffer.
+ * @param  message_size  Size, in bytes, of the message data buffer.
  * @param  message       A pointer to a destination buffer to store the message.
  *                       The caller is responsible for having either implicit or explicit ownership
  *                       of the buffer. The message pointer shall be inside of
  *                       [msg_buf_ptr, msg_buf_ptr + max_msg_size] from acquired sender_buffer.
- * @param  timeout       The timeout, in us units, to use for the execution of the message. A
- *                       timeout value of 0 means that this function will wait indefinitely for the
- *                       message to execute. If timeout is greater than zero, then this function
- *                       will return RETURN_TIMEOUT if the time required to execute the message is
- *                       greater than timeout.
+ * @param  timeout       The timeout, in microsends, to use for the execution of the message.
+ *                       If called in a Requester context then timeout is equal to RTT.
+ *                       If called in a Responder context then timeout is equal to 0 and Responder
+ *                       should not timeout when sending the message.
  *
- * @retval RETURN_SUCCESS            The SPDM message is sent successfully.
- * @retval RETURN_DEVICE_ERROR       A device error occurs when the SPDM message is sent to the device.
- * @retval RETURN_INVALID_PARAMETER  The message is NULL or the message_size is zero.
- * @retval RETURN_TIMEOUT            A timeout occurred while waiting for the SPDM message
- *                                   to execute.
+ * @retval LIBSPDM_STATUS_SUCCESS   The message was successfully sent to the receiving endpoint.
+ * @retval LIBSPDM_STATUS_SEND_FAIL Unable to send message to the receiving endpoint.
  **/
 typedef libspdm_return_t (*libspdm_device_send_message_func)(void *spdm_context,
                                                              size_t message_size,
@@ -505,37 +501,35 @@ typedef libspdm_return_t (*libspdm_device_send_message_func)(void *spdm_context,
                                                              uint64_t timeout);
 
 /**
- * Receive an SPDM transport layer message from a device.
+ * Receive an SPDM transport layer message from an endpoint.
  *
- * The message is an SPDM message with transport layer wrapper,
- * or a secured SPDM message with transport layer wrapper.
+ * The message is an SPDM message with transport layer wrapper or a secured SPDM message with
+ * transport layer wrapper.
  *
- * For requester, the message is a transport layer SPDM response.
- * For responder, the message is a transport layer SPDM request.
+ * For Requester, the message is a transport layer SPDM response.
+ * For Responder, the message is a transport layer SPDM request.
  *
  * @param  spdm_context  A pointer to the SPDM context.
- * @param  message_size  Size in bytes of the message data buffer.
+ * @param  message_size  Size, in bytes, of the message data buffer.
  * @param  message       A pointer to a destination buffer to store the message.
  *                       The caller is responsible for having either implicit or explicit ownership
  *                       of the buffer. On input, the message pointer shall be msg_buf_ptr from
  *                       acquired receiver_buffer. On output, the message pointer shall be inside of
  *                       [msg_buf_ptr, msg_buf_ptr + max_msg_size] from acquired receiver_buffer.
- * @param  timeout       The timeout, in us units, to use for the execution of the message. A
- *                       timeout value of 0 means that this function will wait indefinitely for the
- *                       message to execute. If timeout is greater than zero, then this function
- *                       will return RETURN_TIMEOUT if the time required to execute the message is
- *                       greater than timeout.
+ * @param  timeout       The timeout, in microsends, to use for the execution of the message.
+ *                       If called in a Requester context then timeout is equal to RTT plus either
+ *                       CT or ST1.
+ *                       If called in a Responder context then timeout is equal to 0 and Responder
+ *                       should not timeout when receiving the message.
  *
- * @retval RETURN_SUCCESS               The SPDM message is received successfully.
- * @retval RETURN_DEVICE_ERROR          A device error occurs when the SPDM message is received from the device.
- * @retval RETURN_INVALID_PARAMETER     The message is NULL, message_size is NULL or
- *                                     the *message_size is zero.
- * @retval RETURN_TIMEOUT              A timeout occurred while waiting for the SPDM message
- *                                     to execute.
+ * @retval LIBSPDM_STATUS_SUCCESS      The message was successfully received from the sending
+ *                                     endpoint.
+ * @retval LIBSPDM_STATUS_RECEIVE_FAIL Unable to receive message from the sending endpoint.
  **/
-typedef libspdm_return_t (*libspdm_device_receive_message_func)(
-    void *spdm_context, size_t *message_size, void **message,
-    uint64_t timeout);
+typedef libspdm_return_t (*libspdm_device_receive_message_func)(void *spdm_context,
+                                                                size_t *message_size,
+                                                                void **message,
+                                                                uint64_t timeout);
 
 /**
  * Register SPDM device input/output functions.
@@ -543,8 +537,8 @@ typedef libspdm_return_t (*libspdm_device_receive_message_func)(
  * This function must be called after libspdm_init_context, and before any SPDM communication.
  *
  * @param  spdm_context                  A pointer to the SPDM context.
- * @param  send_message                  The fuction to send an SPDM transport layer message.
- * @param  receive_message               The fuction to receive an SPDM transport layer message.
+ * @param  send_message                  The function to send an SPDM transport layer message.
+ * @param  receive_message               The function to receive an SPDM transport layer message.
  **/
 void libspdm_register_device_io_func(
     void *spdm_context, libspdm_device_send_message_func send_message,
@@ -634,10 +628,10 @@ typedef void (*libspdm_device_release_receiver_buffer_func)(void *spdm_context,
  * @param  spdm_context             A pointer to the SPDM context.
  * @param  sender_buffer_size       Size in bytes of the sender buffer.
  * @param  receiver_buffer_size     Size in bytes of the receiver buffer.
- * @param  acquire_sender_buffer    The fuction to acquire transport layer sender buffer.
- * @param  release_sender_buffer    The fuction to release transport layer sender buffer.
- * @param  acquire_receiver_buffer  The fuction to acquire transport layer receiver buffer.
- * @param  release_receiver_buffer  The fuction to release transport layer receiver buffer.
+ * @param  acquire_sender_buffer    The function to acquire transport layer sender buffer.
+ * @param  release_sender_buffer    The function to release transport layer sender buffer.
+ * @param  acquire_receiver_buffer  The function to acquire transport layer receiver buffer.
+ * @param  release_receiver_buffer  The function to release transport layer receiver buffer.
  **/
 void libspdm_register_device_buffer_func(
     void *spdm_context,
@@ -738,8 +732,8 @@ typedef uint32_t (*libspdm_transport_get_header_size_func)(void *spdm_context);
  * This function must be called after libspdm_init_context, and before any SPDM communication.
  *
  * @param  spdm_context               A pointer to the SPDM context.
- * @param  transport_encode_message   The fuction to encode an SPDM or APP message to a transport layer message.
- * @param  transport_decode_message   The fuction to decode an SPDM or APP message from a transport layer message.
+ * @param  transport_encode_message   The function to encode an SPDM or APP message to a transport layer message.
+ * @param  transport_decode_message   The function to decode an SPDM or APP message from a transport layer message.
  **/
 void libspdm_register_transport_layer_func(
     void *spdm_context,
@@ -833,7 +827,7 @@ typedef bool (*libspdm_verify_spdm_cert_chain_func)(
  * This function must be called after libspdm_init_context, and before any SPDM communication.
  *
  * @param  spdm_context        A pointer to the SPDM context.
- * @param  verify_certificate  The fuction to verify an SPDM certificate after GET_CERTIFICATE.
+ * @param  verify_certificate  The function to verify an SPDM certificate after GET_CERTIFICATE.
  **/
 void libspdm_register_verify_spdm_cert_chain_func(
     void *spdm_context,
@@ -1010,6 +1004,48 @@ typedef libspdm_return_t (*libspdm_vendor_response_callback_func)(
     void *resp_data);
 
 #endif /* LIBSPDM_ENABLE_VENDOR_DEFINED_MESSAGES */
+
+#if LIBSPDM_EVENT_RECIPIENT_SUPPORT
+/**
+ * SPDM Event callback function.
+ *
+ * When an event is received the library performs basic validation to ensure that SVH ID and SVH
+ * VendorIDLen are legal. If the event is of a DMTF event type then the library will ensure that
+ * EventTypeId and EventDetailLen are legal. If a SEND_EVENT message contains multiple events then
+ * the library will call this function with sequentially-increasing Event Instance ID.
+ *
+ * @param spdm_context       A pointer to the SPDM context.
+ * @param session_id         Secure session ID.
+ * @param event_instance_id  Counter that increases by one for each event.
+ * @param svh_id             Registry or standards body identifier (SPDM_REGISTRY_ID_*).
+ * @param svh_vendor_id_len  Length, in bytes, of the svh_vendor_id field.
+ * @param svh_vendor_id      Vendor ID assigned by the Registry or Standards Body. If the value of
+ *                           svh_vendor_id_len is 0 then this is NULL.
+ * @param event_type_id      Event type identifier. If svh_id is SPDM_REGISTRY_ID_ DMTF then this is
+ *                           one of the SPDM_DMTF_EVENT_TYPE_* macros.
+ * @param event_detail_len   Size, in bytes, of event_detail.
+ * @param event_detail       Details of the event.
+ **/
+typedef libspdm_return_t (*libspdm_process_event_func)(void *spdm_context,
+                                                       uint32_t session_id,
+                                                       uint32_t event_instance_id,
+                                                       uint8_t svh_id,
+                                                       uint8_t svh_vendor_id_len,
+                                                       void *svh_vendor_id,
+                                                       uint16_t event_type_id,
+                                                       uint16_t event_detail_len,
+                                                       void *event_detail);
+
+/**
+ * Register callback to process SPDM events.
+ *
+ * @param spdm_context       A pointer to the SPDM context.
+ * @param process_event_func Function that processes individual SPDM events. If NULL then function
+ *                           will not be called as events are processed.
+ **/
+void libspdm_register_event_callback(void *spdm_context,
+                                     libspdm_process_event_func process_event_func);
+#endif /* LIBSPDM_EVENT_RECIPIENT_SUPPORT */
 
 #ifdef __cplusplus
 }

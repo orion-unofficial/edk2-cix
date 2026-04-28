@@ -11,7 +11,6 @@ import textwrap
 
 import pytest
 
-from cryptography import utils, x509
 from cryptography.exceptions import InternalError, _Reasons
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.backend import backend
@@ -35,7 +34,6 @@ from ...utils import (
     load_vectors_from_file,
     raises_unsupported_algorithm,
 )
-from ...x509.test_x509 import _load_cert
 
 
 def skip_if_libre_ssl(openssl_version):
@@ -289,7 +287,7 @@ class TestOpenSSLRandomEngine:
         if sys.platform.startswith("linux"):
             assert name in ["getrandom", "/dev/urandom"]
         if sys.platform == "darwin":
-            assert name in ["getentropy", "/dev/urandom"]
+            assert name in ["getentropy"]
         if sys.platform == "win32":
             assert name == "CryptGenRandom"
 
@@ -479,7 +477,9 @@ class TestOpenSSLSerializationWithOpenSSL:
     def test_unsupported_evp_pkey_type(self):
         key = backend._create_evp_pkey_gc()
         with raises_unsupported_algorithm(None):
-            backend._evp_pkey_to_private_key(key)
+            backend._evp_pkey_to_private_key(
+                key, unsafe_skip_rsa_key_validation=False
+            )
         with raises_unsupported_algorithm(None):
             backend._evp_pkey_to_public_key(key)
 
@@ -495,7 +495,9 @@ class TestOpenSSLSerializationWithOpenSSL:
                 ),
                 lambda pemfile: (
                     backend.load_pem_private_key(
-                        pemfile.read().encode(), password
+                        pemfile.read().encode(),
+                        password,
+                        unsafe_skip_rsa_key_validation=False,
                     )
                 ),
             )
@@ -599,55 +601,3 @@ class TestOpenSSLDHSerialization:
         )
         with pytest.raises(ValueError):
             loader_func(key_bytes, backend)
-
-
-def test_pyopenssl_cert_fallback():
-    cert = _load_cert(
-        os.path.join("x509", "cryptography.io.pem"),
-        x509.load_pem_x509_certificate,
-    )
-    x509_ossl = None
-    with pytest.warns(utils.CryptographyDeprecationWarning):
-        x509_ossl = cert._x509  # type:ignore[attr-defined]
-    assert x509_ossl is not None
-
-    from cryptography.hazmat.backends.openssl.x509 import _Certificate
-
-    with pytest.warns(utils.CryptographyDeprecationWarning):
-        _Certificate(backend, x509_ossl)
-
-
-def test_pyopenssl_csr_fallback():
-    cert = _load_cert(
-        os.path.join("x509", "requests", "rsa_sha256.pem"),
-        x509.load_pem_x509_csr,
-    )
-    req_ossl = None
-    with pytest.warns(utils.CryptographyDeprecationWarning):
-        req_ossl = cert._x509_req  # type:ignore[attr-defined]
-    assert req_ossl is not None
-
-    from cryptography.hazmat.backends.openssl.x509 import (
-        _CertificateSigningRequest,
-    )
-
-    with pytest.warns(utils.CryptographyDeprecationWarning):
-        _CertificateSigningRequest(backend, req_ossl)
-
-
-def test_pyopenssl_crl_fallback():
-    cert = _load_cert(
-        os.path.join("x509", "PKITS_data", "crls", "GoodCACRL.crl"),
-        x509.load_der_x509_crl,
-    )
-    req_crl = None
-    with pytest.warns(utils.CryptographyDeprecationWarning):
-        req_crl = cert._x509_crl  # type:ignore[attr-defined]
-    assert req_crl is not None
-
-    from cryptography.hazmat.backends.openssl.x509 import (
-        _CertificateRevocationList,
-    )
-
-    with pytest.warns(utils.CryptographyDeprecationWarning):
-        _CertificateRevocationList(backend, req_crl)
