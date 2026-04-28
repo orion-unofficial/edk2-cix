@@ -1,5 +1,5 @@
 This directory materialises the curated CIX V1.2 source set used by
-`CIX_RELEASE=1.2` custom builds.
+`CIX_RELEASE=v1.2` custom builds.
 
 It intentionally combines:
 

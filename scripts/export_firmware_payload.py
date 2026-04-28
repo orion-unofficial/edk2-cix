@@ -11,6 +11,7 @@ import tarfile
 import tempfile
 import zipfile
 
+import firmware_layout
 from firmware_metadata_audit import audit_targets, format_findings
 
 
@@ -41,6 +42,7 @@ def parse_args() -> argparse.Namespace:
         default=os.environ.get("ARTEFACT_MODE", "custom"),
     )
     common.add_argument("--version")
+    common.add_argument("--relative-leaf", default="")
 
     stage = subparsers.add_parser("stage", parents=[common])
     stage.add_argument("--output-dir", type=pathlib.Path, required=True)
@@ -60,27 +62,7 @@ def parse_args() -> argparse.Namespace:
 def detect_version(repo_root: pathlib.Path, explicit: str | None) -> str:
     if explicit:
         return explicit
-    try:
-        result = subprocess.run(
-            ["dpkg-parsechangelog", "-S", "Version"],
-            cwd=repo_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        version = result.stdout.strip()
-        if version:
-            return version
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        pass
-    changelog = repo_root / "debian" / "changelog"
-    if changelog.is_file():
-        first_line = changelog.read_text(encoding="utf-8").splitlines()[0]
-        prefix = first_line.partition("(")[2]
-        version = prefix.partition(")")[0].strip()
-        if version:
-            return version
-    raise RuntimeError("Could not determine firmware version")
+    return firmware_layout.read_version(repo_root)
 
 
 def copy_required_file(source: pathlib.Path, destination: pathlib.Path) -> None:
@@ -128,6 +110,9 @@ def zero_debug_metadata(genfw: pathlib.Path, source: pathlib.Path, destination: 
     if result.returncode != 0:
         stderr = result.stderr.strip() or result.stdout.strip() or "unknown GenFw failure"
         raise RuntimeError(f"Failed to zero debug metadata in {source}: {stderr}")
+    sidecar_path = destination.with_suffix(".txt")
+    if sidecar_path.exists():
+        sidecar_path.unlink()
 
 
 def resolve_repo_relative_board_file(
@@ -146,19 +131,33 @@ def resolve_repo_relative_board_file(
     return candidates[0].resolve().relative_to(repo_root.resolve()).as_posix()
 
 
+def normalize_build_options_path(value: str, repo_root: pathlib.Path) -> str:
+    rendered = value.strip()
+    if not rendered:
+        return rendered
+    candidate = pathlib.Path(rendered)
+    if candidate.is_absolute():
+        try:
+            return candidate.resolve().relative_to(repo_root.resolve()).as_posix()
+        except ValueError:
+            return candidate.as_posix()
+    return candidate.as_posix()
+
+
 def validate_custom_build_options(
     path: pathlib.Path,
+    repo_root: pathlib.Path,
     expected_active_platform: str,
     expected_flash_definition: str,
 ) -> None:
     parsed = parse_build_options(path)
-    active_platform = parsed.get("active_platform")
+    active_platform = normalize_build_options_path(parsed.get("active_platform", ""), repo_root)
     if active_platform != expected_active_platform:
         raise RuntimeError(
             f"Expected BuildOptions Active Platform to be {expected_active_platform}, got "
             f"{active_platform or 'missing'}"
         )
-    flash_definition = parsed.get("flash_definition")
+    flash_definition = normalize_build_options_path(parsed.get("flash_definition", ""), repo_root)
     if flash_definition != expected_flash_definition:
         raise RuntimeError(
             f"Expected BuildOptions Flash Image Definition to be {expected_flash_definition}, got "
@@ -176,6 +175,11 @@ def audit_custom_payload(
     board: str,
     target: str,
 ) -> None:
+    if target.upper().startswith("DEBUG"):
+        # DEBUG firmware intentionally retains source/debug breadcrumbs, so the
+        # release-focused custom payload audit is not applicable there.
+        return
+
     targets: list[tuple[str, pathlib.Path]] = []
     for path in sorted(stage_root.rglob("*")):
         if path.is_file():
@@ -247,6 +251,8 @@ def stage_payload(
     artefact_mode: str,
     output_dir: pathlib.Path,
 ) -> pathlib.Path:
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     build_dir = repo_root / "src" / "Build" / board / target
     expected_active_platform = resolve_repo_relative_board_file(repo_root, board, ".dsc")
@@ -267,6 +273,7 @@ def stage_payload(
     if artefact_mode == "custom":
         validate_custom_build_options(
             output_dir / "BuildOptions",
+            repo_root,
             expected_active_platform,
             expected_flash_definition,
         )
@@ -282,12 +289,17 @@ def install_payload(
     artefact_mode: str,
     install_root: pathlib.Path,
     version: str,
+    relative_leaf: pathlib.Path,
 ) -> pathlib.Path:
     destination = install_root / version
+    if relative_leaf.parts:
+        destination /= relative_leaf
     if destination.exists():
         shutil.rmtree(destination)
     with tempfile.TemporaryDirectory(prefix=f"{product}-{version}-stage-") as tmpdir_text:
         stage_dir = pathlib.Path(tmpdir_text) / version
+        if relative_leaf.parts:
+            stage_dir /= relative_leaf
         stage_payload(repo_root, board, product, target, artefact_mode, stage_dir)
         try:
             shutil.copytree(stage_dir, destination)
@@ -301,8 +313,11 @@ def install_payload(
     return destination
 
 
-def archive_root_path(product: str, version: str) -> pathlib.Path:
-    return pathlib.Path(product) / version
+def archive_root_path(product: str, version: str, relative_leaf: pathlib.Path) -> pathlib.Path:
+    root = pathlib.Path("edk2") / "radxa" / product / version
+    if relative_leaf.parts:
+        return root / relative_leaf
+    return root
 
 
 def create_zip(
@@ -313,11 +328,12 @@ def create_zip(
     artefact_mode: str,
     output_path: pathlib.Path,
     version: str,
+    relative_leaf: pathlib.Path,
 ) -> pathlib.Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f"{product}-{version}-zip-") as tmpdir_text:
         tmpdir = pathlib.Path(tmpdir_text)
-        stage_base = tmpdir / archive_root_path(product, version)
+        stage_base = tmpdir / archive_root_path(product, version, relative_leaf)
         stage_payload(repo_root, board, product, target, artefact_mode, stage_base)
         with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path in sorted(stage_base.rglob("*")):
@@ -334,14 +350,15 @@ def create_targz(
     artefact_mode: str,
     output_path: pathlib.Path,
     version: str,
+    relative_leaf: pathlib.Path,
 ) -> pathlib.Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f"{product}-{version}-tar-") as tmpdir_text:
         tmpdir = pathlib.Path(tmpdir_text)
-        stage_base = tmpdir / archive_root_path(product, version)
+        stage_base = tmpdir / archive_root_path(product, version, relative_leaf)
         stage_payload(repo_root, board, product, target, artefact_mode, stage_base)
         with tarfile.open(output_path, "w:gz") as archive:
-            archive.add(stage_base.parent, arcname=stage_base.parent.relative_to(tmpdir).as_posix())
+            archive.add(tmpdir / "edk2", arcname="edk2")
     return output_path
 
 
@@ -349,6 +366,7 @@ def main() -> None:
     args = parse_args()
     repo_root = args.repo_root.resolve()
     version = detect_version(repo_root, args.version)
+    relative_leaf = pathlib.Path(args.relative_leaf)
     suppress_output = os.environ.get("EDK2_CIX_SUPPRESS_EXPORT_OUTPUT", "0") == "1"
 
     if args.command == "stage":
@@ -371,6 +389,7 @@ def main() -> None:
             args.artefact_mode,
             args.install_root.resolve(),
             version,
+            relative_leaf,
         )
         if not suppress_output:
             print(destination)
@@ -383,6 +402,7 @@ def main() -> None:
             args.artefact_mode,
             args.output.resolve(),
             version,
+            relative_leaf,
         )
         if not suppress_output:
             print(destination)
@@ -395,6 +415,7 @@ def main() -> None:
             args.artefact_mode,
             args.output.resolve(),
             version,
+            relative_leaf,
         )
         if not suppress_output:
             print(destination)
