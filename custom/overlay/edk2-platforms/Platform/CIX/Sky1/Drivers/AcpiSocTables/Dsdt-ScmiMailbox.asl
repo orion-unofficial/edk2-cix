@@ -254,7 +254,7 @@ Device(PMMX){
     DAT0 = Arg0
     MSID = SCMI_PD_POWER_STATE_GET
     PRID = SCMI_PROTOCOL_ID_POWER_DOMAIN
-    //Process Requess
+    //Process Requests
     MAILBOX_SCMI_PROCESS
     //Process response
     Return(RESP)
@@ -269,7 +269,7 @@ Device(PMMX){
     DAT1 = Arg1
     MSID = SCMI_PERF_DESCRIBE_LEVELS
     PRID = SCMI_PROTOCOL_ID_PERF
-    //Process Requess
+    //Process Requests
     MAILBOX_SCMI_PROCESS
     //Process response
     Return(RESP)
@@ -285,7 +285,7 @@ Device(PMMX){
     //Message Header
     MSID = SCMI_CLOCK_RATE_GET
     PRID = SCMI_PROTOCOL_ID_CLOCK
-    //Process Requess
+    //Process Requests
     MAILBOX_SCMI_PROCESS
     //Process response
     Return(RESP)
@@ -379,7 +379,7 @@ Device(PMMX){
     LENG = 0x8
     //Message Header
     MHED = SCMI_MESSAGE_HEADER_FAN_MODE_SET
-    //Process Requess
+    //Process Requests
     CIX_MAILBOX_SCMI_PROCESS
     //Process response
     Return(RESP)
