@@ -11,28 +11,35 @@ is, of course, to actually do the migration work.
 Limitations relevant for G1 (performing crypto operations)
 ==========================================================
 
-Restartable ECC operations
---------------------------
+Executive summary
+-----------------
 
-There is currently no support for that in PSA at all, but it will be added at
-some point, see <https://github.com/orgs/Mbed-TLS/projects/1#column-18816849>.
+- Restartable/interruptible ECC operations: some operations (`sign_hash`) are
+  already supported in PSA, but not used by TLS. The remaining operations
+(ECDH `key_agreement` and `export_public`) will be implemented in 4.0 or 4.x,
+and used by TLS in 4.x.
+- Arbitrary parameters for FFDH: use in TLS will be dropped in 4.0.
+- RSA-PSS parameters: already implemented safe though arguably non-compliant
+  solution in Mbed TLS 3.4, no complaints so far.
 
-Currently, `MBEDTLS_USE_PSA_CRYPTO` is simply incompatible with
-`MBEDTLS_ECP_RESTARTABLE`.
+Restartable (aka interruptible) ECC operations
+----------------------------------------------
 
-Things that are in the API but not implemented yet
---------------------------------------------------
+Support for interruptible ECDSA sign/verify was added to PSA in Mbed TLS 3.4.
+However, support for interruptible ECDH is not present yet. Also, PK, X.509 and
+TLS have not yet been adapted to take advantage of the new PSA APIs. See:
+- <https://github.com/Mbed-TLS/mbedtls/issues/7292>;
+- <https://github.com/Mbed-TLS/mbedtls/issues/7293>;
+- <https://github.com/Mbed-TLS/mbedtls/issues/7294>.
 
-PSA Crypto has an API for FFDH, but it's not implemented in Mbed TLS yet.
-(Regarding FFDH, see the next section as well.) See issue [3261][ffdh] on
-github.
-
-[ffdh]: https://github.com/Mbed-TLS/mbedtls/issues/3261
+Currently, when `MBEDTLS_USE_PSA_CRYPTO` and `MBEDTLS_ECP_RESTARTABLE` are
+both enabled, some operations that should be restartable are not (ECDH in TLS
+1.2 clients using ECDHE-ECDSA), as they are using PSA instead, and some
+operations that should use PSA do not (signature generation & verification) as
+they use the legacy API instead, in order to get restartable behaviour.
 
 Arbitrary parameters for FFDH
 -----------------------------
-
-(See also the first paragraph in the previous section.)
 
 Currently, the PSA Crypto API can only perform FFDH with a limited set of
 well-known parameters (some of them defined in the spec, but implementations
@@ -74,6 +81,10 @@ perhaps the least unsatisfying option in terms of result; it's also probably
 the one that requires the most work, but it would deliver value beyond PSA
 migration by implementing RFC 7919. (Implementing RFC 7919 could be done any
 time; making it mandatory can only be done in 4.0 or another major version.)
+
+As of early 2023, the plan is to go with option 2 in Mbed TLS 4.0, which has
+been announced on the mailing-list and got no push-back, see
+<https://github.com/Mbed-TLS/mbedtls/issues/5278>.
 
 RSA-PSS parameters
 ------------------
@@ -317,6 +328,8 @@ probably not acceptable.
 4. Request an extension to the PSA Crypto API and use one of the above options
    in the meantime. Such an extension seems inconvenient and not motivated by
 strong security arguments, so it's unclear whether it would be accepted.
+
+Since Mbed TLS 3.4, option 1 is implemented.
 
 Limitations relevant for G2 (isolation of long-term secrets)
 ============================================================

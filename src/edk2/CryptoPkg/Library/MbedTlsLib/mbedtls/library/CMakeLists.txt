@@ -1,7 +1,7 @@
-option(USE_STATIC_MBEDTLS_LIBRARY "Build mbed TLS static library." ON)
-option(USE_SHARED_MBEDTLS_LIBRARY "Build mbed TLS shared library." OFF)
-option(LINK_WITH_PTHREAD "Explicitly link mbed TLS library to pthread." OFF)
-option(LINK_WITH_TRUSTED_STORAGE "Explicitly link mbed TLS library to trusted_storage." OFF)
+option(USE_STATIC_MBEDTLS_LIBRARY "Build Mbed TLS static library." ON)
+option(USE_SHARED_MBEDTLS_LIBRARY "Build Mbed TLS shared library." OFF)
+option(LINK_WITH_PTHREAD "Explicitly link Mbed TLS library to pthread." OFF)
+option(LINK_WITH_TRUSTED_STORAGE "Explicitly link Mbed TLS library to trusted_storage." OFF)
 
 # Set the project root directory if it's not already defined, as may happen if
 # the library folder is included directly by a parent project, without
@@ -13,6 +13,7 @@ endif()
 set(src_crypto
     aes.c
     aesni.c
+    aesce.c
     aria.c
     asn1parse.c
     asn1write.c
@@ -21,6 +22,7 @@ set(src_crypto
     bignum_core.c
     bignum_mod.c
     bignum_mod_raw.c
+    block_cipher.c
     camellia.c
     ccm.c
     chacha20.c
@@ -37,11 +39,11 @@ set(src_crypto
     ecjpake.c
     ecp.c
     ecp_curves.c
+    ecp_curves_new.c
     entropy.c
     entropy_poll.c
     error.c
     gcm.c
-    hash_info.c
     hkdf.c
     hmac_drbg.c
     lmots.c
@@ -54,6 +56,7 @@ set(src_crypto
     padlock.c
     pem.c
     pk.c
+    pk_ecc.c
     pk_wrap.c
     pkcs12.c
     pkcs5.c
@@ -66,8 +69,9 @@ set(src_crypto
     psa_crypto_aead.c
     psa_crypto_cipher.c
     psa_crypto_client.c
-    psa_crypto_driver_wrappers.c
+    psa_crypto_driver_wrappers_no_static.c
     psa_crypto_ecp.c
+    psa_crypto_ffdh.c
     psa_crypto_hash.c
     psa_crypto_mac.c
     psa_crypto_pake.c
@@ -76,12 +80,14 @@ set(src_crypto
     psa_crypto_slot_management.c
     psa_crypto_storage.c
     psa_its_file.c
+    psa_util.c
     ripemd160.c
     rsa.c
     rsa_alt_helpers.c
     sha1.c
     sha256.c
     sha512.c
+    sha3.c
     threading.c
     timing.c
     version.c
@@ -95,6 +101,7 @@ set(src_x509
     x509_crl.c
     x509_crt.c
     x509_csr.c
+    x509write.c
     x509write_crt.c
     x509write_csr.c
 )
@@ -159,40 +166,48 @@ if(GEN_FILES)
             ${CMAKE_CURRENT_BINARY_DIR}/ssl_debug_helpers_generated.c
         COMMAND
             ${MBEDTLS_PYTHON_EXECUTABLE}
-                ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/generate_ssl_debug_helpers.py
+                ${CMAKE_CURRENT_SOURCE_DIR}/../framework/scripts/generate_ssl_debug_helpers.py
                 --mbedtls-root ${CMAKE_CURRENT_SOURCE_DIR}/..
                 ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS
-            ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/generate_ssl_debug_helpers.py
+            ${CMAKE_CURRENT_SOURCE_DIR}/../framework/scripts/generate_ssl_debug_helpers.py
             ${error_headers}
     )
 
     add_custom_command(
         OUTPUT
-            ${CMAKE_CURRENT_BINARY_DIR}/psa_crypto_driver_wrappers.c
+            ${CMAKE_CURRENT_BINARY_DIR}/psa_crypto_driver_wrappers.h
+            ${CMAKE_CURRENT_BINARY_DIR}/psa_crypto_driver_wrappers_no_static.c
         COMMAND
             ${MBEDTLS_PYTHON_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/generate_driver_wrappers.py
                 ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS
             ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/generate_driver_wrappers.py
-            ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/data_files/driver_templates/psa_crypto_driver_wrappers.c.jinja
+            ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/data_files/driver_templates/psa_crypto_driver_wrappers.h.jinja
+            ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/data_files/driver_templates/psa_crypto_driver_wrappers_no_static.c.jinja
     )
 
+    add_custom_target(${MBEDTLS_TARGET_PREFIX}mbedcrypto_generated_files_target
+        DEPENDS
+            ${CMAKE_CURRENT_BINARY_DIR}/error.c
+            ${CMAKE_CURRENT_BINARY_DIR}/version_features.c
+            ${CMAKE_CURRENT_BINARY_DIR}/psa_crypto_driver_wrappers.h
+            ${CMAKE_CURRENT_BINARY_DIR}/psa_crypto_driver_wrappers_no_static.c
+    )
 
-else()
-    link_to_source(error.c)
-    link_to_source(version_features.c)
-    link_to_source(ssl_debug_helpers_generated.c)
-    link_to_source(psa_crypto_driver_wrappers.c)
+    add_custom_target(${MBEDTLS_TARGET_PREFIX}mbedtls_generated_files_target
+        DEPENDS
+            ${CMAKE_CURRENT_BINARY_DIR}/ssl_debug_helpers_generated.c
+    )
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wmissing-declarations -Wmissing-prototypes")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wmissing-declarations")
 endif(CMAKE_COMPILER_IS_GNUCC)
 
 if(CMAKE_COMPILER_IS_CLANG)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wmissing-declarations -Wmissing-prototypes -Wdocumentation -Wno-documentation-deprecated-sync -Wunreachable-code")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wmissing-declarations -Wdocumentation -Wno-documentation-deprecated-sync -Wunreachable-code")
 endif(CMAKE_COMPILER_IS_CLANG)
 
 if(CMAKE_COMPILER_IS_MSVC)
@@ -208,14 +223,16 @@ if(CMAKE_COMPILER_IS_MSVC)
 endif()
 
 if(WIN32)
-    set(libs ${libs} ws2_32)
+    set(libs ${libs} ws2_32 bcrypt)
 endif(WIN32)
 
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    SET(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
-    SET(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
-    SET(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
-    SET(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+if(CMAKE_C_COMPILER_ID MATCHES "AppleClang")
+    set(CMAKE_C_ARCHIVE_CREATE   "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
+    set(CMAKE_C_ARCHIVE_FINISH   "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
+endif()
+if(CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+    set(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> Scr <TARGET> <LINK_FLAGS> <OBJECTS>")
+    set(CMAKE_CXX_ARCHIVE_FINISH "<CMAKE_RANLIB> -no_warning_for_no_symbols -c <TARGET>")
 endif()
 
 if(HAIKU)
@@ -223,7 +240,7 @@ if(HAIKU)
 endif(HAIKU)
 
 if(LINK_WITH_PTHREAD)
-    set(libs ${libs} pthread)
+    set(libs ${libs} ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 if(LINK_WITH_TRUSTED_STORAGE)
@@ -261,13 +278,20 @@ if(USE_STATIC_MBEDTLS_LIBRARY AND USE_SHARED_MBEDTLS_LIBRARY)
         ${mbedtls_static_target})
 endif()
 
+set(p256m_target "${MBEDTLS_TARGET_PREFIX}p256m")
+set(everest_target "${MBEDTLS_TARGET_PREFIX}everest")
+
 if(USE_STATIC_MBEDTLS_LIBRARY)
     add_library(${mbedcrypto_static_target} STATIC ${src_crypto})
     set_target_properties(${mbedcrypto_static_target} PROPERTIES OUTPUT_NAME mbedcrypto)
     target_link_libraries(${mbedcrypto_static_target} PUBLIC ${libs})
 
-    if(TARGET everest)
-        target_link_libraries(${mbedcrypto_static_target} PUBLIC everest)
+    if(TARGET ${everest_target})
+        target_link_libraries(${mbedcrypto_static_target} PUBLIC ${everest_target})
+    endif()
+
+    if(TARGET ${p256m_target})
+        target_link_libraries(${mbedcrypto_static_target} PUBLIC ${p256m_target})
     endif()
 
     add_library(${mbedx509_static_target} STATIC ${src_x509})
@@ -277,25 +301,43 @@ if(USE_STATIC_MBEDTLS_LIBRARY)
     add_library(${mbedtls_static_target} STATIC ${src_tls})
     set_target_properties(${mbedtls_static_target} PROPERTIES OUTPUT_NAME mbedtls)
     target_link_libraries(${mbedtls_static_target} PUBLIC ${libs} ${mbedx509_static_target})
+
+    if(GEN_FILES)
+        add_dependencies(${mbedcrypto_static_target}
+            ${MBEDTLS_TARGET_PREFIX}mbedcrypto_generated_files_target)
+        add_dependencies(${mbedtls_static_target}
+            ${MBEDTLS_TARGET_PREFIX}mbedtls_generated_files_target)
+    endif()
 endif(USE_STATIC_MBEDTLS_LIBRARY)
 
 if(USE_SHARED_MBEDTLS_LIBRARY)
     set(CMAKE_LIBRARY_PATH ${CMAKE_CURRENT_BINARY_DIR})
     add_library(${mbedcrypto_target} SHARED ${src_crypto})
-    set_target_properties(${mbedcrypto_target} PROPERTIES VERSION 3.3.0 SOVERSION 13)
+    set_target_properties(${mbedcrypto_target} PROPERTIES VERSION 3.6.5 SOVERSION 16)
     target_link_libraries(${mbedcrypto_target} PUBLIC ${libs})
 
-    if(TARGET everest)
-        target_link_libraries(${mbedcrypto_target} PUBLIC everest)
+    if(TARGET ${everest_target})
+        target_link_libraries(${mbedcrypto_target} PUBLIC ${everest_target})
+    endif()
+
+    if(TARGET ${p256m_target})
+        target_link_libraries(${mbedcrypto_target} PUBLIC ${p256m_target})
     endif()
 
     add_library(${mbedx509_target} SHARED ${src_x509})
-    set_target_properties(${mbedx509_target} PROPERTIES VERSION 3.3.0 SOVERSION 4)
+    set_target_properties(${mbedx509_target} PROPERTIES VERSION 3.6.5 SOVERSION 7)
     target_link_libraries(${mbedx509_target} PUBLIC ${libs} ${mbedcrypto_target})
 
     add_library(${mbedtls_target} SHARED ${src_tls})
-    set_target_properties(${mbedtls_target} PROPERTIES VERSION 3.3.0 SOVERSION 19)
+    set_target_properties(${mbedtls_target} PROPERTIES VERSION 3.6.5 SOVERSION 21)
     target_link_libraries(${mbedtls_target} PUBLIC ${libs} ${mbedx509_target})
+
+    if(GEN_FILES)
+        add_dependencies(${mbedcrypto_target}
+            ${MBEDTLS_TARGET_PREFIX}mbedcrypto_generated_files_target)
+        add_dependencies(${mbedtls_target}
+            ${MBEDTLS_TARGET_PREFIX}mbedtls_generated_files_target)
+    endif()
 endif(USE_SHARED_MBEDTLS_LIBRARY)
 
 foreach(target IN LISTS target_libraries)
@@ -308,7 +350,18 @@ foreach(target IN LISTS target_libraries)
     target_include_directories(${target}
         PUBLIC $<BUILD_INTERFACE:${MBEDTLS_DIR}/include/>
                $<INSTALL_INTERFACE:include/>
-        PRIVATE ${MBEDTLS_DIR}/library/)
+        PRIVATE ${MBEDTLS_DIR}/library/
+                # Needed to include psa_crypto_driver_wrappers.h
+                ${CMAKE_CURRENT_BINARY_DIR})
+    # Pass-through MBEDTLS_CONFIG_FILE and MBEDTLS_USER_CONFIG_FILE
+    if(MBEDTLS_CONFIG_FILE)
+        target_compile_definitions(${target}
+            PUBLIC MBEDTLS_CONFIG_FILE="${MBEDTLS_CONFIG_FILE}")
+    endif()
+    if(MBEDTLS_USER_CONFIG_FILE)
+        target_compile_definitions(${target}
+            PUBLIC MBEDTLS_USER_CONFIG_FILE="${MBEDTLS_USER_CONFIG_FILE}")
+    endif()
     install(
         TARGETS ${target}
         EXPORT MbedTLSTargets
