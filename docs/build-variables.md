@@ -70,18 +70,54 @@ Select the default distro family used by the buildbox helpers and
 deterministic replay wrappers.
 
 - `bookworm`
-  - the default general buildbox environment on `main-monorepo`
-  - a good default for most day-to-day builds
+  - the default for `ARTEFACT_MODE=upstream`
+  - also the default for deterministic replay when you do not override it
 - `trixie`
-  - the newer Debian/toolchain family
-  - useful for testing against the newer runtime/toolchain context explicitly
+  - the default for `ARTEFACT_MODE=custom`
+  - the newer Debian/toolchain family for local feature work
 
 This does not change the firmware feature set directly. It changes the build
 environment used by the wrapper targets.
 
-Default: `bookworm`
+Default: `bookworm` for upstream and deterministic replay; `trixie` for custom
 
-### `CIX_RELEASE=1.2|v1.2`
+## Build Cache Variables
+
+These variables affect build speed, not firmware features.
+
+When `ccache` is available in the build environment, the firmware build wraps
+the EDK2 cross compiler with it automatically. If it is not available, the
+build prints a warning and continues without compiler-cache acceleration.
+
+### `CCACHE_DISABLE=1`
+
+Set the standard ccache kill switch to disable compiler-cache use. Leave it
+unset to use ccache opportunistically when it is available.
+
+Default: unset
+
+### `CCACHE_DIR=<path>`
+
+Set the managed compiler-cache directory.
+
+Default: `$(REPO_ROOT)/build-cache/ccache`
+
+### `CCACHE_WRAPPER_ROOT=<path>`
+
+Set the directory used for generated compiler-wrapper symlinks.
+
+Default: `$(REPO_ROOT)/build-cache/ccache-toolchain`
+
+### `CCACHE_BIN=<path>`
+
+Override the `ccache` executable name or path. For buildbox targets, this path
+is resolved inside the buildbox container.
+
+Default: `ccache`
+
+## Curated CIX Inputs
+
+### `CIX_RELEASE=v1.2`
 
 Set this on the custom build path to select the curated CIX early-boot path.
 
@@ -91,7 +127,7 @@ Example:
 make buildbox-firmware-build \
   ARTEFACT_MODE=custom \
   FIRMWARE_BOARD=O6 \
-  CIX_RELEASE=1.2
+  CIX_RELEASE=v1.2
 ```
 
 When you enable it, the build:
@@ -351,7 +387,7 @@ To change build verbosity, set this variable.
   - the default
   - keeps the higher-level progress output without dumping every raw EDK2
     command
-  - the curated `CIX_RELEASE=1.2` helper also keeps its TF-A and OP-TEE
+  - the curated `CIX_RELEASE=v1.2` helper also keeps its TF-A and OP-TEE
     sub-build output quiet on success in this mode
 - `V=1`
   - show raw EDK2 command lines
@@ -367,7 +403,7 @@ The most important compatibility rules are:
 - `ARTEFACT_MODE=upstream` rejects all custom-only feature variables
 - `ENABLE_CORE_ORDER=...` requires `ENABLE_FIRMWARE_FIXES=true`
 - `DEBUG_ON_UART3=true` implies `UART3_ENABLE=true`
-- `CIX_RELEASE=1.2` is custom-only and board-limited to `O6` / `O6N`
+- `CIX_RELEASE=v1.2` is custom-only and board-limited to `O6` / `O6N`
 - the `O6_SMBIOS_*` asset-tag variables are custom-only and board-limited to
   `O6`
 - `ENABLE_FIRMWARE_FIXES=true` and
@@ -418,7 +454,7 @@ make buildbox-firmware-build \
 make buildbox-firmware-build \
   ARTEFACT_MODE=custom \
   FIRMWARE_BOARD=O6 \
-  CIX_RELEASE=1.2
+  CIX_RELEASE=v1.2
 ```
 
 ### RELEASE build with verbose firmware logs on UART3
