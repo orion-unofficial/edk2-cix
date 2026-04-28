@@ -45,6 +45,7 @@
 
 [Pcd]
   gArmTokenSpaceGuid.PcdSystemProductName
+  gCixTokenSpaceGuid.PcdCustomFirmwareFixesEnable
   gEfiMdeModulePkgTokenSpaceGuid.PcdTestKeyUsed
 
 [Depex]

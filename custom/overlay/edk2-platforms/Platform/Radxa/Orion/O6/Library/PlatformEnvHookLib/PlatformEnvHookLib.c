@@ -11,6 +11,7 @@
 #include <Library/PinMuxTableLib.h>
 #include <Library/GpioLib.h>
 #include <Library/GpioTableLib.h>
+#include <Library/PcdLib.h>
 #include <Library/PlatformEnvHookLib.h>
 #include <Library/TimerLib.h>
 #include <Protocol/EcPlatformProtocol.h>
@@ -151,10 +152,6 @@ PINMUX_CFG  PinMuxCfgTable[] = {
   { S0_DOMAIN,       IO_S0_UART0_RXD,        IO_FUNC02,   PU_ENABLE,  PD_DISABLE, ST_DEFAULT, DRV_STREN_DEFAULT }, // GPIO96
   { S0_DOMAIN,       IO_S0_UART1_TXD,        IO_FUNC02,   PU_ENABLE,  PD_DISABLE, ST_DEFAULT, DRV_STREN_DEFAULT }, // GPIO99
   { S0_DOMAIN,       IO_S0_UART1_RXD,        IO_FUNC02,   PU_ENABLE,  PD_DISABLE, ST_DEFAULT, DRV_STREN_DEFAULT }, // GPIO100
-#if UART3_ENABLE
-  { S0_DOMAIN,       IO_S0_UART3_TXD,        IO_FUNC00,   PU_DEFAULT, PD_DEFAULT, ST_DEFAULT, DRV_STREN_DEFAULT }, // UART3_TXD
-  { S0_DOMAIN,       IO_S0_UART3_RXD,        IO_FUNC00,   PU_DEFAULT, PD_DEFAULT, ST_DEFAULT, DRV_STREN_DEFAULT }, // UART3_RXD
-#endif
   // NON_GMAC1
   { S0_DOMAIN,       IO_S0_GMAC1_REFCLK_25M, IO_FUNC00,   PU_ENABLE,  PD_DISABLE, ST_DEFAULT, DRV_STREN_DEFAULT }, // TPNL_INT_L
   { S0_DOMAIN,       IO_S0_GMAC1_TX_CTL,     IO_FUNC00,   PU_DEFAULT, PD_DEFAULT, ST_DEFAULT, DRV_STREN_DEFAULT }, // NFC_INT_L
@@ -222,6 +219,15 @@ InitPinmux (
   )
 {
   PinMuxInit (PinMuxCfgTable, ARRAY_SIZE (PinMuxCfgTable));
+
+  if (FixedPcdGetBool (PcdAcpiUart3Enable)) {
+    STATIC PINMUX_CFG  DebugUart3PinMuxCfgTable[] = {
+      { S0_DOMAIN, IO_S0_UART3_TXD, IO_FUNC00, PU_DEFAULT, PD_DEFAULT, ST_DEFAULT, DRV_STREN_DEFAULT }, // UART3_TXD
+      { S0_DOMAIN, IO_S0_UART3_RXD, IO_FUNC00, PU_DEFAULT, PD_DEFAULT, ST_DEFAULT, DRV_STREN_DEFAULT }  // UART3_RXD
+    };
+
+    PinMuxInit (DebugUart3PinMuxCfgTable, ARRAY_SIZE (DebugUart3PinMuxCfgTable));
+  }
 
   return EFI_SUCCESS;
 }
