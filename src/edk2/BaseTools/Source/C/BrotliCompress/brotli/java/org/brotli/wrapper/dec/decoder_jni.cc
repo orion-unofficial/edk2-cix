@@ -4,10 +4,15 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "decoder_jni.h"
+#include "decoder_jni.h"  // NOLINT: build/include
 
+#include <jni.h>
+
+#include <cstddef>
+#include <cstdint>
 #include <new>
 
+#include <brotli/shared_dictionary.h>
 #include <brotli/decode.h>
 
 namespace {

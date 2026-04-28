@@ -6,9 +6,9 @@
 
 package org.brotli.wrapper.enc;
 
-import org.brotli.enc.PreparedDictionary;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import org.brotli.enc.PreparedDictionary;
 
 /**
  * JNI wrapper for brotli encoder.
@@ -28,10 +28,12 @@ class EncoderJNI {
     FINISH
   }
 
-  private static class PreparedDictionaryImpl implements PreparedDictionary {
+  private static class PreparedDictionaryImpl implements AutoCloseable, PreparedDictionary {
     private ByteBuffer data;
+    /** Reference to (non-copied) LZ data. */
+    private ByteBuffer rawData;
 
-    private PreparedDictionaryImpl(ByteBuffer data) {
+    private PreparedDictionaryImpl(ByteBuffer data, ByteBuffer rawData) {
       this.data = data;
     }
 
@@ -41,14 +43,11 @@ class EncoderJNI {
     }
 
     @Override
-    protected void finalize() throws Throwable {
-      try {
-        ByteBuffer data = this.data;
-        this.data = null;
-        nativeDestroyDictionary(data);
-      } finally {
-        super.finalize();
-      }
+    public void close() {
+      ByteBuffer data = this.data;
+      this.data = null;
+      this.rawData = null;
+      nativeDestroyDictionary(data);
     }
   }
 
@@ -66,7 +65,7 @@ class EncoderJNI {
     if (dictionaryData == null) {
       throw new IllegalStateException("OOM");
     }
-    return new PreparedDictionaryImpl(dictionaryData);
+    return new PreparedDictionaryImpl(dictionaryData, dictionary);
   }
 
   static class Wrapper {
@@ -164,15 +163,6 @@ class EncoderJNI {
       }
       nativeDestroy(context);
       context[0] = 0;
-    }
-
-    @Override
-    protected void finalize() throws Throwable {
-      if (context[0] != 0) {
-        /* TODO(eustas): log resource leak? */
-        destroy();
-      }
-      super.finalize();
     }
   }
 }
