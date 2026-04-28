@@ -500,7 +500,7 @@ UpdateFastbootSN (
   if (!EFI_ERROR (Status)) {
     Status = gBS->LocateProtocol (&gCixFastbootInfoProtocolGuid, NULL, (VOID **)&FastbootInfo);
     if (EFI_ERROR (Status)) {
-      DEBUG ((DEBUG_ERROR, "Can not locate fastboot info protocal!\n"));
+      DEBUG ((DEBUG_ERROR, "Can not locate fastboot info protocol!\n"));
       return Status;
     }
     SysSnPtr            = AllocateZeroPool (SysSnSize+1);

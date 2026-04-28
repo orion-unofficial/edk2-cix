@@ -65,7 +65,7 @@ GetEcInfo (
     goto EndReturn;
   }
 
-  MicroSecondDelay (1000);  // here to delay 1 ms for EC responce to next call
+  MicroSecondDelay (1000);  // here to delay 1 ms for EC response to next call
 
   // skip checking Result filed of EcResponseBuffer
   // if (EcResponseBuffer->Result != 0) {
