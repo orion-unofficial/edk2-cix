@@ -9,24 +9,20 @@
 /*
   See ACPI 6.1 Spec, 6.2.11, PCI Firmware Spec 3.0, 4.5
 */
-#ifdef ENABLE_FIRMWARE_FIXES
 Name (PCDM, 0) /* PCIe device model: 0 = Linux root bridges, 1 = CIX/Cadence */
 #define PCIE_ROOT_PORT_STA(LinkOffset) \
-  If (LEqual (PCDM, 0)) { \
+  If (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) { \
+    If (LEqual (PCDM, 0)) { \
+      If (\_SB.GETV (LinkOffset)) { \
+        Return (0xF) \
+      } \
+    } \
+  } else { \
     If (\_SB.GETV (LinkOffset)) { \
       Return (0xF) \
     } \
   } \
   Return (0x0)
-#define PCIE_OSC_CONTROL_MASK  0xFD
-#else
-#define PCIE_ROOT_PORT_STA(LinkOffset) \
-  If (\_SB.GETV (LinkOffset)) { \
-    Return (0xF) \
-  } \
-  Return (0x0)
-#define PCIE_OSC_CONTROL_MASK  0x10
-#endif
 
 #define PCI_OSC_SUPPORT() \
   Name(SUPP, Zero) /* PCI _OSC Support Field value */ \
@@ -49,7 +45,11 @@ Name (PCDM, 0) /* PCIe device model: 0 = Linux root bridges, 1 = CIX/Cadence */
       }\
       \
       /* Keep SHPC masked; with firmware fixes enabled permit PME/AER/LTR. */ \
-      And(CTRL,PCIE_OSC_CONTROL_MASK,CTRL) \
+      If (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) { \
+        And(CTRL,0xFD,CTRL) \
+      } else { \
+        And(CTRL,0x10,CTRL) \
+      } \
       If(LNotEqual(Arg1,One)) { /* Unknown revision */ \
         Or(CDW1,0x08,CDW1) \
       } \
