@@ -36,6 +36,9 @@ __pycache__/
 # Local buildbox scratch state
 /.buildbox/
 
+# Managed local compiler-cache state
+/build-cache/
+
 # Local staged and packaged firmware artefacts
 /dist/
 
