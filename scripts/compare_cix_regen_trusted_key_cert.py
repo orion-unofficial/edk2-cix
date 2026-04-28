@@ -117,6 +117,13 @@ def extract_subject_pub_pem(cert_path: pathlib.Path, out_path: pathlib.Path) -> 
     out_path.write_bytes(data)
 
 
+def der_public_key_to_pem_bytes(der: bytes) -> bytes:
+    return subprocess.check_output(
+        ["openssl", "pkey", "-pubin", "-inform", "DER", "-outform", "PEM"],
+        input=der,
+    )
+
+
 def assert_pss_sha256(cert_info: str) -> None:
     required = [
         "Signature Algorithm: rsassaPss",
@@ -198,16 +205,16 @@ def compare_generate(vendor_cert: pathlib.Path, source_cert: pathlib.Path, publi
 
 
 def compare_extract(source_tool: pathlib.Path, sample_cert: pathlib.Path) -> None:
-    with tempfile.TemporaryDirectory(prefix="cix-regen-extract-") as td:
+    with tempfile.TemporaryDirectory(prefix="cix-regen-verify-") as td:
         td_path = pathlib.Path(td)
         signer_pub = td_path / "signer.pem"
-        extracted = td_path / "oem.pem"
+        expected_oem_pub = td_path / "expected-oem.pem"
         extract_subject_pub_pem(sample_cert, signer_pub)
+        expected_oem_pub.write_bytes(der_public_key_to_pem_bytes(extract_custom_extension_der(sample_cert)))
 
-        run([str(source_tool), "-p", str(signer_pub), "-v", str(sample_cert), "-o", str(extracted)])
-
-        if pem_pubkey_to_der(extracted) != extract_custom_extension_der(sample_cert):
-            raise AssertionError("source extract mode did not reproduce the embedded OEM public key")
+        result = run([str(source_tool), "-p", str(signer_pub), "-v", str(sample_cert), "-o", str(expected_oem_pub)])
+        if result.stdout != "X509_verify successful\n":
+            raise AssertionError("source verify mode did not reproduce the vendor success transcript")
 
 
 def main() -> int:
@@ -234,7 +241,7 @@ def main() -> int:
         ),
     )
     parser.add_argument("--source-tool", type=pathlib.Path, default=SOURCE_TOOL)
-    parser.add_argument("--sample-cert", type=pathlib.Path, action="append", default=[], help="Optional DER certs for extract-mode validation")
+    parser.add_argument("--sample-cert", type=pathlib.Path, action="append", default=[], help="Optional DER certs for verify-mode validation")
     parser.add_argument("--skip-build", action="store_true", help="Do not rebuild the source tool before testing")
     parser.add_argument("--skip-vendor", action="store_true", help="Skip the generate-mode vendor comparison and only validate the source tool")
     args = parser.parse_args()
