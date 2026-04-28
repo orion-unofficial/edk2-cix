@@ -40,7 +40,7 @@ STATIC CONST PLATFORM_SMBIOS_TYPE4  mPlatformDefaultType4 = {
     ProcessorFamilyIndicatorFamily2, // processor family, acquire from
                                      // field2
     2,                               // manufacturer
-    {{0,},{0.}},            // processor id - see section 7.5.3.3
+    { 0 },                  // processor id - see section 7.5.3.3
     3,                      // processor description
     { 0, 0, 0, 0, 0, 1 },   // voltage
     0,                      // external clock
