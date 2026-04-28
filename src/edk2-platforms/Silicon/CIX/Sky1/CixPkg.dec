@@ -451,10 +451,10 @@
   gCixTokenSpaceGuid.PcdAcpiI2s8Enable|FALSE|BOOLEAN|0x0000A010
   gCixTokenSpaceGuid.PcdAcpiI2s9Enable|FALSE|BOOLEAN|0x0000A011
   gCixTokenSpaceGuid.PcdAcpiHdaEnable|TRUE|BOOLEAN|0x0000A012
+  gCixTokenSpaceGuid.PcdCustomFirmwareFixesEnable|FALSE|BOOLEAN|0x0000A013
 
 [PcdsFixedAtBuild, PcdsPatchableInModule, PcdsDynamic, PcdsDynamicEx]
 
 [PcdsDynamic]
   gCixTokenSpaceGuid.PcdMailbox0Initialized|FALSE|BOOLEAN|0x00000161
   gCixTokenSpaceGuid.PcdEdpDIGONDelay|120|UINT64|0x00000401
-
