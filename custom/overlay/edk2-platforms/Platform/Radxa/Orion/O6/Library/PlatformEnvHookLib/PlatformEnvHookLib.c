@@ -187,7 +187,7 @@ InitGpio (
   IN OUT ENV_HOOK_PARAMS_DATA_BLOCK  *ConfigData
   )
 {
-  // Reset power signal incase of forced shutdown
+  // Reset power signal in case of forced shutdown
   // Based on edk2-platforms/Platform/Radxa/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.c
   GpioConfig(FixedPcdGet8(PcdPcieRootPort0PeResetPin), OUTPUT, INOUT_LOW, INTERRUPT_DISABLE, INTERRUPT_TYPE_DEFAULT);
   GpioConfig(FixedPcdGet8(PcdPcieRootPort1PeResetPin), OUTPUT, INOUT_LOW, INTERRUPT_DISABLE, INTERRUPT_TYPE_DEFAULT);
