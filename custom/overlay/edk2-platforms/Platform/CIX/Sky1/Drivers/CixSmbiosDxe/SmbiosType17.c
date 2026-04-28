@@ -86,7 +86,7 @@ STATIC CIX_TYPE17  mCixDefaultType17 = {
     MemoryTypeUnknown,                               // memory type
     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }, // unbuffered
     0,                                               // speed
-    0,                                               // varies between diffrent production runs
+    0,                                               // varies between different production runs
     0,                                               // serial
     0,                                               // asset tag
     0,                                               // part number
