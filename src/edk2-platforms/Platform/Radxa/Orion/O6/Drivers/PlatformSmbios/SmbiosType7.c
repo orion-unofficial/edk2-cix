@@ -38,16 +38,16 @@ STATIC CONST PLATFORM_SMBIOS_TYPE7  mArmDefaultType7_l1i = {
     },
     L1Instruction,
     0x380,                      // L1 enabled, unknown WB
-    64,                         // 64k i cache max
-    64,                         // 64k installed
+    { 64, 0 },                  // 64k i cache max
+    { 64, 0 },                  // 64k installed
     { 0, 1 },                   // SRAM type
     { 0, 1 },                   // SRAM type
     0,                          // unkown speed
     CacheErrorParity,           // parity checking
     CacheTypeInstruction,       // instruction cache
     CacheAssociativity2Way,     // two way
-    64,                         // 64k i cache max
-    64,                         // 64k installed
+    { 64, 0 },                  // 64k i cache max
+    { 64, 0 },                  // 64k installed
   },
   TYPE7_STRINGS
 };
@@ -62,16 +62,16 @@ STATIC CONST PLATFORM_SMBIOS_TYPE7  mArmDefaultType7_l1d = {
     },
     L1Data,
     0x180,                      // L1 enabled, WB
-    64,                         // 64k d cache max
-    64,                         // 64k installed
+    { 64, 0 },                  // 64k d cache max
+    { 64, 0 },                  // 64k installed
     { 0, 1 },                   // SRAM type
     { 0, 1 },                   // SRAM type
     0,                          // unkown speed
     CacheErrorSingleBit,        // ECC checking
     CacheTypeData,              // instruction cache
     CacheAssociativity4Way,     // four way associative
-    64,                         // 64k d cache max
-    64,                         // 64k installed
+    { 64, 0 },                  // 64k d cache max
+    { 64, 0 },                  // 64k installed
   },
   TYPE7_STRINGS
 };
@@ -86,16 +86,16 @@ STATIC CONST PLATFORM_SMBIOS_TYPE7  mArmDefaultType7_l2 = {
     },
     L2,
     0x181,                      // L2 enabled, WB
-    512,                        // cache max
-    512,                        // installed
+    { 512, 0 },                 // cache max
+    { 512, 0 },                 // installed
     { 0, 1 },                   // SRAM type
     { 0, 1 },                   // SRAM type
     0,                          // unkown speed
     CacheErrorSingleBit,        // ECC checking
     CacheTypeUnified,           // instruction cache
     CacheAssociativity16Way,    // 16 way associative
-    512,                        // cache max
-    512,                        // installed
+    { 512, 0 },                 // cache max
+    { 512, 0 },                 // installed
   },
   TYPE7_STRINGS
 };
@@ -110,16 +110,16 @@ STATIC CONST PLATFORM_SMBIOS_TYPE7  mArmDefaultType7_l3 = {
     },
     L3,
     0x182,                      // L3 enabled, WB
-    12288,                      // cache max
-    12288,                      // installed
+    { 12288, 0 },               // cache max
+    { 12288, 0 },               // installed
     { 0, 1 },                   // SRAM type
     { 0, 1 },                   // SRAM type
     0,                          // unkown speed
     CacheErrorUnknown,          // ECC checking
     CacheTypeUnknown,           // instruction cache
     CacheAssociativityUnknown,  // unknown associative
-    12288,                      // cache max
-    12288,                      // installed
+    { 12288, 0 },               // cache max
+    { 12288, 0 },               // installed
   },
   TYPE7_STRINGS
 };
