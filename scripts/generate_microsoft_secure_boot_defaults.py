@@ -320,7 +320,11 @@ def main() -> int:
     for name in sorted(payloads):
         print(args.output_dir.resolve() / name)
     if not changed_paths:
-        print("Microsoft Secure Boot payloads already matched manifest.lock.json.", file=sys.stderr)
+        payload_names = ", ".join(sorted(payloads))
+        print(
+            f"Microsoft Secure Boot payloads already matched manifest.lock.json: {payload_names}.",
+            file=sys.stderr,
+        )
     return 0
 
 
