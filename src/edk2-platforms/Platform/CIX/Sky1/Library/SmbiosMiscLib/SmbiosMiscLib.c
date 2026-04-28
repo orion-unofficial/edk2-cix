@@ -56,6 +56,51 @@ typedef enum {
   CacheLocationMax
 } CACHE_LOCATION;
 
+STATIC
+UINT64
+DecodeSmbiosCacheSizeKiB (
+  IN SMBIOS_CACHE_SIZE    CacheSize16,
+  IN SMBIOS_CACHE_SIZE_2  CacheSize32
+  )
+{
+  if (CacheSize32.Size != 0) {
+    return CacheSize32.Granularity64K ? ((UINT64)CacheSize32.Size * 64) : (UINT64)CacheSize32.Size;
+  }
+
+  return CacheSize16.Granularity64K ? ((UINT64)CacheSize16.Size * 64) : (UINT64)CacheSize16.Size;
+}
+
+STATIC
+VOID
+EncodeSmbiosCacheSizeKiB (
+  IN  UINT64               CacheSizeKiB,
+  OUT SMBIOS_CACHE_SIZE    *CacheSize16,
+  OUT SMBIOS_CACHE_SIZE_2  *CacheSize32
+  )
+{
+  ASSERT (CacheSize16 != NULL);
+  ASSERT (CacheSize32 != NULL);
+
+  if (CacheSizeKiB > SMBIOS_CACHE_SIZE_MAX_SIZE_64K_GRANULARITY) {
+    CacheSize16->Size           = 0x7FFF;
+    CacheSize16->Granularity64K = 1;
+  } else if (CacheSizeKiB > SMBIOS_CACHE_SIZE_MAX_SIZE_1K_GRANULARITY) {
+    CacheSize16->Size           = (UINT16)(CacheSizeKiB / 64);
+    CacheSize16->Granularity64K = 1;
+  } else {
+    CacheSize16->Size           = (UINT16)CacheSizeKiB;
+    CacheSize16->Granularity64K = 0;
+  }
+
+  if (CacheSizeKiB > 0x7FFFFFFFULL) {
+    CacheSize32->Size           = (UINT32)(CacheSizeKiB / 64);
+    CacheSize32->Granularity64K = 1;
+  } else {
+    CacheSize32->Size           = (UINT32)CacheSizeKiB;
+    CacheSize32->Granularity64K = 0;
+  }
+}
+
 /** Gets the CPU frequency of the specified processor.
 
   @param ProcessorIndex Index of the processor to get the frequency for.
@@ -169,13 +214,20 @@ OemGetCacheInformation (
   UINT8                              BCoreNum  = 0;
   UINT8                              LCoreNum  = 0;
   UINT8                              CpuCoreNum;
-  UINT16                             CacheSize, MaximumCacheSize;
+  UINT64                             CacheSize;
+  UINT64                             CacheUnitSize;
+  UINT64                             MaximumCacheSize;
+  UINT64                             MaximumCacheUnitSize;
   UINT32                             CpuCoreMask;
   UINT32                             MaxCpuCoreNum;
   UINT32                             i;
   UINT32                             ConfigCpuIndex = 0;
   CONFIG_PARAMS_DATA_BLOCK           *ConfigData = NULL;
   CIX_CONFIG_PARAMS_MANAGE_PROTOCOL  *ConfigManage;
+  SMBIOS_CACHE_SIZE                  CacheSize16;
+  SMBIOS_CACHE_SIZE                  MaximumCacheSize16;
+  SMBIOS_CACHE_SIZE_2                CacheSize32;
+  SMBIOS_CACHE_SIZE_2                MaximumCacheSize32;
 
   GetCpuBootCoreId (&CpuBootCoreId);
   if (CpuBootCoreId > 3) {
@@ -219,21 +271,32 @@ OemGetCacheInformation (
       }
     }
 
+    MaximumCacheUnitSize = DecodeSmbiosCacheSizeKiB (
+                             SmbiosCacheTable->MaximumCacheSize,
+                             SmbiosCacheTable->MaximumCacheSize2
+                             );
+    CacheUnitSize = DecodeSmbiosCacheSizeKiB (
+                      SmbiosCacheTable->InstalledSize,
+                      SmbiosCacheTable->InstalledSize2
+                      );
+
     if (CacheLevel == 1) {
-      MaximumCacheSize = BCoreNum*SmbiosCacheTable->MaximumCacheSize+LCoreNum*LITTLE_CORE_L1_CACHE_SIZE;
-      CacheSize        = VBCoreNum*SmbiosCacheTable->MaximumCacheSize+VLCoreNum*LITTLE_CORE_L1_CACHE_SIZE;
+      MaximumCacheSize = (BCoreNum * MaximumCacheUnitSize) + (LCoreNum * LITTLE_CORE_L1_CACHE_SIZE);
+      CacheSize        = (VBCoreNum * CacheUnitSize) + (VLCoreNum * LITTLE_CORE_L1_CACHE_SIZE);
     } else if (CacheLevel == 2) {
-      MaximumCacheSize = BCoreNum*SmbiosCacheTable->MaximumCacheSize;
-      CacheSize        = VBCoreNum*SmbiosCacheTable->MaximumCacheSize;
+      MaximumCacheSize = BCoreNum * MaximumCacheUnitSize;
+      CacheSize        = VBCoreNum * CacheUnitSize;
     } else {
-      MaximumCacheSize = SmbiosCacheTable->MaximumCacheSize;
-      CacheSize        = SmbiosCacheTable->MaximumCacheSize;
+      MaximumCacheSize = MaximumCacheUnitSize;
+      CacheSize        = CacheUnitSize;
     }
 
-    SmbiosCacheTable->MaximumCacheSize  = MaximumCacheSize;
-    SmbiosCacheTable->InstalledSize     = CacheSize;
-    SmbiosCacheTable->MaximumCacheSize2 = MaximumCacheSize;
-    SmbiosCacheTable->InstalledSize2    = CacheSize;
+    EncodeSmbiosCacheSizeKiB (MaximumCacheSize, &MaximumCacheSize16, &MaximumCacheSize32);
+    EncodeSmbiosCacheSizeKiB (CacheSize, &CacheSize16, &CacheSize32);
+    SmbiosCacheTable->MaximumCacheSize  = MaximumCacheSize16;
+    SmbiosCacheTable->InstalledSize     = CacheSize16;
+    SmbiosCacheTable->MaximumCacheSize2 = MaximumCacheSize32;
+    SmbiosCacheTable->InstalledSize2    = CacheSize32;
   }
 
   SmbiosCacheTable->CacheConfiguration = (CacheModeVariesWithAddress << CACHE_OPERATION_MODE_SHIFT) |
