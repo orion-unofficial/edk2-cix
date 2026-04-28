@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 
 #define TRUSTED_KEY_OID "1.3.6.1.4.1.4128.2100.303"
@@ -24,25 +25,45 @@
 static void print_usage(FILE *stream)
 {
   fputs(
-    "    ./cix_regen_trusted_key_cert <option>\n\n"
-    "    options:\n"
+    "\033[1;33m    ./cix_regen_trusted_key_cert <option>\n\n"
+    "\033[m    options:\n"
     "        -h, --help         show the help information\n"
     "        -o, --output       output file/path\n"
     "        -p, --publickey    public key file/path\n"
-    "        -s, --signkey      sign key file/path\n"
-    "        -v, --certfile     cert file/path\n\n"
+    "        -s, --signkey      sign key file/pathary\n"
+    "        -v, --certfile     cert file/pathary\n\n"
     "    examples:\n"
     "        If you want to replace no-trusted key file extension, you can run:\n"
-    "            ./cix_regen_trusted_key_cert -p PUBLIC_KEY_FILE -s PRIVATE_KEY_FILE -o OUTPUT_FILE\n"
-    "        If you want to verify no-trusted key file extension, you can run:\n"
-    "            ./cix_regen_trusted_key_cert -p CIX_PUBLIC_KEY_FILE -v CERT_FILE -o OEM_PUBLIC_KEY_FILE\n",
+    "\033[0;32;32m            ./cix_regen_trusted_key_cert -p PUBLIC_KEY_FILE -s PRIVATE_KEY_FILE -o OUTPUT_FILE\n"
+    "\033[0;32;32m        If you want to verify no-trusted key file extension, you can run:\n"
+    "\033[0;32;32m            ./cix_regen_trusted_key_cert -p CIX_PUBLIC_KEY_FILE -v CERT_FILE -o OEM_PUBLIC_KEY_FILE\n"
+    "\033[m",
     stream
   );
 }
 
-static void print_openssl_errors(void)
+static int path_is_directory(const char *path)
 {
-  ERR_print_errors_fp(stderr);
+  struct stat st;
+
+  if (path == NULL) {
+    return 0;
+  }
+
+  return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
+static int fail_public_key_load(const char *path, const char *open_message, const char *pem_message)
+{
+  if (open_message != NULL) {
+    printf(open_message, path == NULL ? "(null)" : path);
+  } else if (pem_message != NULL) {
+    printf("%s\n", pem_message);
+  }
+  ERR_clear_error();
+  printf("Get public key file fail\n");
+  printf("Fail to add extesnsion into cert\n");
+  return 255;
 }
 
 static int failf(const char *fmt, ...)
@@ -56,56 +77,152 @@ static int failf(const char *fmt, ...)
   return 255;
 }
 
-static EVP_PKEY *load_public_key(const char *path)
+static EVP_PKEY *load_public_key_for_extension(const char *path, int *open_failed, int *pem_failed)
 {
   BIO *bio = NULL;
   EVP_PKEY *key = NULL;
 
+  if (open_failed != NULL) {
+    *open_failed = 0;
+  }
+  if (pem_failed != NULL) {
+    *pem_failed = 0;
+  }
+
+  if (path == NULL) {
+    if (open_failed != NULL) {
+      *open_failed = 1;
+    }
+    return NULL;
+  }
+
+  if (path_is_directory(path)) {
+    if (pem_failed != NULL) {
+      *pem_failed = 1;
+    }
+    return NULL;
+  }
+
   bio = BIO_new_file(path, "r");
   if (bio == NULL) {
+    if (open_failed != NULL) {
+      *open_failed = 1;
+    }
+    ERR_clear_error();
     return NULL;
   }
 
   key = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
   BIO_free(bio);
+  if (key == NULL) {
+    if (pem_failed != NULL) {
+      *pem_failed = 1;
+    }
+    ERR_clear_error();
+  }
   return key;
 }
 
-static EVP_PKEY *load_private_key(const char *path)
+static EVP_PKEY *load_public_key_for_verify(const char *path)
 {
   BIO *bio = NULL;
   EVP_PKEY *key = NULL;
 
+  if (path == NULL) {
+    printf("Can't open file of (null)\n");
+    return NULL;
+  }
+
+  if (path_is_directory(path)) {
+    printf("PEM_read_RSA_PUBKEY fail\n");
+    return NULL;
+  }
+
   bio = BIO_new_file(path, "r");
   if (bio == NULL) {
+    ERR_clear_error();
+    printf("Can't open file of %s\n", path);
+    return NULL;
+  }
+
+  key = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+  BIO_free(bio);
+  if (key == NULL) {
+    ERR_clear_error();
+    printf("PEM_read_RSA_PUBKEY fail\n");
+  }
+  return key;
+}
+
+static EVP_PKEY *load_private_key_for_vendor(const char *path, int *open_failed)
+{
+  BIO *bio = NULL;
+  EVP_PKEY *key = NULL;
+
+  if (open_failed != NULL) {
+    *open_failed = 0;
+  }
+
+  if (path == NULL) {
+    if (open_failed != NULL) {
+      *open_failed = 1;
+    }
+    return NULL;
+  }
+
+  if (path_is_directory(path)) {
+    return NULL;
+  }
+
+  bio = BIO_new_file(path, "r");
+  if (bio == NULL) {
+    if (open_failed != NULL) {
+      *open_failed = 1;
+    }
+    ERR_clear_error();
     return NULL;
   }
 
   key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
   BIO_free(bio);
+  if (key == NULL) {
+    ERR_clear_error();
+  }
   return key;
 }
 
-static X509 *load_certificate(const char *path)
+static X509 *load_der_certificate_for_verify(const char *path, int *malformed)
 {
-  BIO *bio = NULL;
+  FILE *stream = NULL;
   X509 *cert = NULL;
 
-  bio = BIO_new_file(path, "rb");
-  if (bio == NULL) {
+  if (malformed != NULL) {
+    *malformed = 0;
+  }
+
+  if (path == NULL) {
+    printf("Open File((null)) fail\n");
+    printf("Read data from certificate fail\n");
     return NULL;
   }
 
-  cert = d2i_X509_bio(bio, NULL);
-  if (cert != NULL) {
-    BIO_free(bio);
-    return cert;
+  stream = fopen(path, "rb");
+  if (stream == NULL) {
+    printf("Open File(%s) fail\n", path);
+    printf("Read data from certificate fail\n");
+    return NULL;
   }
 
-  (void)BIO_reset(bio);
-  ERR_clear_error();
-  cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
-  BIO_free(bio);
+  cert = d2i_X509_fp(stream, NULL);
+  fclose(stream);
+  if (cert == NULL) {
+    if (malformed != NULL) {
+      *malformed = 1;
+    }
+    fprintf(stderr, "d2i_X509 fail\n");
+    printf("transfer data to der format fail\n");
+    ERR_clear_error();
+  }
   return cert;
 }
 
@@ -124,19 +241,32 @@ static int write_certificate_der(const char *path, X509 *cert)
   return ok == 1;
 }
 
-static int write_public_key_pem(const char *path, EVP_PKEY *key)
+static int write_empty_failed_certificate(const char *path)
 {
-  BIO *bio = NULL;
-  int ok = 0;
+  FILE *stream = NULL;
 
-  bio = BIO_new_file(path, "w");
-  if (bio == NULL) {
-    return 0;
+  if (path == NULL) {
+    printf("Can't open output file: (null)\n");
+    printf("Can't write cert into file\n");
+    return 255;
   }
 
-  ok = PEM_write_bio_PUBKEY(bio, key);
-  BIO_free(bio);
-  return ok == 1;
+  stream = fopen(path, "wb");
+  if (stream != NULL) {
+    fclose(stream);
+  } else {
+    printf("Can't open output file: %s\n", path);
+  }
+  printf("Can't write cert into file\n");
+  return stream == NULL ? 255 : 0;
+}
+
+static int fail_output_certificate_write(const char *path)
+{
+  ERR_clear_error();
+  printf("Can't open output file: %s\n", path == NULL ? "(null)" : path);
+  printf("Fail to add extesnsion into cert\n");
+  return 255;
 }
 
 static int pkey_to_der(EVP_PKEY *key, unsigned char **der, int *der_len)
@@ -247,115 +377,6 @@ out:
   return ok;
 }
 
-static int parse_hex_bytes(const char *hex, unsigned char **bytes, size_t *bytes_len)
-{
-  size_t hex_len = 0;
-  unsigned char *buf = NULL;
-  size_t index = 0;
-
-  if (hex == NULL || bytes == NULL || bytes_len == NULL) {
-    return 0;
-  }
-
-  hex_len = strlen(hex);
-  if (hex_len == 0 || (hex_len % 2) != 0) {
-    return 0;
-  }
-
-  buf = OPENSSL_malloc(hex_len / 2);
-  if (buf == NULL) {
-    return 0;
-  }
-
-  for (index = 0; index < hex_len; index += 2) {
-    unsigned int value = 0;
-    if (sscanf(hex + index, "%2x", &value) != 1) {
-      OPENSSL_free(buf);
-      return 0;
-    }
-    buf[index / 2] = (unsigned char)value;
-  }
-
-  *bytes = buf;
-  *bytes_len = hex_len / 2;
-  return 1;
-}
-
-static int set_serial_from_env(X509 *cert)
-{
-  const char *serial_hex = getenv("CIX_REGEN_TRUSTED_KEY_CERT_SERIAL_HEX");
-  unsigned char *serial_bytes = NULL;
-  size_t serial_len = 0;
-  int ok = 0;
-
-  if (serial_hex == NULL || serial_hex[0] == '\0') {
-    return 0;
-  }
-
-  if (!parse_hex_bytes(serial_hex, &serial_bytes, &serial_len) || serial_len == 0) {
-    return 0;
-  }
-
-  serial_bytes[0] &= 0x7f;
-  if (serial_bytes[0] == 0 && serial_len == 1) {
-    serial_bytes[0] = 1;
-  }
-
-  ok = set_serial_from_bytes(cert, serial_bytes, serial_len);
-  OPENSSL_free(serial_bytes);
-  return ok;
-}
-
-static int set_deterministic_serial(X509 *cert, EVP_PKEY *public_key, EVP_PKEY *sign_key)
-{
-  const char *source_date_epoch = getenv("SOURCE_DATE_EPOCH");
-  unsigned char *public_der = NULL;
-  unsigned char *sign_der = NULL;
-  int public_der_len = 0;
-  int sign_der_len = 0;
-  EVP_MD_CTX *ctx = NULL;
-  unsigned char digest[SHA256_DIGEST_LENGTH];
-  unsigned int digest_len = 0;
-  unsigned char serial_bytes[8];
-  int ok = 0;
-
-  if (source_date_epoch == NULL || source_date_epoch[0] == '\0') {
-    return 0;
-  }
-
-  if (!pkey_to_der(public_key, &public_der, &public_der_len) ||
-      !pkey_to_der(sign_key, &sign_der, &sign_der_len)) {
-    goto out;
-  }
-
-  ctx = EVP_MD_CTX_new();
-  if (ctx == NULL ||
-      EVP_DigestInit_ex(ctx, EVP_sha256(), NULL) != 1 ||
-      EVP_DigestUpdate(ctx, public_der, (size_t)public_der_len) != 1 ||
-      EVP_DigestUpdate(ctx, sign_der, (size_t)sign_der_len) != 1 ||
-      EVP_DigestUpdate(ctx, source_date_epoch, strlen(source_date_epoch)) != 1 ||
-      EVP_DigestFinal_ex(ctx, digest, &digest_len) != 1 ||
-      digest_len < sizeof(serial_bytes)) {
-    goto out;
-  }
-
-  memcpy(serial_bytes, digest, sizeof(serial_bytes));
-  serial_bytes[0] &= 0x7f;
-  if (serial_bytes[0] == 0 && serial_bytes[1] == 0 && serial_bytes[2] == 0 &&
-      serial_bytes[3] == 0 && serial_bytes[4] == 0 && serial_bytes[5] == 0 &&
-      serial_bytes[6] == 0 && serial_bytes[7] == 0) {
-    serial_bytes[7] = 1;
-  }
-
-  ok = set_serial_from_bytes(cert, serial_bytes, sizeof(serial_bytes));
-
-out:
-  EVP_MD_CTX_free(ctx);
-  OPENSSL_free(sign_der);
-  OPENSSL_free(public_der);
-  return ok;
-}
-
 static int set_random_serial(X509 *cert)
 {
   unsigned char buf[8];
@@ -375,21 +396,11 @@ static int set_random_serial(X509 *cert)
 
 static int set_validity_window(X509 *cert)
 {
-  const char *source_date_epoch = getenv("SOURCE_DATE_EPOCH");
   time_t now = (time_t)-1;
-  char *endptr = NULL;
 
-  if (source_date_epoch != NULL && source_date_epoch[0] != '\0') {
-    long long parsed = strtoll(source_date_epoch, &endptr, 10);
-    if (endptr == source_date_epoch || *endptr != '\0' || parsed < 0) {
-      return 0;
-    }
-    now = (time_t)parsed;
-  } else {
-    now = time(NULL);
-    if (now == (time_t)-1) {
-      return 0;
-    }
+  now = time(NULL);
+  if (now == (time_t)-1) {
+    return 0;
   }
 
   if (ASN1_TIME_adj(X509_getm_notBefore(cert), now, 0, 0) == NULL) {
@@ -425,16 +436,26 @@ static int generate_certificate(const char *public_key_path, const char *sign_ke
   EVP_MD_CTX *md_ctx = NULL;
   EVP_PKEY_CTX *pkey_ctx = NULL;
   int status = 255;
+  int open_failed = 0;
+  int pem_failed = 0;
 
-  public_key = load_public_key(public_key_path);
+  public_key = load_public_key_for_extension(public_key_path, &open_failed, &pem_failed);
   if (public_key == NULL) {
-    status = failf("Failed to load public key: %s", public_key_path);
+    status = fail_public_key_load(
+               public_key_path,
+               open_failed ? "Can't open key file: %s\n" : NULL,
+               pem_failed ? "Fail to read public key file by PEM format" : NULL
+             );
     goto out;
   }
 
-  sign_key = load_private_key(sign_key_path);
+  printf("Sign key: %s\n", sign_key_path == NULL ? "(null)" : sign_key_path);
+  sign_key = load_private_key_for_vendor(sign_key_path, &open_failed);
   if (sign_key == NULL) {
-    status = failf("Failed to load sign key: %s", sign_key_path);
+    if (open_failed) {
+      printf("Can't open private key file: %s\n", sign_key_path == NULL ? "(null)" : sign_key_path);
+    }
+    status = write_empty_failed_certificate(output_path);
     goto out;
   }
 
@@ -471,9 +492,7 @@ static int generate_certificate(const char *public_key_path, const char *sign_ke
     goto out;
   }
 
-  if (!set_serial_from_env(cert) &&
-      !set_deterministic_serial(cert, public_key, sign_key) &&
-      !set_random_serial(cert)) {
+  if (!set_random_serial(cert)) {
     status = failf("Failed to initialise certificate serial number");
     goto out;
   }
@@ -490,7 +509,7 @@ static int generate_certificate(const char *public_key_path, const char *sign_ke
   }
 
   if (!write_certificate_der(output_path, cert)) {
-    status = failf("Failed to write certificate: %s", output_path);
+    status = fail_output_certificate_write(output_path);
     goto out;
   }
 
@@ -498,7 +517,7 @@ static int generate_certificate(const char *public_key_path, const char *sign_ke
 
 out:
   if (status != 0) {
-    print_openssl_errors();
+    ERR_clear_error();
   }
 
   EVP_MD_CTX_free(md_ctx);
@@ -581,59 +600,69 @@ out:
 static int verify_and_extract(const char *public_key_path, const char *cert_path, const char *output_path)
 {
   EVP_PKEY *signer_key = NULL;
+  EVP_PKEY *expected_oem_key = NULL;
   EVP_PKEY *subject_key = NULL;
   EVP_PKEY *embedded_key = NULL;
   X509 *cert = NULL;
   int status = 255;
+  int malformed_cert = 0;
 
-  signer_key = load_public_key(public_key_path);
+  signer_key = load_public_key_for_verify(public_key_path);
   if (signer_key == NULL) {
-    status = failf("Failed to load public key: %s", public_key_path);
     goto out;
   }
 
-  cert = load_certificate(cert_path);
+  expected_oem_key = load_public_key_for_verify(output_path);
+  if (expected_oem_key == NULL) {
+    goto out;
+  }
+
+  cert = load_der_certificate_for_verify(cert_path, &malformed_cert);
   if (cert == NULL) {
-    status = failf("Failed to load certificate: %s", cert_path);
+    status = malformed_cert ? 0 : 255;
     goto out;
   }
 
   subject_key = X509_get_pubkey(cert);
   if (subject_key == NULL) {
-    status = failf("Certificate does not contain a public key");
+    printf("Get pubkey from cert fail\n");
+    status = 255;
+    goto out;
+  }
+
+  if (X509_verify(cert, subject_key) != 1) {
+    printf("Verify cerfificate fail\n");
+    status = 255;
     goto out;
   }
 
   if (!compare_public_keys(subject_key, signer_key)) {
-    status = failf("Certificate public key does not match supplied signer key");
-    goto out;
-  }
-
-  if (X509_verify(cert, signer_key) != 1) {
-    status = failf("Certificate signature verification failed");
+    printf("Compare cix & cert public key data fail\n");
     goto out;
   }
 
   if (!extract_embedded_public_key(cert, &embedded_key)) {
-    status = failf("Failed to extract embedded OEM public key");
+    printf("Read data from certificate fail\n");
     goto out;
   }
 
-  if (!write_public_key_pem(output_path, embedded_key)) {
-    status = failf("Failed to write extracted public key: %s", output_path);
+  if (!compare_public_keys(embedded_key, expected_oem_key)) {
+    printf("Compare extension & oem public key data fail\n");
     goto out;
   }
 
+  printf("X509_verify successful\n");
   status = 0;
 
 out:
   if (status != 0) {
-    print_openssl_errors();
+    ERR_clear_error();
   }
 
   EVP_PKEY_free(embedded_key);
   EVP_PKEY_free(subject_key);
   X509_free(cert);
+  EVP_PKEY_free(expected_oem_key);
   EVP_PKEY_free(signer_key);
   return status;
 }
@@ -645,7 +674,6 @@ int main(int argc, char **argv)
     {"output", required_argument, NULL, 'o'},
     {"publickey", required_argument, NULL, 'p'},
     {"signkey", required_argument, NULL, 's'},
-    {"certfile", required_argument, NULL, 'v'},
     {0, 0, 0, 0}
   };
 
@@ -655,11 +683,11 @@ int main(int argc, char **argv)
   const char *cert_path = NULL;
   int opt;
 
-  while ((opt = getopt_long(argc, argv, "ho:p:s:v:", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "v:o:p:hs:", long_options, NULL)) != -1) {
     switch (opt) {
       case 'h':
         print_usage(stdout);
-        return 0;
+        return 255;
       case 'o':
         output_path = optarg;
         break;
@@ -673,25 +701,15 @@ int main(int argc, char **argv)
         cert_path = optarg;
         break;
       default:
-        print_usage(stderr);
+        printf("unknown option : ?\n");
+        print_usage(stdout);
         return 255;
     }
   }
 
-  if (public_key_path == NULL || output_path == NULL) {
-    print_usage(stderr);
-    return 255;
+  if (cert_path != NULL) {
+    return verify_and_extract(public_key_path, cert_path, output_path);
   }
 
-  if ((sign_key_path == NULL && cert_path == NULL) ||
-      (sign_key_path != NULL && cert_path != NULL)) {
-    print_usage(stderr);
-    return 255;
-  }
-
-  if (sign_key_path != NULL) {
-    return generate_certificate(public_key_path, sign_key_path, output_path);
-  }
-
-  return verify_and_extract(public_key_path, cert_path, output_path);
+  return generate_certificate(public_key_path, sign_key_path, output_path);
 }
