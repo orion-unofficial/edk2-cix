@@ -8,7 +8,6 @@
 #include <AsmMacroLib.h>
 #include <AArch64/AArch64.h>
 
-
 // Setup EL1 while in EL1
 ASM_FUNC(SetupExceptionLevel1)
    mov  x0, #CPACR_DEFAULT
@@ -32,7 +31,6 @@ ASM_FUNC(SetupExceptionLevel2)
 
    mov     x0, #AARCH64_CPTR_DEFAULT
    msr     cptr_el2, x0           // Enable architectural features
-
    ret
 
 ASM_FUNCTION_REMOVE_IF_UNREFERENCED
