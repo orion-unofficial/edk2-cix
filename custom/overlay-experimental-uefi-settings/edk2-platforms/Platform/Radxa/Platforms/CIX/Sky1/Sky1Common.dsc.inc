@@ -45,7 +45,7 @@
   # Default hardware description should be ACPI
   gEmbeddedTokenSpaceGuid.PcdDefaultDtPref|FALSE
 
-  # Enable performance measurment
+  # Enable performance measurement
   gEfiMdePkgTokenSpaceGuid.PcdPerformanceLibraryPropertyMask|1
   gEfiMdePkgTokenSpaceGuid.PcdReportStatusCodePropertyMask|0x07
   gEfiMdeModulePkgTokenSpaceGuid.PcdExtFpdtBootRecordPadSize|0x300000
