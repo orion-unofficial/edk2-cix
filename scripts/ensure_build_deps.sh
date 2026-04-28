@@ -246,6 +246,7 @@ if [[ "$dep_profile" == "replay" ]]; then
 fi
 
 toolchain_packages=()
+emulation_packages=()
 need_arm64_arch=0
 case "$host_dpkg_arch" in
     arm64)
@@ -258,6 +259,10 @@ case "$host_dpkg_arch" in
             build-essential
             crossbuild-essential-arm64
         )
+        emulation_packages+=(
+            binfmt-support
+            qemu-user-static
+        )
         if ! dpkg --print-foreign-architectures | grep -qx 'arm64'; then
             need_arm64_arch=1
         fi
@@ -266,10 +271,10 @@ esac
 
 common_packages=(
     git
+    ccache
     pkg-config
     "${toolchain_packages[@]}"
-    binfmt-support
-    qemu-user-static
+    "${emulation_packages[@]}"
     dpkg-dev
     dos2unix
     acpica-tools
@@ -319,7 +324,7 @@ status "Refreshing apt metadata for profile: ${dep_profile}"
 apt_get update
 
 bootstrap_packages=()
-for package in "${toolchain_packages[@]}" binfmt-support qemu-user-static; do
+for package in "${toolchain_packages[@]}" "${emulation_packages[@]}"; do
     if ! package_installed "$package"; then
         bootstrap_packages+=("$package")
     fi

@@ -21,9 +21,11 @@ BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
 MONOREPO_EDK2_COMMIT_HASH ?= 971cfbc5fa
 MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= c051ce622f
 MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 971cfbc5fa
+FIRMWARE_LAYOUT_SCRIPT := $(abspath ../scripts/firmware_layout.py)
 EDK2_BUILD_OUTPUT_FILTER := scripts/filter_edk2_build_output.py
 MAKE_INPUT_VALIDATOR := $(abspath ../scripts/validate_make_inputs.py)
 CUSTOM_OVERLAY_SHADOW_CHECK := $(abspath ../scripts/check_custom_overlay_shadowing.py)
+CUSTOM_OVERLAY_INF_SYNC_CHECK := $(abspath ../scripts/check_custom_overlay_inf_sync.py)
 OFFLINE_AUDIT_BASELINE_CHECK := $(abspath ../scripts/test_offline_audit_baselines.py)
 OFFLINE_AUDIT_BASELINE_REFRESH := $(abspath ../scripts/refresh_offline_audit_baselines.py)
 FINAL_IMAGE_MANIFEST_AUDIT_SCRIPT := $(abspath ../scripts/audit_final_image_manifest.py)
@@ -49,13 +51,24 @@ fi
 endef
 REPO_ROOT := $(abspath ..)
 PREFERRED_TMP_ROOT ?= $(strip $(shell "$(REPO_ROOT)/scripts/resolve_temp_root.sh"))
+CCACHE_BIN ?= ccache
+CCACHE_DIR ?= $(abspath ../build-cache/ccache)
+CCACHE_WRAPPER_ROOT ?= $(abspath ../build-cache/ccache-toolchain)
+CCACHE_DISABLE_ORIGIN := $(origin CCACHE_DISABLE)
+CCACHE_DISABLED_EFFECTIVE := $(if $(filter-out undefined,$(CCACHE_DISABLE_ORIGIN)),TRUE,)
+CCACHE_BIN_RESOLVED := $(if $(CCACHE_DISABLED_EFFECTIVE),,$(strip $(shell command -v "$(CCACHE_BIN)" 2>/dev/null || true)))
+CCACHE_ENABLED_EFFECTIVE := $(if $(CCACHE_BIN_RESOLVED),TRUE,)
+CIX_RELEASE_CACHE_ROOT ?= $(abspath ../build-cache/cix-release)
 ARTEFACT_MODE ?= custom
 FIRMWARE_VALIDATION_PROFILE ?= upstream-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(abspath ../build-validation)
 CUSTOM_OVERLAY_ROOT ?= $(abspath ../custom/overlay)
 EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT ?= $(abspath ../custom/overlay-experimental-uefi-settings)
 CUSTOM_EDK2_WORKSPACE_KEY := $(strip $(shell printf '%s' '$(REPO_ROOT)' | cksum | awk '{print $$1}'))
-CUSTOM_EDK2_WORKSPACE ?= $(PREFERRED_TMP_ROOT)/edk2-cix-custom-workspace-$(CUSTOM_EDK2_WORKSPACE_KEY)
+CUSTOM_EDK2_WORKSPACE_ROOT ?= $(PREFERRED_TMP_ROOT)/edk2-cix-custom-workspace-$(CUSTOM_EDK2_WORKSPACE_KEY)
+CUSTOM_EDK2_WORKSPACE_FLAVOR := $(shell printf '%s' '$(UEFI_TARGET)' | tr '[:upper:]' '[:lower:]')
+CUSTOM_EDK2_WORKSPACE ?= $(CUSTOM_EDK2_WORKSPACE_ROOT)/$(CUSTOM_EDK2_WORKSPACE_FLAVOR)
+EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE ?= 0
 DEBUG_ON_UART3_NORMALIZED_RAW := $(if $(strip $(DEBUG_ON_UART3)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_ON_UART3)" 2>/dev/null || printf '%s' __INVALID__),)
 DEBUG_ON_UART3_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_ON_UART3_NORMALIZED_RAW)),,$(DEBUG_ON_UART3_NORMALIZED_RAW))
 UART3_ENABLE_NORMALIZED_RAW := $(if $(strip $(UART3_ENABLE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(UART3_ENABLE)" 2>/dev/null || printf '%s' __INVALID__),)
@@ -86,6 +99,17 @@ O6_SMBIOS_BASEBOARD_ASSET_TAG_C_LITERAL_RAW := $(if $(strip $(O6_SMBIOS_BASEBOAR
 O6_SMBIOS_BASEBOARD_ASSET_TAG_C_LITERAL := $(if $(filter __INVALID__,$(O6_SMBIOS_BASEBOARD_ASSET_TAG_C_LITERAL_RAW)),,$(O6_SMBIOS_BASEBOARD_ASSET_TAG_C_LITERAL_RAW))
 O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL_RAW := $(if $(strip $(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" emit-c-string-literal --value "$(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE)" 2>/dev/null || printf '%s' __INVALID__),)
 O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL := $(if $(filter __INVALID__,$(O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL_RAW)),,$(O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL_RAW))
+FIRMWARE_LAYOUT_QUERY_ARGS = \
+	--artefact-mode "$(ARTEFACT_MODE)" \
+	--firmware-target "$(FIRMWARE_TARGET)" \
+	$(if $(filter TRUE,$(ENABLE_FIRMWARE_FIXES_NORMALIZED)),--enable-firmware-fixes TRUE) \
+	$(if $(strip $(ENABLE_CORE_ORDER_NORMALIZED)),--enable-core-order "$(ENABLE_CORE_ORDER_NORMALIZED)") \
+	$(if $(strip $(CIX_RELEASE_NORMALIZED)),--cix-release "$(CIX_RELEASE_NORMALIZED)") \
+	$(if $(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)),--enable-experimental-uefi-settings TRUE) \
+	$(if $(filter TRUE,$(DEBUG_ON_UART3_NORMALIZED)),--debug-on-uart3 TRUE) \
+	$(if $(filter TRUE,$(UART3_ENABLE_NORMALIZED)),--uart3-enable TRUE) \
+	$(if $(filter TRUE,$(DEBUG_VERBOSE_NORMALIZED)),--debug-verbose TRUE) \
+	$(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),--debug-print-error-level "$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)")
 EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_PACKAGE_ROOTS := \
 	$(wildcard $(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)/edk2) \
 	$(wildcard $(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)/edk2-platforms) \
@@ -137,7 +161,8 @@ SOURCE_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit-sho
 SOURCE_DATE_EPOCH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-date-epoch 2>/dev/null || true))
 PM_CONFIG_SOURCE_DATE_EPOCH ?= $(SOURCE_DATE_EPOCH)
 BUILD_DATE ?= $(strip $(shell SOURCE_DATE_EPOCH="$(SOURCE_DATE_EPOCH)" $(BUILD_METADATA_SCRIPT) source-date-iso 2>/dev/null || true))
-DEB_VERSION ?= $(strip $(shell cd .. && (dpkg-parsechangelog -S Version 2>/dev/null || sed -n '1s/^[^(]*(\([^)]*\)).*/\1/p' debian/changelog)))
+FIRMWARE_VERSION ?= $(strip $(shell python3 "$(FIRMWARE_LAYOUT_SCRIPT)" version --repo-root "$(REPO_ROOT)" 2>/dev/null || true))
+UEFI_FW_VERSION ?= $(strip $(shell python3 "$(FIRMWARE_LAYOUT_SCRIPT)" display-version --repo-root "$(REPO_ROOT)" --version "$(FIRMWARE_VERSION)" --source-commit-hash "$(SOURCE_COMMIT_HASH)" $(FIRMWARE_LAYOUT_QUERY_ARGS) 2>/dev/null || true))
 export SOURCE_DATE_EPOCH
 export PM_CONFIG_SOURCE_DATE_EPOCH
 
@@ -152,6 +177,11 @@ PACKAGE_TOOL_ARCH := X86_64
 GCC5_AARCH64_PREFIX := aarch64-linux-gnu-
 # GCC5_AARCH64_PREFIX := $(CURDIR)/tools/gcc/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf/bin/aarch64-none-elf-
 endif
+
+GCC5_AARCH64_REAL_PREFIX := $(GCC5_AARCH64_PREFIX)
+CCACHE_TOOLCHAIN_KEY := $(strip $(shell printf '%s|%s' '$(HOST_ARCH)' '$(GCC5_AARCH64_REAL_PREFIX)' | cksum | awk '{print $$1}'))
+CCACHE_WRAPPER_DIR := $(CCACHE_WRAPPER_ROOT)/$(CCACHE_TOOLCHAIN_KEY)
+CCACHE_GCC5_AARCH64_PREFIX_EFFECTIVE := $(if $(filter TRUE,$(CCACHE_ENABLED_EFFECTIVE)),$(CCACHE_WRAPPER_DIR)/$(notdir $(GCC5_AARCH64_REAL_PREFIX)),$(GCC5_AARCH64_REAL_PREFIX))
 
 PACKAGE_TOOL := edk2-non-osi/Platform/CIX/Sky1/PackageTool
 CIX_RELEASE_SOURCE_DIR := cix-v1.2
@@ -221,6 +251,10 @@ CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_SOURCES := \
 	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/*.hfr) \
 	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/MemMenu/*) \
 	$(wildcard $(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_DIR)/PcieMenu/*)
+CUSTOM_SKY1_FW_VERSION_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe)
+CUSTOM_SKY1_SMBIOS_MISC_LIB_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/SmbiosMiscLib)
+CUSTOM_SKY1_ACPI_SOC_DXE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocDxe)
+CUSTOM_SKY1_ACPI_PLATFORM_DXE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiPlatformDxe)
 CUSTOM_SKY1_EC_PROTOCOL_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Include/Protocol)
 CUSTOM_SKY1_EC_LIBRARY_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Include/Library)
 CUSTOM_SKY1_EC_DRIVER_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/EcPlatformDxe)
@@ -230,10 +264,12 @@ CUSTOM_COMMON_LIB_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Plat
 CUSTOM_CIX_SMBIOS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/CixSmbiosDxe)
 CUSTOM_RADXA_SETUP_INIT_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/RadxaSetupVariableInitDxe)
 CUSTOM_RADXA_SETUP_INCLUDE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Include)
+CUSTOM_PLATFORM_CONFIG_DXE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe)
 CUSTOM_MERAK_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Merak/Library/PlatformEnvHookLib)
 CUSTOM_EDGE_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Edge/Library/PlatformEnvHookLib)
 CUSTOM_O6_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib)
 CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/PlatformSmbios)
+CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/PlatformSmbios)
 CUSTOM_ACPI_PLATFORM_DXE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Drivers/AcpiPlatformDxe)
 CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe)
 CUSTOM_BASETOOLS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2/BaseTools)
@@ -248,6 +284,11 @@ CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(wildcard $(CUSTOM_SKY1_EC_DRIVER_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_SKY1_EC_LIBRARY_SOURCES_DIR)/*) \
 	$(CUSTOM_SKY1_SETUP_MANAGER_OVERLAY_SOURCES) \
+	$(wildcard $(CUSTOM_SKY1_FW_VERSION_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_SKY1_SMBIOS_MISC_LIB_OVERLAY_DIR)/*.c) \
+	$(wildcard $(CUSTOM_SKY1_SMBIOS_MISC_LIB_OVERLAY_DIR)/*.inf) \
+	$(wildcard $(CUSTOM_SKY1_ACPI_SOC_DXE_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_SKY1_ACPI_PLATFORM_DXE_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_ECLIB_NULL_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_COMMON_LIB_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_CIX_SMBIOS_OVERLAY_DIR)/*.c) \
@@ -262,7 +303,12 @@ CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.c) \
 	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.h) \
 	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.inf) \
+	$(wildcard $(CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR)/*.c) \
+	$(wildcard $(CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR)/*.h) \
+	$(wildcard $(CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR)/*.inf) \
 	$(wildcard $(CUSTOM_ACPI_PLATFORM_DXE_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_PLATFORM_CONFIG_DXE_OVERLAY_DIR)/*) \
+	$(wildcard $(CUSTOM_PLATFORM_CONFIG_DXE_OVERLAY_DIR)/ComplianceMenu/*) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \
 	$(wildcard $(CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR)/*.c) \
@@ -316,7 +362,7 @@ PATCHED_EDK2_SOURCE_INPUTS := \
 CUSTOM_EDK2_BUILD_INPUTS := \
 	$(if $(filter custom,$(ARTEFACT_MODE)),$(ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES) $(CUSTOM_EDK2_OVERLAY_SOURCES) $(MICROSOFT_SECURE_BOOT_PAYLOADS))
 CUSTOM_EDK2_ORDER_ONLY_PREREQS := \
-	$(if $(filter custom,$(ARTEFACT_MODE)),refresh-microsoft-secure-boot-defaults check-microsoft-secure-boot-release)
+	$(if $(filter custom,$(ARTEFACT_MODE)),check-microsoft-secure-boot-release)
 HOST_TOOLS_ROOT := Build/HostTools
 HOST_TOOLS_DIR := $(HOST_TOOLS_ROOT)/$(HOST_ARCH)
 CIX_PACKAGE_TOOL_SOURCE_DIR := $(TOOLS_DIR)/cix_package_tool
@@ -325,7 +371,7 @@ CIX_PACKAGE_TOOL_SOURCE_INPUTS := $(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_too
 SIGNING_CERT_SOURCE_DIR ?=
 REQUIRE_SIGNING_CERT_SOURCE ?= $(if $(and $(filter upstream,$(ARTEFACT_MODE)),$(strip $(SIGNING_CERT_SOURCE_DIR))),1,0)
 IMPORTED_BASETOOLS_DIR := $(abspath edk2/BaseTools)
-CUSTOM_BASETOOLS_DIR := $(CUSTOM_EDK2_WORKSPACE)/BaseTools
+CUSTOM_BASETOOLS_DIR := $(CUSTOM_EDK2_WORKSPACE_ROOT)/BaseTools
 ACTIVE_BASETOOLS_DIR := $(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_BASETOOLS_DIR),$(IMPORTED_BASETOOLS_DIR))
 BASETOOLS_C_BIN_DIR := $(ACTIVE_BASETOOLS_DIR)/Source/C/bin
 BASETOOLS_C_MARKER := $(BASETOOLS_C_BIN_DIR)/.edk2-cix-build-env
@@ -357,6 +403,7 @@ CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Bu
 				 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
 BUILD_OUTPUT_DIR = Build/$1/$(UEFI_TARGET)_GCC5
 BUILD_STAGE_DIR = Build/$1/$(UEFI_TARGET)_GCC5.build
+BUILD_CONFIG_STAMP = $(call BUILD_OUTPUT_DIR,$1)/.edk2-cix-build-config
 .PHONY: build __build host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool
 build:
 	$(Q)$(LOCKED_MAKE) __build V="$(V)"
@@ -377,10 +424,12 @@ host-cert-uefi-create-rsa:
 	$(Q)$(MAKE) -C "$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)" V="$(V)" clean all
 host-cix-package-tool: $(CIX_PACKAGE_TOOL_BIN)
 
-.SILENT: help print-build-metadata clean preflight preflight-% preflight-inputs preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool prepare-basetools-c check-custom-acpi-overlays
+.SILENT: help print-build-metadata clean preflight preflight-% preflight-inputs preflight-tools preflight-build-metadata host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool prepare-basetools-c check-custom-module-overlays check-custom-acpi-overlays
 .PHONY: help help-vars help-debug
-define PRINT_SRC_VARIABLES
-	@set -eu; \
+.PHONY: FORCE
+FORCE:
+define PRINT_SRC_HELP_SHELL_PROLOGUE
+	set -eu; \
 	help_pad=31; \
 	help_gap=2; \
 	help_width=80; \
@@ -401,10 +450,14 @@ define PRINT_SRC_VARIABLES
 					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
 		fi; \
 	}; \
-	printf '%s\n\n' 'Raw Build Variables'; \
-	printf '%s\n' 'See make help-vars for common options such as ARTEFACT_MODE, FIRMWARE_BOARD,'; \
-	printf '%s\n\n' 'FIRMWARE_TARGET, ENABLE_FIRMWARE_FIXES, CIX_RELEASE, and the DEBUG_* switches.'; \
+	print_section() { \
+		printf '\n%s\n\n' "$$1"; \
+	}
+endef
+
+define PRINT_SRC_LOCAL_VARIABLES
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
+	print_help_line '  CIX_RELEASE_CACHE_ROOT=<path>' 'Directory used for cached curated CIX BL31, OP-TEE, and cert_create intermediates.\nDefault: '\''$$(REPO_ROOT)/build-cache/cix-release'\'''; \
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile name shared with the top-level qualification checks.\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
 	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory where raw-build audit and validation reports are written.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
 	print_help_line '  GCC5_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
@@ -414,27 +467,7 @@ define PRINT_SRC_VARIABLES
 endef
 
 help:
-	@set -eu; \
-	help_pad=31; \
-	help_gap=2; \
-	help_width=80; \
-	desc_width=$$((help_width - help_pad - help_gap)); \
-	desc_indent=$$(printf '%*s' "$$((help_pad + help_gap))" ''); \
-	print_help_line() { \
-		label="$$1"; \
-		desc="$$2"; \
-		if [ "$${#label}" -le "$$help_pad" ]; then \
-			first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
-			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
-				awk -v first="$$first_indent" -v cont="$$desc_indent" \
-					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
-		else \
-			printf '%s\n' "$$label"; \
-			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
-				awk -v cont="$$desc_indent" \
-					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
-		fi; \
-	}; \
+	@$(PRINT_SRC_HELP_SHELL_PROLOGUE); \
 	printf '%s\n\n' 'edk2-cix raw firmware targets'; \
 	print_help_line '  build' 'Build all raw flash images for the supported boards'; \
 	print_help_line '  Build/O6/{RELEASE|DEBUG}_GCC5/cix_flash_all.bin' 'Build the full flash image for O6'; \
@@ -445,6 +478,7 @@ help:
 	print_help_line '  preflight' 'Check host tools, metadata, and toolchain prerequisites'; \
 	print_help_line '  print-build-metadata' 'Show the resolved reproducible build metadata'; \
 	print_help_line '  prepare-basetools-c' 'Build or refresh the EDK2 BaseTools C helpers'; \
+	print_help_line '  check-custom-module-overlays' 'Verify custom module overlay INFs keep the imported source dependencies'; \
 	print_help_line '  check-custom-acpi-overlays' 'Verify the custom ACPI module overlays still mirror the imported source tree cleanly'; \
 	print_help_line '  check-offline-audit-baselines' 'Validate the checked-in offline audit baseline JSON structure'; \
 	print_help_line '  audit-final-image-manifest-{O6|O6N}' 'Check the final BL33 firmware composition against the stored baseline for the selected board'; \
@@ -456,42 +490,32 @@ help:
 	print_help_line '  host-cix-package-tool' 'Refresh the cix_package_tool wrapper in Build/HostTools/<host-arch>/'; \
 	print_help_line '  host-cix-regen-trusted-key-cert' 'Build the source trusted-key cert helper'; \
 	print_help_line '  clean' 'Remove Build/ output and generated helper artefacts'; \
+	print_help_line '  clean-ccache' 'Remove the managed compiler-cache data and generated compiler wrappers'; \
+	print_help_line '  clean-cix-cache' 'Remove the cached curated CIX BL31, OP-TEE, and cert_create intermediates'; \
 	print_help_line '  help-debug' 'Explain the DEBUG_PRINT_ERROR_LEVEL bit values derived from DebugLib.h'; \
-	print_help_line '  help-vars' 'Show raw-build control variables that are specific to make -C src'
+	print_help_line '  help-vars' 'Show raw-build-specific control variables and point back to top-level help for shared options'
 
 help-vars:
-	@$(PRINT_SRC_VARIABLES); \
-	printf '\n%s\n' 'For the fuller user-facing explanation of the build variables, see: docs/build-variables.md'
+	@$(PRINT_SRC_HELP_SHELL_PROLOGUE); \
+	printf '%s\n\n' 'Raw Build Variables'; \
+	printf '%s\n' 'See make help-vars for common options such as ARTEFACT_MODE, FIRMWARE_BOARD, FIRMWARE_TARGET, CCACHE_DISABLE, ENABLE_FIRMWARE_FIXES, CIX_RELEASE, and the DEBUG_* switches.' | fold -s -w 78 | sed 's/^/  /'; \
+	printf '\n'; \
+	printf '%s\n' 'The following options are specific to the raw make -C src flow, covering host toolchains, validation outputs, and exact replay inputs.' | fold -s -w 78 | sed 's/^/  /'; \
+	printf '\n'; \
+	$(PRINT_SRC_LOCAL_VARIABLES); \
+	printf '\n%s\n' 'For the fuller user-facing explanation of the build variables, see: docs/build-variables.md'; \
+	printf '%s\n' 'For top-level wrapper targets and buildbox workflows, run: make help'
 
 help-debug:
-	@set -eu; \
-	help_pad=31; \
-	help_gap=2; \
-	help_width=80; \
-	desc_width=$$((help_width - help_pad - help_gap)); \
-	desc_indent=$$(printf '%*s' "$$((help_pad + help_gap))" ''); \
-	print_help_line() { \
-		label="$$1"; \
-		desc="$$2"; \
-		if [ "$${#label}" -le "$$help_pad" ]; then \
-			first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
-			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
-				awk -v first="$$first_indent" -v cont="$$desc_indent" \
-					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
-		else \
-			printf '%s\n' "$$label"; \
-			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
-				awk -v cont="$$desc_indent" \
-					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
-		fi; \
-	}; \
+	@$(PRINT_SRC_HELP_SHELL_PROLOGUE); \
 	printf '%s\n\n' 'Debug Print Levels'; \
-	printf '%s\n' 'Custom-only: set DEBUG_PRINT_ERROR_LEVEL to a decimal or '\
+	printf '%s\n' 'Set DEBUG_PRINT_ERROR_LEVEL to a decimal or '\
 '0x-prefixed 32-bit value to choose which DEBUG() message classes are '\
 'printed. Combine entries by ORing or summing their values. Default: '\
 '0x80000040 (DEBUG_INFO|DEBUG_ERROR). If DEBUG_VERBOSE=true and you do '\
 'not set DEBUG_PRINT_ERROR_LEVEL explicitly, the build uses 0x807B55FF, '\
-'which enables all available DEBUG_* message levels by default.' | fold -s -w 78 | sed 's/^/  /'; \
+'which enables all available DEBUG_* message levels by default. Requires '\
+'ARTEFACT_MODE=custom.' | fold -s -w 78 | sed 's/^/  /'; \
 	printf '\n'; \
 	python3 "$(MAKE_INPUT_VALIDATOR)" list-debug-print-error-level-bits | \
 	awk '{ mask=$$1; name=$$2; $$1=""; $$2=""; sub(/^ +/, "", $$0); printf "%s\t%s\t%s\n", mask, name, $$0 }' | \
@@ -526,6 +550,13 @@ $(CIX_PACKAGE_TOOL_BIN): $(CIX_PACKAGE_TOOL_SOURCE_INPUTS)
 .PHONY: print-build-metadata preflight-build-metadata
 print-build-metadata: preflight-build-metadata
 	echo "ARTEFACT_MODE=$(ARTEFACT_MODE)"
+	echo "FIRMWARE_VERSION=$(FIRMWARE_VERSION)"
+	echo "UEFI_FW_VERSION=$(UEFI_FW_VERSION)"
+	echo "CCACHE_ENABLED_EFFECTIVE=$(if $(filter TRUE,$(CCACHE_ENABLED_EFFECTIVE)),true,false)"
+	echo "CCACHE_BIN=$(CCACHE_BIN)"
+	echo "CCACHE_BIN_RESOLVED=$(CCACHE_BIN_RESOLVED)"
+	echo "CCACHE_DIR=$(CCACHE_DIR)"
+	echo "CCACHE_WRAPPER_ROOT=$(CCACHE_WRAPPER_ROOT)"
 	echo "SOURCE_COMMIT=$(SOURCE_COMMIT)"
 	echo "SOURCE_COMMIT_HASH=$(SOURCE_COMMIT_HASH)"
 	echo "SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)"
@@ -551,10 +582,11 @@ preflight-build-metadata:
 		check_required "SOURCE_DATE_EPOCH" '$(strip $(SOURCE_DATE_EPOCH))'; \
 		check_required "PM_CONFIG_SOURCE_DATE_EPOCH" '$(strip $(PM_CONFIG_SOURCE_DATE_EPOCH))'; \
 		check_required "BUILD_DATE" '$(strip $(BUILD_DATE))'; \
+		check_required "FIRMWARE_VERSION" '$(strip $(FIRMWARE_VERSION))'; \
+		check_required "UEFI_FW_VERSION" '$(strip $(UEFI_FW_VERSION))'; \
 		check_required "EDK2_COMMIT_HASH" '$(strip $(EDK2_COMMIT_HASH))'; \
 		check_required "EDK2_NON_OSI_COMMIT_HASH" '$(strip $(EDK2_NON_OSI_COMMIT_HASH))'; \
 		check_required "EDK2_PLATFORMS_COMMIT_HASH" '$(strip $(EDK2_PLATFORMS_COMMIT_HASH))'; \
-		check_required "DEB_VERSION" '$(strip $(DEB_VERSION))'; \
 		if [[ -n '$(strip $(SOURCE_DATE_EPOCH))' ]] && [[ ! '$(strip $(SOURCE_DATE_EPOCH))' =~ ^[0-9]+$$ ]]; then \
 			echo "[preflight/metadata] SOURCE_DATE_EPOCH must be an integer Unix timestamp, got: $(SOURCE_DATE_EPOCH)" >&2; \
 			missing=1; \
@@ -646,6 +678,13 @@ preflight-%: preflight-inputs preflight-tools preflight-build-metadata
 
 preflight-inputs:
 	@set -euo pipefail; \
+	if [ -n "$(strip $(DEB_VERSION))" ]; then \
+		echo "[preflight] DEB_VERSION is packaging-only; omit it for firmware builds." >&2; \
+		exit 1; \
+	fi; \
+	if [ -z "$(strip $(CCACHE_DISABLED_EFFECTIVE))" ] && [ -z "$(strip $(CCACHE_BIN_RESOLVED))" ]; then \
+		echo "[preflight] warning: ccache was not found as CCACHE_BIN=$(strip $(CCACHE_BIN)); continuing without compiler-cache acceleration." >&2; \
+	fi; \
 	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
 		--repo-root "$(abspath ..)" \
 		--v "$(V)" \
@@ -719,6 +758,9 @@ preflight-inputs:
 		python3 "$(CUSTOM_OVERLAY_SHADOW_CHECK)" \
 			--overlay-root "$(CUSTOM_OVERLAY_ROOT)" \
 			--source-root "$(REPO_ROOT)/src"; \
+		python3 "$(CUSTOM_OVERLAY_INF_SYNC_CHECK)" \
+			--overlay-root "$(CUSTOM_OVERLAY_ROOT)" \
+			--source-root "$(REPO_ROOT)/src"; \
 		python3 "$(CUSTOM_ACPI_OVERLAY_CHECK)" \
 			--repo-root "$(abspath ..)"; \
 	fi
@@ -782,8 +824,45 @@ preflight-tools:
 		exit 1; \
 	fi
 
+.SILENT: $(call BUILD_CONFIG_STAMP,%)
+$(call BUILD_CONFIG_STAMP,%): FORCE
+	@$(ENSURE_REPO_LOCK)
+	@set -euo pipefail; \
+	stamp_path="$@"; \
+	output_dir="$(call BUILD_OUTPUT_DIR,$*)"; \
+	stage_dir="$(call BUILD_STAGE_DIR,$*)"; \
+	config_text="$$(printf '%s\n' \
+		'ARTEFACT_MODE=$(ARTEFACT_MODE)' \
+		'UEFI_TARGET=$(UEFI_TARGET)' \
+		'BUILD_DATE=$(BUILD_DATE)' \
+		'SOURCE_COMMIT_HASH=$(SOURCE_COMMIT_HASH)' \
+		'EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH)' \
+		'EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH)' \
+		'EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH)' \
+		'FIRMWARE_VERSION=$(FIRMWARE_VERSION)' \
+		'UEFI_FW_VERSION=$(UEFI_FW_VERSION)' \
+		'ENABLE_FIRMWARE_FIXES=$(ENABLE_FIRMWARE_FIXES_NORMALIZED)' \
+		'ENABLE_CORE_ORDER=$(ENABLE_CORE_ORDER_NORMALIZED)' \
+		'CIX_RELEASE=$(CIX_RELEASE_NORMALIZED)' \
+		'ENABLE_EXPERIMENTAL_UEFI_SETTINGS=$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)' \
+		'UART3_ENABLE=$(UART3_ENABLE_EFFECTIVE)' \
+		'DEBUG_ON_UART3=$(DEBUG_ON_UART3_NORMALIZED)' \
+		'DEBUG_VERBOSE=$(DEBUG_VERBOSE_NORMALIZED)' \
+		'DEBUG_PRINT_ERROR_LEVEL=$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)' \
+		'O6_SMBIOS_BASEBOARD_ASSET_TAG=$(O6_SMBIOS_BASEBOARD_ASSET_TAG_EFFECTIVE)' \
+		'O6_SMBIOS_CHASSIS_ASSET_TAG=$(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE)' \
+		'SIGNING_CERT_SOURCE_DIR=$(SIGNING_CERT_SOURCE_DIR)' \
+		'REQUIRE_SIGNING_CERT_SOURCE=$(REQUIRE_SIGNING_CERT_SOURCE)' \
+		'GCC5_AARCH64_PREFIX=$(GCC5_AARCH64_PREFIX)')"; \
+	existing_text="$$(cat "$$stamp_path" 2>/dev/null || true)"; \
+	if [[ "$$existing_text" != "$$config_text" ]]; then \
+		rm -rf "$$output_dir" "$$stage_dir"; \
+		mkdir -p "$$output_dir"; \
+		printf '%s\n' "$$config_text" > "$$stamp_path"; \
+	fi
+
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin
-Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
+Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
 	@$(ENSURE_REPO_LOCK)
 	@find_platform_match() { \
 		local relative_path="$$1"; \
@@ -840,7 +919,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: preflight-% Build/%/$(UEFI_TARGET
 MEM_CFG_MEMFREQ ?= 3000
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin
-Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
+Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
 	@$(ENSURE_REPO_LOCK)
 	@find_platform_match() { \
 		local relative_path="$$1"; \
@@ -936,6 +1015,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: preflight-% Build/%/$(UEFI_TARGET
 
 .SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img
 $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
+	$(call BUILD_CONFIG_STAMP,%) \
 	$(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin \
 	$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt \
 	$(abspath $(CIX_RELEASE_BOOTLOADER2_HELPER)) \
@@ -961,6 +1041,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 		--cross-compile "$(GCC5_AARCH64_PREFIX)" \
 		--jobs "$(HELPER_BUILD_JOBS)" \
 		--mode "$(shell printf '%s' '$(FIRMWARE_TARGET)' | tr '[:upper:]' '[:lower:]')" \
+		$(if $(strip $(CIX_RELEASE_CACHE_ROOT)),--cache-root "$(abspath $(CIX_RELEASE_CACHE_ROOT))") \
 		$(if $(filter 1,$(V)),--verbose,) && \
 	if [[ ! -s "$$tmp_output" ]]; then \
 		echo "[build/$*] Expected generated bootloader2 image $$tmp_output was not created" >&2; \
@@ -970,7 +1051,8 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img
 Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img: \
-	$(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img
+	$(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img \
+	$(call BUILD_CONFIG_STAMP,%)
 	@$(ENSURE_REPO_LOCK)
 	@mkdir -p "$(call BUILD_OUTPUT_DIR,$*)/Firmwares"
 	@cp -f "$<" "$@"
@@ -978,6 +1060,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img: \
 .SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img
 $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 	Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd \
+	$(call BUILD_CONFIG_STAMP,%) \
 	$(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin \
 	$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt \
 	| $(FIPTOOL_BIN) $(CERT_UEFI_CREATE_RSA_BIN)
@@ -1103,7 +1186,8 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
 Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
-	$(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img
+	$(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img \
+	$(call BUILD_CONFIG_STAMP,%)
 	@$(ENSURE_REPO_LOCK)
 	@mkdir -p "$(call BUILD_OUTPUT_DIR,$*)/Firmwares" "$(call BUILD_OUTPUT_DIR,$*)/certs"
 	@cp -f "$<" "$@"
@@ -1112,7 +1196,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 	fi
 
 .SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin
-$(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin:
+$(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin: $(call BUILD_CONFIG_STAMP,%)
 	@$(ENSURE_REPO_LOCK)
 	@mkdir -p "$(call BUILD_STAGE_DIR,$*)"
 	@rm -rf "$(call BUILD_STAGE_DIR,$*)/Firmwares"
@@ -1149,7 +1233,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin:
 	fi
 
 .SILENT: $(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt
-$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt: | $(TRUSTED_KEY_CERT_TOOL_BIN)
+$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt: $(call BUILD_CONFIG_STAMP,%) | $(TRUSTED_KEY_CERT_TOOL_BIN)
 	@$(ENSURE_REPO_LOCK)
 	@export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export SOURCE_TOOL_BIN="$(abspath $(TRUSTED_KEY_CERT_TOOL_BIN))" && \
@@ -1203,7 +1287,7 @@ $(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt: | $(TRUSTED_KEY_CERT_TOOL_BI
 	esac
 
 .SILENT: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
-Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(PATCHED_EDK2_SOURCE_INPUTS) $(CUSTOM_EDK2_BUILD_INPUTS) | preflight-% $(CUSTOM_EDK2_ORDER_ONLY_PREREQS)
+Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(PATCHED_EDK2_SOURCE_INPUTS) $(CUSTOM_EDK2_BUILD_INPUTS) | preflight-% $(CUSTOM_EDK2_ORDER_ONLY_PREREQS)
 	@$(ENSURE_REPO_LOCK)
 	$(MAKE) prepare-basetools-c
 	@set -euo pipefail; \
@@ -1211,13 +1295,42 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(PATCHED_EDK2_SOURCE_INPUTS) 
 		export WORKSPACE="$(CUSTOM_EDK2_WORKSPACE)"; \
 		export PACKAGES_PATH="$(EDK2_PACKAGES_PATH)"; \
 		mkdir -p "$$WORKSPACE"; \
-		rm -rf "$$WORKSPACE/Build/$*" "$$WORKSPACE/Conf"; \
+		if [[ "$(EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE)" == "1" ]]; then \
+			rm -rf "$$WORKSPACE/Conf"; \
+		else \
+			rm -rf "$$WORKSPACE/Build/$*" "$$WORKSPACE/Conf"; \
+		fi; \
 		export EDK_TOOLS_PATH="$(CUSTOM_BASETOOLS_DIR)"; \
 	else \
 		export WORKSPACE="$(shell pwd)"; \
 		export PACKAGES_PATH="$(IMPORTED_EDK2_PACKAGES_PATH)"; \
 	fi; \
-	export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_PREFIX)"; \
+	if [[ "$(CCACHE_ENABLED_EFFECTIVE)" == "TRUE" ]]; then \
+		real_gcc_prefix="$(GCC5_AARCH64_REAL_PREFIX)"; \
+		wrapper_dir="$(CCACHE_WRAPPER_DIR)"; \
+		wrapper_prefix="$(CCACHE_GCC5_AARCH64_PREFIX_EFFECTIVE)"; \
+		resolve_host_tool() { \
+			local tool_name="$$1"; \
+			local tool_path; \
+			if ! tool_path="$$(command -v "$$tool_name" 2>/dev/null)"; then \
+				echo "[build/$*] Required tool $$tool_name was not found while preparing ccache wrappers" >&2; \
+				exit 1; \
+			fi; \
+			printf '%s\n' "$$tool_path"; \
+		}; \
+		real_gcc="$$(resolve_host_tool "$${real_gcc_prefix}gcc")"; \
+		real_gcc_ar="$$(resolve_host_tool "$${real_gcc_prefix}gcc-ar")"; \
+		real_objcopy="$$(resolve_host_tool "$${real_gcc_prefix}objcopy")"; \
+		mkdir -p "$(CCACHE_DIR)" "$$wrapper_dir"; \
+		printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' "exec \"$(CCACHE_BIN_RESOLVED)\" \"$$real_gcc\" \"\$$@\"" > "$${wrapper_prefix}gcc"; \
+		chmod +x "$${wrapper_prefix}gcc"; \
+		ln -sf "$$real_gcc_ar" "$${wrapper_prefix}gcc-ar"; \
+		ln -sf "$$real_objcopy" "$${wrapper_prefix}objcopy"; \
+		export CCACHE_DIR="$(CCACHE_DIR)"; \
+		export GCC5_AARCH64_PREFIX="$(CCACHE_GCC5_AARCH64_PREFIX_EFFECTIVE)"; \
+	else \
+		export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_REAL_PREFIX)"; \
+	fi; \
 	if command -v iasl >/dev/null 2>&1; then \
 		export IASL_PREFIX="$$(dirname "$$(command -v iasl)")/"; \
 	fi; \
@@ -1270,6 +1383,19 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(PATCHED_EDK2_SOURCE_INPUTS) 
 				;; \
 		esac; \
 	fi; \
+	build_version_defines=(); \
+	case "$(ARTEFACT_MODE)" in \
+		custom) \
+			build_version_defines+=(-D UEFI_FW_VERSION=$(UEFI_FW_VERSION)); \
+			;; \
+		upstream) \
+			build_version_defines+=(-D DEB_VERSION=$(FIRMWARE_VERSION)); \
+			;; \
+		*) \
+			echo "Unsupported ARTEFACT_MODE=$(ARTEFACT_MODE); expected custom or upstream" >&2; \
+			exit 1; \
+			;; \
+	esac; \
 	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
 		lto_flag='-flto=auto'; \
 		rwx_warning_flag=''; \
@@ -1343,7 +1469,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(PATCHED_EDK2_SOURCE_INPUTS) 
 			-D EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH) \
 			-D EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH) \
 			-D EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH) \
-			-D DEB_VERSION=$(DEB_VERSION); \
+			"$${build_version_defines[@]}"; \
 	}; \
 	if [[ "$(V)" == "1" ]]; then \
 		run_edk2_build; \
@@ -1384,7 +1510,12 @@ check-microsoft-secure-boot-release:
 	@python3 ../scripts/check_microsoft_secure_boot_release.py \
 		--mode "$(MICROSOFT_SECURE_BOOT_RELEASE_CHECK_MODE)"
 
-.PHONY: check-custom-acpi-overlays
+.PHONY: check-custom-module-overlays check-custom-acpi-overlays
+check-custom-module-overlays:
+	@python3 "$(CUSTOM_OVERLAY_INF_SYNC_CHECK)" \
+		--overlay-root "$(CUSTOM_OVERLAY_ROOT)" \
+		--source-root "$(REPO_ROOT)/src"
+
 check-custom-acpi-overlays:
 	@python3 "$(CUSTOM_ACPI_OVERLAY_CHECK)" --repo-root "$(abspath ..)"
 
@@ -1443,18 +1574,24 @@ validate-secure-boot-defaults-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.f
 		--board "$*" \
 		--target "$(UEFI_TARGET)_GCC5"
 
-$(MICROSOFT_SECURE_BOOT_PAYLOADS): ../scripts/generate_microsoft_secure_boot_defaults.py $(MICROSOFT_SECURE_BOOT_MANIFEST)
+$(MICROSOFT_SECURE_BOOT_PAYLOADS) &: ../scripts/generate_microsoft_secure_boot_defaults.py $(MICROSOFT_SECURE_BOOT_MANIFEST)
 	@python3 ../scripts/generate_microsoft_secure_boot_defaults.py >/dev/null
 
-.PHONY: clean __clean
+.PHONY: clean clean-ccache clean-cix-cache __clean __clean-ccache __clean-cix-cache
 clean:
 	$(Q)$(LOCKED_MAKE) __clean V="$(V)"
 
-.SILENT: __clean __distclean
+clean-ccache:
+	$(Q)$(LOCKED_MAKE) __clean-ccache V="$(V)"
+
+clean-cix-cache:
+	$(Q)$(LOCKED_MAKE) __clean-cix-cache V="$(V)"
+
+.SILENT: __clean __clean-ccache __clean-cix-cache __distclean
 __clean:
 	printf '[clean] Removing build output\n'
 	rm -rf Build
-	rm -rf "$(CUSTOM_EDK2_WORKSPACE)"
+	rm -rf "$(CUSTOM_EDK2_WORKSPACE_ROOT)"
 	printf '[clean] Removing host-built helper tools\n'
 	rm -rf "$(FIPTOOL_SOURCE_DIR)/build"
 	rm -rf "$(TRUSTED_KEY_CERT_TOOL_SOURCE_DIR)/build" "$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/build"
@@ -1487,8 +1624,16 @@ __clean:
 	find edk2/BaseTools -type f -name '*.pyc' -delete
 	find edk2/BaseTools -type d -name '__pycache__' -prune -exec rm -rf {} +
 
+__clean-ccache:
+	printf '[clean] Removing compiler cache data\n'
+	rm -rf "$(CCACHE_DIR)" "$(CCACHE_WRAPPER_ROOT)"
+
+__clean-cix-cache:
+	printf '[clean] Removing curated CIX intermediate cache data\n'
+	rm -rf "$(CIX_RELEASE_CACHE_ROOT)"
+
 .PHONY: distclean __distclean
 distclean:
 	$(Q)$(LOCKED_MAKE) __distclean V="$(V)"
 
-__distclean: __clean
+__distclean: __clean __clean-ccache
