@@ -48,6 +48,7 @@
   IoLib
 
 [Guids]
+  gCixFarmEnableFlagGuid
   gCixI2cDevicePathGuid
   gEfiNetworkStackSetupGuid
   gPlatformSetupVariableGuid

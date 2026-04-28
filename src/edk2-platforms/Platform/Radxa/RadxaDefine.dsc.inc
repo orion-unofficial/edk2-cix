@@ -1,4 +1,8 @@
 [Defines]
+!ifdef $(UEFI_FW_VERSION)
+  DEFINE COMPILE_UEFI_FW_VERSION    = $(UEFI_FW_VERSION)
+!endif
+
 !ifdef $(DEB_VERSION)
   DEFINE COMPILE_DEB_VERSION        = $(DEB_VERSION)
 !else
