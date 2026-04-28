@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 
 #define NON_TRUSTED_FW_NVCOUNTER_OID "1.3.6.1.4.1.4128.2100.2"
@@ -30,8 +31,10 @@
 #define DEFAULT_KEY_ALG "rsa"
 #define DEFAULT_HASH_ALG "sha256"
 #define DEFAULT_KEY_SIZE 3072
-#define NTFW_KEY_CERT_SERIAL_ENV "CERT_UEFI_CREATE_RSA_NT_FW_KEY_CERT_SERIAL_HEX"
-#define NTFW_CERT_SERIAL_ENV "CERT_UEFI_CREATE_RSA_NT_FW_CERT_SERIAL_HEX"
+#define PARSE_HELP 100
+
+static int printed_key_notice;
+static int plain_success_newlines;
 
 typedef struct {
   const char *key_alg;
@@ -45,12 +48,15 @@ typedef struct {
   const char *nt_fw_config_path;
   uint64_t ntfw_nvctr;
   bool saw_ntfw_nvctr;
+  bool print_cert;
+  bool save_keys;
+  bool new_keys;
+  bool verify;
 } tool_options_t;
 
 typedef struct {
   const char *common_name;
   const char *output_path;
-  const char *serial_env_name;
   EVP_PKEY *subject_key;
   EVP_PKEY *sign_key;
   const unsigned char *nvcounter_der;
@@ -61,37 +67,39 @@ typedef struct {
   size_t fw_hash_der_len;
   const unsigned char *fw_config_hash_der;
   size_t fw_config_hash_der_len;
+  bool print_cert;
 } cert_request_t;
 
-static void print_usage(FILE *stream)
+static void print_usage(FILE *stream, const char *argv0)
 {
-  fputs(
-    "Usage: cert_uefi_create_rsa [options]\n\n"
-    "Required options:\n"
-    "  --nt-fw-cert PATH            output path for the non-trusted FW content cert\n"
-    "  --nt-fw-key-cert PATH        output path for the non-trusted FW key cert\n"
-    "  --nt-fw-key PATH             PEM private key used for the content cert\n"
-    "  --non-trusted-world-key PATH PEM private key used for the key cert\n"
-    "  --nt-fw PATH                 BL33/UEFI payload to hash into the content cert\n"
-    "  --ntfw-nvctr VALUE           non-trusted firmware NV counter value\n\n"
-    "Optional compatibility flags:\n"
-    "  --nt-fw-config PATH          optional config blob hashed into the content cert\n"
-    "  --key-alg rsa                accepted for compatibility; only rsa is supported\n"
-    "  --key-size 3072              accepted for compatibility; defaults to 3072\n"
-    "  --hash-alg sha256            accepted for compatibility; only sha256 is supported\n"
-    "  -p                           accepted for compatibility; no-op\n"
-    "  -h, --help                   show this help text\n\n"
-    "Reproducibility knobs:\n"
-    "  SOURCE_DATE_EPOCH sets certificate validity start and deterministic serial seed.\n"
-    "  " NTFW_KEY_CERT_SERIAL_ENV " overrides the key-cert serial as hex.\n"
-    "  " NTFW_CERT_SERIAL_ENV " overrides the content-cert serial as hex.\n",
-    stream
+  fprintf(
+    stream,
+    "\n\n\n\n"
+    "The certificate generation tool loads the binary images and\n"
+    "optionally the RSA keys, and outputs the key and content\n"
+    "certificates properly signed to implement the chain of trust.\n"
+    "If keys are provided, they must be in PEM format.\n"
+    "Certificates are generated in DER format.\n\n"
+    "Usage:\n"
+    "\t%s [OPTIONS]\n\n"
+    "Available options:\n"
+    "\t-h,--help                        Print this message and exit\n"
+    "\t-a,--key-alg <arg>               Key algorithm: 'rsa' (default)- RSAPSS scheme as per PKCS#1 v2.1, 'ecdsa'\n"
+    "\t-b,--key-size <arg>              Key size (for supported algorithms).\n"
+    "\t-s,--hash-alg <arg>              Hash algorithm : 'sha256' (default), 'sha384', 'sha512'\n"
+    "\t-k,--save-keys                   Save key pairs into files. Filenames must be provided\n"
+    "\t-n,--new-keys                    Generate new key pairs if no key files are provided\n"
+    "\t-p,--print-cert                  Print the certificates in the standard output\n"
+    "\t-v,--verify                      Verify secure boot chains of blx\n"
+    "\t--nt-fw-key-cert <arg>           Non-Trusted Firmware Key Certificate (output file)\n"
+    "\t--nt-fw-cert <arg>               Non-Trusted Firmware Content Certificate (output file)\n"
+    "\t--non-trusted-world-key <arg>    Non Trusted World key (input/output file)\n"
+    "\t--nt-fw-key <arg>                Non Trusted Firmware Content Certificate key (input/output file)\n"
+    "\t--ntfw-nvctr <arg>               Non-Trusted Firmware Non-Volatile counter value\n"
+    "\t--nt-fw <arg>                    Non-Trusted World Bootloader image file\n"
+    "\t--nt-fw-config <arg>             Non Trusted OS Firmware Config file\n\n",
+    argv0
   );
-}
-
-static void print_openssl_errors(void)
-{
-  ERR_print_errors_fp(stderr);
 }
 
 static int failf(const char *fmt, ...)
@@ -99,25 +107,150 @@ static int failf(const char *fmt, ...)
   va_list ap;
 
   va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  fputc('\n', stderr);
+  fputs("\n\nERROR:   ", stdout);
+  vfprintf(stdout, fmt, ap);
+  fputc('\n', stdout);
   va_end(ap);
+  return 1;
+}
+
+static int fail_missing_verify_cert(const char *option)
+{
+  printf("\n\nDon't input certificae of (%s)\n", option);
+  return 1;
+}
+
+static int fail_create_file(const char *path)
+{
+  printf(
+    "%sERROR:   Cannot create file %s\n",
+    plain_success_newlines > 0 || printed_key_notice ? "\n" : "\n\n",
+    path == NULL ? "(null)" : path
+  );
   return 255;
 }
 
-static EVP_PKEY *load_private_key(const char *path)
+static int validate_rsa_private_key(const char *label, EVP_PKEY *key, int expected_bits);
+
+static int path_exists(const char *path)
+{
+  struct stat st;
+
+  if (path == NULL) {
+    return 0;
+  }
+  return stat(path, &st) == 0;
+}
+
+static EVP_PKEY *load_private_key(const char *path, int *found_path)
 {
   BIO *bio = NULL;
   EVP_PKEY *key = NULL;
 
+  if (found_path != NULL) {
+    *found_path = path_exists(path);
+  }
+
   bio = BIO_new_file(path, "r");
   if (bio == NULL) {
+    ERR_clear_error();
     return NULL;
   }
 
   key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
   BIO_free(bio);
+  if (key == NULL) {
+    ERR_clear_error();
+  }
   return key;
+}
+
+static EVP_PKEY *generate_rsa_private_key(int key_size)
+{
+  EVP_PKEY_CTX *ctx = NULL;
+  EVP_PKEY *key = NULL;
+
+  ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+  if (ctx == NULL ||
+      EVP_PKEY_keygen_init(ctx) != 1 ||
+      EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, key_size) != 1 ||
+      EVP_PKEY_keygen(ctx, &key) != 1) {
+    EVP_PKEY_free(key);
+    key = NULL;
+  }
+
+  EVP_PKEY_CTX_free(ctx);
+  ERR_clear_error();
+  return key;
+}
+
+static int write_private_key_pem(const char *path, EVP_PKEY *key)
+{
+  BIO *bio = NULL;
+  int ok = 0;
+
+  bio = BIO_new_file(path, "w");
+  if (bio == NULL) {
+    ERR_clear_error();
+    return 0;
+  }
+
+  ok = PEM_write_bio_PrivateKey(bio, key, NULL, NULL, 0, NULL, NULL);
+  BIO_free(bio);
+  if (!ok) {
+    ERR_clear_error();
+  }
+  return ok == 1;
+}
+
+static void notice_created_key(const char *label)
+{
+  if (!printed_key_notice) {
+    fputs("\n\n", stdout);
+    printed_key_notice = 1;
+  }
+  printf("NOTICE:  Creating new key for '%s'\n", label);
+}
+
+static int load_or_generate_private_key(
+  const char *path,
+  const char *label,
+  const tool_options_t *options,
+  EVP_PKEY **key_out
+)
+{
+  EVP_PKEY *key = NULL;
+  int found_path = 0;
+  int status = 0;
+
+  key = load_private_key(path, &found_path);
+  if (key == NULL) {
+    if (found_path) {
+      return failf("Cannot load key from %s\nERROR:   Error loading '%s'", path, path);
+    }
+    if (!options->new_keys) {
+      return failf("Error opening '%s'", path);
+    }
+
+    notice_created_key(label);
+    key = generate_rsa_private_key(options->key_size);
+    if (key == NULL) {
+      return failf("Cannot create new key for '%s'", label);
+    }
+    if (options->save_keys && !write_private_key_pem(path, key)) {
+      EVP_PKEY_free(key);
+      return fail_create_file(path);
+    }
+  }
+
+  status = validate_rsa_private_key(label, key, options->key_size);
+  if (status != 0) {
+    EVP_PKEY_free(key);
+    return status;
+  }
+
+  *key_out = key;
+  return 0;
 }
 
 static int validate_rsa_private_key(const char *label, EVP_PKEY *key, int expected_bits)
@@ -422,146 +555,6 @@ out:
   return ok;
 }
 
-static int parse_hex_bytes(const char *hex, unsigned char **bytes, size_t *bytes_len)
-{
-  size_t hex_len = 0;
-  unsigned char *buf = NULL;
-  size_t index = 0;
-
-  if (hex == NULL || bytes == NULL || bytes_len == NULL) {
-    return 0;
-  }
-
-  hex_len = strlen(hex);
-  if (hex_len == 0 || (hex_len % 2) != 0) {
-    return 0;
-  }
-
-  buf = OPENSSL_malloc(hex_len / 2);
-  if (buf == NULL) {
-    return 0;
-  }
-
-  for (index = 0; index < hex_len; index += 2) {
-    unsigned int value = 0;
-    if (sscanf(hex + index, "%2x", &value) != 1) {
-      OPENSSL_free(buf);
-      return 0;
-    }
-    buf[index / 2] = (unsigned char)value;
-  }
-
-  *bytes = buf;
-  *bytes_len = hex_len / 2;
-  return 1;
-}
-
-static int set_serial_from_env(X509 *cert, const char *env_name)
-{
-  const char *serial_hex = NULL;
-  unsigned char *serial_bytes = NULL;
-  size_t serial_len = 0;
-  int ok = 0;
-
-  if (env_name == NULL) {
-    return 0;
-  }
-
-  serial_hex = getenv(env_name);
-  if (serial_hex == NULL || serial_hex[0] == '\0') {
-    return 0;
-  }
-
-  if (!parse_hex_bytes(serial_hex, &serial_bytes, &serial_len) || serial_len == 0) {
-    return 0;
-  }
-
-  serial_bytes[0] &= 0x7f;
-  if (serial_len == 1 && serial_bytes[0] == 0) {
-    serial_bytes[0] = 1;
-  }
-
-  ok = set_serial_from_bytes(cert, serial_bytes, serial_len);
-  OPENSSL_free(serial_bytes);
-  return ok;
-}
-
-static int set_deterministic_serial(
-  X509 *cert,
-  const cert_request_t *request
-)
-{
-  const char *source_date_epoch = getenv("SOURCE_DATE_EPOCH");
-  EVP_MD_CTX *ctx = NULL;
-  unsigned char *subject_key_der = NULL;
-  size_t subject_key_der_len = 0;
-  unsigned char *sign_key_der = NULL;
-  size_t sign_key_der_len = 0;
-  unsigned char digest[SHA256_DIGEST_LENGTH];
-  unsigned int digest_len = 0;
-  unsigned char serial_bytes[8];
-  int ok = 0;
-
-  if (cert == NULL || request == NULL ||
-      source_date_epoch == NULL || source_date_epoch[0] == '\0') {
-    return 0;
-  }
-
-  if (!pkey_to_der(request->subject_key, &subject_key_der, &subject_key_der_len) ||
-      !pkey_to_der(request->sign_key, &sign_key_der, &sign_key_der_len)) {
-    goto out;
-  }
-
-  ctx = EVP_MD_CTX_new();
-  if (ctx == NULL || EVP_DigestInit_ex(ctx, EVP_sha256(), NULL) != 1) {
-    goto out;
-  }
-
-  if (EVP_DigestUpdate(ctx, request->common_name, strlen(request->common_name)) != 1 ||
-      EVP_DigestUpdate(ctx, subject_key_der, subject_key_der_len) != 1 ||
-      EVP_DigestUpdate(ctx, sign_key_der, sign_key_der_len) != 1 ||
-      EVP_DigestUpdate(ctx, request->nvcounter_der, request->nvcounter_der_len) != 1 ||
-      EVP_DigestUpdate(ctx, source_date_epoch, strlen(source_date_epoch)) != 1) {
-    goto out;
-  }
-
-  if (request->public_key_der != NULL && request->public_key_der_len > 0 &&
-      EVP_DigestUpdate(ctx, request->public_key_der, request->public_key_der_len) != 1) {
-    goto out;
-  }
-
-  if (request->fw_hash_der != NULL && request->fw_hash_der_len > 0 &&
-      EVP_DigestUpdate(ctx, request->fw_hash_der, request->fw_hash_der_len) != 1) {
-    goto out;
-  }
-
-  if (request->fw_config_hash_der != NULL && request->fw_config_hash_der_len > 0 &&
-      EVP_DigestUpdate(ctx, request->fw_config_hash_der, request->fw_config_hash_der_len) != 1) {
-    goto out;
-  }
-
-  if (EVP_DigestFinal_ex(ctx, digest, &digest_len) != 1 ||
-      digest_len < sizeof(serial_bytes)) {
-    goto out;
-  }
-
-  memcpy(serial_bytes, digest, sizeof(serial_bytes));
-  serial_bytes[0] &= 0x7f;
-  if (serial_bytes[0] == 0 && serial_bytes[1] == 0 && serial_bytes[2] == 0 &&
-      serial_bytes[3] == 0 && serial_bytes[4] == 0 && serial_bytes[5] == 0 &&
-      serial_bytes[6] == 0 && serial_bytes[7] == 0) {
-    serial_bytes[7] = 1;
-  }
-
-  ok = set_serial_from_bytes(cert, serial_bytes, sizeof(serial_bytes));
-
-out:
-  EVP_MD_CTX_free(ctx);
-  OPENSSL_free(sign_key_der);
-  OPENSSL_free(subject_key_der);
-  return ok;
-}
-
 static int set_random_serial(X509 *cert)
 {
   unsigned char buf[8];
@@ -581,21 +574,11 @@ static int set_random_serial(X509 *cert)
 
 static int set_validity_window(X509 *cert)
 {
-  const char *source_date_epoch = getenv("SOURCE_DATE_EPOCH");
   time_t now = (time_t)-1;
-  char *endptr = NULL;
 
-  if (source_date_epoch != NULL && source_date_epoch[0] != '\0') {
-    long long parsed = strtoll(source_date_epoch, &endptr, 10);
-    if (endptr == source_date_epoch || *endptr != '\0' || parsed < 0) {
-      return 0;
-    }
-    now = (time_t)parsed;
-  } else {
-    now = time(NULL);
-    if (now == (time_t)-1) {
-      return 0;
-    }
+  now = time(NULL);
+  if (now == (time_t)-1) {
+    return 0;
   }
 
   if (ASN1_TIME_adj(X509_getm_notBefore(cert), now, 0, 0) == NULL) {
@@ -709,9 +692,7 @@ static int generate_certificate(const cert_request_t *request)
     goto out;
   }
 
-  if (!set_serial_from_env(cert, request->serial_env_name) &&
-      !set_deterministic_serial(cert, request) &&
-      !set_random_serial(cert)) {
+  if (!set_random_serial(cert)) {
     status = failf("Failed to initialise certificate serial number for %s", request->output_path);
     goto out;
   }
@@ -728,15 +709,28 @@ static int generate_certificate(const cert_request_t *request)
   }
 
   if (!write_certificate_der(request->output_path, cert)) {
-    status = failf("Failed to write certificate: %s", request->output_path);
+    status = fail_create_file(request->output_path);
     goto out;
+  }
+
+  if (request->print_cert) {
+    fputs("\n\n\n\n=====================================\n\n", stdout);
+    if (X509_print_fp(stdout, cert) != 1) {
+      status = failf("Failed to print certificate: %s", request->output_path);
+      goto out;
+    }
+  } else {
+    if (!printed_key_notice) {
+      fputc('\n', stdout);
+      plain_success_newlines++;
+    }
   }
 
   status = 0;
 
 out:
   if (status != 0) {
-    print_openssl_errors();
+    ERR_clear_error();
   }
 
   EVP_MD_CTX_free(md_ctx);
@@ -776,9 +770,7 @@ static int parse_uint64_value(const char *text, uint64_t *value)
 
   errno = 0;
   parsed = strtoull(text, &endptr, 10);
-  if (errno != 0 || endptr == text || *endptr != '\0') {
-    return 0;
-  }
+  (void)endptr;
 
   *value = (uint64_t)parsed;
   return 1;
@@ -800,9 +792,13 @@ static int parse_arguments(int argc, char **argv, tool_options_t *options)
   };
   static const struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
-    {"key-alg", required_argument, NULL, OPT_KEY_ALG},
-    {"key-size", required_argument, NULL, OPT_KEY_SIZE},
-    {"hash-alg", required_argument, NULL, OPT_HASH_ALG},
+    {"key-alg", required_argument, NULL, 'a'},
+    {"key-size", required_argument, NULL, 'b'},
+    {"hash-alg", required_argument, NULL, 's'},
+    {"save-keys", no_argument, NULL, 'k'},
+    {"new-keys", no_argument, NULL, 'n'},
+    {"print-cert", no_argument, NULL, 'p'},
+    {"verify", no_argument, NULL, 'v'},
     {"ntfw-nvctr", required_argument, NULL, OPT_NTFW_NVCTR},
     {"nt-fw-cert", required_argument, NULL, OPT_NT_FW_CERT},
     {"nt-fw-key-cert", required_argument, NULL, OPT_NT_FW_KEY_CERT},
@@ -823,23 +819,33 @@ static int parse_arguments(int argc, char **argv, tool_options_t *options)
   options->hash_alg = DEFAULT_HASH_ALG;
 
   optind = 1;
-  while ((opt = getopt_long(argc, argv, "hp", long_options, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "ha:b:s:knpv", long_options, NULL)) != -1) {
     switch (opt) {
       case 'h':
-        print_usage(stdout);
-        return 1;
-      case 'p':
-        break;
-      case OPT_KEY_ALG:
+        print_usage(stdout, argv[0]);
+        return PARSE_HELP;
+      case 'a':
         options->key_alg = optarg;
         break;
-      case OPT_KEY_SIZE:
+      case 'b':
         if (!parse_key_size(optarg, &options->key_size)) {
           return failf("Invalid --key-size value: %s", optarg);
         }
         break;
-      case OPT_HASH_ALG:
+      case 's':
         options->hash_alg = optarg;
+        break;
+      case 'k':
+        options->save_keys = true;
+        break;
+      case 'n':
+        options->new_keys = true;
+        break;
+      case 'p':
+        options->print_cert = true;
+        break;
+      case 'v':
+        options->verify = true;
         break;
       case OPT_NTFW_NVCTR:
         if (!parse_uint64_value(optarg, &options->ntfw_nvctr)) {
@@ -866,31 +872,51 @@ static int parse_arguments(int argc, char **argv, tool_options_t *options)
         options->nt_fw_config_path = optarg;
         break;
       default:
-        print_usage(stderr);
-        return failf("Unrecognised option");
+        print_usage(stdout, argv[0]);
+        return 1;
     }
   }
 
-  if (optind != argc) {
-    return failf("Unexpected positional argument: %s", argv[optind]);
-  }
-
   if (strcmp(options->key_alg, "rsa") != 0) {
-    return failf("Unsupported --key-alg=%s; only rsa is supported", options->key_alg);
+    if (strcmp(options->key_alg, "ecdsa") == 0) {
+      return failf("'%d' is not a valid key size for '%s'\nNOTICE:  Valid sizes are: ", options->key_size, options->key_alg);
+    }
+    return failf("Invalid key algorithm '%s'", options->key_alg);
   }
 
   if (strcmp(options->hash_alg, "sha256") != 0) {
-    return failf("Unsupported --hash-alg=%s; only sha256 is supported", options->hash_alg);
+    return failf("Invalid hash algorithm '%s'", options->hash_alg);
   }
 
-  if (options->nt_fw_cert_path == NULL ||
-      options->nt_fw_key_cert_path == NULL ||
-      options->nt_fw_key_path == NULL ||
-      options->non_trusted_world_key_path == NULL ||
-      options->nt_fw_path == NULL ||
-      !options->saw_ntfw_nvctr) {
-    print_usage(stderr);
-    return failf("Missing one or more required options");
+  if (options->verify) {
+    if (options->nt_fw_key_cert_path == NULL) {
+      return fail_missing_verify_cert("--nt-fw-key-cert");
+    }
+    if (options->nt_fw_cert_path == NULL) {
+      return fail_missing_verify_cert("--nt-fw-cert");
+    }
+    if (options->nt_fw_path == NULL) {
+      return failf("Image for 'Non-Trusted World hash (SHA256)' not specified");
+    }
+  }
+
+  if (options->non_trusted_world_key_path == NULL) {
+    return failf("Key 'Non Trusted World key' not specified");
+  }
+  if (options->nt_fw_key_path == NULL) {
+    return failf("Key 'Non Trusted Firmware Content Certificate key' not specified");
+  }
+  if (options->nt_fw_cert_path == NULL) {
+    return failf("Value for 'Non-Trusted Firmware Content Certificate' not specified");
+  }
+  if (options->nt_fw_key_cert_path == NULL) {
+    return failf("Value for 'Non-Trusted Firmware Key Certificate' not specified");
+  }
+  if (options->nt_fw_path == NULL) {
+    return failf("Image for 'Non-Trusted World Bootloader' not specified");
+  }
+  if (!options->saw_ntfw_nvctr) {
+    return failf("Value for 'Non-Trusted Firmware Non-Volatile counter' not specified");
   }
 
   return 0;
@@ -917,22 +943,30 @@ int main(int argc, char **argv)
 
   status = parse_arguments(argc, argv, &options);
   if (status != 0) {
-    return status > 0 ? 0 : status;
+    return status == PARSE_HELP ? 0 : status;
+  }
+
+  if (options.save_keys && !options.new_keys) {
+    return failf("Only new keys can be saved to disk");
   }
 
   memset(nt_fw_config_digest, 0, sizeof(nt_fw_config_digest));
 
-  nt_fw_key = load_private_key(options.nt_fw_key_path);
-  status = validate_rsa_private_key("nt-fw-key", nt_fw_key, options.key_size);
+  status = load_or_generate_private_key(
+             options.non_trusted_world_key_path,
+             "Non Trusted World key",
+             &options,
+             &non_trusted_world_key
+           );
   if (status != 0) {
     goto out;
   }
 
-  non_trusted_world_key = load_private_key(options.non_trusted_world_key_path);
-  status = validate_rsa_private_key(
-             "non-trusted-world-key",
-             non_trusted_world_key,
-             options.key_size
+  status = load_or_generate_private_key(
+             options.nt_fw_key_path,
+             "Non Trusted Firmware Content Certificate key",
+             &options,
+             &nt_fw_key
            );
   if (status != 0) {
     goto out;
@@ -950,13 +984,17 @@ int main(int argc, char **argv)
 
   if (!digest_file_sha256(options.nt_fw_path, nt_fw_digest) ||
       !encode_sha256_digest_info(nt_fw_digest, &nt_fw_hash_der, &nt_fw_hash_der_len)) {
-    status = failf("Failed to hash firmware payload: %s", options.nt_fw_path);
+    status = failf("Cannot read %s\nERROR:   Cannot calculate hash of %s", options.nt_fw_path, options.nt_fw_path);
     goto out;
   }
 
   if (options.nt_fw_config_path != NULL) {
     if (!digest_file_sha256(options.nt_fw_config_path, nt_fw_config_digest)) {
-      status = failf("Failed to hash firmware config: %s", options.nt_fw_config_path);
+      status = failf(
+                 "Cannot read %s\nERROR:   Cannot calculate hash of %s",
+                 options.nt_fw_config_path,
+                 options.nt_fw_config_path
+               );
       goto out;
     }
   }
@@ -973,7 +1011,6 @@ int main(int argc, char **argv)
   nt_fw_key_cert_request = (cert_request_t){
     .common_name = NON_TRUSTED_FW_KEY_CERT_COMMON_NAME,
     .output_path = options.nt_fw_key_cert_path,
-    .serial_env_name = NTFW_KEY_CERT_SERIAL_ENV,
     .subject_key = non_trusted_world_key,
     .sign_key = non_trusted_world_key,
     .nvcounter_der = nvcounter_der,
@@ -983,7 +1020,8 @@ int main(int argc, char **argv)
     .fw_hash_der = NULL,
     .fw_hash_der_len = 0,
     .fw_config_hash_der = NULL,
-    .fw_config_hash_der_len = 0
+    .fw_config_hash_der_len = 0,
+    .print_cert = options.print_cert
   };
   status = generate_certificate(&nt_fw_key_cert_request);
   if (status != 0) {
@@ -993,7 +1031,6 @@ int main(int argc, char **argv)
   nt_fw_cert_request = (cert_request_t){
     .common_name = NON_TRUSTED_FW_CONTENT_CERT_COMMON_NAME,
     .output_path = options.nt_fw_cert_path,
-    .serial_env_name = NTFW_CERT_SERIAL_ENV,
     .subject_key = nt_fw_key,
     .sign_key = nt_fw_key,
     .nvcounter_der = nvcounter_der,
@@ -1003,13 +1040,14 @@ int main(int argc, char **argv)
     .fw_hash_der = nt_fw_hash_der,
     .fw_hash_der_len = nt_fw_hash_der_len,
     .fw_config_hash_der = nt_fw_config_hash_der,
-    .fw_config_hash_der_len = nt_fw_config_hash_der_len
+    .fw_config_hash_der_len = nt_fw_config_hash_der_len,
+    .print_cert = options.print_cert
   };
   status = generate_certificate(&nt_fw_cert_request);
 
 out:
-  if (status != 0 && ERR_peek_error() != 0) {
-    print_openssl_errors();
+  if (status != 0) {
+    ERR_clear_error();
   }
   OPENSSL_free(nt_fw_config_hash_der);
   OPENSSL_free(nt_fw_hash_der);
