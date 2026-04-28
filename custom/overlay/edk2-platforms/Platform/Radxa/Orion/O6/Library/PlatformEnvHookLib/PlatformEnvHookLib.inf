@@ -34,6 +34,7 @@
   MemoryAllocationLib
   DebugLib
   BaseLib
+  PcdLib
   UefiBootServicesTableLib
   UefiRuntimeServicesTableLib
   UefiLib
@@ -66,6 +67,7 @@
   gCixTokenSpaceGuid.PcdPcieRootPort3PeResetPin
   gCixTokenSpaceGuid.PcdPcieRootPort4PeResetPin
   gCixTokenSpaceGuid.PcdSocWatchdogTimer
+  gCixTokenSpaceGuid.PcdAcpiUart3Enable
   gEfiNetworkPkgTokenSpaceGuid.PcdNetworkStackSupport
   gEfiNetworkPkgTokenSpaceGuid.PcdIPv4PXESupport
   gEfiNetworkPkgTokenSpaceGuid.PcdIPv6PXESupport

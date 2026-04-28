@@ -474,7 +474,6 @@ Device (CP11)
 #endif
 #endif
 
-#ifdef ENABLE_FIRMWARE_FIXES
 // DSU PMU (DynamIQ Shared Unit Performance Monitoring Unit)
 // Exposes shared L3/interconnect counters to perf via ARMHD500.
 Device (DSUP)
@@ -483,10 +482,13 @@ Device (DSUP)
     Name (_UID, 0)
     Method (_STA)
     {
-        Return (0xF)
+        If (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
+            Return (0xF)
+        }
+
+        Return (0x0)
     }
     Name (_CRS, ResourceTemplate () {
         Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { 34 }
     })
 }
-#endif
