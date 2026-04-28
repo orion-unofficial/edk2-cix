@@ -902,7 +902,7 @@ vfrExtensionData[UINT8 *DataBuff, UINT32 Size, CHAR8 *TypeName, UINT32 TypeSize,
                  Data_U8 = _STOU8(RD->getText(), RD->getLine());
                  if (BitField) {
                    //
-                   // Set the value to the bit fileds.
+                   // Set the value to the bit fields.
                    //
                    Value = *(UINT8*) (ByteOffset + Offset);
                    Data_U8 <<= PreBits;
@@ -916,7 +916,7 @@ vfrExtensionData[UINT8 *DataBuff, UINT32 Size, CHAR8 *TypeName, UINT32 TypeSize,
                  Data_U16 = _STOU16(RD->getText(), RD->getLine());
                  if (BitField) {
                    //
-                   // Set the value to the bit fileds.
+                   // Set the value to the bit fields.
                    //
                    Value = *(UINT16*) (ByteOffset + Offset);
                    Data_U16 <<= PreBits;
@@ -930,7 +930,7 @@ vfrExtensionData[UINT8 *DataBuff, UINT32 Size, CHAR8 *TypeName, UINT32 TypeSize,
                  Data_U32 = _STOU32(RD->getText(), RD->getLine());
                  if (BitField) {
                    //
-                   // Set the value to the bit fileds.
+                   // Set the value to the bit fields.
                    //
                    Value = *(UINT32*) (ByteOffset + Offset);
                    Data_U32 <<= PreBits;
@@ -944,7 +944,7 @@ vfrExtensionData[UINT8 *DataBuff, UINT32 Size, CHAR8 *TypeName, UINT32 TypeSize,
                  Data_U64 = _STOU64(RD->getText(), RD->getLine());
                  if (BitField) {
                    //
-                   // Set the value to the bit fileds.
+                   // Set the value to the bit fields.
                    //
                    Value = *(UINT64*) (ByteOffset + Offset);
                    Data_U64 <<= PreBits;
