@@ -11,7 +11,7 @@ Device (CCLK) {
     Name (_HID, "CIXHA010")
     Name (_UID, 0)
     Name (_STA, 0xF)
-    //For linux clock framwork
+    //For linux clock framework
     Name (CLKT, Package(){
     })
 
