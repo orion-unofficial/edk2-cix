@@ -39,6 +39,7 @@
   BaseMemoryLib
   DebugLib
   MemoryAllocationLib
+  PcdLib
   PrintLib
   UefiLib
   UefiDriverEntryPoint
@@ -54,6 +55,10 @@
 [FixedPcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareRevision
   gArmPlatformTokenSpaceGuid.PcdCoreCount
+  gCixTokenSpaceGuid.PcdCustomFirmwareFixesEnable
+
+[Pcd]
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString
 
 [Depex]
   gEfiSmbiosProtocolGuid AND gCixSocInfoProtocolGuid

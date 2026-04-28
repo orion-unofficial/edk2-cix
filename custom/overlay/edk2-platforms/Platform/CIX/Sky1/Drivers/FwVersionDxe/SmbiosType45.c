@@ -1,0 +1,1 @@
+../../../../../../../../src/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/SmbiosType45.c

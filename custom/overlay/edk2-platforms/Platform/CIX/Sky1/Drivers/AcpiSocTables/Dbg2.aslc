@@ -14,14 +14,11 @@
 #include <Include/AcpiPlatform.h>
 #include <Include/MemoryMap.h>
 
-#if DEBUG_ON_UART3
-#define KD_UART_ACPI_PATH              "\\_SB.COM3"
-#else
-#define KD_UART_ACPI_PATH              "\\_SB.COM2"
-#endif
 #define DBG2_NUM_DEBUG_PORTS           1
 #define DBG2_NUM_GAS                   1
-#define DBG2_NS_STR_LENGTH             sizeof(KD_UART_ACPI_PATH)
+#define DBG2_NS_STR_LENGTH             10
+#define KD_UART_ACPI_PATH_SUFFIX       (FixedPcdGetBool (PcdAcpiUart3Enable) ? '3' : '2')
+#define KD_UART_ACPI_PATH              { '\\', '_', 'S', 'B', '.', 'C', 'O', 'M', KD_UART_ACPI_PATH_SUFFIX, '\0' }
 
 #pragma pack(1)
 
