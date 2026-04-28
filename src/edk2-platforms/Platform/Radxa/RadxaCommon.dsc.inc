@@ -18,10 +18,14 @@
 !ifdef $(REPRODUCIBLE_BUILD_METADATA)
   GCC:*_*_*_CC_FLAGS              = -DREPRODUCIBLE_BUILD_METADATA
 !endif
+!ifdef $(UEFI_FW_VERSION)
+  GCC:*_*_*_CC_FLAGS              = -DUEFI_FW_VERSION=$(COMPILE_UEFI_FW_VERSION)
+!else
 !if $(TARGET) == RELEASE
   GCC:*_*_*_CC_FLAGS              = -DUEFI_FW_VERSION=$(COMPILE_DEB_VERSION)
 !else
   GCC:*_*_*_CC_FLAGS              = -DUEFI_FW_VERSION=$(COMPILE_DEB_VERSION)"-"$(COMPILE_COMMIT_HASH)"-debug:"$(COMPILE_BUILD_DATE)
+!endif
 !endif
 
 [PcdsDynamicDefault.common]
@@ -37,10 +41,14 @@
 
 [PcdsFixedAtBuild.common]
   # Version string
+!ifdef $(UEFI_FW_VERSION)
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString|L"$(COMPILE_UEFI_FW_VERSION)"
+!else
 !if $(TARGET) == RELEASE
   gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString|L"$(COMPILE_DEB_VERSION)"
 !else
   gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString|L"$(COMPILE_DEB_VERSION)-$(COMPILE_COMMIT_HASH)-debug:$(COMPILE_BUILD_DATE)"
+!endif
 !endif
 
   # Code info
