@@ -301,6 +301,7 @@ def main() -> None:
 
     if args.require_release and not args.release:
         print(HELP, file=sys.stderr)
+        print("missing required variable(s): RELEASE", file=sys.stderr)
         raise SystemExit(2)
 
     branch, entry = release_entry(repo, args.release or None, require=args.require_release)

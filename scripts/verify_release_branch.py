@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from pathlib import Path
 
 from reconstruction_common import (
@@ -71,6 +72,7 @@ def main() -> None:
     verbose = truthy(args.v)
     if not args.release:
         print(HELP)
+        print("missing required variable(s): RELEASE", file=sys.stderr)
         raise SystemExit(2)
 
     branch, _entry = release_entry(repo, args.release, require=True)

@@ -182,6 +182,7 @@ def main() -> None:
     missing = validate(args)
     if missing:
         print(HELP)
+        print("missing or invalid required variable(s): " + ", ".join(missing), file=sys.stderr)
         raise SystemExit(2)
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)

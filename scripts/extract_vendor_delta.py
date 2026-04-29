@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 from reconstruction_common import ReconstructionError, create_delta_artifact, git, main_wrapper, ref_exists, repo_root, truthy
@@ -49,6 +50,7 @@ def main() -> None:
     missing = [name for name, value in [("VENDOR", args.vendor), ("BASE_REF", args.base_ref), ("VENDOR_REF", args.vendor_ref)] if not value]
     if missing:
         print(HELP)
+        print("missing required variable(s): " + ", ".join(missing), file=sys.stderr)
         raise SystemExit(2)
     repo = repo_root(Path(__file__))
     if args.vendor not in {"radxa", "cix"}:

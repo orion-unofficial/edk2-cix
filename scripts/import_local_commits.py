@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from pathlib import Path
 
 from reconstruction_common import ReconstructionError, create_delta_artifact, git, main_wrapper, ref_exists, repo_root, truthy
@@ -40,6 +41,8 @@ def main() -> None:
     args = parser().parse_args()
     if not args.from_ref or not args.base_ref:
         print(HELP)
+        missing = [name for name, value in [("FROM_REF", args.from_ref), ("BASE_REF", args.base_ref)] if not value]
+        print("missing required variable(s): " + ", ".join(missing), file=sys.stderr)
         raise SystemExit(2)
     repo = repo_root(Path(__file__))
     if not ref_exists(repo, args.from_ref):
