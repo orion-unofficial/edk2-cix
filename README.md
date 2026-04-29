@@ -118,6 +118,8 @@ make import-local-commits \
 
 This representation is intentional: a plain tree cannot encode deletions or renames relative to a base, while a binary patch can. Render plans in `config/releases.json` apply these artifacts in order.
 
+Render plans can also include an explicit `materialize_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialization automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`.
+
 ## How do I project `source/delta/local/current` to a materialized firmware branch?
 
 Render a configured release that includes the local layer:

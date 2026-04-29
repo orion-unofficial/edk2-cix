@@ -33,7 +33,8 @@
       "Submodule metadata is retained in manifests/reports, not as active submodule state.",
       "Normal git log <path> and git blame <path> must work from any directory inside the repo.",
       "Rendered branches are produced from ordered render steps recorded in config/releases.json.",
-      "Nested .gitmodules files inside upstream source trees may remain as inert source files when no gitlink points at them."
+      "Nested .gitmodules files inside upstream source trees may remain as inert source files when no gitlink points at them.",
+      "If gitlinks remain after configured render steps, the renderer recursively materializes them using recorded .gitmodules URL mappings before validation."
     ]
   },
   "schema_version": 1,

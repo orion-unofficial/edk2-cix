@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -120,6 +121,101 @@ def replace_component_path(repo: Path, worktree: Path, path: str, ref: str, verb
     git(worktree, "read-tree", f"--prefix={clean_path}/", "-u", ref, capture=not verbose)
 
 
+def gitlinks(worktree: Path) -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    for line in git(worktree, "ls-files", "-s").stdout.splitlines():
+        if not line.startswith("160000 "):
+            continue
+        meta, path = line.split("\t", 1)
+        mode, oid, stage = meta.split()
+        entries.append({"mode": mode, "kind": "commit", "object_id": oid, "stage": stage, "path": path})
+    return entries
+
+
+def parse_gitmodules(worktree: Path) -> dict[str, dict[str, str]]:
+    mappings: dict[str, dict[str, str]] = {}
+    for gitmodules in sorted(worktree.rglob(".gitmodules")):
+        result = git(
+            worktree,
+            "config",
+            "-f",
+            str(gitmodules),
+            "--get-regexp",
+            r"^submodule\..*\.(path|url)$",
+            check=False,
+        )
+        if result.returncode != 0:
+            continue
+        records: dict[str, dict[str, str]] = {}
+        for line in result.stdout.splitlines():
+            key, _, value = line.partition(" ")
+            parts = key.split(".")
+            if len(parts) < 3:
+                continue
+            name = ".".join(parts[1:-1])
+            field = parts[-1]
+            records.setdefault(name, {})[field] = value.strip()
+        base = gitmodules.parent
+        for record in records.values():
+            if "path" not in record:
+                continue
+            rel = (base / record["path"]).resolve().relative_to(worktree.resolve())
+            mappings[str(rel)] = {
+                "url": record.get("url", ""),
+                "gitmodules": str(gitmodules.relative_to(worktree)),
+            }
+    return mappings
+
+
+def fetch_submodule_commit(repo: Path, url: str, oid: str, verbose: bool) -> None:
+    if git(repo, "cat-file", "-e", f"{oid}^{{tree}}", check=False).returncode == 0:
+        return
+    if not url:
+        raise ReconstructionError(f"cannot materialize submodule {oid}: no URL recorded in .gitmodules")
+    if verbose:
+        print(f"Fetching submodule {oid} from {url}", file=sys.stderr)
+    result = git(repo, "fetch", "--no-tags", url, oid, check=False, capture=not verbose)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "unknown fetch failure").strip()
+        raise ReconstructionError(f"could not fetch submodule {oid} from {url}: {detail}")
+
+
+def materialize_submodules(repo: Path, worktree: Path, branch: str, verbose: bool) -> list[dict[str, str]]:
+    report: list[dict[str, str]] = []
+    while True:
+        links = gitlinks(worktree)
+        if not links:
+            break
+        mappings = parse_gitmodules(worktree)
+        progressed = False
+        for link in links:
+            path = link["path"]
+            mapping = mappings.get(path, {})
+            url = mapping.get("url", "")
+            fetch_submodule_commit(repo, url, link["object_id"], verbose)
+            if verbose:
+                print(f"Materializing gitlink {path} -> {link['object_id']}", file=sys.stderr)
+            git(worktree, "rm", "-f", "--", path, capture=not verbose)
+            git(worktree, "read-tree", f"--prefix={path}/", "-u", link["object_id"], capture=not verbose)
+            report.append({
+                "path": path,
+                "object_id": link["object_id"],
+                "url": url,
+                "gitmodules": mapping.get("gitmodules", ""),
+            })
+            progressed = True
+        if not progressed:
+            unresolved = ", ".join(item["path"] for item in links)
+            raise ReconstructionError(f"could not materialize remaining gitlinks: {unresolved}")
+    if report:
+        report_dir = cache_dir(repo, "reports")
+        report_path = report_dir / f"{safe_name(branch)}-submodules.json"
+        report_path.write_text(json.dumps({"branch": branch, "submodules": report}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if verbose:
+            print(f"Wrote submodule materialization report {report_path}", file=sys.stderr)
+    return report
+
+
 def commit_rendered_worktree(repo: Path, worktree: Path, branch: str, entry: dict, verbose: bool) -> str:
     render = entry.get("render", {})
     message = render.get("commit_message") or f"render: {short_release(branch)}"
@@ -164,6 +260,8 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool) -> str
                     elif "component" in step:
                         component = step["component"]
                         replace_component_path(repo, worktree, component["path"], component["ref"], verbose)
+                    elif step.get("materialize_submodules"):
+                        materialize_submodules(repo, worktree, branch, verbose)
                     else:
                         raise ReconstructionError(f"unknown render step: {step}")
             else:
@@ -173,6 +271,8 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool) -> str
                     replace_component_path(repo, worktree, component["path"], component["ref"], verbose)
             if render.get("remove_root_gitmodules", True) and (worktree / ".gitmodules").exists():
                 git(worktree, "rm", "-f", ".gitmodules", capture=not verbose)
+            if gitlinks(worktree):
+                materialize_submodules(repo, worktree, branch, verbose)
             status = git(worktree, "status", "--porcelain").stdout.strip()
             if not status:
                 git(worktree, "commit", "--allow-empty", "-m", f"render: {short_release(branch)}", capture=not verbose)
