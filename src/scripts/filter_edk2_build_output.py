@@ -17,6 +17,9 @@ STRIP_FLAGS_RE = re.compile(r"^--strip-unneeded -R \.eh_frame ")
 DEBUGLINK_NOOP_RE = re.compile(r'^"?echo"?\s+--add-gnu-debuglink=')
 DEBUGLINK_FLAGS_RE = re.compile(r"^--add-gnu-debuglink=")
 CONFIG_COPY_RE = re.compile(r"^Copying \$EDK_TOOLS_PATH/Conf/.+template$")
+OPTIONAL_COPY_NO_MATCH_RE = re.compile(
+    r"^cp: cannot stat '.*/Build/[^']+/(?:DEBUG/\*\.pdb|OUTPUT/[^/']+hii\.res)': No such file or directory$"
+)
 EDK2_ENV_RE = re.compile(
     r"^(WORKSPACE|PACKAGES_PATH|EDK_TOOLS_PATH|CONF_PATH|PYTHON_COMMAND|PREBUILD)\s*="
 )
@@ -77,6 +80,8 @@ def should_drop_line(line: str) -> bool:
     if line.startswith("Build start time: "):
         return True
     if CONFIG_COPY_RE.match(line):
+        return True
+    if OPTIONAL_COPY_NO_MATCH_RE.match(line):
         return True
     if line.startswith("     to /") and "/Conf/" in line:
         return True
