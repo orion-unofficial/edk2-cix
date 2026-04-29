@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "branch_model": {
+    "base_refs": [
+      "source/base/edk2/edk2/<release-or-ref>",
+      "source/base/edk2/edk2-platforms/<release-or-ref>",
+      "source/base/edk2/edk2-non-osi/<release-or-ref>",
+      "source/base/arm/tf-a/<release-or-ref>",
+      "source/base/arm/op-tee/<release-or-ref>"
+    ],
+    "vendor_component_refs": [
+      "source/delta/radxa/<vendor-release>/<edk2-base>",
+      "source/component/cix/<cix-release>/tf-a",
+      "source/component/cix/<cix-release>/op-tee"
+    ],
+    "local_ref": "source/delta/local/current",
+    "rendered_refs": [
+      "source/release/upstream/edk2-202208/radxa-1.2.1",
+      "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
+      "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1"
+    ]
+  },
+  "cix_bundle_policy": {
+    "vendor": "cix",
+    "acquisition_repo": "https://github.com/cixtech/bios/",
+    "release": "1.2",
+    "superproject": "90f39f4469d39b3cd135ca8c5ae6400aca75b292",
+    "components": {
+      "tf-a": {
+        "vendor_path": "tf-a",
+        "object_id": "114fb20577bcc4038025de4e12bca60e04dd5212"
+      },
+      "op-tee": {
+        "vendor_path": "tee",
+        "object_id": "cc66640f3815da4defc50f72b66ae3bac97cd48a"
+      }
+    },
+    "policy": "The bundle records original CIX provenance. Internally TF-A and OP-TEE remain separate components so each can later be carried forward against newer Arm upstream releases."
+  },
+  "known_component_comparison": {
+    "tf-a_v2.7_to_cix_1.2": {
+      "common_files": 3853,
+      "same_files": 3802,
+      "changed_files": 51,
+      "vendor_added_files": 76,
+      "upstream_only_files": 2,
+      "assessment": "Moderate vendor delta; suitable for component layering and possible future Arm uplift."
+    },
+    "op_tee_3.17.0_to_cix_1.2": {
+      "common_files": 2496,
+      "same_files": 2397,
+      "changed_files": 99,
+      "vendor_added_files": 450,
+      "upstream_only_files": 3,
+      "assessment": "Larger vendor delta but still recognisable as an Arm OP-TEE derived tree; keep component linkage."
+    }
+  },
+  "rendering_requirements": [
+    "recursively materialize submodules at every depth",
+    "produce ordinary files rather than gitlinks",
+    "remove active root .gitmodules files from rendered branches",
+    "store original submodule metadata in reports/manifests",
+    "preserve upstream/vendor source linkage in manifests and commit trailers",
+    "normal git log <path> and git blame <path> must work from any directory inside the repo"
+  ]
+}

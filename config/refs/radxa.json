@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "refs": [
+    {
+      "ref": "source/delta/radxa/1.2.1/edk2-stable202208",
+      "type": "vendor-delta-seed",
+      "vendor": "radxa",
+      "edk2_base": "edk2-stable202208",
+      "source_ref": "main-monorepo-upstream",
+      "object_id": "922def4bd663f92505e091e15920773dbd08779d",
+      "tree_id": "0d5b8d45174acb8b3559d49f45f54069b153bb31",
+      "immutable": true,
+      "note": "Seeded from the existing known-good materialized branch until a pure delta branch is mechanically extracted."
+    }
+  ]
+}

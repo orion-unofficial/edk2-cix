@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "default_release": "custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
+  "releases": {
+    "source/release/upstream/edk2-202208/radxa-1.2.1": {
+      "description": "Known-good materialized upstream/vendor baseline equivalent to the existing main-monorepo-upstream branch.",
+      "source_ref": "main-monorepo-upstream",
+      "edk2_release": "edk2-stable202208",
+      "radxa_release": "1.2.1",
+      "local_delta": false
+    },
+    "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local": {
+      "description": "Latest configured custom firmware release, seeded from the known-good main-monorepo-edk2 branch.",
+      "source_ref": "main-monorepo-edk2",
+      "edk2_release": "edk2-stable202602",
+      "cix_release": "1.2",
+      "radxa_release": "1.2.1",
+      "local_delta": true
+    },
+    "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1": {
+      "description": "Named local release alias for the latest configured custom firmware release.",
+      "source_ref": "main-monorepo-edk2",
+      "edk2_release": "edk2-stable202602",
+      "cix_release": "1.2",
+      "radxa_release": "1.2.1",
+      "local_delta": true
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "refs": [
+    {
+      "ref": "source/release/upstream/edk2-202208/radxa-1.2.1",
+      "type": "rendered-release",
+      "source_ref": "main-monorepo-upstream",
+      "object_id": "922def4bd663f92505e091e15920773dbd08779d",
+      "tree_id": "0d5b8d45174acb8b3559d49f45f54069b153bb31",
+      "immutable": true
+    },
+    {
+      "ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
+      "type": "rendered-release",
+      "source_ref": "main-monorepo-edk2",
+      "object_id": "f70313751c060b741108ea1010e40cc6f0f6f26f",
+      "tree_id": "3a3c7311dc816b89f45560ad5c342fd3e997f5c7",
+      "immutable": true
+    },
+    {
+      "ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1",
+      "type": "rendered-release",
+      "source_ref": "main-monorepo-edk2",
+      "object_id": "f70313751c060b741108ea1010e40cc6f0f6f26f",
+      "tree_id": "3a3c7311dc816b89f45560ad5c342fd3e997f5c7",
+      "immutable": true
+    }
+  ]
+}

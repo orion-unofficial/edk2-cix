@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "refs": [
+    {
+      "ref": "source/base/edk2/edk2/edk2-stable202208",
+      "type": "base",
+      "component": "edk2",
+      "remote": "https://github.com/tianocore/edk2.git",
+      "upstream_ref": "refs/tags/edk2-stable202208",
+      "object_id": "ba0e0e4c6a174b71b18ccd6e47319cc45878893c",
+      "tree_id": "0adbfa2e0f22d457b29beec59196057bfb191212",
+      "immutable": true
+    },
+    {
+      "ref": "source/base/edk2/edk2/edk2-stable202602",
+      "type": "base",
+      "component": "edk2",
+      "remote": "https://github.com/tianocore/edk2.git",
+      "upstream_ref": "refs/tags/edk2-stable202602",
+      "object_id": "b7a715f7c03c45c6b4575bf88596bfd79658b8ce",
+      "tree_id": "0bd0e8d4e077b57a1f61cc3de4759dfaa1ad8a79",
+      "immutable": true
+    },
+    {
+      "ref": "source/base/edk2/edk2-platforms/edk2-stable202208",
+      "type": "base",
+      "component": "edk2-platforms",
+      "remote": "https://github.com/tianocore/edk2-platforms.git",
+      "upstream_ref": "release-mapping-required",
+      "optional": true,
+      "immutable": true,
+      "status": "pending-authoritative-release-ref",
+      "note": "The upstream edk2-platforms remote does not expose edk2-stable202208 tags; record an explicit commit before using this as a base ref."
+    },
+    {
+      "ref": "source/base/edk2/edk2-platforms/edk2-stable202602",
+      "type": "base",
+      "component": "edk2-platforms",
+      "remote": "https://github.com/tianocore/edk2-platforms.git",
+      "upstream_ref": "release-mapping-required",
+      "optional": true,
+      "immutable": true,
+      "status": "pending-authoritative-release-ref",
+      "note": "The upstream edk2-platforms remote does not expose edk2-stable202602 tags; record an explicit commit before using this as a base ref."
+    },
+    {
+      "ref": "source/base/edk2/edk2-non-osi/edk2-stable202208",
+      "type": "base",
+      "component": "edk2-non-osi",
+      "remote": "https://github.com/tianocore/edk2-non-osi.git",
+      "upstream_ref": "release-mapping-required",
+      "optional": true,
+      "immutable": true,
+      "status": "pending-authoritative-release-ref",
+      "note": "The upstream edk2-non-osi remote does not expose edk2-stable202208 tags; record an explicit commit before using this as a base ref."
+    },
+    {
+      "ref": "source/base/edk2/edk2-non-osi/edk2-stable202602",
+      "type": "base",
+      "component": "edk2-non-osi",
+      "remote": "https://github.com/tianocore/edk2-non-osi.git",
+      "upstream_ref": "release-mapping-required",
+      "optional": true,
+      "immutable": true,
+      "status": "pending-authoritative-release-ref",
+      "note": "The upstream edk2-non-osi remote does not expose edk2-stable202602 tags; record an explicit commit before using this as a base ref."
+    }
+  ]
+}
