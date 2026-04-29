@@ -2,7 +2,7 @@ Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: edk2-cix
 Source: https://github.com/radxa-pkg/edk2-cix
 
-Files: [git submodules]
+Files: src/edk2/** src/edk2-non-osi/** src/edk2-platforms/**
 License: External Code
 
 Files: debian/patches/**/*.patch
@@ -14,7 +14,7 @@ License: GPL-3+
 
 License: External Code
  Unless otherwise specified, they are subject to the relevant License within
- the submodule repo.
+ the imported source tree.
 
 License: External Code Patch
  Unless otherwise specified, they share the same license to the code being
