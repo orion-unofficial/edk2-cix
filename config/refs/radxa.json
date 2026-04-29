@@ -1,16 +1,27 @@
 {
-  "schema_version": 1,
   "refs": [
     {
-      "ref": "source/delta/radxa/1.2.1/edk2-stable202208",
-      "type": "vendor-delta-seed",
-      "vendor": "radxa",
+      "base_ref": "source/base/rendered/edk2-stable202208",
       "edk2_base": "edk2-stable202208",
-      "source_ref": "main-monorepo-upstream",
-      "object_id": "922def4bd663f92505e091e15920773dbd08779d",
-      "tree_id": "0d5b8d45174acb8b3559d49f45f54069b153bb31",
+      "format": "delta.patch plus metadata.json",
       "immutable": true,
-      "note": "Seeded from the existing known-good materialized branch until a pure delta branch is mechanically extracted."
+      "object_id": "55c5d1f4087567cd3cae72a88544f5f3e1bcae56",
+      "ref": "source/delta/radxa/1.2.1/edk2-stable202208",
+      "tree_id": "a1d9ce45445fe7e40ee4501ab4bee6c6802c32ec",
+      "type": "vendor-delta-artifact",
+      "vendor": "radxa"
+    },
+    {
+      "base_ref": "source/base/rendered/edk2-stable202602",
+      "edk2_base": "edk2-stable202602",
+      "format": "delta.patch plus metadata.json",
+      "immutable": true,
+      "object_id": "2405973a72225e0267c2a21414dc8c71f8f50a84",
+      "ref": "source/delta/radxa/1.2.1/edk2-stable202602",
+      "tree_id": "747b3c0b83747b77a3c65ff764dc0d010ce9f857",
+      "type": "vendor-delta-artifact",
+      "vendor": "radxa"
     }
-  ]
+  ],
+  "schema_version": 1
 }

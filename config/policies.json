@@ -1,21 +1,11 @@
 {
-  "schema_version": 1,
-  "self_contained_source_policy": {
-    "goal": "The repository must contain everything required to build supported firmware even if external upstream remotes disappear.",
-    "committed_data": [
-      "rendered buildable release branches",
-      "base component refs needed by supported releases",
-      "vendor component refs and deltas",
-      "non-public or fragile vendor blobs, tools, and certificates",
-      "ref manifests and provenance metadata",
-      "decision ledgers explaining carry-forward choices"
-    ],
-    "remote_access": [
-      "ordinary builds use local rendered refs first",
-      "if a rendered ref is missing, fetch it from this repository origin",
-      "external upstream/vendor repos are contacted only for integration or reconstruction when required objects are missing",
-      "if an external repo is unavailable, proceed when required refs and objects are already local",
-      "fail only when required data is unavailable locally and remotely"
+  "delta_artifacts": {
+    "binary_safe": true,
+    "replacement_policy": "Use delta artifacts when relative changes include deletes, renames, binary files, or intentional absence that cannot be represented by an ordinary tree alone.",
+    "required_files": [
+      "README.md",
+      "metadata.json",
+      "delta.patch"
     ]
   },
   "immutability": {
@@ -41,7 +31,28 @@
       "Rendered branches must adhere to conventional Git UX over exact retention of stale .gitmodules files.",
       "Rendered branches must contain no gitlinks or active root .gitmodules files.",
       "Submodule metadata is retained in manifests/reports, not as active submodule state.",
-      "Normal git log <path> and git blame <path> must work from any directory inside the repo."
+      "Normal git log <path> and git blame <path> must work from any directory inside the repo.",
+      "Rendered branches are produced from ordered render steps recorded in config/releases.json.",
+      "Nested .gitmodules files inside upstream source trees may remain as inert source files when no gitlink points at them."
+    ]
+  },
+  "schema_version": 1,
+  "self_contained_source_policy": {
+    "committed_data": [
+      "rendered buildable release branches",
+      "base component refs needed by supported releases",
+      "vendor component refs and deltas",
+      "non-public or fragile vendor blobs, tools, and certificates",
+      "ref manifests and provenance metadata",
+      "decision ledgers explaining carry-forward choices"
+    ],
+    "goal": "The repository must contain everything required to build supported firmware even if external upstream remotes disappear.",
+    "remote_access": [
+      "ordinary builds use local rendered refs first",
+      "if a rendered ref is missing, fetch it from this repository origin",
+      "external upstream/vendor repos are contacted only for integration or reconstruction when required objects are missing",
+      "if an external repo is unavailable, proceed when required refs and objects are already local",
+      "fail only when required data is unavailable locally and remotely"
     ]
   }
 }

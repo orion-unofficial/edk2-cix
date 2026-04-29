@@ -4,10 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, check_immutable_refs, git, main_wrapper, ref_exists, repo_root, truthy
+from reconstruction_common import ReconstructionError, check_immutable_refs, git, main_wrapper, ref_exists, repo_root, tree_id, truthy, rev_parse
 
 
 HELP = """integrate-source-release
@@ -28,6 +29,7 @@ Optional variables:
   EDK2_BASE=<release>       Vendor base marker for Radxa deltas.
   REF=<object-id-or-ref>    Explicit object to use instead of a configured remote tag.
   WRITE=1                   Required before refs are created or advanced.
+  ALLOW_REPLACE=1           Allow an existing immutable ref to move during integration.
   V=1                       Print delegated git operations.
 
 Without WRITE=1 this command validates inputs and prints the operation it would perform.
@@ -73,6 +75,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--edk2-base", default=os.environ.get("EDK2_BASE", ""))
     p.add_argument("--ref", default=os.environ.get("REF", ""))
     p.add_argument("--write", default=os.environ.get("WRITE", "0"))
+    p.add_argument("--allow-replace", default=os.environ.get("ALLOW_REPLACE", "0"))
     p.add_argument("--v", default=os.environ.get("V", "0"))
     return p
 
@@ -83,12 +86,52 @@ def upstream_target(component: str, release: str) -> str:
     return f"source/base/arm/{component}/{release}"
 
 
-def fetch_to_ref(repo: Path, remote: str, source: str, target: str, verbose: bool) -> None:
-    if ref_exists(repo, target):
-        raise ReconstructionError(f"target immutable ref already exists: {target}\nRefusing to move it without an explicit manifest-update workflow.")
+def fetch_to_ref(repo: Path, remote: str, source: str, target: str, verbose: bool, allow_replace: bool) -> None:
+    if ref_exists(repo, target) and not allow_replace:
+        if verbose:
+            print(f"{target} already exists; leaving it unchanged")
+        return
     if verbose:
         print(f"fetch {remote} {source} -> {target}")
-    git(repo, "fetch", "--no-tags", remote, f"{source}:refs/heads/{target}", capture=not verbose)
+    prefix = "+" if allow_replace else ""
+    git(repo, "fetch", "--no-tags", remote, f"{prefix}{source}:refs/heads/{target}", capture=not verbose)
+
+
+def manifest_path_for(target: str) -> str:
+    if target.startswith("source/base/edk2/"):
+        return "config/refs/edk2.json"
+    if target.startswith("source/base/arm/"):
+        return "config/refs/arm.json"
+    if target.startswith("source/component/cix/"):
+        return "config/refs/cix.json"
+    if target.startswith("source/delta/radxa/"):
+        return "config/refs/radxa.json"
+    return "config/refs/integrated.json"
+
+
+def upsert_manifest(repo: Path, target: str, record: dict) -> None:
+    path = repo / manifest_path_for(target)
+    if path.exists():
+        data = json.loads(path.read_text(encoding="utf-8"))
+    else:
+        data = {"schema_version": 1, "refs": []}
+    refs = data.setdefault("refs", [])
+    refs[:] = [item for item in refs if item.get("ref") != target]
+    refs.append(record)
+    refs.sort(key=lambda item: item.get("ref", ""))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def manifest_record(repo: Path, target: str, **extra: str) -> dict:
+    record = {
+        "ref": target,
+        "object_id": rev_parse(repo, target),
+        "tree_id": tree_id(repo, target),
+        "immutable": True,
+    }
+    record.update({k: v for k, v in extra.items() if v})
+    return record
 
 
 def validate(args: argparse.Namespace) -> list[str]:
@@ -117,39 +160,44 @@ def main() -> None:
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
     write = truthy(args.write)
+    allow_replace = truthy(args.allow_replace)
     check_immutable_refs(repo, allow_manifest_update=write)
 
-    operations: list[tuple[str, str, str]] = []
+    operations: list[tuple[str, str, str, dict[str, str]]] = []
     if args.type_ == "upstream":
         release = args.release or args.ref
         target = upstream_target(args.component, release)
         source = args.ref or f"refs/tags/{release}"
         remote = UPSTREAM_REMOTES[args.component]
-        operations.append((remote, source, target))
+        operations.append((remote, source, target, {"type": "base", "component": args.component, "remote": remote, "upstream_ref": source}))
     elif args.vendor == "cix":
         for item in CIX_COMPONENTS.values():
-            operations.append((item["remote"], item["ref"], item["target"]))
+            operations.append((item["remote"], item["ref"], item["target"], {"type": "vendor-component", "vendor": "cix", "remote": item["remote"], "upstream_ref": item["ref"]}))
     else:
         target = f"source/delta/radxa/{args.release}/{args.edk2_base}"
         source = args.ref or "<materialized-vendor-ref>"
-        operations.append(("local", source, target))
+        operations.append(("local", source, target, {"type": "vendor-delta-artifact", "vendor": "radxa", "edk2_base": args.edk2_base, "source_ref": source}))
 
     if not write:
         print("dry run; set WRITE=1 to create refs")
-        for remote, source, target in operations:
+        for remote, source, target, _meta in operations:
             print(f"  {remote} {source} -> {target}")
         return
 
-    for remote, source, target in operations:
+    for remote, source, target, meta in operations:
         if remote == "local":
             if source.startswith("<"):
                 raise ReconstructionError("Radxa vendor integration requires REF=<local-ref-or-object> in WRITE mode")
-            if ref_exists(repo, target):
+            if ref_exists(repo, target) and not allow_replace:
                 raise ReconstructionError(f"target immutable ref already exists: {target}")
-            git(repo, "branch", target, source, capture=not verbose)
+            if allow_replace:
+                git(repo, "branch", "-f", target, source, capture=not verbose)
+            else:
+                git(repo, "branch", target, source, capture=not verbose)
         else:
-            fetch_to_ref(repo, remote, source, target, verbose)
-    print("integration refs created; update config/refs metadata in the same change before committing")
+            fetch_to_ref(repo, remote, source, target, verbose, allow_replace)
+        upsert_manifest(repo, target, manifest_record(repo, target, **meta))
+    print("integration refs and config/refs metadata updated")
 
 
 if __name__ == "__main__":

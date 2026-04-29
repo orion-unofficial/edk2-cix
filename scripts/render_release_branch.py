@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -13,16 +12,22 @@ from reconstruction_common import (
     ReconstructionError,
     cache_dir,
     check_immutable_refs,
+    commit_component_skeleton,
     git,
     main_wrapper,
+    read_delta_artifact_metadata,
     ref_exists,
     release_entry,
     repo_root,
     resolve_branch_or_origin,
     rev_parse,
     safe_name,
+    show_file,
     short_release,
+    temp_dir,
+    tree_id,
     truthy,
+    update_ref,
 )
 
 
@@ -33,6 +38,7 @@ Required variables:
 
 Optional variables:
   PERSIST=1  Create the rendered source/release/... branch if it is missing.
+  REBUILD=1  Regenerate the release from its render plan.
   V=1        Print delegated git operations and warnings.
 
 Example:
@@ -47,6 +53,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--release", default=os.environ.get("RELEASE", ""), help="short release name or source/release/... branch")
     p.add_argument("--require-release", action="store_true", help="fail if --release is empty instead of using the default")
     p.add_argument("--persist", default=os.environ.get("PERSIST", "0"), help="create a persistent source/release branch when set to 1")
+    p.add_argument("--rebuild", default=os.environ.get("REBUILD", "0"), help="regenerate from render plan instead of reusing an existing branch")
+    p.add_argument("--force", default=os.environ.get("FORCE", "0"), help="allow replacing an existing rendered branch with a different tree")
     p.add_argument("--ensure-worktree", action="store_true", help="create or reuse a detached worktree for the resolved release")
     p.add_argument("--print-worktree", action="store_true", help="print only the worktree path")
     p.add_argument("--print-ref", action="store_true", help="print the resolved ref/branch")
@@ -70,6 +78,117 @@ def ensure_worktree(repo: Path, branch: str, target_ref: str, verbose: bool) -> 
     return path
 
 
+def ensure_base_ref(repo: Path, entry: dict, verbose: bool) -> str | None:
+    render = entry.get("render", {})
+    base = render.get("base", {})
+    base_ref = base.get("ref")
+    components = base.get("components", [])
+    if not base_ref:
+        return None
+    if ref_exists(repo, base_ref):
+        return base_ref
+    if not components:
+        raise ReconstructionError(f"render base ref is missing and has no component plan: {base_ref}")
+    if verbose:
+        print(f"Creating component skeleton {base_ref}", file=sys.stderr)
+    commit = commit_component_skeleton(repo, components, f"base: render component skeleton for {base_ref}")
+    update_ref(repo, base_ref, commit)
+    return base_ref
+
+
+def apply_patch_artifact(repo: Path, worktree: Path, delta_ref: str, verbose: bool) -> None:
+    metadata = read_delta_artifact_metadata(repo, delta_ref)
+    patch = show_file(repo, delta_ref, "delta.patch")
+    with temp_dir(repo, "patch-") as tmp:
+        patch_path = Path(tmp) / "delta.patch"
+        patch_path.write_bytes(patch)
+        if verbose:
+            print(
+                f"Applying {delta_ref} ({metadata.get('base_ref')}..{metadata.get('target_ref')})",
+                file=sys.stderr,
+            )
+        git(worktree, "apply", "--index", "--binary", "--whitespace=nowarn", str(patch_path), capture=not verbose)
+
+
+def replace_component_path(repo: Path, worktree: Path, path: str, ref: str, verbose: bool) -> None:
+    clean_path = path.strip("/")
+    if not clean_path:
+        raise ReconstructionError("component replacement path must not be empty")
+    if verbose:
+        print(f"Replacing {clean_path} from {ref}", file=sys.stderr)
+    git(worktree, "rm", "-r", "--ignore-unmatch", "--", clean_path, capture=not verbose)
+    git(worktree, "read-tree", f"--prefix={clean_path}/", "-u", ref, capture=not verbose)
+
+
+def commit_rendered_worktree(repo: Path, worktree: Path, branch: str, entry: dict, verbose: bool) -> str:
+    render = entry.get("render", {})
+    message = render.get("commit_message") or f"render: {short_release(branch)}"
+    trailers = [f"Source-Release: {branch}"]
+    base_ref = render.get("base", {}).get("ref")
+    if base_ref:
+        trailers.append(f"Source-Base: {base_ref}")
+    if render.get("steps"):
+        for step in render["steps"]:
+            if "delta" in step:
+                trailers.append(f"Source-Delta: {step['delta']}")
+            elif "component" in step:
+                component = step["component"]
+                trailers.append(f"Source-Component: {component['path']}={component['ref']}")
+    else:
+        for delta_ref in render.get("deltas", []):
+            trailers.append(f"Source-Delta: {delta_ref}")
+        for component in render.get("component_replacements", []):
+            trailers.append(f"Source-Component: {component['path']}={component['ref']}")
+    full_message = message + "\n\n" + "\n".join(trailers)
+    git(worktree, "commit", "-m", full_message, capture=not verbose)
+    return rev_parse(worktree, "HEAD")
+
+
+def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool) -> str:
+    render = entry.get("render")
+    if not render:
+        raise ReconstructionError(f"release has no render plan: {branch}")
+    base_ref = ensure_base_ref(repo, entry, verbose)
+    if not base_ref:
+        raise ReconstructionError(f"release render plan has no base ref: {branch}")
+
+    with temp_dir(repo, f"render-{safe_name(branch)}-") as tmp:
+        worktree = Path(tmp) / "worktree"
+        git(repo, "worktree", "add", "--detach", str(worktree), base_ref, capture=not verbose)
+        try:
+            steps = render.get("steps")
+            if steps:
+                for step in steps:
+                    if "delta" in step:
+                        apply_patch_artifact(repo, worktree, step["delta"], verbose)
+                    elif "component" in step:
+                        component = step["component"]
+                        replace_component_path(repo, worktree, component["path"], component["ref"], verbose)
+                    else:
+                        raise ReconstructionError(f"unknown render step: {step}")
+            else:
+                for delta_ref in render.get("deltas", []):
+                    apply_patch_artifact(repo, worktree, delta_ref, verbose)
+                for component in render.get("component_replacements", []):
+                    replace_component_path(repo, worktree, component["path"], component["ref"], verbose)
+            if render.get("remove_root_gitmodules", True) and (worktree / ".gitmodules").exists():
+                git(worktree, "rm", "-f", ".gitmodules", capture=not verbose)
+            status = git(worktree, "status", "--porcelain").stdout.strip()
+            if not status:
+                git(worktree, "commit", "--allow-empty", "-m", f"render: {short_release(branch)}", capture=not verbose)
+                commit = rev_parse(worktree, "HEAD")
+            else:
+                commit = commit_rendered_worktree(repo, worktree, branch, entry, verbose)
+        finally:
+            git(repo, "worktree", "remove", "--force", str(worktree), check=False, capture=True)
+    expected_tree = entry.get("tree_id")
+    if expected_tree and tree_id(repo, commit) != expected_tree:
+        raise ReconstructionError(
+            f"rendered tree for {branch} does not match manifest: {tree_id(repo, commit)} != {expected_tree}"
+        )
+    return commit
+
+
 def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
@@ -85,11 +204,15 @@ def main() -> None:
         raise SystemExit(2)
 
     branch, entry = release_entry(repo, args.release or None, require=args.require_release)
-    target_ref = resolve_branch_or_origin(repo, branch, verbose=verbose)
+    rebuild = truthy(args.rebuild)
+    target_ref = None if rebuild else resolve_branch_or_origin(repo, branch, verbose=verbose)
     source_ref = entry.get("source_ref")
 
-    if target_ref is None and source_ref and ref_exists(repo, source_ref):
+    if target_ref is None and not rebuild and source_ref and ref_exists(repo, source_ref):
         target_ref = source_ref
+
+    if target_ref is None and entry.get("render"):
+        target_ref = render_from_plan(repo, branch, entry, verbose)
 
     if target_ref is None:
         raise ReconstructionError(
@@ -104,11 +227,16 @@ def main() -> None:
         if ref_exists(repo, branch):
             existing = rev_parse(repo, branch)
             target = rev_parse(repo, target_ref)
-            if existing != target:
+            if existing != target and tree_id(repo, existing) != tree_id(repo, target) and not truthy(args.force):
                 raise ReconstructionError(
                     f"persistent branch {branch} already exists at {existing}, not {target}; "
-                    "refusing to rewrite it outside integrate-source-release"
+                    "set FORCE=1 if replacing the rendered tree is intentional"
                 )
+            if existing != target and truthy(args.force):
+                update_ref(repo, branch, target, old=existing)
+                target_ref = branch
+            elif existing != target:
+                target_ref = branch
         else:
             if verbose:
                 print(f"Creating persistent branch {branch} from {target_ref}", file=sys.stderr)

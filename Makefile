@@ -6,7 +6,9 @@ V ?= 0
 RELEASE ?=
 PERSIST ?= 0
 WORKTREE ?=
-TARGET_REF ?= source/delta/local/current
+TARGET_REF ?=
+LOCAL_TARGET_REF ?= source/delta/local/current
+BASE_REF ?=
 
 .PHONY: help help-vars all build-all install zip targz buildbox-firmware-build buildbox-firmware-stage \
 	extract-vendor-delta render-release-branch integrate-source-release import-local-commits \
@@ -53,7 +55,10 @@ help-vars:
 	@printf '%s\n' '  COMPONENT=<name>      Upstream component: edk2, edk2-platforms, edk2-non-osi, tf-a, op-tee.'
 	@printf '%s\n' '  VENDOR=radxa|cix      Vendor integration target.'
 	@printf '%s\n' '  WRITE=1               Required for targets that create or advance refs.'
-	@printf '%s\n' '  TARGET_REF=<ref>      Local import target; defaults to source/delta/local/current.'
+	@printf '%s\n' '  ALLOW_REPLACE=1       Allow integrate-source-release to move an existing immutable ref.'
+	@printf '%s\n' '  TARGET_REF=<ref>      Delta artifact output ref.'
+	@printf '%s\n' '  LOCAL_TARGET_REF=<ref> Local import target; defaults to source/delta/local/current.'
+	@printf '%s\n' '  BASE_REF=<ref>        Base ref for delta extraction/import.'
 	@printf '%s\n' ''
 	@printf '%s\n' 'Configured releases:'
 	@$(PYTHON) -c 'import json; d=json.load(open("config/releases.json")); print("  default: " + d.get("default_release", "")); [print("  " + (k.removeprefix("source/release/"))) for k in sorted(d.get("releases", {}))]'
@@ -91,13 +96,13 @@ verify-release-branch:
 	@RELEASE="$(RELEASE)" WORKTREE="$(WORKTREE)" V="$(V)" $(PYTHON) scripts/verify_release_branch.py --v "$(V)"
 
 extract-vendor-delta:
-	@VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"
+	@VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"
 
 integrate-source-release:
-	@TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
+	@TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
 import-local-commits:
-	@FROM_REF="$(FROM_REF)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_local_commits.py --v "$(V)"
+	@FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(LOCAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_local_commits.py --v "$(V)"
 
 check-identity-hygiene:
 	@SCAN_COMMITS="$(SCAN_COMMITS)" V="$(V)" $(PYTHON) scripts/check_identity_hygiene.py --v "$(V)"

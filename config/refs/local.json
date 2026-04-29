@@ -1,0 +1,14 @@
+{
+  "refs": [
+    {
+      "base_ref": "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1",
+      "format": "delta.patch plus metadata.json",
+      "immutable": false,
+      "object_id": "57bbafedd7cab69529a7909a6c50a609d64d6ebc",
+      "ref": "source/delta/local/current",
+      "tree_id": "5ffb6a1b415fa810c18ff575cabb12fcd3089e45",
+      "type": "local-delta-artifact"
+    }
+  ],
+  "schema_version": 1
+}

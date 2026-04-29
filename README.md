@@ -91,16 +91,32 @@ Local development is imported explicitly. Ordinary build and render targets neve
 Dry run first:
 
 ```bash
-make import-local-commits FROM_REF=my-change
+make import-local-commits \
+  BASE_REF=source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1 \
+  FROM_REF=my-change
 ```
 
 Then update the local delta ref:
 
 ```bash
-make import-local-commits FROM_REF=my-change WRITE=1
+make import-local-commits \
+  BASE_REF=source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1 \
+  FROM_REF=my-change \
+  WRITE=1
 ```
 
-`TARGET_REF` defaults to `source/delta/local/current` and must remain under `source/delta/local/`.
+`BASE_REF` is the rendered vendor baseline your topic branch is based on. `TARGET_REF` defaults to `source/delta/local/current` and must remain under `source/delta/local/`.
+
+
+## How are deltas represented?
+
+`source/delta/radxa/**` and `source/delta/local/current` are delta artifact branches. Each contains:
+
+- `metadata.json` with base/target object IDs and submodule metadata
+- `delta.patch` generated with `git diff --binary --full-index`
+- `README.md` describing the artifact
+
+This representation is intentional: a plain tree cannot encode deletions or renames relative to a base, while a binary patch can. Render plans in `config/releases.json` apply these artifacts in order.
 
 ## How do I project `source/delta/local/current` to a materialized firmware branch?
 
@@ -119,7 +135,7 @@ make verify-release-branch \
   RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local
 ```
 
-The initial control branch seeds rendered refs from known-good branches. Future reconstruction work should replace these seeds with branches generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and `source/delta/local/current`.
+Rendered refs are generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and `source/delta/local/current`. The older known-good branches remain as validation references until the reconstructed release branches are explicitly promoted.
 
 ## How do I update upstream EDK2, Arm TF-A, OP-TEE, CIX, or Radxa sources?
 

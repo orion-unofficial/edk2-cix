@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -94,6 +95,27 @@ def tree_id(repo: Path, ref: str) -> str:
     return git(repo, "rev-parse", f"{ref}^{{tree}}").stdout.strip()
 
 
+def ref_type(repo: Path, ref: str) -> str | None:
+    result = git(repo, "cat-file", "-t", ref, check=False)
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def show_file(repo: Path, ref: str, path: str, check: bool = True) -> bytes:
+    result = subprocess.run(
+        ["git", "-C", str(repo), "show", f"{ref}:{path}"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if check and result.returncode != 0:
+        raise ReconstructionError(
+            f"could not read {path} from {ref}: {result.stderr.decode('utf-8', errors='ignore').strip()}"
+        )
+    return result.stdout
+
+
 def fetch_branch_from_origin(repo: Path, branch: str, verbose: bool = False) -> bool:
     refspec = f"refs/heads/{branch}:refs/remotes/origin/{branch}"
     result = git(repo, "fetch", "origin", refspec, check=False, capture=True)
@@ -140,6 +162,172 @@ def cache_dir(repo: Path, *parts: str) -> Path:
         path /= part
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def temp_dir(repo: Path, prefix: str) -> tempfile.TemporaryDirectory[str]:
+    root = cache_dir(repo, "tmp")
+    return tempfile.TemporaryDirectory(prefix=prefix, dir=root)
+
+
+def commit_tree_with_files(repo: Path, files: dict[str, bytes], message: str, parents: list[str] | None = None) -> str:
+    entries: list[str] = []
+    for rel, data in sorted(files.items()):
+        blob = subprocess.run(
+            ["git", "-C", str(repo), "hash-object", "-w", "--stdin"],
+            input=data,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        ).stdout.decode("ascii").strip()
+        entries.append(f"100644 blob {blob}\t{rel}")
+    tree = subprocess.run(
+        ["git", "-C", str(repo), "mktree"],
+        input=("\n".join(entries) + "\n").encode("utf-8"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    ).stdout.decode("ascii").strip()
+    cmd = ["git", "-C", str(repo), "commit-tree", tree]
+    for parent in parents or []:
+        cmd.extend(["-p", parent])
+    cmd.extend(["-m", message])
+    return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True).stdout.decode("ascii").strip()
+
+
+def update_ref(repo: Path, ref: str, commit: str, old: str | None = None) -> None:
+    full = branch_to_ref(ref)
+    cmd = ["update-ref", full, commit]
+    if old:
+        cmd.append(old)
+    git(repo, *cmd)
+
+
+def mktree_from_entries(repo: Path, entries: list[tuple[str, str, str, str]]) -> str:
+    data = "".join(f"{mode} {kind} {oid}\t{name}\n" for mode, kind, oid, name in entries)
+    return subprocess.run(
+        ["git", "-C", str(repo), "mktree"],
+        input=data.encode("utf-8"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    ).stdout.decode("ascii").strip()
+
+
+def commit_component_skeleton(repo: Path, components: list[dict[str, str]], message: str) -> str:
+    """Create a commit whose tree contains component refs at their configured paths."""
+
+    root_entries: dict[str, dict[str, Any]] = {}
+
+    def add_path(parts: list[str], oid: str, node: dict[str, Any]) -> None:
+        head = parts[0]
+        if len(parts) == 1:
+            node[head] = {"tree": oid}
+            return
+        child = node.setdefault(head, {})
+        add_path(parts[1:], oid, child)
+
+    for component in components:
+        ref = component["ref"]
+        path = component["path"].strip("/")
+        if not path:
+            raise ReconstructionError("component skeleton paths must not be empty")
+        add_path(path.split("/"), tree_id(repo, ref), root_entries)
+
+    def build(node: dict[str, Any]) -> str:
+        entries: list[tuple[str, str, str, str]] = []
+        for name, value in sorted(node.items()):
+            if "tree" in value:
+                oid = value["tree"]
+            else:
+                oid = build(value)
+            entries.append(("040000", "tree", oid, name))
+        return mktree_from_entries(repo, entries)
+
+    root_tree = build(root_entries)
+    return subprocess.run(
+        ["git", "-C", str(repo), "commit-tree", root_tree, "-m", message],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    ).stdout.decode("ascii").strip()
+
+
+def delta_metadata(repo: Path, base_ref: str, target_ref: str, kind: str, name: str) -> dict[str, Any]:
+    gitlinks = []
+    for line in git(repo, "ls-tree", "-r", target_ref).stdout.splitlines():
+        if line.startswith("160000 "):
+            meta, path = line.split("\t", 1)
+            _mode, _kind, oid = meta.split()
+            gitlinks.append({"path": path, "object_id": oid})
+    gitmodules = []
+    for line in git(repo, "ls-tree", "-r", target_ref).stdout.splitlines():
+        if "\t" in line:
+            path = line.split("\t", 1)[1]
+            if path == ".gitmodules" or path.endswith("/.gitmodules"):
+                gitmodules.append(path)
+    return {
+        "schema_version": 1,
+        "kind": kind,
+        "name": name,
+        "base_ref": base_ref,
+        "base_object_id": rev_parse(repo, base_ref),
+        "base_tree_id": tree_id(repo, base_ref),
+        "target_ref": target_ref,
+        "target_object_id": rev_parse(repo, target_ref),
+        "target_tree_id": tree_id(repo, target_ref),
+        "gitlinks": gitlinks,
+        "gitmodules_paths": gitmodules,
+    }
+
+
+def create_delta_artifact(
+    repo: Path,
+    base_ref: str,
+    target_ref: str,
+    artifact_ref: str,
+    kind: str,
+    name: str,
+    message: str,
+    allow_replace: bool = False,
+) -> str:
+    """Create a branch containing metadata.json and delta.patch for base..target."""
+
+    if not ref_exists(repo, base_ref):
+        raise ReconstructionError(f"base ref is unavailable: {base_ref}")
+    if not ref_exists(repo, target_ref):
+        raise ReconstructionError(f"target ref is unavailable: {target_ref}")
+    old = rev_parse(repo, artifact_ref) if ref_exists(repo, artifact_ref) else None
+    if old and not allow_replace:
+        raise ReconstructionError(f"delta artifact ref already exists: {artifact_ref}")
+    diff_result = subprocess.run(
+        ["git", "-C", str(repo), "diff", "--binary", "--full-index", f"{base_ref}..{target_ref}"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if diff_result.returncode not in {0, 1}:
+        raise ReconstructionError(diff_result.stderr.decode("utf-8", errors="ignore").strip())
+    diff = diff_result.stdout
+    metadata = delta_metadata(repo, base_ref, target_ref, kind, name)
+    files = {
+        "README.md": (
+            f"# Delta Artifact: {artifact_ref}\n\n"
+            f"Kind: `{kind}`\n\n"
+            f"Base: `{base_ref}`\n\n"
+            f"Target: `{target_ref}`\n\n"
+            "Apply `delta.patch` to the base tree to reconstruct the target tree.\n"
+        ).encode("utf-8"),
+        "metadata.json": json.dumps(metadata, indent=2, sort_keys=True).encode("utf-8") + b"\n",
+        "delta.patch": diff,
+    }
+    commit = commit_tree_with_files(repo, files, message, parents=[old] if old else None)
+    update_ref(repo, artifact_ref, commit)
+    return commit
+
+
+def read_delta_artifact_metadata(repo: Path, delta_ref: str) -> dict[str, Any]:
+    raw = show_file(repo, delta_ref, "metadata.json")
+    return json.loads(raw.decode("utf-8"))
 
 
 def worktree_paths(repo: Path) -> dict[str, dict[str, str]]:

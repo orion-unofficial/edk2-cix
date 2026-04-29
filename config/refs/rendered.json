@@ -1,29 +1,40 @@
 {
-  "schema_version": 1,
   "refs": [
     {
+      "immutable": true,
+      "object_id": "5e57512ca5ea4965c398cd35681333079b7864d8",
       "ref": "source/release/upstream/edk2-202208/radxa-1.2.1",
-      "type": "rendered-release",
-      "source_ref": "main-monorepo-upstream",
-      "object_id": "922def4bd663f92505e091e15920773dbd08779d",
-      "tree_id": "0d5b8d45174acb8b3559d49f45f54069b153bb31",
-      "immutable": true
+      "tree_id": "a820c88bb5f8f1808bd5288420fb0a19bb60e2c2",
+      "type": "rendered-release"
     },
     {
+      "immutable": true,
+      "object_id": "0eda4aebc4d07f064e7801f896148148ab05d48f",
+      "ref": "source/release/upstream/edk2-202602/radxa-1.2.1",
+      "tree_id": "6c90699337b73fd06fc4ca2c307968ca214d3a7a",
+      "type": "rendered-release"
+    },
+    {
+      "immutable": true,
+      "object_id": "34e3e162860571f2f15093c991ece5abfa0e097d",
+      "ref": "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1",
+      "tree_id": "29371f8363d41066bb8d9e390337f68fa1586319",
+      "type": "rendered-release"
+    },
+    {
+      "immutable": true,
+      "object_id": "42baec559ef4c4007da91398256999c51986eedf",
       "ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
-      "type": "rendered-release",
-      "source_ref": "main-monorepo-edk2",
-      "object_id": "f70313751c060b741108ea1010e40cc6f0f6f26f",
       "tree_id": "3a3c7311dc816b89f45560ad5c342fd3e997f5c7",
-      "immutable": true
+      "type": "rendered-release"
     },
     {
+      "immutable": true,
+      "object_id": "bc0c8a2a2a1f6aafc18578e1d811910e057b35a0",
       "ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1",
-      "type": "rendered-release",
-      "source_ref": "main-monorepo-edk2",
-      "object_id": "f70313751c060b741108ea1010e40cc6f0f6f26f",
       "tree_id": "3a3c7311dc816b89f45560ad5c342fd3e997f5c7",
-      "immutable": true
+      "type": "rendered-release"
     }
-  ]
+  ],
+  "schema_version": 1
 }
