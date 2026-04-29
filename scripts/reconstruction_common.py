@@ -378,10 +378,35 @@ def immutable_records(repo: Path) -> list[dict[str, Any]]:
     return [r for r in load_ref_records(repo) if r.get("immutable", False)]
 
 
+def is_immutable_namespace(ref: str) -> bool:
+    if ref.startswith("source/base/"):
+        return True
+    if ref.startswith("source/component/cix/"):
+        return True
+    if ref.startswith("source/delta/local/"):
+        return False
+    if ref.startswith("source/delta/"):
+        return True
+    return False
+
+
+def immutable_namespace_refs(repo: Path) -> list[str]:
+    result = git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads/source", check=False)
+    if result.returncode != 0:
+        return []
+    return sorted(ref for ref in result.stdout.splitlines() if is_immutable_namespace(ref))
+
+
 def check_immutable_refs(repo: Path, allow_manifest_update: bool = False, refs: Iterable[str] | None = None) -> None:
     wanted = set(refs or [])
     problems: list[str] = []
-    for record in immutable_records(repo):
+    records = immutable_records(repo)
+    recorded_refs = {record.get("ref") for record in records if record.get("ref")}
+    if not allow_manifest_update and not wanted:
+        for ref in immutable_namespace_refs(repo):
+            if ref not in recorded_refs:
+                problems.append(f"{ref}: immutable namespace ref is not recorded in config/refs/*.json")
+    for record in records:
         ref = record.get("ref")
         if not ref or (wanted and ref not in wanted):
             continue
