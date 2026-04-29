@@ -287,9 +287,6 @@ def write_docker_rebuild_wrapper(
 ) -> None:
     cert_dir_hosttmp = to_hosttmp_path(pathlib.Path(env_values["SIGNING_CERT_SOURCE_DIR"]))
     quoted_targets = " ".join(shlex.quote(target) for target in build_targets)
-    workspace_parent = pathlib.Path("/workspaces")
-    workspace_mount = REPO_ROOT.parent
-    workspace_path = workspace_parent / REPO_ROOT.name
     make_vars = [
         f"BUILD_DATE={shlex.quote(env_values['BUILD_DATE'])}",
         "ARTEFACT_MODE=upstream",
@@ -308,17 +305,9 @@ def write_docker_rebuild_wrapper(
     wrapper = f"""#!/usr/bin/env bash
 set -euo pipefail
 
-docker run --rm --platform linux/amd64 \\
-  -v {shlex.quote(str(workspace_mount))}:{shlex.quote(str(workspace_parent))} \\
-  -v /private/tmp:/hosttmp \\
-  -w {shlex.quote(str(workspace_path))} \\
-  mcr.microsoft.com/devcontainers/base:bookworm \\
-  bash -lc {shlex.quote(
-      "make devcontainer_setup && "
-      "make -C src clean && "
-      f"make -C src {' '.join(make_vars)} "
-      f"{quoted_targets}"
-  )}
+cd {shlex.quote(str(REPO_ROOT))}
+./scripts/run_in_buildbox.sh make -C src clean
+./scripts/run_in_buildbox.sh make -C src {' '.join(make_vars)} {quoted_targets}
 """
     wrapper_path.write_text(wrapper, encoding="utf-8")
     wrapper_path.chmod(0o755)
