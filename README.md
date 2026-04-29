@@ -11,7 +11,7 @@ available, with a cleaner and more flexible build system; and let you build
 custom firmware with targeted improvements that are intentionally kept off that
 upstream vendor path.
 
-Key custom additions on `main-monorepo` include:
+Key custom additions on `main-monorepo-edk2` include:
 
 - source-built replacements for several vendor helper binaries
 - reproducible replay and validation tooling around the published O6/O6N
@@ -77,12 +77,12 @@ integration.
 On a supported Debian host:
 
 - `x86_64`: prefer Debian `bookworm`
-- `arm64` / `aarch64` on `main-monorepo`: use Debian `bookworm` by default,
+- `arm64` / `aarch64` on `main-monorepo-edk2`: use Debian `bookworm` by default,
   or Debian `trixie` for the newer distro/toolchain family
 
 The untouched upstream repo contents still need Debian `trixie` for native
 `arm64` / `aarch64` builds because they shipped closed-source helper binaries.
-`main-monorepo` replaces those helpers with source implementations, so native
+`main-monorepo-edk2` replaces those helpers with source implementations, so native
 `arm64` / `aarch64` builds can now use the same default Debian `bookworm` base
 as `x86_64` builds.
 
@@ -311,7 +311,7 @@ The preferred distribution for local `x86_64` builds remains Debian
 
 In the original upstream tree, native `arm64` / `aarch64` builds needed the
 `trixie` buildbox because the shipped closed-source helpers were not portable
-enough for the Bookworm arm64 path. On `main-monorepo`, those helpers are now
+enough for the Bookworm arm64 path. On `main-monorepo-edk2`, those helpers are now
 reimplemented from source, so both `amd64` and native `arm64` can use
 Bookworm for exact replay and Trixie for the default custom build path.
 
@@ -364,7 +364,7 @@ different purposes:
   - currently records the checked O6 Trixie baseline under the shared profile
     naming scheme
   - used to confirm matching `amd64` and `arm64` Trixie builds on
-    `main-monorepo`
+    `main-monorepo-edk2`
   - not a published upstream-release baseline
 
 Freshly generated certs are compatible but not byte-identical because they
@@ -396,7 +396,7 @@ make validate-firmware \
 
 The same file also carries the `upstream-1.2.1-trixie` reproducibility profile,
 intended for matching amd64 or arm64 Trixie O6 replays on
-`main-monorepo` when they reuse the same cert bundle and replay timestamps:
+`main-monorepo-edk2` when they reuse the same cert bundle and replay timestamps:
 
 ```bash
 make validate-firmware \

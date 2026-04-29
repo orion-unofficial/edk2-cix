@@ -44,10 +44,10 @@ Current overlay areas:
   Sky1 ACPI source overlay used to reduce ACPICA warnings and remarks under the
   custom path
 - `edk2-platforms/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/` plus the
-  sibling `LinuxAcpiConfig.h`:
+  O6 and O6N sibling `LinuxAcpiConfig.h` headers:
   O6 ACPI source overlay used to reduce ACPICA warnings and remarks under the
-  custom path; the sibling header is mirrored here because this package-level
-  overlay would otherwise hide the imported header during EDK2 path resolution
+  custom path; the sibling headers are mirrored here because this package-level
+  overlay would otherwise hide the imported headers during EDK2 path resolution
 - `edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/` and
   `edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft/`:
   custom Secure Boot provisioning logic and Microsoft default key material for
