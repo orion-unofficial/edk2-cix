@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, create_delta_artifact, git, main_wrapper, ref_exists, repo_root, truthy
+from reconstruction_common import ReconstructionError, git, main_wrapper, ref_exists, repo_root
 
 
 HELP = """extract-vendor-delta
@@ -23,12 +23,11 @@ Required variables:
 Optional variables:
   OUTPUT=<path>           Write a JSON report to this path.
   PATCH_OUTPUT=<path>     Write a git-format patch/diff to this path.
-  TARGET_REF=<ref>        Create/update a delta artifact branch at this ref.
-  WRITE=1                 Required before TARGET_REF is created or replaced.
   V=1                     Print the diff stat to stdout.
 
 This command is intentionally read-only unless OUTPUT or PATCH_OUTPUT is set.
-It does not update immutable source refs; use integrate-source-release for that.
+It never updates source refs; use integrate-source-release for immutable vendor
+delta artifacts.
 """
 
 
@@ -88,21 +87,10 @@ def main() -> None:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(patch_result.stdout)
     if args.target_ref:
-        if not truthy(args.write):
-            print("dry run; set WRITE=1 to create or replace the delta artifact ref")
-            print(f"  {args.base_ref}..{args.vendor_ref} -> {args.target_ref}")
-        else:
-            create_delta_artifact(
-                repo,
-                args.base_ref,
-                args.vendor_ref,
-                args.target_ref,
-                kind="vendor-delta",
-                name=args.vendor,
-                message=f"delta: capture {args.vendor} changes",
-                allow_replace=True,
-            )
-            print(f"updated delta artifact {args.target_ref}")
+        raise ReconstructionError(
+            "extract-vendor-delta does not update refs; "
+            "use integrate-source-release TYPE=vendor for persistent vendor delta artifacts"
+        )
     if args.output or args.patch_output:
         print("vendor delta extracted")
     elif not args.target_ref:

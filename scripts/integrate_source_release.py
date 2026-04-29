@@ -9,7 +9,18 @@ import os
 import sys
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, check_immutable_refs, git, main_wrapper, ref_exists, repo_root, tree_id, truthy, rev_parse
+from reconstruction_common import (
+    ReconstructionError,
+    check_immutable_refs,
+    create_delta_artifact,
+    git,
+    main_wrapper,
+    ref_exists,
+    repo_root,
+    tree_id,
+    truthy,
+    rev_parse,
+)
 
 
 HELP = """integrate-source-release
@@ -18,7 +29,7 @@ Supported forms:
   make integrate-source-release TYPE=upstream COMPONENT=edk2 RELEASE=edk2-stable202602 WRITE=1
   make integrate-source-release TYPE=upstream COMPONENT=tf-a RELEASE=v2.7 WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=cix RELEASE=1.2 WRITE=1
-  make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202208 WRITE=1
+  make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202208 REF=<local-ref> WRITE=1
 
 Required variables:
   TYPE=upstream|vendor
@@ -203,7 +214,20 @@ def main() -> None:
     else:
         target = f"source/delta/radxa/{args.release}/{args.edk2_base}"
         source = args.ref or "<materialized-vendor-ref>"
-        operations.append(("local", source, target, {"type": "vendor-delta-artifact", "vendor": "radxa", "edk2_base": args.edk2_base, "source_ref": source}))
+        base_ref = f"source/base/rendered/{args.edk2_base}"
+        operations.append((
+            "local",
+            source,
+            target,
+            {
+                "type": "vendor-delta-artifact",
+                "vendor": "radxa",
+                "edk2_base": args.edk2_base,
+                "base_ref": base_ref,
+                "format": "delta.patch plus metadata.json",
+                "source_ref": source,
+            },
+        ))
 
     if not write:
         print("dry run; set WRITE=1 to create refs")
@@ -215,12 +239,29 @@ def main() -> None:
         if remote == "local":
             if source.startswith("<"):
                 raise ReconstructionError("Radxa vendor integration requires REF=<local-ref-or-object> in WRITE mode")
-            if ref_exists(repo, target) and not allow_replace:
-                raise ReconstructionError(f"target immutable ref already exists: {target}")
-            if allow_replace:
-                git(repo, "branch", "-f", target, source, capture=not verbose)
+            if meta.get("type") == "vendor-delta-artifact":
+                base_ref = meta["base_ref"]
+                if not ref_exists(repo, base_ref):
+                    raise ReconstructionError(f"Radxa base ref is unavailable locally: {base_ref}")
+                if not ref_exists(repo, source):
+                    raise ReconstructionError(f"Radxa source ref is unavailable locally: {source}")
+                create_delta_artifact(
+                    repo,
+                    base_ref,
+                    source,
+                    target,
+                    kind="vendor-delta",
+                    name=f"radxa/{args.release}",
+                    message=f"delta: capture Radxa {args.release} changes for {args.edk2_base}",
+                    allow_replace=allow_replace,
+                )
             else:
-                git(repo, "branch", target, source, capture=not verbose)
+                if ref_exists(repo, target) and not allow_replace:
+                    raise ReconstructionError(f"target immutable ref already exists: {target}")
+                if allow_replace:
+                    git(repo, "branch", "-f", target, source, capture=not verbose)
+                else:
+                    git(repo, "branch", target, source, capture=not verbose)
         else:
             fetch_to_ref(repo, remote, source, target, verbose, allow_replace)
         upsert_manifest(repo, target, manifest_record(repo, target, **meta))
