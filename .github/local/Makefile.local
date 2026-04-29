@@ -106,7 +106,7 @@ build-edk2:
 .PHONY: firmware-build
 firmware-build:
 	$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" $(FIRMWARE_SRC_BUILD_TARGETS)
-	@if [[ "$(FIRMWARE_VALIDATE_ON_BUILD)" == "1" ]]; then \
+	@if [ "$(FIRMWARE_VALIDATE_ON_BUILD)" = "1" ]; then \
 		printf '\n[validate] Checking artefacts against %s\n' "$(FIRMWARE_VALIDATION_PROFILE)"; \
 		mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"; \
 		python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
