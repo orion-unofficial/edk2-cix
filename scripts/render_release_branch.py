@@ -17,6 +17,8 @@ from reconstruction_common import (
     git,
     main_wrapper,
     read_delta_artifact_metadata,
+    refresh_ref_record,
+    refresh_release_tree,
     ref_exists,
     release_entry,
     repo_root,
@@ -40,6 +42,8 @@ Required variables:
 Optional variables:
   PERSIST=1  Create the rendered source/release/... branch if it is missing.
   REBUILD=1  Regenerate the release from its render plan.
+  FORCE=1    With PERSIST=1 and REBUILD=1, intentionally replace the rendered
+             branch and refresh config/refs/rendered.json plus releases.json.
   V=1        Print delegated git operations and warnings.
 
 Example:
@@ -240,7 +244,7 @@ def commit_rendered_worktree(repo: Path, worktree: Path, branch: str, entry: dic
     return rev_parse(worktree, "HEAD")
 
 
-def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool) -> str:
+def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_manifest_refresh: bool = False) -> str:
     render = entry.get("render")
     if not render:
         raise ReconstructionError(f"release has no render plan: {branch}")
@@ -282,7 +286,7 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool) -> str
         finally:
             git(repo, "worktree", "remove", "--force", str(worktree), check=False, capture=True)
     expected_tree = entry.get("tree_id")
-    if expected_tree and tree_id(repo, commit) != expected_tree:
+    if expected_tree and tree_id(repo, commit) != expected_tree and not allow_manifest_refresh:
         raise ReconstructionError(
             f"rendered tree for {branch} does not match manifest: {tree_id(repo, commit)} != {expected_tree}"
         )
@@ -306,6 +310,7 @@ def main() -> None:
 
     branch, entry = release_entry(repo, args.release or None, require=args.require_release)
     rebuild = truthy(args.rebuild)
+    allow_manifest_refresh = truthy(args.persist) and rebuild and truthy(args.force)
     target_ref = None if rebuild else resolve_branch_or_origin(repo, branch, verbose=verbose)
     source_ref = entry.get("source_ref")
 
@@ -313,7 +318,7 @@ def main() -> None:
         target_ref = source_ref
 
     if target_ref is None and entry.get("render"):
-        target_ref = render_from_plan(repo, branch, entry, verbose)
+        target_ref = render_from_plan(repo, branch, entry, verbose, allow_manifest_refresh=allow_manifest_refresh)
 
     if target_ref is None:
         raise ReconstructionError(
@@ -343,6 +348,17 @@ def main() -> None:
                 print(f"Creating persistent branch {branch} from {target_ref}", file=sys.stderr)
             git(repo, "branch", branch, target_ref, capture=not verbose)
             target_ref = branch
+        if allow_manifest_refresh:
+            refresh_ref_record(
+                repo,
+                "rendered.json",
+                branch,
+                {
+                    "immutable": True,
+                    "type": "rendered-release",
+                },
+            )
+            refresh_release_tree(repo, branch)
 
     wt: Path | None = None
     if args.ensure_worktree:

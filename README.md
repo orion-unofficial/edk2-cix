@@ -84,6 +84,16 @@ This creates or verifies:
 source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1
 ```
 
+If an explicit local import changes the rendered tree, rebuild and replace the persistent release deliberately:
+
+```bash
+make render-release-branch \
+  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local \
+  PERSIST=1 REBUILD=1 FORCE=1
+```
+
+That command also refreshes the rendered ref metadata in `config/refs/rendered.json` and the release tree ID in `config/releases.json`.
+
 ## How do I persist development changes back to `source/delta/local/current`?
 
 Local development is imported explicitly. Ordinary build and render targets never rewrite `source/delta/local/current`.

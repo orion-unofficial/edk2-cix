@@ -8,7 +8,16 @@ import os
 import sys
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, create_delta_artifact, git, main_wrapper, ref_exists, repo_root, truthy
+from reconstruction_common import (
+    ReconstructionError,
+    create_delta_artifact,
+    git,
+    main_wrapper,
+    ref_exists,
+    refresh_ref_record,
+    repo_root,
+    truthy,
+)
 
 
 HELP = """import-local-commits
@@ -66,6 +75,17 @@ def main() -> None:
         name="local/current",
         message="delta: import local changes",
         allow_replace=True,
+    )
+    refresh_ref_record(
+        repo,
+        "local.json",
+        args.target_ref,
+        {
+            "base_ref": args.base_ref,
+            "format": "delta.patch plus metadata.json",
+            "immutable": False,
+            "type": "local-delta-artifact",
+        },
     )
     print(f"updated {args.target_ref}")
 

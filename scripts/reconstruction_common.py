@@ -374,6 +374,49 @@ def load_ref_records(repo: Path) -> list[dict[str, Any]]:
     return records
 
 
+def update_ref_record(repo: Path, manifest_name: str, ref: str, updates: dict[str, Any]) -> None:
+    """Update or create a config/refs record for a ref moved by an explicit workflow."""
+
+    path = repo / "config" / "refs" / manifest_name
+    if path.exists():
+        data = load_json(repo, f"config/refs/{manifest_name}")
+    else:
+        data = {"schema_version": 1, "refs": []}
+    records = data.setdefault("refs", [])
+    record = None
+    for candidate in records:
+        if candidate.get("ref") == ref:
+            record = candidate
+            break
+    if record is None:
+        record = {"ref": ref}
+        records.append(record)
+    record.update(updates)
+    data["refs"] = sorted(records, key=lambda item: item.get("ref", ""))
+    write_json(path, data)
+
+
+def refresh_ref_record(repo: Path, manifest_name: str, ref: str, extra: dict[str, Any] | None = None) -> None:
+    updates: dict[str, Any] = {
+        "object_id": rev_parse(repo, ref),
+        "tree_id": tree_id(repo, ref),
+    }
+    if extra:
+        updates.update(extra)
+    update_ref_record(repo, manifest_name, ref, updates)
+
+
+def refresh_release_tree(repo: Path, branch: str) -> None:
+    path = repo / "config" / "releases.json"
+    data = load_json(repo, "config/releases.json")
+    entries = data.setdefault("releases", {})
+    entry = entries.get(branch) or entries.get(short_release(branch))
+    if entry is None:
+        raise ReconstructionError(f"cannot update release manifest for unknown release: {branch}")
+    entry["tree_id"] = tree_id(repo, branch)
+    write_json(path, data)
+
+
 def immutable_records(repo: Path) -> list[dict[str, Any]]:
     return [r for r in load_ref_records(repo) if r.get("immutable", False)]
 
