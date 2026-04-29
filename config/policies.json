@@ -19,6 +19,7 @@
     "rules": [
       "config/refs/*.json records expected object IDs and tree IDs",
       "scripts compare immutable refs against manifests before use",
+      "unmanifested refs under immutable namespaces cause an abort outside integration workflows",
       "if an immutable ref moved outside integrate-source-release, abort",
       "if an immutable ref is checked out in a dirty worktree, abort",
       "only integrate-source-release may create or advance immutable refs",
