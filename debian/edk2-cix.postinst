@@ -30,7 +30,7 @@ EOF
             fi
             product=$(basename "$i")
             sed -i "s/set product ./set product \" for $product.\"/" "$i/startup.nsh"
-            cat << EOF > /boot/efi/loader/entries/edk2-$product.conf.disabled
+            cat << EOF > /boot/efi/loader/entries/edk2-"$product".conf.disabled
 title           Install EDK2 $version for $product
 version         $version
 efi             /edk2/radxa/$product/Shell.efi
