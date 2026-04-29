@@ -27,8 +27,10 @@ EDK2_PLATFORMS_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF)
 SOURCE_COMMIT := $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit 2>/dev/null || git rev-parse HEAD))
 SOURCE_COMMIT_HASH := $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit-short 2>/dev/null || git rev-parse --short=10 HEAD))
 SOURCE_DATE_EPOCH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-date-epoch 2>/dev/null || git log -1 --format=%ct HEAD))
+PM_CONFIG_SOURCE_DATE_EPOCH ?= $(SOURCE_DATE_EPOCH)
 BUILD_DATE := $(strip $(shell SOURCE_DATE_EPOCH="$(SOURCE_DATE_EPOCH)" $(BUILD_METADATA_SCRIPT) source-date-iso 2>/dev/null || git log -1 --format=%cI HEAD))
 export SOURCE_DATE_EPOCH
+export PM_CONFIG_SOURCE_DATE_EPOCH
 
 # The first GCC5_AARCH64_PREFIX value uses distro-supplied cross compiler
 # The second GCC5_AARCH64_PREFIX value uses CIX-verified cross compiler
@@ -63,6 +65,7 @@ print-build-metadata:
 	echo "SOURCE_COMMIT=$(SOURCE_COMMIT)"
 	echo "SOURCE_COMMIT_HASH=$(SOURCE_COMMIT_HASH)"
 	echo "SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)"
+	echo "PM_CONFIG_SOURCE_DATE_EPOCH=$(PM_CONFIG_SOURCE_DATE_EPOCH)"
 	echo "BUILD_DATE=$(BUILD_DATE)"
 	echo "EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH)"
 	echo "EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH)"
@@ -98,7 +101,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: Build/%/$(UEFI_TARGET)_GCC5/Firmw
 	if [[ -d "$$PM" ]]; then \
 		echo "Found custom PM configuration."; \
 		rm -f Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/csu_pm_config.bin; \
-		make -C "$$PM" -j$(shell nproc); \
+		PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)" make -C "$$PM" -j$(shell nproc); \
 		mv "$$PM/csu_pm_config.bin" Build/$*/$(UEFI_TARGET)_GCC5/Firmwares/; \
 	fi
 
