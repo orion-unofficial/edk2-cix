@@ -26,8 +26,10 @@
 
 #define STR(x)   XSTR (x)
 #define XSTR(x)  #x
+#if defined (REPRODUCIBLE_BUILD_METADATA) && defined (COMPILE_BUILD_DATE)
 #define BUILD_TIME_TEMPLATE  "HH:MM:SS"
 #define BUILD_DATE_TEMPLATE  "Mon DD YYYY"
+#endif
 
 #define IS_XIP()  (((UINT64)FixedPcdGet64 (PcdFdBaseAddress) > mSystemMemoryEnd) ||\
                   ((FixedPcdGet64 (PcdFdBaseAddress) + FixedPcdGet32 (PcdFdSize)) <= FixedPcdGet64 (PcdSystemMemoryBase)))
@@ -35,6 +37,7 @@
 UINT64  mSystemMemoryEnd = FixedPcdGet64 (PcdSystemMemoryBase) +
                            FixedPcdGet64 (PcdSystemMemorySize) - 1;
 
+#if defined (REPRODUCIBLE_BUILD_METADATA) && defined (COMPILE_BUILD_DATE)
 STATIC
 BOOLEAN
 ResolveCompileBuildTimestamp (
@@ -44,7 +47,7 @@ ResolveCompileBuildTimestamp (
   IN  UINTN  BuildDateSize
   )
 {
-#ifdef COMPILE_BUILD_DATE
+#if defined (REPRODUCIBLE_BUILD_METADATA) && defined (COMPILE_BUILD_DATE)
   STATIC CONST CHAR8  IsoBuildDate[] = STR (COMPILE_BUILD_DATE);
   STATIC CONST CHAR8  *MonthNames[12] = {
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -92,6 +95,7 @@ ResolveCompileBuildTimestamp (
   return FALSE;
 #endif
 }
+#endif
 
 EFI_STATUS
 GetPlatformPpi (
@@ -130,12 +134,16 @@ PrePiMain (
   ARM_CORE_INFO               *ArmCoreInfoTable;
   EFI_STATUS                  Status;
   CHAR8                       Buffer[100];
+#if defined (REPRODUCIBLE_BUILD_METADATA) && defined (COMPILE_BUILD_DATE)
   CHAR8                       BuildDate[sizeof (BUILD_DATE_TEMPLATE)];
   CHAR8                       BuildTime[sizeof (BUILD_TIME_TEMPLATE)];
+#endif
   UINTN                       CharCount;
   UINTN                       StacksSize;
+#if defined (REPRODUCIBLE_BUILD_METADATA) && defined (COMPILE_BUILD_DATE)
   CONST CHAR8                 *DisplayBuildDate;
   CONST CHAR8                 *DisplayBuildTime;
+#endif
   FIRMWARE_SEC_PERFORMANCE    Performance;
 
   // If ensure the FD is either part of the System Memory or totally outside of the System Memory (XIP)
@@ -151,6 +159,7 @@ PrePiMain (
   // Initialize the Serial Port
   SerialPortInitialize ();
   POST_CODE(PrePiStart);
+#if defined (REPRODUCIBLE_BUILD_METADATA) && defined (COMPILE_BUILD_DATE)
   DisplayBuildTime = __TIME__;
   DisplayBuildDate = __DATE__;
   if (ResolveCompileBuildTimestamp (BuildTime, sizeof (BuildTime), BuildDate, sizeof (BuildDate))) {
@@ -166,6 +175,16 @@ PrePiMain (
                 DisplayBuildTime,
                 DisplayBuildDate
                 );
+#else
+  CharCount = AsciiSPrint (
+                Buffer,
+                sizeof (Buffer),
+                "Cix UEFI firmware (version %s built at %a on %a)\n\r",
+                (CHAR16 *)PcdGetPtr (PcdFirmwareVersionString),
+                __TIME__,
+                __DATE__
+                );
+#endif
   SerialPortWrite ((UINT8 *)Buffer, CharCount);
 
   // Initialize the Debug Agent for Source Level Debugging
