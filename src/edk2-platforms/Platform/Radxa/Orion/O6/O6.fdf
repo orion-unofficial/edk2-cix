@@ -24,13 +24,22 @@
 #
 ################################################################################
 
+[Defines]
+!if $(TARGET) == DEBUG
+  DEFINE SKY1_BL33_UEFI_FD_SIZE   = 0x00400000
+  DEFINE SKY1_BL33_UEFI_FD_BLOCKS = 0x400
+!else
+  DEFINE SKY1_BL33_UEFI_FD_SIZE   = 0x00200000
+  DEFINE SKY1_BL33_UEFI_FD_BLOCKS = 0x200
+!endif
+
 [FD.SKY1_BL33_UEFI]
 BaseAddress   = 0x84400000|gArmTokenSpaceGuid.PcdFdBaseAddress
-Size          = 0x00200000|gArmTokenSpaceGuid.PcdFdSize
+Size          = $(SKY1_BL33_UEFI_FD_SIZE)|gArmTokenSpaceGuid.PcdFdSize
 ErasePolarity = 1
 
 BlockSize     = 0x00001000
-NumBlocks     = 0x200
+NumBlocks     = $(SKY1_BL33_UEFI_FD_BLOCKS)
 
 ################################################################################
 #
@@ -48,9 +57,9 @@ NumBlocks     = 0x200
 #
 ################################################################################
 #
-# UEFI image size 0x200000
+# UEFI image size $(SKY1_BL33_UEFI_FD_SIZE)
 #
-0x00000000|0x00200000
+0x00000000|$(SKY1_BL33_UEFI_FD_SIZE)
 gArmTokenSpaceGuid.PcdFvBaseAddress|gArmTokenSpaceGuid.PcdFvSize
 FV = FVMAIN_COMPACT
 
