@@ -45,6 +45,11 @@ FILE_OVERLAYS: tuple[OverlayFile, ...] = (
         overlay_path="custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/LinuxAcpiConfig.h",
         source_path="src/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/LinuxAcpiConfig.h",
     ),
+    OverlayFile(
+        label="O6N Linux ACPI config header overlay",
+        overlay_path="custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/LinuxAcpiConfig.h",
+        source_path="src/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/LinuxAcpiConfig.h",
+    ),
 )
 
 

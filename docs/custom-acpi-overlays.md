@@ -9,6 +9,7 @@ The current ACPI overlay areas are:
 - `custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/`
 - `custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/`
 - `custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/LinuxAcpiConfig.h`
+- `custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/LinuxAcpiConfig.h`
 
 The `AcpiPlatfomTables` path above preserves an upstream Radxa/CIX directory
 name typo. We keep that path literal in source, overlay, and build references
@@ -22,8 +23,8 @@ the imported source on purpose, simply to keep the module complete.
 
 The custom ACPI overlays should follow three rules:
 
-- keep the overlay scope limited to these tracked module roots and the sibling
-  `LinuxAcpiConfig.h` header they require
+- keep the overlay scope limited to these tracked module roots and the O6/O6N
+  sibling `LinuxAcpiConfig.h` headers they require
 - keep warning suppressions targeted and documented, rather than widening them
   across unrelated tables
 - keep the mirrored module file lists aligned with the imported source so a

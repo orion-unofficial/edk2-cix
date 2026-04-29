@@ -204,14 +204,8 @@ PrePiMain (
   Status = MemoryPeim (UefiMemoryBase, FixedPcdGet32 (PcdSystemMemoryUefiRegionSize));
   ASSERT_EFI_ERROR (Status);
 
-  // Create the Stacks HOB (reserve the memory for all stacks)
-  if (ArmIsMpCore ()) {
-    StacksSize = PcdGet32 (PcdCPUCorePrimaryStackSize) +
-                 ((FixedPcdGet32 (PcdCoreCount) - 1) * FixedPcdGet32 (PcdCPUCoreSecondaryStackSize));
-  } else {
-    StacksSize = PcdGet32 (PcdCPUCorePrimaryStackSize);
-  }
-
+  // Create the Stacks HOB
+  StacksSize = PcdGet32 (PcdCPUCorePrimaryStackSize);
   BuildStackHob (StacksBase, StacksSize);
 
   // check later: Call CpuPei as a library
@@ -290,31 +284,12 @@ CEntryPoint (
   // Enable Instruction Caches on all cores.
   ArmEnableInstructionCache ();
 
-  // Define the Global Variable region when we are not running in XIP
-  if (!IS_XIP ()) {
-    if (ArmPlatformIsPrimaryCore (MpId)) {
-      if (ArmIsMpCore ()) {
-        // Signal the Global Variable Region is defined (event: ARM_CPU_EVENT_DEFAULT)
-        ArmCallSEV ();
-      }
-    } else {
-      // Wait the Primary core has defined the address of the Global Variable region (event: ARM_CPU_EVENT_DEFAULT)
-      ArmCallWFE ();
-    }
-  }
+  InvalidateDataCacheRange (
+    (VOID *)UefiMemoryBase,
+    FixedPcdGet32 (PcdSystemMemoryUefiRegionSize)
+    );
 
-  // If not primary Jump to Secondary Main
-  if (ArmPlatformIsPrimaryCore (MpId)) {
-    InvalidateDataCacheRange (
-      (VOID *)UefiMemoryBase,
-      FixedPcdGet32 (PcdSystemMemoryUefiRegionSize)
-      );
-
-    // Goto primary Main.
-    PrimaryMain (UefiMemoryBase, StacksBase, StartTimeStamp);
-  } else {
-    SecondaryMain (MpId);
-  }
+  PrimaryMain (UefiMemoryBase, StacksBase, StartTimeStamp);
 
   // DXE Core should always load and never return
   ASSERT (FALSE);
