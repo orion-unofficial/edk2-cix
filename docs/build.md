@@ -80,14 +80,14 @@ networking before the run can start.
 
 - Debian `bookworm` on `x86_64` for the preferred upstream vendor path,
   including byte-identical replay when you provide the published replay inputs
-- Debian `bookworm` on `arm64` / `aarch64` for the default `main-monorepo`
+- Debian `bookworm` on `arm64` / `aarch64` for the default `main-monorepo-edk2`
   build path, including exact replay when you reuse the extracted cert bundle
 - Debian `trixie` on `arm64` / `aarch64` for the newer distro / toolchain
-  family on `main-monorepo`
+  family on `main-monorepo-edk2`
 
 The untouched upstream repo contents still need Debian `trixie` for native
 `arm64` / `aarch64` builds because they shipped closed-source helper binaries.
-`main-monorepo` replaces those helpers with source implementations, so native
+`main-monorepo-edk2` replaces those helpers with source implementations, so native
 `arm64` / `aarch64` can now use the same default Debian `bookworm` base as
 `x86_64`.
 
@@ -538,7 +538,7 @@ The preferred local distribution for `x86_64` builds remains Debian
 
 In the original upstream tree, native `arm64` / `aarch64` builds needed the
 `trixie` buildbox because the shipped closed-source helpers were not portable
-enough for the Bookworm arm64 path. On `main-monorepo`, those helpers are now
+enough for the Bookworm arm64 path. On `main-monorepo-edk2`, those helpers are now
 reimplemented from source, so both `amd64` and native `arm64` can use
 Bookworm for exact replay and Trixie for the default custom build path.
 
@@ -614,7 +614,7 @@ make validate-firmware \
 
 The same file also carries the `upstream-1.2.1-trixie` reproducibility
 profile, intended for matching amd64 or arm64 Trixie replays on
-`main-monorepo` when they reuse the same cert bundle and replay timestamps:
+`main-monorepo-edk2` when they reuse the same cert bundle and replay timestamps:
 
 The profile name refers to the Trixie distro/toolchain family used for the
 build. The cert bundle reused by that profile currently still comes from the
