@@ -10,6 +10,7 @@ all: build
 SHELL := bash
 UNAME := $(shell uname -m)
 UPSTREAM_EDK2_REF ?= refs/heads/main-monorepo-upstream-edk2
+BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
 MONOREPO_EDK2_COMMIT_HASH ?= 971cfbc5fa
 MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= c051ce622f
 MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 971cfbc5fa
@@ -23,6 +24,11 @@ resolve-path-head = $(strip $(shell git -C .. log -1 --format=%h $(1) -- $(2) 2>
 EDK2_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2),$(MONOREPO_EDK2_COMMIT_HASH))
 EDK2_NON_OSI_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2-non-osi),$(MONOREPO_EDK2_NON_OSI_COMMIT_HASH))
 EDK2_PLATFORMS_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2-platforms),$(MONOREPO_EDK2_PLATFORMS_COMMIT_HASH))
+SOURCE_COMMIT := $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit 2>/dev/null || git rev-parse HEAD))
+SOURCE_COMMIT_HASH := $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit-short 2>/dev/null || git rev-parse --short=10 HEAD))
+SOURCE_DATE_EPOCH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-date-epoch 2>/dev/null || git log -1 --format=%ct HEAD))
+BUILD_DATE := $(strip $(shell SOURCE_DATE_EPOCH="$(SOURCE_DATE_EPOCH)" $(BUILD_METADATA_SCRIPT) source-date-iso 2>/dev/null || git log -1 --format=%cI HEAD))
+export SOURCE_DATE_EPOCH
 
 # The first GCC5_AARCH64_PREFIX value uses distro-supplied cross compiler
 # The second GCC5_AARCH64_PREFIX value uses CIX-verified cross compiler
@@ -50,6 +56,16 @@ build: $(CIX_FLASH)
 help:
 	echo "Supported targets:"
 	echo "$(CIX_FLASH)"
+
+.PHONY: print-build-metadata
+print-build-metadata:
+	echo "SOURCE_COMMIT=$(SOURCE_COMMIT)"
+	echo "SOURCE_COMMIT_HASH=$(SOURCE_COMMIT_HASH)"
+	echo "SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)"
+	echo "BUILD_DATE=$(BUILD_DATE)"
+	echo "EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH)"
+	echo "EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH)"
+	echo "EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH)"
 
 Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
 	export CFG="$(shell find edk2*/Platform/ -mindepth 4 -maxdepth 4 -path "*/$*/spi_flash_config_ota.json" -type f)" && \
@@ -157,9 +173,9 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd:
 	unset MAKEFLAGS
 	source edk2/edksetup.sh --reconfig
 	build -a AARCH64 -t GCC5 -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
-		-b $(UEFI_TARGET) -D BOARD_NAME=$(word 2, $(subst /,, $@)) -D BUILD_DATE=$(shell date -Is) \
+		-b $(UEFI_TARGET) -D BOARD_NAME=$(word 2, $(subst /,, $@)) -D BUILD_DATE=$(BUILD_DATE) \
 		-D SMP_ENABLE=1 -D ACPI_BOOT_ENABLE=1 -D FASTBOOT_LOAD= -D VARIABLE_TYPE=SPI -D STANDARD_MM=TRUE \
-		-D COMMIT_HASH=$(shell git rev-parse --short HEAD) \
+		-D COMMIT_HASH=$(SOURCE_COMMIT_HASH) \
 		-D EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH) \
 		-D EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH) \
 		-D EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH) \
