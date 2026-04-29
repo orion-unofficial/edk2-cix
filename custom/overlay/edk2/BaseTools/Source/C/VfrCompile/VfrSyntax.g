@@ -1,7 +1,8 @@
 /*++ @file
 Vfr Syntax
 
-Copyright (c) 2004 - 2019, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2004 - 2025, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2025, Loongson Technology Corporation Limited. All rights reserved.<BR>
 SPDX-License-Identifier: BSD-2-Clause-Patent
 
 --*/
@@ -111,6 +112,7 @@ VfrParserStart (
 #token CloseBracket("]")                        "\]"
 
 #token LineDefinition                           "#line\ [0-9]+\ \"~[\"]+\"[\ \t]*\n" << gCVfrErrorHandle.ParseFileScopeRecord (begexpr (), line ()); skip (); newline (); >>
+#token GccLineDefinition                        "#\ [0-9]+\ \"~[\"]+\"[\ \t]*([1234][\ \t]*)*\n" << gCVfrErrorHandle.ParseFileScopeRecord (begexpr (), line ()); skip (); newline (); >>
 #token DevicePath("devicepath")                 "devicepath"
 #token FormSet("formset")                       "formset"
 #token FormSetId("formsetid")                   "formsetid"
@@ -893,8 +895,8 @@ vfrExtensionData[UINT8 *DataBuff, UINT32 Size, CHAR8 *TypeName, UINT32 TypeSize,
               gCVfrVarDataTypeDB.GetDataFieldInfo(TFName, FieldOffset, FieldType, FieldSize, BitField);
               if (BitField) {
                 Mask = (1 << FieldSize) - 1;
-                Offset = FieldOffset / 8;
-                PreBits = FieldOffset % 8;
+                PreBits = FieldOffset % (1 << (FieldType + 3)); ///< Relies on field types for 8,16,32,64 bits having values 0,1,2,3
+                Offset = (FieldOffset - PreBits) / 8;
                 Mask <<= PreBits;
               }
               switch (FieldType) {
@@ -916,7 +918,7 @@ vfrExtensionData[UINT8 *DataBuff, UINT32 Size, CHAR8 *TypeName, UINT32 TypeSize,
                  Data_U16 = _STOU16(RD->getText(), RD->getLine());
                  if (BitField) {
                    //
-                   // Set the value to the bit fields.
+                   // Set the value to the bit fileds.
                    //
                    Value = *(UINT16*) (ByteOffset + Offset);
                    Data_U16 <<= PreBits;
@@ -930,7 +932,7 @@ vfrExtensionData[UINT8 *DataBuff, UINT32 Size, CHAR8 *TypeName, UINT32 TypeSize,
                  Data_U32 = _STOU32(RD->getText(), RD->getLine());
                  if (BitField) {
                    //
-                   // Set the value to the bit fields.
+                   // Set the value to the bit fileds.
                    //
                    Value = *(UINT32*) (ByteOffset + Offset);
                    Data_U32 <<= PreBits;
@@ -944,7 +946,7 @@ vfrExtensionData[UINT8 *DataBuff, UINT32 Size, CHAR8 *TypeName, UINT32 TypeSize,
                  Data_U64 = _STOU64(RD->getText(), RD->getLine());
                  if (BitField) {
                    //
-                   // Set the value to the bit fields.
+                   // Set the value to the bit fileds.
                    //
                    Value = *(UINT64*) (ByteOffset + Offset);
                    Data_U64 <<= PreBits;
@@ -1617,7 +1619,7 @@ vfrConstantValueField[UINT8 Type, EFI_IFR_TYPE_VALUE &Value, BOOLEAN &ListType] 
                                                            $Value.b      = _STOU8(N1->getText(), N1->getLine());
                                                          break;
                                                          case EFI_IFR_TYPE_STRING :
-                                                           $Value.string = _STOU16(N1->getText(), N1->getLine());
+                                                           _PCATCH (VFR_RETURN_INVALID_PARAMETER, N1->getLine(), "string type can't be numeric constant.");
                                                          break;
                                                          case EFI_IFR_TYPE_TIME :
                                                          case EFI_IFR_TYPE_DATE :
@@ -3126,7 +3128,7 @@ vfrStatementString :
      UINT8 StringMaxSize;
   >>
   L:String                                             << SObj.SetLineNo(L->getLine()); gIsStringOp = TRUE;>>
-  vfrQuestionHeader[SObj] ","
+  vfrQuestionHeader[SObj] ","                          << _GET_CURRQEST_VARTINFO().mVarType = EFI_IFR_TYPE_STRING;>>
   { F:FLAGS "=" vfrStringFlagsField[SObj, F->getLine()] "," }
   {
     Key "=" KN:Number ","                              << AssignQuestionKey (SObj, KN); >>
