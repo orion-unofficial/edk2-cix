@@ -8,7 +8,7 @@
 
 #include <Uefi.h>
 #include <IndustryStandard/Acpi.h>
-#include <libfdt.h>
+#include <Library/FdtLib.h>
 
 #include <Guid/ConsolePrefFormSet.h>
 
