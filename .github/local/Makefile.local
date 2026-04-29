@@ -12,6 +12,7 @@ WITH_REPO_LOCK := "$(REPO_ROOT)/scripts/with_repo_lock.sh"
 LOCKED_MAKE = $(if $(filter 1,$(EDK2_CIX_REPO_LOCK_HELD)),$(MAKE) --no-print-directory,$(WITH_REPO_LOCK) $(MAKE) --no-print-directory)
 MAKE_INPUT_VALIDATOR := $(REPO_ROOT)/scripts/validate_make_inputs.py
 FIRMWARE_LAYOUT_SCRIPT := $(REPO_ROOT)/scripts/firmware_layout.py
+EDK2_REBASED_DETERMINISTIC_GUARD := $(REPO_ROOT)/scripts/fail_rebased_edk2_deterministic.sh
 VALIDATION_PROFILE_FILE := $(REPO_ROOT)/validation/expected-hashes.json
 MAX_DEBUG_PRINT_ERROR_LEVEL := $(shell python3 "$(MAKE_INPUT_VALIDATOR)" max-debug-print-error-level 2>/dev/null || printf '%s' 0x807B55FF)
 BUILDBOX_WORKSPACE_PARENT ?= /workspaces
@@ -20,16 +21,16 @@ BUILDBOX_HOST_TMPDIR ?= $(REPO_ROOT)/.buildbox/tmp
 BUILDBOX_CONTAINER_TMPDIR ?= /hosttmp
 ARTEFACT_MODE ?= custom
 FIRMWARE_DISTRO ?=
-FIRMWARE_DISTRO_EFFECTIVE := $(if $(strip $(FIRMWARE_DISTRO)),$(FIRMWARE_DISTRO),$(if $(filter upstream,$(ARTEFACT_MODE)),bookworm,trixie))
-REPLAY_FIRMWARE_DISTRO_EFFECTIVE := $(if $(strip $(FIRMWARE_DISTRO)),$(FIRMWARE_DISTRO),bookworm)
+FIRMWARE_DISTRO_EFFECTIVE := $(if $(strip $(FIRMWARE_DISTRO)),$(FIRMWARE_DISTRO),trixie)
+REPLAY_FIRMWARE_DISTRO_EFFECTIVE := $(if $(strip $(FIRMWARE_DISTRO)),$(FIRMWARE_DISTRO),trixie)
 BUILDBOX_IMAGE ?=
 BUILDBOX_PLATFORM ?=
 BUILDBOX_IMAGE_DEFAULT := mcr.microsoft.com/devcontainers/base:$(FIRMWARE_DISTRO_EFFECTIVE)
 BUILDBOX_IMAGE_EFFECTIVE := $(if $(strip $(BUILDBOX_IMAGE)),$(BUILDBOX_IMAGE),$(BUILDBOX_IMAGE_DEFAULT))
 REPLAY_BUILDBOX_IMAGE ?= edk2-cix-replay-bookworm:20260406
 REPLAY_BUILDBOX_DEP_PROFILE ?= replay
-VALIDATION_BUILDBOX_IMAGE ?= $(if $(filter bookworm,$(FIRMWARE_DISTRO_EFFECTIVE)),$(REPLAY_BUILDBOX_IMAGE),$(BUILDBOX_IMAGE_EFFECTIVE))
-VALIDATION_BUILDBOX_DEP_PROFILE ?= $(if $(filter bookworm,$(FIRMWARE_DISTRO_EFFECTIVE)),$(REPLAY_BUILDBOX_DEP_PROFILE),firmware)
+VALIDATION_BUILDBOX_IMAGE ?= $(BUILDBOX_IMAGE_EFFECTIVE)
+VALIDATION_BUILDBOX_DEP_PROFILE ?= firmware
 BUILDBOX_DEB_RESULT_ROOT ?= $(DEB_RESULT_ROOT)
 BUILDBOX_DEB_RESULT_ROOT_IN_CONTAINER ?= $(BUILDBOX_WORKSPACE_ROOT)/dist/deb
 BUILD_LOG_ROOT ?= $(REPO_ROOT)/build-logs
@@ -241,8 +242,7 @@ endef
 define PRINT_TOP_LEVEL_COMMON_USER_VARIABLES
 	print_help_line '  FIRMWARE_BOARD=O6|O6N' 'Select the firmware board; replay follows the same board.\nDefault: O6.'; \
 	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG firmware build.\nDefault: RELEASE.'; \
-	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Select the distro family used by buildbox runs and deterministic replay.\nDefault: bookworm for ARTEFACT_MODE=upstream and deterministic replay; trixie for ARTEFACT_MODE=custom.'; \
-	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Choose between the upstream vendor path and the local custom path. With the published replay inputs, '\''upstream'\'' supports byte-identical vendor rebuilds; '\''custom'\'' allows local feature switches.\nDefault: custom.'
+	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Choose between the upstream-derived path and the local custom path. On main-monorepo-edk2, '\''upstream'\'' is for closest-to-upstream diagnostics; byte-accurate vendor replay belongs to main-monorepo.\nDefault: custom.'
 endef
 
 define PRINT_TOP_LEVEL_CACHE_USER_VARIABLES
@@ -270,7 +270,8 @@ endef
 
 define PRINT_TOP_LEVEL_DEV_VARIABLES_BUILDBOX
 	print_help_line '  BUILDBOX_PLATFORM=linux/amd64|linux/arm64' 'Select the container platform for buildbox runs.\nDefault: host-matched runtime platform.'; \
-	print_help_line '  BUILDBOX_IMAGE=<image>' 'Override the selected buildbox container image directly.\nDefault image: mcr.microsoft.com/devcontainers/base:<effective-distro>.\nEffective distro: bookworm for upstream and trixie for custom.'
+	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Override the buildbox distro family.\nDefault: trixie for edk2-rebased builds. Bookworm remains supported but emits a warning on this branch.'; \
+	print_help_line '  BUILDBOX_IMAGE=<image>' 'Override the selected buildbox container image directly.\nDefault image: mcr.microsoft.com/devcontainers/base:<effective-distro>.\nEffective distro: trixie unless FIRMWARE_DISTRO is explicitly set.'
 endef
 
 define PRINT_TOP_LEVEL_DEV_VARIABLES_VALIDATION
@@ -331,10 +332,18 @@ define PRINT_TOP_LEVEL_INTERNAL_VARIABLES_WRAPPER_FLAGS
 endef
 
 define BUILD_ALL_WARN_IF_IGNORED
-	if [ -n "$(filter command line environment environment override,$(BUILD_ALL_IGNORED_$(1)_ORIGIN))" ]; then \
-		printf '[build-all] warning: %s is ineffective for build-all*; %s\n' "$(1)" "$(2)" >&2; \
-	fi;
+		if [ -n "$(filter command line environment environment override,$(BUILD_ALL_IGNORED_$(1)_ORIGIN))" ]; then \
+			printf '[build-all] warning: %s is ineffective for build-all*; %s\n' "$(1)" "$(2)" >&2; \
+		fi;
 endef
+
+define WARN_EDK2_REBASED_BOOKWORM
+	if [ "$(FIRMWARE_DISTRO_EFFECTIVE)" = "bookworm" ]; then \
+		printf '%s\n' '[buildbox] warning: FIRMWARE_DISTRO=bookworm requested; trixie is the default for edk2-rebased builds on main-monorepo-edk2.' >&2; \
+	fi
+endef
+
+FAIL_EDK2_REBASED_DETERMINISTIC = "$(EDK2_REBASED_DETERMINISTIC_GUARD)"
 
 .PHONY: help help-vars help-dev help-internal help-debug
 help:
@@ -355,7 +364,7 @@ help:
 	print_help_line '  buildbox-zip' 'Create a .zip archive inside the buildbox'; \
 	print_help_line '  buildbox-targz' 'Create a .tar.gz archive inside the buildbox'; \
 	print_help_line '  buildbox-deb' 'Build the Debian package inside the buildbox under dist/deb/'; \
-	print_help_line '  build-all' 'Alias for build-all-targz; build all supported firmware variants for the selected board, using Bookworm for upstream and Trixie for custom variants.'; \
+	print_help_line '  build-all' 'Alias for build-all-targz; build all supported firmware variants for the selected board using the Trixie buildbox.'; \
 	print_help_line '  build-all-zip' 'Create one .zip containing all supported firmware variants for the selected board through the buildbox wrappers.'; \
 	print_help_line '  build-all-targz' 'Create one .tar.gz containing all supported firmware variants for the selected board through the buildbox wrappers.'; \
 	printf '\n%s\n\n' 'More Help'; \
@@ -383,30 +392,13 @@ help-dev:
 	printf '%s\n\n' 'Maintainer and Developer Targets'; \
 	print_section 'Build Preparation'; \
 	print_help_line '  arm64_crossbuild_dep' 'Install Debian arm64 cross-build dependencies'; \
-	print_help_line '  prepare-replay-buildbox-image' 'Build or refresh the pinned Debian replay image used by Bookworm replay and validation wrappers'; \
 	print_help_line '  buildbox-up' 'Start or reuse the persistent build container'; \
 	print_section 'Build and Inspect'; \
 	print_help_line '  build-edk2' 'Run the raw src/ firmware build directly'; \
 	print_help_line '  buildbox-metadata' 'Print resolved build metadata inside the buildbox'; \
 	print_help_line '  buildbox-firmware-log' 'Capture a full logged buildbox firmware build for the selected board'; \
-	print_section 'Validation and Audit'; \
-	print_help_line '  validate-firmware' 'Check outputs against the active validation profile'; \
-	print_help_line '  validate-firmware-strict' 'Require exact matches from the validation profile'; \
-	print_help_line '  capture-validation-profile' 'Snapshot the current build into a profile JSON'; \
-	print_help_line '  check-offline-audit-baselines' 'Validate the checked-in offline audit baseline JSON structure'; \
-	print_help_line '  audit-final-image-manifest' 'Check final BL33 firmware composition against the stored baseline'; \
-	print_help_line '  audit-acpi-regression' 'Check final ACPI tables and IASL diagnostics against the stored baseline'; \
-	print_help_line '  refresh-offline-audit-baselines' 'Refresh both offline audit baseline files from the selected board build'; \
-	print_help_line '  audit-bundle' 'Run the structural audit checks for the selected board'; \
-	print_help_line '  buildbox-validate-firmware' 'Run validation inside the buildbox'; \
-	print_help_line '  buildbox-validate-firmware-strict' 'Run strict validation inside the buildbox'; \
-	print_help_line '  buildbox-capture-validation-profile' 'Capture a validation profile inside the buildbox'; \
+	print_section 'Semantic Validation'; \
 	print_help_line '  buildbox-validate-secure-boot-defaults' 'Validate embedded Secure Boot payloads inside the buildbox'; \
-	print_help_line '  buildbox-audit-final-image-manifest' 'Run the final-image manifest audit inside the buildbox'; \
-	print_help_line '  buildbox-audit-acpi-regression' 'Run the ACPI regression audit inside the buildbox'; \
-	print_help_line '  buildbox-audit-bundle' 'Run the full structural audit checks inside the buildbox'; \
-	print_section 'Replay and Recovery'; \
-	print_help_line '  deterministic-replay' 'Seed or reuse exact replay inputs, rebuild, and validate them strictly'; \
 	print_section 'Automation, Docs, and Release'; \
 	print_help_line '  gha-act-list' 'List workflows and jobs through the repo-local act wrapper'; \
 	print_help_line '  gha-act-dry-run' 'Dry-run a selected workflow or job through act'; \
@@ -429,10 +421,6 @@ help-dev:
 	$(PRINT_TOP_LEVEL_DEV_VARIABLES_EXECUTION); \
 	print_section 'Buildbox Selection'; \
 	$(PRINT_TOP_LEVEL_DEV_VARIABLES_BUILDBOX); \
-	print_section 'Validation and Audit Variables'; \
-	$(PRINT_TOP_LEVEL_DEV_VARIABLES_VALIDATION); \
-	print_section 'Replay Inputs'; \
-	$(PRINT_TOP_LEVEL_DEV_VARIABLES_REPLAY); \
 	print_section 'Act Wrapper Variables'; \
 	$(PRINT_TOP_LEVEL_DEV_VARIABLES_ACT); \
 	printf '\n%s\n' 'For regular firmware build usage, run: make help'; \
@@ -446,15 +434,9 @@ help-internal:
 	print_help_line '  preflight-wrapper-buildbox' 'Additional validation for buildbox lifecycle and image selection wrappers.'; \
 	print_help_line '  preflight-wrapper-firmware-build' 'Additional validation for public firmware build and staging wrappers.'; \
 	print_help_line '  preflight-wrapper-build-all' 'Build-all-specific validation plus warnings for ineffective variant-selection variables.'; \
-	print_help_line '  preflight-wrapper-validation' 'Additional validation for public validation and profile-capture wrappers.'; \
-	print_help_line '  preflight-wrapper-replay' 'Additional validation for deterministic-replay cache and seed inputs.'; \
 	print_section 'Internal Variables'; \
 	print_section 'Buildbox Workspace and Runtime'; \
 	$(PRINT_TOP_LEVEL_INTERNAL_VARIABLES_BUILDBOX); \
-	print_section 'Validation and Replay Images'; \
-	$(PRINT_TOP_LEVEL_INTERNAL_VARIABLES_VALIDATION_IMAGES); \
-	print_section 'Deterministic Replay Plumbing'; \
-	$(PRINT_TOP_LEVEL_INTERNAL_VARIABLES_REPLAY); \
 	print_section 'Wrapper Handoff Flags'; \
 	$(PRINT_TOP_LEVEL_INTERNAL_VARIABLES_WRAPPER_FLAGS); \
 	printf '\n%s\n' 'Internal targets and variables are unstable and may change without compatibility guarantees.'; \
@@ -506,6 +488,9 @@ preflight-wrapper-firmware-build: preflight-wrapper-common
 		echo "[preflight] DEB_VERSION is packaging-only; omit it for firmware-oriented targets." >&2; \
 		exit 1; \
 	fi; \
+	if [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
+		$(FAIL_EDK2_REBASED_DETERMINISTIC); \
+	fi; \
 		validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
 			--repo-root "$(REPO_ROOT)" \
 			--profile-file "$(VALIDATION_PROFILE_FILE)" \
@@ -533,6 +518,7 @@ preflight-wrapper-firmware-build: preflight-wrapper-common
 
 preflight-wrapper-validation: preflight-wrapper-common
 	@set -euo pipefail; \
+	$(FAIL_EDK2_REBASED_DETERMINISTIC); \
 		validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
 			--repo-root "$(REPO_ROOT)" \
 			--profile-file "$(VALIDATION_PROFILE_FILE)" \
@@ -575,10 +561,14 @@ preflight-wrapper-buildbox:
 	if [ -n "$(strip $(BUILDBOX_IMAGE))" ]; then \
 		validate_cmd+=(--buildbox-image "$(strip $(BUILDBOX_IMAGE))" --check-buildbox-image); \
 	fi; \
-	"$${validate_cmd[@]}"
+	"$${validate_cmd[@]}"; \
+	$(WARN_EDK2_REBASED_BOOKWORM)
 
 preflight-wrapper-build-all:
 	@set -euo pipefail; \
+	if [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
+		$(FAIL_EDK2_REBASED_DETERMINISTIC); \
+	fi; \
 	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
 		--repo-root "$(REPO_ROOT)" \
 		--profile-file "$(VALIDATION_PROFILE_FILE)" \
@@ -603,7 +593,7 @@ preflight-wrapper-build-all:
 	"$${validate_cmd[@]}"; \
 	$(call BUILD_ALL_WARN_IF_IGNORED,ARTEFACT_MODE,build-all* selects upstream and custom variants itself.) \
 	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_TARGET,build-all* includes the supported RELEASE and DEBUG variants itself.) \
-	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_DISTRO,build-all* always uses Bookworm for upstream and Trixie for custom variants.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_DISTRO,build-all* always uses Trixie on main-monorepo-edk2.) \
 	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_STAGE_ROOT,build-all* stages variants in a temporary per-run tree before archiving.) \
 	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_ARCHIVE_BASENAME,build-all* always writes the fixed all-variants archive name.) \
 	$(call BUILD_ALL_WARN_IF_IGNORED,ENABLE_FIRMWARE_FIXES,build-all* selects its supported firmware variants itself.) \
@@ -617,6 +607,7 @@ preflight-wrapper-build-all:
 
 preflight-wrapper-replay: preflight-wrapper-buildbox
 	@set -euo pipefail; \
+	$(FAIL_EDK2_REBASED_DETERMINISTIC); \
 	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
 		--repo-root "$(REPO_ROOT)" \
 		--profile-file "$(VALIDATION_PROFILE_FILE)" \
@@ -639,7 +630,11 @@ preflight-wrapper-replay: preflight-wrapper-buildbox
 
 .PHONY: prepare-replay-buildbox-image __prepare-replay-buildbox-image
 prepare-replay-buildbox-image:
-	$(Q)$(LOCKED_MAKE) __prepare-replay-buildbox-image V="$(V)"
+	$(Q)$(LOCKED_MAKE) __fail-edk2-rebased-deterministic V="$(V)"
+
+.PHONY: __fail-edk2-rebased-deterministic
+__fail-edk2-rebased-deterministic:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 
 __prepare-replay-buildbox-image:
 	@if [ "$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)" != "bookworm" ]; then \
@@ -667,13 +662,14 @@ build-edk2: preflight-wrapper-common
 firmware-build firmware-stage install zip targz: preflight-wrapper-firmware-build
 build-all build-all-zip build-all-targz: preflight-wrapper-build-all
 validate-firmware validate-firmware-strict refresh-offline-audit-baselines audit-final-image-manifest audit-acpi-regression audit-bundle capture-validation-profile: preflight-wrapper-validation
-deterministic-replay: preflight-wrapper-replay prepare-replay-buildbox-image
+deterministic-replay: preflight-wrapper-replay
 buildbox-up: preflight-wrapper-buildbox
 buildbox-deb: preflight-wrapper-buildbox prepare-buildbox-fiptool
 buildbox-metadata: preflight-wrapper-common preflight-wrapper-buildbox
 buildbox-ccache-stats: preflight-wrapper-buildbox
 buildbox-firmware-build buildbox-firmware-log buildbox-firmware-stage buildbox-zip buildbox-targz: preflight-wrapper-firmware-build preflight-wrapper-buildbox prepare-buildbox-fiptool
-buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile: preflight-wrapper-validation preflight-wrapper-buildbox prepare-replay-buildbox-image
+buildbox-validate-firmware buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile: preflight-wrapper-validation preflight-wrapper-buildbox
+buildbox-validate-secure-boot-defaults: preflight-wrapper-firmware-build preflight-wrapper-buildbox prepare-buildbox-fiptool
 
 prepare-buildbox-fiptool:
 	@set -euo pipefail; \
@@ -854,6 +850,7 @@ validate-firmware:
 	$(Q)$(LOCKED_MAKE) __validate-firmware V="$(V)"
 
 __validate-firmware:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
 		--repo-root "$(REPO_ROOT)" \
@@ -867,6 +864,7 @@ validate-firmware-strict:
 	$(Q)$(LOCKED_MAKE) __validate-firmware-strict V="$(V)"
 
 __validate-firmware-strict:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
 		--repo-root "$(REPO_ROOT)" \
@@ -881,6 +879,7 @@ check-offline-audit-baselines:
 	$(Q)$(LOCKED_MAKE) __check-offline-audit-baselines V="$(V)"
 
 __check-offline-audit-baselines:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_offline_audit_baselines.py"
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_audit_acpi_regression.py"
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_audit_final_image_manifest.py"
@@ -891,6 +890,7 @@ audit-final-image-manifest:
 	$(Q)$(LOCKED_MAKE) __audit-final-image-manifest V="$(V)"
 
 __audit-final-image-manifest:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
@@ -905,6 +905,7 @@ audit-acpi-regression:
 	$(Q)$(LOCKED_MAKE) __audit-acpi-regression V="$(V)"
 
 __audit-acpi-regression:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
@@ -919,6 +920,7 @@ refresh-offline-audit-baselines:
 	$(Q)$(LOCKED_MAKE) __refresh-offline-audit-baselines V="$(V)"
 
 __refresh-offline-audit-baselines:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
@@ -934,6 +936,7 @@ audit-bundle:
 	$(Q)$(LOCKED_MAKE) __audit-bundle V="$(V)"
 
 __audit-bundle:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
 	$(Q)$(MAKE) --no-print-directory firmware-build V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1
 	$(Q)$(MAKE) --no-print-directory validate-firmware-strict V="$(V)"
@@ -951,6 +954,7 @@ capture-validation-profile:
 	$(Q)$(LOCKED_MAKE) __capture-validation-profile V="$(V)"
 
 __capture-validation-profile:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
 		--repo-root "$(REPO_ROOT)" \
@@ -967,6 +971,7 @@ deterministic-replay:
 
 __deterministic-replay:
 	@set -euo pipefail; \
+	$(FAIL_EDK2_REBASED_DETERMINISTIC); \
 	replay_board="$(FIRMWARE_BOARD)"; \
 	replay_dir="$(DETERMINISTIC_REPLAY_ROOT)"; \
 	replay_input='$(strip $(REPLAY_INPUT))'; \
@@ -1353,6 +1358,7 @@ buildbox-validate-firmware:
 	$(Q)$(LOCKED_MAKE) __buildbox-validate-firmware V="$(V)"
 
 __buildbox-validate-firmware:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
@@ -1369,6 +1375,7 @@ buildbox-validate-firmware-strict:
 	$(Q)$(LOCKED_MAKE) __buildbox-validate-firmware-strict V="$(V)"
 
 __buildbox-validate-firmware-strict:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware-strict V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
@@ -1377,6 +1384,7 @@ buildbox-audit-final-image-manifest:
 	$(Q)$(LOCKED_MAKE) __buildbox-audit-final-image-manifest V="$(V)"
 
 __buildbox-audit-final-image-manifest:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory audit-final-image-manifest V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
@@ -1385,6 +1393,7 @@ buildbox-audit-acpi-regression:
 	$(Q)$(LOCKED_MAKE) __buildbox-audit-acpi-regression V="$(V)"
 
 __buildbox-audit-acpi-regression:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory audit-acpi-regression V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
@@ -1393,6 +1402,7 @@ buildbox-audit-bundle:
 	$(Q)$(LOCKED_MAKE) __buildbox-audit-bundle V="$(V)"
 
 __buildbox-audit-bundle:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory audit-bundle V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 
@@ -1401,6 +1411,7 @@ buildbox-capture-validation-profile:
 	$(Q)$(LOCKED_MAKE) __buildbox-capture-validation-profile V="$(V)"
 
 __buildbox-capture-validation-profile:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
 	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory capture-validation-profile V="$(V)" \
 		$(BUILDBOX_FIRMWARE_ARGS)
 

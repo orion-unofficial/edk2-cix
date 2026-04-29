@@ -24,6 +24,7 @@ MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 971cfbc5fa
 FIRMWARE_LAYOUT_SCRIPT := $(abspath ../scripts/firmware_layout.py)
 EDK2_BUILD_OUTPUT_FILTER := scripts/filter_edk2_build_output.py
 MAKE_INPUT_VALIDATOR := $(abspath ../scripts/validate_make_inputs.py)
+EDK2_REBASED_DETERMINISTIC_GUARD := $(abspath ../scripts/fail_rebased_edk2_deterministic.sh)
 CUSTOM_OVERLAY_SHADOW_CHECK := $(abspath ../scripts/check_custom_overlay_shadowing.py)
 CUSTOM_OVERLAY_INF_SYNC_CHECK := $(abspath ../scripts/check_custom_overlay_inf_sync.py)
 OFFLINE_AUDIT_BASELINE_CHECK := $(abspath ../scripts/test_offline_audit_baselines.py)
@@ -460,10 +461,7 @@ endef
 define PRINT_SRC_LOCAL_VARIABLES
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
 	print_help_line '  CIX_RELEASE_CACHE_ROOT=<path>' 'Directory used for cached curated CIX BL31, OP-TEE, and cert_create intermediates.\nDefault: '\''$$(REPO_ROOT)/build-cache/cix-release'\'''; \
-	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile name shared with the top-level qualification checks.\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
-	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory where raw-build audit and validation reports are written.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
 	print_help_line '  GCC5_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
-	print_help_line '  SIGNING_CERT_SOURCE_DIR=<dir>' 'Path to extracted or built cert blobs for exact replay.\nDefault: unset.'; \
 	print_help_line '  SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the compiler-facing reproducible timestamp.\nDefault: resolved from mapped upstream source metadata.'; \
 	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the PM-config timestamp.\nDefault: SOURCE_DATE_EPOCH.'
 endef
@@ -482,10 +480,6 @@ help:
 	print_help_line '  prepare-basetools-c' 'Build or refresh the EDK2 BaseTools C helpers'; \
 	print_help_line '  check-custom-module-overlays' 'Verify custom module overlay INFs keep the imported source dependencies'; \
 	print_help_line '  check-custom-acpi-overlays' 'Verify the custom ACPI module overlays still mirror the imported source tree cleanly'; \
-	print_help_line '  check-offline-audit-baselines' 'Validate the checked-in offline audit baseline JSON structure'; \
-	print_help_line '  audit-final-image-manifest-{O6|O6N}' 'Check the final BL33 firmware composition against the stored baseline for the selected board'; \
-	print_help_line '  audit-acpi-regression-{O6|O6N}' 'Check final ACPI tables and IASL diagnostics against the stored baseline for the selected board'; \
-	print_help_line '  refresh-offline-audit-baselines-{O6|O6N}' 'Refresh both offline audit baseline files from the selected board build'; \
 	print_help_line '  check-microsoft-secure-boot-release' 'Advisory check for a newer pinned Microsoft Secure Boot firmware release'; \
 	print_help_line '  host-fiptool' 'Build the vendored TF-A fiptool from source'; \
 	print_help_line '  host-cert-uefi-create-rsa' 'Build the source non-trusted cert helper'; \
@@ -502,7 +496,7 @@ help-vars:
 	printf '%s\n\n' 'Raw Build Variables'; \
 	printf '%s\n' 'See make help-vars for common options such as ARTEFACT_MODE, FIRMWARE_BOARD, FIRMWARE_TARGET, CCACHE_DISABLE, ENABLE_FIRMWARE_FIXES, CIX_RELEASE, and the DEBUG_* switches.' | fold -s -w 78 | sed 's/^/  /'; \
 	printf '\n'; \
-	printf '%s\n' 'The following options are specific to the raw make -C src flow, covering host toolchains, validation outputs, and exact replay inputs.' | fold -s -w 78 | sed 's/^/  /'; \
+	printf '%s\n' 'The following options are specific to the raw make -C src flow, covering host toolchains and reproducible metadata overrides.' | fold -s -w 78 | sed 's/^/  /'; \
 	printf '\n'; \
 	$(PRINT_SRC_LOCAL_VARIABLES); \
 	printf '\n%s\n' 'For the fuller user-facing explanation of the build variables, see: docs/build-variables.md'; \
@@ -1523,14 +1517,21 @@ check-custom-module-overlays:
 check-custom-acpi-overlays:
 	@python3 "$(CUSTOM_ACPI_OVERLAY_CHECK)" --repo-root "$(abspath ..)"
 
-.PHONY: check-offline-audit-baselines
+.PHONY: check-offline-audit-baselines __check-offline-audit-baselines
 check-offline-audit-baselines:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
+
+__check-offline-audit-baselines:
 	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
 
-.PHONY: audit-final-image-manifest audit-final-image-manifest-%
-audit-final-image-manifest: $(foreach board,$(FIRMWARE_BOARDS),audit-final-image-manifest-$(board))
+.PHONY: audit-final-image-manifest audit-final-image-manifest-% __audit-final-image-manifest-%
+audit-final-image-manifest:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
 
-audit-final-image-manifest-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
+audit-final-image-manifest-%:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
+
+__audit-final-image-manifest-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
 	@python3 "$(FINAL_IMAGE_MANIFEST_AUDIT_SCRIPT)" \
@@ -1541,10 +1542,14 @@ audit-final-image-manifest-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
 		--baseline-file "$(FINAL_IMAGE_MANIFEST_BASELINE)" \
 		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$*-$(UEFI_TARGET)_GCC5-$(FIRMWARE_VALIDATION_PROFILE)-manifest-audit.json"
 
-.PHONY: audit-acpi-regression audit-acpi-regression-%
-audit-acpi-regression: $(foreach board,$(FIRMWARE_BOARDS),audit-acpi-regression-$(board))
+.PHONY: audit-acpi-regression audit-acpi-regression-% __audit-acpi-regression-%
+audit-acpi-regression:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
 
-audit-acpi-regression-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
+audit-acpi-regression-%:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
+
+__audit-acpi-regression-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
 	@python3 "$(ACPI_REGRESSION_AUDIT_SCRIPT)" \
@@ -1555,10 +1560,14 @@ audit-acpi-regression-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
 		--baseline-file "$(ACPI_REGRESSION_AUDIT_BASELINE)" \
 		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$*-$(UEFI_TARGET)_GCC5-$(FIRMWARE_VALIDATION_PROFILE)-acpi-audit.json"
 
-.PHONY: refresh-offline-audit-baselines refresh-offline-audit-baselines-%
-refresh-offline-audit-baselines: $(foreach board,$(FIRMWARE_BOARDS),refresh-offline-audit-baselines-$(board))
+.PHONY: refresh-offline-audit-baselines refresh-offline-audit-baselines-% __refresh-offline-audit-baselines-%
+refresh-offline-audit-baselines:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
 
 refresh-offline-audit-baselines-%:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
+
+__refresh-offline-audit-baselines-%:
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
 	@python3 "$(OFFLINE_AUDIT_BASELINE_REFRESH)" \

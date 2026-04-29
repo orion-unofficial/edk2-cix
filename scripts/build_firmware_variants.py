@@ -19,7 +19,7 @@ import firmware_layout
 SCRIPT_PATH = Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parent.parent
 CUSTOM_DISTRO = "trixie"
-UPSTREAM_DISTRO = "bookworm"
+UPSTREAM_DISTRO = "trixie"
 
 
 def parse_args() -> argparse.Namespace:

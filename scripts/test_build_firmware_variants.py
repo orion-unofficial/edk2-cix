@@ -27,7 +27,7 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
             firmware_target="RELEASE",
         )
 
-        self.assertEqual(build_firmware_variants.default_distro_for_layout(upstream), "bookworm")
+        self.assertEqual(build_firmware_variants.default_distro_for_layout(upstream), "trixie")
         self.assertEqual(build_firmware_variants.default_distro_for_layout(custom), "trixie")
 
     def test_variant_label_matches_leaf_path(self) -> None:
@@ -103,7 +103,7 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
             product="orion-o6",
             version="1.2.1",
             stage_root=Path("/tmp/upstream"),
-            distro="bookworm",
+            distro="trixie",
             debug_print_error_level="0x80000040",
         )
 
@@ -126,7 +126,7 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
             "product": "orion-o6",
             "version": "1.2.1",
             "stage_root": Path("/tmp/stage"),
-            "distro": "bookworm",
+            "distro": "trixie",
             "ccache_dir": "/tmp/ccache",
             "ccache_wrapper_root": "/tmp/wrappers",
         }
@@ -184,7 +184,7 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
 
         self.assertEqual(returned_stats, next_stats)
         self.assertIn(
-            "[build-all] Building variant 1/1: vendor (bookworm, vendor)",
+            "[build-all] Building variant 1/1: vendor (trixie, vendor)",
             output.getvalue(),
         )
         self.assertIn("[build-all] Completed variant 1/1: vendor", output.getvalue())

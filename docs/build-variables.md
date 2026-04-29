@@ -15,9 +15,10 @@ This is the highest-level build-mode switch.
 
 - `ARTEFACT_MODE=upstream`
   - keep the upstream vendor build path
-  - this is the right choice for qualification, comparison against a
-    published vendor release, or byte-identical replay with the published
-    replay inputs
+  - this is the right choice for closest-to-upstream diagnostics on
+    `main-monorepo-edk2`
+  - byte-identical replay of the published 202208-based vendor releases belongs
+    on `main-monorepo`, not on the rebased EDK2 branch
   - custom-only feature switches are rejected in this mode
 - `ARTEFACT_MODE=custom`
   - keep the same overall build flow, but allow the local overlays, source
@@ -28,9 +29,9 @@ This is the highest-level build-mode switch.
 Default: `custom`
 
 `ARTEFACT_MODE=upstream` is the mode that follows the upstream vendor build
-path. When you also provide the extracted certs, timestamps, and other replay
-inputs described in [`build.md`](build.md), this repo can use that mode to
-rebuild the published vendor images byte-for-byte.
+path. On `main-monorepo-edk2`, this path uses the rebased upstream EDK2
+implementation, so it deliberately does not claim byte-for-byte equivalence
+with the older published vendor images.
 
 ### `FIRMWARE_BOARD=O6|O6N`
 
@@ -67,19 +68,22 @@ Default: `RELEASE`
 ### `FIRMWARE_DISTRO=bookworm|trixie`
 
 Select the default distro family used by the buildbox helpers and
-deterministic replay wrappers.
+buildbox helpers. This is an advanced override; it is intentionally not shown in
+the short `make help-vars` output on `main-monorepo-edk2`.
 
 - `bookworm`
-  - the default for `ARTEFACT_MODE=upstream`
-  - also the default for deterministic replay when you do not override it
+  - still supported for compatibility checks
+  - emits a warning in buildbox preflight because it is no longer the branch
+    default
 - `trixie`
-  - the default for `ARTEFACT_MODE=custom`
-  - the newer Debian/toolchain family for local feature work
+  - the default for all `main-monorepo-edk2` buildbox firmware builds,
+    including `ARTEFACT_MODE=upstream`
+  - the preferred Debian/toolchain family for the rebased EDK2 implementation
 
 This does not change the firmware feature set directly. It changes the build
 environment used by the wrapper targets.
 
-Default: `bookworm` for upstream and deterministic replay; `trixie` for custom
+Default: `trixie`
 
 ## Build Cache Variables
 
@@ -411,7 +415,7 @@ The most important compatibility rules are:
 
 ## Common Recipes
 
-### Closest-to-upstream replay build
+### Closest-to-upstream build
 
 ```bash
 make buildbox-firmware-build \
