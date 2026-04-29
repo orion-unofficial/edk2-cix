@@ -30,11 +30,11 @@ wrapper before pushing:
 ```bash
 make gha-act-list
 make gha-act-dry-run \
-  ACT_WORKFLOW=.github/workflows/deterministic-replay.yaml \
-  ACT_JOB=resolve-release
+  ACT_WORKFLOW=.github/workflows/custom-payload-metadata.yaml \
+  ACT_JOB=test-custom-payload-metadata
 make gha-act-run \
-  ACT_WORKFLOW=.github/workflows/deterministic-replay.yaml \
-  ACT_JOB=resolve-release
+  ACT_WORKFLOW=.github/workflows/custom-payload-metadata.yaml \
+  ACT_JOB=test-custom-payload-metadata
 ```
 
 The wrapper lives at `scripts/run_github_actions_with_act.sh`. It bootstraps a
@@ -78,18 +78,15 @@ networking before the run can start.
 
 ## Supported host environments
 
-- Debian `bookworm` on `x86_64` for the preferred upstream vendor path,
-  including byte-identical replay when you provide the published replay inputs
-- Debian `bookworm` on `arm64` / `aarch64` for the default `main-monorepo-edk2`
-  build path, including exact replay when you reuse the extracted cert bundle
-- Debian `trixie` on `arm64` / `aarch64` for the newer distro / toolchain
-  family on `main-monorepo-edk2`
+- Debian `trixie` on `x86_64` or `arm64` / `aarch64` for the default
+  `main-monorepo-edk2` buildbox path, including `ARTEFACT_MODE=upstream`
+- Debian `bookworm` remains supported when explicitly requested, but buildbox
+  preflight warns because `trixie` is the default for edk2-rebased builds
 
 The untouched upstream repo contents still need Debian `trixie` for native
 `arm64` / `aarch64` builds because they shipped closed-source helper binaries.
-`main-monorepo-edk2` replaces those helpers with source implementations, so native
-`arm64` / `aarch64` can now use the same default Debian `bookworm` base as
-`x86_64`.
+`main-monorepo-edk2` replaces those helpers with source implementations and
+standardizes buildbox execution on Debian `trixie` by default.
 
 We still support `devcontainer`, but it is optional.
 
@@ -127,8 +124,6 @@ make buildbox-firmware-stage
 make buildbox-deb
 make buildbox-zip
 make buildbox-targz
-make buildbox-validate-firmware
-make buildbox-capture-validation-profile
 ```
 
 The local container helpers prefer a working Docker engine first when they can
@@ -138,12 +133,12 @@ first on Linux. If the preferred runtime is installed but not usable, they
 automatically try the other one before failing. Set
 `EDK2_CIX_CONTAINER_RUNTIME=docker` or `EDK2_CIX_CONTAINER_RUNTIME=podman` to
 force a specific runtime.
-By default the buildbox follows the host architecture, uses the Bookworm base
-image for `ARTEFACT_MODE=upstream`, and uses the Trixie base image for
-`ARTEFACT_MODE=custom`. Override that with `FIRMWARE_DISTRO=bookworm`,
-`FIRMWARE_DISTRO=trixie`, `EDK2_CIX_BUILDBOX_PLATFORM`,
-`EDK2_CIX_BUILDBOX_IMAGE`, `BUILDBOX_PLATFORM=...`, or `BUILDBOX_IMAGE=...`
-when you need a specific container environment.
+By default the buildbox follows the host architecture and uses the Trixie base
+image for every firmware build mode, including `ARTEFACT_MODE=upstream`.
+Override that with `FIRMWARE_DISTRO=bookworm`, `FIRMWARE_DISTRO=trixie`,
+`EDK2_CIX_BUILDBOX_PLATFORM`, `EDK2_CIX_BUILDBOX_IMAGE`,
+`BUILDBOX_PLATFORM=...`, or `BUILDBOX_IMAGE=...` when you need a specific
+container environment.
 
 To select the distro generation explicitly:
 
@@ -152,8 +147,7 @@ To select the distro generation explicitly:
 - use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:...` (or
   `EDK2_CIX_BUILDBOX_IMAGE=...`) to override the image directly;
   when unset, the effective default is
-  `mcr.microsoft.com/devcontainers/base:bookworm` for upstream and
-  `mcr.microsoft.com/devcontainers/base:trixie` for custom
+  `mcr.microsoft.com/devcontainers/base:trixie`
 The firmware-oriented `buildbox-*` targets install the slimmer firmware
 dependency profile inside the reusable container; `buildbox-deb` switches that
 same container to the fuller packaging profile when needed.
@@ -259,10 +253,17 @@ build. The same value is also passed into the O6 `pm_config`
 generator unless `PM_CONFIG_SOURCE_DATE_EPOCH` is set explicitly, so
 `csu_pm_config.bin` stops depending on wall-clock time.
 
-For a byte-identical rebuild of a previously published O6 or O6N image, use
-`ARTEFACT_MODE=upstream`. The vendor build embeds three independent timestamp
-domains, so set them explicitly and point
-`SIGNING_CERT_SOURCE_DIR=<path-to-cert-bundle>` at either:
+`main-monorepo-edk2` is rebased onto a newer upstream EDK2 implementation, so
+byte-accurate replay of the published 202208-based vendor images is not a valid
+proof target on this branch. The deterministic replay, exact hash-validation,
+and offline replay-baseline audit targets are retained for future use but fail
+early here; use `main-monorepo` for byte-accurate vendor replay.
+
+For a closest-to-upstream rebuild on the rebased implementation, use
+`ARTEFACT_MODE=upstream`. The vendor build still embeds three independent
+timestamp domains, so set them explicitly and point
+`SIGNING_CERT_SOURCE_DIR=<path-to-cert-bundle>` at either if you need stable
+inputs for diagnosis:
 
 - `BUILD_DATE=<iso8601>` for the displayed firmware build timestamp
 - `SOURCE_DATE_EPOCH=<unix-seconds>` for compiler-provided `__DATE__` and
@@ -285,8 +286,9 @@ The build also supports two output modes:
 - `ARTEFACT_MODE=custom` is the default on `main-monorepo-edk2` and
   strips embedded PE/COFF debug path records from release firmware
   images
-- `ARTEFACT_MODE=upstream` keeps the historical output behavior for
-  the upstream vendor path, replay, and byte-for-byte comparison work
+- `ARTEFACT_MODE=upstream` keeps the closest-to-upstream vendor path on the
+  rebased EDK2 implementation, but does not claim byte-for-byte equivalence with
+  the older published vendor releases
 
 ## Replay published firmware
 
@@ -318,10 +320,10 @@ mapped upstream source commit in Git history. On the custom path, that keeps
 the displayed build metadata tied to the upstream tag or commit being built
 rather than the local overlay commit.
 
-Those ordinary `ARTEFACT_MODE=upstream` builds still stay on the upstream
-vendor path. The explicit replay inputs are what promote that path from an
-ordinary upstream build to a byte-identical rebuild of a published vendor
-image.
+Those ordinary `ARTEFACT_MODE=upstream` builds still stay on the
+closest-to-upstream path. On `main-monorepo-edk2`, the explicit replay inputs
+remain useful for metadata-stable diagnostics, but they do not promote the
+rebased branch into a byte-identical rebuild of a published vendor image.
 
 It also writes:
 
@@ -329,38 +331,21 @@ It also writes:
 - `rebuild-o6.sh`
 - `rebuild-o6-docker.sh`
 
-For the common qualification or replay workflow, the top-level Makefile wraps
-this as:
+The helper remains useful for extracting release metadata and cert bundles for
+diagnostic comparisons. The top-level deterministic replay wrapper is disabled
+on `main-monorepo-edk2`:
 
 ```bash
-make deterministic-replay \
-  REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
+make deterministic-replay
 ```
 
-That target defaults to:
+It fails immediately with an explanation that deterministic builds are not valid
+when the EDK2 implementation has been rebased.
 
-- `FIRMWARE_BOARD=O6`
-- `FIRMWARE_DISTRO=bookworm`
-- `REPLAY_VERSION=$(dpkg-parsechangelog -S Version)`
-
-and then:
-
-- seeds or reuses `.buildbox/replay/<profile>/`
-- rebuilds with `ARTEFACT_MODE=upstream`
-- runs `validate-firmware-strict` against the matching checked-in profile
-- when the input is the published `1.2.1` release plus the extracted release
-  cert bundle, qualifies the Bookworm path against the published release data
-
-You can also switch to `FIRMWARE_DISTRO=trixie` for a same-input Trixie
-replay. In that mode the goal is matching `amd64` and `arm64` outputs
-against the same cert bundle and injected timestamps, not comparison with a
-published upstream release.
-
-When you already prepared `.buildbox/replay/<profile>/` once, later reruns can
-omit `REPLAY_INPUT=...` and will reuse the cached `replay.env` plus cert
-bundle. When the replay input is only `cix_flash_all.bin`, also provide
-`REPLAY_BUILD_OPTIONS=/path/to/BuildOptions` when available so the helper can
-recover `BUILD_DATE`.
+On non-rebased branches, a prepared `.buildbox/replay/<profile>/` cache lets
+later deterministic replay reruns omit `REPLAY_INPUT=...` and reuse the cached
+`replay.env` plus cert bundle. On `main-monorepo-edk2`, keep those cached inputs
+only for diagnostic extraction; the Makefile replay target remains disabled.
 
 To keep the full transcript from a replay or local build, wrap the command
 with `./scripts/capture_build_log.sh build-logs <command ...>`. The
@@ -420,8 +405,9 @@ target.
 
 Both archive formats store the payload under `edk2/radxa/orion-o6/<version>/`
 inside the archive, so the archive members match the same product/version
-layout used by the staged payload. `build-all` is buildbox-orchestrated: the
-upstream leaf defaults to Bookworm and the custom leaves default to Trixie.
+layout used by the staged payload. `build-all` is buildbox-orchestrated and all
+leaves, including the upstream diagnostic leaf, default to Trixie on
+`main-monorepo-edk2`.
 The traversal keeps every RELEASE variant ahead of every DEBUG variant, walks
 the broader custom invalidators before the UART/debug leaves, and then toggles
 the narrower curated `cix` path inside each compile bucket to reduce avoidable
@@ -493,8 +479,9 @@ running the wrapper.
 Despite the retained filename, the local helper scripts prefer a working Docker
 engine first when they can positively distinguish it from Podman. Otherwise
 they fall back to `docker` first on macOS and `podman` first on Linux, then
-try the other runtime if needed. The generated replay wrapper still pins the
-buildbox back to the validated amd64 Bookworm environment explicitly.
+try the other runtime if needed. The generated replay wrapper is retained for
+non-rebased replay investigations, but the supported `main-monorepo-edk2`
+buildbox paths use Trixie by default.
 
 ## Reuse the build container
 
@@ -512,9 +499,6 @@ make buildbox-firmware-log
 make buildbox-deb
 make buildbox-zip
 make buildbox-targz
-make buildbox-validate-firmware
-make buildbox-validate-firmware-strict
-make buildbox-capture-validation-profile
 ```
 
 The `buildbox-*` targets keep their host-side scratch space under
@@ -533,14 +517,14 @@ the EDK2 `BaseTools/Source/C` helpers. If you switch between container
 environments or distro generations, the next build rebuilds those helper tools
 automatically instead of reusing stale host-built binaries.
 
-The preferred local distribution for `x86_64` builds remains Debian
-`bookworm`.
+The preferred buildbox distribution for `main-monorepo-edk2` is Debian
+`trixie`.
 
 In the original upstream tree, native `arm64` / `aarch64` builds needed the
 `trixie` buildbox because the shipped closed-source helpers were not portable
-enough for the Bookworm arm64 path. On `main-monorepo-edk2`, those helpers are now
-reimplemented from source, so both `amd64` and native `arm64` can use
-Bookworm for exact replay and Trixie for the default custom build path.
+enough for the Bookworm arm64 path. On `main-monorepo-edk2`, those helpers are
+now reimplemented from source, but Trixie remains the default buildbox base for
+both upstream and custom builds.
 
 Native arm64 packaging no longer depends on the old closed-source
 `cert_uefi_create_rsa` helper: both that tool and `fiptool` are now built from
@@ -569,19 +553,16 @@ split across the public `bios` and release repositories. For the variable-level
 summary of what this selector does and how it combines with the other custom
 switches, see [`build-variables.md`](build-variables.md).
 
-If you reuse existing cert blobs, native arm64 reproduces the checked-in
-Bookworm qualification profile byte-for-byte and can also match the checked-in
-Trixie same-input reproducibility profile. Freshly generated certs are
-compatible but not byte-identical, because they inherently carry signing-time
-entropy.
+If you reuse existing cert blobs, the build can keep signing inputs stable for
+diagnostic comparisons. It is still not a byte-accurate replay of the published
+vendor firmware because the EDK2 implementation itself has been rebased.
 
 So:
 
-- use the default Bookworm buildbox on either `x86_64` or `arm64` / `aarch64`
-  for exact replay and upstream-oriented validation
-- use the default Trixie buildbox for general custom buildbox runs
-- use `FIRMWARE_DISTRO=trixie` to force Trixie for any upstream-oriented run
-  that you want to compare against the newer distro family
+- use the default Trixie buildbox for both upstream-oriented and custom buildbox
+  runs
+- use `FIRMWARE_DISTRO=bookworm` only when deliberately checking older distro
+  compatibility; the preflight will warn on `main-monorepo-edk2`
 - use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:...` to override
   `FIRMWARE_DISTRO` with a specific image
 - use `make -C src host-fiptool` to prebuild the vendored TF-A
@@ -591,101 +572,33 @@ So:
 - the dependency bootstrap now includes `libssl-dev`, because the source-built
   `fiptool` needs the OpenSSL development headers
 
-To compare a local build against a checked-in validation profile, run:
+The checked-in byte-accurate validation profiles and offline replay baselines
+belong to the non-rebased `main-monorepo` history. On `main-monorepo-edk2`, the
+following targets are intentionally hidden from help and fail early if invoked:
 
-```bash
-make validate-firmware ARTEFACT_MODE=upstream
-```
+- `deterministic-replay`
+- `validate-firmware`
+- `validate-firmware-strict`
+- `capture-validation-profile`
+- `check-offline-audit-baselines`
+- `audit-final-image-manifest`
+- `audit-acpi-regression`
+- `refresh-offline-audit-baselines`
+- the corresponding `buildbox-*` validation and audit wrappers
 
-That loads the selected validation profile from
-[validation/expected-hashes.json](https://github.com/radxa-pkg/edk2-cix/blob/main-monorepo/validation/expected-hashes.json),
-checks the key shipped artefacts plus a few structural markers from the EFI
-utility binaries, and writes a JSON report under `build-validation/`.
+The tree still contains the maintainer replay/audit GitHub Actions workflow
+used by non-rebased histories, but those byte-accurate replay checks are not a
+valid qualification target for `main-monorepo-edk2` and will fail through the
+same guard if invoked here.
 
-For the published O6N release baseline, select the shared Bookworm profile and
-the `O6N` board:
+Capturing new byte-accurate validation profiles is disabled on this branch for
+the same rebased-EDK2 reason.
 
-```bash
-make validate-firmware \
-  ARTEFACT_MODE=upstream \
-  FIRMWARE_BOARD=O6N \
-  FIRMWARE_VALIDATION_PROFILE=upstream-1.2.1-bookworm
-```
-
-The same file also carries the `upstream-1.2.1-trixie` reproducibility
-profile, intended for matching amd64 or arm64 Trixie replays on
-`main-monorepo-edk2` when they reuse the same cert bundle and replay timestamps:
-
-The profile name refers to the Trixie distro/toolchain family used for the
-build. The cert bundle reused by that profile currently still comes from the
-published Bookworm release, because that is the only upstream cert source we
-have today.
-
-```bash
-make validate-firmware \
-  ARTEFACT_MODE=upstream \
-  FIRMWARE_VALIDATION_PROFILE=upstream-1.2.1-trixie
-```
-
-Use the shared `upstream-<version>-<distro>` form for replay-profile names on
-this branch.
-
-For deeper offline regression checks against the currently checked-in Bookworm
-replay baselines, use:
-
-```bash
-make check-offline-audit-baselines
-make audit-final-image-manifest ARTEFACT_MODE=upstream
-make audit-acpi-regression ARTEFACT_MODE=upstream
-make audit-bundle ARTEFACT_MODE=upstream
-make buildbox-audit-bundle ARTEFACT_MODE=upstream FIRMWARE_BOARD=O6
-```
-
-Those checks write JSON reports under `build-validation/`.
-The checked-in offline baseline files currently cover the shared
-`upstream-1.2.1-bookworm` profile for both `O6` and `O6N`; use the audit
-scripts' `--emit-baseline` mode later to extend that coverage.
-
-- the final-image manifest audit baselines the final BL33 FV / FFS / section
-  composition
-- the ACPI regression audit baselines emitted AML tables plus rerun `iasl`
-  warning and remark families
-- `make check-offline-audit-baselines` verifies the checked-in offline audit
-  baseline JSON structure before those audits run
-- `make refresh-offline-audit-baselines ARTEFACT_MODE=upstream` refreshes both
-  offline audit baseline files together from the already-built selected board
-  tree for the active `FIRMWARE_VALIDATION_PROFILE`
-- the `audit-bundle` maintainer target combines the qualification checks plus
-  the payload metadata self-test, and optionally also runs the metadata branch
-  consistency checker if `MONOREPO_META_ROOT=/path/to/main-monorepo-meta` is
-  set
-
-The deterministic replay workflow also uploads the generated
-`build-validation/*.json` files as CI artefacts and writes a short Markdown job
-summary listing the report statuses.
-
-For a maintainer-driven full qualification pass on GitHub Actions, the tree
-also includes `.github/workflows/maintainer-audit-bundle.yaml`. That manual
-workflow runs the `buildbox-audit-bundle` target for a selected board/profile,
-checks metadata consistency against `main-monorepo-meta`, uploads the
-generated `build-validation/*.json` reports, and writes the same short
-Markdown summary to the job page.
-
-To snapshot the current build into a fresh profile JSON for later review or to
-seed a future validation baseline under a profile name you choose, run:
-
-```bash
-make capture-validation-profile \
-  FIRMWARE_VALIDATION_PROFILE=<new-profile-name>
-```
-
-Ordinary `ARTEFACT_MODE=upstream` builds with freshly generated certs or
-non-replay timestamps are not expected to match either stored profile. The
-top-level `firmware-build`, `firmware-stage`, `zip`, and `targz` targets
-therefore skip validation by default. Use `make validate-firmware`,
-`make validate-firmware-strict`, or `make deterministic-replay` explicitly when
-you want qualification checks, or set `FIRMWARE_VALIDATE_ON_BUILD=true` to
-restore the advisory post-build validation step.
+Ordinary `ARTEFACT_MODE=upstream` builds remain supported for closest-to-upstream
+diagnostics. The top-level `firmware-build`, `firmware-stage`, `zip`, and
+`targz` targets skip byte-accurate validation, and
+`FIRMWARE_VALIDATE_ON_BUILD=true` fails early on this branch for the same
+rebased-EDK2 reason.
 
 The vendor `cix_package_tool` still writes ANSI colour escapes even when it is
 not attached to a terminal and even when `NO_COLOR`, `CLICOLOR=0`, and
