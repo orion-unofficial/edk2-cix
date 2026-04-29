@@ -54,14 +54,14 @@ RemoveDtStdoutPath (
     return;
   }
 
-  Node = fdt_path_offset (Dtb, "/chosen");
+  Node = FdtPathOffset (Dtb, "/chosen");
   if (Node < 0) {
     return;
   }
 
-  Error = fdt_delprop (Dtb, Node, "stdout-path");
+  Error = FdtDelProp (Dtb, Node, "stdout-path");
   if (Error != 0) {
-    DEBUG ((DEBUG_INFO, "%a: failed to delete 'stdout-path' property: %a\n", __FUNCTION__, fdt_strerror (Error)));
+    DEBUG ((DEBUG_INFO, "%a: failed to delete 'stdout-path' property: %a\n", __FUNCTION__, FdtStrerror (Error)));
   }
 }
 
