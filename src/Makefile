@@ -9,6 +9,20 @@ all: build
 .ONESHELL:
 SHELL := bash
 UNAME := $(shell uname -m)
+UPSTREAM_EDK2_REF ?= refs/heads/main-monorepo-upstream-edk2
+MONOREPO_EDK2_COMMIT_HASH ?= 971cfbc5fa
+MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= c051ce622f
+MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 971cfbc5fa
+
+resolve-path-head = $(strip $(shell git -C .. log -1 --format=%h $(1) -- $(2) 2>/dev/null))
+
+# On main-monorepo-edk2, the imported component trees are regular directories
+# overlaid on top of the uplifted main-monorepo-upstream-edk2 history. Prefer
+# the latest upstream-edk2 branch commit touching each imported component path
+# when it is available locally, then fall back to the recorded abbreviations.
+EDK2_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2),$(MONOREPO_EDK2_COMMIT_HASH))
+EDK2_NON_OSI_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2-non-osi),$(MONOREPO_EDK2_NON_OSI_COMMIT_HASH))
+EDK2_PLATFORMS_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2-platforms),$(MONOREPO_EDK2_PLATFORMS_COMMIT_HASH))
 
 # The first GCC5_AARCH64_PREFIX value uses distro-supplied cross compiler
 # The second GCC5_AARCH64_PREFIX value uses CIX-verified cross compiler
@@ -146,9 +160,9 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd:
 		-b $(UEFI_TARGET) -D BOARD_NAME=$(word 2, $(subst /,, $@)) -D BUILD_DATE=$(shell date -Is) \
 		-D SMP_ENABLE=1 -D ACPI_BOOT_ENABLE=1 -D FASTBOOT_LOAD= -D VARIABLE_TYPE=SPI -D STANDARD_MM=TRUE \
 		-D COMMIT_HASH=$(shell git rev-parse --short HEAD) \
-		-D EDK2_COMMIT_HASH=$(shell cd edk2 && git rev-parse --short HEAD) \
-		-D EDK2_NON_OSI_COMMIT_HASH=$(shell cd edk2-non-osi && git rev-parse --short HEAD) \
-		-D EDK2_PLATFORMS_COMMIT_HASH=$(shell cd edk2-platforms && git rev-parse --short HEAD) \
+		-D EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH) \
+		-D EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH) \
+		-D EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH) \
 		-D DEB_VERSION=$(shell cd .. && dpkg-parsechangelog -S Version)
 
 tools/acpica/generate/unix/bin/iasl:
