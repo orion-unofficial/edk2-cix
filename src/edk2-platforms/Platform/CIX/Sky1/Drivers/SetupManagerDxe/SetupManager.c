@@ -397,12 +397,12 @@ ConstructBuildDate (
   OUT CHAR8  *DateBuf
   )
 {
-#ifdef COMPILE_BUILD_DATE
+#if defined (REPRODUCIBLE_BUILD_METADATA) && defined (COMPILE_BUILD_DATE)
   STATIC CONST CHAR8  IsoBuildDate[] = XSTR (COMPILE_BUILD_DATE);
 #endif
   UINTN  i;
 
-#ifdef COMPILE_BUILD_DATE
+#if defined (REPRODUCIBLE_BUILD_METADATA) && defined (COMPILE_BUILD_DATE)
   if ((AsciiStrLen (IsoBuildDate) >= 10) &&
       (IsoBuildDate[4] == '-') &&
       (IsoBuildDate[7] == '-') &&

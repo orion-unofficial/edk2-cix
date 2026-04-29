@@ -19,13 +19,40 @@ no Git submodules to initialize or update.
 The monorepo-edk2 build resolves its displayed top-level source hash and
 default timestamp from the merge-base with
 `main-monorepo-upstream-edk2`, so curated overlay commits do not change
-the firmware's reported source identity. Run
-`make -C src print-build-metadata` to inspect the resolved values.
+the firmware's reported source identity. In the default
+`ARTEFACT_MODE=custom`, that source-model commit timestamp is used
+instead of wall-clock time. Run `make -C src print-build-metadata` to
+inspect the resolved values.
 
-If you need to force a specific reproducible timestamp, export
-`SOURCE_DATE_EPOCH=<unix-seconds>` before running the build. The same
-value is also passed into the O6 `pm_config` generator so that
+If you need to force a specific reproducible timestamp for a custom
+build, export `SOURCE_DATE_EPOCH=<unix-seconds>` before running the
+build. The same value is also passed into the O6 `pm_config`
+generator unless `PM_CONFIG_SOURCE_DATE_EPOCH` is set explicitly, so
 `csu_pm_config.bin` stops depending on wall-clock time.
+
+For exact replay of a previously published O6 image, we found that the
+vendor build embeds three independent timestamp domains. Set them
+explicitly and point `SIGNING_CERT_SOURCE_DIR=<path-to-cert-bundle>`
+at either:
+
+- `BUILD_DATE=<iso8601>` for the displayed firmware build timestamp
+- `SOURCE_DATE_EPOCH=<unix-seconds>` for compiler-provided `__DATE__`
+  and `__TIME__` uses
+- `PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>` for the O6 PM-config
+  blob
+
+- a build tree `certs/` directory containing `trusted_key_no.crt`,
+  `nt_fw_cert.crt`, and `nt_fw_key.crt`
+- an extracted FIP cert bundle containing `trusted-key-cert.bin`,
+  `nt-fw-cert.bin`, and `nt-fw-key-cert.bin`
+
+The build also supports two output modes:
+
+- `ARTEFACT_MODE=custom` is the default on `main-monorepo-edk2` and
+  strips embedded PE/COFF debug path records from release firmware
+  images
+- `ARTEFACT_MODE=upstream` keeps the historical output behavior for
+  replay and byte-for-byte comparison work
 
 If you need to refresh the monorepo from the authoritative uplifted source-model,
 use the automation and runbooks on the separate `main-monorepo-meta`
