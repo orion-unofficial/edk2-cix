@@ -9,7 +9,6 @@ jobs:
       with:
         fetch-depth: 0
         fetch-tags: true
-        submodules: "recursive"
     - name: "Set up QEMU Emulation"
       uses: "docker/setup-qemu-action@v4"
       with:
@@ -134,7 +133,7 @@ name: "Build & Release"
     - ".github/workflows/docs.yaml"
   push:
     branches:
-    - "main"
+    - "main-monorepo-edk2"
     paths-ignore:
     - "docs/**"
     - "theme/**"
