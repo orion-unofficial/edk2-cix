@@ -269,6 +269,7 @@ CUSTOM_MERAK_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/
 CUSTOM_EDGE_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Edge/Library/PlatformEnvHookLib)
 CUSTOM_O6_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib)
 CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/PlatformSmbios)
+CUSTOM_O6N_DRIVERS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers)
 CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/PlatformSmbios)
 CUSTOM_ACPI_PLATFORM_DXE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Drivers/AcpiPlatformDxe)
 CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe)
@@ -303,6 +304,7 @@ CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.c) \
 	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.h) \
 	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.inf) \
+	$(abspath $(CUSTOM_O6N_DRIVERS_OVERLAY_DIR)/LinuxAcpiConfig.h) \
 	$(wildcard $(CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR)/*.c) \
 	$(wildcard $(CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR)/*.h) \
 	$(wildcard $(CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR)/*.inf) \
@@ -647,6 +649,8 @@ prepare-basetools-c:
 			rm -rf "$$base_tools_dir"; \
 			mkdir -p "$$(dirname "$$base_tools_dir")"; \
 			cp -a "$(IMPORTED_BASETOOLS_DIR)" "$$(dirname "$$base_tools_dir")/"; \
+			rm -rf "$$(dirname "$$base_tools_dir")/MdePkg"; \
+			ln -s "$(abspath edk2/MdePkg)" "$$(dirname "$$base_tools_dir")/MdePkg"; \
 			if [[ -d "$(CUSTOM_BASETOOLS_OVERLAY_DIR)" ]]; then \
 				while IFS= read -r -d '' overlay_src; do \
 					rel_path="$${overlay_src#$(CUSTOM_BASETOOLS_OVERLAY_DIR)/}"; \
@@ -1408,10 +1412,10 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 		fi; \
 		tool_def_overrides+=( \
 			"  DEBUG_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
-			"  DEBUG_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
+			"  DEBUG_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/BaseTools/Bin/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
 			'  DEBUG_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1' \
 			"RELEASE_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
-			"RELEASE_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
+			"RELEASE_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/BaseTools/Bin/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
 			'RELEASE_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1' \
 		); \
 		if [[ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" ]]; then \
