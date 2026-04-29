@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
 from reconstruction_common import ReconstructionError, check_immutable_refs, git, main_wrapper, ref_exists, repo_root, tree_id, truthy, rev_parse
@@ -34,6 +35,8 @@ Optional variables:
 
 Without WRITE=1 this command validates inputs and prints the operation it would perform.
 Only this command is allowed to create or advance immutable source refs.
+If the requested object is already present locally, WRITE=1 uses it without
+contacting the external upstream/vendor remote.
 """
 
 UPSTREAM_COMPONENTS = {"edk2", "edk2-platforms", "edk2-non-osi", "tf-a", "op-tee"}
@@ -91,10 +94,33 @@ def fetch_to_ref(repo: Path, remote: str, source: str, target: str, verbose: boo
         if verbose:
             print(f"{target} already exists; leaving it unchanged")
         return
+    if ref_exists(repo, source):
+        if verbose:
+            print(f"using local object {source} -> {target}")
+        if ref_exists(repo, target):
+            git(repo, "branch", "-f", target, source, capture=not verbose)
+        else:
+            git(repo, "branch", target, source, capture=not verbose)
+        return
     if verbose:
         print(f"fetch {remote} {source} -> {target}")
     prefix = "+" if allow_replace else ""
-    git(repo, "fetch", "--no-tags", remote, f"{prefix}{source}:refs/heads/{target}", capture=not verbose)
+    result = git(repo, "fetch", "--no-tags", remote, f"{prefix}{source}:refs/heads/{target}", check=False, capture=not verbose)
+    if result.returncode == 0:
+        return
+    if ref_exists(repo, source):
+        if verbose:
+            print(f"external fetch failed, but {source} is now available locally; using it", file=sys.stderr)
+        if ref_exists(repo, target):
+            git(repo, "branch", "-f", target, source, capture=not verbose)
+        else:
+            git(repo, "branch", target, source, capture=not verbose)
+        return
+    detail = (result.stderr or result.stdout or "unknown fetch failure").strip()
+    raise ReconstructionError(
+        f"could not fetch {source} from {remote} for {target}; "
+        f"the requested object is not available locally: {detail}"
+    )
 
 
 def manifest_path_for(target: str) -> str:
