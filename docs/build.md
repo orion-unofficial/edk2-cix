@@ -54,6 +54,49 @@ The build also supports two output modes:
 - `ARTEFACT_MODE=upstream` keeps the historical output behavior for
   replay and byte-for-byte comparison work
 
+## Replay published O6 firmware
+
+To recover the replay settings from a published O6 release artefact
+and write helper files under a fresh `/private/tmp/o6-replay-*`
+directory, run:
+
+```bash
+python3 src/scripts/replay_o6_release.py <edk2-cix_*.deb>
+```
+
+The helper extracts:
+
+- `BUILD_DATE`
+- `SOURCE_DATE_EPOCH`
+- `PM_CONFIG_SOURCE_DATE_EPOCH`
+- `SOURCE_COMMIT_HASH` plus the recorded sub-component hashes from
+  `BuildOptions` when they are available
+- a reusable FIP cert bundle for `SIGNING_CERT_SOURCE_DIR`
+
+It also writes:
+
+- `replay.env`
+- `rebuild-o6.sh`
+- `rebuild-o6-docker.sh`
+
+If you only have a standalone `cix_flash_all.bin`, the helper can
+still recover the compiler and PM-config timestamps plus the cert
+bundle. Supply a matching `BuildOptions` file, or pass
+`--build-date <iso8601>`, if you want a complete replay build:
+
+```bash
+python3 src/scripts/replay_o6_release.py \
+  cix_flash_all.bin \
+  --build-options BuildOptions
+```
+
+To start the replay build immediately in the current shell, add
+`--run-build`. If you are not already in a working build environment,
+run the generated `rebuild-o6-docker.sh` wrapper instead. That
+wrapper mounts the checkout at `/workspaces/edk2-cix` to match the
+upstream release build paths, which matters when
+`ARTEFACT_MODE=upstream` preserves embedded debug paths.
+
 If you need to refresh the monorepo from the authoritative uplifted source-model,
 use the automation and runbooks on the separate `main-monorepo-meta`
 branch rather than running `git submodule` commands in this checkout.
