@@ -242,8 +242,8 @@ EOF
 }
 
 wait_for_container_running() {
-    local attempt current_status
-    for attempt in {1..20}; do
+    local current_status
+    for _attempt in {1..20}; do
         current_status="$(container_status)"
         case "$current_status" in
             running)

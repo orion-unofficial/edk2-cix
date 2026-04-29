@@ -1,14 +1,27 @@
+V ?= 0
 CC:=gcc
 CFLAGS:=-Wall -Wno-overflow
+
+ifeq ($(V),1)
+Q :=
+PRINT_CC = @:
+PRINT_GEN = @:
+else
+Q := @
+PRINT_CC = @printf '  CC      %s\n' '$@'
+PRINT_GEN = @printf '  GEN     %s\n' 'csu_pm_config.bin'
+endif
 
 all: csupm_bin_config
 
 .PHONY: csupm_bin_config
 csupm_bin_config: csupm_bin_config.c $(wildcard *.h) clean
-	$(CC) $(CFLAGS) -o $@ $(firstword $^)
-	./$@
+	$(PRINT_CC)
+	$(Q)$(CC) $(CFLAGS) -o $@ $(firstword $^)
+	$(PRINT_GEN)
+	$(Q)./$@
 
 clean:
-	rm -f csupm_bin_config csu_pm_config.bin
+	$(Q)rm -f csupm_bin_config csu_pm_config.bin
 
 .PHONY: all clean
