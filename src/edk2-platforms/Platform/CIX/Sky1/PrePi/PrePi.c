@@ -24,11 +24,74 @@
 
 #include "PrePi.h"
 
+#define STR(x)   XSTR (x)
+#define XSTR(x)  #x
+#define BUILD_TIME_TEMPLATE  "HH:MM:SS"
+#define BUILD_DATE_TEMPLATE  "Mon DD YYYY"
+
 #define IS_XIP()  (((UINT64)FixedPcdGet64 (PcdFdBaseAddress) > mSystemMemoryEnd) ||\
                   ((FixedPcdGet64 (PcdFdBaseAddress) + FixedPcdGet32 (PcdFdSize)) <= FixedPcdGet64 (PcdSystemMemoryBase)))
 
 UINT64  mSystemMemoryEnd = FixedPcdGet64 (PcdSystemMemoryBase) +
                            FixedPcdGet64 (PcdSystemMemorySize) - 1;
+
+STATIC
+BOOLEAN
+ResolveCompileBuildTimestamp (
+  OUT CHAR8  *BuildTime,
+  IN  UINTN  BuildTimeSize,
+  OUT CHAR8  *BuildDate,
+  IN  UINTN  BuildDateSize
+  )
+{
+#ifdef COMPILE_BUILD_DATE
+  STATIC CONST CHAR8  IsoBuildDate[] = STR (COMPILE_BUILD_DATE);
+  STATIC CONST CHAR8  *MonthNames[12] = {
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  };
+  UINTN               MonthIndex;
+  UINTN               MonthValue;
+
+  if ((BuildTimeSize < sizeof (BUILD_TIME_TEMPLATE)) ||
+      (BuildDateSize < sizeof (BUILD_DATE_TEMPLATE)) ||
+      (AsciiStrLen (IsoBuildDate) < 19) ||
+      (IsoBuildDate[4] != '-') ||
+      (IsoBuildDate[7] != '-') ||
+      (IsoBuildDate[10] != 'T') ||
+      (IsoBuildDate[13] != ':') ||
+      (IsoBuildDate[16] != ':'))
+  {
+    return FALSE;
+  }
+
+  CopyMem (BuildTime, &IsoBuildDate[11], 8);
+  BuildTime[8] = '\0';
+
+  if ((IsoBuildDate[5] < '0') || (IsoBuildDate[5] > '1') ||
+      (IsoBuildDate[6] < '0') || (IsoBuildDate[6] > '9'))
+  {
+    return FALSE;
+  }
+
+  MonthValue = ((UINTN)(IsoBuildDate[5] - '0') * 10U) + (UINTN)(IsoBuildDate[6] - '0');
+  if ((MonthValue == 0) || (MonthValue > 12)) {
+    return FALSE;
+  }
+
+  MonthIndex = MonthValue - 1;
+  CopyMem (BuildDate, MonthNames[MonthIndex], 3);
+  BuildDate[3] = ' ';
+  BuildDate[4] = IsoBuildDate[8];
+  BuildDate[5] = IsoBuildDate[9];
+  BuildDate[6] = ' ';
+  CopyMem (&BuildDate[7], &IsoBuildDate[0], 4);
+  BuildDate[11] = '\0';
+  return TRUE;
+#else
+  return FALSE;
+#endif
+}
 
 EFI_STATUS
 GetPlatformPpi (
@@ -67,8 +130,12 @@ PrePiMain (
   ARM_CORE_INFO               *ArmCoreInfoTable;
   EFI_STATUS                  Status;
   CHAR8                       Buffer[100];
+  CHAR8                       BuildDate[sizeof (BUILD_DATE_TEMPLATE)];
+  CHAR8                       BuildTime[sizeof (BUILD_TIME_TEMPLATE)];
   UINTN                       CharCount;
   UINTN                       StacksSize;
+  CONST CHAR8                 *DisplayBuildDate;
+  CONST CHAR8                 *DisplayBuildTime;
   FIRMWARE_SEC_PERFORMANCE    Performance;
 
   // If ensure the FD is either part of the System Memory or totally outside of the System Memory (XIP)
@@ -84,13 +151,20 @@ PrePiMain (
   // Initialize the Serial Port
   SerialPortInitialize ();
   POST_CODE(PrePiStart);
+  DisplayBuildTime = __TIME__;
+  DisplayBuildDate = __DATE__;
+  if (ResolveCompileBuildTimestamp (BuildTime, sizeof (BuildTime), BuildDate, sizeof (BuildDate))) {
+    DisplayBuildTime = BuildTime;
+    DisplayBuildDate = BuildDate;
+  }
+
   CharCount = AsciiSPrint (
                 Buffer,
                 sizeof (Buffer),
                 "Cix UEFI firmware (version %s built at %a on %a)\n\r",
                 (CHAR16 *)PcdGetPtr (PcdFirmwareVersionString),
-                __TIME__,
-                __DATE__
+                DisplayBuildTime,
+                DisplayBuildDate
                 );
   SerialPortWrite ((UINT8 *)Buffer, CharCount);
 
@@ -111,8 +185,14 @@ PrePiMain (
   Status = MemoryPeim (UefiMemoryBase, FixedPcdGet32 (PcdSystemMemoryUefiRegionSize));
   ASSERT_EFI_ERROR (Status);
 
-  // Create the Stacks HOB
-  StacksSize = PcdGet32 (PcdCPUCorePrimaryStackSize);
+  // Create the Stacks HOB (reserve the memory for all stacks)
+  if (ArmIsMpCore ()) {
+    StacksSize = PcdGet32 (PcdCPUCorePrimaryStackSize) +
+                 ((FixedPcdGet32 (PcdCoreCount) - 1) * FixedPcdGet32 (PcdCPUCoreSecondaryStackSize));
+  } else {
+    StacksSize = PcdGet32 (PcdCPUCorePrimaryStackSize);
+  }
+
   BuildStackHob (StacksBase, StacksSize);
 
   // check later: Call CpuPei as a library
@@ -191,12 +271,31 @@ CEntryPoint (
   // Enable Instruction Caches on all cores.
   ArmEnableInstructionCache ();
 
-  InvalidateDataCacheRange (
-    (VOID *)UefiMemoryBase,
-    FixedPcdGet32 (PcdSystemMemoryUefiRegionSize)
-    );
+  // Define the Global Variable region when we are not running in XIP
+  if (!IS_XIP ()) {
+    if (ArmPlatformIsPrimaryCore (MpId)) {
+      if (ArmIsMpCore ()) {
+        // Signal the Global Variable Region is defined (event: ARM_CPU_EVENT_DEFAULT)
+        ArmCallSEV ();
+      }
+    } else {
+      // Wait the Primary core has defined the address of the Global Variable region (event: ARM_CPU_EVENT_DEFAULT)
+      ArmCallWFE ();
+    }
+  }
 
-  PrimaryMain (UefiMemoryBase, StacksBase, StartTimeStamp);
+  // If not primary Jump to Secondary Main
+  if (ArmPlatformIsPrimaryCore (MpId)) {
+    InvalidateDataCacheRange (
+      (VOID *)UefiMemoryBase,
+      FixedPcdGet32 (PcdSystemMemoryUefiRegionSize)
+      );
+
+    // Goto primary Main.
+    PrimaryMain (UefiMemoryBase, StacksBase, StartTimeStamp);
+  } else {
+    SecondaryMain (MpId);
+  }
 
   // DXE Core should always load and never return
   ASSERT (FALSE);

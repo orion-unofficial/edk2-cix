@@ -43,6 +43,7 @@ GCC5_AARCH64_PREFIX := aarch64-linux-gnu-
 endif
 
 PACKAGE_TOOL := edk2-non-osi/Platform/CIX/Sky1/PackageTool
+SIGNING_CERT_SOURCE_DIR ?=
 DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f") \
 	#    $(shell find edk2-platforms/Platform/CIX -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f")
 
@@ -125,12 +126,18 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
 	Build/%/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
-	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cert_uefi_create_rsa" --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
-		--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
-		--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
-		--nt-fw-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
-		--non-trusted-world-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
-		--nt-fw "$(shell realpath "$<")" && \
+	export SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" && \
+	if [[ -n "$$SIGNING_CERT_SOURCE_DIR" ]]; then \
+		cp "$$SIGNING_CERT_SOURCE_DIR/nt_fw_cert.crt" Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt; \
+		cp "$$SIGNING_CERT_SOURCE_DIR/nt_fw_key.crt" Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt; \
+	else \
+		"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/cert_uefi_create_rsa" --key-alg rsa --key-size 3072 --hash-alg sha256 -p --ntfw-nvctr 223 \
+			--nt-fw-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_cert.crt \
+			--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
+			--nt-fw-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
+			--non-trusted-world-key Build/$*/$(UEFI_TARGET)_GCC5/Keys/oem_privatekey.pem \
+			--nt-fw "$(shell realpath "$<")"; \
+	fi && \
 	"$$PATH_PACKAGE_TOOL/$(PACKAGE_TOOL_ARCH)/fiptool" create \
 		--trusted-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/trusted_key_no.crt \
 		--nt-fw-key-cert Build/$*/$(UEFI_TARGET)_GCC5/certs/nt_fw_key.crt \
