@@ -34,7 +34,7 @@
           }
         ]
       },
-      "tree_id": "3a3c7311dc816b89f45560ad5c342fd3e997f5c7"
+      "tree_id": "542b4f2785d547b5415d94ec6022e5d61648106b"
     },
     "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1": {
       "cix_release": "1.2",
@@ -69,7 +69,7 @@
           }
         ]
       },
-      "tree_id": "3a3c7311dc816b89f45560ad5c342fd3e997f5c7"
+      "tree_id": "542b4f2785d547b5415d94ec6022e5d61648106b"
     },
     "source/release/upstream/edk2-202208/radxa-1.2.1": {
       "description": "Upstream EDK2 202208 component skeleton plus Radxa 1.2.1 vendor delta, rendered without active root submodule metadata.",
