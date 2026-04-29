@@ -29,7 +29,7 @@ format_epoch_as_iso() {
 from datetime import datetime, timezone
 import sys
 
-print(datetime.fromtimestamp(int(sys.argv[1]), timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+print(datetime.fromtimestamp(int(sys.argv[1]), timezone.utc).isoformat(timespec="seconds"))
 PY
 }
 

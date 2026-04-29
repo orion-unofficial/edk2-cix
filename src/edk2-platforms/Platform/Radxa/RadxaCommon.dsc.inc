@@ -15,6 +15,9 @@
 
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS              = -DCOMPILE_BUILD_DATE=$(COMPILE_BUILD_DATE)
+!ifdef $(REPRODUCIBLE_BUILD_METADATA)
+  GCC:*_*_*_CC_FLAGS              = -DREPRODUCIBLE_BUILD_METADATA
+!endif
 !if $(TARGET) == RELEASE
   GCC:*_*_*_CC_FLAGS              = -DUEFI_FW_VERSION=$(COMPILE_DEB_VERSION)
 !else
