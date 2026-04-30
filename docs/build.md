@@ -79,13 +79,13 @@ networking before the run can start.
 ## Supported host environments
 
 - Debian `trixie` on `x86_64` or `arm64` / `aarch64` for the default
-  `main-monorepo-edk2` buildbox path, including `ARTEFACT_MODE=upstream`
+  `source/unofficial/current` buildbox path, including `ARTEFACT_MODE=upstream`
 - Debian `bookworm` remains supported when explicitly requested, but buildbox
   preflight warns because `trixie` is the default for edk2-rebased builds
 
 The untouched upstream repo contents still need Debian `trixie` for native
 `arm64` / `aarch64` builds because they shipped closed-source helper binaries.
-`main-monorepo-edk2` replaces those helpers with source implementations and
+`source/unofficial/current` replaces those helpers with source implementations and
 standardizes buildbox execution on Debian `trixie` by default.
 
 We still support `devcontainer`, but it is optional.
@@ -155,7 +155,7 @@ same container to the fuller packaging profile when needed.
 For non-buildbox workflows, the base OS is whichever environment you are
 already building in. Host-native builds therefore use the host distro, and the
 checked-in devcontainer remains pinned by
-[`/.devcontainer/devcontainer.json`](https://github.com/radxa-pkg/edk2-cix/blob/main-monorepo/.devcontainer/devcontainer.json).
+[`/.devcontainer/devcontainer.json`](https://github.com/radxa-pkg/edk2-cix/blob/source/release/custom/edk2-202208/radxa-1.2.1/local/.devcontainer/devcontainer.json).
 
 ## Build inside a devcontainer
 
@@ -167,7 +167,7 @@ To build all supported EDK2 variants inside that environment, run:
 make deb
 ```
 
-`main-monorepo-edk2` only supports Linux build hosts now. The old vendor
+`source/unofficial/current` only supports Linux build hosts now. The old vendor
 `WinBuildTool` tree and its Windows-only helper makefiles were removed from
 this branch, so the supported local host environments are:
 
@@ -231,7 +231,7 @@ otherwise `debuild` will complain that those files are missing.
 
 ## Monorepo layout
 
-On `main-monorepo-edk2`, the imported `edk2`, `edk2-platforms`, and
+On `source/unofficial/current`, the imported `edk2`, `edk2-platforms`, and
 `edk2-non-osi` trees are regular directories inside this repo. There are
 no Git submodules to initialize or update.
 
@@ -241,7 +241,7 @@ changes can shadow selected imported files without editing them in place.
 
 The monorepo-edk2 build resolves its displayed top-level source hash and
 default timestamp from the merge-base with
-`main-monorepo-upstream-edk2`, so curated overlay commits do not change
+`source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1`, so curated overlay commits do not change
 the firmware's reported source identity. In the default
 `ARTEFACT_MODE=custom`, that source-model commit timestamp is used
 instead of wall-clock time. Run `make -C src print-build-metadata` to
@@ -253,11 +253,11 @@ build. The same value is also passed into the O6 `pm_config`
 generator unless `PM_CONFIG_SOURCE_DATE_EPOCH` is set explicitly, so
 `csu_pm_config.bin` stops depending on wall-clock time.
 
-`main-monorepo-edk2` is rebased onto a newer upstream EDK2 implementation, so
+`source/unofficial/current` is rebased onto a newer upstream EDK2 implementation, so
 byte-accurate replay of the published 202208-based vendor images is not a valid
 proof target on this branch. The deterministic replay, exact hash-validation,
 and offline replay-baseline audit targets are retained for future use but fail
-early here; use `main-monorepo` for byte-accurate vendor replay.
+early here; use `source/release/custom/edk2-202208/radxa-1.2.1/local` for byte-accurate vendor replay.
 
 For a closest-to-upstream rebuild on the rebased implementation, use
 `ARTEFACT_MODE=upstream`. The vendor build still embeds three independent
@@ -283,7 +283,7 @@ or does not provide all three cert blobs.
 
 The build also supports two output modes:
 
-- `ARTEFACT_MODE=custom` is the default on `main-monorepo-edk2` and
+- `ARTEFACT_MODE=custom` is the default on `source/unofficial/current` and
   strips embedded PE/COFF debug path records from release firmware
   images
 - `ARTEFACT_MODE=upstream` keeps the closest-to-upstream vendor path on the
@@ -321,7 +321,7 @@ the displayed build metadata tied to the upstream tag or commit being built
 rather than the local overlay commit.
 
 Those ordinary `ARTEFACT_MODE=upstream` builds still stay on the
-closest-to-upstream path. On `main-monorepo-edk2`, the explicit replay inputs
+closest-to-upstream path. On `source/unofficial/current`, the explicit replay inputs
 remain useful for metadata-stable diagnostics, but they do not promote the
 rebased branch into a byte-identical rebuild of a published vendor image.
 
@@ -333,7 +333,7 @@ It also writes:
 
 The helper remains useful for extracting release metadata and cert bundles for
 diagnostic comparisons. The top-level deterministic replay wrapper is disabled
-on `main-monorepo-edk2`:
+on `source/unofficial/current`:
 
 ```bash
 make deterministic-replay
@@ -344,7 +344,7 @@ when the EDK2 implementation has been rebased.
 
 On non-rebased branches, a prepared `.buildbox/replay/<profile>/` cache lets
 later deterministic replay reruns omit `REPLAY_INPUT=...` and reuse the cached
-`replay.env` plus cert bundle. On `main-monorepo-edk2`, keep those cached inputs
+`replay.env` plus cert bundle. On `source/unofficial/current`, keep those cached inputs
 only for diagnostic extraction; the Makefile replay target remains disabled.
 
 To keep the full transcript from a replay or local build, wrap the command
@@ -407,7 +407,7 @@ Both archive formats store the payload under `edk2/radxa/orion-o6/<version>/`
 inside the archive, so the archive members match the same product/version
 layout used by the staged payload. `build-all` is buildbox-orchestrated and all
 leaves, including the upstream diagnostic leaf, default to Trixie on
-`main-monorepo-edk2`.
+`source/unofficial/current`.
 The traversal keeps every RELEASE variant ahead of every DEBUG variant, walks
 the broader custom invalidators before the UART/debug leaves, and then toggles
 the narrower curated `cix` path inside each compile bucket to reduce avoidable
@@ -480,7 +480,7 @@ Despite the retained filename, the local helper scripts prefer a working Docker
 engine first when they can positively distinguish it from Podman. Otherwise
 they fall back to `docker` first on macOS and `podman` first on Linux, then
 try the other runtime if needed. The generated replay wrapper is retained for
-non-rebased replay investigations, but the supported `main-monorepo-edk2`
+non-rebased replay investigations, but the supported `source/unofficial/current`
 buildbox paths use Trixie by default.
 
 ## Reuse the build container
@@ -517,12 +517,12 @@ the EDK2 `BaseTools/Source/C` helpers. If you switch between container
 environments or distro generations, the next build rebuilds those helper tools
 automatically instead of reusing stale host-built binaries.
 
-The preferred buildbox distribution for `main-monorepo-edk2` is Debian
+The preferred buildbox distribution for `source/unofficial/current` is Debian
 `trixie`.
 
 In the original upstream tree, native `arm64` / `aarch64` builds needed the
 `trixie` buildbox because the shipped closed-source helpers were not portable
-enough for the Bookworm arm64 path. On `main-monorepo-edk2`, those helpers are
+enough for the Bookworm arm64 path. On `source/unofficial/current`, those helpers are
 now reimplemented from source, but Trixie remains the default buildbox base for
 both upstream and custom builds.
 
@@ -562,7 +562,7 @@ So:
 - use the default Trixie buildbox for both upstream-oriented and custom buildbox
   runs
 - use `FIRMWARE_DISTRO=bookworm` only when deliberately checking older distro
-  compatibility; the preflight will warn on `main-monorepo-edk2`
+  compatibility; the preflight will warn on `source/unofficial/current`
 - use `BUILDBOX_IMAGE=mcr.microsoft.com/devcontainers/base:...` to override
   `FIRMWARE_DISTRO` with a specific image
 - use `make -C src host-fiptool` to prebuild the vendored TF-A
@@ -573,7 +573,7 @@ So:
   `fiptool` needs the OpenSSL development headers
 
 The checked-in byte-accurate validation profiles and offline replay baselines
-belong to the non-rebased `main-monorepo` history. On `main-monorepo-edk2`, the
+belong to the non-rebased `source/release/custom/edk2-202208/radxa-1.2.1/local` history. On `source/unofficial/current`, the
 following targets are intentionally hidden from help and fail early if invoked:
 
 - `deterministic-replay`
@@ -588,7 +588,7 @@ following targets are intentionally hidden from help and fail early if invoked:
 
 The tree still contains the maintainer replay/audit GitHub Actions workflow
 used by non-rebased histories, but those byte-accurate replay checks are not a
-valid qualification target for `main-monorepo-edk2` and will fail through the
+valid qualification target for `source/unofficial/current` and will fail through the
 same guard if invoked here.
 
 Capturing new byte-accurate validation profiles is disabled on this branch for
@@ -606,7 +606,7 @@ not attached to a terminal and even when `NO_COLOR`, `CLICOLOR=0`, and
 output locally, rather than post-processing the whole build transcript.
 
 If you need to refresh the monorepo from the authoritative uplifted source-model,
-use the automation and runbooks on the separate `main-monorepo-meta`
+use the automation and runbooks on the separate `build`
 branch rather than running `git submodule` commands in this checkout.
 
 ## Host-side Python checks
