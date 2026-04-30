@@ -1,4 +1,4 @@
-# EDK2-CIX Reconstruction Control Branch
+# EDK2-CIX Reconstruction Build Branch
 
 This branch contains the manifests, scripts, and top-level Makefile used to reconstruct buildable firmware branches from explicit source components:
 
@@ -7,13 +7,13 @@ This branch contains the manifests, scripts, and top-level Makefile used to reco
 - local project changes
 - rendered release branches that are ready to build
 
-The existing known-good branches remain available while this model is proven. The control branch is deliberately small: it should be safe to inspect, clone, and use as an orchestration entry point without checking out a full firmware tree first.
+The existing known-good branches remain available while this model is proven. The build branch is deliberately small: it should be safe to inspect, clone, and use as an orchestration entry point without checking out a full firmware tree first.
 
 Rendered release branches must be ordinary Git trees. They must not retain active submodule gitlinks or active root `.gitmodules` files. `git log <path>` and `git blame <path>` must work from any directory inside the rendered checkout.
 
 ## How do I start developing on this codebase?
 
-1. Clone the repository and switch to the control branch.
+1. Clone the repository and switch to the build branch.
 2. Run `make help` and `make help-vars`.
 3. Render or check out the firmware release you want to develop against.
 4. Develop on a normal topic branch created from the rendered release branch.
@@ -22,7 +22,7 @@ Rendered release branches must be ordinary Git trees. They must not retain activ
 Example:
 
 ```bash
-git switch control
+git switch build
 make help
 make help-vars
 make render-release-branch \
@@ -38,14 +38,15 @@ The `source/base/**`, non-local `source/delta/**`, and `source/component/cix/**`
 The latest configured release is recorded in `config/releases.json`. Ordinary build targets render or reuse a cached worktree for that release and then delegate to the release branch Makefile. User-facing build and packaging targets use the buildbox by default so the host does not need an AArch64 firmware toolchain installed.
 
 ```bash
-git switch control
+git switch build
 make build-all
 ```
 
-Useful packaging targets are also delegated through the buildbox. `make install` stages an installable firmware payload under the rendered release worktree rather than writing directly to `/boot` from the control branch.
+Useful packaging targets are also delegated through the buildbox. `make install` builds and stages the payload first, then checks the selected install root before copying anything. By default it installs under `/boot/efi`; set `INSTALL_ROOT=/boot` or another path if your system uses a different mount point. Existing files are never replaced unless you rerun with `FORCE=1`.
 
 ```bash
 make install
+make install FORCE=1
 make zip
 make targz
 ```
@@ -191,7 +192,7 @@ There is no separate offline mode flag. The scripts try to proceed from local da
 
 ## Validation checklist
 
-Run these from the control branch:
+Run these from the build branch:
 
 ```bash
 make help

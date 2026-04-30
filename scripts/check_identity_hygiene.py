@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scan generated control files and selected commits for identity/path hygiene issues."""
+"""Scan generated reconstruction files and selected commits for identity/path hygiene issues."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ Optional variables:
   SCAN_COMMITS=1  Also scan commits reachable from HEAD for generated-identity strings.
   V=1             Print scanned paths.
 
-The scanner is intentionally conservative for the control branch. It looks for
+The scanner is intentionally conservative for the build branch. It looks for
 host-specific paths, generated assistant identity strings, and embedded personal
 email addresses in generated scripts, manifests, and documentation.
 """

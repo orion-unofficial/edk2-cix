@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared helpers for the EDK2-CIX reconstruction control branch."""
+"""Shared helpers for the EDK2-CIX reconstruction build branch."""
 
 from __future__ import annotations
 

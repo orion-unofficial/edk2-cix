@@ -9,6 +9,9 @@ WORKTREE ?=
 TARGET_REF ?=
 LOCAL_TARGET_REF ?= source/delta/local/current
 BASE_REF ?=
+INSTALL_ROOT ?= /boot/efi
+INSTALL_SOURCE ?=
+FORCE ?= 0
 
 .PHONY: help help-vars all build-all install zip targz buildbox-firmware-build buildbox-firmware-stage \
 	extract-vendor-delta render-release-branch integrate-source-release import-local-commits \
@@ -19,13 +22,13 @@ BASE_REF ?=
 all: help
 
 help:
-	@printf '%s\n' 'EDK2-CIX reconstruction control branch'
+	@printf '%s\n' 'EDK2-CIX reconstruction build branch'
 	@printf '%s\n' ''
 	@printf '%s\n' 'End-user targets:'
 	@printf '%s\n' '  make help                         Show this help.'
 	@printf '%s\n' '  make help-vars                    Show variables and configured releases.'
 	@printf '%s\n' '  make build-all                    Build the latest configured firmware release.'
-	@printf '%s\n' '  make install                      Build and stage installable firmware via the buildbox.'
+	@printf '%s\n' '  make install                      Build, safety-check, and install firmware.'
 	@printf '%s\n' '  make zip                          Create a firmware .zip via the buildbox.'
 	@printf '%s\n' '  make targz                        Create a firmware .tar.gz via the buildbox.'
 	@printf '%s\n' '  make buildbox-firmware-build      Delegate buildbox firmware build.'
@@ -37,7 +40,7 @@ help:
 	@printf '%s\n' '  make extract-vendor-delta         Produce a vendor delta report/diff.'
 	@printf '%s\n' '  make integrate-source-release     Integrate new upstream/vendor source refs.'
 	@printf '%s\n' '  make import-local-commits         Explicitly update source/delta/local/current.'
-	@printf '%s\n' '  make check-identity-hygiene       Scan generated control files for path/identity leaks.'
+	@printf '%s\n' '  make check-identity-hygiene       Scan generated reconstruction files for path/identity leaks.'
 	@printf '%s\n' ''
 	@printf '%s\n' 'Per-target help:'
 	@printf '%s\n' '  make render-release-branch-help'
@@ -59,6 +62,9 @@ help-vars:
 	@printf '%s\n' '  TARGET_REF=<ref>      Delta artifact output ref.'
 	@printf '%s\n' '  LOCAL_TARGET_REF=<ref> Local import target; defaults to source/delta/local/current.'
 	@printf '%s\n' '  BASE_REF=<ref>        Base ref for delta extraction/import.'
+	@printf '%s\n' '  INSTALL_ROOT=<path>   Firmware install root. Defaults to /boot/efi.'
+	@printf '%s\n' '  INSTALL_SOURCE=<path> Optional staged payload path or path relative to dist/firmware.'
+	@printf '%s\n' '  FORCE=1               Allow install to replace existing destination files.'
 	@printf '%s\n' ''
 	@printf '%s\n' 'Configured releases:'
 	@$(PYTHON) -c 'import json; d=json.load(open("config/releases.json")); print("  default: " + d.get("default_release", "")); [print("  " + (k.removeprefix("source/release/"))) for k in sorted(d.get("releases", {}))]'
@@ -73,7 +79,16 @@ build-all:
 	$(call run_release_make,build-all)
 
 install:
-	$(call run_release_make,buildbox-firmware-stage)
+	@wt="$$(RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
+	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) -C $$wt buildbox-firmware-stage V=$(V)"; fi; \
+	$(MAKE) -C "$$wt" buildbox-firmware-stage V="$(V)"; \
+	force_arg=""; \
+	if [ "$(FORCE)" = "1" ]; then force_arg="--force"; fi; \
+	INSTALL_SOURCE="$(INSTALL_SOURCE)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/install_release_payload.py \
+		--worktree "$$wt" \
+		--install-root "$(INSTALL_ROOT)" \
+		$$force_arg \
+		--v "$(V)"
 
 zip:
 	$(call run_release_make,buildbox-zip)
