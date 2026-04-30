@@ -18,7 +18,7 @@ jobs:
       with:
         fetch-depth: 0
         path: "metadata"
-        ref: "main-monorepo-meta"
+        ref: "build"
     - name: "Check offline audit baseline schema"
       run: |
         python3 scripts/test_offline_audit_baselines.py
