@@ -278,7 +278,7 @@ define PRINT_TOP_LEVEL_DEV_VARIABLES_VALIDATION
 	print_help_line '  FIRMWARE_VALIDATE_ON_BUILD=0|1' 'Enable or skip automatic output validation after firmware-build.\nDefault: 0; enable explicitly for qualification or diagnostic runs.'; \
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile from validation/expected-hashes.json, e.g. '\''upstream-1.2.1-bookworm'\'' or '\''upstream-1.2.1-trixie'\''\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
 	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory for validation and audit JSON reports.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
-	print_help_line '  MONOREPO_META_ROOT=<path>' 'Optional main-monorepo-meta checkout used by audit-bundle for the metadata-consistency check.\nDefault: unset.'
+	print_help_line '  MONOREPO_META_ROOT=<path>' 'Optional build checkout used by audit-bundle for the metadata-consistency check.\nDefault: unset.'
 endef
 
 define PRINT_TOP_LEVEL_DEV_VARIABLES_REPLAY

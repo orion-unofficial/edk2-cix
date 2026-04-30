@@ -170,7 +170,7 @@ name: "Build & Release"
     - ".github/workflows/docs.yaml"
   push:
     branches:
-    - "main-monorepo"
+    - "source/release/custom/edk2-202208/radxa-1.2.1/local"
     paths-ignore:
     - "docs/**"
     - "theme/**"

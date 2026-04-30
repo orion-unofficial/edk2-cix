@@ -11,7 +11,7 @@ available, with a cleaner and more flexible build system; and let you build
 custom firmware with targeted improvements that are intentionally kept off that
 upstream vendor path.
 
-Key custom additions on `main-monorepo` include:
+Key custom additions on `source/release/custom/edk2-202208/radxa-1.2.1/local` include:
 
 - source-built replacements for several vendor helper binaries
 - reproducible replay and validation tooling around the published O6/O6N
@@ -24,7 +24,7 @@ Key custom additions on `main-monorepo` include:
 
 ## Build
 
-1. `git clone -b main-monorepo https://github.com/radxa-pkg/edk2-cix.git`
+1. `git clone -b source/release/custom/edk2-202208/radxa-1.2.1/local https://github.com/radxa-pkg/edk2-cix.git`
 2. Choose one of the supported build paths below
 3. Run the top-level `make` target you need
 
@@ -77,12 +77,12 @@ integration.
 On a supported Debian host:
 
 - `x86_64`: prefer Debian `bookworm`
-- `arm64` / `aarch64` on `main-monorepo`: use Debian `bookworm` by default,
+- `arm64` / `aarch64` on `source/release/custom/edk2-202208/radxa-1.2.1/local`: use Debian `bookworm` by default,
   or Debian `trixie` for the newer distro/toolchain family
 
 The untouched upstream repo contents still need Debian `trixie` for native
 `arm64` / `aarch64` builds because they shipped closed-source helper binaries.
-`main-monorepo` replaces those helpers with source implementations, so native
+`source/release/custom/edk2-202208/radxa-1.2.1/local` replaces those helpers with source implementations, so native
 `arm64` / `aarch64` builds can now use the same default Debian `bookworm` base
 as `x86_64` builds.
 
@@ -172,7 +172,7 @@ and then run:
 make deb
 ```
 
-`main-monorepo` only supports Linux build hosts now. The old vendor
+`source/release/custom/edk2-202208/radxa-1.2.1/local` only supports Linux build hosts now. The old vendor
 `WinBuildTool` tree and its Windows-only helper makefiles were removed from
 this branch, so the supported local host environments are:
 
@@ -199,13 +199,13 @@ To capture a full build transcript plus a warning summary under `build-logs/`,
 use `make buildbox-firmware-log` or wrap any command with
 `./scripts/capture_build_log.sh build-logs <command ...>`.
 
-For reproducible metadata on `main-monorepo`, the build uses the nearest
+For reproducible metadata on `source/release/custom/edk2-202208/radxa-1.2.1/local`, the build uses the nearest
 mapped upstream `main` commit as its default source identity. In the default
 `ARTEFACT_MODE=custom`, that commit identity also supplies the default
 timestamp used for reproducible metadata. You can inspect the resolved values
 with `make -C src print-build-metadata`.
 
-For exact replay of a published O6 or O6N image, `main-monorepo` can also
+For exact replay of a published O6 or O6N image, `source/release/custom/edk2-202208/radxa-1.2.1/local` can also
 reuse an extracted FIP cert bundle via `SIGNING_CERT_SOURCE_DIR=<path>`. The
 directory may contain either the build-tree filenames `trusted_key_no.crt`,
 `nt_fw_cert.crt`, and `nt_fw_key.crt` or the extracted FIP filenames
@@ -310,7 +310,7 @@ The preferred distribution for local `x86_64` builds remains Debian
 
 In the original upstream tree, native `arm64` / `aarch64` builds needed the
 `trixie` buildbox because the shipped closed-source helpers were not portable
-enough for the Bookworm arm64 path. On `main-monorepo`, those helpers are now
+enough for the Bookworm arm64 path. On `source/release/custom/edk2-202208/radxa-1.2.1/local`, those helpers are now
 reimplemented from source, so both `amd64` and native `arm64` can use
 Bookworm for exact replay and Trixie for the default custom build path.
 
@@ -363,7 +363,7 @@ different purposes:
   - currently records the checked O6 Trixie baseline under the shared profile
     naming scheme
   - used to confirm matching `amd64` and `arm64` Trixie builds on
-    `main-monorepo`
+    `source/release/custom/edk2-202208/radxa-1.2.1/local`
   - not a published upstream-release baseline
 
 Freshly generated certs are compatible but not byte-identical because they
@@ -395,7 +395,7 @@ make validate-firmware \
 
 The same file also carries the `upstream-1.2.1-trixie` reproducibility profile,
 intended for matching amd64 or arm64 Trixie O6 replays on
-`main-monorepo` when they reuse the same cert bundle and replay timestamps:
+`source/release/custom/edk2-202208/radxa-1.2.1/local` when they reuse the same cert bundle and replay timestamps:
 
 ```bash
 make validate-firmware \
@@ -433,7 +433,7 @@ scripts' `--emit-baseline` mode later to extend that coverage.
   tree for the active `FIRMWARE_VALIDATION_PROFILE`
 - the `audit-bundle` target combines the qualification checks plus the payload
   metadata self-test, and optionally also runs the metadata branch consistency
-  checker if `MONOREPO_META_ROOT=/path/to/main-monorepo-meta` is set
+  checker if `MONOREPO_META_ROOT=/path/to/build` is set
 
 The deterministic replay workflow now also uploads the generated
 `build-validation/*.json` files as CI artefacts and emits a short Markdown job
@@ -442,7 +442,7 @@ summary listing the validation and audit report statuses.
 For a maintainer-driven full qualification pass on GitHub Actions, the tree now
 also includes `.github/workflows/maintainer-audit-bundle.yaml`. That manual
 workflow runs the `buildbox-audit-bundle` target for a selected board/profile,
-checks metadata consistency against `main-monorepo-meta`, uploads the generated
+checks metadata consistency against `build`, uploads the generated
 `build-validation/*.json` reports, and writes the same short Markdown summary
 to the job page.
 

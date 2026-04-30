@@ -80,14 +80,14 @@ networking before the run can start.
 
 - Debian `bookworm` on `x86_64` for the preferred upstream vendor path,
   including byte-identical replay when you provide the published replay inputs
-- Debian `bookworm` on `arm64` / `aarch64` for the default `main-monorepo`
+- Debian `bookworm` on `arm64` / `aarch64` for the default `source/release/custom/edk2-202208/radxa-1.2.1/local`
   build path, including exact replay when you reuse the extracted cert bundle
 - Debian `trixie` on `arm64` / `aarch64` for the newer distro / toolchain
-  family on `main-monorepo`
+  family on `source/release/custom/edk2-202208/radxa-1.2.1/local`
 
 The untouched upstream repo contents still need Debian `trixie` for native
 `arm64` / `aarch64` builds because they shipped closed-source helper binaries.
-`main-monorepo` replaces those helpers with source implementations, so native
+`source/release/custom/edk2-202208/radxa-1.2.1/local` replaces those helpers with source implementations, so native
 `arm64` / `aarch64` can now use the same default Debian `bookworm` base as
 `x86_64`.
 
@@ -161,7 +161,7 @@ same container to the fuller packaging profile when needed.
 For non-buildbox workflows, the base OS is whichever environment you are
 already building in. Host-native builds therefore use the host distro, and the
 checked-in devcontainer remains pinned by
-[`/.devcontainer/devcontainer.json`](https://github.com/radxa-pkg/edk2-cix/blob/main-monorepo/.devcontainer/devcontainer.json).
+[`/.devcontainer/devcontainer.json`](https://github.com/radxa-pkg/edk2-cix/blob/source/release/custom/edk2-202208/radxa-1.2.1/local/.devcontainer/devcontainer.json).
 
 ## Build inside a devcontainer
 
@@ -173,7 +173,7 @@ To build all supported EDK2 variants inside that environment, run:
 make deb
 ```
 
-`main-monorepo` only supports Linux build hosts now. The old vendor
+`source/release/custom/edk2-202208/radxa-1.2.1/local` only supports Linux build hosts now. The old vendor
 `WinBuildTool` tree and its Windows-only helper makefiles were removed from
 this branch, so the supported local host environments are:
 
@@ -237,7 +237,7 @@ otherwise `debuild` will complain that those files are missing.
 
 ## Monorepo layout
 
-On `main-monorepo`, the imported `edk2`, `edk2-platforms`, and
+On `source/release/custom/edk2-202208/radxa-1.2.1/local`, the imported `edk2`, `edk2-platforms`, and
 `edk2-non-osi` trees are regular directories inside this repo. There are
 no Git submodules to initialize or update.
 
@@ -281,7 +281,7 @@ or does not provide all three cert blobs.
 
 The build also supports two output modes:
 
-- `ARTEFACT_MODE=custom` is the default on `main-monorepo` and strips
+- `ARTEFACT_MODE=custom` is the default on `source/release/custom/edk2-202208/radxa-1.2.1/local` and strips
   embedded PE/COFF debug path records from release firmware images
 - `ARTEFACT_MODE=upstream` keeps the historical output behavior for
   the upstream vendor path, replay, and byte-for-byte comparison work
@@ -534,7 +534,7 @@ The preferred local distribution for `x86_64` builds remains Debian
 
 In the original upstream tree, native `arm64` / `aarch64` builds needed the
 `trixie` buildbox because the shipped closed-source helpers were not portable
-enough for the Bookworm arm64 path. On `main-monorepo`, those helpers are now
+enough for the Bookworm arm64 path. On `source/release/custom/edk2-202208/radxa-1.2.1/local`, those helpers are now
 reimplemented from source, so both `amd64` and native `arm64` can use
 Bookworm for exact replay and Trixie for the default custom build path.
 
@@ -594,7 +594,7 @@ make validate-firmware ARTEFACT_MODE=upstream
 ```
 
 That loads the selected validation profile from
-[validation/expected-hashes.json](https://github.com/radxa-pkg/edk2-cix/blob/main-monorepo/validation/expected-hashes.json),
+[validation/expected-hashes.json](https://github.com/radxa-pkg/edk2-cix/blob/source/release/custom/edk2-202208/radxa-1.2.1/local/validation/expected-hashes.json),
 checks the key shipped artefacts plus a few structural markers from the EFI
 utility binaries, and writes a JSON report under `build-validation/`.
 
@@ -610,7 +610,7 @@ make validate-firmware \
 
 The same file also carries the `upstream-1.2.1-trixie` reproducibility
 profile, intended for matching amd64 or arm64 Trixie replays on
-`main-monorepo` when they reuse the same cert bundle and replay timestamps:
+`source/release/custom/edk2-202208/radxa-1.2.1/local` when they reuse the same cert bundle and replay timestamps:
 
 The profile name refers to the Trixie distro/toolchain family used for the
 build. The cert bundle reused by that profile currently still comes from the
@@ -653,7 +653,7 @@ scripts' `--emit-baseline` mode later to extend that coverage.
   tree for the active `FIRMWARE_VALIDATION_PROFILE`
 - the `audit-bundle` maintainer target combines the qualification checks plus
   the payload metadata self-test, and optionally also runs the metadata branch
-  consistency checker if `MONOREPO_META_ROOT=/path/to/main-monorepo-meta` is
+  consistency checker if `MONOREPO_META_ROOT=/path/to/build` is
   set
 
 The deterministic replay workflow also uploads the generated
@@ -663,7 +663,7 @@ summary listing the report statuses.
 For a maintainer-driven full qualification pass on GitHub Actions, the tree
 also includes `.github/workflows/maintainer-audit-bundle.yaml`. That manual
 workflow runs the `buildbox-audit-bundle` target for a selected board/profile,
-checks metadata consistency against `main-monorepo-meta`, uploads the
+checks metadata consistency against `build`, uploads the
 generated `build-validation/*.json` reports, and writes the same short
 Markdown summary to the job page.
 
@@ -689,7 +689,7 @@ not attached to a terminal and even when `NO_COLOR`, `CLICOLOR=0`, and
 output locally, rather than post-processing the whole build transcript.
 
 To refresh the monorepo from the untouched upstream mirror, use the automation
-and runbooks on the separate `main-monorepo-meta` branch rather than running
+and runbooks on the separate `build` branch rather than running
 `git submodule` commands in this checkout.
 
 ## Host-side Python checks
