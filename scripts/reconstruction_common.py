@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import traceback
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -152,7 +153,7 @@ def release_entry(repo: Path, release: str | None, require: bool = False) -> tup
     entries: dict[str, Any] = releases.get("releases", {})
     entry = entries.get(branch) or entries.get(short_release(branch))
     if entry is None:
-        raise ReconstructionError(f"unknown release: {selected}\nUse make help-vars to list configured releases.")
+        raise ReconstructionError(f"unknown release: {selected}\nUse make help-releases to list configured releases.")
     return branch, entry
 
 
@@ -496,3 +497,10 @@ def main_wrapper(fn) -> None:
         fn()
     except ReconstructionError as exc:
         die(str(exc), 2)
+    except KeyboardInterrupt:
+        die("interrupted by user", 130)
+    except Exception as exc:
+        if truthy(os.environ.get("DEBUG")):
+            traceback.print_exc()
+            raise SystemExit(1)
+        die(f"internal error: {exc}\nRe-run with DEBUG=1 to show the Python traceback.", 1)
