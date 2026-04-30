@@ -339,7 +339,7 @@ def main() -> None:
         raise ReconstructionError(
             f"release branch {branch} is unavailable locally and could not be fetched from origin.\n"
             "External upstream/vendor remotes are not contacted for ordinary rendering; "
-            "run integrate-source-release if reconstruction objects are missing."
+            "run integrate-source-release if source objects are missing."
         )
 
     check_immutable_refs(repo)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scan generated reconstruction files and selected commits for identity/path hygiene issues."""
+"""Scan generated source-model files and selected commits for identity/path hygiene issues."""
 
 from __future__ import annotations
 
@@ -17,14 +17,14 @@ Optional variables:
   SCAN_COMMITS=1  Also scan commits reachable from HEAD for generated-identity strings.
   SCAN_SOURCE_REFS=1
                   Also scan generated source/local, source/delta/local, and
-                  source/release/custom refs for stale legacy branch names.
+                  source/release/custom refs for stale old branch names.
   V=1             Print scanned paths.
 
 The scanner is intentionally conservative for the build branch. It looks for
 host-specific paths, generated assistant identity strings, and embedded personal
 email addresses in generated scripts, manifests, and documentation. With
 SCAN_SOURCE_REFS=1 it also checks generated source refs for stale names from the
-pre-reconstruction branch model.
+earlier branch model.
 """
 
 
@@ -45,7 +45,7 @@ def suspicious_patterns() -> list[tuple[str, re.Pattern[str]]]:
         ("host path", re.compile(re.escape(private_tmp) + "|" + re.escape(generic_tmp) + "|" + re.escape(users_path))),
         ("generated assistant identity", re.compile(generated_name, re.IGNORECASE)),
         ("embedded email", re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")),
-        ("legacy reconstruction branch", legacy_branch_pattern()),
+        ("old branch name", legacy_branch_pattern()),
     ]
 
 

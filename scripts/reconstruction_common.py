@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared helpers for the EDK2-CIX reconstruction build branch."""
+"""Shared helpers for the EDK2-CIX firmware source tooling."""
 
 from __future__ import annotations
 
@@ -315,7 +315,7 @@ def create_delta_artefact(
             f"Kind: `{kind}`\n\n"
             f"Base: `{base_ref}`\n\n"
             f"Target: `{target_ref}`\n\n"
-            "Apply `delta.patch` to the base tree to reconstruct the target tree.\n"
+            "Apply `delta.patch` to the base tree to reproduce the target tree.\n"
         ).encode("utf-8"),
         "metadata.json": json.dumps(metadata, indent=2, sort_keys=True).encode("utf-8") + b"\n",
         "delta.patch": diff,

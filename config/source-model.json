@@ -169,7 +169,7 @@
     "current_compatible_release": "edk2-stable202602",
     "generated_delta_refs": "source/delta/local/<edk2-release> for the CIX/Radxa matrix, with a more specific suffix when the same EDK2 release has multiple local bases",
     "initial_compatible_release": "edk2-stable202208",
-    "policy": "Local changes are maintained as an ordinary source branch and projected into per-EDK2-release delta artefacts. The current branch points at the latest local source; compatibility tags preserve earlier EDK2 overlay points as full source checkpoints rather than aliases to legacy branches. If the same local source commit overlays multiple EDK2 releases cleanly, multiple compatibility tags may point to it. If a release requires maintenance, commit that maintenance at the first affected release and tag the resulting compatible commit. Generated source refs and delta artefacts must not depend on the legacy branch names used during earlier migrations.",
+    "policy": "Local changes are maintained as an ordinary source branch and projected into per-EDK2-release delta artefacts. The current branch points at the latest local source; compatibility tags preserve earlier EDK2 overlay points as full source checkpoints rather than aliases to older branches. If the same local source commit overlays multiple EDK2 releases cleanly, multiple compatibility tags may point to it. If a release requires maintenance, commit that maintenance at the first affected release and tag the resulting compatible commit. Generated source refs and delta artefacts must not depend on the branch names used during earlier migrations.",
     "source_ref": "source/unofficial/current"
   },
   "rendering_requirements": [

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integrate new upstream or vendor source refs into the reconstruction model."""
+"""Integrate new upstream or vendor source refs into the source model."""
 
 from __future__ import annotations
 

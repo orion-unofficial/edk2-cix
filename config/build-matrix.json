@@ -1,5 +1,5 @@
 {
-  "description": "Supported source-tree build matrix for reconstructed EDK2-CIX firmware branches. This records source combinations; it does not claim byte-identical firmware output.",
+  "description": "Supported source-tree build matrix for EDK2-CIX firmware branches. This records source combinations; it does not claim byte-identical firmware output.",
   "documented_make_variables": {
     "build_output": {
       "V": [
