@@ -16,9 +16,9 @@ This is the highest-level build-mode switch.
 - `ARTEFACT_MODE=upstream`
   - keep the upstream vendor build path
   - this is the right choice for closest-to-upstream diagnostics on
-    `main-monorepo-edk2`
+    `source/unofficial/current`
   - byte-identical replay of the published 202208-based vendor releases belongs
-    on `main-monorepo`, not on the rebased EDK2 branch
+    on `source/release/custom/edk2-202208/radxa-1.2.1/local`, not on the rebased EDK2 branch
   - custom-only feature switches are rejected in this mode
 - `ARTEFACT_MODE=custom`
   - keep the same overall build flow, but allow the local overlays, source
@@ -29,7 +29,7 @@ This is the highest-level build-mode switch.
 Default: `custom`
 
 `ARTEFACT_MODE=upstream` is the mode that follows the upstream vendor build
-path. On `main-monorepo-edk2`, this path uses the rebased upstream EDK2
+path. On `source/unofficial/current`, this path uses the rebased upstream EDK2
 implementation, so it deliberately does not claim byte-for-byte equivalence
 with the older published vendor images.
 
@@ -69,14 +69,14 @@ Default: `RELEASE`
 
 Select the default distro family used by the buildbox helpers and
 buildbox helpers. This is an advanced override; it is intentionally not shown in
-the short `make help-vars` output on `main-monorepo-edk2`.
+the short `make help-vars` output on `source/unofficial/current`.
 
 - `bookworm`
   - still supported for compatibility checks
   - emits a warning in buildbox preflight because it is no longer the branch
     default
 - `trixie`
-  - the default for all `main-monorepo-edk2` buildbox firmware builds,
+  - the default for all `source/unofficial/current` buildbox firmware builds,
     including `ARTEFACT_MODE=upstream`
   - the preferred Debian/toolchain family for the rebased EDK2 implementation
 

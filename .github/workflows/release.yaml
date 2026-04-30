@@ -170,7 +170,7 @@ name: "Build & Release"
     - ".github/workflows/docs.yaml"
   push:
     branches:
-    - "main-monorepo-edk2"
+    - "source/unofficial/current"
     paths-ignore:
     - "docs/**"
     - "theme/**"

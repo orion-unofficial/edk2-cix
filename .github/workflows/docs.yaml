@@ -78,7 +78,7 @@ name: "Deploy documentation"
     - ".github/workflows/docs.yaml"
   push:
     branches:
-    - "main-monorepo-edk2"
+    - "source/unofficial/current"
     paths:
     - "docs/**"
     - "theme/**"
