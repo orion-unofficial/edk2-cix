@@ -4,33 +4,45 @@
       "base_ref": "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1",
       "format": "delta.patch plus metadata.json",
       "immutable": false,
-      "object_id": "dd43ff5d60798d0b84cead56e26ae09242b63475",
+      "object_id": "444823724375030b0a732980a766287d36164e16",
       "ref": "source/delta/local/current",
-      "tree_id": "a3669bbb89269fc34ce8fad9cbae6d12f07b9800",
+      "tree_id": "62a6d6e95f8da1fcc53103819b5ac7736ce73f15",
       "type": "local-delta-artefact"
     },
     {
       "base_ref": "source/release/upstream/edk2-202208/radxa-1.2.1",
       "format": "delta.patch plus metadata.json",
       "immutable": false,
-      "object_id": "5d599bd18f0fa7176e57e1c9430389c0108c679c",
+      "object_id": "ac00b980dc2c84228737426ed6d1b6baf7b19c40",
       "ref": "source/delta/local/edk2-stable202208",
-      "tree_id": "d391668cf666fd0ae64c367b15f11c55cb14c8b9",
+      "tree_id": "6033561ea1762d2f5e1aa2917e5de645a821a501",
       "type": "local-delta-artefact"
     },
     {
-      "base_ref": "source/release/upstream/edk2-202208/radxa-1.2.1",
+      "base_ref": "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1",
+      "format": "delta.patch plus metadata.json",
+      "immutable": false,
+      "object_id": "6d80f6db82f650b936a874e389a82848ea88eb78",
+      "ref": "source/delta/local/edk2-stable202602",
+      "tree_id": "3a4c55dbc46d07e49341c0141f9d0ae99eca537b",
+      "type": "local-delta-artefact"
+    },
+    {
+      "base_ref": "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1",
       "compatible_edk2_releases": [
-        "edk2-stable202208"
+        "edk2-stable202602"
       ],
       "format": "ordinary source branch",
       "immutable": false,
-      "object_id": "fad437e06ab983240fe8fbb08299de5f5162e3c5",
-      "ref": "source/unofficial/current",
-      "tag_refs": [
+      "object_id": "d44df57e6e1e370ad9c90cc9b2d8104971516634",
+      "previous_compatibility_tags": [
         "source/unofficial/edk2-stable202208"
       ],
-      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8",
+      "ref": "source/unofficial/current",
+      "tag_refs": [
+        "source/unofficial/edk2-stable202602"
+      ],
+      "tree_id": "1f54f703f430422c8f6cc94dd6a3e5ca2263765b",
       "type": "local-source"
     }
   ],

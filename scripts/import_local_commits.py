@@ -105,7 +105,7 @@ def main() -> None:
         args.from_ref,
         args.target_ref,
         kind="local-delta",
-        name="local/current",
+        name=args.target_ref.removeprefix("source/delta/"),
         message="delta: import local changes",
         allow_replace=True,
     )

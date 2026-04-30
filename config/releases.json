@@ -49,7 +49,7 @@
             }
           },
           {
-            "delta": "source/delta/local/current"
+            "delta": "source/delta/local/edk2-stable202602"
           }
         ]
       },
@@ -84,7 +84,7 @@
             }
           },
           {
-            "delta": "source/delta/local/current"
+            "delta": "source/delta/local/edk2-stable202602"
           }
         ]
       },
