@@ -200,6 +200,34 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
         self.assertIn("CCACHE_DIR=/tmp/ccache", command)
         self.assertFalse(any(arg.startswith("ENABLE_" + "CCACHE=") for arg in command))
 
+    def test_fetch_ccache_stats_requests_machine_readable_output(self) -> None:
+        layout = firmware_layout.FirmwareLayout(
+            artefact_mode="upstream",
+            firmware_target="RELEASE",
+        )
+
+        with mock.patch("build_firmware_variants.subprocess.run") as run:
+            run.return_value = mock.Mock(stdout='{"cache_miss": 1}\n')
+            stats = build_firmware_variants.fetch_ccache_stats(
+                repo_root=Path("/repo"),
+                make_executable="make",
+                verbosity="0",
+                board="O6",
+                product="orion-o6",
+                version="1.2.1",
+                layout=layout,
+                distro="trixie",
+                ccache_dir="/tmp/ccache",
+                ccache_wrapper_root="/tmp/wrappers",
+                ccache_bin="ccache",
+                ccache_disable=None,
+            )
+
+        self.assertEqual(stats, {"cache_miss": 1})
+        command = run.call_args.args[0]
+        self.assertIn("buildbox-ccache-stats", command)
+        self.assertIn("CCACHE_STATS_FORMAT=json", command)
+
     def test_traversal_groups_keep_release_before_debug(self) -> None:
         variants = firmware_layout.iter_build_all_variants()
         phases: list[str] = []
