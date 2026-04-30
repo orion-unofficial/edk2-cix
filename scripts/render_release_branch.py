@@ -15,6 +15,7 @@ from reconstruction_common import (
     check_immutable_refs,
     commit_component_skeleton,
     git,
+    load_json,
     main_wrapper,
     read_delta_artefact_metadata,
     refresh_ref_record,
@@ -107,6 +108,11 @@ def ensure_base_ref(repo: Path, entry: dict, verbose: bool) -> str | None:
         return None
     if ref_exists(repo, base_ref):
         return base_ref
+    releases = load_json(repo, "config/releases.json").get("releases", {})
+    if base_ref in releases:
+        if verbose:
+            print(f"Rendering prerequisite release {base_ref}", file=sys.stderr)
+        return render_from_plan(repo, base_ref, releases[base_ref], verbose)
     if not components:
         raise ReconstructionError(f"render base ref is missing and has no component plan: {base_ref}")
     if verbose:
