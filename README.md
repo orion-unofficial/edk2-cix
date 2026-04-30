@@ -167,6 +167,18 @@ When the dry run is correct, add `WRITE=1`. The same change must update `config/
 
 CIX releases are treated as acquisition bundles from `https://github.com/cixtech/bios/`, but TF-A and OP-TEE remain separate internal components. That keeps future Arm-upstream uplift work possible.
 
+Radxa non-release updates use the same vendor integration path. First update or fetch the vendor source branch into a local ref, then give the delta a release-like name that records the most recent release plus the vendor commit, for example:
+
+```bash
+make integrate-source-release \
+  TYPE=vendor VENDOR=radxa \
+  RELEASE=1.2.1+<short-commit> \
+  EDK2_BASE=edk2-stable202208 \
+  REF=main
+```
+
+For Radxa vendor refs, `MATERIALIZE=1` is the default. This means a legacy submodule-shaped source ref such as `main` is recursively flattened before the `source/delta/radxa/**` artifact is generated, so the delta describes ordinary file content rather than gitlinks.
+
 ## How do I test a floating upstream tip instead of the latest release?
 
 Integrate the upstream component using an explicit `REF` or a release-like name chosen for the experiment, then render a test release branch that references it.

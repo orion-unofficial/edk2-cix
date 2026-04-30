@@ -2,16 +2,16 @@
   "refs": [
     {
       "immutable": true,
-      "object_id": "35b59152fd9910987732842cd766c424931ed0ed",
+      "object_id": "06c4961ccd57eee01d12078dc52a8df89ac9bbcc",
       "ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "f52d53498190b3a00eb58df9a63b589de6b95217",
+      "tree_id": "4090113c52faa063a045b7fecaf4d28b6557d5c3",
       "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "e40e759ab1dee3bc57649f114ed8722ee9e3528b",
+      "object_id": "bf5d5e769008424d9e3d29f7aff5b4626e1f97c1",
       "ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1",
-      "tree_id": "f52d53498190b3a00eb58df9a63b589de6b95217",
+      "tree_id": "4090113c52faa063a045b7fecaf4d28b6557d5c3",
       "type": "rendered-release"
     },
     {

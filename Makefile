@@ -59,6 +59,7 @@ help-vars:
 	@printf '%s\n' '  VENDOR=radxa|cix      Vendor integration target.'
 	@printf '%s\n' '  WRITE=1               Required for targets that create or advance refs.'
 	@printf '%s\n' '  ALLOW_REPLACE=1       Allow integrate-source-release to move an existing immutable ref.'
+	@printf '%s\n' '  MATERIALIZE=1         Flatten Radxa vendor refs before extracting deltas. Defaults to 1.'
 	@printf '%s\n' '  TARGET_REF=<ref>      Delta artifact output ref.'
 	@printf '%s\n' '  LOCAL_TARGET_REF=<ref> Local import target; defaults to source/delta/local/current.'
 	@printf '%s\n' '  BASE_REF=<ref>        Base ref for delta extraction/import.'
@@ -114,7 +115,7 @@ extract-vendor-delta:
 	@VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"
 
 integrate-source-release:
-	@TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
+	@TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALIZE="$(MATERIALIZE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
 import-local-commits:
 	@FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(LOCAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_local_commits.py --v "$(V)"
