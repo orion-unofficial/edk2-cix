@@ -7,7 +7,7 @@ This branch contains the Makefile, manifests, and scripts used to select source 
 - local project changes
 - materialised firmware branches that are ready to build
 
-Most users only need the Makefile targets. Run:
+Users who want to build firmware, rather than change the source model, should find that the `make` targets provide the flexibility they need. In this document, a Git "ref" means a name that identifies a commit, such as a branch, tag, or commit ID. Start with:
 
 ```bash
 make help
@@ -17,33 +17,194 @@ make help-releases
 
 ## How do I build the latest firmware?
 
-The latest configured firmware release is recorded in `config/releases.json`. Ordinary build targets render or reuse a cached worktree for that release and then delegate to the release branch Makefile. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
+The latest configured firmware release is recorded in `config/releases.json`. If you do not set `RELEASE=...`, the build targets use that latest configured release. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
+
+For a normal single firmware build, choose the board and build target:
 
 ```bash
-make build-all
+make buildbox-firmware-build FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE
+make buildbox-firmware-build FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
 ```
 
-Useful packaging targets are delegated through the same path:
+Common variables are:
+
+- `FIRMWARE_BOARD=O6|O6N` selects the board. The default is `O6`.
+- `FIRMWARE_TARGET=RELEASE|DEBUG` selects a release or debug firmware image. The default is `RELEASE`.
+- `RELEASE=<release>` selects a configured source release. Leave this unset to use the latest configured release.
+- `V=1` enables verbose script and delegated build output. The default, `V=0`, keeps output concise.
+
+To stage the deployable payload under `dist/firmware/`, use:
 
 ```bash
-make zip
-make targz
+make buildbox-firmware-stage FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
 ```
 
-`make install` builds and stages the payload first, then checks the selected install root before copying anything. By default it installs under `/boot/efi`; set `INSTALL_ROOT=/boot` or another path if your system uses a different mount point. Existing firmware payload files under `INSTALL_ROOT` are never replaced unless you rerun with `FORCE=1`.
+To create a single-board archive for the selected firmware variant, use:
 
 ```bash
-make install
-make install FORCE=1
+make zip FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE
+make targz FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE
 ```
 
-Set `V=1` for verbose script and delegated build output:
+`make install` builds and stages one selected payload, then checks the selected install root before copying anything. By default it installs under `/boot/efi`; set `INSTALL_ROOT=/boot` or another path if your system uses a different mount point. Existing firmware payload files under `INSTALL_ROOT` are never replaced unless you rerun with `FORCE=1`.
 
 ```bash
-make build-all V=1
+make install FIRMWARE_BOARD=O6 INSTALL_ROOT=/boot/efi
+make install FIRMWARE_BOARD=O6 INSTALL_ROOT=/boot/efi FORCE=1
+```
+
+`make build-all` is for producing a distributable bundle containing all supported firmware variants for the selected board. It deliberately ignores most single-variant selection variables because it chooses the supported variant set itself.
+
+```bash
+make build-all FIRMWARE_BOARD=O6
 ```
 
 Exact-replay comparisons can provide `SIGNING_CERT_SOURCE_DIR=<path>`. The wrapper copies the certificate inputs into the rendered worktree before invoking the buildbox, so the path remains available inside the container and does not dirty source-controlled files.
+
+## How do I choose EDK2/CIX/Radxa source versions?
+
+A release name selects the combination of EDK2, CIX, Radxa, and local project sources to build. Use `make help-releases` to list the configured combinations.
+
+```bash
+make help-releases
+```
+
+Use the `RELEASE` variable to select one of those combinations. The documented form is the short name without the `source/release/` prefix:
+
+```bash
+make buildbox-firmware-build \
+  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local \
+  FIRMWARE_BOARD=O6N \
+  FIRMWARE_TARGET=RELEASE
+```
+
+The full branch name is also accepted:
+
+```bash
+make buildbox-firmware-build \
+  RELEASE=source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local \
+  FIRMWARE_BOARD=O6N
+```
+
+Build targets render or reuse a cached detached worktree. They do not normally create or advance a named `source/release/**` branch. If you intentionally want a persistent materialised branch that other users or CI jobs can fetch and verify, set `PERSIST=1` with `make render-release-branch`:
+
+```bash
+make render-release-branch \
+  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1 \
+  PERSIST=1
+```
+
+This creates or verifies:
+
+```text
+source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1
+```
+
+If an explicit local import changes the rendered tree, rebuild and replace the persistent release deliberately:
+
+```bash
+make render-release-branch \
+  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local \
+  PERSIST=1 REBUILD=1 FORCE=1
+```
+
+That command also refreshes the rendered ref metadata in `config/refs/rendered.json` and the release tree ID in `config/releases.json`.
+
+A configured build variation is considered supported only when all of its source inputs are recorded locally. At a high level, this means:
+
+- the selected EDK2, `edk2-platforms`, and `edk2-non-osi` base refs are present
+- the Radxa vendor changes are available for that EDK2 release
+- any selected CIX component refs are present under `source/component/cix/<cix-release>/`
+- the compatible local project source checkpoint and local delta are present
+- `config/releases.json` contains a render plan for the chosen release
+- the build policy records the relevant distro defaults and replay availability
+
+Run this to check that the declared build matrix and available refs agree:
+
+```bash
+make verify-build-matrix
+```
+
+## How are source layers represented?
+
+The firmware tree is built from several layers rather than from one permanent monolithic branch.
+
+`source/base/**` branches contain upstream sources, such as EDK2, TF-A, and OP-TEE, at recorded versions. For EDK2 releases, the separate upstream `edk2`, `edk2-platforms`, and `edk2-non-osi` repos are combined into generated `source/base/rendered/**` skeletons when needed.
+
+`source/component/cix/**` branches contain CIX-provided components. CIX publishes OP-TEE under a `tee` directory, but this source model records that component as `op-tee`.
+
+`source/delta/radxa/**` branches contain Radxa's changes relative to a selected EDK2 base. `source/delta/local/**` branches contain this project's changes relative to a selected rendered vendor baseline.
+
+A delta branch is not a full source tree. It contains:
+
+- `metadata.json` with the base and target object IDs plus submodule metadata
+- `delta.patch`, generated with `git diff --binary --full-index`
+- `README.md` describing the artefact
+
+This representation is intentional: a patch can record deletions, renames, binary files, and intentionally absent files in a way that a plain directory tree cannot. Render plans in `config/releases.json` apply these artefacts in order.
+
+Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`. That report is mainly a diagnostic and audit aid: it records which submodule paths were flattened, which commit IDs were used, which URL was recorded for each submodule, and which `.gitmodules` file supplied that mapping. You can usually ignore it when a build succeeds, but it is useful when checking that a rendered branch contains ordinary files rather than active submodules.
+
+`source/release/**` branches are materialised firmware branches. They are generated from the base, component, vendor, and local layers. They are convenient to inspect or build, but they can be regenerated from the recorded source layers and manifests.
+
+## How do I start developing on this codebase?
+
+1. Choose the firmware release you want to develop against with `make help-releases`.
+2. Materialise that firmware release.
+3. Create a normal topic branch from the materialised release branch.
+4. Build and test your change.
+5. Import the finished change back through `source/unofficial/current` with `make import-local-commits`.
+
+Example:
+
+```bash
+make render-release-branch \
+  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local \
+  PERSIST=1
+git switch -c my-change source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local
+```
+
+The supported workflows guard `source/base/**`, non-local `source/delta/**`, and `source/component/cix/**` refs by comparing them against the expected object IDs and tree IDs in `config/refs/*.json`. Git itself does not make those branch names immutable, so do not edit or move them by hand. If a guarded ref moved unexpectedly, or is checked out in a dirty worktree, the scripts abort before using it. Only `make integrate-source-release` should create or advance those refs.
+
+## How do I persist development changes back to `source/unofficial/current`?
+
+Local development is imported explicitly. Ordinary build and render targets never rewrite `source/unofficial/current` or generated `source/delta/local/*` artefacts.
+
+Dry run first:
+
+```bash
+make import-local-commits \
+  BASE_REF=source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1 \
+  FROM_REF=my-change
+```
+
+Then update the local source branch and generated local delta deliberately:
+
+```bash
+make import-local-commits \
+  BASE_REF=source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1 \
+  FROM_REF=my-change \
+  UPDATE_LOCAL_SOURCE=1 \
+  WRITE=1
+```
+
+The key variables are:
+
+- `BASE_REF` is the rendered vendor baseline your topic branch is based on.
+- `FROM_REF` is the topic branch or commit containing your finished change.
+- `SOURCE_LOCAL_REF` is the full local source branch to update. It defaults to `source/unofficial/current` and must stay under `source/unofficial/`.
+- `TARGET_REF` is the generated delta branch to write. It defaults to `source/delta/local/current` and must stay under `source/delta/local/`. This branch stores the patch that the renderer later applies to the selected baseline.
+
+For each supported EDK2 release, the repo keeps two related records of the local project changes:
+
+- a local source checkpoint, such as `source/unofficial/edk2-stable202602`, which is a normal source branch known to apply cleanly to that EDK2 release
+- a generated local delta, such as `source/delta/local/edk2-stable202602`, which stores the patch from that release's vendor baseline to the matching local source checkpoint
+
+Here, an EDK2 release means the upstream EDK2 code together with its matching `edk2-platforms` and `edk2-non-osi` companion sources. Some local changes apply unchanged across several EDK2 releases; others need small adjustments because upstream files moved or changed.
+
+For example, if the same local source commit works on both `edk2-stable202502` and `edk2-stable202505`, both compatibility tags may point at that commit. If `edk2-stable202508` needs an extra adjustment, make that adjustment at the `202508` checkpoint, then tag the adjusted commit as the compatible `202508` source.
+
+Those compatibility tags must be reachable from retained `source/unofficial/**` branches. A pruned clone should therefore keep both the tags and the matching `source/unofficial/edk2-stable*` branches, rather than preserving tag-only orphan commits.
 
 ## How do I update upstream EDK2, Arm TF-A, OP-TEE, CIX, or Radxa sources?
 
@@ -71,7 +232,7 @@ The CIX bundle records original vendor provenance. To start an experimental upli
    make integrate-source-release TYPE=upstream COMPONENT=op-tee RELEASE=4.4.0 WRITE=1
    ```
 
-2. Create a normal topic branch from the selected Arm base and port the CIX component changes onto it. CIX publishes OP-TEE under a `tee` directory, but this source model records that component as `op-tee`.
+2. Create a normal topic branch from the selected Arm base and port the CIX component changes onto it.
 3. When the port builds and has been reviewed, record the resulting component ref:
 
    ```bash
@@ -124,131 +285,6 @@ After adding source refs for a new supported release:
 
 `make help-releases` lists the currently configured releases directly from `config/releases.json`.
 
-## How do I choose EDK2/CIX/Radxa source versions?
-
-Use the `RELEASE` variable. The documented form is the short name without the `source/release/` prefix:
-
-```bash
-make build-all RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local
-```
-
-The full branch name is also accepted:
-
-```bash
-make build-all RELEASE=source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local
-```
-
-To list configured releases:
-
-```bash
-make help-releases
-```
-
-To create or verify a persistent materialised branch, set `PERSIST=1`:
-
-```bash
-make render-release-branch \
-  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1 \
-  PERSIST=1
-```
-
-This creates or verifies:
-
-```text
-source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1
-```
-
-If `PERSIST=1` is not set, build targets still render or reuse a cached detached worktree, but they do not create or advance a named `source/release/**` branch. Use that mode for ordinary builds. Use `PERSIST=1` when you intentionally want a branch that other users or CI jobs can fetch and verify.
-
-If an explicit local import changes the rendered tree, rebuild and replace the persistent release deliberately:
-
-```bash
-make render-release-branch \
-  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local \
-  PERSIST=1 REBUILD=1 FORCE=1
-```
-
-That command also refreshes the rendered ref metadata in `config/refs/rendered.json` and the release tree ID in `config/releases.json`.
-
-For a build variation to be fully pre-calculated from this repository, it needs all of the following recorded locally:
-
-- `source/base/rendered/<edk2-release>` for the selected EDK2, `edk2-platforms`, and `edk2-non-osi` sources
-- `source/delta/radxa/<radxa-release>/<edk2-release>` for the Radxa vendor layer carried to that EDK2 base
-- any selected CIX component refs under `source/component/cix/<cix-release>/`
-- a compatible local-source tag such as `source/unofficial/edk2-stable202602`
-- the corresponding local compatibility branch under `source/unofficial/`
-- a generated local delta artefact under `source/delta/local/<edk2-release>`
-- a render plan in `config/releases.json`
-- a build policy entry covering distro defaults and replay availability
-
-If any of those inputs is missing, the build may still be possible, but that source combination has not yet been fully recorded as supported. Run:
-
-```bash
-make verify-build-matrix
-```
-
-That target compares `config/build-matrix.json` against `config/releases.json`, local `source/release/**` branches, `source/base/rendered/**` refs or their regeneration metadata, `source/delta/radxa/**` artefacts, local compatibility tags and branches, and alias tree IDs. A declared build variation is not supported until this check passes.
-
-## How do I start developing on this codebase?
-
-1. Choose the firmware release you want to develop against with `make help-releases`.
-2. Render or check out that firmware release.
-3. Develop on a normal topic branch created from the materialised release branch.
-4. Persist the finished change back through `source/unofficial/current` with `make import-local-commits`.
-
-Example:
-
-```bash
-make render-release-branch \
-  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local \
-  PERSIST=1
-git switch -c my-change source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local
-```
-
-The supported workflows guard `source/base/**`, non-local `source/delta/**`, and `source/component/cix/**` refs by comparing them against the expected object IDs and tree IDs in `config/refs/*.json`. Git itself does not make those branch names immutable, so do not edit or move them by hand. If a guarded ref moved unexpectedly, or is checked out in a dirty worktree, the scripts abort before using it. Only `make integrate-source-release` should create or advance those refs.
-
-## How do I persist development changes back to `source/unofficial/current`?
-
-Local development is imported explicitly. Ordinary build and render targets never rewrite `source/unofficial/current` or generated `source/delta/local/*` artefacts.
-
-Dry run first:
-
-```bash
-make import-local-commits \
-  BASE_REF=source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1 \
-  FROM_REF=my-change
-```
-
-Then update the local source branch and generated local delta artefact deliberately:
-
-```bash
-make import-local-commits \
-  BASE_REF=source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1 \
-  FROM_REF=my-change \
-  UPDATE_LOCAL_SOURCE=1 \
-  WRITE=1
-```
-
-`BASE_REF` is the rendered vendor baseline your topic branch is based on. `SOURCE_LOCAL_REF` defaults to `source/unofficial/current` and must remain under `source/unofficial/`. `TARGET_REF` defaults to `source/delta/local/current` and must remain under `source/delta/local/`.
-
-For release-by-release EDK2 compatibility, keep `source/unofficial/current` as the human-readable latest local source branch and generate one local delta artefact per compatible EDK2 base, for example `source/delta/local/edk2-stable202208` or `source/delta/local/edk2-stable202602`. Compatibility tags such as `source/unofficial/edk2-stable202208` are full source checkpoints that overlay a given EDK2 release cleanly. If the same local source commit applies to multiple releases, multiple compatibility tags may point at it; if a release requires maintenance, commit the maintenance at the first affected release and tag the resulting compatible commit.
-
-Those compatibility tags must be reachable from retained `source/unofficial/**` branches. A pruned clone should therefore keep both the tags and the matching `source/unofficial/edk2-stable*` branches, rather than preserving tag-only orphan commits.
-
-## How are source layers represented?
-
-`source/unofficial/current` is an ordinary source branch. `source/delta/radxa/**` and `source/delta/local/**` are generated delta artefact branches. Each delta artefact contains:
-
-- `metadata.json` with base/target object IDs and submodule metadata
-- `delta.patch` generated with `git diff --binary --full-index`
-- `README.md` describing the artefact
-
-This representation is intentional: a plain tree cannot encode deletions or renames relative to a base, while a binary patch can. Render plans in `config/releases.json` apply these artefacts in order.
-
-Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`.
-
-`source/base/rendered/**` refs are component skeletons assembled from the recorded EDK2, `edk2-platforms`, and `edk2-non-osi` base refs. They may be present as cached branches, but they can also be regenerated from `config/refs/rendered-base.json` when the underlying component refs are available. Generated skeleton commits are validated by tree ID because commit object IDs may differ after regeneration.
-
 ## How do I project `source/unofficial/current` to a materialised firmware branch?
 
 Render a configured release that includes the local layer:
@@ -293,7 +329,7 @@ There is no separate offline mode flag. The scripts try to proceed from local da
 
 ## Validation checklist
 
-Run:
+For normal firmware building, the build target itself performs the necessary preflight checks. When changing source-model metadata, release manifests, or materialised branches, run:
 
 ```bash
 make verify-build-matrix

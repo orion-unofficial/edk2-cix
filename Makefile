@@ -61,7 +61,7 @@ help:
 	print_help_line 'make help' 'Show this help.'; \
 	print_help_line 'make help-vars' 'Show common build variables.'; \
 	print_help_line 'make help-releases' 'List configured firmware releases.'; \
-	print_help_line 'make build-all' 'Build the latest configured firmware release.'; \
+	print_help_line 'make build-all' 'Build a distributable archive containing all supported firmware variants for the selected board.'; \
 	print_help_line 'make install' 'Build, safety-check, and install firmware.'; \
 	print_help_line 'make zip' 'Create a firmware .zip via the buildbox.'; \
 	print_help_line 'make targz' 'Create a firmware .tar.gz via the buildbox.'; \
