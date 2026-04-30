@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve and optionally materialize a configured firmware release branch."""
+"""Resolve and optionally materialise a configured firmware release branch."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from reconstruction_common import (
     commit_component_skeleton,
     git,
     main_wrapper,
-    read_delta_artifact_metadata,
+    read_delta_artefact_metadata,
     refresh_ref_record,
     refresh_release_tree,
     ref_exists,
@@ -53,6 +53,19 @@ Example:
 """
 
 
+def ignore_worktree_cache(worktree: Path) -> None:
+    exclude = git(worktree, "rev-parse", "--git-path", "info/exclude").stdout.strip()
+    exclude_path = worktree / exclude if not os.path.isabs(exclude) else Path(exclude)
+    exclude_text = exclude_path.read_text(encoding="utf-8") if exclude_path.exists() else ""
+    if ".cache/" in exclude_text.splitlines():
+        return
+    exclude_path.parent.mkdir(parents=True, exist_ok=True)
+    with exclude_path.open("a", encoding="utf-8") as fh:
+        if exclude_text and not exclude_text.endswith("\n"):
+            fh.write("\n")
+        fh.write(".cache/\n")
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
     p.add_argument("--release", default=os.environ.get("RELEASE", ""), help="short release name or source/release/... branch")
@@ -73,6 +86,7 @@ def ensure_worktree(repo: Path, branch: str, target_ref: str, verbose: bool) -> 
     root = cache_dir(repo, "worktrees")
     path = root / f"{safe_name(branch)}-{commit[:12]}"
     if path.exists():
+        ignore_worktree_cache(path)
         status = git(path, "status", "--porcelain").stdout.strip()
         if status:
             raise ReconstructionError(f"cached worktree is dirty: {path}")
@@ -80,6 +94,7 @@ def ensure_worktree(repo: Path, branch: str, target_ref: str, verbose: bool) -> 
     if verbose:
         print(f"Creating detached release worktree {path} at {commit}", file=sys.stderr)
     git(repo, "worktree", "add", "--detach", str(path), commit, capture=not verbose)
+    ignore_worktree_cache(path)
     return path
 
 
@@ -101,8 +116,8 @@ def ensure_base_ref(repo: Path, entry: dict, verbose: bool) -> str | None:
     return base_ref
 
 
-def apply_patch_artifact(repo: Path, worktree: Path, delta_ref: str, verbose: bool) -> None:
-    metadata = read_delta_artifact_metadata(repo, delta_ref)
+def apply_patch_artefact(repo: Path, worktree: Path, delta_ref: str, verbose: bool) -> None:
+    metadata = read_delta_artefact_metadata(repo, delta_ref)
     patch = show_file(repo, delta_ref, "delta.patch")
     with temp_dir(repo, "patch-") as tmp:
         patch_path = Path(tmp) / "delta.patch"
@@ -175,7 +190,7 @@ def fetch_submodule_commit(repo: Path, url: str, oid: str, verbose: bool) -> Non
     if git(repo, "cat-file", "-e", f"{oid}^{{tree}}", check=False).returncode == 0:
         return
     if not url:
-        raise ReconstructionError(f"cannot materialize submodule {oid}: no URL recorded in .gitmodules")
+        raise ReconstructionError(f"cannot materialise submodule {oid}: no URL recorded in .gitmodules")
     if verbose:
         print(f"Fetching submodule {oid} from {url}", file=sys.stderr)
     result = git(repo, "fetch", "--no-tags", url, oid, check=False, capture=not verbose)
@@ -184,7 +199,7 @@ def fetch_submodule_commit(repo: Path, url: str, oid: str, verbose: bool) -> Non
         raise ReconstructionError(f"could not fetch submodule {oid} from {url}: {detail}")
 
 
-def materialize_submodules(repo: Path, worktree: Path, branch: str, verbose: bool) -> list[dict[str, str]]:
+def materialise_submodules(repo: Path, worktree: Path, branch: str, verbose: bool) -> list[dict[str, str]]:
     report: list[dict[str, str]] = []
     while True:
         links = gitlinks(worktree)
@@ -198,7 +213,7 @@ def materialize_submodules(repo: Path, worktree: Path, branch: str, verbose: boo
             url = mapping.get("url", "")
             fetch_submodule_commit(repo, url, link["object_id"], verbose)
             if verbose:
-                print(f"Materializing gitlink {path} -> {link['object_id']}", file=sys.stderr)
+                print(f"Materialising gitlink {path} -> {link['object_id']}", file=sys.stderr)
             git(worktree, "rm", "-f", "--", path, capture=not verbose)
             git(worktree, "read-tree", f"--prefix={path}/", "-u", link["object_id"], capture=not verbose)
             report.append({
@@ -210,13 +225,13 @@ def materialize_submodules(repo: Path, worktree: Path, branch: str, verbose: boo
             progressed = True
         if not progressed:
             unresolved = ", ".join(item["path"] for item in links)
-            raise ReconstructionError(f"could not materialize remaining gitlinks: {unresolved}")
+            raise ReconstructionError(f"could not materialise remaining gitlinks: {unresolved}")
     if report:
         report_dir = cache_dir(repo, "reports")
         report_path = report_dir / f"{safe_name(branch)}-submodules.json"
         report_path.write_text(json.dumps({"branch": branch, "submodules": report}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         if verbose:
-            print(f"Wrote submodule materialization report {report_path}", file=sys.stderr)
+            print(f"Wrote submodule materialisation report {report_path}", file=sys.stderr)
     return report
 
 
@@ -260,23 +275,23 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_
             if steps:
                 for step in steps:
                     if "delta" in step:
-                        apply_patch_artifact(repo, worktree, step["delta"], verbose)
+                        apply_patch_artefact(repo, worktree, step["delta"], verbose)
                     elif "component" in step:
                         component = step["component"]
                         replace_component_path(repo, worktree, component["path"], component["ref"], verbose)
-                    elif step.get("materialize_submodules"):
-                        materialize_submodules(repo, worktree, branch, verbose)
+                    elif step.get("materialise_submodules"):
+                        materialise_submodules(repo, worktree, branch, verbose)
                     else:
                         raise ReconstructionError(f"unknown render step: {step}")
             else:
                 for delta_ref in render.get("deltas", []):
-                    apply_patch_artifact(repo, worktree, delta_ref, verbose)
+                    apply_patch_artefact(repo, worktree, delta_ref, verbose)
                 for component in render.get("component_replacements", []):
                     replace_component_path(repo, worktree, component["path"], component["ref"], verbose)
             if render.get("remove_root_gitmodules", True) and (worktree / ".gitmodules").exists():
                 git(worktree, "rm", "-f", ".gitmodules", capture=not verbose)
             if gitlinks(worktree):
-                materialize_submodules(repo, worktree, branch, verbose)
+                materialise_submodules(repo, worktree, branch, verbose)
             status = git(worktree, "status", "--porcelain").stdout.strip()
             if not status:
                 git(worktree, "commit", "--allow-empty", "-m", f"render: {short_release(branch)}", capture=not verbose)

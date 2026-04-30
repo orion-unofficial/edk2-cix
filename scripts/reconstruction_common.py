@@ -280,11 +280,11 @@ def delta_metadata(repo: Path, base_ref: str, target_ref: str, kind: str, name: 
     }
 
 
-def create_delta_artifact(
+def create_delta_artefact(
     repo: Path,
     base_ref: str,
     target_ref: str,
-    artifact_ref: str,
+    artefact_ref: str,
     kind: str,
     name: str,
     message: str,
@@ -296,9 +296,9 @@ def create_delta_artifact(
         raise ReconstructionError(f"base ref is unavailable: {base_ref}")
     if not ref_exists(repo, target_ref):
         raise ReconstructionError(f"target ref is unavailable: {target_ref}")
-    old = rev_parse(repo, artifact_ref) if ref_exists(repo, artifact_ref) else None
+    old = rev_parse(repo, artefact_ref) if ref_exists(repo, artefact_ref) else None
     if old and not allow_replace:
-        raise ReconstructionError(f"delta artifact ref already exists: {artifact_ref}")
+        raise ReconstructionError(f"delta artefact ref already exists: {artefact_ref}")
     diff_result = subprocess.run(
         ["git", "-C", str(repo), "diff", "--binary", "--full-index", f"{base_ref}..{target_ref}"],
         stdout=subprocess.PIPE,
@@ -311,7 +311,7 @@ def create_delta_artifact(
     metadata = delta_metadata(repo, base_ref, target_ref, kind, name)
     files = {
         "README.md": (
-            f"# Delta Artifact: {artifact_ref}\n\n"
+            f"# Delta Artefact: {artefact_ref}\n\n"
             f"Kind: `{kind}`\n\n"
             f"Base: `{base_ref}`\n\n"
             f"Target: `{target_ref}`\n\n"
@@ -321,11 +321,11 @@ def create_delta_artifact(
         "delta.patch": diff,
     }
     commit = commit_tree_with_files(repo, files, message, parents=[old] if old else None)
-    update_ref(repo, artifact_ref, commit)
+    update_ref(repo, artefact_ref, commit)
     return commit
 
 
-def read_delta_artifact_metadata(repo: Path, delta_ref: str) -> dict[str, Any]:
+def read_delta_artefact_metadata(repo: Path, delta_ref: str) -> dict[str, Any]:
     raw = show_file(repo, delta_ref, "metadata.json")
     return json.loads(raw.decode("utf-8"))
 

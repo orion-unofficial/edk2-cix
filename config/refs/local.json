@@ -4,19 +4,19 @@
       "base_ref": "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1",
       "format": "delta.patch plus metadata.json",
       "immutable": false,
-      "object_id": "c90306c831b3e15d7bbf4cc636866eadc9025131",
+      "object_id": "dd43ff5d60798d0b84cead56e26ae09242b63475",
       "ref": "source/delta/local/current",
-      "tree_id": "494862b580d53f01242497aa02a7009d8a9d6aa7",
-      "type": "local-delta-artifact"
+      "tree_id": "a3669bbb89269fc34ce8fad9cbae6d12f07b9800",
+      "type": "local-delta-artefact"
     },
     {
       "base_ref": "source/release/upstream/edk2-202208/radxa-1.2.1",
       "format": "delta.patch plus metadata.json",
       "immutable": false,
-      "object_id": "0d9134e8818cc326a41c49373a601fa126e2f232",
+      "object_id": "34d1f500ac03e3fd04ea6b9e20b5412b6b73e2c0",
       "ref": "source/delta/local/edk2-stable202208",
-      "tree_id": "2c8042076e3d338e685ba941dafab94ec8a44f93",
-      "type": "local-delta-artifact"
+      "tree_id": "1ad76c799c39cbd6d03d8cabc527bd89bb1d0a14",
+      "type": "local-delta-artefact"
     }
   ],
   "schema_version": 1

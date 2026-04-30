@@ -35,7 +35,7 @@ help:
 	@printf '%s\n' '  make buildbox-firmware-stage      Delegate buildbox firmware stage.'
 	@printf '%s\n' ''
 	@printf '%s\n' 'Tooling targets:'
-	@printf '%s\n' '  make render-release-branch        Resolve or create a materialized source/release branch.'
+	@printf '%s\n' '  make render-release-branch        Resolve or create a materialised source/release branch.'
 	@printf '%s\n' '  make verify-release-branch        Validate rendered-branch invariants.'
 	@printf '%s\n' '  make extract-vendor-delta         Produce a vendor delta report/diff.'
 	@printf '%s\n' '  make integrate-source-release     Integrate new upstream/vendor source refs.'
@@ -59,12 +59,13 @@ help-vars:
 	@printf '%s\n' '  VENDOR=radxa|cix      Vendor integration target.'
 	@printf '%s\n' '  WRITE=1               Required for targets that create or advance refs.'
 	@printf '%s\n' '  ALLOW_REPLACE=1       Allow integrate-source-release to move an existing immutable ref.'
-	@printf '%s\n' '  MATERIALIZE=1         Flatten Radxa vendor refs before extracting deltas. Defaults to 1.'
-	@printf '%s\n' '  TARGET_REF=<ref>      Delta artifact output ref.'
+	@printf '%s\n' '  MATERIALISE=1         Flatten Radxa vendor refs before extracting deltas. Defaults to 1.'
+	@printf '%s\n' '  TARGET_REF=<ref>      Delta artefact output ref.'
 	@printf '%s\n' '  LOCAL_TARGET_REF=<ref> Local import target; defaults to source/delta/local/current.'
 	@printf '%s\n' '  BASE_REF=<ref>        Base ref for delta extraction/import.'
 	@printf '%s\n' '  INSTALL_ROOT=<path>   Firmware install root. Defaults to /boot/efi.'
 	@printf '%s\n' '  INSTALL_SOURCE=<path> Optional staged payload path or path relative to dist/firmware.'
+	@printf '%s\n' '  SIGNING_CERT_SOURCE_DIR=<path> Copy exact-replay signing certs into the rendered worktree before building.'
 	@printf '%s\n' '  FORCE=1               Allow install to replace existing destination files.'
 	@printf '%s\n' ''
 	@printf '%s\n' 'Configured releases:'
@@ -72,8 +73,9 @@ help-vars:
 
 define run_release_make
 	@wt="$$(RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
+	signing_cert_arg="$$(SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
 	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) -C $$wt $(1) V=$(V)"; fi; \
-	$(MAKE) -C "$$wt" $(1) V="$(V)"
+	$(MAKE) -C "$$wt" $(1) V="$(V)" $$signing_cert_arg
 endef
 
 build-all:
@@ -81,8 +83,9 @@ build-all:
 
 install:
 	@wt="$$(RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
+	signing_cert_arg="$$(SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
 	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) -C $$wt buildbox-firmware-stage V=$(V)"; fi; \
-	$(MAKE) -C "$$wt" buildbox-firmware-stage V="$(V)"; \
+	$(MAKE) -C "$$wt" buildbox-firmware-stage V="$(V)" $$signing_cert_arg; \
 	force_arg=""; \
 	if [ "$(FORCE)" = "1" ]; then force_arg="--force"; fi; \
 	INSTALL_SOURCE="$(INSTALL_SOURCE)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/install_release_payload.py \
@@ -115,7 +118,7 @@ extract-vendor-delta:
 	@VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"
 
 integrate-source-release:
-	@TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALIZE="$(MATERIALIZE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
+	@TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(MATERIALISE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
 import-local-commits:
 	@FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(LOCAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_local_commits.py --v "$(V)"

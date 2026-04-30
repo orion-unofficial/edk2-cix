@@ -12,7 +12,7 @@ from pathlib import Path
 from reconstruction_common import (
     ReconstructionError,
     check_immutable_refs,
-    create_delta_artifact,
+    create_delta_artefact,
     git,
     main_wrapper,
     ref_exists,
@@ -22,7 +22,7 @@ from reconstruction_common import (
     rev_parse,
     temp_dir,
 )
-from render_release_branch import gitlinks, materialize_submodules
+from render_release_branch import gitlinks, materialise_submodules
 
 
 HELP = """integrate-source-release
@@ -45,7 +45,7 @@ Optional variables:
   REF=<object-id-or-ref>    Explicit object to use instead of a configured remote tag.
   WRITE=1                   Required before refs are created or advanced.
   ALLOW_REPLACE=1           Allow an existing immutable ref to move during integration.
-  MATERIALIZE=1             For Radxa vendor refs, flatten gitlinks before delta extraction.
+  MATERIALISE=1             For Radxa vendor refs, flatten gitlinks before delta extraction.
   V=1                       Print delegated git operations.
 
 Without WRITE=1 this command validates inputs and prints the operation it would perform.
@@ -54,7 +54,7 @@ If the requested object is already present locally, WRITE=1 uses it without
 contacting the external upstream/vendor remote.
 Radxa non-release updates should use a descriptive RELEASE such as
 1.2.1+<short-commit>. REF may point at a legacy submodule-shaped branch such
-as main; with MATERIALIZE=1, the source is flattened before the delta artifact
+as main; with MATERIALISE=1, the source is flattened before the delta artefact
 is generated.
 """
 
@@ -98,7 +98,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--ref", default=os.environ.get("REF", ""))
     p.add_argument("--write", default=os.environ.get("WRITE", "0"))
     p.add_argument("--allow-replace", default=os.environ.get("ALLOW_REPLACE", "0"))
-    p.add_argument("--materialize", default=os.environ.get("MATERIALIZE", "1"))
+    p.add_argument("--materialise", default=os.environ.get("MATERIALISE", "1"))
     p.add_argument("--v", default=os.environ.get("V", "0"))
     return p
 
@@ -180,15 +180,15 @@ def manifest_record(repo: Path, target: str, **extra: str) -> dict:
     return record
 
 
-def materialize_vendor_ref(repo: Path, source_ref: str, release: str, verbose: bool) -> str:
+def materialise_vendor_ref(repo: Path, source_ref: str, release: str, verbose: bool) -> str:
     """Return a flat commit for a possibly submodule-shaped vendor source ref."""
 
-    with temp_dir(repo, "vendor-materialize-") as tmp:
+    with temp_dir(repo, "vendor-materialise-") as tmp:
         worktree = Path(tmp) / "worktree"
         git(repo, "worktree", "add", "--detach", str(worktree), source_ref, capture=not verbose)
         try:
             had_gitlinks = bool(gitlinks(worktree))
-            materialize_submodules(repo, worktree, f"vendor-radxa-{release}", verbose)
+            materialise_submodules(repo, worktree, f"vendor-radxa-{release}", verbose)
             root_gitmodules = worktree / ".gitmodules"
             if root_gitmodules.exists():
                 git(worktree, "rm", "-f", ".gitmodules", capture=not verbose)
@@ -197,12 +197,12 @@ def materialize_vendor_ref(repo: Path, source_ref: str, release: str, verbose: b
                 return source_ref
             if verbose:
                 note = " after flattening gitlinks" if had_gitlinks else " after removing root .gitmodules"
-                print(f"committing materialized Radxa source {source_ref}{note}", file=sys.stderr)
+                print(f"committing materialised Radxa source {source_ref}{note}", file=sys.stderr)
             git(
                 worktree,
                 "commit",
                 "-m",
-                f"materialize: Radxa {release} vendor source from {source_ref}",
+                f"materialise: Radxa {release} vendor source from {source_ref}",
                 capture=not verbose,
             )
             return rev_parse(worktree, "HEAD")
@@ -252,14 +252,14 @@ def main() -> None:
             operations.append((item["remote"], item["ref"], item["target"], {"type": "vendor-component", "vendor": "cix", "remote": item["remote"], "upstream_ref": item["ref"]}))
     else:
         target = f"source/delta/radxa/{args.release}/{args.edk2_base}"
-        source = args.ref or "<materialized-vendor-ref>"
+        source = args.ref or "<materialised-vendor-ref>"
         base_ref = f"source/base/rendered/{args.edk2_base}"
         operations.append((
             "local",
             source,
             target,
             {
-                "type": "vendor-delta-artifact",
+                "type": "vendor-delta-artefact",
                 "vendor": "radxa",
                 "edk2_base": args.edk2_base,
                 "base_ref": base_ref,
@@ -278,17 +278,17 @@ def main() -> None:
         if remote == "local":
             if source.startswith("<"):
                 raise ReconstructionError("Radxa vendor integration requires REF=<local-ref-or-object> in WRITE mode")
-            if meta.get("type") == "vendor-delta-artifact":
+            if meta.get("type") == "vendor-delta-artefact":
                 base_ref = meta["base_ref"]
                 if not ref_exists(repo, base_ref):
                     raise ReconstructionError(f"Radxa base ref is unavailable locally: {base_ref}")
                 if not ref_exists(repo, source):
                     raise ReconstructionError(f"Radxa source ref is unavailable locally: {source}")
                 delta_source = source
-                if truthy(args.materialize):
-                    delta_source = materialize_vendor_ref(repo, source, args.release, verbose)
-                    meta["materialized_source_ref"] = delta_source
-                create_delta_artifact(
+                if truthy(args.materialise):
+                    delta_source = materialise_vendor_ref(repo, source, args.release, verbose)
+                    meta["materialised_source_ref"] = delta_source
+                create_delta_artefact(
                     repo,
                     base_ref,
                     delta_source,

@@ -1,7 +1,7 @@
 {
-  "delta_artifacts": {
+  "delta_artefacts": {
     "binary_safe": true,
-    "replacement_policy": "Use delta artifacts when relative changes include deletes, renames, binary files, or intentional absence that cannot be represented by an ordinary tree alone.",
+    "replacement_policy": "Use delta artefacts when relative changes include deletes, renames, binary files, or intentional absence that cannot be represented by an ordinary tree alone.",
     "required_files": [
       "README.md",
       "metadata.json",
@@ -35,7 +35,7 @@
       "Normal git log <path> and git blame <path> must work from any directory inside the repo.",
       "Rendered branches are produced from ordered render steps recorded in config/releases.json.",
       "Nested .gitmodules files inside upstream source trees may remain as inert source files when no gitlink points at them.",
-      "If gitlinks remain after configured render steps, the renderer recursively materializes them using recorded .gitmodules URL mappings before validation."
+      "If gitlinks remain after configured render steps, the renderer recursively materialises them using recorded .gitmodules URL mappings before validation."
     ]
   },
   "schema_version": 1,

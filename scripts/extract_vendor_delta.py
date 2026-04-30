@@ -18,7 +18,7 @@ HELP = """extract-vendor-delta
 Required variables:
   VENDOR=<radxa|cix>      Vendor whose delta is being examined.
   BASE_REF=<ref>          Upstream/base ref to compare from.
-  VENDOR_REF=<ref>        Vendor/materialized ref to compare to.
+  VENDOR_REF=<ref>        Vendor/materialised ref to compare to.
 
 Optional variables:
   OUTPUT=<path>           Write a JSON report to this path.
@@ -27,7 +27,7 @@ Optional variables:
 
 This command is intentionally read-only unless OUTPUT or PATCH_OUTPUT is set.
 It never updates source refs; use integrate-source-release for immutable vendor
-delta artifacts.
+delta artefacts.
 """
 
 
@@ -89,7 +89,7 @@ def main() -> None:
     if args.target_ref:
         raise ReconstructionError(
             "extract-vendor-delta does not update refs; "
-            "use integrate-source-release TYPE=vendor for persistent vendor delta artifacts"
+            "use integrate-source-release TYPE=vendor for persistent vendor delta artefacts"
         )
     if args.output or args.patch_output:
         print("vendor delta extracted")

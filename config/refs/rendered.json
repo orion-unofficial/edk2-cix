@@ -2,23 +2,23 @@
   "refs": [
     {
       "immutable": true,
-      "object_id": "98d9d6bfd28a69e0ff623ccd2b1fbf4ffe0677c8",
+      "object_id": "4e728486976db9ec02442fb2b15fd3df5f10d6f9",
       "ref": "source/release/custom/edk2-202208/radxa-1.2.1/local",
-      "tree_id": "6ff0d9adc1fe5e91dcc226c7eabed9a1a1a48656",
+      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8",
       "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "06c4961ccd57eee01d12078dc52a8df89ac9bbcc",
+      "object_id": "ba25ddea1276dfde6bc5cfdba062806eae6f80a5",
       "ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "4090113c52faa063a045b7fecaf4d28b6557d5c3",
+      "tree_id": "1f54f703f430422c8f6cc94dd6a3e5ca2263765b",
       "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "bf5d5e769008424d9e3d29f7aff5b4626e1f97c1",
+      "object_id": "7675d892fa413a052b7564a840bb7f531bff116c",
       "ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1",
-      "tree_id": "4090113c52faa063a045b7fecaf4d28b6557d5c3",
+      "tree_id": "1f54f703f430422c8f6cc94dd6a3e5ca2263765b",
       "type": "rendered-release"
     },
     {

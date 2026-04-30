@@ -57,6 +57,11 @@ Set `V=1` for verbose script and delegated build output:
 make build-all V=1
 ```
 
+Exact-replay comparisons can provide `SIGNING_CERT_SOURCE_DIR=<path>` from the
+top-level `build` branch. The wrapper copies the certificate inputs into the
+rendered worktree before invoking the buildbox, so the path remains available
+inside the container and does not dirty source-controlled files.
+
 ## How do I choose EDK2/CIX/Radxa source versions?
 
 Use the `RELEASE` variable. The documented form is the short name without the `source/release/` prefix:
@@ -121,17 +126,17 @@ make import-local-commits \
 
 ## How are deltas represented?
 
-`source/delta/radxa/**` and `source/delta/local/current` are delta artifact branches. Each contains:
+`source/delta/radxa/**` and `source/delta/local/current` are delta artefact branches. Each contains:
 
 - `metadata.json` with base/target object IDs and submodule metadata
 - `delta.patch` generated with `git diff --binary --full-index`
-- `README.md` describing the artifact
+- `README.md` describing the artefact
 
-This representation is intentional: a plain tree cannot encode deletions or renames relative to a base, while a binary patch can. Render plans in `config/releases.json` apply these artifacts in order.
+This representation is intentional: a plain tree cannot encode deletions or renames relative to a base, while a binary patch can. Render plans in `config/releases.json` apply these artefacts in order.
 
-Render plans can also include an explicit `materialize_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialization automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`.
+Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`.
 
-## How do I project `source/delta/local/current` to a materialized firmware branch?
+## How do I project `source/delta/local/current` to a materialised firmware branch?
 
 Render a configured release that includes the local layer:
 
@@ -177,7 +182,7 @@ make integrate-source-release \
   REF=main
 ```
 
-For Radxa vendor refs, `MATERIALIZE=1` is the default. This means a legacy submodule-shaped source ref such as `main` is recursively flattened before the `source/delta/radxa/**` artifact is generated, so the delta describes ordinary file content rather than gitlinks.
+For Radxa vendor refs, `MATERIALISE=1` is the default. This means a legacy submodule-shaped source ref such as `main` is recursively flattened before the `source/delta/radxa/**` artefact is generated, so the delta describes ordinary file content rather than gitlinks.
 
 ## How do I test a floating upstream tip instead of the latest release?
 
@@ -223,4 +228,4 @@ For a rendered branch, also run:
 make verify-release-branch RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local
 ```
 
-A release branch is not considered fully reconstructed until it has no gitlinks, no active root `.gitmodules`, recursive submodule content is materialized as ordinary files, and history commands work from nested paths.
+A release branch is not considered fully reconstructed until it has no gitlinks, no active root `.gitmodules`, recursive submodule content is materialised as ordinary files, and history commands work from nested paths.

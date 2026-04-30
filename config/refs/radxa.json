@@ -8,7 +8,7 @@
       "object_id": "55c5d1f4087567cd3cae72a88544f5f3e1bcae56",
       "ref": "source/delta/radxa/1.2.1/edk2-stable202208",
       "tree_id": "a1d9ce45445fe7e40ee4501ab4bee6c6802c32ec",
-      "type": "vendor-delta-artifact",
+      "type": "vendor-delta-artefact",
       "vendor": "radxa"
     },
     {
@@ -19,7 +19,7 @@
       "object_id": "2405973a72225e0267c2a21414dc8c71f8f50a84",
       "ref": "source/delta/radxa/1.2.1/edk2-stable202602",
       "tree_id": "747b3c0b83747b77a3c65ff764dc0d010ce9f857",
-      "type": "vendor-delta-artifact",
+      "type": "vendor-delta-artefact",
       "vendor": "radxa"
     }
   ],

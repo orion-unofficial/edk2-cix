@@ -10,7 +10,7 @@ from pathlib import Path
 
 from reconstruction_common import (
     ReconstructionError,
-    create_delta_artifact,
+    create_delta_artefact,
     git,
     main_wrapper,
     ref_exists,
@@ -66,7 +66,7 @@ def main() -> None:
         return
     if truthy(args.v):
         print(f"delta {args.base_ref}..{args.from_ref} -> {args.target_ref}")
-    create_delta_artifact(
+    create_delta_artefact(
         repo,
         args.base_ref,
         args.from_ref,
@@ -84,7 +84,7 @@ def main() -> None:
             "base_ref": args.base_ref,
             "format": "delta.patch plus metadata.json",
             "immutable": False,
-            "type": "local-delta-artifact",
+            "type": "local-delta-artefact",
         },
     )
     print(f"updated {args.target_ref}")
