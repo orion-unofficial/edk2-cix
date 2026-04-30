@@ -637,8 +637,12 @@ prepare-basetools-c:
 		fi; \
 	done; \
 	if [[ "$$rebuild" -eq 1 ]]; then \
-		printf '[build] Rebuilding BaseTools C binaries for %s\n' "$$current_env_id"; \
-		printf '[build] Cleaning stale BaseTools C objects and dependency files\n'; \
+		if [[ "$(V)" == "1" ]]; then \
+			printf '[build] Rebuilding BaseTools C binaries for %s\n' "$$current_env_id"; \
+			printf '[build] Cleaning stale BaseTools C objects and dependency files\n'; \
+		else \
+			printf '[build] Rebuilding BaseTools C binaries\n'; \
+		fi; \
 		if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
 			rm -rf "$$base_tools_dir"; \
 			mkdir -p "$$(dirname "$$base_tools_dir")"; \
@@ -653,13 +657,22 @@ prepare-basetools-c:
 				done < <(find "$(CUSTOM_BASETOOLS_OVERLAY_DIR)" -type f -print0); \
 			fi; \
 		fi; \
-		$(MAKE) -C "$$base_tools_dir" V="$(V)" clean; \
 		if [[ "$(V)" == "1" ]]; then \
+			$(MAKE) -C "$$base_tools_dir" V="$(V)" clean; \
 			$(MAKE) -C "$$base_tools_dir" -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C; \
 		else \
-			$(MAKE) -C "$$base_tools_dir" -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C 2>&1 | \
-				ARTEFACT_MODE="$(ARTEFACT_MODE)" \
-				python3 "$(EDK2_BUILD_OUTPUT_FILTER)"; \
+			basetools_log="$$(mktemp "$(PREFERRED_TMP_ROOT)/edk2-cix-basetools.XXXXXX")"; \
+			if ! $(MAKE) -C "$$base_tools_dir" V="$(V)" clean >"$$basetools_log" 2>&1; then \
+				cat "$$basetools_log" >&2; \
+				rm -f "$$basetools_log"; \
+				exit 1; \
+			fi; \
+			if ! $(MAKE) -C "$$base_tools_dir" -j$(BASETOOLS_BUILD_JOBS) V="$(V)" Source/C >"$$basetools_log" 2>&1; then \
+				cat "$$basetools_log" >&2; \
+				rm -f "$$basetools_log"; \
+				exit 1; \
+			fi; \
+			rm -f "$$basetools_log"; \
 		fi; \
 		printf '%s\n' "$$current_env_id" > "$$base_tools_marker"; \
 	fi
