@@ -170,6 +170,7 @@ def fetch_ccache_stats(
         make_executable,
         "--no-print-directory",
         "buildbox-ccache-stats",
+        "CCACHE_STATS_FORMAT=json",
         f"V={verbosity}",
         f"ARTEFACT_MODE={layout.artefact_mode}",
         f"FIRMWARE_TARGET={layout.firmware_target}",
