@@ -243,7 +243,7 @@ endef
 define PRINT_TOP_LEVEL_COMMON_USER_VARIABLES
 	print_help_line '  FIRMWARE_BOARD=O6|O6N' 'Select the firmware board; replay follows the same board.\nDefault: O6.'; \
 	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG firmware build.\nDefault: RELEASE.'; \
-	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Choose between the upstream-derived path and the local custom path. On main-monorepo-edk2, '\''upstream'\'' is for closest-to-upstream diagnostics; byte-accurate vendor replay belongs to main-monorepo.\nDefault: custom.'
+	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Choose between the upstream-derived path and the local custom path. On source/unofficial/current, '\''upstream'\'' is for closest-to-upstream diagnostics; byte-accurate vendor replay belongs to source/release/custom/edk2-202208/radxa-1.2.1/local.\nDefault: custom.'
 endef
 
 define PRINT_TOP_LEVEL_CACHE_USER_VARIABLES
@@ -279,7 +279,7 @@ define PRINT_TOP_LEVEL_DEV_VARIABLES_VALIDATION
 	print_help_line '  FIRMWARE_VALIDATE_ON_BUILD=0|1' 'Enable or skip automatic output validation after firmware-build.\nDefault: 0; enable explicitly for qualification or diagnostic runs.'; \
 	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile from validation/expected-hashes.json, e.g. '\''upstream-1.2.1-bookworm'\'' or '\''upstream-1.2.1-trixie'\''\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
 	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory for validation and audit JSON reports.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
-	print_help_line '  MONOREPO_META_ROOT=<path>' 'Optional main-monorepo-meta checkout used by audit-bundle for the metadata-consistency check.\nDefault: unset.'
+	print_help_line '  MONOREPO_META_ROOT=<path>' 'Optional build checkout used by audit-bundle for the metadata-consistency check.\nDefault: unset.'
 endef
 
 define PRINT_TOP_LEVEL_DEV_VARIABLES_REPLAY
@@ -340,7 +340,7 @@ endef
 
 define WARN_EDK2_REBASED_BOOKWORM
 	if [ "$(FIRMWARE_DISTRO_EFFECTIVE)" = "bookworm" ]; then \
-		printf '%s\n' '[buildbox] warning: FIRMWARE_DISTRO=bookworm requested; trixie is the default for edk2-rebased builds on main-monorepo-edk2.' >&2; \
+		printf '%s\n' '[buildbox] warning: FIRMWARE_DISTRO=bookworm requested; trixie is the default for edk2-rebased builds on source/unofficial/current.' >&2; \
 	fi
 endef
 
@@ -594,7 +594,7 @@ preflight-wrapper-build-all:
 	"$${validate_cmd[@]}"; \
 	$(call BUILD_ALL_WARN_IF_IGNORED,ARTEFACT_MODE,build-all* selects upstream and custom variants itself.) \
 	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_TARGET,build-all* includes the supported RELEASE and DEBUG variants itself.) \
-	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_DISTRO,build-all* always uses Trixie on main-monorepo-edk2.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_DISTRO,build-all* always uses Trixie on source/unofficial/current.) \
 	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_STAGE_ROOT,build-all* stages variants in a temporary per-run tree before archiving.) \
 	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_ARCHIVE_BASENAME,build-all* always writes the fixed all-variants archive name.) \
 	$(call BUILD_ALL_WARN_IF_IGNORED,ENABLE_FIRMWARE_FIXES,build-all* selects its supported firmware variants itself.) \
