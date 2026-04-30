@@ -1,8 +1,17 @@
 {
   "default_release": "custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
   "releases": {
+    "source/release/custom/edk2-202208/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202208, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202208",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202208/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8"
+    },
     "source/release/custom/edk2-202208/radxa-1.2.1/local": {
-      "description": "Custom firmware release matching main-monorepo on EDK2 202208 with Radxa 1.2.1 and local changes.",
+      "description": "Custom firmware release matching the 202208 local compatibility checkpoint with Radxa 1.2.1 and local changes.",
       "edk2_release": "edk2-stable202208",
       "local_delta": true,
       "radxa_release": "1.2.1",
@@ -10,7 +19,7 @@
         "base": {
           "ref": "source/release/upstream/edk2-202208/radxa-1.2.1"
         },
-        "commit_message": "render: custom firmware release matching main-monorepo on EDK2 202208 with Radxa 1.2.1 and local changes",
+        "commit_message": "render: custom firmware release matching the 202208 local compatibility checkpoint with Radxa 1.2.1 and local changes",
         "remove_root_gitmodules": true,
         "steps": [
           {
@@ -20,39 +29,139 @@
       },
       "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8"
     },
+    "source/release/custom/edk2-202211/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202211, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202211",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202211/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8"
+    },
+    "source/release/custom/edk2-202302/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202302, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202302",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202302/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8"
+    },
+    "source/release/custom/edk2-202305/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202305, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202305",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202305/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "4e34b650a8078e95045439488aa791062e9a2a8b"
+    },
+    "source/release/custom/edk2-202308/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202308, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202308",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202308/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "af4621898162295d00dfc6ac14f9846e46bd7aa4"
+    },
+    "source/release/custom/edk2-202311/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202311, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202311",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202311/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "e7aa8f54f2417939ce6894406b797307d81b6537"
+    },
+    "source/release/custom/edk2-202402/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202402, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202402",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202402/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "9f0f09feec5748dc11c024f4ba611c0c18270165"
+    },
+    "source/release/custom/edk2-202405/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202405, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202405",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202405/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "38a0e51a7bdb326c72157471992b7694c123800b"
+    },
+    "source/release/custom/edk2-202408.01/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202408.01, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202408.01",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202408.01/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "cd14ebb75a8a8b07b4556a7155aa69bc1be837d6"
+    },
+    "source/release/custom/edk2-202408/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202408, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202408",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202408/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "4a9033c8b1f69929ae9f89ec3e95b29fd9cd5144"
+    },
+    "source/release/custom/edk2-202411/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202411, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202411",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202411/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "70edaa0bf5a4e6f9cd9b57994b31dd6c248f85f4"
+    },
+    "source/release/custom/edk2-202502/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202502, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202502",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202502/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "5365594e80bffd1423832446d500c9a9715956d3"
+    },
+    "source/release/custom/edk2-202505/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202505, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202505",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202505/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "158e310a650458e7b56b278388c317d0fd146895"
+    },
+    "source/release/custom/edk2-202508/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202508, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202508",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202508/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "8236a55c02e470b35c2d9a7663e3078d854188ea"
+    },
+    "source/release/custom/edk2-202511/cix-1.2/radxa-1.2.1/local": {
+      "cix_release": "1.2",
+      "description": "Custom firmware release with EDK2 202511, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "edk2_release": "edk2-stable202511",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/custom/edk2-202511/cix-1.2/radxa-1.2.1/local",
+      "tree_id": "2fc64929454bb0f221cae8f9ff31f0329b146a21"
+    },
     "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
-      "description": "Latest custom firmware release with EDK2 202602, Radxa 1.2.1, CIX 1.2 components, and local changes.",
+      "description": "Custom firmware release with EDK2 202602, Radxa 1.2.1, CIX 1.2 components, and local changes.",
       "edk2_release": "edk2-stable202602",
       "local_delta": true,
       "radxa_release": "1.2.1",
-      "render": {
-        "base": {
-          "ref": "source/base/rendered/edk2-stable202602"
-        },
-        "commit_message": "render: latest custom firmware release with EDK2 202602, Radxa 1.2.1, CIX 1.2 components, and local changes",
-        "remove_root_gitmodules": true,
-        "steps": [
-          {
-            "delta": "source/delta/radxa/1.2.1/edk2-stable202602"
-          },
-          {
-            "component": {
-              "path": "src/cix-v1.2/tf-a",
-              "ref": "source/component/cix/1.2/tf-a"
-            }
-          },
-          {
-            "component": {
-              "path": "src/cix-v1.2/tee",
-              "ref": "source/component/cix/1.2/op-tee"
-            }
-          },
-          {
-            "delta": "source/delta/local/edk2-stable202602"
-          }
-        ]
-      },
+      "source_ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
       "tree_id": "1f54f703f430422c8f6cc94dd6a3e5ca2263765b"
     },
     "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1": {
@@ -91,73 +200,275 @@
       "tree_id": "1f54f703f430422c8f6cc94dd6a3e5ca2263765b"
     },
     "source/release/upstream/edk2-202208/radxa-1.2.1": {
-      "description": "Upstream EDK2 202208 component skeleton plus Radxa 1.2.1 vendor delta, rendered without active root submodule metadata.",
+      "description": "Upstream EDK2 202208 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
       "edk2_release": "edk2-stable202208",
       "local_delta": false,
       "radxa_release": "1.2.1",
-      "render": {
-        "base": {
-          "ref": "source/base/rendered/edk2-stable202208"
-        },
-        "commit_message": "render: upstream EDK2 202208 component skeleton plus Radxa 1.2.1 vendor delta, rendered without active root submodule metadata",
-        "remove_root_gitmodules": true,
-        "steps": [
-          {
-            "delta": "source/delta/radxa/1.2.1/edk2-stable202208"
-          }
-        ]
-      },
+      "source_ref": "source/release/upstream/edk2-202208/radxa-1.2.1",
       "tree_id": "a820c88bb5f8f1808bd5288420fb0a19bb60e2c2"
     },
+    "source/release/upstream/edk2-202211/radxa-1.2.1": {
+      "description": "Upstream EDK2 202211 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202211",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202211/radxa-1.2.1",
+      "tree_id": "7df1456ef08b0f3c61ca6dbd74874461b74c1973"
+    },
+    "source/release/upstream/edk2-202302/radxa-1.2.1": {
+      "description": "Upstream EDK2 202302 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202302",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202302/radxa-1.2.1",
+      "tree_id": "6107975aaebc0461ce975baeb3281f7e592445fb"
+    },
+    "source/release/upstream/edk2-202305/radxa-1.2.1": {
+      "description": "Upstream EDK2 202305 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202305",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202305/radxa-1.2.1",
+      "tree_id": "b45657e98ec695b18a3bf4db8c2d3df63c815d1e"
+    },
+    "source/release/upstream/edk2-202308/radxa-1.2.1": {
+      "description": "Upstream EDK2 202308 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202308",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202308/radxa-1.2.1",
+      "tree_id": "3e36adde29e094e4a299c2ed37585c920b667508"
+    },
+    "source/release/upstream/edk2-202311/radxa-1.2.1": {
+      "description": "Upstream EDK2 202311 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202311",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202311/radxa-1.2.1",
+      "tree_id": "f37ec80eb392f78768339751338fd1d4ac09a183"
+    },
+    "source/release/upstream/edk2-202402/radxa-1.2.1": {
+      "description": "Upstream EDK2 202402 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202402",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202402/radxa-1.2.1",
+      "tree_id": "0ebce0d595505c28b9e7c21983035fcee182a4a8"
+    },
+    "source/release/upstream/edk2-202405/radxa-1.2.1": {
+      "description": "Upstream EDK2 202405 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202405",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202405/radxa-1.2.1",
+      "tree_id": "2a4b2929a617c9b6544bbfd6fc2c9c19cff69635"
+    },
+    "source/release/upstream/edk2-202408.01/radxa-1.2.1": {
+      "description": "Upstream EDK2 202408.01 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202408.01",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202408.01/radxa-1.2.1",
+      "tree_id": "878badccf7fd843b2e68f5785a3cfc1a8af26bfa"
+    },
+    "source/release/upstream/edk2-202408/radxa-1.2.1": {
+      "description": "Upstream EDK2 202408 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202408",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202408/radxa-1.2.1",
+      "tree_id": "88d7cefce419f348b8b80b7e19368b27dd4ec60c"
+    },
+    "source/release/upstream/edk2-202411/radxa-1.2.1": {
+      "description": "Upstream EDK2 202411 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202411",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202411/radxa-1.2.1",
+      "tree_id": "08c3ee159f255d956e1381e7c6d1d30cb2181038"
+    },
+    "source/release/upstream/edk2-202502/radxa-1.2.1": {
+      "description": "Upstream EDK2 202502 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202502",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202502/radxa-1.2.1",
+      "tree_id": "c3e9b65d7ebc70c69c6da06c6f314e5cb76406a8"
+    },
+    "source/release/upstream/edk2-202505/radxa-1.2.1": {
+      "description": "Upstream EDK2 202505 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202505",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202505/radxa-1.2.1",
+      "tree_id": "42d69039a96e7e410ceea833f982be6c6c963783"
+    },
+    "source/release/upstream/edk2-202508/radxa-1.2.1": {
+      "description": "Upstream EDK2 202508 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202508",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202508/radxa-1.2.1",
+      "tree_id": "7760e1f4e018f5c4cfd12e4376c1cc85ab6803ee"
+    },
+    "source/release/upstream/edk2-202511/radxa-1.2.1": {
+      "description": "Upstream EDK2 202511 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
+      "edk2_release": "edk2-stable202511",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/upstream/edk2-202511/radxa-1.2.1",
+      "tree_id": "2879266faeb5718a5c6377b4b91e21071dcf09e6"
+    },
     "source/release/upstream/edk2-202602/radxa-1.2.1": {
-      "description": "Upstream EDK2 202602 component skeleton plus carried Radxa 1.2.1 vendor delta, rendered without active root submodule metadata.",
+      "description": "Upstream EDK2 202602 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",
       "edk2_release": "edk2-stable202602",
       "local_delta": false,
       "radxa_release": "1.2.1",
-      "render": {
-        "base": {
-          "ref": "source/base/rendered/edk2-stable202602"
-        },
-        "commit_message": "render: upstream EDK2 202602 component skeleton plus carried Radxa 1.2.1 vendor delta, rendered without active root submodule metadata",
-        "remove_root_gitmodules": true,
-        "steps": [
-          {
-            "delta": "source/delta/radxa/1.2.1/edk2-stable202602"
-          }
-        ]
-      },
+      "source_ref": "source/release/upstream/edk2-202602/radxa-1.2.1",
       "tree_id": "6c90699337b73fd06fc4ca2c307968ca214d3a7a"
+    },
+    "source/release/vendor/edk2-202208/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202208 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202208",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202208/cix-1.2/radxa-1.2.1",
+      "tree_id": "5c0a192d7351ffc7b4b2ccf33e94c985f255149b"
+    },
+    "source/release/vendor/edk2-202211/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202211 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202211",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202211/cix-1.2/radxa-1.2.1",
+      "tree_id": "f85ecf218513f70404e66acc1c7a5d2ff86a0826"
+    },
+    "source/release/vendor/edk2-202302/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202302 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202302",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202302/cix-1.2/radxa-1.2.1",
+      "tree_id": "1c3525e103503bfdd6c91e13faba5544f3a2bbbd"
+    },
+    "source/release/vendor/edk2-202305/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202305 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202305",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202305/cix-1.2/radxa-1.2.1",
+      "tree_id": "52544d22e94543111b5eb7ef7d7d982d2a00c55c"
+    },
+    "source/release/vendor/edk2-202308/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202308 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202308",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202308/cix-1.2/radxa-1.2.1",
+      "tree_id": "a6040bdced535643106b72fc12ee1c80e0f95726"
+    },
+    "source/release/vendor/edk2-202311/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202311 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202311",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202311/cix-1.2/radxa-1.2.1",
+      "tree_id": "e556589b7c39530c1b79d14abd3799dd737f603a"
+    },
+    "source/release/vendor/edk2-202402/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202402 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202402",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202402/cix-1.2/radxa-1.2.1",
+      "tree_id": "d562b11d19af689c25a676d20712cfaef0a5acf4"
+    },
+    "source/release/vendor/edk2-202405/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202405 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202405",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202405/cix-1.2/radxa-1.2.1",
+      "tree_id": "9c51ce1bdc09ccf8117934a6259d783b21136e2f"
+    },
+    "source/release/vendor/edk2-202408.01/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202408.01 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202408.01",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202408.01/cix-1.2/radxa-1.2.1",
+      "tree_id": "2fdbad16e41304f7bce09f9a55685f54c5ed37d1"
+    },
+    "source/release/vendor/edk2-202408/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202408 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202408",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202408/cix-1.2/radxa-1.2.1",
+      "tree_id": "fa4b99ce20bd448566b2ec8462b61454f802d0c2"
+    },
+    "source/release/vendor/edk2-202411/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202411 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202411",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202411/cix-1.2/radxa-1.2.1",
+      "tree_id": "64510c7b5e8e69b19ee01ea470419721d1ebd301"
+    },
+    "source/release/vendor/edk2-202502/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202502 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202502",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202502/cix-1.2/radxa-1.2.1",
+      "tree_id": "52259b0d071a20c6ea323430a0bac541b00eb230"
+    },
+    "source/release/vendor/edk2-202505/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202505 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202505",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202505/cix-1.2/radxa-1.2.1",
+      "tree_id": "017ae4b0b70f66955ebc2fe990eed641c395d9d8"
+    },
+    "source/release/vendor/edk2-202508/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202508 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202508",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202508/cix-1.2/radxa-1.2.1",
+      "tree_id": "807398bd224a6b21bd50bac348e3f9aeb144a835"
+    },
+    "source/release/vendor/edk2-202511/cix-1.2/radxa-1.2.1": {
+      "cix_release": "1.2",
+      "description": "Vendor EDK2 202511 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
+      "edk2_release": "edk2-stable202511",
+      "local_delta": false,
+      "radxa_release": "1.2.1",
+      "source_ref": "source/release/vendor/edk2-202511/cix-1.2/radxa-1.2.1",
+      "tree_id": "8c28fb966dd5611af971e9b2b7dcfcefb14266ed"
     },
     "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1": {
       "cix_release": "1.2",
-      "description": "Vendor EDK2 202602 baseline with Radxa 1.2.1 and raw CIX 1.2 TF-A/OP-TEE components.",
+      "description": "Vendor EDK2 202602 baseline with Radxa 1.2.1 and CIX 1.2 TF-A/OP-TEE components.",
       "edk2_release": "edk2-stable202602",
       "local_delta": false,
       "radxa_release": "1.2.1",
-      "render": {
-        "base": {
-          "ref": "source/base/rendered/edk2-stable202602"
-        },
-        "commit_message": "render: vendor EDK2 202602 baseline with Radxa 1.2.1 and raw CIX 1.2 TF-A/OP-TEE components",
-        "remove_root_gitmodules": true,
-        "steps": [
-          {
-            "delta": "source/delta/radxa/1.2.1/edk2-stable202602"
-          },
-          {
-            "component": {
-              "path": "src/cix-v1.2/tf-a",
-              "ref": "source/component/cix/1.2/tf-a"
-            }
-          },
-          {
-            "component": {
-              "path": "src/cix-v1.2/tee",
-              "ref": "source/component/cix/1.2/op-tee"
-            }
-          }
-        ]
-      },
+      "source_ref": "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1",
       "tree_id": "29371f8363d41066bb8d9e390337f68fa1586319"
     }
   },
