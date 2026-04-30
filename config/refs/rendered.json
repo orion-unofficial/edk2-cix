@@ -2,6 +2,13 @@
   "refs": [
     {
       "immutable": true,
+      "object_id": "98d9d6bfd28a69e0ff623ccd2b1fbf4ffe0677c8",
+      "ref": "source/release/custom/edk2-202208/radxa-1.2.1/local",
+      "tree_id": "6ff0d9adc1fe5e91dcc226c7eabed9a1a1a48656",
+      "type": "rendered-release"
+    },
+    {
+      "immutable": true,
       "object_id": "06c4961ccd57eee01d12078dc52a8df89ac9bbcc",
       "ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
       "tree_id": "4090113c52faa063a045b7fecaf4d28b6557d5c3",

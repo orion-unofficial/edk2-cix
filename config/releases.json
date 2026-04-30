@@ -1,6 +1,25 @@
 {
   "default_release": "custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
   "releases": {
+    "source/release/custom/edk2-202208/radxa-1.2.1/local": {
+      "description": "Custom firmware release matching main-monorepo on EDK2 202208 with Radxa 1.2.1 and local changes.",
+      "edk2_release": "edk2-stable202208",
+      "local_delta": true,
+      "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/upstream/edk2-202208/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release matching main-monorepo on EDK2 202208 with Radxa 1.2.1 and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202208"
+          }
+        ]
+      },
+      "tree_id": "6ff0d9adc1fe5e91dcc226c7eabed9a1a1a48656"
+    },
     "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
       "description": "Latest custom firmware release with EDK2 202602, Radxa 1.2.1, CIX 1.2 components, and local changes.",

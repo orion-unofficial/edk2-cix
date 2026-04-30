@@ -8,6 +8,15 @@
       "ref": "source/delta/local/current",
       "tree_id": "494862b580d53f01242497aa02a7009d8a9d6aa7",
       "type": "local-delta-artifact"
+    },
+    {
+      "base_ref": "source/release/upstream/edk2-202208/radxa-1.2.1",
+      "format": "delta.patch plus metadata.json",
+      "immutable": false,
+      "object_id": "0d9134e8818cc326a41c49373a601fa126e2f232",
+      "ref": "source/delta/local/edk2-stable202208",
+      "tree_id": "2c8042076e3d338e685ba941dafab94ec8a44f93",
+      "type": "local-delta-artifact"
     }
   ],
   "schema_version": 1
