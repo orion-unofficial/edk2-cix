@@ -113,6 +113,31 @@ def ensure_base_ref(repo: Path, entry: dict, verbose: bool) -> str | None:
         if verbose:
             print(f"Rendering prerequisite release {base_ref}", file=sys.stderr)
         return render_from_plan(repo, base_ref, releases[base_ref], verbose)
+    rendered_base_records = {
+        record.get("ref"): record
+        for record in load_json(repo, "config/refs/rendered-base.json").get("refs", [])
+        if record.get("ref")
+    }
+    if base_ref in rendered_base_records:
+        record = rendered_base_records[base_ref]
+        record_components = record.get("components", [])
+        if not record_components:
+            raise ReconstructionError(f"rendered base ref is missing component metadata: {base_ref}")
+        if verbose:
+            print(f"Creating rendered base skeleton {base_ref}", file=sys.stderr)
+        commit = commit_component_skeleton(
+            repo,
+            record_components,
+            f"base: render EDK2 component skeleton {base_ref.rsplit('/', 1)[-1]}",
+        )
+        expected_tree = record.get("tree_id")
+        actual_tree = tree_id(repo, commit)
+        if expected_tree and actual_tree != expected_tree:
+            raise ReconstructionError(
+                f"generated rendered base tree differs for {base_ref}: {actual_tree} != {expected_tree}"
+            )
+        update_ref(repo, base_ref, commit)
+        return base_ref
     if not components:
         raise ReconstructionError(f"render base ref is missing and has no component plan: {base_ref}")
     if verbose:

@@ -15,6 +15,7 @@ from reconstruction_common import (
     main_wrapper,
     ref_exists,
     repo_root,
+    rev_parse,
     tree_id,
     truthy,
 )
@@ -33,6 +34,7 @@ Checks:
   - required base, vendor, component, and local refs exist
   - actual source/release branches are all declared in the build matrix
   - Radxa delta and rendered-base refs cover every declared EDK2 release
+  - local compatibility tags are reachable from retained source/local branches
   - local-1.2.1 aliases have the same tree as their non-alias local branch
 """
 
@@ -97,24 +99,42 @@ def expected_from_matrix(matrix: dict[str, Any]) -> tuple[set[str], set[str], di
 
 
 def actual_source_release_refs(repo: Path) -> set[str]:
-    result = git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads/source/release", check=False)
+    result = git(repo, "for-each-ref", "--format=%(refname:lstrip=2)", "refs/heads/source/release", check=False)
     if result.returncode != 0:
         return set()
     return {line for line in result.stdout.splitlines() if line}
 
 
 def actual_refs(repo: Path, namespace: str) -> set[str]:
-    result = git(repo, "for-each-ref", "--format=%(refname:short)", f"refs/heads/{namespace}", check=False)
+    result = git(repo, "for-each-ref", "--format=%(refname:lstrip=2)", f"refs/heads/{namespace}", check=False)
     if result.returncode != 0:
         return set()
     return {line for line in result.stdout.splitlines() if line}
 
 
 def local_tag_refs(repo: Path) -> set[str]:
-    result = git(repo, "for-each-ref", "--format=%(refname:short)", "refs/tags/source/local", check=False)
+    result = git(repo, "for-each-ref", "--format=%(refname:lstrip=2)", "refs/tags/source/local", check=False)
     if result.returncode != 0:
         return set()
     return {line for line in result.stdout.splitlines() if line}
+
+
+def tag_reachable_from_local_branch(repo: Path, tag: str) -> bool:
+    commit = rev_parse(repo, tag)
+    result = git(
+        repo,
+        "for-each-ref",
+        f"--contains={commit}",
+        "--format=%(refname:lstrip=2)",
+        "refs/heads/source/local",
+        check=False,
+    )
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
+def rendered_base_records(repo: Path) -> dict[str, dict[str, Any]]:
+    records = load_json(repo, "config/refs/rendered-base.json").get("refs", [])
+    return {record["ref"]: record for record in records if record.get("ref")}
 
 
 def require_manifested_release_entries(
@@ -166,24 +186,47 @@ def require_source_refs(
     expected_base_rendered = {f"source/base/rendered/edk2-stable{release}" for release in all_releases}
     expected_radxa = {f"source/delta/radxa/1.2.1/edk2-stable{release}" for release in all_releases}
     expected_local_tags = {f"source/unofficial/edk2-stable{release}" for release in all_releases}
+    expected_local_branches = set(expected_local_tags)
+    expected_local_branches.add("source/unofficial/current")
 
     required = set(expected_required_refs)
     required.update(expected_base_rendered)
     required.update(expected_radxa)
     required.update(expected_local_tags)
 
-    missing = sorted(ref for ref in required if not ref_exists(repo, ref))
+    missing = sorted(ref for ref in required if ref not in expected_base_rendered and not ref_exists(repo, ref))
     if missing:
         problems.append("required source refs are unavailable locally:\n" + "\n".join(f"  - {r}" for r in missing))
 
     actual_base_rendered = actual_refs(repo, "source/base/rendered")
     actual_radxa = actual_refs(repo, "source/delta/radxa/1.2.1")
     actual_local_tags = local_tag_refs(repo)
+    actual_local_branches = actual_refs(repo, "source/local")
+    base_records = rendered_base_records(repo)
 
-    if expected_base_rendered != actual_base_rendered:
+    missing_base_rendered = expected_base_rendered - actual_base_rendered
+    extra_base_rendered = actual_base_rendered - expected_base_rendered
+    non_regenerable_base = sorted(ref for ref in missing_base_rendered if ref not in base_records)
+    if non_regenerable_base:
         problems.append(
-            "source/base/rendered refs do not match the matrix:\n"
-            + diff_sets(expected_base_rendered, actual_base_rendered)
+            "source/base/rendered refs are missing and not regenerable from config/refs/rendered-base.json:\n"
+            + "\n".join(f"  - {r}" for r in non_regenerable_base)
+        )
+    missing_base_components: list[str] = []
+    for ref in sorted(missing_base_rendered - set(non_regenerable_base)):
+        for component in base_records[ref].get("components", []):
+            component_ref = component.get("ref")
+            if component_ref and not ref_exists(repo, component_ref):
+                missing_base_components.append(f"{ref}: missing component {component_ref}")
+    if missing_base_components:
+        problems.append(
+            "source/base/rendered refs are missing and cannot be regenerated because components are unavailable:\n"
+            + "\n".join(f"  - {r}" for r in missing_base_components)
+        )
+    if extra_base_rendered:
+        problems.append(
+            "source/base/rendered refs are not declared in config/build-matrix.json:\n"
+            + "\n".join(f"  - {r}" for r in sorted(extra_base_rendered))
         )
     if expected_radxa != actual_radxa:
         problems.append(
@@ -193,6 +236,21 @@ def require_source_refs(
     missing_tags = expected_local_tags - actual_local_tags
     if missing_tags:
         problems.append("missing local compatibility tags:\n" + "\n".join(f"  - {r}" for r in sorted(missing_tags)))
+    extra_tags = actual_local_tags - expected_local_tags
+    if extra_tags:
+        problems.append("local compatibility tags are not declared in config/build-matrix.json:\n" + "\n".join(f"  - {r}" for r in sorted(extra_tags)))
+    missing_local_branches = expected_local_branches - actual_local_branches
+    if missing_local_branches:
+        problems.append(
+            "missing source/local compatibility branches:\n"
+            + "\n".join(f"  - {r}" for r in sorted(missing_local_branches))
+        )
+    orphaned_tags = sorted(tag for tag in expected_local_tags & actual_local_tags if not tag_reachable_from_local_branch(repo, tag))
+    if orphaned_tags:
+        problems.append(
+            "local compatibility tags are not reachable from any retained source/local branch:\n"
+            + "\n".join(f"  - {r}" for r in orphaned_tags)
+        )
 
     if verbose:
         for ref in sorted(required):

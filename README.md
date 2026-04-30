@@ -62,6 +62,31 @@ When the dry run is correct, add `WRITE=1`. The same change updates `config/refs
 
 `TYPE=upstream` is for base components: `edk2`, `edk2-platforms`, `edk2-non-osi`, `tf-a`, or `op-tee`. `TYPE=vendor` is for a vendor integration target. `VENDOR=radxa` updates the Radxa EDK2 vendor layer. `VENDOR=cix` updates the CIX release bundle, whose TF-A and OP-TEE contents are tracked as separate internal components so future Arm-upstream uplifts remain possible.
 
+The CIX bundle records original vendor provenance. To start an experimental uplift of one CIX component to a newer Arm upstream:
+
+1. Integrate the Arm base you want to try:
+
+   ```bash
+   make integrate-source-release TYPE=upstream COMPONENT=tf-a RELEASE=v2.12 WRITE=1
+   make integrate-source-release TYPE=upstream COMPONENT=op-tee RELEASE=4.4.0 WRITE=1
+   ```
+
+2. Create a normal topic branch from the selected Arm base and port the CIX component changes onto it. CIX publishes OP-TEE under a `tee` directory, but this source model records that component as `op-tee`.
+3. When the port builds and has been reviewed, record the resulting component ref:
+
+   ```bash
+   make integrate-source-release \
+     TYPE=vendor VENDOR=cix RELEASE=1.2 \
+     COMPONENT=tf-a ARM_BASE=v2.12 \
+     REF=<ported-tf-a-ref> WRITE=1
+   ```
+
+   The recorded ref is `source/component/cix/1.2/tf-a/v2.12`. Use `COMPONENT=op-tee ARM_BASE=4.4.0` for OP-TEE.
+
+4. Add or update a release entry that selects the uplifted component ref, render it, and run the same build/audit qualification used for EDK2 releases.
+
+The component port itself is intentionally a source-level engineering step rather than an automatic patch replay. The deterministic part starts once the reviewed component ref is recorded in `source/component/cix/**` and `config/refs/cix.json`.
+
 Radxa non-release updates use the same vendor integration path. First update or fetch the vendor source branch into a local ref, then give the delta a release-like name that records the most recent release plus the vendor commit, for example:
 
 ```bash
@@ -151,6 +176,7 @@ For a build variation to be fully pre-calculated from this repository, it needs 
 - `source/delta/radxa/<radxa-release>/<edk2-release>` for the Radxa vendor layer carried to that EDK2 base
 - any selected CIX component refs under `source/component/cix/<cix-release>/`
 - a compatible local-source tag such as `source/unofficial/edk2-stable202602`
+- the corresponding local compatibility branch under `source/unofficial/`
 - a generated local delta artefact under `source/delta/local/<edk2-release>`
 - a render plan in `config/releases.json`
 - a build policy entry covering distro defaults and replay availability
@@ -161,7 +187,7 @@ If any of those inputs is missing, the build may still be possible, but that sou
 make verify-build-matrix
 ```
 
-That target compares `config/build-matrix.json` against `config/releases.json`, local `source/release/**` branches, `source/base/rendered/**` refs, `source/delta/radxa/**` artefacts, local compatibility tags, and alias tree IDs. A declared build variation is not supported until this check passes.
+That target compares `config/build-matrix.json` against `config/releases.json`, local `source/release/**` branches, `source/base/rendered/**` refs or their regeneration metadata, `source/delta/radxa/**` artefacts, local compatibility tags and branches, and alias tree IDs. A declared build variation is not supported until this check passes.
 
 ## How do I start developing on this codebase?
 
@@ -207,6 +233,8 @@ make import-local-commits \
 
 For release-by-release EDK2 compatibility, keep `source/unofficial/current` as the human-readable latest local source branch and generate one local delta artefact per compatible EDK2 base, for example `source/delta/local/edk2-stable202208` or `source/delta/local/edk2-stable202602`. Compatibility tags such as `source/unofficial/edk2-stable202208` are full source checkpoints that overlay a given EDK2 release cleanly. If the same local source commit applies to multiple releases, multiple compatibility tags may point at it; if a release requires maintenance, commit the maintenance at the first affected release and tag the resulting compatible commit.
 
+Those compatibility tags must be reachable from retained `source/unofficial/**` branches. A pruned clone should therefore keep both the tags and the matching `source/unofficial/edk2-stable*` branches, rather than preserving tag-only orphan commits.
+
 ## How are source layers represented?
 
 `source/unofficial/current` is an ordinary source branch. `source/delta/radxa/**` and `source/delta/local/**` are generated delta artefact branches. Each delta artefact contains:
@@ -218,6 +246,8 @@ For release-by-release EDK2 compatibility, keep `source/unofficial/current` as t
 This representation is intentional: a plain tree cannot encode deletions or renames relative to a base, while a binary patch can. Render plans in `config/releases.json` apply these artefacts in order.
 
 Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`.
+
+`source/base/rendered/**` refs are component skeletons assembled from the recorded EDK2, `edk2-platforms`, and `edk2-non-osi` base refs. They may be present as cached branches, but they can also be regenerated from `config/refs/rendered-base.json` when the underlying component refs are available. Generated skeleton commits are validated by tree ID because commit object IDs may differ after regeneration.
 
 ## How do I project `source/unofficial/current` to a materialised firmware branch?
 

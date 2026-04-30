@@ -31,6 +31,7 @@ Supported forms:
   make integrate-source-release TYPE=upstream COMPONENT=edk2 RELEASE=edk2-stable202602 WRITE=1
   make integrate-source-release TYPE=upstream COMPONENT=tf-a RELEASE=v2.7 WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=cix RELEASE=1.2 WRITE=1
+  make integrate-source-release TYPE=vendor VENDOR=cix RELEASE=1.2 COMPONENT=tf-a ARM_BASE=v2.7 REF=<ported-ref> WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202208 REF=<local-ref> WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1+<commit> EDK2_BASE=edk2-stable202208 REF=main WRITE=1
 
@@ -42,6 +43,7 @@ Required variables:
 Optional variables:
   RELEASE=<release-or-ref>  Release tag/version to integrate.
   EDK2_BASE=<release>       Vendor base marker for Radxa deltas.
+  ARM_BASE=<release>        Arm base marker for CIX component uplift refs.
   REF=<object-id-or-ref>    Explicit object to use instead of a configured remote tag.
   WRITE=1                   Required before refs are created or advanced.
   ALLOW_REPLACE=1           Allow an existing immutable ref to move during integration.
@@ -56,6 +58,9 @@ Radxa non-release updates should use a descriptive RELEASE such as
 1.2.1+<short-commit>. REF may point at a legacy submodule-shaped branch such
 as main; with MATERIALISE=1, the source is flattened before the delta artefact
 is generated.
+CIX TF-A/OP-TEE uplift experiments should use COMPONENT=tf-a|op-tee,
+ARM_BASE=<arm-release>, and REF=<ported-ref>. This records the finished
+component ref under source/component/cix/<cix-release>/<component>/<arm-base>.
 """
 
 UPSTREAM_COMPONENTS = {"edk2", "edk2-platforms", "edk2-non-osi", "tf-a", "op-tee"}
@@ -95,6 +100,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--vendor", default=os.environ.get("VENDOR", ""))
     p.add_argument("--release", default=os.environ.get("RELEASE", ""))
     p.add_argument("--edk2-base", default=os.environ.get("EDK2_BASE", ""))
+    p.add_argument("--arm-base", default=os.environ.get("ARM_BASE", ""))
     p.add_argument("--ref", default=os.environ.get("REF", ""))
     p.add_argument("--write", default=os.environ.get("WRITE", "0"))
     p.add_argument("--allow-replace", default=os.environ.get("ALLOW_REPLACE", "0"))
@@ -222,6 +228,13 @@ def validate(args: argparse.Namespace) -> list[str]:
         missing.append("RELEASE=<release> or REF=<object-id-or-ref>")
     if args.type_ == "vendor" and args.vendor == "cix" and args.release not in {"1.2", "v1.2"}:
         missing.append("RELEASE=1.2")
+    if args.type_ == "vendor" and args.vendor == "cix" and args.component:
+        if args.component not in {"tf-a", "op-tee"}:
+            missing.append("COMPONENT=tf-a|op-tee")
+        if not args.arm_base:
+            missing.append("ARM_BASE=<arm-release>")
+        if not args.ref:
+            missing.append("REF=<ported-ref>")
     if args.type_ == "vendor" and args.vendor == "radxa" and not (args.release and args.edk2_base):
         missing.append("RELEASE=<radxa-release> EDK2_BASE=<edk2-release>")
     return missing
@@ -247,6 +260,24 @@ def main() -> None:
         source = args.ref or f"refs/tags/{release}"
         remote = UPSTREAM_REMOTES[args.component]
         operations.append((remote, source, target, {"type": "base", "component": args.component, "remote": remote, "upstream_ref": source}))
+    elif args.vendor == "cix" and args.component:
+        cix_release = args.release.removeprefix("v")
+        target = f"source/component/cix/{cix_release}/{args.component}/{args.arm_base}"
+        base_ref = f"source/base/arm/{args.component}/{args.arm_base}"
+        operations.append((
+            "local",
+            args.ref,
+            target,
+            {
+                "type": "vendor-component-uplift",
+                "vendor": "cix",
+                "component": args.component,
+                "cix_release": cix_release,
+                "arm_base": args.arm_base,
+                "base_ref": base_ref,
+                "source_ref": args.ref,
+            },
+        ))
     elif args.vendor == "cix":
         for item in CIX_COMPONENTS.values():
             operations.append((item["remote"], item["ref"], item["target"], {"type": "vendor-component", "vendor": "cix", "remote": item["remote"], "upstream_ref": item["ref"]}))
@@ -299,6 +330,9 @@ def main() -> None:
                     allow_replace=allow_replace,
                 )
             else:
+                base_ref = meta.get("base_ref")
+                if base_ref and not ref_exists(repo, base_ref):
+                    raise ReconstructionError(f"CIX component uplift base ref is unavailable locally: {base_ref}")
                 if ref_exists(repo, target) and not allow_replace:
                     raise ReconstructionError(f"target immutable ref already exists: {target}")
                 if allow_replace:

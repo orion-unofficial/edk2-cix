@@ -421,6 +421,13 @@ def immutable_records(repo: Path) -> list[dict[str, Any]]:
     return [r for r in load_ref_records(repo) if r.get("immutable", False)]
 
 
+def generated_ref_record(record: dict[str, Any]) -> bool:
+    """Return True for refs that can be recreated from manifests."""
+
+    record_type = str(record.get("type", ""))
+    return record_type.startswith("rendered-") or record_type == "component-skeleton"
+
+
 def is_immutable_namespace(ref: str) -> bool:
     if ref.startswith("source/base/"):
         return True
@@ -454,9 +461,9 @@ def check_immutable_refs(repo: Path, allow_manifest_update: bool = False, refs: 
         if not ref or (wanted and ref not in wanted):
             continue
         if not ref_exists(repo, ref):
-            # Materialised release refs are generated outputs. A pruned clone may
-            # omit them, but any copy that is present is still checked below.
-            if str(record.get("type", "")).startswith("rendered-"):
+            # Generated refs may be omitted by a pruned clone; any copy that is
+            # present is still checked below against its recorded tree.
+            if generated_ref_record(record):
                 continue
             if record.get("optional"):
                 continue
@@ -466,8 +473,8 @@ def check_immutable_refs(repo: Path, allow_manifest_update: bool = False, refs: 
         expected_tree = record.get("tree_id")
         actual_oid = rev_parse(repo, ref)
         actual_tree = tree_id(repo, ref)
-        is_rendered_output = str(record.get("type", "")).startswith("rendered-")
-        if expected_oid and actual_oid != expected_oid and not allow_manifest_update and not is_rendered_output:
+        is_generated = generated_ref_record(record)
+        if expected_oid and actual_oid != expected_oid and not allow_manifest_update and not is_generated:
             problems.append(f"{ref}: object moved from {expected_oid} to {actual_oid}")
         if expected_tree and actual_tree != expected_tree and not allow_manifest_update:
             problems.append(f"{ref}: tree moved from {expected_tree} to {actual_tree}")

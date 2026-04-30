@@ -130,6 +130,24 @@
     }
   },
   "local_roll_forward_policy": {
+    "compatibility_branches": [
+      "source/unofficial/edk2-stable202208",
+      "source/unofficial/edk2-stable202211",
+      "source/unofficial/edk2-stable202302",
+      "source/unofficial/edk2-stable202305",
+      "source/unofficial/edk2-stable202308",
+      "source/unofficial/edk2-stable202311",
+      "source/unofficial/edk2-stable202402",
+      "source/unofficial/edk2-stable202405",
+      "source/unofficial/edk2-stable202408",
+      "source/unofficial/edk2-stable202408.01",
+      "source/unofficial/edk2-stable202411",
+      "source/unofficial/edk2-stable202502",
+      "source/unofficial/edk2-stable202505",
+      "source/unofficial/edk2-stable202508",
+      "source/unofficial/edk2-stable202511",
+      "source/unofficial/edk2-stable202602"
+    ],
     "compatibility_tags": [
       "source/unofficial/edk2-stable202208",
       "source/unofficial/edk2-stable202211",
@@ -169,7 +187,7 @@
     "current_compatible_release": "edk2-stable202602",
     "generated_delta_refs": "source/delta/local/<edk2-release> for the CIX/Radxa matrix, with a more specific suffix when the same EDK2 release has multiple local bases",
     "initial_compatible_release": "edk2-stable202208",
-    "policy": "Local changes are maintained as an ordinary source branch and projected into per-EDK2-release delta artefacts. The current branch points at the latest local source; compatibility tags preserve earlier EDK2 overlay points as full source checkpoints rather than aliases to older branches. If the same local source commit overlays multiple EDK2 releases cleanly, multiple compatibility tags may point to it. If a release requires maintenance, commit that maintenance at the first affected release and tag the resulting compatible commit. Generated source refs and delta artefacts must not depend on the branch names used during earlier migrations.",
+    "policy": "Local changes are maintained as ordinary source branches and projected into per-EDK2-release delta artefacts. The current branch points at the latest local source; compatibility branches and tags preserve earlier EDK2 overlay points as full source checkpoints. If the same local source commit overlays multiple EDK2 releases cleanly, multiple compatibility tags may point to it. If a release requires maintenance, commit that maintenance at the first affected release and tag the resulting compatible commit. Generated source refs and delta artefacts must not depend on the branch names used during earlier migrations.",
     "source_ref": "source/unofficial/current"
   },
   "rendering_requirements": [
