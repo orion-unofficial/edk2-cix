@@ -2,128 +2,128 @@
   "refs": [
     {
       "immutable": true,
-      "object_id": "440582c290b0d534a19f186c3943622bd633a130",
+      "object_id": "5f194f84a22ccba973ac399a1678e240706782b2",
       "ref": "source/release/custom/edk2-202208/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8",
-      "type": "rendered-custom-release"
-    },
-    {
-      "immutable": true,
-      "object_id": "4e728486976db9ec02442fb2b15fd3df5f10d6f9",
-      "ref": "source/release/custom/edk2-202208/radxa-1.2.1/local",
-      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8",
+      "tree_id": "23a1390a5bdc008c9cabb40b5b84feef842ef7b6",
       "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "9ef08b6576983ce80760ebf3916fc4c0ee3c62a9",
+      "object_id": "ff85cc541e069d17468d0d393396c9837e0a05d6",
+      "ref": "source/release/custom/edk2-202208/radxa-1.2.1/local",
+      "tree_id": "23a1390a5bdc008c9cabb40b5b84feef842ef7b6",
+      "type": "rendered-release"
+    },
+    {
+      "immutable": true,
+      "object_id": "cda91f81b3f23257ed4566b3bfb61f23a3e06586",
       "ref": "source/release/custom/edk2-202211/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8",
-      "type": "rendered-custom-release"
+      "tree_id": "054671f168204b8c9086e4c5d795c1dc6adfa561",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "fb384d1c05b17dece0e2c3e45a70df5e63f020cc",
+      "object_id": "42613fcdb3234df3de537c05227112e2c635eeb1",
       "ref": "source/release/custom/edk2-202302/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8",
-      "type": "rendered-custom-release"
+      "tree_id": "8b92382aaacef39760be87147c757618fbc89052",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "ecb89ed7a6fa4afa7b0732fea16b4e735db30c37",
+      "object_id": "fa0f6663a276f2a107bbd97d4e41e784929cf2ff",
       "ref": "source/release/custom/edk2-202305/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "4e34b650a8078e95045439488aa791062e9a2a8b",
-      "type": "rendered-custom-release"
+      "tree_id": "b3884f9d02d752f7b7ef85eb129e1cdb73cba5e3",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "7232cfb37808e2553c0867fe12d546bf816f2159",
+      "object_id": "c318726342b292baeeb6287414cdba78118a3f07",
       "ref": "source/release/custom/edk2-202308/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "af4621898162295d00dfc6ac14f9846e46bd7aa4",
-      "type": "rendered-custom-release"
+      "tree_id": "77efff58309b10551ec33b5d7f28e814a5dac063",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "7f7ed274f05fd3de6761210f182911f93990b819",
+      "object_id": "16a76634bfbafe0ae7f526af7ca99401534f3b52",
       "ref": "source/release/custom/edk2-202311/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "e7aa8f54f2417939ce6894406b797307d81b6537",
-      "type": "rendered-custom-release"
+      "tree_id": "89c32a18a75df1ec45c514daecbd516813c5f002",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "a961298057a19f998513b39d352ea2161162489b",
+      "object_id": "5f5e8769d548707c4db3e315658e80a32d1320eb",
       "ref": "source/release/custom/edk2-202402/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "9f0f09feec5748dc11c024f4ba611c0c18270165",
-      "type": "rendered-custom-release"
+      "tree_id": "5bb36572453e7b37340586007ed25512acebeee3",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "5c64a389174faf71ca8537da2c47a203ff070af0",
+      "object_id": "931b88706afb30c49bfd9a2d369cf812d67545ec",
       "ref": "source/release/custom/edk2-202405/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "38a0e51a7bdb326c72157471992b7694c123800b",
-      "type": "rendered-custom-release"
+      "tree_id": "ea5d3032ee2acb8254fbb581540e0c59362d751f",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "514955c4d35144af9e7cf21d9d63d3a96085e157",
+      "object_id": "186c072b56d584e980e692bc7870215f46a39eae",
       "ref": "source/release/custom/edk2-202408.01/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "cd14ebb75a8a8b07b4556a7155aa69bc1be837d6",
-      "type": "rendered-custom-release"
+      "tree_id": "f0f6393d02aabe20e9b91a438e028d17e15f0878",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "87af600d61cd0520aa00beb4177a7a8f26b1d998",
+      "object_id": "64d3d5a50bd4ca4dd7df02dc9a10e49f4d9d23de",
       "ref": "source/release/custom/edk2-202408/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "4a9033c8b1f69929ae9f89ec3e95b29fd9cd5144",
-      "type": "rendered-custom-release"
+      "tree_id": "0aa512054b0770612f0521b5b166c93c0034fdec",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "4c5723673500efc7f3d440febd1446db97bb408b",
+      "object_id": "400581734eee267e86006829c500ca80f0895890",
       "ref": "source/release/custom/edk2-202411/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "70edaa0bf5a4e6f9cd9b57994b31dd6c248f85f4",
-      "type": "rendered-custom-release"
+      "tree_id": "3113fbe3ae275b8b450a42bf9cae9fcfcfa36ec1",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "9840733b1f92e2df33321513a3f8abf502d28172",
+      "object_id": "7ddfeed4a5432d2ddb329c03b53e53775eb707f4",
       "ref": "source/release/custom/edk2-202502/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "5365594e80bffd1423832446d500c9a9715956d3",
-      "type": "rendered-custom-release"
+      "tree_id": "2775899105e43ee49635f121856acf0c3382d3c3",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "78cfe95945c2a9bd7075708d9603e6895f36fe1c",
+      "object_id": "01ca06290ec680f8fde03b1c58c0f391bef8f5cf",
       "ref": "source/release/custom/edk2-202505/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "158e310a650458e7b56b278388c317d0fd146895",
-      "type": "rendered-custom-release"
+      "tree_id": "b80221a559f7deca90b5d79303c928e9b5c6de57",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "3599de2a72d51656ae9b938d9f6256d30ba12af5",
+      "object_id": "f82416cc7cae999c5b7b0b01beffcb34b94c9f8a",
       "ref": "source/release/custom/edk2-202508/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "8236a55c02e470b35c2d9a7663e3078d854188ea",
-      "type": "rendered-custom-release"
+      "tree_id": "13ecb9d5535b7256b7e93bd1fd10fd67ea65b0a8",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "d5edabc5081484715a8055ef3b9d26c501f5b823",
+      "object_id": "7148aa5747f166bde0a45f1fd956e0b271f7b30c",
       "ref": "source/release/custom/edk2-202511/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "2fc64929454bb0f221cae8f9ff31f0329b146a21",
-      "type": "rendered-custom-release"
+      "tree_id": "6f352c23aa31f2b9c29a4271ae00dc55781553ca",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "ba25ddea1276dfde6bc5cfdba062806eae6f80a5",
+      "object_id": "c0c313e9c656aacdb27530e59eacfef0d76f7cdd",
       "ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "1f54f703f430422c8f6cc94dd6a3e5ca2263765b",
-      "type": "rendered-custom-release"
+      "tree_id": "461bee184e6f5a5907151379d8805f99c47bd76b",
+      "type": "rendered-release"
     },
     {
       "immutable": true,
-      "object_id": "7675d892fa413a052b7564a840bb7f531bff116c",
+      "object_id": "7622378ea841dea12d434fbb9107fa5f26def468",
       "ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1",
-      "tree_id": "1f54f703f430422c8f6cc94dd6a3e5ca2263765b",
+      "tree_id": "461bee184e6f5a5907151379d8805f99c47bd76b",
       "type": "rendered-release"
     },
     {

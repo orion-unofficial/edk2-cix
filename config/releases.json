@@ -7,8 +7,20 @@
       "edk2_release": "edk2-stable202208",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202208/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202208, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202208"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202208/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8"
+      "tree_id": "23a1390a5bdc008c9cabb40b5b84feef842ef7b6"
     },
     "source/release/custom/edk2-202208/radxa-1.2.1/local": {
       "description": "Custom firmware release matching the 202208 local compatibility checkpoint with Radxa 1.2.1 and local changes.",
@@ -23,11 +35,11 @@
         "remove_root_gitmodules": true,
         "steps": [
           {
-            "delta": "source/delta/local/edk2-stable202208"
+            "delta": "source/delta/local/edk2-stable202208-radxa-1.2.1"
           }
         ]
       },
-      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8"
+      "tree_id": "23a1390a5bdc008c9cabb40b5b84feef842ef7b6"
     },
     "source/release/custom/edk2-202211/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -35,8 +47,20 @@
       "edk2_release": "edk2-stable202211",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202211/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202211, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202211"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202211/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8"
+      "tree_id": "054671f168204b8c9086e4c5d795c1dc6adfa561"
     },
     "source/release/custom/edk2-202302/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -44,8 +68,20 @@
       "edk2_release": "edk2-stable202302",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202302/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202302, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202302"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202302/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8"
+      "tree_id": "8b92382aaacef39760be87147c757618fbc89052"
     },
     "source/release/custom/edk2-202305/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -53,8 +89,20 @@
       "edk2_release": "edk2-stable202305",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202305/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202305, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202305"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202305/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "4e34b650a8078e95045439488aa791062e9a2a8b"
+      "tree_id": "b3884f9d02d752f7b7ef85eb129e1cdb73cba5e3"
     },
     "source/release/custom/edk2-202308/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -62,8 +110,20 @@
       "edk2_release": "edk2-stable202308",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202308/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202308, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202308"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202308/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "af4621898162295d00dfc6ac14f9846e46bd7aa4"
+      "tree_id": "77efff58309b10551ec33b5d7f28e814a5dac063"
     },
     "source/release/custom/edk2-202311/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -71,8 +131,20 @@
       "edk2_release": "edk2-stable202311",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202311/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202311, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202311"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202311/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "e7aa8f54f2417939ce6894406b797307d81b6537"
+      "tree_id": "89c32a18a75df1ec45c514daecbd516813c5f002"
     },
     "source/release/custom/edk2-202402/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -80,8 +152,20 @@
       "edk2_release": "edk2-stable202402",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202402/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202402, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202402"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202402/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "9f0f09feec5748dc11c024f4ba611c0c18270165"
+      "tree_id": "5bb36572453e7b37340586007ed25512acebeee3"
     },
     "source/release/custom/edk2-202405/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -89,8 +173,20 @@
       "edk2_release": "edk2-stable202405",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202405/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202405, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202405"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202405/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "38a0e51a7bdb326c72157471992b7694c123800b"
+      "tree_id": "ea5d3032ee2acb8254fbb581540e0c59362d751f"
     },
     "source/release/custom/edk2-202408.01/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -98,8 +194,20 @@
       "edk2_release": "edk2-stable202408.01",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202408.01/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202408.01, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202408.01"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202408.01/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "cd14ebb75a8a8b07b4556a7155aa69bc1be837d6"
+      "tree_id": "f0f6393d02aabe20e9b91a438e028d17e15f0878"
     },
     "source/release/custom/edk2-202408/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -107,8 +215,20 @@
       "edk2_release": "edk2-stable202408",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202408/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202408, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202408"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202408/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "4a9033c8b1f69929ae9f89ec3e95b29fd9cd5144"
+      "tree_id": "0aa512054b0770612f0521b5b166c93c0034fdec"
     },
     "source/release/custom/edk2-202411/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -116,8 +236,20 @@
       "edk2_release": "edk2-stable202411",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202411/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202411, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202411"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202411/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "70edaa0bf5a4e6f9cd9b57994b31dd6c248f85f4"
+      "tree_id": "3113fbe3ae275b8b450a42bf9cae9fcfcfa36ec1"
     },
     "source/release/custom/edk2-202502/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -125,8 +257,20 @@
       "edk2_release": "edk2-stable202502",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202502/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202502, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202502"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202502/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "5365594e80bffd1423832446d500c9a9715956d3"
+      "tree_id": "2775899105e43ee49635f121856acf0c3382d3c3"
     },
     "source/release/custom/edk2-202505/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -134,8 +278,20 @@
       "edk2_release": "edk2-stable202505",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202505/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202505, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202505"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202505/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "158e310a650458e7b56b278388c317d0fd146895"
+      "tree_id": "b80221a559f7deca90b5d79303c928e9b5c6de57"
     },
     "source/release/custom/edk2-202508/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -143,8 +299,20 @@
       "edk2_release": "edk2-stable202508",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202508/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202508, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202508"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202508/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "8236a55c02e470b35c2d9a7663e3078d854188ea"
+      "tree_id": "13ecb9d5535b7256b7e93bd1fd10fd67ea65b0a8"
     },
     "source/release/custom/edk2-202511/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -152,8 +320,20 @@
       "edk2_release": "edk2-stable202511",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202511/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202511, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202511"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202511/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "2fc64929454bb0f221cae8f9ff31f0329b146a21"
+      "tree_id": "6f352c23aa31f2b9c29a4271ae00dc55781553ca"
     },
     "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local": {
       "cix_release": "1.2",
@@ -161,8 +341,20 @@
       "edk2_release": "edk2-stable202602",
       "local_delta": true,
       "radxa_release": "1.2.1",
+      "render": {
+        "base": {
+          "ref": "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1"
+        },
+        "commit_message": "render: custom firmware release with EDK2 202602, Radxa 1.2.1, CIX 1.2 components, and local changes",
+        "remove_root_gitmodules": true,
+        "steps": [
+          {
+            "delta": "source/delta/local/edk2-stable202602"
+          }
+        ]
+      },
       "source_ref": "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
-      "tree_id": "1f54f703f430422c8f6cc94dd6a3e5ca2263765b"
+      "tree_id": "461bee184e6f5a5907151379d8805f99c47bd76b"
     },
     "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1": {
       "cix_release": "1.2",
@@ -172,32 +364,17 @@
       "radxa_release": "1.2.1",
       "render": {
         "base": {
-          "ref": "source/base/rendered/edk2-stable202602"
+          "ref": "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1"
         },
         "commit_message": "render: named custom firmware release alias for local version 1.2.1",
         "remove_root_gitmodules": true,
         "steps": [
           {
-            "delta": "source/delta/radxa/1.2.1/edk2-stable202602"
-          },
-          {
-            "component": {
-              "path": "src/cix-v1.2/tf-a",
-              "ref": "source/component/cix/1.2/tf-a"
-            }
-          },
-          {
-            "component": {
-              "path": "src/cix-v1.2/tee",
-              "ref": "source/component/cix/1.2/op-tee"
-            }
-          },
-          {
             "delta": "source/delta/local/edk2-stable202602"
           }
         ]
       },
-      "tree_id": "1f54f703f430422c8f6cc94dd6a3e5ca2263765b"
+      "tree_id": "461bee184e6f5a5907151379d8805f99c47bd76b"
     },
     "source/release/upstream/edk2-202208/radxa-1.2.1": {
       "description": "Upstream EDK2 202208 checkpoint with Radxa 1.2.1 vendor layer, rendered as ordinary files.",

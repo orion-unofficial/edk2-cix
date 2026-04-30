@@ -15,17 +15,23 @@ HELP = """check-identity-hygiene
 
 Optional variables:
   SCAN_COMMITS=1  Also scan commits reachable from HEAD for generated-identity strings.
+  SCAN_SOURCE_REFS=1
+                  Also scan generated source/local, source/delta/local, and
+                  source/release/custom refs for stale legacy branch names.
   V=1             Print scanned paths.
 
 The scanner is intentionally conservative for the build branch. It looks for
 host-specific paths, generated assistant identity strings, and embedded personal
-email addresses in generated scripts, manifests, and documentation.
+email addresses in generated scripts, manifests, and documentation. With
+SCAN_SOURCE_REFS=1 it also checks generated source refs for stale names from the
+pre-reconstruction branch model.
 """
 
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
     p.add_argument("--scan-commits", default=os.environ.get("SCAN_COMMITS", "0"))
+    p.add_argument("--scan-source-refs", default=os.environ.get("SCAN_SOURCE_REFS", "0"))
     p.add_argument("--v", default=os.environ.get("V", "0"))
     return p
 
@@ -39,7 +45,13 @@ def suspicious_patterns() -> list[tuple[str, re.Pattern[str]]]:
         ("host path", re.compile(re.escape(private_tmp) + "|" + re.escape(generic_tmp) + "|" + re.escape(users_path))),
         ("generated assistant identity", re.compile(generated_name, re.IGNORECASE)),
         ("embedded email", re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")),
+        ("legacy reconstruction branch", legacy_branch_pattern()),
     ]
+
+
+def legacy_branch_pattern() -> re.Pattern[str]:
+    legacy_root = "main-" + "monorepo"
+    return re.compile(legacy_root + r"(-edk2|-upstream(-edk2)?|-meta)?")
 
 
 def tracked_files(repo: Path) -> list[str]:
@@ -82,12 +94,42 @@ def scan_commits(repo: Path) -> list[str]:
     return problems
 
 
+def source_refs(repo: Path) -> list[str]:
+    result = git(
+        repo,
+        "for-each-ref",
+        "--format=%(refname:short)",
+        "refs/heads/source/local",
+        "refs/tags/source/local",
+        "refs/heads/source/delta/local",
+        "refs/heads/source/release/custom",
+    )
+    return [line for line in result.stdout.splitlines() if line]
+
+
+def scan_source_refs(repo: Path, verbose: bool) -> list[str]:
+    problems: list[str] = []
+    pattern = legacy_branch_pattern().pattern
+    for ref in source_refs(repo):
+        if verbose:
+            print(f"scan ref {ref}")
+        result = git(repo, "grep", "-n", "-I", "-E", pattern, ref, "--", ".", check=False)
+        if result.returncode == 0:
+            problems.extend(f"{ref}: {line}" for line in result.stdout.splitlines())
+        elif result.returncode != 1:
+            detail = (result.stderr or result.stdout or "unknown git grep failure").strip()
+            problems.append(f"{ref}: source ref scan failed: {detail}")
+    return problems
+
+
 def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     problems = scan_files(repo, truthy(args.v))
     if truthy(args.scan_commits):
         problems.extend(scan_commits(repo))
+    if truthy(args.scan_source_refs):
+        problems.extend(scan_source_refs(repo, truthy(args.v)))
     if problems:
         raise ReconstructionError("identity hygiene check failed:\n" + "\n".join(f"  - {p}" for p in problems))
     print("identity hygiene check passed")

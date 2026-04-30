@@ -70,6 +70,7 @@ help-vars:
 	@printf '%s\n' '  INSTALL_ROOT=<path>   Firmware install root. Defaults to /boot/efi.'
 	@printf '%s\n' '  INSTALL_SOURCE=<path> Optional staged payload path or path relative to dist/firmware.'
 	@printf '%s\n' '  SIGNING_CERT_SOURCE_DIR=<path> Copy exact-replay signing certs into the rendered worktree before building.'
+	@printf '%s\n' '  SCAN_SOURCE_REFS=1   Also scan generated source refs in check-identity-hygiene.'
 	@printf '%s\n' '  FORCE=1               Allow install to replace existing destination files.'
 	@printf '%s\n' ''
 	@printf '%s\n' 'Configured releases:'

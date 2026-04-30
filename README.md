@@ -106,7 +106,7 @@ For a build variation to be judgement-free and reproducible from this repository
 - `source/delta/radxa/<radxa-release>/<edk2-release>` for the Radxa vendor layer carried to that EDK2 base
 - any selected CIX component refs under `source/component/cix/<cix-release>/`
 - a compatible local-source tag such as `source/unofficial/edk2-stable202208`
-- a generated local delta artefact under `source/delta/local/<edk2-release>`
+- a generated local delta artefact under `source/delta/local/<edk2-release>` for the CIX/Radxa matrix, or a more specific non-conflicting name such as `source/delta/local/edk2-stable202208-radxa-1.2.1` when two variants share the same EDK2 release but use different bases
 - a render plan in `config/releases.json`
 - a build policy entry covering distro defaults and replay availability
 
@@ -136,7 +136,7 @@ make import-local-commits \
 
 `BASE_REF` is the rendered vendor baseline your topic branch is based on. `SOURCE_LOCAL_REF` defaults to `source/unofficial/current` and must remain under `source/unofficial/`. `TARGET_REF` defaults to `source/delta/local/current` and must remain under `source/delta/local/`.
 
-For release-by-release EDK2 compatibility, keep `source/unofficial/current` as the human-readable local source branch and generate one local delta artefact per compatible EDK2 base, for example `source/delta/local/edk2-stable202208` or `source/delta/local/edk2-stable202602`. Compatibility tags such as `source/unofficial/edk2-stable202208` record which local source commit overlays a given EDK2 release cleanly. If the same local commit applies to multiple releases, multiple compatibility tags may point at that commit; if a release requires maintenance, commit the maintenance at the first affected release and tag that new compatible commit.
+For release-by-release EDK2 compatibility, keep `source/unofficial/current` as the human-readable latest local source branch and generate one local delta artefact per compatible EDK2 base, for example `source/delta/local/edk2-stable202208` or `source/delta/local/edk2-stable202602`. Compatibility tags such as `source/unofficial/edk2-stable202208` are full source checkpoints that overlay a given EDK2 release cleanly; they must not be semantic aliases to legacy branches. If the same local commit applies to multiple releases, multiple compatibility tags may point at it; if a release requires maintenance, commit the maintenance at the first affected release and tag that new compatible commit.
 
 
 ## How are deltas represented?
@@ -168,7 +168,7 @@ make verify-release-branch \
   RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local
 ```
 
-Rendered refs are generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and generated `source/delta/local/**` artefacts derived from `source/unofficial/current` compatibility points. The older known-good branches remain as validation references until the reconstructed release branches are explicitly promoted.
+Rendered refs are generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and generated `source/delta/local/**` artefacts derived from `source/unofficial/current` compatibility points. The older known-good branches remain as validation references only; generated source refs and delta artefacts must not depend on those legacy branch names.
 
 ## How do I update upstream EDK2, Arm TF-A, OP-TEE, CIX, or Radxa sources?
 
