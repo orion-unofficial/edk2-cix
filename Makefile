@@ -14,6 +14,10 @@ BASE_REF ?=
 INSTALL_ROOT ?= /boot/efi
 INSTALL_SOURCE ?=
 FORCE ?= 0
+RADXA_RELEASE ?= 1.2.1
+CIX_RELEASE ?= 1.2
+LOCAL_VERSION ?= 1.2.1
+BUILD_POLICY ?=
 
 define PRINT_HELP_SHELL_PROLOGUE
 	set -eu; \
@@ -44,9 +48,9 @@ endef
 
 .PHONY: help help-vars help-dev help-releases all build-all install zip targz buildbox-firmware-build buildbox-firmware-stage \
 	extract-vendor-delta render-release-branch integrate-source-release import-local-commits \
-	verify-release-branch verify-build-matrix check-identity-hygiene \
+	update-release-config verify-release-branch verify-build-matrix check-identity-hygiene \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
-	import-local-commits-help verify-release-branch-help verify-build-matrix-help
+	import-local-commits-help update-release-config-help verify-release-branch-help verify-build-matrix-help
 
 all: help
 
@@ -91,11 +95,13 @@ help-dev:
 	print_help_line 'make verify-build-matrix' 'Validate configured build/source combinations.'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a vendor delta report/diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
+	print_help_line 'make update-release-config' 'Seed release manifest entries for a new EDK2 release.'; \
 	print_help_line 'make import-local-commits' 'Update source/unofficial/current and/or local delta artefacts.'; \
 	print_help_line 'make check-identity-hygiene' 'Scan generated files and refs for path/identity leaks.'; \
 	print_section 'Per-target Help'; \
 	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
 	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
+	print_help_line 'make update-release-config-help' 'Show update-release-config arguments.'; \
 	print_help_line 'make import-local-commits-help' 'Show import-local-commits arguments.'; \
 	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
 	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
@@ -107,9 +113,14 @@ help-dev:
 	print_help_line 'RELEASE=<name>' 'Release, tag, or configured source/release selection.'; \
 	print_help_line 'REF=<ref>' 'Input ref/object for source integration.'; \
 	print_help_line 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
+	print_help_line 'EDK2_RELEASE=<release>' 'EDK2 release to add to config/build-matrix.json and config/releases.json, for example 202605 or edk2-stable202605.'; \
+	print_help_line 'RADXA_RELEASE=<version>' 'Radxa release used by update-release-config.\nDefault: 1.2.1.'; \
+	print_help_line 'CIX_RELEASE=<version>' 'CIX release used by update-release-config.\nDefault: 1.2.'; \
+	print_help_line 'LOCAL_VERSION=<version>' 'Local release alias suffix used by update-release-config.\nDefault: 1.2.1.'; \
 	print_section 'Ref Update Variables'; \
 	print_help_line 'WRITE=1' 'Permit ref creation/advancement in integrate-source-release, import-local-commits, and extract-vendor-delta.'; \
 	print_help_line 'ALLOW_REPLACE=1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
+	print_help_line 'BUILD_POLICY=<name>' 'Build policy for update-release-config.\nDefault: post-edk2-stable202208, or edk2-stable202208 for that release.'; \
 	print_help_line 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before extracting deltas.\nDefault: 1.'; \
 	print_help_line 'BASE_REF=<ref>' 'Base ref for delta extraction/import.'; \
 	print_help_line 'TARGET_REF=<ref>' 'Delta artefact output ref.'; \
@@ -177,6 +188,9 @@ extract-vendor-delta:
 integrate-source-release:
 	@TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(MATERIALISE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
+update-release-config:
+	@EDK2_RELEASE="$(EDK2_RELEASE)" BUILD_POLICY="$(BUILD_POLICY)" RADXA_RELEASE="$(RADXA_RELEASE)" CIX_RELEASE="$(CIX_RELEASE)" LOCAL_VERSION="$(LOCAL_VERSION)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/update_release_config.py --v "$(V)"
+
 import-local-commits:
 	@FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_LOCAL_REF="$(SOURCE_LOCAL_REF)" UPDATE_LOCAL_SOURCE="$(UPDATE_LOCAL_SOURCE)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(LOCAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_local_commits.py --v "$(V)"
 
@@ -197,6 +211,9 @@ extract-vendor-delta-help:
 
 integrate-source-release-help:
 	@$(PYTHON) scripts/integrate_source_release.py --help
+
+update-release-config-help:
+	@$(PYTHON) scripts/update_release_config.py --help
 
 import-local-commits-help:
 	@$(PYTHON) scripts/import_local_commits.py --help

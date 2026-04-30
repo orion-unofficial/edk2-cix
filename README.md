@@ -76,9 +76,24 @@ For Radxa vendor refs, `MATERIALISE=1` is the default. This recursively flattens
 
 After adding source refs for a new supported release:
 
-1. Add the release to `config/build-matrix.json` if it should be part of the supported matrix.
-2. Add or update the corresponding render plans in `config/releases.json`.
-3. Create the persistent release refs with `make render-release-branch RELEASE=<release> PERSIST=1`.
+1. Seed the supported-release metadata:
+
+   ```bash
+   make update-release-config EDK2_RELEASE=202605
+   make update-release-config EDK2_RELEASE=202605 WRITE=1
+   ```
+
+   This updates `config/build-matrix.json` and adds the standard EDK2/Radxa/CIX/local render plans to `config/releases.json`. It is dry-run by default.
+
+2. Integrate the required source refs with `make integrate-source-release`.
+3. Create the persistent release refs and refresh their recorded tree IDs:
+
+   ```bash
+   make render-release-branch \
+     RELEASE=custom/edk2-202605/cix-1.2/radxa-1.2.1/local \
+     PERSIST=1 REBUILD=1 FORCE=1
+   ```
+
 4. Run `make verify-build-matrix` to confirm the policy matrix, release manifest, refs, aliases, and tree IDs agree.
 5. Run the normal build/audit qualification for the new release before publishing it.
 
