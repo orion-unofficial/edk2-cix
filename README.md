@@ -112,6 +112,14 @@ For a build variation to be judgement-free and reproducible from this repository
 
 If any of those inputs is missing, the build may still be possible, but it has not yet been reduced to a fully pre-calculated source combination.
 
+The supported source-tree combinations are explicitly enumerated in `config/build-matrix.json`. Use this check after adding a release, alias, or delta artefact:
+
+```bash
+make verify-build-matrix
+```
+
+That target compares the policy matrix against `config/releases.json`, local `source/release/**` branches, `source/base/rendered/**` refs, `source/delta/radxa/**` artefacts, and local compatibility tags. A declared build variation is not considered supported until this check passes.
+
 ## How do I persist development changes back to `source/unofficial/current`?
 
 Local development is imported explicitly. Ordinary build and render targets never rewrite `source/unofficial/current` or generated `source/delta/local/*` artefacts.
@@ -234,6 +242,8 @@ make integrate-source-release-help
 make import-local-commits-help
 make extract-vendor-delta-help
 make verify-release-branch-help
+make verify-build-matrix-help
+make verify-build-matrix
 make check-identity-hygiene
 ```
 

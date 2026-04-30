@@ -17,9 +17,9 @@ FORCE ?= 0
 
 .PHONY: help help-vars all build-all install zip targz buildbox-firmware-build buildbox-firmware-stage \
 	extract-vendor-delta render-release-branch integrate-source-release import-local-commits \
-	verify-release-branch check-identity-hygiene \
+	verify-release-branch verify-build-matrix check-identity-hygiene \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
-	import-local-commits-help verify-release-branch-help
+	import-local-commits-help verify-release-branch-help verify-build-matrix-help
 
 all: help
 
@@ -39,6 +39,7 @@ help:
 	@printf '%s\n' 'Tooling targets:'
 	@printf '%s\n' '  make render-release-branch        Resolve or create a materialised source/release branch.'
 	@printf '%s\n' '  make verify-release-branch        Validate rendered-branch invariants.'
+	@printf '%s\n' '  make verify-build-matrix          Validate configured build/source combinations.'
 	@printf '%s\n' '  make extract-vendor-delta         Produce a vendor delta report/diff.'
 	@printf '%s\n' '  make integrate-source-release     Integrate new upstream/vendor source refs.'
 	@printf '%s\n' '  make import-local-commits         Explicitly update source/unofficial/current and/or local delta artefacts.'
@@ -50,6 +51,7 @@ help:
 	@printf '%s\n' '  make import-local-commits-help'
 	@printf '%s\n' '  make extract-vendor-delta-help'
 	@printf '%s\n' '  make verify-release-branch-help'
+	@printf '%s\n' '  make verify-build-matrix-help'
 
 help-vars:
 	@printf '%s\n' 'Common variables:'
@@ -119,6 +121,9 @@ verify-release-branch:
 	@if [ -z "$(RELEASE)" ]; then $(MAKE) --no-print-directory verify-release-branch-help; printf '%s\n' 'missing required variable: RELEASE' >&2; exit 2; fi
 	@RELEASE="$(RELEASE)" WORKTREE="$(WORKTREE)" V="$(V)" $(PYTHON) scripts/verify_release_branch.py --v "$(V)"
 
+verify-build-matrix:
+	@V="$(V)" $(PYTHON) scripts/verify_build_matrix.py --v "$(V)"
+
 extract-vendor-delta:
 	@VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"
 
@@ -136,6 +141,9 @@ render-release-branch-help:
 
 verify-release-branch-help:
 	@$(PYTHON) scripts/verify_release_branch.py --help
+
+verify-build-matrix-help:
+	@$(PYTHON) scripts/verify_build_matrix.py --help
 
 extract-vendor-delta-help:
 	@$(PYTHON) scripts/extract_vendor_delta.py --help

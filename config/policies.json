@@ -69,5 +69,10 @@
       "if an external repo is unavailable, proceed when required refs and objects are already local",
       "fail only when required data is unavailable locally and remotely"
     ]
+  },
+  "supported_build_matrix": {
+    "metadata": "config/build-matrix.json",
+    "scope": "source-tree combinations and documented top-level build variables; not byte-identical firmware output",
+    "verification_target": "make verify-build-matrix"
   }
 }
