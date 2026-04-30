@@ -466,7 +466,8 @@ def check_immutable_refs(repo: Path, allow_manifest_update: bool = False, refs: 
         expected_tree = record.get("tree_id")
         actual_oid = rev_parse(repo, ref)
         actual_tree = tree_id(repo, ref)
-        if expected_oid and actual_oid != expected_oid and not allow_manifest_update:
+        is_rendered_output = str(record.get("type", "")).startswith("rendered-")
+        if expected_oid and actual_oid != expected_oid and not allow_manifest_update and not is_rendered_output:
             problems.append(f"{ref}: object moved from {expected_oid} to {actual_oid}")
         if expected_tree and actual_tree != expected_tree and not allow_manifest_update:
             problems.append(f"{ref}: tree moved from {expected_tree} to {actual_tree}")
