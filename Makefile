@@ -74,8 +74,8 @@ help-vars:
 define run_release_make
 	@wt="$$(RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
 	signing_cert_arg="$$(SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
-	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) -C $$wt $(1) V=$(V)"; fi; \
-	$(MAKE) -C "$$wt" $(1) V="$(V)" $$signing_cert_arg
+	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(1) V=$(V)"; fi; \
+	$(MAKE) --no-print-directory -C "$$wt" $(1) V="$(V)" $$signing_cert_arg
 endef
 
 build-all:
@@ -84,8 +84,8 @@ build-all:
 install:
 	@wt="$$(RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
 	signing_cert_arg="$$(SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
-	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) -C $$wt buildbox-firmware-stage V=$(V)"; fi; \
-	$(MAKE) -C "$$wt" buildbox-firmware-stage V="$(V)" $$signing_cert_arg; \
+	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt buildbox-firmware-stage V=$(V)"; fi; \
+	$(MAKE) --no-print-directory -C "$$wt" buildbox-firmware-stage V="$(V)" $$signing_cert_arg; \
 	force_arg=""; \
 	if [ "$(FORCE)" = "1" ]; then force_arg="--force"; fi; \
 	INSTALL_SOURCE="$(INSTALL_SOURCE)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/install_release_payload.py \
