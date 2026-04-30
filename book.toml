@@ -9,8 +9,8 @@ title = "edk2-cix"
 [output.linkcheck2]
 
 [output.html]
-git-repository-url = "https://github.com/radxa-pkg/edk2-cix/tree/main-monorepo"
-edit-url-template = "https://github.com/radxa-pkg/edk2-cix/edit/main-monorepo/{path}"
+git-repository-url = "https://github.com/radxa-pkg/edk2-cix/tree/source/release/custom/edk2-202208/radxa-1.2.1/local"
+edit-url-template = "https://github.com/radxa-pkg/edk2-cix/edit/source/release/custom/edk2-202208/radxa-1.2.1/local/{path}"
 additional-css = ["./theme/css/mdbook-admonish.css"]
 
 [preprocessor.admonish]

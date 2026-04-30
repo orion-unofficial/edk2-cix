@@ -5,7 +5,7 @@ set -euo pipefail
 script_dir="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
 src_dir="$(dirname -- "$script_dir")"
 repo_root="$(dirname -- "$src_dir")"
-upstream_ref="${UPSTREAM_EDK2_REF:-refs/heads/main-monorepo-upstream-edk2}"
+upstream_ref="${UPSTREAM_EDK2_REF:-}"
 
 usage() {
     echo "usage: $0 {source-commit|source-commit-short|source-date-epoch|source-date-iso}" >&2
@@ -16,17 +16,34 @@ git_repo_usable() {
     git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1
 }
 
+resolve_source_base_trailer() {
+    if ! git_repo_usable; then
+        return 1
+    fi
+
+    git -C "$repo_root" log -1 --format=%B HEAD 2>/dev/null | awk -F': ' '/^Source-Base: / { print $2; exit }'
+}
+
 resolve_anchor_commit() {
     local anchor_commit
+    local base_ref
 
     if ! git_repo_usable; then
         return 1
     fi
 
-    anchor_commit="$(git -C "$repo_root" merge-base HEAD "$upstream_ref" 2>/dev/null || true)"
-    if [[ -n "$anchor_commit" ]]; then
-        printf '%s\n' "$anchor_commit"
-        return
+    base_ref="$upstream_ref"
+    if [[ -z "$base_ref" ]]; then
+        base_ref="$(resolve_source_base_trailer || true)"
+    fi
+
+    if [[ -n "$base_ref" ]]; then
+        anchor_commit="$(git -C "$repo_root" merge-base HEAD "$base_ref" 2>/dev/null || true)"
+        if [[ -n "$anchor_commit" ]]; then
+            printf '%s
+' "$anchor_commit"
+            return
+        fi
     fi
 
     git -C "$repo_root" rev-parse HEAD
