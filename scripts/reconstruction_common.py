@@ -454,6 +454,10 @@ def check_immutable_refs(repo: Path, allow_manifest_update: bool = False, refs: 
         if not ref or (wanted and ref not in wanted):
             continue
         if not ref_exists(repo, ref):
+            # Materialised release refs are generated outputs. A pruned clone may
+            # omit them, but any copy that is present is still checked below.
+            if record.get("type") == "rendered-release":
+                continue
             if record.get("optional"):
                 continue
             problems.append(f"{ref}: missing locally")
