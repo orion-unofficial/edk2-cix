@@ -176,7 +176,7 @@ def main() -> int:
     with resolve_vendor_tool(
         explicit_path=args.vendor_tool,
         repo_relpath=VENDOR_TOOL_REPO_RELPATH,
-        refs=refs or ("main-monorepo-upstream", "main"),
+        refs=refs or ("source/release/upstream/edk2-202208/radxa-1.2.1", "main"),
     ) as vendor_tool:
         with tempfile.TemporaryDirectory(prefix="bootloader3-compare-") as td:
             td_path = pathlib.Path(td)
