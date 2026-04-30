@@ -25,9 +25,9 @@ help:
 	@printf '%s\n' '  make help                         Show this help.'
 	@printf '%s\n' '  make help-vars                    Show variables and configured releases.'
 	@printf '%s\n' '  make build-all                    Build the latest configured firmware release.'
-	@printf '%s\n' '  make install                      Delegate install to the rendered release worktree.'
-	@printf '%s\n' '  make zip                          Delegate zip packaging to the rendered release worktree.'
-	@printf '%s\n' '  make targz                        Delegate targz packaging to the rendered release worktree.'
+	@printf '%s\n' '  make install                      Build and stage installable firmware via the buildbox.'
+	@printf '%s\n' '  make zip                          Create a firmware .zip via the buildbox.'
+	@printf '%s\n' '  make targz                        Create a firmware .tar.gz via the buildbox.'
 	@printf '%s\n' '  make buildbox-firmware-build      Delegate buildbox firmware build.'
 	@printf '%s\n' '  make buildbox-firmware-stage      Delegate buildbox firmware stage.'
 	@printf '%s\n' ''
@@ -73,13 +73,13 @@ build-all:
 	$(call run_release_make,build-all)
 
 install:
-	$(call run_release_make,install)
+	$(call run_release_make,buildbox-firmware-stage)
 
 zip:
-	$(call run_release_make,zip)
+	$(call run_release_make,buildbox-zip)
 
 targz:
-	$(call run_release_make,targz)
+	$(call run_release_make,buildbox-targz)
 
 buildbox-firmware-build:
 	$(call run_release_make,buildbox-firmware-build)

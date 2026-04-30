@@ -35,14 +35,14 @@ The `source/base/**`, non-local `source/delta/**`, and `source/component/cix/**`
 
 ## How do I build the latest firmware?
 
-The latest configured release is recorded in `config/releases.json`. Ordinary build targets render or reuse a cached worktree for that release and then delegate to the release branch Makefile.
+The latest configured release is recorded in `config/releases.json`. Ordinary build targets render or reuse a cached worktree for that release and then delegate to the release branch Makefile. User-facing build and packaging targets use the buildbox by default so the host does not need an AArch64 firmware toolchain installed.
 
 ```bash
 git switch control
 make build-all
 ```
 
-Useful packaging targets are also delegated:
+Useful packaging targets are also delegated through the buildbox. `make install` stages an installable firmware payload under the rendered release worktree rather than writing directly to `/boot` from the control branch.
 
 ```bash
 make install
