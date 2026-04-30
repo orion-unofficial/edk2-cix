@@ -10,7 +10,7 @@ from collections.abc import Iterator, Sequence
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-DEFAULT_VENDOR_REFS = ("main-monorepo-upstream", "main")
+DEFAULT_VENDOR_REFS = ("source/release/upstream/edk2-202208/radxa-1.2.1", "main")
 
 
 def git_path_exists(ref: str, repo_relpath: str) -> bool:

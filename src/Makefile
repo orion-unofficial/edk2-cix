@@ -16,7 +16,7 @@ HOST_OS ?= $(if $(EDK2_CIX_HOST_OS),$(EDK2_CIX_HOST_OS),$(shell uname -s))
 HOST_ARCH := $(if $(filter arm64,$(UNAME)),aarch64,$(UNAME))
 EMPTY :=
 SPACE := $(EMPTY) $(EMPTY)
-UPSTREAM_EDK2_REF ?= refs/heads/main-monorepo-upstream-edk2
+UPSTREAM_EDK2_REF ?=
 BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
 MONOREPO_EDK2_COMMIT_HASH ?= 971cfbc5fa
 MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= c051ce622f
@@ -150,10 +150,9 @@ EDK2_BUILD_SILENT_FLAG := $(if $(filter 1,$(V)),,-s)
 
 resolve-path-head = $(strip $(shell git -C .. log -1 --format=%h $(1) -- $(2) 2>/dev/null))
 
-# On main-monorepo-edk2, the imported component trees are regular directories
-# overlaid on top of the uplifted main-monorepo-upstream-edk2 history. Prefer
-# the latest upstream-edk2 branch commit touching each imported component path
-# when it is available locally, then fall back to the recorded abbreviations.
+# Rendered source/release branches carry a Source-Base trailer. Prefer
+# the base commit touching each imported component path when it is
+# available locally, then fall back to the recorded abbreviations.
 EDK2_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2),$(MONOREPO_EDK2_COMMIT_HASH))
 EDK2_NON_OSI_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2-non-osi),$(MONOREPO_EDK2_NON_OSI_COMMIT_HASH))
 EDK2_PLATFORMS_COMMIT_HASH := $(or $(call resolve-path-head,$(UPSTREAM_EDK2_REF),src/edk2-platforms),$(MONOREPO_EDK2_PLATFORMS_COMMIT_HASH))
