@@ -13,10 +13,25 @@
       "base_ref": "source/release/upstream/edk2-202208/radxa-1.2.1",
       "format": "delta.patch plus metadata.json",
       "immutable": false,
-      "object_id": "34d1f500ac03e3fd04ea6b9e20b5412b6b73e2c0",
+      "object_id": "5d599bd18f0fa7176e57e1c9430389c0108c679c",
       "ref": "source/delta/local/edk2-stable202208",
-      "tree_id": "1ad76c799c39cbd6d03d8cabc527bd89bb1d0a14",
+      "tree_id": "d391668cf666fd0ae64c367b15f11c55cb14c8b9",
       "type": "local-delta-artefact"
+    },
+    {
+      "base_ref": "source/release/upstream/edk2-202208/radxa-1.2.1",
+      "compatible_edk2_releases": [
+        "edk2-stable202208"
+      ],
+      "format": "ordinary source branch",
+      "immutable": false,
+      "object_id": "fad437e06ab983240fe8fbb08299de5f5162e3c5",
+      "ref": "source/unofficial/current",
+      "tag_refs": [
+        "source/unofficial/edk2-stable202208"
+      ],
+      "tree_id": "855aef20eea59046a09cf612e854d07ebf7b64e8",
+      "type": "local-source"
     }
   ],
   "schema_version": 1

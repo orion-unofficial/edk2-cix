@@ -8,13 +8,17 @@
       "source/base/arm/op-tee/<release-or-ref>",
       "source/base/rendered/<edk2-release>"
     ],
-    "local_ref": "source/delta/local/current (delta artefact branch)",
+    "local_delta_refs": [
+      "source/delta/local/<edk2-release> (generated delta artefact branch)"
+    ],
+    "local_ref": "source/unofficial/current (ordinary local source branch)",
     "rendered_refs": [
+      "source/release/custom/edk2-202208/radxa-1.2.1/local",
+      "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
+      "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1",
       "source/release/upstream/edk2-202208/radxa-1.2.1",
       "source/release/upstream/edk2-202602/radxa-1.2.1",
-      "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1",
-      "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local",
-      "source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1"
+      "source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1"
     ],
     "vendor_component_refs": [
       "source/delta/radxa/<vendor-release>/<edk2-base> (delta artefact branch)",
@@ -64,6 +68,15 @@
       "upstream_only_files": 2,
       "vendor_added_files": 76
     }
+  },
+  "local_roll_forward_policy": {
+    "compatibility_tags": [
+      "source/unofficial/edk2-stable202208"
+    ],
+    "generated_delta_refs": "source/delta/local/<edk2-release>",
+    "initial_compatible_release": "edk2-stable202208",
+    "policy": "Local changes are maintained as an ordinary source branch and projected into per-EDK2-release delta artefacts. If the same local source commit overlays multiple EDK2 releases cleanly, multiple compatibility tags may point to it. If a release requires maintenance, commit that maintenance to source/unofficial/current at the point it is first required and tag the resulting compatible commit.",
+    "source_ref": "source/unofficial/current"
   },
   "rendering_requirements": [
     "recursively materialise submodules at every depth",

@@ -17,7 +17,7 @@ Rendered release branches must be ordinary Git trees. They must not retain activ
 2. Run `make help` and `make help-vars`.
 3. Render or check out the firmware release you want to develop against.
 4. Develop on a normal topic branch created from the rendered release branch.
-5. Persist the finished change back through `source/delta/local/current` with `make import-local-commits`.
+5. Persist the finished change back through `source/unofficial/current` with `make import-local-commits`.
 
 Example:
 
@@ -100,9 +100,21 @@ make render-release-branch \
 
 That command also refreshes the rendered ref metadata in `config/refs/rendered.json` and the release tree ID in `config/releases.json`.
 
-## How do I persist development changes back to `source/delta/local/current`?
+For a build variation to be judgement-free and reproducible from this repository, it needs all of the following recorded locally:
 
-Local development is imported explicitly. Ordinary build and render targets never rewrite `source/delta/local/current`.
+- `source/base/rendered/<edk2-release>` for the selected EDK2, `edk2-platforms`, and `edk2-non-osi` sources
+- `source/delta/radxa/<radxa-release>/<edk2-release>` for the Radxa vendor layer carried to that EDK2 base
+- any selected CIX component refs under `source/component/cix/<cix-release>/`
+- a compatible local-source tag such as `source/unofficial/edk2-stable202208`
+- a generated local delta artefact under `source/delta/local/<edk2-release>`
+- a render plan in `config/releases.json`
+- a build policy entry covering distro defaults and replay availability
+
+If any of those inputs is missing, the build may still be possible, but it has not yet been reduced to a fully pre-calculated source combination.
+
+## How do I persist development changes back to `source/unofficial/current`?
+
+Local development is imported explicitly. Ordinary build and render targets never rewrite `source/unofficial/current` or generated `source/delta/local/*` artefacts.
 
 Dry run first:
 
@@ -112,21 +124,24 @@ make import-local-commits \
   FROM_REF=my-change
 ```
 
-Then update the local delta ref:
+Then update the local source branch and generated local delta artefact deliberately:
 
 ```bash
 make import-local-commits \
   BASE_REF=source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1 \
   FROM_REF=my-change \
+  UPDATE_LOCAL_SOURCE=1 \
   WRITE=1
 ```
 
-`BASE_REF` is the rendered vendor baseline your topic branch is based on. `TARGET_REF` defaults to `source/delta/local/current` and must remain under `source/delta/local/`.
+`BASE_REF` is the rendered vendor baseline your topic branch is based on. `SOURCE_LOCAL_REF` defaults to `source/unofficial/current` and must remain under `source/unofficial/`. `TARGET_REF` defaults to `source/delta/local/current` and must remain under `source/delta/local/`.
+
+For release-by-release EDK2 compatibility, keep `source/unofficial/current` as the human-readable local source branch and generate one local delta artefact per compatible EDK2 base, for example `source/delta/local/edk2-stable202208` or `source/delta/local/edk2-stable202602`. Compatibility tags such as `source/unofficial/edk2-stable202208` record which local source commit overlays a given EDK2 release cleanly. If the same local commit applies to multiple releases, multiple compatibility tags may point at that commit; if a release requires maintenance, commit the maintenance at the first affected release and tag that new compatible commit.
 
 
 ## How are deltas represented?
 
-`source/delta/radxa/**` and `source/delta/local/current` are delta artefact branches. Each contains:
+`source/unofficial/current` is an ordinary source branch. `source/delta/radxa/**` and `source/delta/local/**` are generated delta artefact branches. Each delta artefact contains:
 
 - `metadata.json` with base/target object IDs and submodule metadata
 - `delta.patch` generated with `git diff --binary --full-index`
@@ -136,7 +151,7 @@ This representation is intentional: a plain tree cannot encode deletions or rena
 
 Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`.
 
-## How do I project `source/delta/local/current` to a materialised firmware branch?
+## How do I project `source/unofficial/current` to a materialised firmware branch?
 
 Render a configured release that includes the local layer:
 
@@ -153,7 +168,7 @@ make verify-release-branch \
   RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local
 ```
 
-Rendered refs are generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and `source/delta/local/current`. The older known-good branches remain as validation references until the reconstructed release branches are explicitly promoted.
+Rendered refs are generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and generated `source/delta/local/**` artefacts derived from `source/unofficial/current` compatibility points. The older known-good branches remain as validation references until the reconstructed release branches are explicitly promoted.
 
 ## How do I update upstream EDK2, Arm TF-A, OP-TEE, CIX, or Radxa sources?
 

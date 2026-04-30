@@ -1,4 +1,16 @@
 {
+  "build_policy": {
+    "edk2-stable202208": {
+      "byte_identical_replay_builds": "permitted for one-time Radxa 1.2.1 qualification when exact signing certificate inputs are supplied",
+      "default_firmware_distro": "bookworm",
+      "notes": "This is the vendor baseline release and remains the only supported exact-replay policy point."
+    },
+    "post-edk2-stable202208": {
+      "byte_identical_replay_builds": "not valid after the EDK2 implementation is rebased",
+      "default_firmware_distro": "trixie",
+      "notes": "Post-202208 builds are deterministic source reconstructions, but not byte-identical replays of the original vendor firmware."
+    }
+  },
   "delta_artefacts": {
     "binary_safe": true,
     "replacement_policy": "Use delta artefacts when relative changes include deletes, renames, binary files, or intentional absence that cannot be represented by an ordinary tree alone.",
@@ -15,7 +27,7 @@
       "source/component/cix/**",
       "non-local source/delta/**"
     ],
-    "mutable_local_ref": "source/delta/local/current",
+    "mutable_local_ref": "source/unofficial/current",
     "rules": [
       "config/refs/*.json records expected object IDs and tree IDs",
       "scripts compare immutable refs against manifests before use",
@@ -24,7 +36,8 @@
       "if an immutable ref is checked out in a dirty worktree, abort",
       "only integrate-source-release may create or advance immutable refs",
       "integration updates the relevant manifest in the same operation",
-      "ordinary build targets never rewrite source/delta/local/current"
+      "ordinary build targets never rewrite source/unofficial/current",
+      "source/delta/local/* refs are generated local delta artefacts and are rewritten only by explicit local import workflows"
     ]
   },
   "rendered_branch_policy": {

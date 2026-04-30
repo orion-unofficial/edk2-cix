@@ -8,6 +8,8 @@ PERSIST ?= 0
 WORKTREE ?=
 TARGET_REF ?=
 LOCAL_TARGET_REF ?= source/delta/local/current
+SOURCE_LOCAL_REF ?= source/unofficial/current
+UPDATE_LOCAL_SOURCE ?= 0
 BASE_REF ?=
 INSTALL_ROOT ?= /boot/efi
 INSTALL_SOURCE ?=
@@ -39,7 +41,7 @@ help:
 	@printf '%s\n' '  make verify-release-branch        Validate rendered-branch invariants.'
 	@printf '%s\n' '  make extract-vendor-delta         Produce a vendor delta report/diff.'
 	@printf '%s\n' '  make integrate-source-release     Integrate new upstream/vendor source refs.'
-	@printf '%s\n' '  make import-local-commits         Explicitly update source/delta/local/current.'
+	@printf '%s\n' '  make import-local-commits         Explicitly update source/unofficial/current and/or local delta artefacts.'
 	@printf '%s\n' '  make check-identity-hygiene       Scan generated reconstruction files for path/identity leaks.'
 	@printf '%s\n' ''
 	@printf '%s\n' 'Per-target help:'
@@ -61,7 +63,9 @@ help-vars:
 	@printf '%s\n' '  ALLOW_REPLACE=1       Allow integrate-source-release to move an existing immutable ref.'
 	@printf '%s\n' '  MATERIALISE=1         Flatten Radxa vendor refs before extracting deltas. Defaults to 1.'
 	@printf '%s\n' '  TARGET_REF=<ref>      Delta artefact output ref.'
-	@printf '%s\n' '  LOCAL_TARGET_REF=<ref> Local import target; defaults to source/delta/local/current.'
+	@printf '%s\n' '  SOURCE_LOCAL_REF=<ref> Local source branch; defaults to source/unofficial/current.'
+	@printf '%s\n' '  UPDATE_LOCAL_SOURCE=1  Allow import-local-commits to advance SOURCE_LOCAL_REF.'
+	@printf '%s\n' '  LOCAL_TARGET_REF=<ref> Local delta target; defaults to source/delta/local/current.'
 	@printf '%s\n' '  BASE_REF=<ref>        Base ref for delta extraction/import.'
 	@printf '%s\n' '  INSTALL_ROOT=<path>   Firmware install root. Defaults to /boot/efi.'
 	@printf '%s\n' '  INSTALL_SOURCE=<path> Optional staged payload path or path relative to dist/firmware.'
@@ -121,7 +125,7 @@ integrate-source-release:
 	@TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(MATERIALISE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
 import-local-commits:
-	@FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(LOCAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_local_commits.py --v "$(V)"
+	@FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_LOCAL_REF="$(SOURCE_LOCAL_REF)" UPDATE_LOCAL_SOURCE="$(UPDATE_LOCAL_SOURCE)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(LOCAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_local_commits.py --v "$(V)"
 
 check-identity-hygiene:
 	@SCAN_COMMITS="$(SCAN_COMMITS)" V="$(V)" $(PYTHON) scripts/check_identity_hygiene.py --v "$(V)"
