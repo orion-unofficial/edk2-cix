@@ -48,7 +48,7 @@ name: "Custom Secure Boot"
   pull_request: {}
   push:
     branches:
-    - "main-monorepo"
+    - "source/release/custom/edk2-202208/radxa-1.2.1/local"
   workflow_dispatch: {}
 permissions:
   contents: "read"
