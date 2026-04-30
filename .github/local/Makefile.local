@@ -64,6 +64,7 @@ EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE ?=
 CCACHE_BIN ?=
 CCACHE_DIR ?= $(REPO_ROOT)/build-cache/ccache
 CCACHE_WRAPPER_ROOT ?= $(REPO_ROOT)/build-cache/ccache-toolchain
+CCACHE_STATS_FORMAT ?= human
 CCACHE_DISABLE_ORIGIN := $(origin CCACHE_DISABLE)
 CCACHE_DIR_ABS := $(abspath $(CCACHE_DIR))
 CCACHE_WRAPPER_ROOT_ABS := $(abspath $(CCACHE_WRAPPER_ROOT))
@@ -1442,5 +1443,5 @@ __buildbox-ccache-stats:
 		rm -f "$$stats_log"; \
 		exit 1; \
 	fi; \
-	python3 -c 'import json, pathlib, sys; text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"); start = text.rfind("{"); print("{}" if start == -1 else json.dumps(json.loads(text[start:]), sort_keys=True))' "$$stats_log"; \
+	python3 "$(REPO_ROOT)/scripts/format_ccache_stats.py" --format "$(CCACHE_STATS_FORMAT)" "$$stats_log"; \
 	rm -f "$$stats_log"
