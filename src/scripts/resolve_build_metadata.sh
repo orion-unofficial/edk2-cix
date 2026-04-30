@@ -40,8 +40,7 @@ resolve_anchor_commit() {
     if [[ -n "$base_ref" ]]; then
         anchor_commit="$(git -C "$repo_root" merge-base HEAD "$base_ref" 2>/dev/null || true)"
         if [[ -n "$anchor_commit" ]]; then
-            printf '%s
-' "$anchor_commit"
+            printf '%s\n' "$anchor_commit"
             return
         fi
     fi
