@@ -80,7 +80,6 @@ help:
 	print_help_line 'make buildbox-firmware-build' 'Delegate firmware build to the selected buildbox.'; \
 	print_help_line 'make buildbox-firmware-stage' 'Delegate firmware staging to the selected buildbox.'; \
 	print_section 'Help Targets'; \
-	print_help_line 'make' 'Show this help.'; \
 	print_help_line 'make help' 'Show this help.'; \
 	print_help_line 'make help-vars' 'Show common build variables.'; \
 	print_help_line 'make help-variants' 'List configured firmware variants.'; \
