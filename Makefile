@@ -29,7 +29,6 @@ UART3_ENABLE ?=
 DEBUG_VERBOSE ?=
 DEBUG_PRINT_ERROR_LEVEL ?=
 CIX_RELEASE ?=
-BUILD_POLICY ?=
 QUALITY_IMAGE ?= edk2-cix-build-quality:latest
 
 define PRINT_HELP_SHELL_PROLOGUE
@@ -100,7 +99,7 @@ help-vars:
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
 	print_help_line 'FORCE=0|1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \
 	print_section 'Variant Selection'; \
-	print_help_line 'make help-variants' 'List configured firmware variant names generated from the build matrix.'; \
+	print_help_line 'make help-variants' 'List firmware variant names generated from local source refs.'; \
 	printf '\n%s\n' 'For source-update and maintainer variables, run: make help-dev'
 
 help-dev:
@@ -108,10 +107,10 @@ help-dev:
 	print_section 'Source Update and Developer Targets'; \
 	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/release branch.'; \
 	print_help_line 'make verify-release-branch' 'Validate a materialised firmware variant branch.'; \
-	print_help_line 'make verify-build-matrix' 'Validate configured build/source variant combinations.'; \
+	print_help_line 'make verify-build-matrix' 'Validate build/source variant combinations derived from local refs.'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a vendor delta report/diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
-	print_help_line 'make update-release-config' 'Seed variant manifest entries for a new EDK2 release.'; \
+	print_help_line 'make update-release-config' 'Report source refs needed for a new EDK2 release.'; \
 	print_help_line 'make import-local-commits' 'Update source/unofficial/current and/or local delta artefacts.'; \
 	print_help_line 'make check-identity-hygiene' 'Scan generated files and refs for path/identity leaks.'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
@@ -124,11 +123,10 @@ help-dev:
 	print_help_line 'REF=<ref>' 'Input ref/object for source integration.'; \
 	print_help_line 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
 	print_help_line 'ARM_BASE=<release>' 'Arm upstream base used when recording a CIX TF-A or OP-TEE component uplift.'; \
-	print_help_line 'EDK2_RELEASE=<release>' 'EDK2 release to add to config/build-matrix.json, for example 202605 or edk2-stable202605.'; \
+	print_help_line 'EDK2_RELEASE=<release>' 'EDK2 release to inspect, for example 202605 or edk2-stable202605.'; \
 	print_section 'Ref Update Variables'; \
 	print_help_line 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release, import-local-commits, and extract-vendor-delta.'; \
 	print_help_line 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
-	print_help_line 'BUILD_POLICY=<name>' 'Build policy for update-release-config.\nDefault: post-edk2-stable202208, or edk2-stable202208 for that release.'; \
 	print_help_line 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before extracting deltas.\nDefault: 1.'; \
 	print_help_line 'BASE_REF=<ref>' 'Base ref for delta extraction/import.'; \
 	print_help_line 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
@@ -236,7 +234,7 @@ integrate-source-release:
 	@DEBUG="$(DEBUG)" TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(MATERIALISE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
 update-release-config:
-	@DEBUG="$(DEBUG)" EDK2_RELEASE="$(EDK2_RELEASE)" BUILD_POLICY="$(BUILD_POLICY)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/update_release_config.py --v "$(V)"
+	@DEBUG="$(DEBUG)" EDK2_RELEASE="$(EDK2_RELEASE)" $(PYTHON) scripts/update_release_config.py
 
 import-local-commits:
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_LOCAL_REF="$(SOURCE_LOCAL_REF)" UPDATE_LOCAL_SOURCE="$(UPDATE_LOCAL_SOURCE)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(LOCAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_local_commits.py --v "$(V)"

@@ -33,10 +33,10 @@ Optional variables:
 
 Checks:
   - every derived firmware variant has a render plan
-  - every declared firmware variant branch/ref exists locally
+  - every firmware variant branch/ref derived from source refs exists locally
   - required base, vendor, component, and local refs exist
-  - actual source/release branches are all declared in the build matrix
-  - Radxa delta and rendered-base refs cover every declared EDK2 release
+  - actual source/release branches are all derivable from source refs
+  - Radxa delta and rendered-base refs cover every supported EDK2 release
   - local compatibility tags are reachable from retained source/local branches
   - versioned local aliases have the same tree as their non-alias local branch
 """
@@ -66,7 +66,7 @@ def entry_required_refs(entry: dict[str, Any]) -> set[str]:
     return refs
 
 
-def expected_from_matrix(repo: Path, matrix: dict[str, Any]) -> tuple[set[str], set[str], dict[str, str]]:
+def expected_from_source_refs(repo: Path) -> tuple[set[str], set[str], dict[str, str]]:
     releases = release_entries(repo)
     expected_releases = set(releases)
     expected_required_refs: set[str] = set()
@@ -75,7 +75,7 @@ def expected_from_matrix(repo: Path, matrix: dict[str, Any]) -> tuple[set[str], 
         edk2_ref = entry.get("edk2_release")
         if entry.get("local_delta") and edk2_ref:
             expected_required_refs.add(f"source/unofficial/{edk2_ref}")
-    _branches, aliases = matrix_release_branches(repo, matrix)
+    _branches, aliases = matrix_release_branches(repo)
     return expected_releases, expected_required_refs, aliases
 
 
@@ -130,9 +130,9 @@ def require_manifested_release_entries(
     missing_config = sorted(expected_releases - configured)
     extra_config = sorted(configured - expected_releases)
     if missing_config:
-        problems.append("derived render plans are missing declared matrix variants:\n" + "\n".join(f"  - {r}" for r in missing_config))
+        problems.append("derived render plans are missing source-derived variants:\n" + "\n".join(f"  - {r}" for r in missing_config))
     if extra_config:
-        problems.append("derived render plans contain variants not declared in config/build-matrix.json:\n" + "\n".join(f"  - {r}" for r in extra_config))
+        problems.append("derived render plans contain variants not derivable from source refs:\n" + "\n".join(f"  - {r}" for r in extra_config))
 
     actual = actual_source_release_refs(repo)
     missing_refs = sorted(expected_releases - actual)
@@ -140,7 +140,7 @@ def require_manifested_release_entries(
     if missing_refs:
         problems.append("missing source/release refs:\n" + "\n".join(f"  - {r}" for r in missing_refs))
     if extra_refs:
-        problems.append("source/release refs are not derivable from current source refs and config/build-matrix.json:\n" + "\n".join(f"  - {r}" for r in extra_refs))
+        problems.append("source/release refs are not derivable from current source refs:\n" + "\n".join(f"  - {r}" for r in extra_refs))
 
     for ref in sorted(expected_releases):
         if ref not in releases:
@@ -158,12 +158,11 @@ def require_manifested_release_entries(
 
 def require_source_refs(
     repo: Path,
-    matrix: dict[str, Any],
+    all_releases: list[str],
     expected_required_refs: set[str],
     verbose: bool,
 ) -> list[str]:
     problems: list[str] = []
-    all_releases = matrix_release_values(matrix)
     expected_base_rendered = {f"source/base/rendered/edk2-stable{release}" for release in all_releases}
     expected_radxa = {ref for ref in expected_required_refs if ref.startswith("source/delta/radxa/")}
     expected_local_tags = {ref for ref in expected_required_refs if ref.startswith("source/unofficial/")}
@@ -205,7 +204,7 @@ def require_source_refs(
         )
     if extra_base_rendered:
         problems.append(
-            "source/base/rendered refs are not declared in config/build-matrix.json:\n"
+            "source/base/rendered refs do not match supported EDK2 source/base refs:\n"
             + "\n".join(f"  - {r}" for r in sorted(extra_base_rendered))
         )
     if expected_radxa != actual_radxa:
@@ -264,13 +263,17 @@ def require_alias_trees(repo: Path, aliases: dict[str, str]) -> list[str]:
     return problems
 
 
-def require_build_policy(matrix: dict[str, Any]) -> list[str]:
+def build_policy_for_release(release: str) -> str:
+    return "edk2-stable202208" if release == "202208" else "post-edk2-stable202208"
+
+
+def require_build_policy(releases: list[str]) -> list[str]:
     problems: list[str] = []
     policies = load_json(repo_root(Path(__file__)), "config/policies.json").get("build_policy", {})
-    for item in matrix.get("edk2_releases", []):
-        policy = item.get("build_policy")
+    for release in releases:
+        policy = build_policy_for_release(release)
         if policy not in policies:
-            problems.append(f"{item.get('edk2_ref', item.get('release'))}: unknown build_policy {policy!r}")
+            problems.append(f"edk2-stable{release}: unknown build_policy {policy!r}")
     return problems
 
 
@@ -278,20 +281,20 @@ def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
-    matrix = load_json(repo, "config/build-matrix.json")
+    releases = matrix_release_values(repo)
 
-    expected_releases, expected_required_refs, aliases = expected_from_matrix(repo, matrix)
+    expected_releases, expected_required_refs, aliases = expected_from_source_refs(repo)
     problems: list[str] = []
     problems.extend(require_manifested_release_entries(repo, expected_releases, verbose))
-    problems.extend(require_source_refs(repo, matrix, expected_required_refs, verbose))
+    problems.extend(require_source_refs(repo, releases, expected_required_refs, verbose))
     problems.extend(require_alias_trees(repo, aliases))
-    problems.extend(require_build_policy(matrix))
+    problems.extend(require_build_policy(releases))
 
     if problems:
-        raise ReconstructionError("build matrix verification failed:\n" + "\n\n".join(problems))
+        raise ReconstructionError("derived build matrix verification failed:\n" + "\n\n".join(problems))
 
     print(
-        f"validated build matrix: {len(matrix_release_values(matrix))} EDK2 releases, "
+        f"validated derived build matrix: {len(releases)} EDK2 releases, "
         f"{len(expected_releases)} firmware variant refs"
     )
 

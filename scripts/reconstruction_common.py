@@ -66,6 +66,7 @@ def truthy(value: str | int | bool | None) -> bool:
 
 RELEASE_STAGE_PREFIXES = ("custom", "vendor", "upstream")
 UNBUILDABLE_RADXA_RELEASES = {"0.1.1-1"}
+MIN_SUPPORTED_EDK2_RELEASE = "202208"
 
 
 def version_key(value: str) -> tuple[Any, ...]:
@@ -129,11 +130,29 @@ def variant_name(branch: str) -> str:
     return short
 
 
-def matrix_release_values(matrix: dict[str, Any]) -> list[str]:
-    values = [item["release"] for item in matrix.get("edk2_releases", [])]
-    if not values:
-        raise ReconstructionError("config/build-matrix.json does not declare any edk2_releases")
-    return values
+EDK2_BASE_REF_RE = re.compile(
+    r"^source/base/edk2/edk2/edk2-stable(?P<release>\d{6}(?:\.\d+)?)$"
+)
+
+
+def matrix_release_values(repo: Path) -> list[str]:
+    """Return supported EDK2 releases from local base refs."""
+
+    values: set[str] = set()
+    for ref in for_each_ref(repo, "source/base/edk2/edk2"):
+        match = EDK2_BASE_REF_RE.match(ref)
+        if not match:
+            continue
+        release = match.group("release")
+        if version_key(release) >= version_key(MIN_SUPPORTED_EDK2_RELEASE):
+            values.add(release)
+    if values:
+        return sorted(values, key=version_key)
+
+    raise ReconstructionError(
+        "no supported EDK2 base refs are available; expected "
+        "source/base/edk2/edk2/edk2-stable* refs from 202208 onward"
+    )
 
 
 def edk2_ref_for_release(release: str) -> str:
@@ -224,8 +243,8 @@ def local_compatibility_edk2_refs(repo: Path) -> set[str]:
     return refs
 
 
-def matrix_release_branches(repo: Path, matrix: dict[str, Any]) -> tuple[set[str], dict[str, str]]:
-    all_releases = matrix_release_values(matrix)
+def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
+    all_releases = matrix_release_values(repo)
     supported_edk2 = {edk2_ref_for_release(release) for release in all_releases}
     radxa_by_edk2 = radxa_releases_by_edk2(repo, supported_edk2)
     cix_releases = available_cix_releases(repo)
@@ -371,8 +390,7 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
 
 
 def release_entries(repo: Path) -> dict[str, dict[str, Any]]:
-    matrix = load_json(repo, "config/build-matrix.json")
-    branches, _aliases = matrix_release_branches(repo, matrix)
+    branches, _aliases = matrix_release_branches(repo)
     return {branch: synthesise_release_entry(repo, branch) for branch in sorted(branches)}
 
 

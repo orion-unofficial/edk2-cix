@@ -34,7 +34,7 @@
   "delta_artefact_policy": {
     "format": "A delta artefact branch contains README.md, metadata.json, and delta.patch.",
     "reason": "Patch artefacts encode additions, modifications, deletes, renames, binary files, and intentional absence relative to a base tree.",
-    "render_order": "Render plans are synthesised from the selected source/release branch name and config/build-matrix.json: component skeleton base, vendor delta artefacts, component replacements, then local delta artefacts."
+    "render_order": "Render plans are synthesised from the selected source/release branch name and available source/base, source/component, and source/delta refs: component skeleton base, vendor delta artefacts, component replacements, then local delta artefacts."
   },
   "known_component_comparison": {
     "op_tee_3.17.0_to_cix_1.2": {
@@ -57,7 +57,7 @@
   "local_roll_forward_policy": {
     "compatibility_branches": "derived from source/unofficial/edk2-stable* refs",
     "compatibility_tags": "derived from source/unofficial/edk2-stable* tags",
-    "covered_edk2_releases": "derived from source/unofficial/edk2-stable* refs and config/build-matrix.json",
+    "covered_edk2_releases": "derived from source/base/edk2/edk2/edk2-stable* refs from 202208 onward plus source/unofficial/edk2-stable* refs",
     "current_compatible_release": "derived from latest source/unofficial/edk2-stable* ref",
     "generated_delta_refs": "source/delta/local/<edk2-release> for the CIX/Radxa matrix, with a more specific suffix when the same EDK2 release has multiple local bases",
     "initial_compatible_release": "derived from earliest source/unofficial/edk2-stable* ref",
