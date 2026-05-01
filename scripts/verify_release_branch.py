@@ -33,6 +33,7 @@ Optional variables:
 Checks:
   - rendered tree has no gitlinks
   - rendered tree has no active root .gitmodules
+  - missing source/release refs can be regenerated from source refs
   - immutable source refs match config/refs metadata
   - git log and git blame work on representative paths when a worktree is supplied
 """
@@ -78,7 +79,11 @@ def main() -> None:
     branch, _entry = release_entry(repo, args.release, require=True)
     ref = resolve_branch_or_origin(repo, branch, verbose=verbose)
     if ref is None:
-        raise ReconstructionError(f"firmware variant branch is unavailable: {branch}")
+        print(f"[verify] Rendering generated firmware variant for validation: {branch}", file=sys.stderr)
+        from render_release_branch import render_from_plan
+
+        _branch, entry = release_entry(repo, args.release, require=True)
+        ref = render_from_plan(repo, branch, entry, verbose)
 
     check_immutable_refs(repo)
 

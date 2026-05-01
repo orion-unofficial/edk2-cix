@@ -16,6 +16,7 @@ from reconstruction_common import (
     matrix_release_branches,
     matrix_release_values,
     ref_exists,
+    rendered_ref_records,
     release_entries,
     repo_root,
     rev_parse,
@@ -33,9 +34,10 @@ Optional variables:
 
 Checks:
   - every derived firmware variant has a render plan
-  - every firmware variant branch/ref derived from source refs exists locally
+  - every firmware variant branch/ref derived from source refs is renderable
   - required base, vendor, component, and local refs exist
-  - actual source/release branches are all derivable from source refs
+  - retained source/release branches are all derivable from source refs
+  - retained source/release branches match config/refs/rendered.json tree IDs
   - Radxa delta and rendered-base refs cover every supported EDK2 release
   - local compatibility tags are reachable from retained source/local branches
   - versioned local aliases have the same tree as their non-alias local branch
@@ -52,7 +54,7 @@ def entry_required_refs(entry: dict[str, Any]) -> set[str]:
     refs: set[str] = set()
     render = entry.get("render", {})
     base = render.get("base", {})
-    if base.get("ref"):
+    if base.get("ref") and not base["ref"].startswith("source/release/"):
         refs.add(base["ref"])
     for step in render.get("steps", []):
         if step.get("delta"):
@@ -135,23 +137,31 @@ def require_manifested_release_entries(
         problems.append("derived render plans contain variants not derivable from source refs:\n" + "\n".join(f"  - {r}" for r in extra_config))
 
     actual = actual_source_release_refs(repo)
-    missing_refs = sorted(expected_releases - actual)
     extra_refs = sorted(actual - expected_releases)
-    if missing_refs:
-        problems.append("missing source/release refs:\n" + "\n".join(f"  - {r}" for r in missing_refs))
     if extra_refs:
         problems.append("source/release refs are not derivable from current source refs:\n" + "\n".join(f"  - {r}" for r in extra_refs))
 
-    for ref in sorted(expected_releases):
+    rendered_records = rendered_ref_records(repo)
+    extra_records = sorted(set(rendered_records) - expected_releases)
+    if extra_records:
+        problems.append(
+            "config/refs/rendered.json contains variants not derivable from current source refs:\n"
+            + "\n".join(f"  - {r}" for r in extra_records)
+        )
+
+    for ref in sorted(actual & expected_releases):
         if ref not in releases:
-            continue
-        if not ref_exists(repo, ref):
             continue
         expected_tree = releases[ref].get("tree_id")
         if expected_tree and tree_id(repo, ref) != expected_tree:
             problems.append(f"{ref}: tree ID differs from config/refs/rendered.json ({tree_id(repo, ref)} != {expected_tree})")
         if verbose:
-            print(f"variant ok: {ref}")
+            print(f"retained variant ok: {ref}")
+
+    if verbose:
+        omitted = sorted(expected_releases - actual)
+        for ref in omitted:
+            print(f"generated variant ok: {ref}")
 
     return problems
 

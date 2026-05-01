@@ -50,6 +50,9 @@
   },
   "rendered_branch_policy": {
     "requirements": [
+      "source/release/** refs are generated firmware artefacts, not irreducible source inputs.",
+      "A pruned clone may omit source/release/** branches when the source/base, source/component, source/delta, and source/local refs needed to regenerate them are present.",
+      "Generated release commits are validated by tree ID rather than object ID because commit metadata may differ after regeneration.",
       "Rendered branches must adhere to conventional Git UX over exact retention of stale .gitmodules files.",
       "Rendered branches must contain no gitlinks or active root .gitmodules files.",
       "Submodule metadata is retained in manifests/reports, not as active submodule state.",
@@ -61,7 +64,7 @@
   },
   "self_contained_source_policy": {
     "committed_data": [
-      "rendered buildable release branches",
+      "source refs and manifests needed to regenerate rendered buildable release branches",
       "base component refs needed by supported releases",
       "vendor component refs and deltas",
       "non-public or fragile vendor blobs, tools, and certificates",
@@ -70,7 +73,7 @@
     ],
     "goal": "The repository must contain everything required to build supported firmware even if external upstream remotes disappear.",
     "remote_access": [
-      "ordinary builds use local rendered refs first",
+      "ordinary builds use local rendered refs first when present, otherwise generate them from local source refs",
       "if a rendered ref is missing, fetch it from this repository origin",
       "external upstream/vendor repos are contacted only for integration or rendering when required objects are missing",
       "if an external repo is unavailable, proceed when required refs and objects are already local",
@@ -84,6 +87,7 @@
     "rules": [
       "local compatibility tags mark full local source checkpoints for each supported EDK2 release",
       "each local compatibility tag must be reachable from a retained source/unofficial/** branch",
+      "tag names should not exactly duplicate branch names; the current source/unofficial/edk2-stable* tag namespace should be migrated to a non-colliding namespace before publication",
       "base, CIX, and Radxa source versions are recorded as branches plus config/refs metadata; duplicating them as tags is optional and not required by the build model"
     ]
   }

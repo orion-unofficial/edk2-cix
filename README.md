@@ -150,7 +150,7 @@ This representation is intentional: a patch can record deletions, renames, binar
 
 Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`. That report is mainly a diagnostic and audit aid: it records which submodule paths were flattened, which commit IDs were used, which URL was recorded for each submodule, and which `.gitmodules` file supplied that mapping. You can usually ignore it when a build succeeds, but it is useful when checking that a rendered branch contains ordinary files rather than active submodules.
 
-`source/release/**` branches are materialised firmware branches. They are generated from the base, component, vendor, and local layers. They are convenient to inspect or build, but they can be regenerated from the recorded source layers and manifests.
+`source/release/**` branches are materialised firmware branches. They are generated from the base, component, vendor, and local layers. They are convenient to inspect or build, but they are not required source inputs: a pruned checkout may omit them and regenerate the selected variant from the recorded source layers and manifests.
 
 ## How do I start developing on this codebase?
 
@@ -209,7 +209,7 @@ Here, an EDK2 release means the upstream EDK2 code together with its matching `e
 
 For example, if the same local source commit works on both `edk2-stable202502` and `edk2-stable202505`, both compatibility tags may point at that commit. If `edk2-stable202508` needs an extra adjustment, make that adjustment at the `202508` checkpoint, then tag the adjusted commit as the compatible `202508` source.
 
-Those compatibility tags must be reachable from retained `source/unofficial/**` branches. A pruned clone should therefore keep both the tags and the matching `source/unofficial/edk2-stable*` branches, rather than preserving tag-only orphan commits.
+Compatibility tags must remain reachable from retained `source/unofficial/**` branches, rather than becoming tag-only orphan commits. The current compatibility tag names duplicate the matching branch names, which is confusing and should be corrected before publication by moving the tags to a non-colliding namespace while keeping the branch names as the source checkpoints.
 
 ## How do I update upstream EDK2, Arm TF-A, OP-TEE, CIX, or Radxa sources?
 
@@ -301,7 +301,7 @@ make verify-release-branch \
   RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/local
 ```
 
-Materialised refs are generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and generated `source/delta/local/**` artefacts derived from `source/unofficial/current` compatibility points.
+Materialised refs are generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and generated `source/delta/local/**` artefacts derived from `source/unofficial/current` compatibility points. They may be stored as `source/release/**` branches for convenience, but ordinary build and validation targets can regenerate them when those branches are absent.
 
 ## How do I test a floating upstream tip instead of the latest release?
 
