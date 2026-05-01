@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve and optionally materialise a configured firmware release branch."""
+"""Resolve and optionally materialise a configured firmware variant branch."""
 
 from __future__ import annotations
 
@@ -32,24 +32,26 @@ from reconstruction_common import (
     tree_id,
     truthy,
     update_ref,
+    variant_name,
 )
 
 
 HELP = """render-release-branch
 
 Required variables:
-  RELEASE    Short release name or full source/release/... branch name.
+  RELEASE    Firmware variant name from make help-variants, or a full
+             source/release/... branch name.
 
 Optional variables:
   PERSIST=1  Create the rendered source/release/... branch if it is missing.
-  REBUILD=1  Regenerate the release from its render plan.
+  REBUILD=1  Regenerate the variant from its render plan.
   FORCE=1    With PERSIST=1 and REBUILD=1, intentionally replace the rendered
              branch and refresh config/refs/rendered.json plus releases.json.
   V=1        Print delegated git operations and warnings.
 
 Example:
   make render-release-branch \\
-    RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1 \\
+    RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1 \\
     PERSIST=1
 """
 
@@ -69,15 +71,15 @@ def ignore_worktree_cache(worktree: Path) -> None:
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
-    p.add_argument("--release", default=os.environ.get("RELEASE", ""), help="short release name or source/release/... branch")
+    p.add_argument("--release", default=os.environ.get("RELEASE", ""), help="firmware variant name or source/release/... branch")
     p.add_argument("--require-release", action="store_true", help="fail if --release is empty instead of using the default")
     p.add_argument("--persist", default=os.environ.get("PERSIST", "0"), help="create a persistent source/release branch when set to 1")
     p.add_argument("--rebuild", default=os.environ.get("REBUILD", "0"), help="regenerate from render plan instead of reusing an existing branch")
     p.add_argument("--force", default=os.environ.get("FORCE", "0"), help="allow replacing an existing rendered branch with a different tree")
-    p.add_argument("--ensure-worktree", action="store_true", help="create or reuse a detached worktree for the resolved release")
+    p.add_argument("--ensure-worktree", action="store_true", help="create or reuse a detached worktree for the resolved variant")
     p.add_argument("--print-worktree", action="store_true", help="print only the worktree path")
     p.add_argument("--print-ref", action="store_true", help="print the resolved ref/branch")
-    p.add_argument("--print-default-release", action="store_true", help="print the configured default short release")
+    p.add_argument("--print-default-release", action="store_true", help="print the configured default variant")
     p.add_argument("--v", default=os.environ.get("V", "0"), help="verbosity flag propagated from make")
     return p
 
@@ -346,7 +348,7 @@ def main() -> None:
 
     releases = __import__("reconstruction_common").load_json(repo, "config/releases.json")
     if args.print_default_release:
-        print(releases.get("default_release", ""))
+        print(variant_name(releases.get("default_release", "")))
         return
 
     if args.require_release and not args.release:
@@ -368,7 +370,7 @@ def main() -> None:
 
     if target_ref is None:
         raise ReconstructionError(
-            f"release branch {branch} is unavailable locally and could not be fetched from origin.\n"
+            f"firmware variant branch {branch} is unavailable locally and could not be fetched from origin.\n"
             "External upstream/vendor remotes are not contacted for ordinary rendering; "
             "run integrate-source-release if source objects are missing."
         )
@@ -417,7 +419,7 @@ def main() -> None:
     elif args.print_ref:
         print(branch if ref_exists(repo, branch) else target_ref)
     else:
-        print(f"release: {short_release(branch)}")
+        print(f"variant: {variant_name(branch)}")
         print(f"branch:  {branch}")
         print(f"ref:     {branch if ref_exists(repo, branch) else target_ref}")
         if wt:

@@ -29,7 +29,7 @@ Optional variables:
 
 After writing:
   1. integrate the missing source refs with make integrate-source-release
-  2. create release refs with make render-release-branch PERSIST=1 REBUILD=1 FORCE=1
+  2. create variant refs with make render-release-branch PERSIST=1 REBUILD=1 FORCE=1
   3. run make verify-build-matrix
 """
 
@@ -120,13 +120,13 @@ def release_entries(release: str, edk2_ref: str, radxa: str, cix: str, local_ver
         },
         f"source/release/custom/edk2-{release}/cix-{cix}/radxa-{radxa}/local": {
             "cix_release": cix,
-            "description": f"Custom firmware release with EDK2 {release}, Radxa {radxa}, CIX {cix} components, and local changes.",
+            "description": f"Firmware variant with EDK2 {release}, Radxa {radxa}, CIX {cix} components, and local changes.",
             "edk2_release": edk2_ref,
             "local_delta": True,
             "radxa_release": radxa,
             "render": {
                 "base": {"ref": f"source/release/vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"},
-                "commit_message": f"render: custom firmware release with EDK2 {release}, Radxa {radxa}, CIX {cix} components, and local changes",
+                "commit_message": f"render: firmware variant with EDK2 {release}, Radxa {radxa}, CIX {cix} components, and local changes",
                 "remove_root_gitmodules": True,
                 "steps": [{"delta": f"source/delta/local/{edk2_ref}"}],
             },
@@ -134,13 +134,13 @@ def release_entries(release: str, edk2_ref: str, radxa: str, cix: str, local_ver
         },
         f"source/release/custom/edk2-{release}/cix-{cix}/radxa-{radxa}/local-{local_version}": {
             "cix_release": cix,
-            "description": f"Named custom firmware release alias for local version {local_version} on EDK2 {release}.",
+            "description": f"Named firmware variant alias for local version {local_version} on EDK2 {release}.",
             "edk2_release": edk2_ref,
             "local_delta": True,
             "radxa_release": radxa,
             "render": {
                 "base": {"ref": f"source/release/vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"},
-                "commit_message": f"render: named custom firmware release alias for local version {local_version} on EDK2 {release}",
+                "commit_message": f"render: named firmware variant alias for local version {local_version} on EDK2 {release}",
                 "remove_root_gitmodules": True,
                 "steps": [{"delta": f"source/delta/local/{edk2_ref}"}],
             },

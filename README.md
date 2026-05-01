@@ -12,12 +12,12 @@ Users who want to build firmware, rather than change the source model, should fi
 ```bash
 make help
 make help-vars
-make help-releases
+make help-variants
 ```
 
 ## How do I build the latest firmware?
 
-The latest configured firmware release is recorded in `config/releases.json`. If you do not set `RELEASE=...`, the build targets use that latest configured release. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
+The latest configured firmware variant is recorded in `config/releases.json`. If you do not set `RELEASE=...`, the build targets use that latest configured variant. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
 
 For a normal single firmware build, choose the board and build target:
 
@@ -30,7 +30,7 @@ Common variables are:
 
 - `FIRMWARE_BOARD=O6|O6N` selects the board. The default is `O6`.
 - `FIRMWARE_TARGET=RELEASE|DEBUG` selects a release or debug firmware image. The default is `RELEASE`.
-- `RELEASE=<release>` selects a configured source release. Leave this unset to use the latest configured release.
+- `RELEASE=<variant>` selects a configured firmware variant. Leave this unset to use the latest configured variant.
 - `V=1` enables verbose script and delegated build output. The default, `V=0`, keeps output concise.
 
 To stage the deployable payload under `dist/firmware/`, use:
@@ -59,26 +59,26 @@ make install FIRMWARE_BOARD=O6 INSTALL_ROOT=/boot/efi FORCE=1
 make build-all FIRMWARE_BOARD=O6
 ```
 
-Exact-replay comparisons can provide `SIGNING_CERT_SOURCE_DIR=<path>`. The wrapper copies the certificate inputs into the rendered worktree before invoking the buildbox, so the path remains available inside the container and does not dirty source-controlled files.
+Exact-replay comparisons can provide `SIGNING_CERT_SOURCE_DIR=<path>`. This is a maintainer-oriented option documented by `make help-dev`; normal firmware builds do not need it.
 
 ## How do I choose EDK2/CIX/Radxa source versions?
 
-A release name selects the combination of EDK2, CIX, Radxa, and local project sources to build. Use `make help-releases` to list the configured combinations.
+A firmware variant selects the combination of EDK2, CIX, Radxa, and local project sources to build. Use `make help-variants` to list the configured combinations.
 
 ```bash
-make help-releases
+make help-variants
 ```
 
-Use the `RELEASE` variable to select one of those combinations. The documented form is the short name without the `source/release/` prefix:
+Use the `RELEASE` variable to select one of those combinations. The documented form is the prefixless variant name shown by `make help-variants`:
 
 ```bash
 make buildbox-firmware-build \
-  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local \
+  RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/local \
   FIRMWARE_BOARD=O6N \
   FIRMWARE_TARGET=RELEASE
 ```
 
-The full branch name is also accepted:
+The full internal branch name is also accepted:
 
 ```bash
 make buildbox-firmware-build \
@@ -90,7 +90,7 @@ Build targets render or reuse a cached detached worktree. They do not normally c
 
 ```bash
 make render-release-branch \
-  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1 \
+  RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1 \
   PERSIST=1
 ```
 
@@ -100,15 +100,15 @@ This creates or verifies:
 source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1
 ```
 
-If an explicit local import changes the rendered tree, rebuild and replace the persistent release deliberately:
+If an explicit local import changes the rendered tree, rebuild and replace the persistent branch deliberately:
 
 ```bash
 make render-release-branch \
-  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local \
+  RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/local \
   PERSIST=1 REBUILD=1 FORCE=1
 ```
 
-That command also refreshes the rendered ref metadata in `config/refs/rendered.json` and the release tree ID in `config/releases.json`.
+That command also refreshes the rendered ref metadata in `config/refs/rendered.json` and the variant tree ID in `config/releases.json`.
 
 A configured build variation is considered supported only when all of its source inputs are recorded locally. At a high level, this means:
 
@@ -116,7 +116,7 @@ A configured build variation is considered supported only when all of its source
 - the Radxa vendor changes are available for that EDK2 release
 - any selected CIX component refs are present under `source/component/cix/<cix-release>/`
 - the compatible local project source checkpoint and local delta are present
-- `config/releases.json` contains a render plan for the chosen release
+- `config/releases.json` contains a render plan for the chosen variant
 - the build policy records the relevant distro defaults and replay availability
 
 Run this to check that the declared build matrix and available refs agree:
@@ -149,9 +149,9 @@ Render plans can also include an explicit `materialise_submodules` step. If any 
 
 ## How do I start developing on this codebase?
 
-1. Choose the firmware release you want to develop against with `make help-releases`.
-2. Materialise that firmware release.
-3. Create a normal topic branch from the materialised release branch.
+1. Choose the firmware variant you want to develop against with `make help-variants`.
+2. Materialise that firmware variant.
+3. Create a normal topic branch from the materialised firmware branch.
 4. Build and test your change.
 5. Import the finished change back through `source/unofficial/current` with `make import-local-commits`.
 
@@ -159,7 +159,7 @@ Example:
 
 ```bash
 make render-release-branch \
-  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local \
+  RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/local \
   PERSIST=1
 git switch -c my-change source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local
 ```
@@ -244,7 +244,7 @@ The CIX bundle records original vendor provenance. To start an experimental upli
 
    The recorded ref is `source/component/cix/1.2/tf-a/v2.12`. Use `COMPONENT=op-tee ARM_BASE=4.4.0` for OP-TEE.
 
-4. Add or update a release entry that selects the uplifted component ref, render it, and run the same build/audit qualification used for EDK2 releases.
+4. Add or update a firmware variant entry that selects the uplifted component ref, render it, and run the same build/audit qualification used for EDK2 releases.
 
 The component port itself is intentionally a source-level engineering step rather than an automatic patch replay. The deterministic part starts once the reviewed component ref is recorded in `source/component/cix/**` and `config/refs/cix.json`.
 
@@ -260,7 +260,7 @@ make integrate-source-release \
 
 For Radxa vendor refs, `MATERIALISE=1` is the default. This recursively flattens a submodule-shaped vendor source ref before the `source/delta/radxa/**` artefact is generated, so the delta describes ordinary file content rather than gitlinks.
 
-After adding source refs for a new supported release:
+After adding source refs for a new supported EDK2 release:
 
 1. Seed the supported-release metadata:
 
@@ -269,29 +269,29 @@ After adding source refs for a new supported release:
    make update-release-config EDK2_RELEASE=202605 WRITE=1
    ```
 
-   This updates `config/build-matrix.json` and adds the standard EDK2/Radxa/CIX/local render plans to `config/releases.json`. It is dry-run by default.
+   This updates `config/build-matrix.json` and adds the standard EDK2/Radxa/CIX/local variant render plans to `config/releases.json`. It is dry-run by default.
 
 2. Integrate the required source refs with `make integrate-source-release`.
-3. Create the persistent release refs and refresh their recorded tree IDs:
+3. Create the persistent variant refs and refresh their recorded tree IDs:
 
    ```bash
    make render-release-branch \
-     RELEASE=custom/edk2-202605/cix-1.2/radxa-1.2.1/local \
+     RELEASE=edk2-202605/cix-1.2/radxa-1.2.1/local \
      PERSIST=1 REBUILD=1 FORCE=1
    ```
 
-4. Run `make verify-build-matrix` to confirm the policy matrix, release manifest, refs, aliases, and tree IDs agree.
-5. Run the normal build/audit qualification for the new release before publishing it.
+4. Run `make verify-build-matrix` to confirm the policy matrix, variant manifest, refs, aliases, and tree IDs agree.
+5. Run the normal build/audit qualification for the new variant before publishing it.
 
-`make help-releases` lists the currently configured releases directly from `config/releases.json`.
+`make help-variants` lists the currently configured firmware variants directly from `config/releases.json`.
 
 ## How do I project `source/unofficial/current` to a materialised firmware branch?
 
-Render a configured release that includes the local layer:
+Render a configured variant that includes the local layer:
 
 ```bash
 make render-release-branch \
-  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local \
+  RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/local \
   PERSIST=1
 ```
 
@@ -299,14 +299,14 @@ Then validate it:
 
 ```bash
 make verify-release-branch \
-  RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local
+  RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/local
 ```
 
 Materialised refs are generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and generated `source/delta/local/**` artefacts derived from `source/unofficial/current` compatibility points.
 
 ## How do I test a floating upstream tip instead of the latest release?
 
-Integrate the upstream component using an explicit `REF` or a release-like name chosen for the experiment, then render a test release branch that references it.
+Integrate the upstream component using an explicit `REF` or a release-like name chosen for the experiment, then render a test variant branch that references it.
 
 ```bash
 make integrate-source-release TYPE=upstream COMPONENT=edk2 REF=<upstream-object> RELEASE=floating-test WRITE=1
@@ -329,7 +329,7 @@ There is no separate offline mode flag. The scripts try to proceed from local da
 
 ## Validation checklist
 
-For normal firmware building, the build target itself performs the necessary preflight checks. When changing source-model metadata, release manifests, or materialised branches, run:
+For normal firmware building, the build target itself performs the necessary preflight checks. When changing source-model metadata, variant manifests, or materialised branches, run:
 
 ```bash
 make verify-build-matrix
@@ -339,5 +339,5 @@ make check-identity-hygiene
 For a materialised branch, also run:
 
 ```bash
-make verify-release-branch RELEASE=custom/edk2-202602/cix-1.2/radxa-1.2.1/local
+make verify-release-branch RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/local
 ```

@@ -26,11 +26,11 @@ HELP = """verify-build-matrix
 No variables are required.
 
 Optional variables:
-  V=1  Print every expected release branch and required source ref.
+  V=1  Print every expected firmware variant branch and required source ref.
 
 Checks:
-  - every release declared in config/build-matrix.json exists in config/releases.json
-  - every declared release branch/ref exists locally
+  - every firmware variant declared in config/build-matrix.json exists in config/releases.json
+  - every declared firmware variant branch/ref exists locally
   - required base, vendor, component, and local refs exist
   - actual source/release branches are all declared in the build matrix
   - Radxa delta and rendered-base refs cover every declared EDK2 release
@@ -149,9 +149,9 @@ def require_manifested_release_entries(
     missing_config = sorted(expected_releases - configured)
     extra_config = sorted(configured - expected_releases)
     if missing_config:
-        problems.append("config/releases.json is missing declared matrix releases:\n" + "\n".join(f"  - {r}" for r in missing_config))
+        problems.append("config/releases.json is missing declared matrix variants:\n" + "\n".join(f"  - {r}" for r in missing_config))
     if extra_config:
-        problems.append("config/releases.json contains releases not declared in config/build-matrix.json:\n" + "\n".join(f"  - {r}" for r in extra_config))
+        problems.append("config/releases.json contains variants not declared in config/build-matrix.json:\n" + "\n".join(f"  - {r}" for r in extra_config))
 
     actual = actual_source_release_refs(repo)
     missing_refs = sorted(expected_releases - actual)
@@ -170,7 +170,7 @@ def require_manifested_release_entries(
         if expected_tree and tree_id(repo, ref) != expected_tree:
             problems.append(f"{ref}: tree ID differs from config/releases.json ({tree_id(repo, ref)} != {expected_tree})")
         if verbose:
-            print(f"release ok: {ref}")
+            print(f"variant ok: {ref}")
 
     return problems
 
@@ -312,7 +312,7 @@ def main() -> None:
 
     print(
         f"validated build matrix: {len(release_values(matrix))} EDK2 releases, "
-        f"{len(expected_releases)} release refs"
+        f"{len(expected_releases)} firmware variant refs"
     )
 
 

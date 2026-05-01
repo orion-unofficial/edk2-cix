@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate rendered release branch invariants."""
+"""Validate rendered firmware variant branch invariants."""
 
 from __future__ import annotations
 
@@ -24,7 +24,8 @@ from reconstruction_common import (
 HELP = """verify-release-branch
 
 Required variables:
-  RELEASE    Short release name or full source/release/... branch name.
+  RELEASE    Firmware variant name from make help-variants, or a full
+             source/release/... branch name.
 
 Optional variables:
   WORKTREE=<path>  Existing worktree to use for log/blame checks.
@@ -78,7 +79,7 @@ def main() -> None:
     branch, _entry = release_entry(repo, args.release, require=True)
     ref = resolve_branch_or_origin(repo, branch, verbose=verbose)
     if ref is None:
-        raise ReconstructionError(f"release branch is unavailable: {branch}")
+        raise ReconstructionError(f"firmware variant branch is unavailable: {branch}")
 
     check_immutable_refs(repo)
 

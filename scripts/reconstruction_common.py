@@ -64,11 +64,21 @@ def truthy(value: str | int | bool | None) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
+RELEASE_STAGE_PREFIXES = ("custom", "vendor", "upstream")
+
+
 def release_to_branch(release: str) -> str:
     if release.startswith("refs/heads/"):
         release = release[len("refs/heads/") :]
     if release.startswith("source/release/"):
         return release
+    first, _, _rest = release.partition("/")
+    if first in RELEASE_STAGE_PREFIXES:
+        return f"source/release/{release}"
+    if "/local" in release:
+        return f"source/release/custom/{release}"
+    if "/cix-" in release:
+        return f"source/release/vendor/{release}"
     return f"source/release/{release}"
 
 
@@ -78,6 +88,16 @@ def branch_to_ref(branch: str) -> str:
 
 def short_release(branch: str) -> str:
     return branch[len("source/release/") :] if branch.startswith("source/release/") else branch
+
+
+def variant_name(branch: str) -> str:
+    """Return the user-facing firmware variant name for a source/release branch."""
+
+    short = short_release(branch)
+    first, sep, rest = short.partition("/")
+    if sep and first in RELEASE_STAGE_PREFIXES:
+        return rest
+    return short
 
 
 def safe_name(value: str) -> str:
@@ -149,11 +169,22 @@ def release_entry(repo: Path, release: str | None, require: bool = False) -> tup
         if require:
             raise ReconstructionError("RELEASE is required and no default release is configured")
         raise ReconstructionError("no release selected")
-    branch = release_to_branch(selected)
     entries: dict[str, Any] = releases.get("releases", {})
+    matches = [
+        (branch, entry)
+        for branch, entry in entries.items()
+        if selected in {branch, short_release(branch), variant_name(branch)}
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        variants = "\n".join(f"  - {branch}" for branch, _entry in matches)
+        raise ReconstructionError(f"ambiguous firmware variant: {selected}\n{variants}")
+
+    branch = release_to_branch(selected)
     entry = entries.get(branch) or entries.get(short_release(branch))
     if entry is None:
-        raise ReconstructionError(f"unknown release: {selected}\nUse make help-releases to list configured releases.")
+        raise ReconstructionError(f"unknown firmware variant: {selected}\nUse make help-variants to list configured variants.")
     return branch, entry
 
 
@@ -413,7 +444,7 @@ def refresh_release_tree(repo: Path, branch: str) -> None:
     entries = data.setdefault("releases", {})
     entry = entries.get(branch) or entries.get(short_release(branch))
     if entry is None:
-        raise ReconstructionError(f"cannot update release manifest for unknown release: {branch}")
+        raise ReconstructionError(f"cannot update variant manifest for unknown source/release branch: {branch}")
     entry["tree_id"] = tree_id(repo, branch)
     write_json(path, data)
 

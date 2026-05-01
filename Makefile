@@ -60,7 +60,7 @@ define PRINT_HELP_SHELL_PROLOGUE
 	}
 endef
 
-.PHONY: help help-vars help-dev help-releases all build-all install zip targz buildbox-firmware-build buildbox-firmware-stage \
+.PHONY: help help-vars help-dev help-variants help-releases all build-all install zip targz buildbox-firmware-build buildbox-firmware-stage \
 	extract-vendor-delta render-release-branch integrate-source-release import-local-commits \
 	update-release-config verify-release-branch verify-build-matrix check-identity-hygiene \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
@@ -71,10 +71,7 @@ all: help
 help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	printf '%s\n' 'edk2-cix firmware build targets'; \
-	print_section 'Common Targets'; \
-	print_help_line 'make help' 'Show this help.'; \
-	print_help_line 'make help-vars' 'Show common build variables.'; \
-	print_help_line 'make help-releases' 'List configured firmware releases.'; \
+	print_section 'Build Targets'; \
 	print_help_line 'make build-all' 'Build a distributable archive containing all supported firmware variants for the selected board.'; \
 	print_help_line 'make install' 'Build, safety-check, and install firmware.'; \
 	print_help_line 'make zip' 'Create a firmware .zip via the buildbox.'; \
@@ -82,39 +79,40 @@ help:
 	print_section 'Buildbox Targets'; \
 	print_help_line 'make buildbox-firmware-build' 'Delegate firmware build to the selected buildbox.'; \
 	print_help_line 'make buildbox-firmware-stage' 'Delegate firmware staging to the selected buildbox.'; \
-	print_section 'More Help'; \
+	print_section 'Help Targets'; \
+	print_help_line 'make' 'Show this help.'; \
+	print_help_line 'make help' 'Show this help.'; \
+	print_help_line 'make help-vars' 'Show common build variables.'; \
+	print_help_line 'make help-variants' 'List configured firmware variants.'; \
 	print_help_line 'make help-dev' 'Show source-update and developer tooling targets.'; \
 	print_help_line 'make <target>-help' 'Show arguments for a developer tooling target.'
 
 help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Common Build Variables'; \
-	print_help_line 'RELEASE=<release>' 'Select a configured firmware release.\nAccepts short names or full source/release/... branch names.\nDefault: config/releases.json:default_release.'; \
+	print_help_line 'RELEASE=<variant>' 'Select a configured firmware variant.\nAccepts names from make help-variants or full source/release/... branch names.\nDefault: config/releases.json:default_release.'; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
 	print_help_line 'FIRMWARE_TARGET=RELEASE|DEBUG' 'Select the firmware build target.\nDefault: RELEASE.'; \
-	print_help_line 'FIRMWARE_DISTRO=bookworm|trixie' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected release policy default.'; \
+	print_help_line 'FIRMWARE_DISTRO=bookworm|trixie' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected variant policy default.'; \
 	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds.\nDefault: custom.'; \
 	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
 	print_help_line 'DEBUG=1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
-	print_help_line 'SIGNING_CERT_SOURCE_DIR=<path>' 'Copy exact-replay signing certs into the build worktree.\nDefault: unset.'; \
 	print_section 'Install Variables'; \
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
-	print_help_line 'INSTALL_SOURCE=<path>' 'Optional staged payload path, or path relative to dist/firmware.\nDefault: latest staged firmware payload.'; \
 	print_help_line 'FORCE=1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \
-	print_section 'Release Selection'; \
-	print_help_line 'make help-releases' 'List configured release names generated from config/releases.json.'; \
-	print_help_line 'PERSIST=1' 'For render-release-branch: create or verify a named source/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a source/release branch.\nDefault: 0.'; \
+	print_section 'Variant Selection'; \
+	print_help_line 'make help-variants' 'List configured firmware variant names generated from config/releases.json.'; \
 	printf '\n%s\n' 'For source-update and maintainer variables, run: make help-dev'
 
 help-dev:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Source Update and Developer Targets'; \
 	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/release branch.'; \
-	print_help_line 'make verify-release-branch' 'Validate a materialised release branch.'; \
-	print_help_line 'make verify-build-matrix' 'Validate configured build/source combinations.'; \
+	print_help_line 'make verify-release-branch' 'Validate a materialised firmware variant branch.'; \
+	print_help_line 'make verify-build-matrix' 'Validate configured build/source variant combinations.'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a vendor delta report/diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
-	print_help_line 'make update-release-config' 'Seed release manifest entries for a new EDK2 release.'; \
+	print_help_line 'make update-release-config' 'Seed variant manifest entries for a new EDK2 release.'; \
 	print_help_line 'make import-local-commits' 'Update source/unofficial/current and/or local delta artefacts.'; \
 	print_help_line 'make check-identity-hygiene' 'Scan generated files and refs for path/identity leaks.'; \
 	print_section 'Per-target Help'; \
@@ -129,13 +127,13 @@ help-dev:
 	print_help_line 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa or CIX-carried source layers.'; \
 	print_help_line 'COMPONENT=<name>' 'For TYPE=upstream: edk2, edk2-platforms, edk2-non-osi, tf-a, or op-tee.'; \
 	print_help_line 'VENDOR=radxa|cix' 'For TYPE=vendor. Radxa updates the EDK2 vendor layer; CIX updates the TF-A/OP-TEE release bundle.'; \
-	print_help_line 'RELEASE=<name>' 'Release, tag, or configured source/release selection.'; \
+	print_help_line 'RELEASE=<name>' 'For source integration: release, tag, or source version name.'; \
 	print_help_line 'REF=<ref>' 'Input ref/object for source integration.'; \
 	print_help_line 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
 	print_help_line 'EDK2_RELEASE=<release>' 'EDK2 release to add to config/build-matrix.json and config/releases.json, for example 202605 or edk2-stable202605.'; \
 	print_help_line 'RADXA_RELEASE=<version>' 'Radxa release used by update-release-config.\nDefault: 1.2.1.'; \
 	print_help_line 'CIX_RELEASE=<version>' 'CIX release used by update-release-config.\nDefault: 1.2.'; \
-	print_help_line 'LOCAL_VERSION=<version>' 'Local release alias suffix used by update-release-config.\nDefault: 1.2.1.'; \
+	print_help_line 'LOCAL_VERSION=<version>' 'Local variant alias suffix used by update-release-config.\nDefault: 1.2.1.'; \
 	print_section 'Ref Update Variables'; \
 	print_help_line 'WRITE=1' 'Permit ref creation/advancement in integrate-source-release, import-local-commits, and extract-vendor-delta.'; \
 	print_help_line 'ALLOW_REPLACE=1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
@@ -148,12 +146,18 @@ help-dev:
 	print_help_line 'UPDATE_LOCAL_SOURCE=1' 'Allow import-local-commits to advance SOURCE_LOCAL_REF.'; \
 	print_help_line 'LOCAL_TARGET_REF=<ref>' 'Local delta target; defaults to source/delta/local/current.'; \
 	print_help_line 'SCAN_SOURCE_REFS=1' 'Also scan generated source refs in check-identity-hygiene.'; \
-	print_section 'Release Matrix'; \
-	print_help_line 'make help-releases' 'Show configured releases.'; \
-	print_help_line 'make verify-build-matrix' 'Check release metadata, refs, and build-policy coverage.'
+	print_section 'Rendering and Qualification Variables'; \
+	print_help_line 'PERSIST=1' 'For render-release-branch: create or verify a named source/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a source/release branch.'; \
+	print_help_line 'SIGNING_CERT_SOURCE_DIR=<path>' 'Copy exact-replay signing certs into the build worktree.\nDefault: unset.'; \
+	print_help_line 'INSTALL_SOURCE=<path>' 'Optional staged payload path, or path relative to dist/firmware.\nDefault: latest staged firmware payload.'; \
+	print_section 'Variant Matrix'; \
+	print_help_line 'make help-variants' 'Show configured firmware variants.'; \
+	print_help_line 'make verify-build-matrix' 'Check variant metadata, refs, and build-policy coverage.'
 
-help-releases:
-	@DEBUG="$(DEBUG)" $(PYTHON) scripts/list_configured_releases.py
+help-variants:
+	@DEBUG="$(DEBUG)" $(PYTHON) scripts/list_configured_variants.py
+
+help-releases: help-variants
 
 BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
 

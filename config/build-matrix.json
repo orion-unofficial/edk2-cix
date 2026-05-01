@@ -50,7 +50,7 @@
       ],
       "RELEASE": {
         "accepted_forms": [
-          "short name under source/release/",
+          "prefixless firmware variant name shown by make help-variants",
           "full source/release/... branch name"
         ],
         "values": "expanded source_variants plus special_source_variants"
