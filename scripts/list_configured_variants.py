@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import json
+import textwrap
 from pathlib import Path
 
 from reconstruction_common import variant_name
 
 
+WIDTH = 80
 STAGE_ORDER = {"upstream": 0, "custom-radxa": 1, "vendor": 2, "custom-cix": 3, "other": 9}
 
 
@@ -55,13 +57,24 @@ def canonical_branches(releases: dict[str, object]) -> tuple[list[str], list[str
 
 def print_variant_list(branches: list[str]) -> None:
     current_edk2 = ""
+    first = True
     for branch in branches:
         name = variant_name(branch)
         edk2 = edk2_key(name)
         if edk2 != current_edk2:
             current_edk2 = edk2
-            print(f"\nEDK2 {edk2}")
+            if not first:
+                print()
+            first = False
         print(f"  {name}")
+
+
+def paragraph(text: str) -> None:
+    print(textwrap.fill(text, width=WIDTH))
+
+
+def indented(text: str, indent: str = "  ") -> None:
+    print(textwrap.fill(text, width=WIDTH, initial_indent=indent, subsequent_indent=indent))
 
 
 def main() -> None:
@@ -72,27 +85,37 @@ def main() -> None:
 
     print("Configured Firmware Variants")
     print()
-    print("A firmware variant is the chosen combination of EDK2, Radxa, CIX, and local project sources.")
-    print("All listed variants are rendered as ordinary files before building; active submodule gitlinks are not retained.")
-    print("The names below omit the internal source/release/{upstream,vendor,custom}/ branch prefix.")
-    print("Full source/release/... branch names are still accepted when needed.")
+    paragraph(
+        "A firmware variant is the chosen combination of EDK2, Radxa, CIX, "
+        "and local project sources."
+    )
+    paragraph(
+        "All listed variants are rendered as ordinary files before building, "
+        "without the use of git submodules."
+    )
+    paragraph(
+        "The names below are the recommended RELEASE= values. A full branch "
+        "name such as source/release/custom/... is also accepted when copying "
+        "an existing branch name from git branch output."
+    )
     print()
     print(f"Default variant: {default}")
     print()
     print("Name components:")
-    print("  edk2-YYYYMM[.NN]  selects the upstream EDK2 release family")
-    print("  radxa-X.Y.Z       adds the Radxa EDK2 vendor layer for that EDK2 base")
-    print("  cix-X.Y           adds CIX TF-A and OP-TEE component sources")
-    print("  local             adds this project's local firmware changes")
+    print("  edk2-YYYYMM[.NN]    selects the upstream EDK2 release")
+    print("  radxa-X.Y.Z[-R]     adds the Radxa EDK2 vendor layer")
+    print("  cix-X.Y             adds CIX TF-A and OP-TEE component sources")
+    print("  local               adds this project's local firmware changes")
     print()
     print("Available variants:")
     print_variant_list(branches)
     if alias_versions:
         print()
         print("Versioned local aliases:")
-        print(
-            "  Any listed /local variant also accepts a versioned alias of the form "
-            f"/local-<version>; currently configured version(s): {', '.join(alias_versions)}."
+        indented(
+            "Any listed /local variant also accepts a versioned alias of the "
+            f"form /local-<version>; currently configured version(s): "
+            f"{', '.join(alias_versions)}."
         )
 
 

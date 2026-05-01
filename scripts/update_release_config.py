@@ -24,7 +24,7 @@ Optional variables:
   LOCAL_VERSION=1.2.1
   BUILD_POLICY=<name>  Defaults to edk2-stable202208 for 202208, otherwise
                        post-edk2-stable202208.
-  WRITE=1             Actually update config/build-matrix.json and
+  WRITE=0|1           Actually update config/build-matrix.json and
                        config/releases.json. Without WRITE=1 this is a dry run.
 
 After writing:

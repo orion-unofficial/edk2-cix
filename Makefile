@@ -38,7 +38,7 @@ define PRINT_HELP_SHELL_PROLOGUE
 	help_pad=31; \
 	help_gap=2; \
 	help_width=80; \
-	desc_width=$$((help_width - help_pad - help_gap)); \
+	desc_width=$$((help_width - 2 - help_pad - help_gap)); \
 	desc_indent=$$(printf '%*s' "$$((2 + help_pad + help_gap))" ''); \
 	print_help_line() { \
 		label="$$1"; \
@@ -47,12 +47,12 @@ define PRINT_HELP_SHELL_PROLOGUE
 			first_indent=$$(printf '  %-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
 			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
 				awk -v first="$$first_indent" -v cont="$$desc_indent" \
-					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
+					'{ sub(/ +$$/, "", $$0) } NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
 		else \
 			printf '  %s\n' "$$label"; \
 			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
 				awk -v cont="$$desc_indent" \
-					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
+					'{ sub(/^ +/, "", $$0); sub(/ +$$/, "", $$0); print cont $$0 }'; \
 		fi; \
 	}; \
 	print_section() { \
@@ -87,17 +87,18 @@ help:
 
 help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
+	default_release="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/render_release_branch.py --print-default-release 2>/dev/null || printf '%s' '<unavailable>')"; \
 	print_section 'Common Build Variables'; \
-	print_help_line 'RELEASE=<variant>' 'Select a configured firmware variant.\nAccepts names from make help-variants or full source/release/... branch names.\nDefault: config/releases.json:default_release.'; \
+	print_help_line 'RELEASE=<variant>' "Select a configured firmware variant.\nUse names from 'make help-variants' or a full source/release/... branch name.\nDefault variant:\n$$default_release\nSource: config/releases.json:default_release."; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
 	print_help_line 'FIRMWARE_TARGET=RELEASE|DEBUG' 'Select the firmware build target.\nDefault: RELEASE.'; \
 	print_help_line 'FIRMWARE_DISTRO=bookworm|trixie' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected variant policy default.'; \
-	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds.\nDefault: custom.'; \
+	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds. See README.md, "How do I build the latest firmware?", for the difference.\nDefault: custom.'; \
 	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
-	print_help_line 'DEBUG=1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
+	print_help_line 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
 	print_section 'Install Variables'; \
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
-	print_help_line 'FORCE=1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \
+	print_help_line 'FORCE=0|1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \
 	print_section 'Variant Selection'; \
 	print_help_line 'make help-variants' 'List configured firmware variant names generated from config/releases.json.'; \
 	printf '\n%s\n' 'For source-update and maintainer variables, run: make help-dev'
@@ -126,8 +127,8 @@ help-dev:
 	print_help_line 'CIX_RELEASE=<version>' 'CIX release used by update-release-config.\nDefault: 1.2.'; \
 	print_help_line 'LOCAL_VERSION=<version>' 'Local variant alias suffix used by update-release-config.\nDefault: 1.2.1.'; \
 	print_section 'Ref Update Variables'; \
-	print_help_line 'WRITE=1' 'Permit ref creation/advancement in integrate-source-release, import-local-commits, and extract-vendor-delta.'; \
-	print_help_line 'ALLOW_REPLACE=1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
+	print_help_line 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release, import-local-commits, and extract-vendor-delta.'; \
+	print_help_line 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
 	print_help_line 'BUILD_POLICY=<name>' 'Build policy for update-release-config.\nDefault: post-edk2-stable202208, or edk2-stable202208 for that release.'; \
 	print_help_line 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before extracting deltas.\nDefault: 1.'; \
 	print_help_line 'BASE_REF=<ref>' 'Base ref for delta extraction/import.'; \
@@ -137,20 +138,20 @@ help-dev:
 	print_help_line 'OUTPUT=<path>' 'Optional extract-vendor-delta metadata output path.'; \
 	print_help_line 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
 	print_help_line 'SOURCE_LOCAL_REF=<ref>' 'Local source branch; defaults to source/unofficial/current.'; \
-	print_help_line 'UPDATE_LOCAL_SOURCE=1' 'Allow import-local-commits to advance SOURCE_LOCAL_REF.'; \
+	print_help_line 'UPDATE_LOCAL_SOURCE=0|1' 'Allow import-local-commits to advance SOURCE_LOCAL_REF.'; \
 	print_help_line 'LOCAL_TARGET_REF=<ref>' 'Local delta target; defaults to source/delta/local/current.'; \
-	print_help_line 'SCAN_COMMITS=1' 'Also scan selected commit metadata in check-identity-hygiene.'; \
-	print_help_line 'SCAN_SOURCE_REFS=1' 'Also scan generated source refs in check-identity-hygiene.'; \
+	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-hygiene.'; \
+	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan generated source refs in check-identity-hygiene.'; \
 	print_section 'Rendering and Qualification Variables'; \
 	print_help_line 'RELEASE=<variant>' 'Firmware variant name for render-release-branch and verify-release-branch.'; \
-	print_help_line 'PERSIST=1' 'For render-release-branch: create or verify a named source/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a source/release branch.'; \
-	print_help_line 'REBUILD=1' 'Regenerate a rendered firmware variant from its render plan instead of reusing an existing ref.'; \
-	print_help_line 'FORCE=1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass.'; \
+	print_help_line 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a source/release branch.'; \
+	print_help_line 'REBUILD=0|1' 'Regenerate a rendered firmware variant from its render plan instead of reusing an existing ref.'; \
+	print_help_line 'FORCE=0|1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass.'; \
 	print_help_line 'WORKTREE=<path>' 'Existing rendered worktree to use for verify-release-branch history checks.'; \
 	print_help_line 'SIGNING_CERT_SOURCE_DIR=<path>' 'Copy exact-replay signing certs into the build worktree.\nDefault: unset.'; \
 	print_help_line 'INSTALL_SOURCE=<path>' 'Optional staged payload path, or path relative to dist/firmware.\nDefault: latest staged firmware payload.'; \
 	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
-	print_help_line 'DEBUG=1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
+	print_help_line 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make help-variants' 'Show configured firmware variants.'; \
 	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \

@@ -24,12 +24,12 @@ from reconstruction_common import (
 HELP = """verify-release-branch
 
 Required variables:
-  RELEASE    Firmware variant name from make help-variants, or a full
+  RELEASE    Firmware variant name from 'make help-variants', or a full
              source/release/... branch name.
 
 Optional variables:
   WORKTREE=<path>  Existing worktree to use for log/blame checks.
-  V=1              Print detailed validation progress.
+  V=0|1            Print detailed validation progress.
 
 Checks:
   - rendered tree has no gitlinks

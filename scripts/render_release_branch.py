@@ -39,15 +39,17 @@ from reconstruction_common import (
 HELP = """render-release-branch
 
 Required variables:
-  RELEASE    Firmware variant name from make help-variants, or a full
+  RELEASE    Firmware variant name from 'make help-variants', or a full
              source/release/... branch name.
 
 Optional variables:
-  PERSIST=1  Create the rendered source/release/... branch if it is missing.
-  REBUILD=1  Regenerate the variant from its render plan.
-  FORCE=1    With PERSIST=1 and REBUILD=1, intentionally replace the rendered
+  PERSIST=0|1
+             Create the rendered source/release/... branch if it is missing.
+  REBUILD=0|1
+             Regenerate the variant from its render plan.
+  FORCE=0|1  With PERSIST=1 and REBUILD=1, intentionally replace the rendered
              branch and refresh config/refs/rendered.json plus releases.json.
-  V=1        Print delegated git operations and warnings.
+  V=0|1      Print delegated git operations and warnings.
 
 Example:
   make render-release-branch \\

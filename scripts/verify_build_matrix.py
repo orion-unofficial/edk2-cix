@@ -26,7 +26,7 @@ HELP = """verify-build-matrix
 No variables are required.
 
 Optional variables:
-  V=1  Print every expected firmware variant branch and required source ref.
+  V=0|1  Print every expected firmware variant branch and required source ref.
 
 Checks:
   - every firmware variant declared in config/build-matrix.json exists in config/releases.json

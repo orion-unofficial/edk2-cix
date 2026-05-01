@@ -45,10 +45,10 @@ Optional variables:
   EDK2_BASE=<release>       Vendor base marker for Radxa deltas.
   ARM_BASE=<release>        Arm base marker for CIX component uplift refs.
   REF=<object-id-or-ref>    Explicit object to use instead of a configured remote tag.
-  WRITE=1                   Required before refs are created or advanced.
-  ALLOW_REPLACE=1           Allow an existing immutable ref to move during integration.
-  MATERIALISE=1             For Radxa vendor refs, flatten gitlinks before delta extraction.
-  V=1                       Print delegated git operations.
+  WRITE=0|1                 Required before refs are created or advanced.
+  ALLOW_REPLACE=0|1         Allow an existing immutable ref to move during integration.
+  MATERIALISE=0|1           For Radxa vendor refs, flatten gitlinks before delta extraction.
+  V=0|1                     Print delegated git operations.
 
 Without WRITE=1 this command validates inputs and prints the operation it would perform.
 Only this command is allowed to create or advance immutable source refs.

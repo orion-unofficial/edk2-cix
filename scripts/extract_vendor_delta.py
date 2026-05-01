@@ -23,7 +23,7 @@ Required variables:
 Optional variables:
   OUTPUT=<path>           Write a JSON report to this path.
   PATCH_OUTPUT=<path>     Write a git-format patch/diff to this path.
-  V=1                     Print the diff stat to stdout.
+  V=0|1                   Print the diff stat to stdout.
 
 This command is intentionally read-only unless OUTPUT or PATCH_OUTPUT is set.
 It never updates source refs; use integrate-source-release for immutable vendor

@@ -14,11 +14,12 @@ from reconstruction_common import ReconstructionError, git, main_wrapper, repo_r
 HELP = """check-identity-hygiene
 
 Optional variables:
-  SCAN_COMMITS=1  Also scan commits reachable from HEAD for generated-identity strings.
-  SCAN_SOURCE_REFS=1
+  SCAN_COMMITS=0|1
+                  Also scan commits reachable from HEAD for generated-identity strings.
+  SCAN_SOURCE_REFS=0|1
                   Also scan generated source/local, source/delta/local, and
                   source/release/custom refs for stale old branch names.
-  V=1             Print scanned paths.
+  V=0|1           Print scanned paths.
 
 The scanner is intentionally conservative for the build branch. It looks for
 host-specific paths, generated assistant identity strings, and embedded personal

@@ -184,7 +184,7 @@ def release_entry(repo: Path, release: str | None, require: bool = False) -> tup
     branch = release_to_branch(selected)
     entry = entries.get(branch) or entries.get(short_release(branch))
     if entry is None:
-        raise ReconstructionError(f"unknown firmware variant: {selected}\nUse make help-variants to list configured variants.")
+        raise ReconstructionError(f"unknown firmware variant: {selected}\nUse 'make help-variants' to list configured variants.")
     return branch, entry
 
 

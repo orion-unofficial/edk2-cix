@@ -28,10 +28,11 @@ Required variables:
 
 Optional variables:
   SOURCE_LOCAL_REF=source/unofficial/current
-  UPDATE_LOCAL_SOURCE=1  Also advance SOURCE_LOCAL_REF to FROM_REF.
+  UPDATE_LOCAL_SOURCE=0|1
+                         Also advance SOURCE_LOCAL_REF to FROM_REF.
   TARGET_REF=source/delta/local/current
-  WRITE=1                Required before refs are created or advanced.
-  V=1                    Print delegated git operations.
+  WRITE=0|1              Required before refs are created or advanced.
+  V=0|1                  Print delegated git operations.
 
 Ordinary build and render targets never rewrite source/unofficial/current or
 source/delta/local/*. This command is the explicit import gate for local source

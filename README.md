@@ -31,7 +31,10 @@ Common variables are:
 - `FIRMWARE_BOARD=O6|O6N` selects the board. The default is `O6`.
 - `FIRMWARE_TARGET=RELEASE|DEBUG` selects a release or debug firmware image. The default is `RELEASE`.
 - `RELEASE=<variant>` selects a configured firmware variant. Leave this unset to use the latest configured variant.
+- `ARTEFACT_MODE=custom|upstream` selects the build and artefact mode inside the chosen source tree. The default is `custom`.
 - `V=1` enables verbose script and delegated build output. The default, `V=0`, keeps output concise.
+
+Most users should leave `ARTEFACT_MODE=custom`. It enables the local firmware build switches exposed by this project. `ARTEFACT_MODE=upstream` is for vendor-style comparison or qualification builds; it does not change the selected source variant, and it rejects local custom-only feature variables. Use `RELEASE=...` to choose source versions.
 
 To stage the deployable payload under `dist/firmware/`, use:
 
