@@ -30,6 +30,7 @@ DEBUG_VERBOSE ?=
 DEBUG_PRINT_ERROR_LEVEL ?=
 CIX_RELEASE ?=
 BUILD_POLICY ?=
+QUALITY_IMAGE ?= edk2-cix-build-quality:latest
 
 define PRINT_HELP_SHELL_PROLOGUE
 	set -eu; \
@@ -59,6 +60,7 @@ define PRINT_HELP_SHELL_PROLOGUE
 endef
 
 .PHONY: help help-vars help-dev help-variants help-releases all build-all install zip targz buildbox-firmware-build buildbox-firmware-stage \
+	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-local-commits \
 	update-release-config verify-release-branch verify-build-matrix check-identity-hygiene \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
@@ -87,7 +89,7 @@ help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	default_release="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/render_release_branch.py --print-default-release 2>/dev/null || printf '%s' '<unavailable>')"; \
 	print_section 'Common Build Variables'; \
-	print_help_line 'RELEASE=<variant>' "Select a configured firmware variant.\nUse names from 'make help-variants' or a full source/release/... branch name.\nDefault variant:\n$$default_release\nSource: config/releases.json:default_release."; \
+	print_help_line 'RELEASE=<variant>' "Select a configured firmware variant.\nUse names from 'make help-variants' or a full source/release/... branch name.\nDefault variant:\n$$default_release\nSource: latest available EDK2, CIX, Radxa, and local refs."; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
 	print_help_line 'FIRMWARE_TARGET=RELEASE|DEBUG' 'Select the firmware build target.\nDefault: RELEASE.'; \
 	print_help_line 'FIRMWARE_DISTRO=bookworm|trixie' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected variant policy default.'; \
@@ -112,6 +114,8 @@ help-dev:
 	print_help_line 'make update-release-config' 'Seed variant manifest entries for a new EDK2 release.'; \
 	print_help_line 'make import-local-commits' 'Update source/unofficial/current and/or local delta artefacts.'; \
 	print_help_line 'make check-identity-hygiene' 'Scan generated files and refs for path/identity leaks.'; \
+	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
+	print_help_line 'make lint' 'Run JSON, Markdown, shell, and Python linting in the quality container.'; \
 	print_section 'Source Integration Variables'; \
 	print_help_line 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa or CIX-carried source layers.'; \
 	print_help_line 'COMPONENT=<name>' 'For TYPE=upstream: edk2, edk2-platforms, edk2-non-osi, tf-a, or op-tee.'; \
@@ -137,6 +141,7 @@ help-dev:
 	print_help_line 'LOCAL_TARGET_REF=<ref>' 'Local delta target; defaults to source/delta/local/current.'; \
 	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-hygiene.'; \
 	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan generated source refs in check-identity-hygiene.'; \
+	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
 	print_section 'Rendering and Qualification Variables'; \
 	print_help_line 'RELEASE=<variant>' 'Firmware variant name for render-release-branch and verify-release-branch.'; \
 	print_help_line 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a source/release branch.'; \
@@ -238,6 +243,12 @@ import-local-commits:
 
 check-identity-hygiene:
 	@DEBUG="$(DEBUG)" SCAN_COMMITS="$(SCAN_COMMITS)" V="$(V)" $(PYTHON) scripts/check_identity_hygiene.py --v "$(V)"
+
+test:
+	@DEBUG="$(DEBUG)" V="$(V)" QUALITY_IMAGE="$(QUALITY_IMAGE)" scripts/run_quality_container.sh test
+
+lint:
+	@DEBUG="$(DEBUG)" V="$(V)" QUALITY_IMAGE="$(QUALITY_IMAGE)" scripts/run_quality_container.sh lint
 
 render-release-branch-help:
 	@$(PYTHON) scripts/render_release_branch.py --help

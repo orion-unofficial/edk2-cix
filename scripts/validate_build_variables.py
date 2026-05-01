@@ -7,7 +7,7 @@ import argparse
 import os
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, main_wrapper, release_entry, repo_root
+from reconstruction_common import ReconstructionError, available_cix_releases, main_wrapper, release_entry, repo_root
 
 
 VALID_ARTEFACT_MODES = {"custom", "upstream"}
@@ -16,7 +16,6 @@ VALID_BOARDS = {"O6", "O6N"}
 VALID_FIRMWARE_DISTROS = {"bookworm", "trixie"}
 VALID_BUILDBOX_PLATFORMS = {"linux/amd64", "linux/arm64"}
 VALID_CORE_ORDERS = {"cix", "conventional", "performance"}
-VALID_CIX_RELEASES = {"1.2"}
 TRUE_TOKENS = {"1", "true", "on", "yes"}
 FALSE_TOKENS = {"0", "false", "off", "no"}
 SIGNING_CERT_NAMES = ("trusted_key_no.crt", "nt_fw_cert.crt", "nt_fw_key.crt")
@@ -82,7 +81,7 @@ def validate_signing_cert_source(repo: Path, problems: list[str]) -> None:
         problems.append("SIGNING_CERT_SOURCE_DIR is missing required certificate file(s): " + ", ".join(missing))
 
 
-def validate_feature_relationships(problems: list[str]) -> None:
+def validate_feature_relationships(repo: Path, problems: list[str]) -> None:
     artefact_mode = env("ARTEFACT_MODE") or "custom"
     firmware_fixes = env("ENABLE_FIRMWARE_FIXES").lower()
     core_order = env("ENABLE_CORE_ORDER").lower()
@@ -107,7 +106,7 @@ def validate_feature_relationships(problems: list[str]) -> None:
         problems.append(f"ENABLE_CORE_ORDER={core_order} requires ENABLE_FIRMWARE_FIXES=true")
 
     if cix_release:
-        require_choice("CIX_RELEASE", cix_release, VALID_CIX_RELEASES, problems)
+        require_choice("CIX_RELEASE", cix_release, set(available_cix_releases(repo)), problems)
 
 
 def validate() -> None:
@@ -138,7 +137,7 @@ def validate() -> None:
     require_uint32("DEBUG_PRINT_ERROR_LEVEL", env("DEBUG_PRINT_ERROR_LEVEL"), problems)
     validate_release(repo, problems)
     validate_signing_cert_source(repo, problems)
-    validate_feature_relationships(problems)
+    validate_feature_relationships(repo, problems)
 
     if problems:
         detail = "\n".join(f"  - {problem}" for problem in problems)

@@ -13,7 +13,6 @@ from reconstruction_common import (
     check_immutable_refs,
     git,
     main_wrapper,
-    ref_exists,
     release_entry,
     repo_root,
     resolve_branch_or_origin,

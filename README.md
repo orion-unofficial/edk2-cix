@@ -17,7 +17,7 @@ make help-variants
 
 ## How do I build the latest firmware?
 
-The default firmware variant is recorded in `config/releases.json`. The supported variant set is generated from `config/build-matrix.json` and the source/ref manifests under `config/refs/`. If you do not set `RELEASE=...`, the build targets use the configured default variant. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
+The default firmware variant is derived from the latest available supported EDK2 release, CIX release, Radxa release, and local source checkpoint. The supported variant set is generated from `config/build-matrix.json`, source refs such as `source/delta/radxa/**` and `source/component/cix/**`, and the source/ref manifests under `config/refs/`. If you do not set `RELEASE=...`, the build targets use that derived default variant. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
 
 For a normal single firmware build, choose the board and build target:
 
@@ -30,7 +30,7 @@ Common variables are:
 
 - `FIRMWARE_BOARD=O6|O6N` selects the board. The default is `O6`.
 - `FIRMWARE_TARGET=RELEASE|DEBUG` selects a release or debug firmware image. The default is `RELEASE`.
-- `RELEASE=<variant>` selects a configured firmware variant. Leave this unset to use the latest configured variant.
+- `RELEASE=<variant>` selects a configured firmware variant. Leave this unset to use the latest derived variant.
 - `ARTEFACT_MODE=custom|upstream` selects the build and artefact mode inside the chosen source tree. The default is `custom`.
 - `V=1` enables verbose script and delegated build output. The default, `V=0`, keeps output concise.
 
@@ -119,7 +119,8 @@ A configured build variation is considered supported only when all of its source
 - the Radxa vendor changes are available for that EDK2 release
 - any selected CIX component refs are present under `source/component/cix/<cix-release>/`
 - the compatible local project source checkpoint and local delta are present
-- `config/build-matrix.json` declares the chosen variant as supported
+- `config/build-matrix.json` declares the supported EDK2 release set
+- the chosen Radxa, CIX, and local source layers are present as repo refs
 - `config/refs/*.json` records the source and rendered tree IDs needed to verify it
 - the build policy records the relevant distro defaults and replay availability
 
@@ -145,7 +146,7 @@ A delta branch is not a full source tree. It contains:
 - `delta.patch`, generated with `git diff --binary --full-index`
 - `README.md` describing the artefact
 
-This representation is intentional: a patch can record deletions, renames, binary files, and intentionally absent files in a way that a plain directory tree cannot. Render plans are derived from the selected variant name and `config/build-matrix.json`, then verified against the ref metadata in `config/refs/`.
+This representation is intentional: a patch can record deletions, renames, binary files, and intentionally absent files in a way that a plain directory tree cannot. Render plans are derived from the selected variant name, available source refs, and `config/build-matrix.json`, then verified against the ref metadata in `config/refs/`.
 
 Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`. That report is mainly a diagnostic and audit aid: it records which submodule paths were flattened, which commit IDs were used, which URL was recorded for each submodule, and which `.gitmodules` file supplied that mapping. You can usually ignore it when a build succeeds, but it is useful when checking that a rendered branch contains ordinary files rather than active submodules.
 
@@ -273,7 +274,7 @@ After adding source refs for a new supported EDK2 release:
    make update-release-config EDK2_RELEASE=202605 WRITE=1
    ```
 
-   This updates `config/build-matrix.json`. Variant render plans are generated at runtime, so there is no separate release-plan list to maintain. It is dry-run by default.
+   This updates `config/build-matrix.json`. Variant render plans are generated at runtime from source refs, so there is no separate release-plan list to maintain. It is dry-run by default.
 
 2. Integrate the required source refs with `make integrate-source-release`.
 3. Create the persistent variant refs and refresh their recorded tree IDs:
@@ -287,7 +288,7 @@ After adding source refs for a new supported EDK2 release:
 4. Run `make verify-build-matrix` to confirm the policy matrix, variant manifest, refs, aliases, and tree IDs agree.
 5. Run the normal build/audit qualification for the new variant before publishing it.
 
-`make help-variants` lists the currently configured firmware variants from `config/build-matrix.json`.
+`make help-variants` lists firmware variants derived from `config/build-matrix.json` and the available Radxa, CIX, and local refs.
 
 ## How do I project `source/unofficial/current` to a materialised firmware branch?
 
@@ -336,6 +337,8 @@ There is no separate offline mode flag. The scripts try to proceed from local da
 For normal firmware building, the build target itself performs the necessary preflight checks. When changing source-model metadata, variant manifests, or materialised branches, run:
 
 ```bash
+make test
+make lint
 make verify-build-matrix
 make check-identity-hygiene
 ```

@@ -1,217 +1,69 @@
 {
   "description": "Supported source-tree build matrix for EDK2-CIX firmware branches. This records source combinations; it does not claim byte-identical firmware output.",
-  "documented_make_variables": {
-    "build_output": {
-      "V": [
-        "0",
-        "1"
-      ]
-    },
-    "delegated_firmware_build": {
-      "FIRMWARE_BOARD": [
-        "O6",
-        "O6N"
-      ],
-      "FIRMWARE_DISTRO": {
-        "allowed": [
-          "bookworm",
-          "trixie"
-        ],
-        "defaults": {
-          "edk2-stable202208": "bookworm",
-          "post-edk2-stable202208": "trixie"
-        }
-      },
-      "FIRMWARE_TARGET": [
-        "RELEASE",
-        "DEBUG"
-      ]
-    },
-    "install": {
-      "FORCE": [
-        "0",
-        "1"
-      ],
-      "INSTALL_ROOT": "path; defaults to /boot/efi",
-      "INSTALL_SOURCE": "optional staged payload path or path relative to dist/firmware"
-    },
-    "source_selection": {
-      "FORCE": [
-        "0",
-        "1"
-      ],
-      "PERSIST": [
-        "0",
-        "1"
-      ],
-      "REBUILD": [
-        "0",
-        "1"
-      ],
-      "RELEASE": {
-        "accepted_forms": [
-          "prefixless firmware variant name shown by make help-variants",
-          "full source/release/... branch name"
-        ],
-        "values": "expanded source_variants plus special_source_variants"
-      }
-    }
-  },
   "edk2_releases": [
     {
       "build_policy": "edk2-stable202208",
-      "edk2_ref": "edk2-stable202208",
       "release": "202208"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202211",
       "release": "202211"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202302",
       "release": "202302"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202305",
       "release": "202305"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202308",
       "release": "202308"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202311",
       "release": "202311"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202402",
       "release": "202402"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202405",
       "release": "202405"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202408",
       "release": "202408"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202408.01",
       "release": "202408.01"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202411",
       "release": "202411"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202502",
       "release": "202502"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202505",
       "release": "202505"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202508",
       "release": "202508"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202511",
       "release": "202511"
     },
     {
       "build_policy": "post-edk2-stable202208",
-      "edk2_ref": "edk2-stable202602",
       "release": "202602"
-    }
-  ],
-  "schema_version": 1,
-  "source_variants": [
-    {
-      "branch_template": "source/release/upstream/edk2-{release}/radxa-1.2.1",
-      "description": "Upstream EDK2 component skeleton plus the Radxa 1.2.1 vendor delta carried to the selected EDK2 release.",
-      "name": "upstream-radxa-1.2.1",
-      "releases": "all",
-      "required_ref_templates": [
-        "source/base/rendered/edk2-stable{release}",
-        "source/base/edk2/edk2/edk2-stable{release}",
-        "source/base/edk2/edk2-platforms/edk2-stable{release}",
-        "source/base/edk2/edk2-non-osi/edk2-stable{release}",
-        "source/delta/radxa/1.2.1/edk2-stable{release}"
-      ]
-    },
-    {
-      "branch_template": "source/release/vendor/edk2-{release}/cix-1.2/radxa-1.2.1",
-      "description": "Radxa-carried EDK2 tree plus CIX 1.2 TF-A and OP-TEE component bundle content.",
-      "name": "vendor-cix-1.2-radxa-1.2.1",
-      "releases": "all",
-      "required_ref_templates": [
-        "source/release/upstream/edk2-{release}/radxa-1.2.1",
-        "source/component/cix/1.2/tf-a",
-        "source/component/cix/1.2/op-tee"
-      ]
-    },
-    {
-      "branch_template": "source/release/custom/edk2-{release}/cix-1.2/radxa-1.2.1/local",
-      "description": "Vendor CIX/Radxa tree plus the compatible local delta for the selected EDK2 release.",
-      "name": "custom-cix-1.2-radxa-1.2.1-local",
-      "releases": "all",
-      "required_ref_templates": [
-        "source/release/vendor/edk2-{release}/cix-1.2/radxa-1.2.1",
-        "source/unofficial/edk2-stable{release}",
-        "source/delta/local/edk2-stable{release}"
-      ]
-    },
-    {
-      "alias_of_template": "source/release/custom/edk2-{release}/cix-1.2/radxa-1.2.1/local",
-      "branch_template": "source/release/custom/edk2-{release}/cix-1.2/radxa-1.2.1/local-1.2.1",
-      "description": "Named local-version alias for the custom CIX/Radxa tree.",
-      "name": "custom-cix-1.2-radxa-1.2.1-local-1.2.1",
-      "releases": "all",
-      "required_ref_templates": [
-        "source/release/vendor/edk2-{release}/cix-1.2/radxa-1.2.1",
-        "source/unofficial/edk2-stable{release}",
-        "source/delta/local/edk2-stable{release}"
-      ]
-    }
-  ],
-  "special_source_variants": [
-    {
-      "branch": "source/release/custom/edk2-202208/radxa-1.2.1/local",
-      "description": "EDK2 202208 Radxa-only local compatibility branch used for exact Radxa 1.2.1 qualification.",
-      "name": "custom-radxa-1.2.1-local",
-      "release": "202208",
-      "required_refs": [
-        "source/release/upstream/edk2-202208/radxa-1.2.1",
-        "source/unofficial/edk2-stable202208",
-        "source/delta/local/edk2-stable202208-radxa-1.2.1"
-      ]
-    },
-    {
-      "alias_of": "source/release/custom/edk2-202208/radxa-1.2.1/local",
-      "branch": "source/release/custom/edk2-202208/radxa-1.2.1/local-1.2.1",
-      "description": "Named local-version alias for the EDK2 202208 Radxa-only local compatibility branch.",
-      "name": "custom-radxa-1.2.1-local-1.2.1",
-      "release": "202208",
-      "required_refs": [
-        "source/release/upstream/edk2-202208/radxa-1.2.1",
-        "source/unofficial/edk2-stable202208",
-        "source/delta/local/edk2-stable202208-radxa-1.2.1"
-      ]
     }
   ]
 }

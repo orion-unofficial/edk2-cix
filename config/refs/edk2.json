@@ -544,6 +544,5 @@
       "type": "base",
       "upstream_ref": "refs/tags/edk2-stable202602"
     }
-  ],
-  "schema_version": 1
+  ]
 }

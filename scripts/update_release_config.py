@@ -63,19 +63,16 @@ def release_sort_key(item: dict[str, Any]) -> tuple[int, int]:
     return int(main), int(suffix or 0)
 
 
-def ensure_matrix_release(matrix: dict[str, Any], release: str, edk2_ref: str, build_policy: str) -> bool:
+def ensure_matrix_release(matrix: dict[str, Any], release: str, build_policy: str) -> bool:
     releases = matrix.setdefault("edk2_releases", [])
     for item in releases:
         if item.get("release") == release:
             changed = False
-            if item.get("edk2_ref") != edk2_ref:
-                item["edk2_ref"] = edk2_ref
-                changed = True
             if item.get("build_policy") != build_policy:
                 item["build_policy"] = build_policy
                 changed = True
             return changed
-    releases.append({"release": release, "edk2_ref": edk2_ref, "build_policy": build_policy})
+    releases.append({"release": release, "build_policy": build_policy})
     releases.sort(key=release_sort_key)
     return True
 
@@ -91,7 +88,7 @@ def main() -> None:
     matrix_path = repo / "config" / "build-matrix.json"
     matrix = load_json(matrix_path)
 
-    matrix_changed = ensure_matrix_release(matrix, release, edk2_ref, build_policy)
+    matrix_changed = ensure_matrix_release(matrix, release, build_policy)
 
     print(f"EDK2 release: {edk2_ref}")
     print(f"build policy: {build_policy}")

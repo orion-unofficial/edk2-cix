@@ -1,50 +1,49 @@
 {
-  "schema_version": 1,
   "remotes": {
-    "edk2": {
+    "arm-op-tee": {
+      "component": "op-tee",
       "type": "upstream",
-      "component": "edk2",
-      "url": "https://github.com/tianocore/edk2.git"
-    },
-    "edk2-platforms": {
-      "type": "upstream",
-      "component": "edk2-platforms",
-      "url": "https://github.com/tianocore/edk2-platforms.git",
-      "note": "This remote does not publish edk2-stableYYYYMM tags; release mappings must be recorded explicitly when selected."
-    },
-    "edk2-non-osi": {
-      "type": "upstream",
-      "component": "edk2-non-osi",
-      "url": "https://github.com/tianocore/edk2-non-osi.git",
-      "note": "This remote does not publish edk2-stableYYYYMM tags; release mappings must be recorded explicitly when selected."
+      "url": "https://github.com/OP-TEE/optee_os.git"
     },
     "arm-tf-a": {
-      "type": "upstream",
       "component": "tf-a",
-      "url": "https://github.com/ARM-software/arm-trusted-firmware.git"
-    },
-    "arm-op-tee": {
       "type": "upstream",
-      "component": "op-tee",
-      "url": "https://github.com/OP-TEE/optee_os.git"
+      "url": "https://github.com/ARM-software/arm-trusted-firmware.git"
     },
     "cix-bios": {
       "type": "vendor-bundle",
-      "vendor": "cix",
-      "url": "https://github.com/cixtech/bios.git"
-    },
-    "cix-tf-a": {
-      "type": "vendor-component",
-      "vendor": "cix",
-      "component": "tf-a",
-      "url": "https://github.com/cixtech/cix_opensource__arm-trusted-firmware.git"
+      "url": "https://github.com/cixtech/bios.git",
+      "vendor": "cix"
     },
     "cix-op-tee": {
-      "type": "vendor-component",
-      "vendor": "cix",
       "component": "op-tee",
-      "vendor_path": "tee",
-      "url": "https://github.com/cixtech/cix_opensource__tee__op-tee.git"
+      "type": "vendor-component",
+      "url": "https://github.com/cixtech/cix_opensource__tee__op-tee.git",
+      "vendor": "cix",
+      "vendor_path": "tee"
+    },
+    "cix-tf-a": {
+      "component": "tf-a",
+      "type": "vendor-component",
+      "url": "https://github.com/cixtech/cix_opensource__arm-trusted-firmware.git",
+      "vendor": "cix"
+    },
+    "edk2": {
+      "component": "edk2",
+      "type": "upstream",
+      "url": "https://github.com/tianocore/edk2.git"
+    },
+    "edk2-non-osi": {
+      "component": "edk2-non-osi",
+      "note": "This remote does not publish edk2-stableYYYYMM tags; release mappings must be recorded explicitly when selected.",
+      "type": "upstream",
+      "url": "https://github.com/tianocore/edk2-non-osi.git"
+    },
+    "edk2-platforms": {
+      "component": "edk2-platforms",
+      "note": "This remote does not publish edk2-stableYYYYMM tags; release mappings must be recorded explicitly when selected.",
+      "type": "upstream",
+      "url": "https://github.com/tianocore/edk2-platforms.git"
     }
   }
 }

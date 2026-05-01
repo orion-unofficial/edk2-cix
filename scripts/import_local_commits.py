@@ -14,7 +14,6 @@ from reconstruction_common import (
     git,
     main_wrapper,
     ref_exists,
-    refresh_ref_record,
     repo_root,
     truthy,
 )
@@ -89,17 +88,6 @@ def main() -> None:
         print(f"delta {args.base_ref}..{args.from_ref} -> {args.target_ref}")
     if truthy(args.update_local_source):
         update_source_ref(repo, args.source_local_ref, args.from_ref, truthy(args.v))
-        refresh_ref_record(
-            repo,
-            "local.json",
-            args.source_local_ref,
-            {
-                "base_ref": args.base_ref,
-                "format": "ordinary source branch",
-                "immutable": False,
-                "type": "local-source",
-            },
-        )
     create_delta_artefact(
         repo,
         args.base_ref,
@@ -109,17 +97,6 @@ def main() -> None:
         name=args.target_ref.removeprefix("source/delta/"),
         message="delta: import local changes",
         allow_replace=True,
-    )
-    refresh_ref_record(
-        repo,
-        "local.json",
-        args.target_ref,
-        {
-            "base_ref": args.base_ref,
-            "format": "delta.patch plus metadata.json",
-            "immutable": False,
-            "type": "local-delta-artefact",
-        },
     )
     print(f"updated {args.target_ref}")
 

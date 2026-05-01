@@ -83,7 +83,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--ensure-worktree", action="store_true", help="create or reuse a detached worktree for the resolved variant")
     p.add_argument("--print-worktree", action="store_true", help="print only the worktree path")
     p.add_argument("--print-ref", action="store_true", help="print the resolved ref/branch")
-    p.add_argument("--print-default-release", action="store_true", help="print the configured default variant")
+    p.add_argument("--print-default-release", action="store_true", help="print the derived default variant")
     p.add_argument("--v", default=os.environ.get("V", "0"), help="verbosity flag propagated from make")
     return p
 

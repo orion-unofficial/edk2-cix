@@ -1,0 +1,7 @@
+.cache
+.git
+**/__pycache__
+*.pyc
+build-logs
+dist
+src

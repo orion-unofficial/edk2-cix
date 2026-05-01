@@ -1,40 +1,39 @@
 {
-  "schema_version": 1,
   "refs": [
     {
-      "ref": "source/component/cix/1.2/bios-superproject",
-      "type": "vendor-bundle",
-      "vendor": "cix",
       "component": "bios-superproject",
-      "remote": "https://github.com/cixtech/bios.git",
-      "upstream_ref": "90f39f4469d39b3cd135ca8c5ae6400aca75b292",
+      "immutable": true,
       "object_id": "90f39f4469d39b3cd135ca8c5ae6400aca75b292",
+      "ref": "source/component/cix/1.2/bios-superproject",
+      "remote": "https://github.com/cixtech/bios.git",
       "tree_id": "df17592290c420b903edbd08be868129ac7a1dfa",
-      "immutable": true
+      "type": "vendor-bundle",
+      "upstream_ref": "90f39f4469d39b3cd135ca8c5ae6400aca75b292",
+      "vendor": "cix"
     },
     {
-      "ref": "source/component/cix/1.2/tf-a",
-      "type": "vendor-component",
-      "vendor": "cix",
       "component": "tf-a",
-      "vendor_path": "tf-a",
-      "remote": "https://github.com/cixtech/cix_opensource__arm-trusted-firmware.git",
-      "upstream_ref": "114fb20577bcc4038025de4e12bca60e04dd5212",
+      "immutable": true,
       "object_id": "114fb20577bcc4038025de4e12bca60e04dd5212",
+      "ref": "source/component/cix/1.2/tf-a",
+      "remote": "https://github.com/cixtech/cix_opensource__arm-trusted-firmware.git",
       "tree_id": "c2d13513d804bc14db3082c51f912ff2779b85ac",
-      "immutable": true
+      "type": "vendor-component",
+      "upstream_ref": "114fb20577bcc4038025de4e12bca60e04dd5212",
+      "vendor": "cix",
+      "vendor_path": "tf-a"
     },
     {
-      "ref": "source/component/cix/1.2/op-tee",
-      "type": "vendor-component",
-      "vendor": "cix",
       "component": "op-tee",
-      "vendor_path": "tee",
-      "remote": "https://github.com/cixtech/cix_opensource__tee__op-tee.git",
-      "upstream_ref": "cc66640f3815da4defc50f72b66ae3bac97cd48a",
+      "immutable": true,
       "object_id": "cc66640f3815da4defc50f72b66ae3bac97cd48a",
+      "ref": "source/component/cix/1.2/op-tee",
+      "remote": "https://github.com/cixtech/cix_opensource__tee__op-tee.git",
       "tree_id": "9fd285e566aefcb73b2674ffef5836f646ecb9de",
-      "immutable": true
+      "type": "vendor-component",
+      "upstream_ref": "cc66640f3815da4defc50f72b66ae3bac97cd48a",
+      "vendor": "cix",
+      "vendor_path": "tee"
     }
   ]
 }

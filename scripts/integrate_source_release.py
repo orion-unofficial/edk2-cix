@@ -14,6 +14,7 @@ from reconstruction_common import (
     check_immutable_refs,
     create_delta_artefact,
     git,
+    load_json,
     main_wrapper,
     ref_exists,
     repo_root,
@@ -66,32 +67,6 @@ component ref under source/component/cix/<cix-release>/<component>/<arm-base>.
 UPSTREAM_COMPONENTS = {"edk2", "edk2-platforms", "edk2-non-osi", "tf-a", "op-tee"}
 VENDORS = {"radxa", "cix"}
 
-UPSTREAM_REMOTES = {
-    "edk2": "https://github.com/tianocore/edk2.git",
-    "edk2-platforms": "https://github.com/tianocore/edk2-platforms.git",
-    "edk2-non-osi": "https://github.com/tianocore/edk2-non-osi.git",
-    "tf-a": "https://github.com/ARM-software/arm-trusted-firmware.git",
-    "op-tee": "https://github.com/OP-TEE/optee_os.git",
-}
-
-CIX_COMPONENTS = {
-    "bios-superproject": {
-        "remote": "https://github.com/cixtech/bios.git",
-        "ref": "90f39f4469d39b3cd135ca8c5ae6400aca75b292",
-        "target": "source/component/cix/1.2/bios-superproject",
-    },
-    "tf-a": {
-        "remote": "https://github.com/cixtech/cix_opensource__arm-trusted-firmware.git",
-        "ref": "114fb20577bcc4038025de4e12bca60e04dd5212",
-        "target": "source/component/cix/1.2/tf-a",
-    },
-    "op-tee": {
-        "remote": "https://github.com/cixtech/cix_opensource__tee__op-tee.git",
-        "ref": "cc66640f3815da4defc50f72b66ae3bac97cd48a",
-        "target": "source/component/cix/1.2/op-tee",
-    },
-}
-
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
@@ -113,6 +88,35 @@ def upstream_target(component: str, release: str) -> str:
     if component.startswith("edk2"):
         return f"source/base/edk2/{component}/{release}"
     return f"source/base/arm/{component}/{release}"
+
+
+def remote_url(repo: Path, *, component: str = "", vendor: str = "", remote_type: str = "") -> str:
+    remotes = load_json(repo, "config/remotes.json").get("remotes", {})
+    for record in remotes.values():
+        if component and record.get("component") != component:
+            continue
+        if vendor and record.get("vendor") != vendor:
+            continue
+        if remote_type and record.get("type") != remote_type:
+            continue
+        url = record.get("url")
+        if url:
+            return url
+    detail = component or vendor or remote_type
+    raise ReconstructionError(f"no remote URL recorded in config/remotes.json for {detail}")
+
+
+def cix_component_records(repo: Path, release: str) -> list[dict[str, str]]:
+    release = release.removeprefix("v")
+    records = []
+    for record in load_json(repo, "config/refs/cix.json").get("refs", []):
+        ref = str(record.get("ref", ""))
+        if not ref.startswith(f"source/component/cix/{release}/"):
+            continue
+        if record.get("type") not in {"vendor-bundle", "vendor-component"}:
+            continue
+        records.append(record)
+    return sorted(records, key=lambda item: str(item.get("ref", "")))
 
 
 def fetch_to_ref(repo: Path, remote: str, source: str, target: str, verbose: bool, allow_replace: bool) -> None:
@@ -166,7 +170,7 @@ def upsert_manifest(repo: Path, target: str, record: dict) -> None:
     if path.exists():
         data = json.loads(path.read_text(encoding="utf-8"))
     else:
-        data = {"schema_version": 1, "refs": []}
+        data = {"refs": []}
     refs = data.setdefault("refs", [])
     refs[:] = [item for item in refs if item.get("ref") != target]
     refs.append(record)
@@ -226,8 +230,8 @@ def validate(args: argparse.Namespace) -> list[str]:
         missing.append("VENDOR=radxa|cix")
     if args.type_ == "upstream" and not (args.release or args.ref):
         missing.append("RELEASE=<release> or REF=<object-id-or-ref>")
-    if args.type_ == "vendor" and args.vendor == "cix" and args.release not in {"1.2", "v1.2"}:
-        missing.append("RELEASE=1.2")
+    if args.type_ == "vendor" and args.vendor == "cix" and not args.release:
+        missing.append("RELEASE=<cix-release>")
     if args.type_ == "vendor" and args.vendor == "cix" and args.component:
         if args.component not in {"tf-a", "op-tee"}:
             missing.append("COMPONENT=tf-a|op-tee")
@@ -258,7 +262,7 @@ def main() -> None:
         release = args.release or args.ref
         target = upstream_target(args.component, release)
         source = args.ref or f"refs/tags/{release}"
-        remote = UPSTREAM_REMOTES[args.component]
+        remote = remote_url(repo, component=args.component, remote_type="upstream")
         operations.append((remote, source, target, {"type": "base", "component": args.component, "remote": remote, "upstream_ref": source}))
     elif args.vendor == "cix" and args.component:
         cix_release = args.release.removeprefix("v")
@@ -279,8 +283,34 @@ def main() -> None:
             },
         ))
     elif args.vendor == "cix":
-        for item in CIX_COMPONENTS.values():
-            operations.append((item["remote"], item["ref"], item["target"], {"type": "vendor-component", "vendor": "cix", "remote": item["remote"], "upstream_ref": item["ref"]}))
+        records = cix_component_records(repo, args.release)
+        if not records:
+            raise ReconstructionError(
+                f"no CIX component records found for release {args.release} in config/refs/cix.json"
+            )
+        for item in records:
+            remote = str(item.get("remote", "")) or remote_url(
+                repo,
+                component=str(item.get("component", "")),
+                vendor="cix",
+            )
+            source = str(item.get("upstream_ref") or item.get("object_id") or "")
+            target = str(item.get("ref", ""))
+            if not source or not target:
+                raise ReconstructionError(f"incomplete CIX component record in config/refs/cix.json: {item}")
+            operations.append((
+                remote,
+                source,
+                target,
+                {
+                    "type": str(item.get("type", "vendor-component")),
+                    "vendor": "cix",
+                    "component": str(item.get("component", "")),
+                    "vendor_path": str(item.get("vendor_path", "")),
+                    "remote": remote,
+                    "upstream_ref": source,
+                },
+            ))
     else:
         target = f"source/delta/radxa/{args.release}/{args.edk2_base}"
         source = args.ref or "<materialised-vendor-ref>"

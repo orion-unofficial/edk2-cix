@@ -65,13 +65,35 @@ def truthy(value: str | int | bool | None) -> bool:
 
 
 RELEASE_STAGE_PREFIXES = ("custom", "vendor", "upstream")
+UNBUILDABLE_RADXA_RELEASES = {"0.1.1-1"}
 
 
-def load_release_defaults(repo: Path) -> dict[str, Any]:
-    path = repo / "config" / "releases.json"
-    if not path.exists():
-        return {}
-    return load_json(repo, "config/releases.json")
+def version_key(value: str) -> tuple[Any, ...]:
+    """Sort release-like values using numeric components where possible."""
+
+    parts: list[Any] = []
+    for token in re.findall(r"\d+|[A-Za-z]+|[^A-Za-z0-9]+", value):
+        if token.isdigit():
+            parts.append((0, int(token)))
+        elif token.isalpha():
+            parts.append((1, token.lower()))
+        else:
+            parts.append((2, token))
+    return tuple(parts)
+
+
+def latest_value(values: Iterable[str], label: str) -> str:
+    values = sorted(set(values), key=version_key)
+    if not values:
+        raise ReconstructionError(f"no {label} releases are available")
+    return values[-1]
+
+
+def for_each_ref(repo: Path, namespace: str) -> list[str]:
+    result = git(repo, "for-each-ref", "--format=%(refname:lstrip=2)", f"refs/heads/{namespace}", check=False)
+    if result.returncode != 0:
+        return []
+    return sorted((line for line in result.stdout.splitlines() if line), key=version_key)
 
 
 def release_to_branch(release: str) -> str:
@@ -114,8 +136,16 @@ def matrix_release_values(matrix: dict[str, Any]) -> list[str]:
     return values
 
 
+def edk2_ref_for_release(release: str) -> str:
+    return f"edk2-stable{release}"
+
+
+def release_for_edk2_ref(edk2_ref: str) -> str:
+    return edk2_ref.removeprefix("edk2-stable")
+
+
 def expand_matrix_template(template: str, release: str) -> str:
-    return template.format(release=release, edk2_ref=f"edk2-stable{release}")
+    return template.format(release=release, edk2_ref=edk2_ref_for_release(release))
 
 
 def matrix_variant_releases(variant: dict[str, Any], all_releases: list[str]) -> list[str]:
@@ -129,29 +159,100 @@ def matrix_variant_releases(variant: dict[str, Any], all_releases: list[str]) ->
     raise ReconstructionError(f"variant has no release selection: {variant.get('name', '<unnamed>')}")
 
 
-def matrix_release_branches(matrix: dict[str, Any]) -> tuple[set[str], dict[str, str]]:
+RADXA_DELTA_RE = re.compile(r"^source/delta/radxa/(?P<radxa>[^/]+)/(?P<edk2>edk2-stable[^/]+)$")
+CIX_COMPONENT_RE = re.compile(r"^source/component/cix/(?P<release>[^/]+)/(?P<component>[^/]+)$")
+LOCAL_COMPAT_RE = re.compile(r"^source/unofficial/(?P<edk2>edk2-stable[^/]+)$")
+
+
+def radxa_releases_by_edk2(repo: Path, supported_edk2_refs: Iterable[str] | None = None) -> dict[str, list[str]]:
+    supported = set(supported_edk2_refs or [])
+    releases: dict[str, set[str]] = {}
+    for ref in for_each_ref(repo, "source/delta/radxa"):
+        match = RADXA_DELTA_RE.match(ref)
+        if not match:
+            continue
+        radxa = match.group("radxa")
+        edk2 = match.group("edk2")
+        if radxa in UNBUILDABLE_RADXA_RELEASES:
+            continue
+        if supported and edk2 not in supported:
+            continue
+        releases.setdefault(edk2, set()).add(radxa)
+    return {edk2: sorted(values, key=version_key) for edk2, values in sorted(releases.items(), key=lambda item: version_key(item[0]))}
+
+
+def available_radxa_releases(repo: Path, supported_edk2_refs: Iterable[str] | None = None) -> list[str]:
+    releases: set[str] = set()
+    for values in radxa_releases_by_edk2(repo, supported_edk2_refs).values():
+        releases.update(values)
+    return sorted(releases, key=version_key)
+
+
+def cix_release_components(repo: Path) -> dict[str, set[str]]:
+    releases: dict[str, set[str]] = {}
+    for ref in for_each_ref(repo, "source/component/cix"):
+        match = CIX_COMPONENT_RE.match(ref)
+        if not match:
+            continue
+        releases.setdefault(match.group("release"), set()).add(match.group("component"))
+    return releases
+
+
+def available_cix_releases(repo: Path) -> list[str]:
+    releases = [
+        release
+        for release, components in cix_release_components(repo).items()
+        if {"tf-a", "op-tee"}.issubset(components)
+    ]
+    return sorted(releases, key=version_key)
+
+
+def local_compatibility_refs(repo: Path) -> list[str]:
+    refs: list[str] = []
+    for ref in for_each_ref(repo, "source/local"):
+        if LOCAL_COMPAT_RE.match(ref):
+            refs.append(ref)
+    return sorted(refs, key=version_key)
+
+
+def local_compatibility_edk2_refs(repo: Path) -> set[str]:
+    refs: set[str] = set()
+    for ref in local_compatibility_refs(repo):
+        match = LOCAL_COMPAT_RE.match(ref)
+        if match:
+            refs.add(match.group("edk2"))
+    return refs
+
+
+def matrix_release_branches(repo: Path, matrix: dict[str, Any]) -> tuple[set[str], dict[str, str]]:
     all_releases = matrix_release_values(matrix)
+    supported_edk2 = {edk2_ref_for_release(release) for release in all_releases}
+    radxa_by_edk2 = radxa_releases_by_edk2(repo, supported_edk2)
+    cix_releases = available_cix_releases(repo)
+    local_edk2 = local_compatibility_edk2_refs(repo)
     branches: set[str] = set()
     aliases: dict[str, str] = {}
 
-    for variant in matrix.get("source_variants", []):
-        branch_template = variant.get("branch_template")
-        if not branch_template:
-            raise ReconstructionError(f"source variant has no branch_template: {variant.get('name', '<unnamed>')}")
-        for release in matrix_variant_releases(variant, all_releases):
-            branch = expand_matrix_template(branch_template, release)
-            branches.add(branch)
-            alias_template = variant.get("alias_of_template")
-            if alias_template:
-                aliases[branch] = expand_matrix_template(alias_template, release)
+    for release in all_releases:
+        edk2_ref = edk2_ref_for_release(release)
+        for radxa in radxa_by_edk2.get(edk2_ref, []):
+            upstream = f"source/release/upstream/edk2-{release}/radxa-{radxa}"
+            branches.add(upstream)
 
-    for variant in matrix.get("special_source_variants", []):
-        branch = variant.get("branch")
-        if not branch:
-            raise ReconstructionError(f"special source variant has no branch: {variant.get('name', '<unnamed>')}")
-        branches.add(branch)
-        if variant.get("alias_of"):
-            aliases[branch] = variant["alias_of"]
+            if edk2_ref in local_edk2 and ref_exists(repo, f"source/delta/local/{edk2_ref}-radxa-{radxa}"):
+                local = f"source/release/custom/edk2-{release}/radxa-{radxa}/local"
+                alias = f"{local}-{radxa}"
+                branches.update({local, alias})
+                aliases[alias] = local
+
+            for cix in cix_releases:
+                vendor = f"source/release/vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"
+                branches.add(vendor)
+                if edk2_ref in local_edk2 and ref_exists(repo, f"source/delta/local/{edk2_ref}"):
+                    local = f"source/release/custom/edk2-{release}/cix-{cix}/radxa-{radxa}/local"
+                    alias = f"{local}-{radxa}"
+                    branches.update({local, alias})
+                    aliases[alias] = local
 
     return branches, aliases
 
@@ -210,7 +311,7 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
     parts = release_branch_parts(branch)
     stage = parts["stage"]
     release = parts["release"]
-    edk2_ref = f"edk2-stable{release}"
+    edk2_ref = edk2_ref_for_release(release)
     radxa = parts["radxa"]
     cix = parts.get("cix")
     local = parts.get("local")
@@ -271,19 +372,35 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
 
 def release_entries(repo: Path) -> dict[str, dict[str, Any]]:
     matrix = load_json(repo, "config/build-matrix.json")
-    branches, _aliases = matrix_release_branches(matrix)
+    branches, _aliases = matrix_release_branches(repo, matrix)
     return {branch: synthesise_release_entry(repo, branch) for branch in sorted(branches)}
 
 
 def default_release(repo: Path) -> str:
-    configured = load_release_defaults(repo).get("default_release", "")
-    if configured:
-        return str(configured)
     entries = release_entries(repo)
-    custom = [branch for branch in entries if branch.startswith("source/release/custom/") and branch.endswith("/local")]
+    custom = [
+        branch
+        for branch in entries
+        if branch.startswith("source/release/custom/")
+        and "/cix-" in branch
+        and re.search(r"/local-[^/]+$", branch)
+    ]
+    if not custom:
+        custom = [branch for branch in entries if branch.startswith("source/release/custom/") and branch.endswith("/local")]
     if not custom:
         raise ReconstructionError("no default release is configured and no custom local variant can be derived")
-    return variant_name(sorted(custom)[-1])
+    return variant_name(sorted(custom, key=release_branch_sort_key)[-1])
+
+
+def release_branch_sort_key(branch: str) -> tuple[Any, ...]:
+    parts = release_branch_parts(branch)
+    return (
+        version_key(parts["release"]),
+        version_key(parts.get("cix", "")),
+        version_key(parts["radxa"]),
+        version_key(parts.get("local", "")),
+        version_key(parts["stage"]),
+    )
 
 
 def safe_name(value: str) -> str:
@@ -598,7 +715,7 @@ def update_ref_record(repo: Path, manifest_name: str, ref: str, updates: dict[st
     if path.exists():
         data = load_json(repo, f"config/refs/{manifest_name}")
     else:
-        data = {"schema_version": 1, "refs": []}
+        data = {"refs": []}
     records = data.setdefault("refs", [])
     record = None
     for candidate in records:

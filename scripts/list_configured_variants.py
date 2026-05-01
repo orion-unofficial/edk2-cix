@@ -6,7 +6,7 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-from reconstruction_common import default_release, release_entries, repo_root, variant_name
+from reconstruction_common import default_release, release_branch_sort_key, release_entries, repo_root, variant_name
 
 
 WIDTH = 80
@@ -32,9 +32,9 @@ def edk2_key(name: str) -> str:
 
 
 def sorted_variants(branches: list[str]) -> list[str]:
-    def key(branch: str) -> tuple[str, int, str]:
+    def key(branch: str) -> tuple[object, ...]:
         name = variant_name(branch)
-        return (edk2_key(name), STAGE_ORDER.get(stage(branch), 9), name)
+        return (release_branch_sort_key(branch), STAGE_ORDER.get(stage(branch), 9), name)
 
     return sorted(branches, key=key)
 

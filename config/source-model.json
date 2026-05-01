@@ -13,7 +13,7 @@
     ],
     "local_ref": "source/unofficial/current (ordinary local source branch)",
     "rendered_refs": [
-      "derived from config/build-matrix.json source_variants and special_source_variants",
+      "derived from supported EDK2 releases plus available Radxa, CIX, and local source refs",
       "tree/object pins are recorded in config/refs/rendered.json"
     ],
     "vendor_component_refs": [
@@ -23,20 +23,9 @@
     ]
   },
   "cix_bundle_policy": {
-    "acquisition_repo": "https://github.com/cixtech/bios/",
-    "components": {
-      "op-tee": {
-        "object_id": "cc66640f3815da4defc50f72b66ae3bac97cd48a",
-        "vendor_path": "tee"
-      },
-      "tf-a": {
-        "object_id": "114fb20577bcc4038025de4e12bca60e04dd5212",
-        "vendor_path": "tf-a"
-      }
-    },
+    "component_refs": "source/component/cix/<cix-release>/{bios-superproject,tf-a,op-tee}",
     "policy": "The bundle records original CIX provenance. Internally TF-A and OP-TEE remain separate components so each can later be carried forward against newer Arm upstream releases.",
-    "release": "1.2",
-    "superproject": "90f39f4469d39b3cd135ca8c5ae6400aca75b292",
+    "provenance": "Specific CIX release refs, object IDs, vendor paths, and upstream refs are recorded in config/refs/cix.json.",
     "vendor": "cix"
   },
   "companion_edk2_repo_policy": {
@@ -66,63 +55,12 @@
     }
   },
   "local_roll_forward_policy": {
-    "compatibility_branches": [
-      "source/unofficial/edk2-stable202208",
-      "source/unofficial/edk2-stable202211",
-      "source/unofficial/edk2-stable202302",
-      "source/unofficial/edk2-stable202305",
-      "source/unofficial/edk2-stable202308",
-      "source/unofficial/edk2-stable202311",
-      "source/unofficial/edk2-stable202402",
-      "source/unofficial/edk2-stable202405",
-      "source/unofficial/edk2-stable202408",
-      "source/unofficial/edk2-stable202408.01",
-      "source/unofficial/edk2-stable202411",
-      "source/unofficial/edk2-stable202502",
-      "source/unofficial/edk2-stable202505",
-      "source/unofficial/edk2-stable202508",
-      "source/unofficial/edk2-stable202511",
-      "source/unofficial/edk2-stable202602"
-    ],
-    "compatibility_tags": [
-      "source/unofficial/edk2-stable202208",
-      "source/unofficial/edk2-stable202211",
-      "source/unofficial/edk2-stable202302",
-      "source/unofficial/edk2-stable202305",
-      "source/unofficial/edk2-stable202308",
-      "source/unofficial/edk2-stable202311",
-      "source/unofficial/edk2-stable202402",
-      "source/unofficial/edk2-stable202405",
-      "source/unofficial/edk2-stable202408",
-      "source/unofficial/edk2-stable202408.01",
-      "source/unofficial/edk2-stable202411",
-      "source/unofficial/edk2-stable202502",
-      "source/unofficial/edk2-stable202505",
-      "source/unofficial/edk2-stable202508",
-      "source/unofficial/edk2-stable202511",
-      "source/unofficial/edk2-stable202602"
-    ],
-    "covered_edk2_releases": [
-      "edk2-stable202208",
-      "edk2-stable202211",
-      "edk2-stable202302",
-      "edk2-stable202305",
-      "edk2-stable202308",
-      "edk2-stable202311",
-      "edk2-stable202402",
-      "edk2-stable202405",
-      "edk2-stable202408",
-      "edk2-stable202408.01",
-      "edk2-stable202411",
-      "edk2-stable202502",
-      "edk2-stable202505",
-      "edk2-stable202508",
-      "edk2-stable202511",
-      "edk2-stable202602"
-    ],
-    "current_compatible_release": "edk2-stable202602",
+    "compatibility_branches": "derived from source/unofficial/edk2-stable* refs",
+    "compatibility_tags": "derived from source/unofficial/edk2-stable* tags",
+    "covered_edk2_releases": "derived from source/unofficial/edk2-stable* refs and config/build-matrix.json",
+    "current_compatible_release": "derived from latest source/unofficial/edk2-stable* ref",
     "generated_delta_refs": "source/delta/local/<edk2-release> for the CIX/Radxa matrix, with a more specific suffix when the same EDK2 release has multiple local bases",
-    "initial_compatible_release": "edk2-stable202208",
+    "initial_compatible_release": "derived from earliest source/unofficial/edk2-stable* ref",
     "policy": "Local changes are maintained as ordinary source branches and projected into per-EDK2-release delta artefacts. The current branch points at the latest local source; compatibility branches and tags preserve earlier EDK2 overlay points as full source checkpoints. If the same local source commit overlays multiple EDK2 releases cleanly, multiple compatibility tags may point to it. If a release requires maintenance, commit that maintenance at the first affected release and tag the resulting compatible commit. Generated source refs and delta artefacts must not depend on the branch names used during earlier migrations.",
     "source_ref": "source/unofficial/current"
   },
@@ -133,6 +71,5 @@
     "store original submodule metadata in reports/manifests",
     "preserve upstream/vendor source linkage in manifests and commit trailers",
     "normal git log <path> and git blame <path> must work from any directory inside the repo"
-  ],
-  "schema_version": 1
+  ]
 }
