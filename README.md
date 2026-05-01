@@ -271,15 +271,7 @@ After adding source refs for a new supported EDK2 release:
 
    At minimum this means the upstream `edk2` base ref and the selected companion `edk2-platforms` and `edk2-non-osi` refs. Once `source/base/edk2/edk2/<edk2-release>` exists, the release is discoverable; there is no separate release-list file to update.
 
-2. Optionally inspect whether the release is discoverable:
-
-   ```bash
-   make update-release-config EDK2_RELEASE=202605
-   ```
-
-   This is a compatibility helper only; it reports the source refs that exist or are still missing.
-
-3. Create the persistent variant refs and refresh their recorded tree IDs:
+2. Create the persistent variant refs and refresh their recorded tree IDs:
 
    ```bash
    make render-release-branch \
@@ -287,8 +279,8 @@ After adding source refs for a new supported EDK2 release:
      PERSIST=1 REBUILD=1 FORCE=1
    ```
 
-4. Run `make verify-build-matrix` to confirm the derived matrix, variant manifest, refs, aliases, and tree IDs agree.
-5. Run the normal build/audit qualification for the new variant before publishing it.
+3. Run `make verify-build-matrix` to confirm the derived matrix, variant manifest, refs, aliases, and tree IDs agree.
+4. Run the normal build/audit qualification for the new variant before publishing it.
 
 `make help-variants` lists firmware variants derived from the available EDK2, Radxa, CIX, and local refs.
 
@@ -336,7 +328,7 @@ There is no separate offline mode flag. The scripts try to proceed from local da
 
 ## Validation checklist
 
-For normal firmware building, the build target itself performs the necessary preflight checks. When changing source-model metadata, variant manifests, or materialised branches, run:
+For normal firmware building, the build target itself performs the necessary preflight checks. When changing source refs, variant manifests, or materialised branches, run:
 
 ```bash
 make test

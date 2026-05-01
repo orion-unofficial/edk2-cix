@@ -5,7 +5,6 @@
       "immutable": true,
       "object_id": "35f4c7295bafeb32c8bcbdfb6a3f2e74a57e732b",
       "ref": "source/base/arm/tf-a/v2.7",
-      "remote": "https://github.com/ARM-software/arm-trusted-firmware.git",
       "tree_id": "cc148fbde47b9af7d5c0de20887517ebe98d4ccb",
       "type": "base",
       "upstream_ref": "35f4c7295bafeb32c8bcbdfb6a3f2e74a57e732b"
@@ -15,7 +14,6 @@
       "immutable": true,
       "object_id": "f9e550142dd4b33ee1112f5dd64ffa94ba79cefa",
       "ref": "source/base/arm/op-tee/3.17.0",
-      "remote": "https://github.com/OP-TEE/optee_os.git",
       "tree_id": "24693241ae1eddf5b9b35d520ff9c08676e7b534",
       "type": "base",
       "upstream_ref": "f9e550142dd4b33ee1112f5dd64ffa94ba79cefa"

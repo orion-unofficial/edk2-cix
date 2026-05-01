@@ -22,14 +22,12 @@ def git_files(*patterns: str) -> list[str]:
         text=True,
         stdout=subprocess.PIPE,
     )
-    return [line for line in result.stdout.splitlines() if line]
+    return [line for line in result.stdout.splitlines() if line and Path(line).exists()]
 
 
 def lint_json() -> None:
     files = git_files("config/*.json", "config/refs/*.json")
     for file_name in files:
-        if not Path(file_name).exists():
-            continue
         with Path(file_name).open("r", encoding="utf-8") as f:
             json.load(f)
         run(["jq", "--exit-status", "type", file_name], stdout=subprocess.DEVNULL)

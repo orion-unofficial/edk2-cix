@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scan generated source-model files and selected commits for identity/path hygiene issues."""
+"""Scan build-branch files and selected commits for identity/path hygiene issues."""
 
 from __future__ import annotations
 

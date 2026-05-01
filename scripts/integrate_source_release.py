@@ -119,6 +119,13 @@ def cix_component_records(repo: Path, release: str) -> list[dict[str, str]]:
     return sorted(records, key=lambda item: str(item.get("ref", "")))
 
 
+def cix_record_remote(repo: Path, record: dict[str, str]) -> str:
+    record_type = str(record.get("type", ""))
+    if record_type == "vendor-bundle":
+        return remote_url(repo, vendor="cix", remote_type="vendor-bundle")
+    return remote_url(repo, component=str(record.get("component", "")), vendor="cix")
+
+
 def fetch_to_ref(repo: Path, remote: str, source: str, target: str, verbose: bool, allow_replace: bool) -> None:
     if ref_exists(repo, target) and not allow_replace:
         if verbose:
@@ -263,7 +270,7 @@ def main() -> None:
         target = upstream_target(args.component, release)
         source = args.ref or f"refs/tags/{release}"
         remote = remote_url(repo, component=args.component, remote_type="upstream")
-        operations.append((remote, source, target, {"type": "base", "component": args.component, "remote": remote, "upstream_ref": source}))
+        operations.append((remote, source, target, {"type": "base", "component": args.component, "upstream_ref": source}))
     elif args.vendor == "cix" and args.component:
         cix_release = args.release.removeprefix("v")
         target = f"source/component/cix/{cix_release}/{args.component}/{args.arm_base}"
@@ -289,11 +296,7 @@ def main() -> None:
                 f"no CIX component records found for release {args.release} in config/refs/cix.json"
             )
         for item in records:
-            remote = str(item.get("remote", "")) or remote_url(
-                repo,
-                component=str(item.get("component", "")),
-                vendor="cix",
-            )
+            remote = cix_record_remote(repo, item)
             source = str(item.get("upstream_ref") or item.get("object_id") or "")
             target = str(item.get("ref", ""))
             if not source or not target:
@@ -307,7 +310,6 @@ def main() -> None:
                     "vendor": "cix",
                     "component": str(item.get("component", "")),
                     "vendor_path": str(item.get("vendor_path", "")),
-                    "remote": remote,
                     "upstream_ref": source,
                 },
             ))
