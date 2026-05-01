@@ -743,7 +743,11 @@ def update_ref_record(repo: Path, manifest_name: str, ref: str, updates: dict[st
     if record is None:
         record = {"ref": ref}
         records.append(record)
-    record.update(updates)
+    for key, value in updates.items():
+        if value is None:
+            record.pop(key, None)
+        else:
+            record[key] = value
     data["refs"] = sorted(records, key=lambda item: item.get("ref", ""))
     write_json(path, data)
 
@@ -761,12 +765,14 @@ def refresh_ref_record(repo: Path, manifest_name: str, ref: str, extra: dict[str
 def refresh_release_tree(repo: Path, branch: str) -> None:
     if branch not in release_entries(repo):
         raise ReconstructionError(f"cannot update variant manifest for unknown source/release branch: {branch}")
-    refresh_ref_record(
+    update_ref_record(
         repo,
         "rendered.json",
         branch,
         {
             "immutable": True,
+            "object_id": None,
+            "tree_id": tree_id(repo, branch),
             "type": "rendered-release",
         },
     )

@@ -17,7 +17,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "7d04c29d8d0f098364d8286d4eecf23bcfb7b23e",
       "ref": "source/base/rendered/edk2-stable202208",
       "tree_id": "7efd4ef4e9a036cfa6e594264e9e122528747fe2",
       "type": "component-skeleton"
@@ -39,7 +38,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "3f5c5eb67c6265f514af0866cda528c065444b29",
       "ref": "source/base/rendered/edk2-stable202211",
       "tree_id": "7a24c4433b0e17874e5fcb6cd8ad085fbb41dcf6",
       "type": "component-skeleton"
@@ -61,7 +59,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "018e2eb68363c1ea00d327e190ecd3e456719c94",
       "ref": "source/base/rendered/edk2-stable202302",
       "tree_id": "7a9e2478a20d114799f9a8e58c081c51643794b9",
       "type": "component-skeleton"
@@ -83,7 +80,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "7743fb49afa13275245f50f0449d960ce1fb0d55",
       "ref": "source/base/rendered/edk2-stable202305",
       "tree_id": "d0f50de576f84d9e6feb8db8c21928bc58072e6e",
       "type": "component-skeleton"
@@ -105,7 +101,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "903f6a266b5d911cb1f8cc6f9b370e04b278e183",
       "ref": "source/base/rendered/edk2-stable202308",
       "tree_id": "77c681391b3fa97132d1456e79ac41fe2cd18463",
       "type": "component-skeleton"
@@ -127,7 +122,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "30aaee95048f1e77208b9b4bc9b36009572c510f",
       "ref": "source/base/rendered/edk2-stable202311",
       "tree_id": "e0689eef813f1ca8d678169884017a57e5d8b9c6",
       "type": "component-skeleton"
@@ -149,7 +143,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "cf0df92d617e19ca2eb0ec447978f2b35117f7ae",
       "ref": "source/base/rendered/edk2-stable202402",
       "tree_id": "cd17f17c0493281aa34a8bf0c37d4f0d86973365",
       "type": "component-skeleton"
@@ -171,7 +164,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "3e5cd5eaffae5b847e301c95bfe5ef41ce8c1f5a",
       "ref": "source/base/rendered/edk2-stable202405",
       "tree_id": "14b3c2d21dfa38c19aac1b75c1e43e79a978c37e",
       "type": "component-skeleton"
@@ -193,7 +185,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "d673afe8807620f4bff4703eb72e003c566c6299",
       "ref": "source/base/rendered/edk2-stable202408",
       "tree_id": "b206f7a426c4122dc2e23ae2e1851c4bd1c5983b",
       "type": "component-skeleton"
@@ -215,7 +206,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "80f5ebc3a0fb2c91896cbfa76fbaf46303fdd521",
       "ref": "source/base/rendered/edk2-stable202408.01",
       "tree_id": "ae9d385d8c4618d2f49a5d6a568958fdee70b14a",
       "type": "component-skeleton"
@@ -237,7 +227,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "896f52aac77a075fe537be965f824346d1b11726",
       "ref": "source/base/rendered/edk2-stable202411",
       "tree_id": "5a1a3330260adf5b093274f175cbab6a5717cef1",
       "type": "component-skeleton"
@@ -259,7 +248,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "145a3cd64d8ab31557d74b395605998bd2ab0f45",
       "ref": "source/base/rendered/edk2-stable202502",
       "tree_id": "8ce585b6ec3fe8b79505ae967b1cbbf303909b62",
       "type": "component-skeleton"
@@ -281,7 +269,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "aa668ed01083f88912022205615ac5e85157f8d8",
       "ref": "source/base/rendered/edk2-stable202505",
       "tree_id": "e38b965cb9a5eaff0e9332c8804e5c123492b3e3",
       "type": "component-skeleton"
@@ -303,7 +290,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "7ac950d0365602766f8621389075cc25c8149ca6",
       "ref": "source/base/rendered/edk2-stable202508",
       "tree_id": "d36940b3f6749e4a4c45a20807196051219dc58f",
       "type": "component-skeleton"
@@ -325,7 +311,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "d70074e2547898e7d480a886d95c836ccf44511d",
       "ref": "source/base/rendered/edk2-stable202511",
       "tree_id": "202a8787aec717d34db9efa4e0e8b4119b1c7516",
       "type": "component-skeleton"
@@ -347,7 +332,6 @@
         }
       ],
       "immutable": true,
-      "object_id": "959308cc2c36ba1768f213dc6cc6ed288e650f2d",
       "ref": "source/base/rendered/edk2-stable202602",
       "tree_id": "be3e4079ff439c6269f4584bd69c95ded7305ce0",
       "type": "component-skeleton"

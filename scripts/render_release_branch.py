@@ -19,7 +19,6 @@ from reconstruction_common import (
     main_wrapper,
     read_delta_artefact_metadata,
     default_release,
-    refresh_ref_record,
     refresh_release_tree,
     ref_exists,
     release_entries,
@@ -400,15 +399,6 @@ def main() -> None:
             git(repo, "branch", branch, target_ref, capture=not verbose)
             target_ref = branch
         if allow_manifest_refresh:
-            refresh_ref_record(
-                repo,
-                "rendered.json",
-                branch,
-                {
-                    "immutable": True,
-                    "type": "rendered-release",
-                },
-            )
             refresh_release_tree(repo, branch)
 
     wt: Path | None = None
