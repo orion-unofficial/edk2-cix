@@ -84,8 +84,7 @@ help:
 	print_help_line 'make help' 'Show this help.'; \
 	print_help_line 'make help-vars' 'Show common build variables.'; \
 	print_help_line 'make help-variants' 'List configured firmware variants.'; \
-	print_help_line 'make help-dev' 'Show source-update and developer tooling targets.'; \
-	print_help_line 'make <target>-help' 'Show arguments for a developer tooling target.'
+	print_help_line 'make help-dev' 'Show source-update and developer tooling targets.'
 
 help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
@@ -115,14 +114,6 @@ help-dev:
 	print_help_line 'make update-release-config' 'Seed variant manifest entries for a new EDK2 release.'; \
 	print_help_line 'make import-local-commits' 'Update source/unofficial/current and/or local delta artefacts.'; \
 	print_help_line 'make check-identity-hygiene' 'Scan generated files and refs for path/identity leaks.'; \
-	print_section 'Per-target Help'; \
-	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
-	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
-	print_help_line 'make update-release-config-help' 'Show update-release-config arguments.'; \
-	print_help_line 'make import-local-commits-help' 'Show import-local-commits arguments.'; \
-	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
-	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
-	print_help_line 'make verify-build-matrix-help' 'Show verify-build-matrix arguments.'; \
 	print_section 'Source Integration Variables'; \
 	print_help_line 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa or CIX-carried source layers.'; \
 	print_help_line 'COMPONENT=<name>' 'For TYPE=upstream: edk2, edk2-platforms, edk2-non-osi, tf-a, or op-tee.'; \
@@ -130,6 +121,7 @@ help-dev:
 	print_help_line 'RELEASE=<name>' 'For source integration: release, tag, or source version name.'; \
 	print_help_line 'REF=<ref>' 'Input ref/object for source integration.'; \
 	print_help_line 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
+	print_help_line 'ARM_BASE=<release>' 'Arm upstream base used when recording a CIX TF-A or OP-TEE component uplift.'; \
 	print_help_line 'EDK2_RELEASE=<release>' 'EDK2 release to add to config/build-matrix.json and config/releases.json, for example 202605 or edk2-stable202605.'; \
 	print_help_line 'RADXA_RELEASE=<version>' 'Radxa release used by update-release-config.\nDefault: 1.2.1.'; \
 	print_help_line 'CIX_RELEASE=<version>' 'CIX release used by update-release-config.\nDefault: 1.2.'; \
@@ -140,19 +132,35 @@ help-dev:
 	print_help_line 'BUILD_POLICY=<name>' 'Build policy for update-release-config.\nDefault: post-edk2-stable202208, or edk2-stable202208 for that release.'; \
 	print_help_line 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before extracting deltas.\nDefault: 1.'; \
 	print_help_line 'BASE_REF=<ref>' 'Base ref for delta extraction/import.'; \
+	print_help_line 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
 	print_help_line 'TARGET_REF=<ref>' 'Delta artefact output ref.'; \
 	print_help_line 'FROM_REF=<ref>' 'Local topic branch/ref for import-local-commits.'; \
+	print_help_line 'OUTPUT=<path>' 'Optional extract-vendor-delta metadata output path.'; \
+	print_help_line 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
 	print_help_line 'SOURCE_LOCAL_REF=<ref>' 'Local source branch; defaults to source/unofficial/current.'; \
 	print_help_line 'UPDATE_LOCAL_SOURCE=1' 'Allow import-local-commits to advance SOURCE_LOCAL_REF.'; \
 	print_help_line 'LOCAL_TARGET_REF=<ref>' 'Local delta target; defaults to source/delta/local/current.'; \
+	print_help_line 'SCAN_COMMITS=1' 'Also scan selected commit metadata in check-identity-hygiene.'; \
 	print_help_line 'SCAN_SOURCE_REFS=1' 'Also scan generated source refs in check-identity-hygiene.'; \
 	print_section 'Rendering and Qualification Variables'; \
+	print_help_line 'RELEASE=<variant>' 'Firmware variant name for render-release-branch and verify-release-branch.'; \
 	print_help_line 'PERSIST=1' 'For render-release-branch: create or verify a named source/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a source/release branch.'; \
+	print_help_line 'REBUILD=1' 'Regenerate a rendered firmware variant from its render plan instead of reusing an existing ref.'; \
+	print_help_line 'FORCE=1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass.'; \
+	print_help_line 'WORKTREE=<path>' 'Existing rendered worktree to use for verify-release-branch history checks.'; \
 	print_help_line 'SIGNING_CERT_SOURCE_DIR=<path>' 'Copy exact-replay signing certs into the build worktree.\nDefault: unset.'; \
 	print_help_line 'INSTALL_SOURCE=<path>' 'Optional staged payload path, or path relative to dist/firmware.\nDefault: latest staged firmware payload.'; \
-	print_section 'Variant Matrix'; \
+	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
+	print_help_line 'DEBUG=1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
+	print_section 'Help Targets'; \
 	print_help_line 'make help-variants' 'Show configured firmware variants.'; \
-	print_help_line 'make verify-build-matrix' 'Check variant metadata, refs, and build-policy coverage.'
+	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
+	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
+	print_help_line 'make update-release-config-help' 'Show update-release-config arguments.'; \
+	print_help_line 'make import-local-commits-help' 'Show import-local-commits arguments.'; \
+	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
+	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
+	print_help_line 'make verify-build-matrix-help' 'Show verify-build-matrix arguments.'
 
 help-variants:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/list_configured_variants.py
