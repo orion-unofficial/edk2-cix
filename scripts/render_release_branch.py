@@ -18,9 +18,11 @@ from reconstruction_common import (
     load_json,
     main_wrapper,
     read_delta_artefact_metadata,
+    default_release,
     refresh_ref_record,
     refresh_release_tree,
     ref_exists,
+    release_entries,
     release_entry,
     repo_root,
     resolve_branch_or_origin,
@@ -48,7 +50,7 @@ Optional variables:
   REBUILD=0|1
              Regenerate the variant from its render plan.
   FORCE=0|1  With PERSIST=1 and REBUILD=1, intentionally replace the rendered
-             branch and refresh config/refs/rendered.json plus releases.json.
+             branch and refresh config/refs/rendered.json.
   V=0|1      Print delegated git operations and warnings.
 
 Example:
@@ -112,7 +114,7 @@ def ensure_base_ref(repo: Path, entry: dict, verbose: bool) -> str | None:
         return None
     if ref_exists(repo, base_ref):
         return base_ref
-    releases = load_json(repo, "config/releases.json").get("releases", {})
+    releases = release_entries(repo)
     if base_ref in releases:
         if verbose:
             print(f"Rendering prerequisite release {base_ref}", file=sys.stderr)
@@ -348,9 +350,8 @@ def main() -> None:
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
 
-    releases = __import__("reconstruction_common").load_json(repo, "config/releases.json")
     if args.print_default_release:
-        print(variant_name(releases.get("default_release", "")))
+        print(variant_name(default_release(repo)))
         return
 
     if args.require_release and not args.release:

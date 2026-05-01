@@ -13,7 +13,12 @@ from reconstruction_common import (
     git,
     load_json,
     main_wrapper,
+    expand_matrix_template,
+    matrix_release_branches,
+    matrix_release_values,
+    matrix_variant_releases,
     ref_exists,
+    release_entries,
     repo_root,
     rev_parse,
     tree_id,
@@ -29,7 +34,7 @@ Optional variables:
   V=0|1  Print every expected firmware variant branch and required source ref.
 
 Checks:
-  - every firmware variant declared in config/build-matrix.json exists in config/releases.json
+  - every firmware variant declared in config/build-matrix.json has a derived render plan
   - every declared firmware variant branch/ref exists locally
   - required base, vendor, component, and local refs exist
   - actual source/release branches are all declared in the build matrix
@@ -45,46 +50,20 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
-def release_values(matrix: dict[str, Any]) -> list[str]:
-    values = [item["release"] for item in matrix.get("edk2_releases", [])]
-    if not values:
-        raise ReconstructionError("config/build-matrix.json does not declare any edk2_releases")
-    return values
-
-
-def expand_template(template: str, release: str) -> str:
-    return template.format(release=release, edk2_ref=f"edk2-stable{release}")
-
-
-def variant_releases(variant: dict[str, Any], all_releases: list[str]) -> list[str]:
-    releases = variant.get("releases")
-    if releases == "all":
-        return all_releases
-    if isinstance(releases, list):
-        return releases
-    if "release" in variant:
-        return [variant["release"]]
-    raise ReconstructionError(f"variant has no release selection: {variant.get('name', '<unnamed>')}")
-
-
 def expected_from_matrix(matrix: dict[str, Any]) -> tuple[set[str], set[str], dict[str, str]]:
-    all_releases = release_values(matrix)
+    all_releases = matrix_release_values(matrix)
     expected_releases: set[str] = set()
     expected_required_refs: set[str] = set()
-    aliases: dict[str, str] = {}
 
     for variant in matrix.get("source_variants", []):
         branch_template = variant.get("branch_template")
         if not branch_template:
             raise ReconstructionError(f"source variant has no branch_template: {variant.get('name', '<unnamed>')}")
-        for release in variant_releases(variant, all_releases):
-            branch = expand_template(branch_template, release)
+        for release in matrix_variant_releases(variant, all_releases):
+            branch = expand_matrix_template(branch_template, release)
             expected_releases.add(branch)
             for required in variant.get("required_ref_templates", []):
-                expected_required_refs.add(expand_template(required, release))
-            alias_template = variant.get("alias_of_template")
-            if alias_template:
-                aliases[branch] = expand_template(alias_template, release)
+                expected_required_refs.add(expand_matrix_template(required, release))
 
     for variant in matrix.get("special_source_variants", []):
         branch = variant.get("branch")
@@ -92,9 +71,8 @@ def expected_from_matrix(matrix: dict[str, Any]) -> tuple[set[str], set[str], di
             raise ReconstructionError(f"special source variant has no branch: {variant.get('name', '<unnamed>')}")
         expected_releases.add(branch)
         expected_required_refs.update(variant.get("required_refs", []))
-        if variant.get("alias_of"):
-            aliases[branch] = variant["alias_of"]
 
+    _branches, aliases = matrix_release_branches(matrix)
     return expected_releases, expected_required_refs, aliases
 
 
@@ -143,15 +121,15 @@ def require_manifested_release_entries(
     verbose: bool,
 ) -> list[str]:
     problems: list[str] = []
-    releases = load_json(repo, "config/releases.json").get("releases", {})
+    releases = release_entries(repo)
     configured = set(releases)
 
     missing_config = sorted(expected_releases - configured)
     extra_config = sorted(configured - expected_releases)
     if missing_config:
-        problems.append("config/releases.json is missing declared matrix variants:\n" + "\n".join(f"  - {r}" for r in missing_config))
+        problems.append("derived render plans are missing declared matrix variants:\n" + "\n".join(f"  - {r}" for r in missing_config))
     if extra_config:
-        problems.append("config/releases.json contains variants not declared in config/build-matrix.json:\n" + "\n".join(f"  - {r}" for r in extra_config))
+        problems.append("derived render plans contain variants not declared in config/build-matrix.json:\n" + "\n".join(f"  - {r}" for r in extra_config))
 
     actual = actual_source_release_refs(repo)
     missing_refs = sorted(expected_releases - actual)
@@ -168,7 +146,7 @@ def require_manifested_release_entries(
             continue
         expected_tree = releases[ref].get("tree_id")
         if expected_tree and tree_id(repo, ref) != expected_tree:
-            problems.append(f"{ref}: tree ID differs from config/releases.json ({tree_id(repo, ref)} != {expected_tree})")
+            problems.append(f"{ref}: tree ID differs from config/refs/rendered.json ({tree_id(repo, ref)} != {expected_tree})")
         if verbose:
             print(f"variant ok: {ref}")
 
@@ -182,16 +160,15 @@ def require_source_refs(
     verbose: bool,
 ) -> list[str]:
     problems: list[str] = []
-    all_releases = release_values(matrix)
+    all_releases = matrix_release_values(matrix)
     expected_base_rendered = {f"source/base/rendered/edk2-stable{release}" for release in all_releases}
-    expected_radxa = {f"source/delta/radxa/1.2.1/edk2-stable{release}" for release in all_releases}
+    expected_radxa = {ref for ref in expected_required_refs if ref.startswith("source/delta/radxa/")}
     expected_local_tags = {f"source/unofficial/edk2-stable{release}" for release in all_releases}
     expected_local_branches = set(expected_local_tags)
     expected_local_branches.add("source/unofficial/current")
 
     required = set(expected_required_refs)
     required.update(expected_base_rendered)
-    required.update(expected_radxa)
     required.update(expected_local_tags)
 
     missing = sorted(ref for ref in required if ref not in expected_base_rendered and not ref_exists(repo, ref))
@@ -199,7 +176,7 @@ def require_source_refs(
         problems.append("required source refs are unavailable locally:\n" + "\n".join(f"  - {r}" for r in missing))
 
     actual_base_rendered = actual_refs(repo, "source/base/rendered")
-    actual_radxa = actual_refs(repo, "source/delta/radxa/1.2.1")
+    actual_radxa = actual_refs(repo, "source/delta/radxa")
     actual_local_tags = local_tag_refs(repo)
     actual_local_branches = actual_refs(repo, "source/local")
     base_records = rendered_base_records(repo)
@@ -230,7 +207,7 @@ def require_source_refs(
         )
     if expected_radxa != actual_radxa:
         problems.append(
-            "source/delta/radxa/1.2.1 refs do not match the matrix:\n"
+            "source/delta/radxa refs do not match the matrix:\n"
             + diff_sets(expected_radxa, actual_radxa)
         )
     missing_tags = expected_local_tags - actual_local_tags
@@ -311,7 +288,7 @@ def main() -> None:
         raise ReconstructionError("build matrix verification failed:\n" + "\n\n".join(problems))
 
     print(
-        f"validated build matrix: {len(release_values(matrix))} EDK2 releases, "
+        f"validated build matrix: {len(matrix_release_values(matrix))} EDK2 releases, "
         f"{len(expected_releases)} firmware variant refs"
     )
 

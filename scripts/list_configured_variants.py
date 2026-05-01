@@ -3,11 +3,10 @@
 
 from __future__ import annotations
 
-import json
 import textwrap
 from pathlib import Path
 
-from reconstruction_common import variant_name
+from reconstruction_common import default_release, release_entries, repo_root, variant_name
 
 
 WIDTH = 80
@@ -78,10 +77,10 @@ def indented(text: str, indent: str = "  ") -> None:
 
 
 def main() -> None:
-    data = json.loads(Path("config/releases.json").read_text(encoding="utf-8"))
-    releases = data.get("releases", {})
-    default = variant_name(data.get("default_release", ""))
-    branches, alias_versions = canonical_branches(releases if isinstance(releases, dict) else {})
+    repo = repo_root(Path(__file__))
+    releases = release_entries(repo)
+    default = variant_name(default_release(repo))
+    branches, alias_versions = canonical_branches(releases)
 
     print("Configured Firmware Variants")
     print()

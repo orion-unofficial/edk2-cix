@@ -46,7 +46,7 @@
       "Rendered branches must contain no gitlinks or active root .gitmodules files.",
       "Submodule metadata is retained in manifests/reports, not as active submodule state.",
       "Normal git log <path> and git blame <path> must work from any directory inside the repo.",
-      "Rendered branches are produced from ordered render steps recorded in config/releases.json.",
+      "Rendered branches are produced from render steps derived from config/build-matrix.json and the selected source/release branch name.",
       "Nested .gitmodules files inside upstream source trees may remain as inert source files when no gitlink points at them.",
       "If gitlinks remain after configured render steps, the renderer recursively materialises them using recorded .gitmodules URL mappings before validation."
     ]

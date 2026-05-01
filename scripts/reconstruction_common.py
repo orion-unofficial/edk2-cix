@@ -67,6 +67,13 @@ def truthy(value: str | int | bool | None) -> bool:
 RELEASE_STAGE_PREFIXES = ("custom", "vendor", "upstream")
 
 
+def load_release_defaults(repo: Path) -> dict[str, Any]:
+    path = repo / "config" / "releases.json"
+    if not path.exists():
+        return {}
+    return load_json(repo, "config/releases.json")
+
+
 def release_to_branch(release: str) -> str:
     if release.startswith("refs/heads/"):
         release = release[len("refs/heads/") :]
@@ -98,6 +105,185 @@ def variant_name(branch: str) -> str:
     if sep and first in RELEASE_STAGE_PREFIXES:
         return rest
     return short
+
+
+def matrix_release_values(matrix: dict[str, Any]) -> list[str]:
+    values = [item["release"] for item in matrix.get("edk2_releases", [])]
+    if not values:
+        raise ReconstructionError("config/build-matrix.json does not declare any edk2_releases")
+    return values
+
+
+def expand_matrix_template(template: str, release: str) -> str:
+    return template.format(release=release, edk2_ref=f"edk2-stable{release}")
+
+
+def matrix_variant_releases(variant: dict[str, Any], all_releases: list[str]) -> list[str]:
+    releases = variant.get("releases")
+    if releases == "all":
+        return all_releases
+    if isinstance(releases, list):
+        return releases
+    if "release" in variant:
+        return [variant["release"]]
+    raise ReconstructionError(f"variant has no release selection: {variant.get('name', '<unnamed>')}")
+
+
+def matrix_release_branches(matrix: dict[str, Any]) -> tuple[set[str], dict[str, str]]:
+    all_releases = matrix_release_values(matrix)
+    branches: set[str] = set()
+    aliases: dict[str, str] = {}
+
+    for variant in matrix.get("source_variants", []):
+        branch_template = variant.get("branch_template")
+        if not branch_template:
+            raise ReconstructionError(f"source variant has no branch_template: {variant.get('name', '<unnamed>')}")
+        for release in matrix_variant_releases(variant, all_releases):
+            branch = expand_matrix_template(branch_template, release)
+            branches.add(branch)
+            alias_template = variant.get("alias_of_template")
+            if alias_template:
+                aliases[branch] = expand_matrix_template(alias_template, release)
+
+    for variant in matrix.get("special_source_variants", []):
+        branch = variant.get("branch")
+        if not branch:
+            raise ReconstructionError(f"special source variant has no branch: {variant.get('name', '<unnamed>')}")
+        branches.add(branch)
+        if variant.get("alias_of"):
+            aliases[branch] = variant["alias_of"]
+
+    return branches, aliases
+
+
+def rendered_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
+    path = repo / "config" / "refs" / "rendered.json"
+    if not path.exists():
+        return {}
+    records = load_json(repo, "config/refs/rendered.json").get("refs", [])
+    return {record["ref"]: record for record in records if record.get("ref")}
+
+
+RELEASE_BRANCH_RE = re.compile(
+    r"^source/release/"
+    r"(?P<stage>upstream|vendor|custom)/"
+    r"edk2-(?P<release>\d{6}(?:\.\d+)?)/"
+    r"(?:(?:cix-(?P<cix>[^/]+)/)?)"
+    r"radxa-(?P<radxa>[^/]+)"
+    r"(?:/(?P<local>local(?:-[^/]+)?))?"
+    r"$"
+)
+
+
+def release_branch_parts(branch: str) -> dict[str, str]:
+    match = RELEASE_BRANCH_RE.match(branch)
+    if not match:
+        raise ReconstructionError(f"cannot derive render plan from unsupported variant branch name: {branch}")
+    parts = {k: v for k, v in match.groupdict().items() if v}
+    stage = parts["stage"]
+    if stage == "upstream" and (parts.get("cix") or parts.get("local")):
+        raise ReconstructionError(f"invalid upstream variant branch: {branch}")
+    if stage == "vendor" and (not parts.get("cix") or parts.get("local")):
+        raise ReconstructionError(f"invalid vendor variant branch: {branch}")
+    if stage == "custom" and not parts.get("local"):
+        raise ReconstructionError(f"invalid custom variant branch: {branch}")
+    return parts
+
+
+def rendered_tree_for(repo: Path, branch: str) -> str | None:
+    return rendered_ref_records(repo).get(branch, {}).get("tree_id")
+
+
+def alias_target_for(branch: str, parts: dict[str, str]) -> str | None:
+    local = parts.get("local")
+    if not local or local == "local":
+        return None
+    release = parts["release"]
+    radxa = parts["radxa"]
+    cix = parts.get("cix")
+    if cix:
+        return f"source/release/custom/edk2-{release}/cix-{cix}/radxa-{radxa}/local"
+    return f"source/release/custom/edk2-{release}/radxa-{radxa}/local"
+
+
+def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
+    parts = release_branch_parts(branch)
+    stage = parts["stage"]
+    release = parts["release"]
+    edk2_ref = f"edk2-stable{release}"
+    radxa = parts["radxa"]
+    cix = parts.get("cix")
+    local = parts.get("local")
+
+    entry: dict[str, Any] = {
+        "description": f"Firmware variant {variant_name(branch)}.",
+        "edk2_release": edk2_ref,
+        "local_delta": bool(local),
+        "radxa_release": radxa,
+        "render": {
+            "remove_root_gitmodules": True,
+            "steps": [],
+        },
+    }
+    if cix:
+        entry["cix_release"] = cix
+
+    render = entry["render"]
+    if stage == "upstream":
+        render["base"] = {"ref": f"source/base/rendered/{edk2_ref}"}
+        render["commit_message"] = f"render: EDK2 {release} with Radxa {radxa} vendor layer"
+        render["steps"] = [{"delta": f"source/delta/radxa/{radxa}/{edk2_ref}"}]
+        entry["source_ref"] = branch
+    elif stage == "vendor":
+        render["base"] = {"ref": f"source/release/upstream/edk2-{release}/radxa-{radxa}"}
+        render["commit_message"] = f"render: EDK2 {release} with Radxa {radxa} and CIX {cix} components"
+        render["steps"] = [
+            {"component": {"path": f"src/cix-v{cix}/tf-a", "ref": f"source/component/cix/{cix}/tf-a"}},
+            {"component": {"path": f"src/cix-v{cix}/tee", "ref": f"source/component/cix/{cix}/op-tee"}},
+        ]
+        entry["source_ref"] = branch
+    else:
+        if cix:
+            render["base"] = {"ref": f"source/release/vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"}
+            delta_ref = f"source/delta/local/{edk2_ref}"
+            render["commit_message"] = (
+                f"render: firmware variant with EDK2 {release}, Radxa {radxa}, "
+                f"CIX {cix} components, and local changes"
+            )
+        else:
+            render["base"] = {"ref": f"source/release/upstream/edk2-{release}/radxa-{radxa}"}
+            delta_ref = f"source/delta/local/{edk2_ref}-radxa-{radxa}"
+            render["commit_message"] = (
+                f"render: firmware variant with EDK2 {release}, Radxa {radxa}, "
+                "and local changes"
+            )
+        render["steps"] = [{"delta": delta_ref}]
+        target = alias_target_for(branch, parts)
+        entry["source_ref"] = target or branch
+        if target:
+            entry["alias_of"] = target
+
+    expected_tree = rendered_tree_for(repo, branch)
+    if expected_tree:
+        entry["tree_id"] = expected_tree
+    return entry
+
+
+def release_entries(repo: Path) -> dict[str, dict[str, Any]]:
+    matrix = load_json(repo, "config/build-matrix.json")
+    branches, _aliases = matrix_release_branches(matrix)
+    return {branch: synthesise_release_entry(repo, branch) for branch in sorted(branches)}
+
+
+def default_release(repo: Path) -> str:
+    configured = load_release_defaults(repo).get("default_release", "")
+    if configured:
+        return str(configured)
+    entries = release_entries(repo)
+    custom = [branch for branch in entries if branch.startswith("source/release/custom/") and branch.endswith("/local")]
+    if not custom:
+        raise ReconstructionError("no default release is configured and no custom local variant can be derived")
+    return variant_name(sorted(custom)[-1])
 
 
 def safe_name(value: str) -> str:
@@ -163,13 +349,12 @@ def resolve_branch_or_origin(repo: Path, branch: str, verbose: bool = False) -> 
 
 
 def release_entry(repo: Path, release: str | None, require: bool = False) -> tuple[str, dict[str, Any]]:
-    releases = load_json(repo, "config/releases.json")
-    selected = release or releases.get("default_release")
+    selected = release or default_release(repo)
     if not selected:
         if require:
             raise ReconstructionError("RELEASE is required and no default release is configured")
         raise ReconstructionError("no release selected")
-    entries: dict[str, Any] = releases.get("releases", {})
+    entries = release_entries(repo)
     matches = [
         (branch, entry)
         for branch, entry in entries.items()
@@ -439,14 +624,17 @@ def refresh_ref_record(repo: Path, manifest_name: str, ref: str, extra: dict[str
 
 
 def refresh_release_tree(repo: Path, branch: str) -> None:
-    path = repo / "config" / "releases.json"
-    data = load_json(repo, "config/releases.json")
-    entries = data.setdefault("releases", {})
-    entry = entries.get(branch) or entries.get(short_release(branch))
-    if entry is None:
+    if branch not in release_entries(repo):
         raise ReconstructionError(f"cannot update variant manifest for unknown source/release branch: {branch}")
-    entry["tree_id"] = tree_id(repo, branch)
-    write_json(path, data)
+    refresh_ref_record(
+        repo,
+        "rendered.json",
+        branch,
+        {
+            "immutable": True,
+            "type": "rendered-release",
+        },
+    )
 
 
 def immutable_records(repo: Path) -> list[dict[str, Any]]:
