@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 from reconstruction_common import (
@@ -14,6 +15,7 @@ from reconstruction_common import (
     cache_dir,
     check_immutable_refs,
     commit_component_skeleton,
+    format_duration,
     git,
     main_wrapper,
     read_delta_artefact_metadata,
@@ -324,6 +326,7 @@ def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
+    started = time.monotonic()
 
     if args.print_default_release:
         print(variant_name(default_release(repo)))
@@ -393,6 +396,7 @@ def main() -> None:
         print(f"ref:     {branch if ref_exists(repo, branch) else target_ref}")
         if wt:
             print(f"worktree:{wt}")
+    print(f"[render] Prepared {branch} in {format_duration(time.monotonic() - started)}", file=sys.stderr)
 
 
 if __name__ == "__main__":

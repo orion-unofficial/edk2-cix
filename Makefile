@@ -61,7 +61,7 @@ endef
 .PHONY: help help-vars help-dev help-variants help-releases all build-all install zip targz buildbox-firmware-build buildbox-firmware-stage \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-local-commits \
-	verify-release-branch verify-build-matrix check-identity-hygiene ref-report cleanup-report \
+	verify-release-branch verify-build-matrix verify-manifest-integrity check-identity-hygiene ref-report cleanup-report \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
 	import-local-commits-help verify-release-branch-help verify-build-matrix-help
 
@@ -108,6 +108,7 @@ help-dev:
 	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/release branch.'; \
 	print_help_line 'make verify-release-branch' 'Validate a materialised firmware variant branch.'; \
 	print_help_line 'make verify-build-matrix' 'Validate build/source variant combinations derived from local refs.'; \
+	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a vendor delta report/diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-local-commits' 'Update source/unofficial/current and/or local delta artefacts.'; \
@@ -225,6 +226,9 @@ verify-release-branch:
 
 verify-build-matrix:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/verify_build_matrix.py --v "$(V)"
+
+verify-manifest-integrity:
+	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/verify_manifest_integrity.py --v "$(V)"
 
 extract-vendor-delta:
 	@DEBUG="$(DEBUG)" VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"

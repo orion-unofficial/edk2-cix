@@ -347,6 +347,7 @@ For normal firmware building, the build target itself performs the necessary pre
 make test
 make lint
 make verify-build-matrix
+make verify-manifest-integrity
 make check-identity-hygiene
 make ref-report
 ```

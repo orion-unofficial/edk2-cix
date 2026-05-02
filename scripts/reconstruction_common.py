@@ -106,6 +106,15 @@ def truthy(value: str | int | bool | None) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def format_duration(seconds: float) -> str:
+    if seconds < 1:
+        return f"{seconds * 1000:.0f} ms"
+    if seconds < 60:
+        return f"{seconds:.1f} s"
+    minutes, remainder = divmod(seconds, 60)
+    return f"{int(minutes)} min {remainder:.1f} s"
+
+
 RELEASE_STAGE_PREFIXES = ("custom", "vendor", "upstream")
 UNBUILDABLE_RADXA_RELEASES = {"0.1.1-1"}
 MIN_SUPPORTED_EDK2_RELEASE = "202208"

@@ -6,11 +6,13 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
 
 from reconstruction_common import (
     ReconstructionError,
     check_immutable_refs,
+    format_duration,
     git,
     main_wrapper,
     ref_exists,
@@ -83,7 +85,9 @@ def main() -> None:
         from render_release_branch import render_from_plan
 
         _branch, entry = release_entry(repo, args.release, require=True)
+        started = time.monotonic()
         ref = render_from_plan(repo, branch, entry, verbose)
+        print(f"[verify] Rendered {branch} in {format_duration(time.monotonic() - started)}", file=sys.stderr)
 
     check_immutable_refs(repo)
 
