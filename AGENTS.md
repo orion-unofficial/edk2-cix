@@ -1,0 +1,60 @@
+# Agent Guardrails
+
+This branch contains the build orchestration and source-ref model for producing
+EDK2-CIX firmware variants. Treat the source refs below as required source data,
+not as scratch branches.
+
+## Required Refs
+
+Future agents must not under any circumstance delete, rewrite, rename,
+garbage-collect away, or otherwise invalidate any of these refs as a cleanup,
+pruning, or space-saving operation. If the user explicitly requests a
+source-model migration, first create and prove replacement refs that reconstruct
+the same firmware source trees, then ask for explicit approval before removing
+the old refs:
+
+- `refs/heads/build`
+- `refs/heads/source/base/edk2/**`
+- `refs/heads/source/base/arm/**`
+- `refs/heads/source/component/cix/**`
+- `refs/heads/source/delta/radxa/**`
+- `refs/heads/source/delta/local/**`
+- `refs/heads/source/unofficial/**`
+- local compatibility tags under `refs/tags/source/unofficial/**`, or any future
+  replacement namespace documented by the build branch
+
+The manifests and policies on this branch are also required source metadata:
+
+- `config/refs/*.json`
+- `config/remotes.json`
+- `config/policies.json`
+
+These refs and files are the minimum source material needed to deterministically
+reconstruct supported firmware variants if generated release branches are absent.
+Do not treat them as temporary branches merely because they live under a `source/`
+namespace.
+
+## Generated Refs
+
+`refs/heads/source/release/**` refs are generated firmware artefacts. They are
+useful cached, inspectable materialisations, but they are not irreducible source
+inputs. They may be omitted from a deliberately pruned clone only after
+`make verify-build-matrix` confirms the variants are derivable and a representative
+`make verify-release-branch RELEASE=<variant>` can regenerate a missing variant
+from the required refs above.
+
+`refs/heads/source/base/rendered/**` refs are generated EDK2 component skeletons.
+They may likewise be omitted only when `config/refs/rendered-base.json` and the
+referenced EDK2 component refs are present.
+
+## Before Pruning
+
+Before deleting any branch or tag, check whether the checkout is a linked worktree:
+
+```bash
+git rev-parse --show-toplevel --git-dir --git-common-dir
+```
+
+If the common Git directory belongs to another checkout, deleting a branch or tag
+will affect that checkout too. In that case, do not prune refs unless the user has
+explicitly authorised pruning the shared repository state.
