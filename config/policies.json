@@ -41,14 +41,15 @@
     ]
   },
   "rendered_base_policy": {
-    "manifest": "config/refs/rendered-base.json",
+    "manifest": "config/refs/base-tree_id.json",
     "rules": [
-      "source/base/rendered/** refs are generated EDK2 component skeletons rather than irreducible source inputs",
-      "a pruned clone may omit source/base/rendered/** branches when config/refs/rendered-base.json and the referenced component refs are present",
+      "source/base/rendered/** refs are generated EDK2 component skeleton caches rather than irreducible source inputs",
+      "a pruned clone may omit source/base/rendered/** branches when config/refs/base-tree_id.json and the referenced component refs are present",
       "generated skeleton commits are validated by tree ID rather than object ID because commit metadata may differ after regeneration"
     ]
   },
   "rendered_branch_policy": {
+    "manifest": "config/refs/variant-tree_id.json",
     "requirements": [
       "source/release/** refs are generated firmware artefacts, not irreducible source inputs.",
       "A pruned clone may omit source/release/** branches when the source/base, source/component, source/delta, and source/local refs needed to regenerate them are present.",

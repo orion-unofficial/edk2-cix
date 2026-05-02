@@ -111,7 +111,7 @@ make render-release-branch \
   PERSIST=1 REBUILD=1 FORCE=1
 ```
 
-That command also refreshes the rendered tree metadata in `config/refs/rendered.json`.
+That command also refreshes the variant tree-ID metadata in `config/refs/variant-tree_id.json`.
 
 A configured build variation is considered supported only when all of its source inputs are recorded locally. At a high level, this means:
 
@@ -134,7 +134,7 @@ make verify-build-matrix
 
 The firmware tree is built from several layers rather than from one permanent monolithic branch.
 
-`source/base/**` branches contain upstream sources, such as EDK2, TF-A, and OP-TEE, at recorded versions. For EDK2 releases, the separate upstream `edk2`, `edk2-platforms`, and `edk2-non-osi` repos are combined into generated `source/base/rendered/**` skeletons when needed.
+`source/base/**` branches contain upstream sources, such as EDK2, TF-A, and OP-TEE, at recorded versions. For EDK2 releases, the separate upstream `edk2`, `edk2-platforms`, and `edk2-non-osi` repos are combined into generated `source/base/rendered/**` skeleton caches when needed. Those cache refs are not required source data when `config/refs/base-tree_id.json` and the referenced component refs are present.
 
 `source/component/cix/**` branches contain CIX-provided components. CIX publishes OP-TEE under a `tee` directory, but this source model records that component as `op-tee`.
 
@@ -348,6 +348,7 @@ make test
 make lint
 make verify-build-matrix
 make check-identity-hygiene
+make ref-report
 ```
 
 For a materialised branch, also run:

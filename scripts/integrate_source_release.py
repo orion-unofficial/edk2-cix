@@ -18,6 +18,7 @@ from reconstruction_common import (
     main_wrapper,
     ref_exists,
     repo_root,
+    resolve_ref_or_generated_cache,
     tree_id,
     truthy,
     rev_parse,
@@ -343,8 +344,7 @@ def main() -> None:
                 raise ReconstructionError("Radxa vendor integration requires REF=<local-ref-or-object> in WRITE mode")
             if meta.get("type") == "vendor-delta-artefact":
                 base_ref = meta["base_ref"]
-                if not ref_exists(repo, base_ref):
-                    raise ReconstructionError(f"Radxa base ref is unavailable locally: {base_ref}")
+                base_input = resolve_ref_or_generated_cache(repo, base_ref)
                 if not ref_exists(repo, source):
                     raise ReconstructionError(f"Radxa source ref is unavailable locally: {source}")
                 delta_source = source
@@ -353,13 +353,14 @@ def main() -> None:
                     meta["materialised_source_ref"] = delta_source
                 create_delta_artefact(
                     repo,
-                    base_ref,
+                    base_input,
                     delta_source,
                     target,
                     kind="vendor-delta",
                     name=f"radxa/{args.release}",
                     message=f"delta: capture Radxa {args.release} changes for {args.edk2_base}",
                     allow_replace=allow_replace,
+                    metadata_base_ref=base_ref,
                 )
             else:
                 base_ref = meta.get("base_ref")

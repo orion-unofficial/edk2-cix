@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import traceback
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -56,6 +57,47 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
         f.write("\n")
 
 
+def manifest_defaults(data: dict[str, Any]) -> dict[str, Any]:
+    """Return defaults from a manifest, accepting either an object or objects list."""
+
+    defaults = data.get("defaults", {})
+    if isinstance(defaults, list):
+        merged: dict[str, Any] = {}
+        for item in defaults:
+            if isinstance(item, dict):
+                merged.update(item)
+        return merged
+    if isinstance(defaults, dict):
+        return dict(defaults)
+    return {}
+
+
+def records_from_manifest(repo: Path, relative: str) -> list[dict[str, Any]]:
+    data = load_json(repo, relative)
+    defaults = manifest_defaults(data)
+    records: list[dict[str, Any]] = []
+    for item in data.get("refs", []):
+        record = deepcopy(defaults)
+        record.update(deepcopy(item))
+        templates = defaults.get("component_templates")
+        if templates and "components" not in item and record.get("ref"):
+            edk2_ref = str(record["ref"]).rsplit("/", 1)[-1]
+            record["components"] = [
+                {
+                    key: str(value).format(edk2_ref=edk2_ref)
+                    for key, value in template.items()
+                }
+                for template in templates
+            ]
+        record.pop("component_templates", None)
+        records.append(record)
+    return records
+
+
+def ref_manifest_records(repo: Path, manifest_name: str) -> list[dict[str, Any]]:
+    return records_from_manifest(repo, f"config/refs/{manifest_name}")
+
+
 def truthy(value: str | int | bool | None) -> bool:
     if isinstance(value, bool):
         return value
@@ -67,6 +109,8 @@ def truthy(value: str | int | bool | None) -> bool:
 RELEASE_STAGE_PREFIXES = ("custom", "vendor", "upstream")
 UNBUILDABLE_RADXA_RELEASES = {"0.1.1-1"}
 MIN_SUPPORTED_EDK2_RELEASE = "202208"
+BASE_TREE_MANIFEST = "base-tree_id.json"
+VARIANT_TREE_MANIFEST = "variant-tree_id.json"
 
 
 def version_key(value: str) -> tuple[Any, ...]:
@@ -293,10 +337,18 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
 
 
 def rendered_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
-    path = repo / "config" / "refs" / "rendered.json"
+    path = repo / "config" / "refs" / VARIANT_TREE_MANIFEST
     if not path.exists():
         return {}
-    records = load_json(repo, "config/refs/rendered.json").get("refs", [])
+    records = ref_manifest_records(repo, VARIANT_TREE_MANIFEST)
+    return {record["ref"]: record for record in records if record.get("ref")}
+
+
+def base_tree_records(repo: Path) -> dict[str, dict[str, Any]]:
+    path = repo / "config" / "refs" / BASE_TREE_MANIFEST
+    if not path.exists():
+        return {}
+    records = ref_manifest_records(repo, BASE_TREE_MANIFEST)
     return {record["ref"]: record for record in records if record.get("ref")}
 
 
@@ -595,6 +647,37 @@ def commit_component_skeleton(repo: Path, components: list[dict[str, str]], mess
     ).stdout.decode("ascii").strip()
 
 
+def render_base_tree_commit(repo: Path, base_ref: str) -> str:
+    """Return a commit for a generated EDK2 base skeleton without persisting it."""
+
+    record = base_tree_records(repo).get(base_ref)
+    if not record:
+        raise ReconstructionError(f"generated base cache is not described by {BASE_TREE_MANIFEST}: {base_ref}")
+    components = record.get("components", [])
+    if not components:
+        raise ReconstructionError(f"generated base cache is missing component metadata: {base_ref}")
+    commit = commit_component_skeleton(
+        repo,
+        components,
+        f"base: render EDK2 component skeleton {base_ref.rsplit('/', 1)[-1]}",
+    )
+    expected_tree = record.get("tree_id")
+    actual_tree = tree_id(repo, commit)
+    if expected_tree and actual_tree != expected_tree:
+        raise ReconstructionError(
+            f"generated base cache tree differs for {base_ref}: {actual_tree} != {expected_tree}"
+        )
+    return commit
+
+
+def resolve_ref_or_generated_cache(repo: Path, ref: str) -> str:
+    if ref_exists(repo, ref):
+        return ref
+    if ref.startswith("source/base/rendered/"):
+        return render_base_tree_commit(repo, ref)
+    raise ReconstructionError(f"ref is unavailable locally and is not a generated cache ref: {ref}")
+
+
 def delta_metadata(repo: Path, base_ref: str, target_ref: str, kind: str, name: str) -> dict[str, Any]:
     gitlinks = []
     for line in git(repo, "ls-tree", "-r", target_ref).stdout.splitlines():
@@ -632,6 +715,7 @@ def create_delta_artefact(
     name: str,
     message: str,
     allow_replace: bool = False,
+    metadata_base_ref: str | None = None,
 ) -> str:
     """Create a branch containing metadata.json and delta.patch for base..target."""
 
@@ -652,11 +736,14 @@ def create_delta_artefact(
         raise ReconstructionError(diff_result.stderr.decode("utf-8", errors="ignore").strip())
     diff = diff_result.stdout
     metadata = delta_metadata(repo, base_ref, target_ref, kind, name)
+    if metadata_base_ref:
+        metadata["base_ref"] = metadata_base_ref
+    display_base_ref = metadata_base_ref or base_ref
     files = {
         "README.md": (
             f"# Delta Artefact: {artefact_ref}\n\n"
             f"Kind: `{kind}`\n\n"
-            f"Base: `{base_ref}`\n\n"
+            f"Base: `{display_base_ref}`\n\n"
             f"Target: `{target_ref}`\n\n"
             "Apply `delta.patch` to the base tree to reproduce the target tree.\n"
         ).encode("utf-8"),
@@ -709,8 +796,7 @@ def load_ref_records(repo: Path) -> list[dict[str, Any]]:
     if not refs_dir.exists():
         return records
     for path in sorted(refs_dir.glob("*.json")):
-        data = load_json(repo, f"config/refs/{path.name}")
-        for record in data.get("refs", []):
+        for record in ref_manifest_records(repo, path.name):
             record = dict(record)
             record.setdefault("manifest", str(path.relative_to(repo)))
             records.append(record)
@@ -758,13 +844,11 @@ def refresh_release_tree(repo: Path, branch: str) -> None:
         raise ReconstructionError(f"cannot update variant manifest for unknown source/release branch: {branch}")
     update_ref_record(
         repo,
-        "rendered.json",
+        VARIANT_TREE_MANIFEST,
         branch,
         {
-            "immutable": True,
             "object_id": None,
             "tree_id": tree_id(repo, branch),
-            "type": "rendered-release",
         },
     )
 

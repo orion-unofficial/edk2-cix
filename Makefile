@@ -61,7 +61,7 @@ endef
 .PHONY: help help-vars help-dev help-variants help-releases all build-all install zip targz buildbox-firmware-build buildbox-firmware-stage \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-local-commits \
-	verify-release-branch verify-build-matrix check-identity-hygiene \
+	verify-release-branch verify-build-matrix check-identity-hygiene ref-report cleanup-report \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
 	import-local-commits-help verify-release-branch-help verify-build-matrix-help
 
@@ -112,6 +112,8 @@ help-dev:
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-local-commits' 'Update source/unofficial/current and/or local delta artefacts.'; \
 	print_help_line 'make check-identity-hygiene' 'Scan generated files and refs for path/identity leaks.'; \
+	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
+	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
 	print_help_line 'make lint' 'Run JSON, Markdown, shell, and Python linting in the quality container.'; \
 	print_section 'Source Integration Variables'; \
@@ -235,6 +237,12 @@ import-local-commits:
 
 check-identity-hygiene:
 	@DEBUG="$(DEBUG)" SCAN_COMMITS="$(SCAN_COMMITS)" V="$(V)" $(PYTHON) scripts/check_identity_hygiene.py --v "$(V)"
+
+ref-report:
+	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/ref_report.py --v "$(V)"
+
+cleanup-report:
+	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/ref_report.py --cleanup --v "$(V)"
 
 test:
 	@DEBUG="$(DEBUG)" V="$(V)" QUALITY_IMAGE="$(QUALITY_IMAGE)" scripts/run_quality_container.sh test

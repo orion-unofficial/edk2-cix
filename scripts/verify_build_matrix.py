@@ -10,6 +10,7 @@ from typing import Any
 
 from reconstruction_common import (
     ReconstructionError,
+    base_tree_records,
     git,
     load_json,
     local_compatibility_branch_for_tag,
@@ -39,8 +40,8 @@ Checks:
   - every firmware variant branch/ref derived from source refs is renderable
   - required base, vendor, component, and local refs exist
   - retained source/release branches are all derivable from source refs
-  - retained source/release branches match config/refs/rendered.json tree IDs
-  - Radxa delta and rendered-base refs cover every supported EDK2 release
+  - retained source/release branches match config/refs/variant-tree_id.json tree IDs
+  - Radxa delta refs and regenerable rendered-base cache plans cover every supported EDK2 release
   - local compatibility tags are reachable from retained source/local branches
   - versioned local aliases have the same tree as their non-alias local branch
 """
@@ -119,8 +120,7 @@ def tag_reachable_from_local_branch(repo: Path, tag: str) -> bool:
 
 
 def rendered_base_records(repo: Path) -> dict[str, dict[str, Any]]:
-    records = load_json(repo, "config/refs/rendered-base.json").get("refs", [])
-    return {record["ref"]: record for record in records if record.get("ref")}
+    return base_tree_records(repo)
 
 
 def require_manifested_release_entries(
@@ -148,7 +148,7 @@ def require_manifested_release_entries(
     extra_records = sorted(set(rendered_records) - expected_releases)
     if extra_records:
         problems.append(
-            "config/refs/rendered.json contains variants not derivable from current source refs:\n"
+            "config/refs/variant-tree_id.json contains variants not derivable from current source refs:\n"
             + "\n".join(f"  - {r}" for r in extra_records)
         )
 
@@ -157,7 +157,7 @@ def require_manifested_release_entries(
             continue
         expected_tree = releases[ref].get("tree_id")
         if expected_tree and tree_id(repo, ref) != expected_tree:
-            problems.append(f"{ref}: tree ID differs from config/refs/rendered.json ({tree_id(repo, ref)} != {expected_tree})")
+            problems.append(f"{ref}: tree ID differs from config/refs/variant-tree_id.json ({tree_id(repo, ref)} != {expected_tree})")
         if verbose:
             print(f"retained variant ok: {ref}")
 
@@ -208,7 +208,7 @@ def require_source_refs(
     non_regenerable_base = sorted(ref for ref in missing_base_rendered if ref not in base_records)
     if non_regenerable_base:
         problems.append(
-            "source/base/rendered refs are missing and not regenerable from config/refs/rendered-base.json:\n"
+            "source/base/rendered cache refs are missing and not regenerable from config/refs/base-tree_id.json:\n"
             + "\n".join(f"  - {r}" for r in non_regenerable_base)
         )
     missing_base_components: list[str] = []
@@ -219,12 +219,12 @@ def require_source_refs(
                 missing_base_components.append(f"{ref}: missing component {component_ref}")
     if missing_base_components:
         problems.append(
-            "source/base/rendered refs are missing and cannot be regenerated because components are unavailable:\n"
+            "source/base/rendered cache refs are missing and cannot be regenerated because components are unavailable:\n"
             + "\n".join(f"  - {r}" for r in missing_base_components)
         )
     if extra_base_rendered:
         problems.append(
-            "source/base/rendered refs do not match supported EDK2 source/base refs:\n"
+            "source/base/rendered cache refs do not match supported EDK2 source/base refs:\n"
             + "\n".join(f"  - {r}" for r in sorted(extra_base_rendered))
         )
     if expected_radxa != actual_radxa:
