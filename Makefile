@@ -61,7 +61,7 @@ endef
 .PHONY: help help-vars help-dev help-variants help-releases all build-all install zip targz buildbox-firmware-build buildbox-firmware-stage \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-local-commits \
-	verify-release-branch verify-build-matrix verify-manifest-integrity check-identity-hygiene ref-report cleanup-report \
+	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity check-identity-integrity ref-report cleanup-report \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
 	import-local-commits-help verify-release-branch-help verify-build-matrix-help
 
@@ -109,10 +109,11 @@ help-dev:
 	print_help_line 'make verify-release-branch' 'Validate a materialised firmware variant branch.'; \
 	print_help_line 'make verify-build-matrix' 'Validate build/source variant combinations derived from local refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
+	print_help_line 'make verify-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a vendor delta report/diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-local-commits' 'Update source/unofficial/current and/or local delta artefacts.'; \
-	print_help_line 'make check-identity-hygiene' 'Scan generated files and refs for path/identity leaks.'; \
+	print_help_line 'make check-identity-integrity' 'Scan generated files and refs for path/identity integrity issues.'; \
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
@@ -138,8 +139,8 @@ help-dev:
 	print_help_line 'SOURCE_LOCAL_REF=<ref>' 'Local source branch; defaults to source/unofficial/current.'; \
 	print_help_line 'UPDATE_LOCAL_SOURCE=0|1' 'Allow import-local-commits to advance SOURCE_LOCAL_REF.'; \
 	print_help_line 'LOCAL_TARGET_REF=<ref>' 'Local delta target; defaults to source/delta/local/current.'; \
-	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-hygiene.'; \
-	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan generated source refs in check-identity-hygiene.'; \
+	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-integrity.'; \
+	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan generated source refs in check-identity-integrity.'; \
 	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
 	print_section 'Rendering and Qualification Variables'; \
 	print_help_line 'RELEASE=<variant>' 'Firmware variant name for render-release-branch and verify-release-branch.'; \
@@ -230,6 +231,9 @@ verify-build-matrix:
 verify-manifest-integrity:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/verify_manifest_integrity.py --v "$(V)"
 
+verify-ref-integrity:
+	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/verify_ref_integrity.py --v "$(V)"
+
 extract-vendor-delta:
 	@DEBUG="$(DEBUG)" VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"
 
@@ -239,8 +243,8 @@ integrate-source-release:
 import-local-commits:
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_LOCAL_REF="$(SOURCE_LOCAL_REF)" UPDATE_LOCAL_SOURCE="$(UPDATE_LOCAL_SOURCE)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(LOCAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_local_commits.py --v "$(V)"
 
-check-identity-hygiene:
-	@DEBUG="$(DEBUG)" SCAN_COMMITS="$(SCAN_COMMITS)" V="$(V)" $(PYTHON) scripts/check_identity_hygiene.py --v "$(V)"
+check-identity-integrity:
+	@DEBUG="$(DEBUG)" SCAN_COMMITS="$(SCAN_COMMITS)" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"
 
 ref-report:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/ref_report.py --v "$(V)"

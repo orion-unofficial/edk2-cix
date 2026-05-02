@@ -60,9 +60,10 @@ def test() -> None:
     run(["python3", "-m", "py_compile", *git_files("scripts/*.py")])
     run(["make", "verify-build-matrix", "--no-print-directory"])
     run(["make", "verify-manifest-integrity", "--no-print-directory"])
+    run(["make", "verify-ref-integrity", "--no-print-directory"])
     run(["make", "ref-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
     run(["make", "cleanup-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
-    run(["make", "check-identity-hygiene", "--no-print-directory"])
+    run(["make", "check-identity-integrity", "--no-print-directory"])
 
 
 def main() -> None:

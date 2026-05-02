@@ -348,7 +348,7 @@ make test
 make lint
 make verify-build-matrix
 make verify-manifest-integrity
-make check-identity-hygiene
+make check-identity-integrity
 make ref-report
 ```
 

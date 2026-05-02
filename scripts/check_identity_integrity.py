@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scan build-branch files and selected commits for identity/path hygiene issues."""
+"""Scan build-branch files and selected commits for identity/path integrity issues."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 from reconstruction_common import ReconstructionError, git, main_wrapper, repo_root, truthy
 
 
-HELP = """check-identity-hygiene
+HELP = """check-identity-integrity
 
 Optional variables:
   SCAN_COMMITS=0|1
@@ -132,8 +132,8 @@ def main() -> None:
     if truthy(args.scan_source_refs):
         problems.extend(scan_source_refs(repo, truthy(args.v)))
     if problems:
-        raise ReconstructionError("identity hygiene check failed:\n" + "\n".join(f"  - {p}" for p in problems))
-    print("identity hygiene check passed")
+        raise ReconstructionError("identity integrity check failed:\n" + "\n".join(f"  - {p}" for p in problems))
+    print("identity integrity check passed")
 
 
 if __name__ == "__main__":
