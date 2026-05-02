@@ -63,7 +63,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Extract replay inputs from an O6/O6N release artefact and optionally "
-            "rebuild matching firmware on source/release/custom/edk2-202208/radxa-1.2.1/local."
+            "rebuild matching firmware on source/unofficial/edk2-stable202208."
         )
     )
     parser.add_argument(
