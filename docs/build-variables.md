@@ -18,7 +18,7 @@ This is the highest-level build-mode switch.
   - this is the right choice for closest-to-upstream diagnostics on
     `source/unofficial/current`
   - byte-identical replay of the published 202208-based vendor releases belongs
-    on `source/release/custom/edk2-202208/radxa-1.2.1/local`, not on the rebased EDK2 branch
+    on `source/unofficial/edk2-stable202208`, not on the rebased EDK2 branch
   - custom-only feature switches are rejected in this mode
 - `ARTEFACT_MODE=custom`
   - keep the same overall build flow, but allow the local overlays, source
