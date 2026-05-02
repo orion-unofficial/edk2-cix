@@ -172,11 +172,10 @@ and then run:
 make deb
 ```
 
-For reproducible metadata on `source/unofficial/current`, the build uses the
-merge-base with `source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1` as its default source
-identity. In the default `ARTEFACT_MODE=custom`, that commit identity
-also supplies the default timestamp used for reproducible metadata.
-You can inspect the resolved values with
+For reproducible metadata, rendered release branches use their recorded
+Source-Base trailer as the default source identity. Direct builds from
+`source/unofficial/current` use the active branch tip unless `UPSTREAM_EDK2_REF`
+is set. You can inspect the resolved values with
 `make -C src print-build-metadata`.
 
 `source/unofficial/current` only supports Linux build hosts now. The old vendor
