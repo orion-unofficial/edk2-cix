@@ -21,7 +21,7 @@ name: "Microsoft Secure Boot Freshness"
 "on":
   push:
     branches:
-    - "source/release/custom/edk2-202208/radxa-1.2.1/local"
+    - "source/unofficial/edk2-stable202208"
     paths:
     - ".github/workflows/microsoft-secure-boot-freshness.yaml"
     - "custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft/**"

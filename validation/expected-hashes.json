@@ -195,7 +195,7 @@
       }
     },
     "upstream-1.2.1-trixie": {
-      "description": "Reproducibility profile from an amd64 Trixie build of upstream main, used to confirm matching amd64 and arm64 Trixie builds on source/release/custom/edk2-202208/radxa-1.2.1/local when they reuse the same cert bundle and injected timestamps.",
+      "description": "Reproducibility profile from an amd64 Trixie build of upstream main, used to confirm matching amd64 and arm64 Trixie builds on source/unofficial/edk2-stable202208 when they reuse the same cert bundle and injected timestamps.",
       "boards": {
         "O6": {
           "target": "RELEASE_GCC5",
