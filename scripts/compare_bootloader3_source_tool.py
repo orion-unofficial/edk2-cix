@@ -12,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 
-from vendor_tool_resolver import resolve_vendor_tool
+from vendor_tool_resolver import DEFAULT_VENDOR_REFS, resolve_vendor_tool
 
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
@@ -176,7 +176,7 @@ def main() -> int:
     with resolve_vendor_tool(
         explicit_path=args.vendor_tool,
         repo_relpath=VENDOR_TOOL_REPO_RELPATH,
-        refs=refs or ("source/release/upstream/edk2-202208/radxa-1.2.1", "main"),
+        refs=refs or DEFAULT_VENDOR_REFS,
     ) as vendor_tool:
         with tempfile.TemporaryDirectory(prefix="bootloader3-compare-") as td:
             td_path = pathlib.Path(td)

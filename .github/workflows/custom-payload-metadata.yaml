@@ -21,7 +21,7 @@ name: "Custom Payload Metadata"
   pull_request: {}
   push:
     branches:
-    - "source/release/custom/edk2-202208/radxa-1.2.1/local"
+    - "source/unofficial/edk2-stable202208"
   workflow_dispatch: {}
 permissions:
   contents: "read"
