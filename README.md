@@ -5,7 +5,7 @@ This branch contains the Makefile, manifests, and scripts used to select source 
 - upstream bases such as EDK2, TF-A, and OP-TEE
 - Radxa and CIX vendor source layers
 - local project changes
-- materialised firmware branches that are ready to build
+- generated materialised firmware worktrees that are ready to build
 
 Users who want to build firmware, rather than change the source model, should find that the `make` targets provide the flexibility they need. In this document, a Git "ref" means a name that identifies a commit, such as a branch, tag, or commit ID. Start with:
 
@@ -89,7 +89,7 @@ make buildbox-firmware-build \
   FIRMWARE_BOARD=O6N
 ```
 
-Build targets render or reuse a cached detached worktree. They do not normally create or advance a named `source/release/**` branch. If you intentionally want a persistent materialised branch that other users or CI jobs can fetch and verify, set `PERSIST=1` with `make render-release-branch`:
+Build targets render or reuse a cached detached worktree. They do not normally create or advance a named `source/release/**` branch, and those branches are treated as disposable caches rather than required source data. If you intentionally want a persistent materialised branch for development, inspection, or CI, set `PERSIST=1` with `make render-release-branch`:
 
 ```bash
 make render-release-branch \
@@ -111,7 +111,7 @@ make render-release-branch \
   PERSIST=1 REBUILD=1 FORCE=1
 ```
 
-That command also refreshes the rendered ref metadata in `config/refs/rendered.json`.
+That command also refreshes the rendered tree metadata in `config/refs/rendered.json`.
 
 A configured build variation is considered supported only when all of its source inputs are recorded locally. At a high level, this means:
 
@@ -150,7 +150,7 @@ This representation is intentional: a patch can record deletions, renames, binar
 
 Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`. That report is mainly a diagnostic and audit aid: it records which submodule paths were flattened, which commit IDs were used, which URL was recorded for each submodule, and which `.gitmodules` file supplied that mapping. You can usually ignore it when a build succeeds, but it is useful when checking that a rendered branch contains ordinary files rather than active submodules.
 
-`source/release/**` branches are materialised firmware branches. They are generated from the base, component, vendor, and local layers. They are convenient to inspect or build, but they are not required source inputs: a pruned checkout may omit them and regenerate the selected variant from the recorded source layers and manifests.
+`source/release/**` branches are materialised firmware branches. They are generated from the base, component, vendor, and local layers. They are convenient to inspect or build, but they are not required source inputs: this repository treats them as caches, and a checkout may omit them and regenerate the selected variant from the recorded source layers and manifests.
 
 ## How do I start developing on this codebase?
 
@@ -169,11 +169,21 @@ make render-release-branch \
 git switch -c my-change source/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/local
 ```
 
+If you later import that topic branch back into the source model, also materialise the matching vendor baseline because `make import-local-commits` compares your topic branch against that baseline:
+
+```bash
+make render-release-branch \
+  RELEASE=edk2-202602/cix-1.2/radxa-1.2.1 \
+  PERSIST=1
+```
+
 The supported workflows guard `source/base/**`, non-local `source/delta/**`, and `source/component/cix/**` refs by comparing them against the expected object IDs and tree IDs in `config/refs/*.json`. Git itself does not make those branch names immutable, so do not edit or move them by hand. If a guarded ref moved unexpectedly, or is checked out in a dirty worktree, the scripts abort before using it. Only `make integrate-source-release` should create or advance those refs.
 
 ## How do I persist development changes back to `source/unofficial/current`?
 
 Local development is imported explicitly. Ordinary build and render targets never rewrite `source/unofficial/current` or generated `source/delta/local/*` artefacts.
+
+The `BASE_REF` used below must exist locally. If generated `source/release/**` cache branches have been pruned, recreate the matching vendor baseline first with `make render-release-branch RELEASE=<vendor-variant> PERSIST=1`.
 
 Dry run first:
 
@@ -204,12 +214,13 @@ For each supported EDK2 release, the repo keeps two related records of the local
 
 - a local source checkpoint, such as `source/unofficial/edk2-stable202602`, which is a normal source branch known to apply cleanly to that EDK2 release
 - a generated local delta, such as `source/delta/local/edk2-stable202602`, which stores the patch from that release's vendor baseline to the matching local source checkpoint
+- a local checkpoint tag, such as `source/unofficial/edk2/stable-202602`, which marks the commit known to apply to that EDK2 release without colliding with the branch name
 
 Here, an EDK2 release means the upstream EDK2 code together with its matching `edk2-platforms` and `edk2-non-osi` companion sources. Some local changes apply unchanged across several EDK2 releases; others need small adjustments because upstream files moved or changed.
 
-For example, if the same local source commit works on both `edk2-stable202502` and `edk2-stable202505`, both compatibility tags may point at that commit. If `edk2-stable202508` needs an extra adjustment, make that adjustment at the `202508` checkpoint, then tag the adjusted commit as the compatible `202508` source.
+For example, if the same local source commit works on both `edk2-stable202502` and `edk2-stable202505`, both checkpoint tags may point at that commit. If `edk2-stable202508` needs an extra adjustment, make that adjustment at the `202508` checkpoint, then tag the adjusted commit as `source/unofficial/edk2/stable-202508`.
 
-Compatibility tags must remain reachable from retained `source/unofficial/**` branches, rather than becoming tag-only orphan commits. The current compatibility tag names duplicate the matching branch names, which is confusing and should be corrected before publication by moving the tags to a non-colliding namespace while keeping the branch names as the source checkpoints.
+Checkpoint tags must remain reachable from retained `source/unofficial/**` branches, rather than becoming tag-only orphan commits. The tags deliberately use the non-colliding `source/unofficial/edk2/stable-*` namespace while the matching branches use `source/unofficial/edk2-stable*`.
 
 ## How do I update upstream EDK2, Arm TF-A, OP-TEE, CIX, or Radxa sources?
 
@@ -271,7 +282,7 @@ After adding source refs for a new supported EDK2 release:
 
    At minimum this means the upstream `edk2` base ref and the selected companion `edk2-platforms` and `edk2-non-osi` refs. Once `source/base/edk2/edk2/<edk2-release>` exists, the release is discoverable; there is no separate release-list file to update.
 
-2. Create the persistent variant refs and refresh their recorded tree IDs:
+2. Generate the variant once and refresh its recorded tree ID:
 
    ```bash
    make render-release-branch \
@@ -281,6 +292,8 @@ After adding source refs for a new supported EDK2 release:
 
 3. Run `make verify-build-matrix` to confirm the derived matrix, variant manifest, refs, aliases, and tree IDs agree.
 4. Run the normal build/audit qualification for the new variant before publishing it.
+
+The persistent `source/release/**` branch created in step 2 is a cache. Once the tree ID has been recorded and validation passes, it may be deleted without losing the ability to regenerate the variant.
 
 `make help-variants` lists firmware variants derived from the available EDK2, Radxa, CIX, and local refs.
 
@@ -301,7 +314,7 @@ make verify-release-branch \
   RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/local
 ```
 
-Materialised refs are generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and generated `source/delta/local/**` artefacts derived from `source/unofficial/current` compatibility points. They may be stored as `source/release/**` branches for convenience, but ordinary build and validation targets can regenerate them when those branches are absent.
+Materialised refs are generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and generated `source/delta/local/**` artefacts derived from `source/unofficial/current` compatibility points. They may be stored as `source/release/**` branches for convenience, but ordinary build and validation targets regenerate them when those branches are absent.
 
 ## How do I test a floating upstream tip instead of the latest release?
 
@@ -315,14 +328,14 @@ Floating-tip tests should use clearly named experimental refs and should not rep
 
 ## How do I work when an upstream remote is unavailable?
 
-Ordinary builds do not require external upstream/vendor remotes when the required materialised branch and source objects are already present locally or available from this repository origin.
+Ordinary builds do not require GitHub or any external upstream/vendor remote when the required source refs and manifests are present in this repository clone.
 
 The fallback order is:
 
-1. Use the local materialised release ref.
-2. Fetch the materialised release ref from this repository origin.
+1. Use a local generated `source/release/**` cache if it exists.
+2. Regenerate the selected variant from local source refs and manifests.
 3. For source integration only, contact the external upstream/vendor remote if required objects are missing.
-4. Fail only if required data is unavailable locally and remotely.
+4. Fail only if required source data is unavailable locally and remotely.
 
 There is no separate offline mode flag. The scripts try to proceed from local data first and warn or fail only when missing objects make the requested operation impossible.
 

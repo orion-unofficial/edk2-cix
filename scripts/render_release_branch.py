@@ -24,7 +24,6 @@ from reconstruction_common import (
     release_entries,
     release_entry,
     repo_root,
-    resolve_branch_or_origin,
     rev_parse,
     safe_name,
     show_file,
@@ -361,7 +360,7 @@ def main() -> None:
     branch, entry = release_entry(repo, args.release or None, require=args.require_release)
     rebuild = truthy(args.rebuild)
     allow_manifest_refresh = truthy(args.persist) and rebuild and truthy(args.force)
-    target_ref = None if rebuild else resolve_branch_or_origin(repo, branch, verbose=verbose)
+    target_ref = None if rebuild or not ref_exists(repo, branch) else branch
     source_ref = entry.get("source_ref")
 
     if target_ref is None and not rebuild and source_ref and ref_exists(repo, source_ref):
@@ -372,7 +371,7 @@ def main() -> None:
 
     if target_ref is None:
         raise ReconstructionError(
-            f"firmware variant branch {branch} is unavailable locally and could not be fetched from origin.\n"
+            f"firmware variant branch {branch} is unavailable locally and could not be regenerated.\n"
             "External upstream/vendor remotes are not contacted for ordinary rendering; "
             "run integrate-source-release if source objects are missing."
         )

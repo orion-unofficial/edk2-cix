@@ -74,7 +74,6 @@
     "goal": "The repository must contain everything required to build supported firmware even if external upstream remotes disappear.",
     "remote_access": [
       "ordinary builds use local rendered refs first when present, otherwise generate them from local source refs",
-      "if a rendered ref is missing, fetch it from this repository origin",
       "external upstream/vendor repos are contacted only for integration or rendering when required objects are missing",
       "if an external repo is unavailable, proceed when required refs and objects are already local",
       "fail only when required data is unavailable locally and remotely"
@@ -82,12 +81,12 @@
   },
   "tag_policy": {
     "expected_tags": [
-      "source/unofficial/edk2-stable*"
+      "source/unofficial/edk2/stable-*"
     ],
     "rules": [
       "local compatibility tags mark full local source checkpoints for each supported EDK2 release",
-      "each local compatibility tag must be reachable from a retained source/unofficial/** branch",
-      "tag names should not exactly duplicate branch names; the current source/unofficial/edk2-stable* tag namespace should be migrated to a non-colliding namespace before publication",
+      "each local compatibility tag must be reachable from its matching retained source/unofficial/edk2-stable* branch",
+      "tag names must not exactly duplicate branch names",
       "base, CIX, and Radxa source versions are recorded as branches plus config/refs metadata; duplicating them as tags is optional and not required by the build model"
     ]
   }

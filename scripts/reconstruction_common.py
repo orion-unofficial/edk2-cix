@@ -181,6 +181,7 @@ def matrix_variant_releases(variant: dict[str, Any], all_releases: list[str]) ->
 RADXA_DELTA_RE = re.compile(r"^source/delta/radxa/(?P<radxa>[^/]+)/(?P<edk2>edk2-stable[^/]+)$")
 CIX_COMPONENT_RE = re.compile(r"^source/component/cix/(?P<release>[^/]+)/(?P<component>[^/]+)$")
 LOCAL_COMPAT_RE = re.compile(r"^source/unofficial/(?P<edk2>edk2-stable[^/]+)$")
+LOCAL_COMPAT_TAG_RE = re.compile(r"^source/unofficial/edk2/stable-(?P<release>\d{6}(?:\.\d+)?)$")
 
 
 def radxa_releases_by_edk2(repo: Path, supported_edk2_refs: Iterable[str] | None = None) -> dict[str, list[str]]:
@@ -241,6 +242,21 @@ def local_compatibility_edk2_refs(repo: Path) -> set[str]:
         if match:
             refs.add(match.group("edk2"))
     return refs
+
+
+def local_compatibility_tag_for_branch(branch: str) -> str:
+    match = LOCAL_COMPAT_RE.match(branch)
+    if not match:
+        raise ReconstructionError(f"not a local compatibility branch: {branch}")
+    release = release_for_edk2_ref(match.group("edk2"))
+    return f"source/unofficial/edk2/stable-{release}"
+
+
+def local_compatibility_branch_for_tag(tag: str) -> str:
+    match = LOCAL_COMPAT_TAG_RE.match(tag)
+    if not match:
+        raise ReconstructionError(f"not a local compatibility tag: {tag}")
+    return f"source/unofficial/{edk2_ref_for_release(match.group('release'))}"
 
 
 def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
@@ -456,31 +472,6 @@ def show_file(repo: Path, ref: str, path: str, check: bool = True) -> bytes:
             f"could not read {path} from {ref}: {result.stderr.decode('utf-8', errors='ignore').strip()}"
         )
     return result.stdout
-
-
-def fetch_branch_from_origin(repo: Path, branch: str, verbose: bool = False) -> bool:
-    refspec = f"refs/heads/{branch}:refs/remotes/origin/{branch}"
-    result = git(repo, "fetch", "origin", refspec, check=False, capture=True)
-    if result.returncode == 0:
-        if verbose:
-            print(f"Fetched {branch} from origin", file=sys.stderr)
-        return True
-    if verbose:
-        warning = (result.stderr or result.stdout or "unknown fetch failure").strip()
-        print(f"warning: could not fetch {branch} from origin: {warning}", file=sys.stderr)
-    return False
-
-
-def resolve_branch_or_origin(repo: Path, branch: str, verbose: bool = False) -> str | None:
-    candidates = [branch, f"origin/{branch}"]
-    for candidate in candidates:
-        if ref_exists(repo, candidate):
-            return candidate
-    fetch_branch_from_origin(repo, branch, verbose=verbose)
-    for candidate in candidates:
-        if ref_exists(repo, candidate):
-            return candidate
-    return None
 
 
 def release_entry(repo: Path, release: str | None, require: bool = False) -> tuple[str, dict[str, Any]]:

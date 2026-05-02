@@ -12,6 +12,8 @@ from reconstruction_common import (
     ReconstructionError,
     git,
     load_json,
+    local_compatibility_branch_for_tag,
+    local_compatibility_tag_for_branch,
     main_wrapper,
     matrix_release_branches,
     matrix_release_values,
@@ -96,7 +98,7 @@ def actual_refs(repo: Path, namespace: str) -> set[str]:
 
 
 def local_tag_refs(repo: Path) -> set[str]:
-    result = git(repo, "for-each-ref", "--format=%(refname:lstrip=2)", "refs/tags/source/local", check=False)
+    result = git(repo, "for-each-ref", "--format=%(refname:lstrip=2)", "refs/tags/source/unofficial/edk2", check=False)
     if result.returncode != 0:
         return set()
     return {line for line in result.stdout.splitlines() if line}
@@ -104,15 +106,16 @@ def local_tag_refs(repo: Path) -> set[str]:
 
 def tag_reachable_from_local_branch(repo: Path, tag: str) -> bool:
     commit = rev_parse(repo, tag)
+    expected_branch = local_compatibility_branch_for_tag(tag)
     result = git(
         repo,
-        "for-each-ref",
-        f"--contains={commit}",
-        "--format=%(refname:lstrip=2)",
-        "refs/heads/source/local",
+        "merge-base",
+        "--is-ancestor",
+        commit,
+        expected_branch,
         check=False,
     )
-    return result.returncode == 0 and bool(result.stdout.strip())
+    return result.returncode == 0
 
 
 def rendered_base_records(repo: Path) -> dict[str, dict[str, Any]]:
@@ -175,8 +178,15 @@ def require_source_refs(
     problems: list[str] = []
     expected_base_rendered = {f"source/base/rendered/edk2-stable{release}" for release in all_releases}
     expected_radxa = {ref for ref in expected_required_refs if ref.startswith("source/delta/radxa/")}
-    expected_local_tags = {ref for ref in expected_required_refs if ref.startswith("source/unofficial/")}
-    expected_local_branches = set(expected_local_tags)
+    expected_local_tags = {
+        local_compatibility_tag_for_branch(ref)
+        for ref in expected_required_refs
+        if ref.startswith("source/unofficial/")
+    }
+    expected_local_branches = {
+        local_compatibility_branch_for_tag(tag)
+        for tag in expected_local_tags
+    }
     expected_local_branches.add("source/unofficial/current")
 
     required = set(expected_required_refs)

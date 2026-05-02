@@ -7,7 +7,7 @@ not as scratch branches.
 ## Required Refs
 
 Future agents must not under any circumstance delete, rewrite, rename,
-garbage-collect away, or otherwise invalidate any of these refs as a cleanup,
+garbage-collect away, or otherwise invalidate any of these refs as a clean-up,
 pruning, or space-saving operation. If the user explicitly requests a
 source-model migration, first create and prove replacement refs that reconstruct
 the same firmware source trees, then ask for explicit approval before removing
@@ -20,8 +20,7 @@ the old refs:
 - `refs/heads/source/delta/radxa/**`
 - `refs/heads/source/delta/local/**`
 - `refs/heads/source/unofficial/**`
-- local compatibility tags under `refs/tags/source/unofficial/**`, or any future
-  replacement namespace documented by the build branch
+- local compatibility tags under `refs/tags/source/unofficial/edk2/stable-*`
 
 The manifests and policies on this branch are also required source metadata:
 
@@ -38,10 +37,10 @@ namespace.
 
 `refs/heads/source/release/**` refs are generated firmware artefacts. They are
 useful cached, inspectable materialisations, but they are not irreducible source
-inputs. They may be omitted from a deliberately pruned clone only after
-`make verify-build-matrix` confirms the variants are derivable and a representative
-`make verify-release-branch RELEASE=<variant>` can regenerate a missing variant
-from the required refs above.
+inputs. The canonical repository may omit them. If they are present locally, they
+may be deleted as caches only after `make verify-build-matrix` confirms the
+variants are derivable and a representative `make verify-release-branch
+RELEASE=<variant>` can regenerate a missing variant from the required refs above.
 
 `refs/heads/source/base/rendered/**` refs are generated EDK2 component skeletons.
 They may likewise be omitted only when `config/refs/rendered-base.json` and the

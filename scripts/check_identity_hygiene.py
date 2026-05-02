@@ -101,7 +101,7 @@ def source_refs(repo: Path) -> list[str]:
         "for-each-ref",
         "--format=%(refname:short)",
         "refs/heads/source/local",
-        "refs/tags/source/local",
+        "refs/tags/source/unofficial/edk2",
         "refs/heads/source/delta/local",
         "refs/heads/source/release/custom",
     )

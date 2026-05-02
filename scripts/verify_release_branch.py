@@ -13,9 +13,9 @@ from reconstruction_common import (
     check_immutable_refs,
     git,
     main_wrapper,
+    ref_exists,
     release_entry,
     repo_root,
-    resolve_branch_or_origin,
     truthy,
 )
 
@@ -77,7 +77,7 @@ def main() -> None:
         raise SystemExit(2)
 
     branch, _entry = release_entry(repo, args.release, require=True)
-    ref = resolve_branch_or_origin(repo, branch, verbose=verbose)
+    ref = branch if ref_exists(repo, branch) else None
     if ref is None:
         print(f"[verify] Rendering generated firmware variant for validation: {branch}", file=sys.stderr)
         from render_release_branch import render_from_plan
