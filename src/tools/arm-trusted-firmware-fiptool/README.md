@@ -1,7 +1,7 @@
 # Arm Trusted Firmware `fiptool`
 
 This directory vendors the minimum Linux-relevant source needed to build
-`fiptool` for `source/release/custom/edk2-202208/radxa-1.2.1/local`.
+`fiptool` for this source tree.
 
 The authoritative upstream provenance for the current snapshot lives in
 [upstream.json](upstream.json). That file records the canonical upstream repo,
@@ -19,7 +19,7 @@ Imported files:
 - `license.rst`
 
 This snapshot intentionally excludes the rest of TF-A and the upstream Windows
-build support, because `source/release/custom/edk2-202208/radxa-1.2.1/local` only supports Linux `x86_64` and Linux
+build support, because this source tree only supports Linux `x86_64` and Linux
 `aarch64`/`arm64` build hosts.
 
 Build the tool with:

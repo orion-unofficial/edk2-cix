@@ -155,7 +155,7 @@ same container to the fuller packaging profile when needed.
 For non-buildbox workflows, the base OS is whichever environment you are
 already building in. Host-native builds therefore use the host distro, and the
 checked-in devcontainer remains pinned by
-[`/.devcontainer/devcontainer.json`](https://github.com/radxa-pkg/edk2-cix/blob/source/release/custom/edk2-202208/radxa-1.2.1/local/.devcontainer/devcontainer.json).
+[`/.devcontainer/devcontainer.json`](https://github.com/radxa-pkg/edk2-cix/blob/source/unofficial/edk2-stable202408.01/.devcontainer/devcontainer.json).
 
 ## Build inside a devcontainer
 
@@ -239,10 +239,10 @@ When `ARTEFACT_MODE=custom`, the build also prepends any matching package
 roots under `custom/overlay/` to `PACKAGES_PATH`, so source-level custom
 changes can shadow selected imported files without editing them in place.
 
-The monorepo-edk2 build resolves its displayed top-level source hash and
-default timestamp from the merge-base with
-`source/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1`, so curated overlay commits do not change
-the firmware's reported source identity. In the default
+Rendered builds resolve their displayed top-level source hash and default
+timestamp from the Source-Base trailer recorded during materialisation,
+so curated overlay commits do not change the firmware's reported source
+identity. In the default
 `ARTEFACT_MODE=custom`, that source-model commit timestamp is used
 instead of wall-clock time. Run `make -C src print-build-metadata` to
 inspect the resolved values.
@@ -257,7 +257,7 @@ generator unless `PM_CONFIG_SOURCE_DATE_EPOCH` is set explicitly, so
 byte-accurate replay of the published 202208-based vendor images is not a valid
 proof target on this branch. The deterministic replay, exact hash-validation,
 and offline replay-baseline audit targets are retained for future use but fail
-early here; use `source/release/custom/edk2-202208/radxa-1.2.1/local` for byte-accurate vendor replay.
+early here; use `source/unofficial/edk2-stable202208` for byte-accurate vendor replay.
 
 For a closest-to-upstream rebuild on the rebased implementation, use
 `ARTEFACT_MODE=upstream`. The vendor build still embeds three independent
@@ -573,7 +573,7 @@ So:
   `fiptool` needs the OpenSSL development headers
 
 The checked-in byte-accurate validation profiles and offline replay baselines
-belong to the non-rebased `source/release/custom/edk2-202208/radxa-1.2.1/local` history. On `source/unofficial/current`, the
+belong to the non-rebased `source/unofficial/edk2-stable202208` history. On `source/unofficial/current`, the
 following targets are intentionally hidden from help and fail early if invoked:
 
 - `deterministic-replay`
