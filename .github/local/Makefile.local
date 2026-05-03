@@ -990,7 +990,7 @@ __deterministic-replay:
 		mkdir -p "$$replay_dir"; \
 		replay_cmd=(env \
 			EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" \
-			EDK2_CIX_BUILDBOX_PLATFORM="$(if $(strip $(BUILDBOX_PLATFORM)),$(BUILDBOX_PLATFORM),linux/amd64)" \
+			EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
 			EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" \
 			python3 "$(REPO_ROOT)/src/scripts/replay_o6_release.py" "$$replay_input" --board "$$replay_board" --output-dir "$$replay_dir"); \
 		if [ -n "$$replay_build_options" ]; then \
