@@ -27,7 +27,7 @@ Optional variables:
 
 This command is intentionally read-only unless OUTPUT or PATCH_OUTPUT is set.
 It never updates source refs; use integrate-source-release for immutable vendor
-delta artefacts.
+source refs.
 """
 
 
@@ -89,7 +89,7 @@ def main() -> None:
     if args.target_ref:
         raise ReconstructionError(
             "extract-vendor-delta does not update refs; "
-            "use integrate-source-release TYPE=vendor for persistent vendor delta artefacts"
+            "use integrate-source-release TYPE=vendor for persistent vendor source refs"
         )
     if args.output or args.patch_output:
         print("vendor delta extracted")

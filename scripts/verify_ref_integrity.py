@@ -18,7 +18,7 @@ Optional variables:
   V=0|1  Print each scanned persistent source ref.
 
 Checks:
-  - persistent source/unofficial refs must not refer to generated source/cache refs
+  - persistent source refs must not refer to generated source/cache refs
   - generated unofficial delta patches must not reintroduce those references
 
 Generated refs are cache artefacts. They may be mentioned by build-branch
@@ -74,7 +74,11 @@ def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
-    refs = for_each_ref(repo, "source/unofficial")
+    refs = (
+        for_each_ref(repo, "source/unofficial")
+        + for_each_ref(repo, "source/vendor/radxa")
+        + for_each_ref(repo, "source/port/radxa")
+    )
     delta_refs = for_each_ref(repo, "source/delta/unofficial")
 
     problems: list[str] = []
@@ -112,7 +116,7 @@ def main() -> None:
 
     print(
         "validated persistent source reference integrity: "
-        f"{len(refs)} source/unofficial refs, {len(delta_refs)} source/delta/unofficial patches"
+        f"{len(refs)} persistent source refs, {len(delta_refs)} source/delta/unofficial patches"
     )
 
 

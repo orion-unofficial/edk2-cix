@@ -17,7 +17,7 @@ make help-variants
 
 ## How do I build the latest firmware?
 
-The default firmware variant is derived from the latest available supported EDK2 release, CIX release, Radxa release, and unofficial source checkpoint. The supported variant set is generated from source refs such as `source/base/edk2/**`, `source/delta/radxa/**`, `source/component/cix/**`, and the source/ref manifests under `config/refs/`. If you do not set `RELEASE=...`, the build targets use that derived default variant. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
+The default firmware variant is derived from the latest available supported EDK2 release, CIX release, Radxa release, and unofficial source checkpoint. The supported variant set is generated from source refs such as `source/base/edk2/**`, `source/vendor/radxa/**`, `source/port/radxa/**`, `source/component/cix/**`, and the source/ref manifests under `config/refs/`. If you do not set `RELEASE=...`, the build targets use that derived default variant. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
 
 For a normal single firmware build, choose the board and build target:
 
@@ -138,15 +138,11 @@ The firmware tree is built from several layers rather than from one permanent mo
 
 `source/component/cix/**` branches contain CIX-provided components. CIX publishes OP-TEE under a `tee` directory, but this source model records that component as `op-tee`.
 
-`source/delta/radxa/**` branches contain Radxa's changes relative to a selected EDK2 base. `source/delta/unofficial/**` branches contain this project's changes relative to a selected rendered vendor baseline.
+`source/vendor/radxa/**` branches contain source trees actually published by Radxa for a recorded EDK2 base. `source/port/radxa/**` branches contain this project's deterministic ports of a Radxa release to later EDK2 bases. For example, Radxa `1.2.1` was published on `edk2-stable202208`, while `source/port/radxa/1.2.1/edk2-stable202602` records the same vendor intent ported forward to EDK2 `202602`.
 
-A delta branch is not a full source tree. It contains:
+`source/delta/unofficial/**` branches contain compact generated patch artefacts for this project's unofficial changes relative to a selected rendered vendor baseline. They are kept as patch artefacts because they are much smaller than the Radxa vendor ports and are generated from the retained `source/unofficial/**` checkpoints.
 
-- `metadata.json` with the base and target object IDs plus submodule metadata
-- `delta.patch`, generated with `git diff --binary --full-index`
-- `README.md` describing the artefact
-
-This representation is intentional: a patch can record deletions, renames, binary files, and intentionally absent files in a way that a plain directory tree cannot. Render plans are derived from the selected variant name and available source refs, then verified against the ref metadata in `config/refs/`.
+Render plans are derived from the selected variant name and available source refs, then verified against the ref metadata in `config/refs/`.
 
 Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`. That report is mainly a diagnostic and audit aid: it records which submodule paths were flattened, which commit IDs were used, which URL was recorded for each submodule, and which `.gitmodules` file supplied that mapping. You can usually ignore it when a build succeeds, but it is useful when checking that a rendered branch contains ordinary files rather than active submodules.
 
@@ -235,11 +231,12 @@ make integrate-source-release TYPE=upstream COMPONENT=edk2 RELEASE=edk2-stable20
 make integrate-source-release TYPE=upstream COMPONENT=tf-a RELEASE=v2.7
 make integrate-source-release TYPE=vendor VENDOR=cix RELEASE=1.2
 make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202208 REF=<vendor-ref>
+make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202602 RADXA_SOURCE=port REF=<ported-ref>
 ```
 
 When the dry run is correct, add `WRITE=1`. The same change updates `config/refs/*.json` with the new object IDs and tree IDs before being committed.
 
-`TYPE=upstream` is for base components: `edk2`, `edk2-platforms`, `edk2-non-osi`, `tf-a`, or `op-tee`. `TYPE=vendor` is for a vendor integration target. `VENDOR=radxa` updates the Radxa EDK2 vendor layer. `VENDOR=cix` updates the CIX release bundle, whose TF-A and OP-TEE contents are tracked as separate internal components so future Arm-upstream uplifts remain possible.
+`TYPE=upstream` is for base components: `edk2`, `edk2-platforms`, `edk2-non-osi`, `tf-a`, or `op-tee`. `TYPE=vendor` is for a vendor integration target. `VENDOR=radxa` records an actual Radxa-published source tree under `source/vendor/radxa/**` or this project's port of that source tree under `source/port/radxa/**`. `VENDOR=cix` updates the CIX release bundle, whose TF-A and OP-TEE contents are tracked as separate internal components so future Arm-upstream uplifts remain possible.
 
 The CIX bundle records original vendor provenance. To start an experimental uplift of one CIX component to a newer Arm upstream:
 
@@ -266,7 +263,7 @@ The CIX bundle records original vendor provenance. To start an experimental upli
 
 The component port itself is intentionally a source-level engineering step rather than an automatic patch replay. The deterministic part starts once the reviewed component ref is recorded in `source/component/cix/**` and `config/refs/cix.json`.
 
-Radxa non-release updates use the same vendor integration path. First update or fetch the vendor source branch into a local ref, then give the delta a release-like name that records the most recent release plus the vendor commit, for example:
+Radxa non-release updates use the same vendor integration path. First update or fetch the vendor source branch into a local ref, then give the source checkpoint a release-like name that records the most recent release plus the vendor commit, for example:
 
 ```bash
 make integrate-source-release \
@@ -276,7 +273,7 @@ make integrate-source-release \
   REF=main
 ```
 
-For Radxa vendor refs, `MATERIALISE=1` is the default. This recursively flattens a submodule-shaped vendor source ref before the `source/delta/radxa/**` artefact is generated, so the delta describes ordinary file content rather than gitlinks.
+For Radxa vendor refs, `MATERIALISE=1` is the default. This recursively flattens a submodule-shaped vendor source ref before the `source/vendor/radxa/**` or `source/port/radxa/**` source ref is recorded, so the retained source tree contains ordinary file content rather than gitlinks.
 
 After adding source refs for a new supported EDK2 release:
 
@@ -316,7 +313,7 @@ make verify-release-branch \
   RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/unofficial
 ```
 
-Materialised refs are generated mechanically from `source/base/**`, `source/component/**`, `source/delta/radxa/**`, and generated `source/delta/unofficial/**` artefacts derived from `source/unofficial/current` compatibility points. They may be stored as `source/cache/release/**` branches for convenience, but ordinary build and validation targets regenerate them when those branches are absent.
+Materialised refs are generated mechanically from `source/base/**`, `source/vendor/**`, `source/port/**`, `source/component/**`, and generated `source/delta/unofficial/**` artefacts derived from `source/unofficial/current` compatibility points. They may be stored as `source/cache/release/**` branches for convenience, but ordinary build and validation targets regenerate them when those branches are absent.
 
 ## How do I test a floating upstream tip instead of the latest release?
 

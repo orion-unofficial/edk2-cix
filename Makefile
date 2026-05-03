@@ -112,7 +112,7 @@ help-dev:
 	print_help_line 'make verify-build-matrix' 'Validate build/source variant combinations derived from source refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
 	print_help_line 'make verify-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
-	print_help_line 'make extract-vendor-delta' 'Produce a vendor delta report/diff.'; \
+	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-unofficial-commits' 'Update source/unofficial/current and/or unofficial delta artefacts.'; \
 	print_help_line 'make check-identity-integrity' 'Scan generated files and refs for path/identity integrity issues.'; \
@@ -122,17 +122,18 @@ help-dev:
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
 	print_help_line 'make lint' 'Run JSON, Markdown, shell, and Python linting in the quality container.'; \
 	print_section 'Source Integration Variables'; \
-	print_help_line 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa or CIX-carried source layers.'; \
+	print_help_line 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa source refs or CIX-carried source layers.'; \
 	print_help_line 'COMPONENT=<name>' 'For TYPE=upstream: edk2, edk2-platforms, edk2-non-osi, tf-a, or op-tee.'; \
-	print_help_line 'VENDOR=radxa|cix' 'For TYPE=vendor. Radxa updates the EDK2 vendor layer; CIX updates the TF-A/OP-TEE release bundle.'; \
+	print_help_line 'VENDOR=radxa|cix' 'For TYPE=vendor. Radxa records vendor-published or ported EDK2 source trees; CIX updates the TF-A/OP-TEE release bundle.'; \
 	print_help_line 'RELEASE=<name>' 'For source integration: release, tag, or source version name.'; \
 	print_help_line 'REF=<ref>' 'Input ref/object for source integration.'; \
 	print_help_line 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
 	print_help_line 'ARM_BASE=<release>' 'Arm upstream base used when recording a CIX TF-A or OP-TEE component uplift.'; \
+	print_help_line 'RADXA_SOURCE=auto|vendor|port' 'Select whether a Radxa integration is a vendor-published source tree or this project'\''s port to an EDK2 base.\nDefault: auto.'; \
 	print_section 'Ref Update Variables'; \
-	print_help_line 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release, import-unofficial-commits, and extract-vendor-delta.'; \
+	print_help_line 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release and import-unofficial-commits.'; \
 	print_help_line 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
-	print_help_line 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before extracting deltas.\nDefault: 1.'; \
+	print_help_line 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before recording source/vendor or source/port refs.\nDefault: 1.'; \
 	print_help_line 'BASE_REF=<ref>' 'Base ref for delta extraction/import.'; \
 	print_help_line 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
 	print_help_line 'TARGET_REF=<ref>' 'Delta artefact output ref.'; \
@@ -143,7 +144,7 @@ help-dev:
 	print_help_line 'UPDATE_UNOFFICIAL_SOURCE=0|1' 'Allow import-unofficial-commits to advance SOURCE_UNOFFICIAL_REF.'; \
 	print_help_line 'UNOFFICIAL_TARGET_REF=<ref>' 'Unofficial delta target; defaults to source/delta/unofficial/current.'; \
 	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-integrity.'; \
-	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan generated source refs in check-identity-integrity.'; \
+	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan persistent unofficial/Radxa source refs in check-identity-integrity.'; \
 	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
 	print_section 'Rendering and Qualification Variables'; \
 	print_help_line 'RELEASE=<variant>' 'Firmware variant name for render-release-branch and verify-release-branch.'; \
@@ -255,13 +256,13 @@ extract-vendor-delta:
 	@DEBUG="$(DEBUG)" VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"
 
 integrate-source-release:
-	@DEBUG="$(DEBUG)" TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(MATERIALISE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
+	@DEBUG="$(DEBUG)" TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" RADXA_SOURCE="$(RADXA_SOURCE)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(MATERIALISE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
 import-unofficial-commits:
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" UPDATE_UNOFFICIAL_SOURCE="$(UPDATE_UNOFFICIAL_SOURCE)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(UNOFFICIAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
 
 check-identity-integrity:
-	@DEBUG="$(DEBUG)" SCAN_COMMITS="$(SCAN_COMMITS)" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"
+	@DEBUG="$(DEBUG)" SCAN_COMMITS="$(SCAN_COMMITS)" SCAN_SOURCE_REFS="$(SCAN_SOURCE_REFS)" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"
 
 ref-report:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/ref_report.py --v "$(V)"

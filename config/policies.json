@@ -13,7 +13,7 @@
   },
   "delta_artefacts": {
     "binary_safe": true,
-    "replacement_policy": "Use delta artefacts when relative changes include deletes, renames, binary files, or intentional absence that cannot be represented by an ordinary tree alone.",
+    "replacement_policy": "Use delta artefacts for compact generated unofficial overlays. Vendor source ports are stored as Git-native source trees rather than giant patch blobs.",
     "required_files": [
       "README.md",
       "metadata.json",
@@ -23,7 +23,8 @@
   "immutability": {
     "immutable_patterns": [
       "source/base/**",
-      "source/delta/radxa/**",
+      "source/vendor/**",
+      "source/port/**",
       "source/component/cix/**",
       "non-unofficial source/delta/**"
     ],
@@ -52,7 +53,7 @@
     "manifest": "config/refs/variant-tree_id.json",
     "requirements": [
       "source/cache/release/** refs are generated firmware artefacts, not irreducible source inputs.",
-      "A pruned clone may omit source/cache/release/** branches when the source/base, source/component, source/delta, and source/unofficial refs needed to regenerate them are present.",
+      "A pruned clone may omit source/cache/release/** branches when the source/base, source/vendor or source/port, source/component, source/delta, and source/unofficial refs needed to regenerate them are present.",
       "Generated release commits are validated by tree ID rather than object ID because commit metadata may differ after regeneration.",
       "Rendered branches must adhere to conventional Git UX over exact retention of stale .gitmodules files.",
       "Rendered branches must contain no gitlinks or active root .gitmodules files.",
@@ -67,7 +68,7 @@
     "committed_data": [
       "source refs and manifests needed to regenerate rendered buildable release branches",
       "base component refs needed by supported releases",
-      "vendor component refs and deltas",
+      "vendor component refs, vendor source refs, ported vendor source refs, and unofficial deltas",
       "non-public or fragile vendor blobs, tools, and certificates",
       "ref manifests and provenance metadata",
       "decision ledgers explaining carry-forward choices"

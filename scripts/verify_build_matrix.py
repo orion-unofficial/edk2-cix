@@ -25,6 +25,7 @@ from reconstruction_common import (
     release_entries,
     repo_root,
     rev_parse,
+    radxa_source_refs,
     tree_id,
     truthy,
 )
@@ -43,7 +44,7 @@ Checks:
   - required base, vendor, component, and unofficial refs exist
   - retained source/cache/release branches are all derivable from source refs
   - retained source/cache/release branches match config/refs/variant-tree_id.json tree IDs
-  - Radxa delta refs and regenerable rendered-base cache plans cover every supported EDK2 release
+  - Radxa vendor/port source refs and regenerable rendered-base cache plans cover every supported EDK2 release
   - unofficial compatibility tags are reachable from retained source/unofficial branches
   - versioned unofficial aliases have the same tree as their non-alias branch
 """
@@ -186,7 +187,11 @@ def require_source_refs(
 ) -> list[str]:
     problems: list[str] = []
     expected_base_rendered = {f"{CACHE_BASE_EDK2_PREFIX}edk2-stable{release}" for release in all_releases}
-    expected_radxa = {ref for ref in expected_required_refs if ref.startswith("source/delta/radxa/")}
+    expected_radxa = {
+        ref
+        for ref in expected_required_refs
+        if ref.startswith(("source/vendor/radxa/", "source/port/radxa/"))
+    }
     expected_local_tags = {
         local_compatibility_tag_for_branch(ref)
         for ref in expected_required_refs
@@ -207,7 +212,8 @@ def require_source_refs(
         problems.append("required source refs are unavailable locally:\n" + "\n".join(f"  - {r}" for r in missing))
 
     actual_base_rendered = actual_refs(repo, "source/cache/base/edk2")
-    actual_radxa = actual_refs(repo, "source/delta/radxa")
+    actual_radxa = set(radxa_source_refs(repo))
+    obsolete_radxa_delta = actual_refs(repo, "source/delta/radxa")
     actual_local_tags = local_tag_refs(repo)
     actual_local_branches = actual_refs(repo, "source/unofficial")
     base_records = rendered_base_records(repo)
@@ -238,8 +244,14 @@ def require_source_refs(
         )
     if expected_radxa != actual_radxa:
         problems.append(
-            "source/delta/radxa refs do not match the matrix:\n"
+            "Radxa vendor/port source refs do not match the matrix:\n"
             + diff_sets(expected_radxa, actual_radxa)
+        )
+    if obsolete_radxa_delta:
+        problems.append(
+            "obsolete source/delta/radxa refs remain; Radxa source is now recorded under source/vendor/radxa/** "
+            "or source/port/radxa/**:\n"
+            + "\n".join(f"  - {r}" for r in sorted(obsolete_radxa_delta))
         )
     missing_tags = expected_local_tags - actual_local_tags
     if missing_tags:

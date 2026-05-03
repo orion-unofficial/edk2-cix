@@ -19,7 +19,8 @@ the old refs:
 - `refs/heads/source/base/edk2-non-osi/**`
 - `refs/heads/source/base/arm/**`
 - `refs/heads/source/component/cix/**`
-- `refs/heads/source/delta/radxa/**`
+- `refs/heads/source/vendor/radxa/**`
+- `refs/heads/source/port/radxa/**`
 - `refs/heads/source/delta/unofficial/**`
 - `refs/heads/source/unofficial/**`
 - unofficial compatibility tags under `refs/tags/source/unofficial/edk2/stable-*`

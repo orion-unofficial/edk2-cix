@@ -64,7 +64,7 @@ def test() -> None:
     run(["make", "ref-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
     run(["make", "cleanup-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
     run(["make", "prune", "--no-print-directory"], stdout=subprocess.DEVNULL)
-    run(["make", "check-identity-integrity", "--no-print-directory"])
+    run(["make", "check-identity-integrity", "SCAN_SOURCE_REFS=1", "--no-print-directory"])
 
 
 def main() -> None:

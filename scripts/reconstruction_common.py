@@ -234,17 +234,44 @@ def matrix_variant_releases(variant: dict[str, Any], all_releases: list[str]) ->
     raise ReconstructionError(f"variant has no release selection: {variant.get('name', '<unnamed>')}")
 
 
-RADXA_DELTA_RE = re.compile(r"^source/delta/radxa/(?P<radxa>[^/]+)/(?P<edk2>edk2-stable[^/]+)$")
+RADXA_SOURCE_RE = re.compile(r"^source/(?P<source>vendor|port)/radxa/(?P<radxa>[^/]+)/(?P<edk2>edk2-stable[^/]+)$")
 CIX_COMPONENT_RE = re.compile(r"^source/component/cix/(?P<release>[^/]+)/(?P<component>[^/]+)$")
 LOCAL_COMPAT_RE = re.compile(r"^source/unofficial/(?P<edk2>edk2-stable[^/]+)$")
 LOCAL_COMPAT_TAG_RE = re.compile(r"^source/unofficial/edk2/stable-(?P<release>\d{6}(?:\.\d+)?)$")
 
 
+def radxa_source_namespaces() -> tuple[str, ...]:
+    return ("source/vendor/radxa", "source/port/radxa")
+
+
+def radxa_source_ref(repo: Path, radxa: str, edk2_ref: str) -> str:
+    """Return the canonical Radxa source ref for a selected EDK2 base."""
+
+    candidates = [
+        f"source/vendor/radxa/{radxa}/{edk2_ref}",
+        f"source/port/radxa/{radxa}/{edk2_ref}",
+    ]
+    for ref in candidates:
+        if ref_exists(repo, ref):
+            return ref
+    raise ReconstructionError(
+        f"no Radxa source ref recorded for Radxa {radxa} on {edk2_ref}; "
+        f"expected one of: {', '.join(candidates)}"
+    )
+
+
+def radxa_source_refs(repo: Path) -> list[str]:
+    refs: list[str] = []
+    for namespace in radxa_source_namespaces():
+        refs.extend(ref for ref in for_each_ref(repo, namespace) if RADXA_SOURCE_RE.match(ref))
+    return sorted(refs, key=version_key)
+
+
 def radxa_releases_by_edk2(repo: Path, supported_edk2_refs: Iterable[str] | None = None) -> dict[str, list[str]]:
     supported = set(supported_edk2_refs or [])
     releases: dict[str, set[str]] = {}
-    for ref in for_each_ref(repo, "source/delta/radxa"):
-        match = RADXA_DELTA_RE.match(ref)
+    for ref in radxa_source_refs(repo):
+        match = RADXA_SOURCE_RE.match(ref)
         if not match:
             continue
         radxa = match.group("radxa")
@@ -429,35 +456,40 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
         entry["cix_release"] = cix
 
     render = entry["render"]
+    radxa_ref = radxa_source_ref(repo, radxa, edk2_ref)
     if stage == "upstream":
-        render["base"] = {"ref": f"{CACHE_BASE_EDK2_PREFIX}{edk2_ref}"}
-        render["commit_message"] = f"render: EDK2 {release} with Radxa {radxa} vendor layer"
-        render["steps"] = [{"delta": f"source/delta/radxa/{radxa}/{edk2_ref}"}]
-        entry["source_ref"] = branch
+        render["base"] = {"ref": radxa_ref}
+        render["commit_message"] = f"render: EDK2 {release} with Radxa {radxa} source"
+        entry["source_ref"] = radxa_ref
     elif stage == "vendor":
-        render["base"] = {"ref": f"{CACHE_RELEASE_PREFIX}upstream/edk2-{release}/radxa-{radxa}"}
+        render["base"] = {"ref": radxa_ref}
         render["commit_message"] = f"render: EDK2 {release} with Radxa {radxa} and CIX {cix} components"
         render["steps"] = [
             {"component": {"path": f"src/cix-v{cix}/tf-a", "ref": f"source/component/cix/{cix}/tf-a"}},
             {"component": {"path": f"src/cix-v{cix}/tee", "ref": f"source/component/cix/{cix}/op-tee"}},
         ]
-        entry["source_ref"] = branch
+        entry["source_ref"] = radxa_ref
     else:
+        render["base"] = {"ref": radxa_ref}
+        steps: list[dict[str, Any]] = []
         if cix:
-            render["base"] = {"ref": f"{CACHE_RELEASE_PREFIX}vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"}
+            steps.extend([
+                {"component": {"path": f"src/cix-v{cix}/tf-a", "ref": f"source/component/cix/{cix}/tf-a"}},
+                {"component": {"path": f"src/cix-v{cix}/tee", "ref": f"source/component/cix/{cix}/op-tee"}},
+            ])
             delta_ref = f"source/delta/unofficial/{edk2_ref}"
             render["commit_message"] = (
                 f"render: firmware variant with EDK2 {release}, Radxa {radxa}, "
                 f"CIX {cix} components, and unofficial changes"
             )
         else:
-            render["base"] = {"ref": f"{CACHE_RELEASE_PREFIX}upstream/edk2-{release}/radxa-{radxa}"}
             delta_ref = f"source/delta/unofficial/{edk2_ref}-radxa-{radxa}"
             render["commit_message"] = (
                 f"render: firmware variant with EDK2 {release}, Radxa {radxa}, "
                 "and unofficial changes"
             )
-        render["steps"] = [{"delta": delta_ref}]
+        steps.append({"delta": delta_ref})
+        render["steps"] = steps
         target = alias_target_for(branch, parts)
         entry["source_ref"] = target or branch
         if target:
@@ -878,6 +910,10 @@ def generated_ref_record(record: dict[str, Any]) -> bool:
 
 def is_immutable_namespace(ref: str) -> bool:
     if ref.startswith("source/base/"):
+        return True
+    if ref.startswith("source/vendor/"):
+        return True
+    if ref.startswith("source/port/"):
         return True
     if ref.startswith("source/component/cix/"):
         return True

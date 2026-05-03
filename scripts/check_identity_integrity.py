@@ -17,8 +17,8 @@ Optional variables:
   SCAN_COMMITS=0|1
                   Also scan commits reachable from HEAD for generated-identity strings.
   SCAN_SOURCE_REFS=0|1
-                  Also scan generated source/unofficial, source/delta/unofficial, and
-                  source/cache/release/custom refs for stale old branch names.
+                  Also scan persistent unofficial and Radxa source refs, plus
+                  generated custom cache refs, for stale old branch names.
   V=0|1           Print scanned paths.
 
 The scanner is intentionally conservative for the build branch. It looks for
@@ -103,6 +103,8 @@ def source_refs(repo: Path) -> list[str]:
         "refs/heads/source/unofficial",
         "refs/tags/source/unofficial/edk2",
         "refs/heads/source/delta/unofficial",
+        "refs/heads/source/vendor/radxa",
+        "refs/heads/source/port/radxa",
         "refs/heads/source/cache/release/custom",
     )
     return [line for line in result.stdout.splitlines() if line]
@@ -114,6 +116,12 @@ def scan_source_refs(repo: Path, verbose: bool) -> list[str]:
     for ref in source_refs(repo):
         if verbose:
             print(f"scan ref {ref}")
+        commit = git(repo, "log", "-1", "--format=%H%x00%B", ref, check=False)
+        if commit.returncode == 0:
+            commit_text = commit.stdout
+            for match in re.finditer(pattern, commit_text):
+                line = commit_text.count("\n", 0, match.start()) + 1
+                problems.append(f"{ref}:commit-message:{line}: old branch name: {match.group(0)}")
         result = git(repo, "grep", "-n", "-I", "-E", pattern, ref, "--", ".", check=False)
         if result.returncode == 0:
             problems.extend(f"{ref}: {line}" for line in result.stdout.splitlines())

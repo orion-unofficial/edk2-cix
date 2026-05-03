@@ -13,7 +13,6 @@ from reconstruction_common import (
     CACHE_BASE_EDK2_PREFIX,
     ReconstructionError,
     check_immutable_refs,
-    create_delta_artefact,
     git,
     load_json,
     main_wrapper,
@@ -36,6 +35,7 @@ Supported forms:
   make integrate-source-release TYPE=vendor VENDOR=cix RELEASE=1.2 WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=cix RELEASE=1.2 COMPONENT=tf-a ARM_BASE=v2.7 REF=<ported-ref> WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202208 REF=<vendor-ref> WRITE=1
+  make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202602 REF=<ported-ref> RADXA_SOURCE=port WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1+<commit> EDK2_BASE=edk2-stable202208 REF=main WRITE=1
 
 Required variables:
@@ -45,12 +45,18 @@ Required variables:
 
 Optional variables:
   RELEASE=<release-or-ref>  Release tag/version to integrate.
-  EDK2_BASE=<release>       Vendor base marker for Radxa deltas.
+  EDK2_BASE=<release>       EDK2 base marker for Radxa source refs.
   ARM_BASE=<release>        Arm base marker for CIX component uplift refs.
   REF=<object-id-or-ref>    Explicit object to use instead of a configured remote tag.
+  RADXA_SOURCE=auto|vendor|port
+                            For Radxa, record an actual vendor release source or
+                            this project's port of that vendor release to another
+                            EDK2 base. auto records the first Radxa source for a
+                            release under source/vendor/radxa/** and later EDK2
+                            bases under source/port/radxa/**.
   WRITE=0|1                 Required before refs are created or advanced.
   ALLOW_REPLACE=0|1         Allow an existing immutable ref to move during integration.
-  MATERIALISE=0|1           For Radxa vendor refs, flatten gitlinks before delta extraction.
+  MATERIALISE=0|1           For Radxa source refs, flatten gitlinks before recording.
   V=0|1                     Print delegated git operations.
 
 Without WRITE=1 this command validates inputs and prints the operation it would perform.
@@ -59,8 +65,8 @@ If the requested object is already present locally, WRITE=1 uses it without
 contacting the external upstream/vendor remote.
 Radxa non-release updates should use a descriptive RELEASE such as
 1.2.1+<short-commit>. REF may point at a legacy submodule-shaped branch such
-as main; with MATERIALISE=1, the source is flattened before the delta artefact
-is generated.
+as main; with MATERIALISE=1, the source is flattened before the Radxa source ref
+is recorded.
 CIX TF-A/OP-TEE uplift experiments should use COMPONENT=tf-a|op-tee,
 ARM_BASE=<arm-release>, and REF=<ported-ref>. This records the finished
 component ref under source/component/cix/<cix-release>/<component>/<arm-base>.
@@ -79,6 +85,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--edk2-base", default=os.environ.get("EDK2_BASE", ""))
     p.add_argument("--arm-base", default=os.environ.get("ARM_BASE", ""))
     p.add_argument("--ref", default=os.environ.get("REF", ""))
+    p.add_argument("--radxa-source", default=os.environ.get("RADXA_SOURCE", "auto"))
     p.add_argument("--write", default=os.environ.get("WRITE", "0"))
     p.add_argument("--allow-replace", default=os.environ.get("ALLOW_REPLACE", "0"))
     p.add_argument("--materialise", default=os.environ.get("MATERIALISE", "1"))
@@ -171,9 +178,30 @@ def manifest_path_for(target: str) -> str:
         return "config/refs/arm.json"
     if target.startswith("source/component/cix/"):
         return "config/refs/cix.json"
-    if target.startswith("source/delta/radxa/"):
+    if target.startswith(("source/vendor/radxa/", "source/port/radxa/")):
         return "config/refs/radxa.json"
     return "config/refs/integrated.json"
+
+
+def radxa_vendor_refs(repo: Path, release: str) -> list[str]:
+    result = git(repo, "for-each-ref", "--format=%(refname:short)", f"refs/heads/source/vendor/radxa/{release}", check=False)
+    if result.returncode != 0:
+        return []
+    return [line for line in result.stdout.splitlines() if line]
+
+
+def radxa_target_ref(repo: Path, release: str, edk2_base: str, source: str) -> tuple[str, str]:
+    if source not in {"auto", "vendor", "port"}:
+        raise ReconstructionError("RADXA_SOURCE must be auto, vendor, or port")
+    vendor_ref = f"source/vendor/radxa/{release}/{edk2_base}"
+    port_ref = f"source/port/radxa/{release}/{edk2_base}"
+    if source == "vendor":
+        return vendor_ref, "vendor-source"
+    if source == "port":
+        return port_ref, "ported-vendor-source"
+    if ref_exists(repo, vendor_ref) or not radxa_vendor_refs(repo, release):
+        return vendor_ref, "vendor-source"
+    return port_ref, "ported-vendor-source"
 
 
 def upsert_manifest(repo: Path, target: str, record: dict) -> None:
@@ -231,6 +259,25 @@ def materialise_vendor_ref(repo: Path, source_ref: str, release: str, verbose: b
             git(repo, "worktree", "remove", "--force", str(worktree), check=False, capture=True)
 
 
+def commit_radxa_source_snapshot(
+    repo: Path,
+    source_ref: str,
+    release: str,
+    edk2_base: str,
+    record_type: str,
+) -> str:
+    """Create a clean snapshot commit for a Radxa vendor or port source tree."""
+
+    source_tree = tree_id(repo, source_ref)
+    kind = "vendor source" if record_type == "vendor-source" else "ported vendor source"
+    message = (
+        f"source: record Radxa {release} {kind} for {edk2_base}\n\n"
+        f"Source-Base: {CACHE_BASE_EDK2_PREFIX}{edk2_base}\n"
+        f"Source-Model: materialised Radxa {kind} tree\n"
+    )
+    return git(repo, "commit-tree", source_tree, "-m", message).stdout.strip()
+
+
 def validate(args: argparse.Namespace) -> list[str]:
     missing: list[str] = []
     if args.type_ not in {"upstream", "vendor"}:
@@ -252,6 +299,8 @@ def validate(args: argparse.Namespace) -> list[str]:
             missing.append("REF=<ported-ref>")
     if args.type_ == "vendor" and args.vendor == "radxa" and not (args.release and args.edk2_base):
         missing.append("RELEASE=<radxa-release> EDK2_BASE=<edk2-release>")
+    if args.type_ == "vendor" and args.vendor == "radxa" and args.radxa_source not in {"auto", "vendor", "port"}:
+        missing.append("RADXA_SOURCE=auto|vendor|port")
     return missing
 
 
@@ -318,7 +367,7 @@ def main() -> None:
                 },
             ))
     else:
-        target = f"source/delta/radxa/{args.release}/{args.edk2_base}"
+        target, record_type = radxa_target_ref(repo, args.release, args.edk2_base, args.radxa_source)
         source = args.ref or "<materialised-vendor-ref>"
         base_ref = f"{CACHE_BASE_EDK2_PREFIX}{args.edk2_base}"
         operations.append((
@@ -326,12 +375,12 @@ def main() -> None:
             source,
             target,
             {
-                "type": "vendor-delta-artefact",
+                "type": record_type,
                 "vendor": "radxa",
+                "radxa_release": args.release,
                 "edk2_base": args.edk2_base,
                 "base_ref": base_ref,
-                "format": "delta.patch plus metadata.json",
-                "source_ref": source,
+                "format": "materialised source tree",
             },
         ))
 
@@ -344,27 +393,28 @@ def main() -> None:
     for remote, source, target, meta in operations:
         if remote == "local":
             if source.startswith("<"):
-                raise ReconstructionError("Radxa vendor integration requires REF=<vendor-ref-or-object> in WRITE mode")
-            if meta.get("type") == "vendor-delta-artefact":
+                raise ReconstructionError("Radxa vendor/port integration requires REF=<vendor-ref-or-object> in WRITE mode")
+            if meta.get("type") in {"vendor-source", "ported-vendor-source"}:
                 base_ref = meta["base_ref"]
-                base_input = resolve_ref_or_generated_cache(repo, base_ref)
+                resolve_ref_or_generated_cache(repo, base_ref)
                 if not ref_exists(repo, source):
                     raise ReconstructionError(f"Radxa source ref is unavailable locally: {source}")
-                delta_source = source
+                materialised_source = source
                 if truthy(args.materialise):
-                    delta_source = materialise_vendor_ref(repo, source, args.release, verbose)
-                    meta["materialised_source_ref"] = delta_source
-                create_delta_artefact(
+                    materialised_source = materialise_vendor_ref(repo, source, args.release, verbose)
+                if ref_exists(repo, target) and not allow_replace:
+                    raise ReconstructionError(f"target immutable ref already exists: {target}")
+                snapshot = commit_radxa_source_snapshot(
                     repo,
-                    base_input,
-                    delta_source,
-                    target,
-                    kind="vendor-delta",
-                    name=f"radxa/{args.release}",
-                    message=f"delta: capture Radxa {args.release} changes for {args.edk2_base}",
-                    allow_replace=allow_replace,
-                    metadata_base_ref=base_ref,
+                    materialised_source,
+                    args.release,
+                    args.edk2_base,
+                    str(meta["type"]),
                 )
+                if allow_replace and ref_exists(repo, target):
+                    git(repo, "branch", "-f", target, snapshot, capture=not verbose)
+                else:
+                    git(repo, "branch", target, snapshot, capture=not verbose)
             else:
                 base_ref = meta.get("base_ref")
                 if base_ref and not ref_exists(repo, base_ref):
