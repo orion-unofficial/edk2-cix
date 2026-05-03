@@ -118,7 +118,7 @@ A configured build variation is considered supported only when all of its source
 - the selected EDK2, `edk2-platforms`, and `edk2-non-osi` base refs are present
 - the Radxa vendor changes are available for that EDK2 release
 - any selected CIX component refs are present under `source/component/cix/<cix-release>/`
-- the compatible unofficial project source checkpoint and unofficial delta are present
+- the compatible unofficial project source checkpoint is present
 - `source/base/edk2/edk2-stable*` refs declare the supported EDK2 release set from `202208` onward
 - the chosen Radxa, CIX, and unofficial source layers are present as repo refs
 - `config/refs/*.json` records the source and rendered tree IDs needed to verify it
@@ -140,7 +140,7 @@ The firmware tree is built from several layers rather than from one permanent mo
 
 `source/vendor/radxa/**` branches contain source trees actually published by Radxa for a recorded EDK2 base. `source/port/radxa/**` branches contain this project's deterministic ports of a Radxa release to later EDK2 bases. For example, Radxa `1.2.1` was published on `edk2-stable202208`, while `source/port/radxa/1.2.1/edk2-stable202602` records the same vendor intent ported forward to EDK2 `202602`.
 
-`source/delta/unofficial/**` branches contain compact generated patch artefacts for this project's unofficial changes relative to a selected rendered vendor baseline. They are kept as patch artefacts because they are much smaller than the Radxa vendor ports and are generated from the retained `source/unofficial/**` checkpoints.
+`source/unofficial/**` branches contain this project's unofficial firmware changes as normal source trees. Release-specific branches such as `source/unofficial/edk2-stable202602` are compatibility checkpoints known to build with a selected EDK2 release. `source/unofficial/current` is the current development checkpoint.
 
 Render plans are derived from the selected variant name and available source refs, then verified against the ref metadata in `config/refs/`.
 
@@ -167,51 +167,35 @@ make render-release-branch \
 git switch -c my-change source/cache/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/unofficial
 ```
 
-If you later import that topic branch back into the source model, also materialise the matching vendor baseline because `make import-unofficial-commits` compares your topic branch against that baseline:
-
-```bash
-make render-release-branch \
-  RELEASE=edk2-202602/cix-1.2/radxa-1.2.1 \
-  PERSIST=1
-```
-
-The supported workflows guard `source/base/**`, non-unofficial `source/delta/**`, and `source/component/cix/**` refs by comparing them against the expected object IDs and tree IDs in `config/refs/*.json`. Git itself does not make those branch names immutable, so do not edit or move them by hand. If a guarded ref moved unexpectedly, or is checked out in a dirty worktree, the scripts abort before using it. Only `make integrate-source-release` should create or advance those refs.
+The supported workflows guard `source/base/**`, `source/vendor/**`, `source/port/**`, and `source/component/cix/**` refs by comparing them against the expected object IDs and tree IDs in `config/refs/*.json`. Git itself does not make those branch names immutable, so do not edit or move them by hand. If a guarded ref moved unexpectedly, or is checked out in a dirty worktree, the scripts abort before using it. Only `make integrate-source-release` should create or advance those refs.
 
 ## How do I persist development changes back to `source/unofficial/current`?
 
-Unofficial development changes are imported explicitly. Ordinary build and render targets never rewrite `source/unofficial/current` or generated `source/delta/unofficial/*` artefacts.
-
-The `BASE_REF` used below must exist locally. If generated `source/cache/release/**` cache branches have been pruned, recreate the matching vendor baseline first with `make render-release-branch RELEASE=<vendor-variant> PERSIST=1`.
+Unofficial development changes are imported explicitly. Ordinary build and render targets never rewrite `source/unofficial/current` or release-specific `source/unofficial/edk2-stable*` checkpoints.
 
 Dry run first:
 
 ```bash
 make import-unofficial-commits \
-  BASE_REF=source/cache/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1 \
   FROM_REF=my-change
 ```
 
-Then update the unofficial source branch and generated unofficial delta deliberately:
+Then update the unofficial source branch deliberately:
 
 ```bash
 make import-unofficial-commits \
-  BASE_REF=source/cache/release/vendor/edk2-202602/cix-1.2/radxa-1.2.1 \
   FROM_REF=my-change \
-  UPDATE_UNOFFICIAL_SOURCE=1 \
   WRITE=1
 ```
 
 The key variables are:
 
-- `BASE_REF` is the rendered vendor baseline your topic branch is based on.
 - `FROM_REF` is the topic branch or commit containing your finished change.
 - `SOURCE_UNOFFICIAL_REF` is the full unofficial source branch to update. It defaults to `source/unofficial/current` and must stay under `source/unofficial/`.
-- `TARGET_REF` is the generated delta branch to write. It defaults to `source/delta/unofficial/current` and must stay under `source/delta/unofficial/`. This branch stores the patch that the renderer later applies to the selected baseline.
 
 For each supported EDK2 release, the repo keeps two related records of the unofficial project changes:
 
 - an unofficial source checkpoint, such as `source/unofficial/edk2-stable202602`, which is a normal source branch known to apply cleanly to that EDK2 release
-- a generated unofficial delta, such as `source/delta/unofficial/edk2-stable202602`, which stores the patch from that release's vendor baseline to the matching unofficial source checkpoint
 - an unofficial checkpoint tag, such as `source/unofficial/edk2/stable-202602`, which marks the commit known to apply to that EDK2 release without colliding with the branch name
 
 Here, an EDK2 release means the upstream EDK2 code together with its matching `edk2-platforms` and `edk2-non-osi` companion sources. Some unofficial changes apply unchanged across several EDK2 releases; others need small adjustments because upstream files moved or changed.
@@ -313,7 +297,7 @@ make verify-release-branch \
   RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/unofficial
 ```
 
-Materialised refs are generated mechanically from `source/base/**`, `source/vendor/**`, `source/port/**`, `source/component/**`, and generated `source/delta/unofficial/**` artefacts derived from `source/unofficial/current` compatibility points. They may be stored as `source/cache/release/**` branches for convenience, but ordinary build and validation targets regenerate them when those branches are absent.
+Materialised refs are generated mechanically from `source/base/**`, `source/vendor/**`, `source/port/**`, `source/component/**`, and `source/unofficial/**` compatibility checkpoints. They may be stored as `source/cache/release/**` branches for convenience, but ordinary build and validation targets regenerate them when those branches are absent.
 
 ## How do I test a floating upstream tip instead of the latest release?
 

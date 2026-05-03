@@ -356,6 +356,12 @@ def main() -> None:
             "run integrate-source-release if source objects are missing."
         )
 
+    expected_tree = entry.get("tree_id")
+    if expected_tree and tree_id(repo, target_ref) != expected_tree:
+        raise ReconstructionError(
+            f"resolved tree for {branch} does not match manifest: {tree_id(repo, target_ref)} != {expected_tree}"
+        )
+
     check_immutable_refs(repo)
 
     if truthy(args.persist):

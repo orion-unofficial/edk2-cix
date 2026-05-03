@@ -102,7 +102,6 @@ def source_refs(repo: Path) -> list[str]:
         "--format=%(refname:short)",
         "refs/heads/source/unofficial",
         "refs/tags/source/unofficial/edk2",
-        "refs/heads/source/delta/unofficial",
         "refs/heads/source/vendor/radxa",
         "refs/heads/source/port/radxa",
         "refs/heads/source/cache/release/custom",

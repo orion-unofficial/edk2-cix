@@ -8,9 +8,7 @@ RELEASE ?=
 PERSIST ?= 0
 WORKTREE ?=
 TARGET_REF ?=
-UNOFFICIAL_TARGET_REF ?= source/delta/unofficial/current
 SOURCE_UNOFFICIAL_REF ?= source/unofficial/current
-UPDATE_UNOFFICIAL_SOURCE ?= 0
 BASE_REF ?=
 INSTALL_ROOT ?= /boot/efi
 INSTALL_SOURCE ?=
@@ -114,7 +112,7 @@ help-dev:
 	print_help_line 'make verify-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
-	print_help_line 'make import-unofficial-commits' 'Update source/unofficial/current and/or unofficial delta artefacts.'; \
+	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
 	print_help_line 'make check-identity-integrity' 'Scan generated files and refs for path/identity integrity issues.'; \
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
@@ -134,15 +132,12 @@ help-dev:
 	print_help_line 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release and import-unofficial-commits.'; \
 	print_help_line 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
 	print_help_line 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before recording source/vendor or source/port refs.\nDefault: 1.'; \
-	print_help_line 'BASE_REF=<ref>' 'Base ref for delta extraction/import.'; \
+	print_help_line 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta.'; \
 	print_help_line 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
-	print_help_line 'TARGET_REF=<ref>' 'Delta artefact output ref.'; \
 	print_help_line 'FROM_REF=<ref>' 'Developer topic branch/ref for import-unofficial-commits.'; \
 	print_help_line 'OUTPUT=<path>' 'Optional extract-vendor-delta metadata output path.'; \
 	print_help_line 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
 	print_help_line 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch; defaults to source/unofficial/current.'; \
-	print_help_line 'UPDATE_UNOFFICIAL_SOURCE=0|1' 'Allow import-unofficial-commits to advance SOURCE_UNOFFICIAL_REF.'; \
-	print_help_line 'UNOFFICIAL_TARGET_REF=<ref>' 'Unofficial delta target; defaults to source/delta/unofficial/current.'; \
 	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-integrity.'; \
 	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan persistent unofficial/Radxa source refs in check-identity-integrity.'; \
 	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
@@ -259,7 +254,7 @@ integrate-source-release:
 	@DEBUG="$(DEBUG)" TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" RADXA_SOURCE="$(RADXA_SOURCE)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(MATERIALISE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
 import-unofficial-commits:
-	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" UPDATE_UNOFFICIAL_SOURCE="$(UPDATE_UNOFFICIAL_SOURCE)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(UNOFFICIAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
+	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
 
 check-identity-integrity:
 	@DEBUG="$(DEBUG)" SCAN_COMMITS="$(SCAN_COMMITS)" SCAN_SOURCE_REFS="$(SCAN_SOURCE_REFS)" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"

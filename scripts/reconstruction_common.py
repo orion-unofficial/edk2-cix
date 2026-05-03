@@ -348,6 +348,7 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
     radxa_by_edk2 = radxa_releases_by_edk2(repo, supported_edk2)
     cix_releases = available_cix_releases(repo)
     unofficial_edk2 = local_compatibility_edk2_refs(repo)
+    rendered_records = rendered_ref_records(repo)
     branches: set[str] = set()
     aliases: dict[str, str] = {}
 
@@ -357,16 +358,17 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
             upstream = f"{CACHE_RELEASE_PREFIX}upstream/edk2-{release}/radxa-{radxa}"
             branches.add(upstream)
 
-            if edk2_ref in unofficial_edk2 and ref_exists(repo, f"source/delta/unofficial/{edk2_ref}-radxa-{radxa}"):
+            if edk2_ref in unofficial_edk2:
                 unofficial = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
-                alias = f"{unofficial}-{radxa}"
-                branches.update({unofficial, alias})
-                aliases[alias] = unofficial
+                if unofficial in rendered_records:
+                    alias = f"{unofficial}-{radxa}"
+                    branches.update({unofficial, alias})
+                    aliases[alias] = unofficial
 
             for cix in cix_releases:
                 vendor = f"{CACHE_RELEASE_PREFIX}vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"
                 branches.add(vendor)
-                if edk2_ref in unofficial_edk2 and ref_exists(repo, f"source/delta/unofficial/{edk2_ref}"):
+                if edk2_ref in unofficial_edk2:
                     unofficial = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/cix-{cix}/radxa-{radxa}/unofficial"
                     alias = f"{unofficial}-{radxa}"
                     branches.update({unofficial, alias})
@@ -470,28 +472,21 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
         ]
         entry["source_ref"] = radxa_ref
     else:
-        render["base"] = {"ref": radxa_ref}
-        steps: list[dict[str, Any]] = []
+        unofficial_ref = f"source/unofficial/{edk2_ref}"
+        render["base"] = {"ref": unofficial_ref}
         if cix:
-            steps.extend([
-                {"component": {"path": f"src/cix-v{cix}/tf-a", "ref": f"source/component/cix/{cix}/tf-a"}},
-                {"component": {"path": f"src/cix-v{cix}/tee", "ref": f"source/component/cix/{cix}/op-tee"}},
-            ])
-            delta_ref = f"source/delta/unofficial/{edk2_ref}"
             render["commit_message"] = (
                 f"render: firmware variant with EDK2 {release}, Radxa {radxa}, "
-                f"CIX {cix} components, and unofficial changes"
+                f"CIX {cix} components, and unofficial source"
             )
         else:
-            delta_ref = f"source/delta/unofficial/{edk2_ref}-radxa-{radxa}"
             render["commit_message"] = (
                 f"render: firmware variant with EDK2 {release}, Radxa {radxa}, "
-                "and unofficial changes"
+                "and unofficial source"
             )
-        steps.append({"delta": delta_ref})
-        render["steps"] = steps
+        render["steps"] = []
         target = alias_target_for(branch, parts)
-        entry["source_ref"] = target or branch
+        entry["source_ref"] = unofficial_ref
         if target:
             entry["alias_of"] = target
 
@@ -917,8 +912,6 @@ def is_immutable_namespace(ref: str) -> bool:
         return True
     if ref.startswith("source/component/cix/"):
         return True
-    if ref.startswith("source/delta/unofficial/"):
-        return False
     if ref.startswith("source/delta/"):
         return True
     return False

@@ -21,7 +21,6 @@ the old refs:
 - `refs/heads/source/component/cix/**`
 - `refs/heads/source/vendor/radxa/**`
 - `refs/heads/source/port/radxa/**`
-- `refs/heads/source/delta/unofficial/**`
 - `refs/heads/source/unofficial/**`
 - unofficial compatibility tags under `refs/tags/source/unofficial/edk2/stable-*`
 

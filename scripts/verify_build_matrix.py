@@ -45,6 +45,7 @@ Checks:
   - retained source/cache/release branches are all derivable from source refs
   - retained source/cache/release branches match config/refs/variant-tree_id.json tree IDs
   - Radxa vendor/port source refs and regenerable rendered-base cache plans cover every supported EDK2 release
+  - obsolete source/delta/unofficial refs are absent
   - unofficial compatibility tags are reachable from retained source/unofficial branches
   - versioned unofficial aliases have the same tree as their non-alias branch
 """
@@ -214,6 +215,7 @@ def require_source_refs(
     actual_base_rendered = actual_refs(repo, "source/cache/base/edk2")
     actual_radxa = set(radxa_source_refs(repo))
     obsolete_radxa_delta = actual_refs(repo, "source/delta/radxa")
+    obsolete_unofficial_delta = actual_refs(repo, "source/delta/unofficial")
     actual_local_tags = local_tag_refs(repo)
     actual_local_branches = actual_refs(repo, "source/unofficial")
     base_records = rendered_base_records(repo)
@@ -252,6 +254,12 @@ def require_source_refs(
             "obsolete source/delta/radxa refs remain; Radxa source is now recorded under source/vendor/radxa/** "
             "or source/port/radxa/**:\n"
             + "\n".join(f"  - {r}" for r in sorted(obsolete_radxa_delta))
+        )
+    if obsolete_unofficial_delta:
+        problems.append(
+            "obsolete source/delta/unofficial refs remain; unofficial source is now recorded directly under "
+            "source/unofficial/**:\n"
+            + "\n".join(f"  - {r}" for r in sorted(obsolete_unofficial_delta))
         )
     missing_tags = expected_local_tags - actual_local_tags
     if missing_tags:

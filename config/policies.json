@@ -11,22 +11,12 @@
       "notes": "Post-202208 builds are deterministic source materialisations, but not byte-identical replays of the original vendor firmware."
     }
   },
-  "delta_artefacts": {
-    "binary_safe": true,
-    "replacement_policy": "Use delta artefacts for compact generated unofficial overlays. Vendor source ports are stored as Git-native source trees rather than giant patch blobs.",
-    "required_files": [
-      "README.md",
-      "metadata.json",
-      "delta.patch"
-    ]
-  },
   "immutability": {
     "immutable_patterns": [
       "source/base/**",
       "source/vendor/**",
       "source/port/**",
-      "source/component/cix/**",
-      "non-unofficial source/delta/**"
+      "source/component/cix/**"
     ],
     "mutable_unofficial_ref": "source/unofficial/current",
     "rules": [
@@ -37,8 +27,7 @@
       "if an immutable ref is checked out in a dirty worktree, abort",
       "only integrate-source-release may create or advance immutable refs",
       "integration updates the relevant manifest in the same operation",
-      "ordinary build targets never rewrite source/unofficial/current",
-      "source/delta/unofficial/* refs are generated unofficial delta artefacts and are rewritten only by explicit unofficial import workflows"
+      "ordinary build targets never rewrite source/unofficial/current or release-specific source/unofficial checkpoints"
     ]
   },
   "rendered_base_policy": {
@@ -53,7 +42,7 @@
     "manifest": "config/refs/variant-tree_id.json",
     "requirements": [
       "source/cache/release/** refs are generated firmware artefacts, not irreducible source inputs.",
-      "A pruned clone may omit source/cache/release/** branches when the source/base, source/vendor or source/port, source/component, source/delta, and source/unofficial refs needed to regenerate them are present.",
+      "A pruned clone may omit source/cache/release/** branches when the source/base, source/vendor or source/port, source/component, and source/unofficial refs needed to regenerate them are present.",
       "Generated release commits are validated by tree ID rather than object ID because commit metadata may differ after regeneration.",
       "Rendered branches must adhere to conventional Git UX over exact retention of stale .gitmodules files.",
       "Rendered branches must contain no gitlinks or active root .gitmodules files.",
@@ -68,7 +57,7 @@
     "committed_data": [
       "source refs and manifests needed to regenerate rendered buildable release branches",
       "base component refs needed by supported releases",
-      "vendor component refs, vendor source refs, ported vendor source refs, and unofficial deltas",
+      "vendor component refs, vendor source refs, ported vendor source refs, and unofficial source checkpoints",
       "non-public or fragile vendor blobs, tools, and certificates",
       "ref manifests and provenance metadata",
       "decision ledgers explaining carry-forward choices"

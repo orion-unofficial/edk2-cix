@@ -19,7 +19,6 @@ Optional variables:
 
 Checks:
   - persistent source refs must not refer to generated source/cache refs
-  - generated unofficial delta patches must not reintroduce those references
 
 Generated refs are cache artefacts. They may be mentioned by build-branch
 manifests and reconstruction tooling, but persistent buildable source branches
@@ -40,8 +39,6 @@ SCAN_PATHS = (
     "src/tools",
     "validation",
 )
-
-DELTA_PATCH_PATHS = ("delta.patch",)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -79,7 +76,6 @@ def main() -> None:
         + for_each_ref(repo, "source/vendor/radxa")
         + for_each_ref(repo, "source/port/radxa")
     )
-    delta_refs = for_each_ref(repo, "source/delta/unofficial")
 
     problems: list[str] = []
     for ref in refs:
@@ -88,35 +84,13 @@ def main() -> None:
         matches = scan_ref(repo, ref)
         if matches:
             problems.append(f"{ref} references generated cache refs:\n" + "\n".join(f"  - {line}" for line in matches))
-    for ref in delta_refs:
-        if verbose:
-            print(f"scanning generated unofficial delta patch: {ref}")
-        result = git(
-            repo,
-            "grep",
-            "-I",
-            "--line-number",
-            "--extended-regexp",
-            GENERATED_REF_PATTERN,
-            ref,
-            "--",
-            *DELTA_PATCH_PATHS,
-            check=False,
-        )
-        if result.returncode == 0:
-            problems.append(
-                f"{ref} delta patch would reintroduce generated cache refs:\n"
-                + "\n".join(f"  - {line}" for line in result.stdout.splitlines() if line)
-            )
-        elif result.returncode != 1:
-            raise ReconstructionError((result.stderr or result.stdout).strip())
 
     if problems:
         raise ReconstructionError("persistent source reference integrity failed:\n" + "\n\n".join(problems))
 
     print(
         "validated persistent source reference integrity: "
-        f"{len(refs)} persistent source refs, {len(delta_refs)} source/delta/unofficial patches"
+        f"{len(refs)} persistent source refs"
     )
 
 
