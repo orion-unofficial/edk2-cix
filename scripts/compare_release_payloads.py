@@ -87,17 +87,19 @@ def main() -> int:
             missing += 1
         report["files"][str(relative_path)] = entry
 
+    total = matched + mismatched + missing
     report["summary"] = {
         "matched": matched,
         "mismatched": mismatched,
         "missing": missing,
+        "total": total,
     }
 
     print(f"Reference directory: {reference_dir}")
     print(f"Build directory: {build_dir}")
     print(
         "Release payload comparison: "
-        f"{matched} matched, {mismatched} mismatched, {missing} missing"
+        f"{matched} of {total} matched, {mismatched} mismatched, {missing} missing"
     )
 
     for relative_path, entry in report["files"].items():
