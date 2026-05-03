@@ -1,35 +1,33 @@
 {
+  "defaults": {
+    "immutable": true,
+    "vendor": "cix"
+  },
   "refs": [
     {
       "component": "bios",
-      "immutable": true,
       "object_id": "90f39f4469d39b3cd135ca8c5ae6400aca75b292",
       "ref": "source/component/cix/1.2/bios",
       "tree_id": "df17592290c420b903edbd08be868129ac7a1dfa",
       "type": "vendor-bundle",
-      "upstream_ref": "90f39f4469d39b3cd135ca8c5ae6400aca75b292",
-      "vendor": "cix"
+      "upstream_ref": "90f39f4469d39b3cd135ca8c5ae6400aca75b292"
     },
     {
       "component": "op-tee",
-      "immutable": true,
       "object_id": "cc66640f3815da4defc50f72b66ae3bac97cd48a",
       "ref": "source/component/cix/1.2/op-tee",
       "tree_id": "9fd285e566aefcb73b2674ffef5836f646ecb9de",
       "type": "vendor-component",
       "upstream_ref": "cc66640f3815da4defc50f72b66ae3bac97cd48a",
-      "vendor": "cix",
       "vendor_path": "tee"
     },
     {
       "component": "tf-a",
-      "immutable": true,
       "object_id": "114fb20577bcc4038025de4e12bca60e04dd5212",
       "ref": "source/component/cix/1.2/tf-a",
       "tree_id": "c2d13513d804bc14db3082c51f912ff2779b85ac",
       "type": "vendor-component",
       "upstream_ref": "114fb20577bcc4038025de4e12bca60e04dd5212",
-      "vendor": "cix",
       "vendor_path": "tf-a"
     }
   ]

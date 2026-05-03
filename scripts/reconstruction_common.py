@@ -57,6 +57,15 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
         f.write("\n")
 
 
+def manifest_record_sort_key(item: dict[str, Any]) -> str:
+    if item.get("ref"):
+        return str(item["ref"])
+    refs = item.get("refs")
+    if isinstance(refs, list) and refs:
+        return str(refs[0])
+    return ""
+
+
 def manifest_defaults(data: dict[str, Any]) -> dict[str, Any]:
     """Return defaults from a manifest, accepting either an object or objects list."""
 
@@ -77,20 +86,33 @@ def records_from_manifest(repo: Path, relative: str) -> list[dict[str, Any]]:
     defaults = manifest_defaults(data)
     records: list[dict[str, Any]] = []
     for item in data.get("refs", []):
-        record = deepcopy(defaults)
-        record.update(deepcopy(item))
-        templates = defaults.get("component_templates")
-        if templates and "components" not in item and record.get("ref"):
-            edk2_ref = str(record["ref"]).rsplit("/", 1)[-1]
-            record["components"] = [
-                {
-                    key: str(value).format(edk2_ref=edk2_ref)
-                    for key, value in template.items()
-                }
-                for template in templates
-            ]
-        record.pop("component_templates", None)
-        records.append(record)
+        item_refs = item.get("refs")
+        if item_refs is None:
+            refs = [item.get("ref")]
+        elif isinstance(item_refs, list):
+            refs = item_refs
+        else:
+            raise ReconstructionError(f"{relative}: refs must be an array when present")
+
+        for ref in refs:
+            if not ref:
+                raise ReconstructionError(f"{relative}: manifest record is missing ref")
+            record = deepcopy(defaults)
+            record.update(deepcopy(item))
+            record.pop("refs", None)
+            record["ref"] = ref
+            templates = defaults.get("component_templates")
+            if templates and "components" not in item and record.get("ref"):
+                edk2_ref = str(record["ref"]).rsplit("/", 1)[-1]
+                record["components"] = [
+                    {
+                        key: str(value).format(edk2_ref=edk2_ref)
+                        for key, value in template.items()
+                    }
+                    for template in templates
+                ]
+            record.pop("component_templates", None)
+            records.append(record)
     return records
 
 
@@ -853,8 +875,27 @@ def update_ref_record(repo: Path, manifest_name: str, ref: str, updates: dict[st
     records = data.setdefault("refs", [])
     record = None
     for candidate in records:
+        candidate_refs = candidate.get("refs")
         if candidate.get("ref") == ref:
             record = candidate
+            break
+        if isinstance(candidate_refs, list) and ref in candidate_refs:
+            remaining_refs = [candidate_ref for candidate_ref in candidate_refs if candidate_ref != ref]
+            if len(remaining_refs) > 1:
+                candidate["refs"] = remaining_refs
+            elif remaining_refs:
+                candidate.pop("refs", None)
+                candidate["ref"] = remaining_refs[0]
+            else:
+                records.remove(candidate)
+
+            record = {
+                key: deepcopy(value)
+                for key, value in candidate.items()
+                if key not in {"ref", "refs"}
+            }
+            record["ref"] = ref
+            records.append(record)
             break
     if record is None:
         record = {"ref": ref}
@@ -864,7 +905,7 @@ def update_ref_record(repo: Path, manifest_name: str, ref: str, updates: dict[st
             record.pop(key, None)
         else:
             record[key] = value
-    data["refs"] = sorted(records, key=lambda item: item.get("ref", ""))
+    data["refs"] = sorted(records, key=manifest_record_sort_key)
     write_json(path, data)
 
 
