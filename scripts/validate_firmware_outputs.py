@@ -441,10 +441,12 @@ def main() -> int:
         for entry in report["pe_sections"].values()
         if entry["status"] == "mismatch"
     )
+    total = matched + mismatched + missing
     report["summary"] = {
         "matched_hashes": matched,
         "mismatched_hashes": mismatched,
         "missing_hashes": missing,
+        "total_hashes": total,
         "build_options_status": build_option_status,
         "section_mismatches": section_mismatches,
         "objdump": objdump,
@@ -509,7 +511,7 @@ def main() -> int:
     print(f"Build directory: {build_dir}")
     print(
         "Hash results: "
-        f"{matched} matched, {mismatched} mismatched, {missing} missing"
+        f"{matched} of {total} matched, {mismatched} mismatched, {missing} missing"
     )
     if build_option_status == "match":
         print("BuildOptions structure: match")
