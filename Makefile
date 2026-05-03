@@ -8,13 +8,14 @@ RELEASE ?=
 PERSIST ?= 0
 WORKTREE ?=
 TARGET_REF ?=
-LOCAL_TARGET_REF ?= source/delta/local/current
-SOURCE_LOCAL_REF ?= source/unofficial/current
-UPDATE_LOCAL_SOURCE ?= 0
+UNOFFICIAL_TARGET_REF ?= source/delta/unofficial/current
+SOURCE_UNOFFICIAL_REF ?= source/unofficial/current
+UPDATE_UNOFFICIAL_SOURCE ?= 0
 BASE_REF ?=
 INSTALL_ROOT ?= /boot/efi
 INSTALL_SOURCE ?=
 FORCE ?= 0
+DELETE ?= 0
 ARTEFACT_MODE ?= custom
 FIRMWARE_BOARD ?= O6
 FIRMWARE_TARGET ?= RELEASE
@@ -58,12 +59,12 @@ define PRINT_HELP_SHELL_PROLOGUE
 	}
 endef
 
-.PHONY: help help-vars help-dev help-variants help-releases all build-all install zip targz buildbox-firmware-build buildbox-firmware-stage \
+.PHONY: help help-vars help-dev help-variants help-releases all build-all install zip targz clean prune buildbox-firmware-build buildbox-firmware-stage \
 	test lint \
-	extract-vendor-delta render-release-branch integrate-source-release import-local-commits \
+	extract-vendor-delta render-release-branch integrate-source-release import-unofficial-commits \
 	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity check-identity-integrity ref-report cleanup-report \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
-	import-local-commits-help verify-release-branch-help verify-build-matrix-help
+	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help
 
 all: help
 
@@ -75,6 +76,7 @@ help:
 	print_help_line 'make install' 'Build, safety-check, and install firmware.'; \
 	print_help_line 'make zip' 'Create a firmware .zip via the buildbox.'; \
 	print_help_line 'make targz' 'Create a firmware .tar.gz via the buildbox.'; \
+	print_help_line 'make clean' 'Remove transient filesystem caches; does not delete Git refs.'; \
 	print_section 'Buildbox Targets'; \
 	print_help_line 'make buildbox-firmware-build' 'Delegate firmware build to the selected buildbox.'; \
 	print_help_line 'make buildbox-firmware-stage' 'Delegate firmware staging to the selected buildbox.'; \
@@ -88,7 +90,7 @@ help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	default_release="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/render_release_branch.py --print-default-release 2>/dev/null || printf '%s' '<unavailable>')"; \
 	print_section 'Common Build Variables'; \
-	print_help_line 'RELEASE=<variant>' "Select a configured firmware variant.\nUse names from 'make help-variants' or a full source/release/... branch name.\nDefault variant:\n$$default_release\nSource: latest available EDK2, CIX, Radxa, and local refs."; \
+	print_help_line 'RELEASE=<variant>' "Select a configured firmware variant.\nUse names from 'make help-variants' or a full source/cache/release/... branch name.\nDefault variant:\n$$default_release\nSource: latest available EDK2, CIX, Radxa, and unofficial refs."; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
 	print_help_line 'FIRMWARE_TARGET=RELEASE|DEBUG' 'Select the firmware build target.\nDefault: RELEASE.'; \
 	print_help_line 'FIRMWARE_DISTRO=bookworm|trixie' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected variant policy default.'; \
@@ -99,23 +101,24 @@ help-vars:
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
 	print_help_line 'FORCE=0|1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \
 	print_section 'Variant Selection'; \
-	print_help_line 'make help-variants' 'List firmware variant names generated from local source refs.'; \
+	print_help_line 'make help-variants' 'List firmware variant names generated from source refs.'; \
 	printf '\n%s\n' 'For source-update and maintainer variables, run: make help-dev'
 
 help-dev:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Source Update and Developer Targets'; \
-	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/release branch.'; \
+	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/cache/release branch.'; \
 	print_help_line 'make verify-release-branch' 'Validate a materialised firmware variant branch.'; \
-	print_help_line 'make verify-build-matrix' 'Validate build/source variant combinations derived from local refs.'; \
+	print_help_line 'make verify-build-matrix' 'Validate build/source variant combinations derived from source refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
 	print_help_line 'make verify-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a vendor delta report/diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
-	print_help_line 'make import-local-commits' 'Update source/unofficial/current and/or local delta artefacts.'; \
+	print_help_line 'make import-unofficial-commits' 'Update source/unofficial/current and/or unofficial delta artefacts.'; \
 	print_help_line 'make check-identity-integrity' 'Scan generated files and refs for path/identity integrity issues.'; \
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
+	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
 	print_help_line 'make lint' 'Run JSON, Markdown, shell, and Python linting in the quality container.'; \
 	print_section 'Source Integration Variables'; \
@@ -127,26 +130,27 @@ help-dev:
 	print_help_line 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
 	print_help_line 'ARM_BASE=<release>' 'Arm upstream base used when recording a CIX TF-A or OP-TEE component uplift.'; \
 	print_section 'Ref Update Variables'; \
-	print_help_line 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release, import-local-commits, and extract-vendor-delta.'; \
+	print_help_line 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release, import-unofficial-commits, and extract-vendor-delta.'; \
 	print_help_line 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
 	print_help_line 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before extracting deltas.\nDefault: 1.'; \
 	print_help_line 'BASE_REF=<ref>' 'Base ref for delta extraction/import.'; \
 	print_help_line 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
 	print_help_line 'TARGET_REF=<ref>' 'Delta artefact output ref.'; \
-	print_help_line 'FROM_REF=<ref>' 'Local topic branch/ref for import-local-commits.'; \
+	print_help_line 'FROM_REF=<ref>' 'Developer topic branch/ref for import-unofficial-commits.'; \
 	print_help_line 'OUTPUT=<path>' 'Optional extract-vendor-delta metadata output path.'; \
 	print_help_line 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
-	print_help_line 'SOURCE_LOCAL_REF=<ref>' 'Local source branch; defaults to source/unofficial/current.'; \
-	print_help_line 'UPDATE_LOCAL_SOURCE=0|1' 'Allow import-local-commits to advance SOURCE_LOCAL_REF.'; \
-	print_help_line 'LOCAL_TARGET_REF=<ref>' 'Local delta target; defaults to source/delta/local/current.'; \
+	print_help_line 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch; defaults to source/unofficial/current.'; \
+	print_help_line 'UPDATE_UNOFFICIAL_SOURCE=0|1' 'Allow import-unofficial-commits to advance SOURCE_UNOFFICIAL_REF.'; \
+	print_help_line 'UNOFFICIAL_TARGET_REF=<ref>' 'Unofficial delta target; defaults to source/delta/unofficial/current.'; \
 	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-integrity.'; \
 	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan generated source refs in check-identity-integrity.'; \
 	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
 	print_section 'Rendering and Qualification Variables'; \
 	print_help_line 'RELEASE=<variant>' 'Firmware variant name for render-release-branch and verify-release-branch.'; \
-	print_help_line 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a source/release branch.'; \
+	print_help_line 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/cache/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a Git cache branch.'; \
 	print_help_line 'REBUILD=0|1' 'Regenerate a rendered firmware variant from its render plan instead of reusing an existing ref.'; \
 	print_help_line 'FORCE=0|1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass.'; \
+	print_help_line 'DELETE=0|1' 'Allow make prune to delete verified source/cache refs.\nDefault: 0.'; \
 	print_help_line 'WORKTREE=<path>' 'Existing rendered worktree to use for verify-release-branch history checks.'; \
 	print_help_line 'SIGNING_CERT_SOURCE_DIR=<path>' 'Copy exact-replay signing certs into the build worktree.\nDefault: unset.'; \
 	print_help_line 'INSTALL_SOURCE=<path>' 'Optional staged payload path, or path relative to dist/firmware.\nDefault: latest staged firmware payload.'; \
@@ -156,7 +160,7 @@ help-dev:
 	print_help_line 'make help-variants' 'Show configured firmware variants.'; \
 	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
 	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
-	print_help_line 'make import-local-commits-help' 'Show import-local-commits arguments.'; \
+	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
 	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
 	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
 	print_help_line 'make verify-build-matrix-help' 'Show verify-build-matrix arguments.'
@@ -211,6 +215,19 @@ zip:
 targz:
 	$(call run_release_make,buildbox-targz)
 
+clean:
+	@set -e; \
+	for path in .cache/edk2-cix/worktrees .cache/edk2-cix/tmp .cache/edk2-cix/reports .cache/edk2-cix/signing-certs; do \
+		if [ -e "$$path" ]; then \
+			printf 'removing %s\n' "$$path"; \
+			rm -rf "$$path"; \
+		fi; \
+	done; \
+	printf 'filesystem cache clean complete; Git refs were not touched\n'
+
+prune:
+	@DEBUG="$(DEBUG)" DELETE="$(DELETE)" V="$(V)" $(PYTHON) scripts/prune_cache_refs.py --delete "$(DELETE)" --v "$(V)"
+
 buildbox-firmware-build:
 	$(call run_release_make,buildbox-firmware-build)
 
@@ -240,8 +257,8 @@ extract-vendor-delta:
 integrate-source-release:
 	@DEBUG="$(DEBUG)" TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(MATERIALISE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
-import-local-commits:
-	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_LOCAL_REF="$(SOURCE_LOCAL_REF)" UPDATE_LOCAL_SOURCE="$(UPDATE_LOCAL_SOURCE)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(LOCAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_local_commits.py --v "$(V)"
+import-unofficial-commits:
+	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" UPDATE_UNOFFICIAL_SOURCE="$(UPDATE_UNOFFICIAL_SOURCE)" TARGET_REF="$(if $(TARGET_REF),$(TARGET_REF),$(UNOFFICIAL_TARGET_REF))" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
 
 check-identity-integrity:
 	@DEBUG="$(DEBUG)" SCAN_COMMITS="$(SCAN_COMMITS)" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"
@@ -273,5 +290,5 @@ extract-vendor-delta-help:
 integrate-source-release-help:
 	@$(PYTHON) scripts/integrate_source_release.py --help
 
-import-local-commits-help:
-	@$(PYTHON) scripts/import_local_commits.py --help
+import-unofficial-commits-help:
+	@$(PYTHON) scripts/import_unofficial_commits.py --help

@@ -15,9 +15,9 @@ STAGE_ORDER = {"upstream": 0, "custom-radxa": 1, "vendor": 2, "custom-cix": 3, "
 
 def stage(branch: str) -> str:
     name = variant_name(branch)
-    if "/local" in name and "/cix-" in name:
+    if "/unofficial" in name and "/cix-" in name:
         return "custom-cix"
-    if "/local" in name:
+    if "/unofficial" in name:
         return "custom-radxa"
     if "/cix-" in name:
         return "vendor"
@@ -45,8 +45,8 @@ def canonical_branches(releases: dict[str, object]) -> tuple[list[str], list[str
     for branch, entry in releases.items():
         entry = entry if isinstance(entry, dict) else {}
         name = variant_name(branch)
-        if "/local-" in name:
-            alias_versions.add(name.rsplit("/local-", 1)[1])
+        if "/unofficial-" in name:
+            alias_versions.add(name.rsplit("/unofficial-", 1)[1])
             continue
         if entry.get("alias_of") or entry.get("alias_of_template"):
             continue
@@ -86,7 +86,7 @@ def main() -> None:
     print()
     paragraph(
         "A firmware variant is the chosen combination of EDK2, Radxa, CIX, "
-        "and local project sources."
+        "and unofficial project sources."
     )
     paragraph(
         "All listed variants are rendered as ordinary files before building, "
@@ -94,7 +94,7 @@ def main() -> None:
     )
     paragraph(
         "The names below are the recommended RELEASE= values. A full branch "
-        "name such as source/release/custom/... is also accepted when copying "
+        "name such as source/cache/release/custom/... is also accepted when copying "
         "an existing branch name from git branch output."
     )
     print()
@@ -104,16 +104,16 @@ def main() -> None:
     print("  edk2-YYYYMM[.NN]    selects the upstream EDK2 release")
     print("  radxa-X.Y.Z[-R]     adds the Radxa EDK2 vendor layer")
     print("  cix-X.Y             adds CIX TF-A and OP-TEE component sources")
-    print("  local               adds this project's local firmware changes")
+    print("  unofficial          adds this project's unofficial firmware changes")
     print()
     print("Available variants:")
     print_variant_list(branches)
     if alias_versions:
         print()
-        print("Versioned local aliases:")
+        print("Versioned unofficial aliases:")
         indented(
-            "Any listed /local variant also accepts a versioned alias of the "
-            f"form /local-<version>; currently configured version(s): "
+            "Any listed /unofficial variant also accepts a versioned alias of the "
+            f"form /unofficial-<version>; currently configured version(s): "
             f"{', '.join(alias_versions)}."
         )
 

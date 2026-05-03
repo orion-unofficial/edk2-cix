@@ -18,16 +18,15 @@ Optional variables:
   V=0|1  Print each scanned persistent source ref.
 
 Checks:
-  - persistent source/local refs must not refer to generated source/release refs
-  - persistent source/local refs must not refer to generated source/base/rendered refs
-  - generated local delta patches must not reintroduce those references
+  - persistent source/unofficial refs must not refer to generated source/cache refs
+  - generated unofficial delta patches must not reintroduce those references
 
 Generated refs are cache artefacts. They may be mentioned by build-branch
 manifests and reconstruction tooling, but persistent buildable source branches
 must not rely on them being present in a pruned clone.
 """
 
-GENERATED_REF_PATTERN = r"source/(release|base/rendered)/"
+GENERATED_REF_PATTERN = r"source/cache/"
 
 SCAN_PATHS = (
     ".github",
@@ -75,8 +74,8 @@ def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
-    refs = for_each_ref(repo, "source/local")
-    delta_refs = for_each_ref(repo, "source/delta/local")
+    refs = for_each_ref(repo, "source/unofficial")
+    delta_refs = for_each_ref(repo, "source/delta/unofficial")
 
     problems: list[str] = []
     for ref in refs:
@@ -87,7 +86,7 @@ def main() -> None:
             problems.append(f"{ref} references generated cache refs:\n" + "\n".join(f"  - {line}" for line in matches))
     for ref in delta_refs:
         if verbose:
-            print(f"scanning generated local delta patch: {ref}")
+            print(f"scanning generated unofficial delta patch: {ref}")
         result = git(
             repo,
             "grep",
@@ -113,7 +112,7 @@ def main() -> None:
 
     print(
         "validated persistent source reference integrity: "
-        f"{len(refs)} source/local refs, {len(delta_refs)} source/delta/local patches"
+        f"{len(refs)} source/unofficial refs, {len(delta_refs)} source/delta/unofficial patches"
     )
 
 

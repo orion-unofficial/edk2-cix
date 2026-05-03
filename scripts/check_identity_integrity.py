@@ -17,8 +17,8 @@ Optional variables:
   SCAN_COMMITS=0|1
                   Also scan commits reachable from HEAD for generated-identity strings.
   SCAN_SOURCE_REFS=0|1
-                  Also scan generated source/local, source/delta/local, and
-                  source/release/custom refs for stale old branch names.
+                  Also scan generated source/unofficial, source/delta/unofficial, and
+                  source/cache/release/custom refs for stale old branch names.
   V=0|1           Print scanned paths.
 
 The scanner is intentionally conservative for the build branch. It looks for
@@ -100,10 +100,10 @@ def source_refs(repo: Path) -> list[str]:
         repo,
         "for-each-ref",
         "--format=%(refname:short)",
-        "refs/heads/source/local",
+        "refs/heads/source/unofficial",
         "refs/tags/source/unofficial/edk2",
-        "refs/heads/source/delta/local",
-        "refs/heads/source/release/custom",
+        "refs/heads/source/delta/unofficial",
+        "refs/heads/source/cache/release/custom",
     )
     return [line for line in result.stdout.splitlines() if line]
 

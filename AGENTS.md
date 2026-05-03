@@ -15,12 +15,14 @@ the old refs:
 
 - `refs/heads/build`
 - `refs/heads/source/base/edk2/**`
+- `refs/heads/source/base/edk2-platforms/**`
+- `refs/heads/source/base/edk2-non-osi/**`
 - `refs/heads/source/base/arm/**`
 - `refs/heads/source/component/cix/**`
 - `refs/heads/source/delta/radxa/**`
-- `refs/heads/source/delta/local/**`
+- `refs/heads/source/delta/unofficial/**`
 - `refs/heads/source/unofficial/**`
-- local compatibility tags under `refs/tags/source/unofficial/edk2/stable-*`
+- unofficial compatibility tags under `refs/tags/source/unofficial/edk2/stable-*`
 
 The manifests and policies on this branch are also required source metadata:
 
@@ -35,14 +37,14 @@ namespace.
 
 ## Generated Refs
 
-`refs/heads/source/release/**` refs are generated firmware artefacts. They are
+`refs/heads/source/cache/release/**` refs are generated firmware artefacts. They are
 useful cached, inspectable materialisations, but they are not irreducible source
 inputs. The canonical repository may omit them. If they are present locally, they
 may be deleted as caches only after `make verify-build-matrix` confirms the
 variants are derivable and a representative `make verify-release-branch
 RELEASE=<variant>` can regenerate a missing variant from the required refs above.
 
-`refs/heads/source/base/rendered/**` refs are generated EDK2 component skeleton
+`refs/heads/source/cache/base/edk2/**` refs are generated EDK2 component skeleton
 caches. They may likewise be omitted when `config/refs/base-tree_id.json` and
 the referenced EDK2 component refs are present.
 

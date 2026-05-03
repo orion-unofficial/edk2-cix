@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from reconstruction_common import (
+    CACHE_BASE_EDK2_PREFIX,
     ReconstructionError,
     check_immutable_refs,
     create_delta_artefact,
@@ -34,7 +35,7 @@ Supported forms:
   make integrate-source-release TYPE=upstream COMPONENT=tf-a RELEASE=v2.7 WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=cix RELEASE=1.2 WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=cix RELEASE=1.2 COMPONENT=tf-a ARM_BASE=v2.7 REF=<ported-ref> WRITE=1
-  make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202208 REF=<local-ref> WRITE=1
+  make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202208 REF=<vendor-ref> WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1+<commit> EDK2_BASE=edk2-stable202208 REF=main WRITE=1
 
 Required variables:
@@ -86,8 +87,10 @@ def parser() -> argparse.ArgumentParser:
 
 
 def upstream_target(component: str, release: str) -> str:
-    if component.startswith("edk2"):
-        return f"source/base/edk2/{component}/{release}"
+    if component == "edk2":
+        return f"source/base/edk2/{release}"
+    if component in {"edk2-platforms", "edk2-non-osi"}:
+        return f"source/base/{component}/{release}"
     return f"source/base/arm/{component}/{release}"
 
 
@@ -162,7 +165,7 @@ def fetch_to_ref(repo: Path, remote: str, source: str, target: str, verbose: boo
 
 
 def manifest_path_for(target: str) -> str:
-    if target.startswith("source/base/edk2/"):
+    if target.startswith(("source/base/edk2/", "source/base/edk2-platforms/", "source/base/edk2-non-osi/")):
         return "config/refs/edk2.json"
     if target.startswith("source/base/arm/"):
         return "config/refs/arm.json"
@@ -317,7 +320,7 @@ def main() -> None:
     else:
         target = f"source/delta/radxa/{args.release}/{args.edk2_base}"
         source = args.ref or "<materialised-vendor-ref>"
-        base_ref = f"source/base/rendered/{args.edk2_base}"
+        base_ref = f"{CACHE_BASE_EDK2_PREFIX}{args.edk2_base}"
         operations.append((
             "local",
             source,
@@ -341,7 +344,7 @@ def main() -> None:
     for remote, source, target, meta in operations:
         if remote == "local":
             if source.startswith("<"):
-                raise ReconstructionError("Radxa vendor integration requires REF=<local-ref-or-object> in WRITE mode")
+                raise ReconstructionError("Radxa vendor integration requires REF=<vendor-ref-or-object> in WRITE mode")
             if meta.get("type") == "vendor-delta-artefact":
                 base_ref = meta["base_ref"]
                 base_input = resolve_ref_or_generated_cache(repo, base_ref)

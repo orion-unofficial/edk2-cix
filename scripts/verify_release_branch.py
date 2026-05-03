@@ -26,7 +26,7 @@ HELP = """verify-release-branch
 
 Required variables:
   RELEASE    Firmware variant name from 'make help-variants', or a full
-             source/release/... branch name.
+             source/cache/release/... branch name.
 
 Optional variables:
   WORKTREE=<path>  Existing worktree to use for log/blame checks.
@@ -35,7 +35,7 @@ Optional variables:
 Checks:
   - rendered tree has no gitlinks
   - rendered tree has no active root .gitmodules
-  - missing source/release refs can be regenerated from source refs
+  - missing source/cache/release refs can be regenerated from source refs
   - immutable source refs match config/refs metadata
   - git log and git blame work on representative paths when a worktree is supplied
 """

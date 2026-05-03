@@ -42,11 +42,11 @@ HELP = """render-release-branch
 
 Required variables:
   RELEASE    Firmware variant name from 'make help-variants', or a full
-             source/release/... branch name.
+             source/cache/release/... branch name.
 
 Optional variables:
   PERSIST=0|1
-             Create the rendered source/release/... branch if it is missing.
+             Create the rendered source/cache/release/... branch if it is missing.
   REBUILD=0|1
              Regenerate the variant from its render plan.
   FORCE=0|1  With PERSIST=1 and REBUILD=1, intentionally replace the rendered
@@ -55,7 +55,7 @@ Optional variables:
 
 Example:
   make render-release-branch \\
-    RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/local-1.2.1 \\
+    RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/unofficial-1.2.1 \\
     PERSIST=1
 """
 
@@ -75,9 +75,9 @@ def ignore_worktree_cache(worktree: Path) -> None:
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
-    p.add_argument("--release", default=os.environ.get("RELEASE", ""), help="firmware variant name or source/release/... branch")
+    p.add_argument("--release", default=os.environ.get("RELEASE", ""), help="firmware variant name or source/cache/release/... branch")
     p.add_argument("--require-release", action="store_true", help="fail if --release is empty instead of using the default")
-    p.add_argument("--persist", default=os.environ.get("PERSIST", "0"), help="create a persistent source/release branch when set to 1")
+    p.add_argument("--persist", default=os.environ.get("PERSIST", "0"), help="create a persistent source/cache/release branch when set to 1")
     p.add_argument("--rebuild", default=os.environ.get("REBUILD", "0"), help="regenerate from render plan instead of reusing an existing branch")
     p.add_argument("--force", default=os.environ.get("FORCE", "0"), help="allow replacing an existing rendered branch with a different tree")
     p.add_argument("--ensure-worktree", action="store_true", help="create or reuse a detached worktree for the resolved variant")
@@ -119,7 +119,7 @@ def ensure_base_ref(repo: Path, entry: dict, verbose: bool) -> str | None:
         if verbose:
             print(f"Rendering prerequisite release {base_ref}", file=sys.stderr)
         return render_from_plan(repo, base_ref, releases[base_ref], verbose)
-    if base_ref.startswith("source/base/rendered/"):
+    if base_ref.startswith("source/cache/base/edk2/"):
         if verbose:
             print(f"Creating rendered base skeleton {base_ref}", file=sys.stderr)
         return render_base_tree_commit(repo, base_ref)

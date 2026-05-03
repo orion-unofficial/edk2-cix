@@ -7,6 +7,8 @@ import argparse
 from pathlib import Path
 
 from reconstruction_common import (
+    CACHE_BASE_EDK2_PREFIX,
+    CACHE_RELEASE_PREFIX,
     ReconstructionError,
     base_tree_records,
     git,
@@ -52,8 +54,8 @@ def entry_required_refs(entry: dict) -> set[str]:
     base_ref = base.get("ref")
     if (
         base_ref
-        and not base_ref.startswith("source/release/")
-        and not base_ref.startswith("source/base/rendered/")
+        and not base_ref.startswith(CACHE_RELEASE_PREFIX)
+        and not base_ref.startswith(CACHE_BASE_EDK2_PREFIX)
     ):
         refs.add(base_ref)
     for step in render.get("steps", []):
@@ -73,7 +75,7 @@ def required_source_refs(repo: Path) -> set[str]:
     for entry in release_entries(repo).values():
         refs.update(entry_required_refs(entry))
         edk2_ref = entry.get("edk2_release")
-        if entry.get("local_delta") and edk2_ref:
+        if entry.get("unofficial_delta") and edk2_ref:
             refs.add(f"source/unofficial/{edk2_ref}")
     for record in base_tree_records(repo).values():
         for component in record.get("components", []):
@@ -107,8 +109,8 @@ def scratch_worktrees(repo: Path) -> list[str]:
             branch = branch.removeprefix("refs/heads/")
         if (
             branch.startswith(AGENT_SCRATCH_PREFIX)
-            or branch.startswith("source/release/")
-            or branch.startswith("source/base/rendered/")
+            or branch.startswith(CACHE_RELEASE_PREFIX)
+            or branch.startswith(CACHE_BASE_EDK2_PREFIX)
         ):
             entries.append(f"{path} ({branch})")
     return entries
@@ -132,8 +134,9 @@ def main() -> None:
     required = required_source_refs(repo)
     base_cache = set(base_tree_records(repo))
     variant_cache = set(rendered_ref_records(repo))
-    actual_release = refs_under(repo, "refs/heads/source/release")
-    actual_base_cache = refs_under(repo, "refs/heads/source/base/rendered")
+    actual_release = refs_under(repo, "refs/heads/source/cache/release")
+    actual_base_cache = refs_under(repo, "refs/heads/source/cache/base/edk2")
+    legacy_cache = refs_under(repo, "refs/heads/source/release") | refs_under(repo, "refs/heads/source/base/rendered")
     stale_release = sorted(actual_release - variants)
     present_variant_cache = sorted(actual_release & variant_cache)
     present_base_cache = sorted(actual_base_cache & base_cache)
@@ -150,18 +153,19 @@ def main() -> None:
     if verbose:
         print_section("Required non-cache source refs", sorted(required))
 
-    print_section("Present generated source/release cache refs", present_variant_cache)
-    print_section("Stale source/release refs", stale_release)
-    print_section("Present generated source/base/rendered cache refs", present_base_cache)
-    print_section("Unexpected source/base/rendered refs", unexpected_base_cache)
+    print_section("Present generated source/cache/release refs", present_variant_cache)
+    print_section("Stale source/cache/release refs", stale_release)
+    print_section("Present generated source/cache/base/edk2 refs", present_base_cache)
+    print_section("Unexpected source/cache/base/edk2 refs", unexpected_base_cache)
+    print_section("Unsupported legacy generated cache refs", sorted(legacy_cache))
     print_section("Branch/tag collisions", branch_tag_collisions(repo))
-    print_section("Local checkpoint tag issues", local_tag_problems(repo))
+    print_section("Unofficial checkpoint tag issues", local_tag_problems(repo))
     print_section("Scratch/diagnostic worktrees", scratch_worktrees(repo))
 
     if args.cleanup:
         print("\nClean-up guidance")
-        print("  - source/release/** and source/base/rendered/** refs listed as generated caches may be deleted after verify-build-matrix passes.")
-        print("  - Do not delete required non-cache source refs, source/local checkpoint branches, or source/unofficial/edk2/stable-* tags.")
+        print("  - source/cache/release/** and source/cache/base/edk2/** refs listed as generated caches may be deleted after verify-build-matrix passes.")
+        print("  - Do not delete required non-cache source refs, source/unofficial checkpoint branches, or source/unofficial/edk2/stable-* tags.")
         print("  - Treat scratch worktrees as informational only; confirm ownership before removing them.")
 
 

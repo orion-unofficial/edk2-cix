@@ -25,9 +25,9 @@
       "source/base/**",
       "source/delta/radxa/**",
       "source/component/cix/**",
-      "non-local source/delta/**"
+      "non-unofficial source/delta/**"
     ],
-    "mutable_local_ref": "source/unofficial/current",
+    "mutable_unofficial_ref": "source/unofficial/current",
     "rules": [
       "config/refs/*.json records expected object IDs and tree IDs",
       "scripts compare immutable refs against manifests before use",
@@ -37,28 +37,28 @@
       "only integrate-source-release may create or advance immutable refs",
       "integration updates the relevant manifest in the same operation",
       "ordinary build targets never rewrite source/unofficial/current",
-      "source/delta/local/* refs are generated local delta artefacts and are rewritten only by explicit local import workflows"
+      "source/delta/unofficial/* refs are generated unofficial delta artefacts and are rewritten only by explicit unofficial import workflows"
     ]
   },
   "rendered_base_policy": {
     "manifest": "config/refs/base-tree_id.json",
     "rules": [
-      "source/base/rendered/** refs are generated EDK2 component skeleton caches rather than irreducible source inputs",
-      "a pruned clone may omit source/base/rendered/** branches when config/refs/base-tree_id.json and the referenced component refs are present",
+      "source/cache/base/edk2/** refs are generated EDK2 component skeleton caches rather than irreducible source inputs",
+      "a pruned clone may omit source/cache/base/edk2/** branches when config/refs/base-tree_id.json and the referenced component refs are present",
       "generated skeleton commits are validated by tree ID rather than object ID because commit metadata may differ after regeneration"
     ]
   },
   "rendered_branch_policy": {
     "manifest": "config/refs/variant-tree_id.json",
     "requirements": [
-      "source/release/** refs are generated firmware artefacts, not irreducible source inputs.",
-      "A pruned clone may omit source/release/** branches when the source/base, source/component, source/delta, and source/local refs needed to regenerate them are present.",
+      "source/cache/release/** refs are generated firmware artefacts, not irreducible source inputs.",
+      "A pruned clone may omit source/cache/release/** branches when the source/base, source/component, source/delta, and source/unofficial refs needed to regenerate them are present.",
       "Generated release commits are validated by tree ID rather than object ID because commit metadata may differ after regeneration.",
       "Rendered branches must adhere to conventional Git UX over exact retention of stale .gitmodules files.",
       "Rendered branches must contain no gitlinks or active root .gitmodules files.",
       "Submodule metadata is retained in manifests/reports, not as active submodule state.",
       "Normal git log <path> and git blame <path> must work from any directory inside the repo.",
-      "Rendered branches are produced from render steps derived from available source refs and the selected source/release branch name.",
+      "Rendered branches are produced from render steps derived from available source refs and the selected source/cache/release branch name.",
       "Nested .gitmodules files inside upstream source trees may remain as inert source files when no gitlink points at them.",
       "If gitlinks remain after configured render steps, the renderer recursively materialises them using recorded .gitmodules URL mappings before validation."
     ]
@@ -74,7 +74,7 @@
     ],
     "goal": "The repository must contain everything required to build supported firmware even if external upstream remotes disappear.",
     "remote_access": [
-      "ordinary builds use local rendered refs first when present, otherwise generate them from local source refs",
+      "ordinary builds use local cache refs first when present, otherwise generate them from available source refs",
       "external upstream/vendor repos are contacted only for integration or rendering when required objects are missing",
       "if an external repo is unavailable, proceed when required refs and objects are already local",
       "fail only when required data is unavailable locally and remotely"
@@ -85,8 +85,8 @@
       "source/unofficial/edk2/stable-*"
     ],
     "rules": [
-      "local compatibility tags mark full local source checkpoints for each supported EDK2 release",
-      "each local compatibility tag must be reachable from its matching retained source/unofficial/edk2-stable* branch",
+      "unofficial compatibility tags mark full unofficial source checkpoints for each supported EDK2 release",
+      "each unofficial compatibility tag must be reachable from its matching retained source/unofficial/edk2-stable* branch",
       "tag names must not exactly duplicate branch names",
       "base, CIX, and Radxa source versions are recorded as branches plus config/refs metadata; duplicating them as tags is optional and not required by the build model"
     ]

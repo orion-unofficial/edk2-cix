@@ -1,7 +1,7 @@
 {
   "refs": [
     {
-      "base_ref": "source/base/rendered/edk2-stable202208",
+      "base_ref": "source/cache/base/edk2/edk2-stable202208",
       "edk2_base": "edk2-stable202208",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -12,7 +12,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202211",
+      "base_ref": "source/cache/base/edk2/edk2-stable202211",
       "edk2_base": "edk2-stable202211",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -23,7 +23,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202302",
+      "base_ref": "source/cache/base/edk2/edk2-stable202302",
       "edk2_base": "edk2-stable202302",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -34,7 +34,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202305",
+      "base_ref": "source/cache/base/edk2/edk2-stable202305",
       "edk2_base": "edk2-stable202305",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -45,7 +45,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202308",
+      "base_ref": "source/cache/base/edk2/edk2-stable202308",
       "edk2_base": "edk2-stable202308",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -56,7 +56,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202311",
+      "base_ref": "source/cache/base/edk2/edk2-stable202311",
       "edk2_base": "edk2-stable202311",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -67,7 +67,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202402",
+      "base_ref": "source/cache/base/edk2/edk2-stable202402",
       "edk2_base": "edk2-stable202402",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -78,7 +78,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202405",
+      "base_ref": "source/cache/base/edk2/edk2-stable202405",
       "edk2_base": "edk2-stable202405",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -89,7 +89,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202408",
+      "base_ref": "source/cache/base/edk2/edk2-stable202408",
       "edk2_base": "edk2-stable202408",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -100,7 +100,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202408.01",
+      "base_ref": "source/cache/base/edk2/edk2-stable202408.01",
       "edk2_base": "edk2-stable202408.01",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -111,7 +111,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202411",
+      "base_ref": "source/cache/base/edk2/edk2-stable202411",
       "edk2_base": "edk2-stable202411",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -122,7 +122,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202502",
+      "base_ref": "source/cache/base/edk2/edk2-stable202502",
       "edk2_base": "edk2-stable202502",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -133,7 +133,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202505",
+      "base_ref": "source/cache/base/edk2/edk2-stable202505",
       "edk2_base": "edk2-stable202505",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -144,7 +144,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202508",
+      "base_ref": "source/cache/base/edk2/edk2-stable202508",
       "edk2_base": "edk2-stable202508",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -155,7 +155,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202511",
+      "base_ref": "source/cache/base/edk2/edk2-stable202511",
       "edk2_base": "edk2-stable202511",
       "format": "delta.patch plus metadata.json",
       "immutable": true,
@@ -166,7 +166,7 @@
       "vendor": "radxa"
     },
     {
-      "base_ref": "source/base/rendered/edk2-stable202602",
+      "base_ref": "source/cache/base/edk2/edk2-stable202602",
       "edk2_base": "edk2-stable202602",
       "format": "delta.patch plus metadata.json",
       "immutable": true,

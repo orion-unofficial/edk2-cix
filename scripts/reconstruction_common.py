@@ -120,6 +120,9 @@ UNBUILDABLE_RADXA_RELEASES = {"0.1.1-1"}
 MIN_SUPPORTED_EDK2_RELEASE = "202208"
 BASE_TREE_MANIFEST = "base-tree_id.json"
 VARIANT_TREE_MANIFEST = "variant-tree_id.json"
+CACHE_REF_PREFIX = "source/cache/"
+CACHE_RELEASE_PREFIX = "source/cache/release/"
+CACHE_BASE_EDK2_PREFIX = "source/cache/base/edk2/"
 
 
 def version_key(value: str) -> tuple[Any, ...]:
@@ -153,16 +156,16 @@ def for_each_ref(repo: Path, namespace: str) -> list[str]:
 def release_to_branch(release: str) -> str:
     if release.startswith("refs/heads/"):
         release = release[len("refs/heads/") :]
-    if release.startswith("source/release/"):
+    if release.startswith(CACHE_RELEASE_PREFIX):
         return release
     first, _, _rest = release.partition("/")
     if first in RELEASE_STAGE_PREFIXES:
-        return f"source/release/{release}"
-    if "/local" in release:
-        return f"source/release/custom/{release}"
+        return f"{CACHE_RELEASE_PREFIX}{release}"
+    if "/unofficial" in release:
+        return f"{CACHE_RELEASE_PREFIX}custom/{release}"
     if "/cix-" in release:
-        return f"source/release/vendor/{release}"
-    return f"source/release/{release}"
+        return f"{CACHE_RELEASE_PREFIX}vendor/{release}"
+    return f"{CACHE_RELEASE_PREFIX}{release}"
 
 
 def branch_to_ref(branch: str) -> str:
@@ -170,11 +173,11 @@ def branch_to_ref(branch: str) -> str:
 
 
 def short_release(branch: str) -> str:
-    return branch[len("source/release/") :] if branch.startswith("source/release/") else branch
+    return branch[len(CACHE_RELEASE_PREFIX) :] if branch.startswith(CACHE_RELEASE_PREFIX) else branch
 
 
 def variant_name(branch: str) -> str:
-    """Return the user-facing firmware variant name for a source/release branch."""
+    """Return the user-facing firmware variant name for a generated release cache branch."""
 
     short = short_release(branch)
     first, sep, rest = short.partition("/")
@@ -184,15 +187,15 @@ def variant_name(branch: str) -> str:
 
 
 EDK2_BASE_REF_RE = re.compile(
-    r"^source/base/edk2/edk2/edk2-stable(?P<release>\d{6}(?:\.\d+)?)$"
+    r"^source/base/edk2/edk2-stable(?P<release>\d{6}(?:\.\d+)?)$"
 )
 
 
 def matrix_release_values(repo: Path) -> list[str]:
-    """Return supported EDK2 releases from local base refs."""
+    """Return supported EDK2 releases from available base refs."""
 
     values: set[str] = set()
-    for ref in for_each_ref(repo, "source/base/edk2/edk2"):
+    for ref in for_each_ref(repo, "source/base/edk2"):
         match = EDK2_BASE_REF_RE.match(ref)
         if not match:
             continue
@@ -204,7 +207,7 @@ def matrix_release_values(repo: Path) -> list[str]:
 
     raise ReconstructionError(
         "no supported EDK2 base refs are available; expected "
-        "source/base/edk2/edk2/edk2-stable* refs from 202208 onward"
+        "source/base/edk2/edk2-stable* refs from 202208 onward"
     )
 
 
@@ -282,7 +285,7 @@ def available_cix_releases(repo: Path) -> list[str]:
 
 def local_compatibility_refs(repo: Path) -> list[str]:
     refs: list[str] = []
-    for ref in for_each_ref(repo, "source/local"):
+    for ref in for_each_ref(repo, "source/unofficial"):
         if LOCAL_COMPAT_RE.match(ref):
             refs.append(ref)
     return sorted(refs, key=version_key)
@@ -300,7 +303,7 @@ def local_compatibility_edk2_refs(repo: Path) -> set[str]:
 def local_compatibility_tag_for_branch(branch: str) -> str:
     match = LOCAL_COMPAT_RE.match(branch)
     if not match:
-        raise ReconstructionError(f"not a local compatibility branch: {branch}")
+        raise ReconstructionError(f"not an unofficial compatibility branch: {branch}")
     release = release_for_edk2_ref(match.group("edk2"))
     return f"source/unofficial/edk2/stable-{release}"
 
@@ -308,7 +311,7 @@ def local_compatibility_tag_for_branch(branch: str) -> str:
 def local_compatibility_branch_for_tag(tag: str) -> str:
     match = LOCAL_COMPAT_TAG_RE.match(tag)
     if not match:
-        raise ReconstructionError(f"not a local compatibility tag: {tag}")
+        raise ReconstructionError(f"not an unofficial compatibility tag: {tag}")
     return f"source/unofficial/{edk2_ref_for_release(match.group('release'))}"
 
 
@@ -317,30 +320,30 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
     supported_edk2 = {edk2_ref_for_release(release) for release in all_releases}
     radxa_by_edk2 = radxa_releases_by_edk2(repo, supported_edk2)
     cix_releases = available_cix_releases(repo)
-    local_edk2 = local_compatibility_edk2_refs(repo)
+    unofficial_edk2 = local_compatibility_edk2_refs(repo)
     branches: set[str] = set()
     aliases: dict[str, str] = {}
 
     for release in all_releases:
         edk2_ref = edk2_ref_for_release(release)
         for radxa in radxa_by_edk2.get(edk2_ref, []):
-            upstream = f"source/release/upstream/edk2-{release}/radxa-{radxa}"
+            upstream = f"{CACHE_RELEASE_PREFIX}upstream/edk2-{release}/radxa-{radxa}"
             branches.add(upstream)
 
-            if edk2_ref in local_edk2 and ref_exists(repo, f"source/delta/local/{edk2_ref}-radxa-{radxa}"):
-                local = f"source/release/custom/edk2-{release}/radxa-{radxa}/local"
-                alias = f"{local}-{radxa}"
-                branches.update({local, alias})
-                aliases[alias] = local
+            if edk2_ref in unofficial_edk2 and ref_exists(repo, f"source/delta/unofficial/{edk2_ref}-radxa-{radxa}"):
+                unofficial = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
+                alias = f"{unofficial}-{radxa}"
+                branches.update({unofficial, alias})
+                aliases[alias] = unofficial
 
             for cix in cix_releases:
-                vendor = f"source/release/vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"
+                vendor = f"{CACHE_RELEASE_PREFIX}vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"
                 branches.add(vendor)
-                if edk2_ref in local_edk2 and ref_exists(repo, f"source/delta/local/{edk2_ref}"):
-                    local = f"source/release/custom/edk2-{release}/cix-{cix}/radxa-{radxa}/local"
-                    alias = f"{local}-{radxa}"
-                    branches.update({local, alias})
-                    aliases[alias] = local
+                if edk2_ref in unofficial_edk2 and ref_exists(repo, f"source/delta/unofficial/{edk2_ref}"):
+                    unofficial = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/cix-{cix}/radxa-{radxa}/unofficial"
+                    alias = f"{unofficial}-{radxa}"
+                    branches.update({unofficial, alias})
+                    aliases[alias] = unofficial
 
     return branches, aliases
 
@@ -362,12 +365,12 @@ def base_tree_records(repo: Path) -> dict[str, dict[str, Any]]:
 
 
 RELEASE_BRANCH_RE = re.compile(
-    r"^source/release/"
+    rf"^{re.escape(CACHE_RELEASE_PREFIX)}"
     r"(?P<stage>upstream|vendor|custom)/"
     r"edk2-(?P<release>\d{6}(?:\.\d+)?)/"
     r"(?:(?:cix-(?P<cix>[^/]+)/)?)"
     r"radxa-(?P<radxa>[^/]+)"
-    r"(?:/(?P<local>local(?:-[^/]+)?))?"
+    r"(?:/(?P<unofficial>unofficial(?:-[^/]+)?))?"
     r"$"
 )
 
@@ -378,11 +381,11 @@ def release_branch_parts(branch: str) -> dict[str, str]:
         raise ReconstructionError(f"cannot derive render plan from unsupported variant branch name: {branch}")
     parts = {k: v for k, v in match.groupdict().items() if v}
     stage = parts["stage"]
-    if stage == "upstream" and (parts.get("cix") or parts.get("local")):
+    if stage == "upstream" and (parts.get("cix") or parts.get("unofficial")):
         raise ReconstructionError(f"invalid upstream variant branch: {branch}")
-    if stage == "vendor" and (not parts.get("cix") or parts.get("local")):
+    if stage == "vendor" and (not parts.get("cix") or parts.get("unofficial")):
         raise ReconstructionError(f"invalid vendor variant branch: {branch}")
-    if stage == "custom" and not parts.get("local"):
+    if stage == "custom" and not parts.get("unofficial"):
         raise ReconstructionError(f"invalid custom variant branch: {branch}")
     return parts
 
@@ -392,15 +395,15 @@ def rendered_tree_for(repo: Path, branch: str) -> str | None:
 
 
 def alias_target_for(branch: str, parts: dict[str, str]) -> str | None:
-    local = parts.get("local")
-    if not local or local == "local":
+    unofficial = parts.get("unofficial")
+    if not unofficial or unofficial == "unofficial":
         return None
     release = parts["release"]
     radxa = parts["radxa"]
     cix = parts.get("cix")
     if cix:
-        return f"source/release/custom/edk2-{release}/cix-{cix}/radxa-{radxa}/local"
-    return f"source/release/custom/edk2-{release}/radxa-{radxa}/local"
+        return f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/cix-{cix}/radxa-{radxa}/unofficial"
+    return f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
 
 
 def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
@@ -410,12 +413,12 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
     edk2_ref = edk2_ref_for_release(release)
     radxa = parts["radxa"]
     cix = parts.get("cix")
-    local = parts.get("local")
+    unofficial = parts.get("unofficial")
 
     entry: dict[str, Any] = {
         "description": f"Firmware variant {variant_name(branch)}.",
         "edk2_release": edk2_ref,
-        "local_delta": bool(local),
+        "unofficial_delta": bool(unofficial),
         "radxa_release": radxa,
         "render": {
             "remove_root_gitmodules": True,
@@ -427,12 +430,12 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
 
     render = entry["render"]
     if stage == "upstream":
-        render["base"] = {"ref": f"source/base/rendered/{edk2_ref}"}
+        render["base"] = {"ref": f"{CACHE_BASE_EDK2_PREFIX}{edk2_ref}"}
         render["commit_message"] = f"render: EDK2 {release} with Radxa {radxa} vendor layer"
         render["steps"] = [{"delta": f"source/delta/radxa/{radxa}/{edk2_ref}"}]
         entry["source_ref"] = branch
     elif stage == "vendor":
-        render["base"] = {"ref": f"source/release/upstream/edk2-{release}/radxa-{radxa}"}
+        render["base"] = {"ref": f"{CACHE_RELEASE_PREFIX}upstream/edk2-{release}/radxa-{radxa}"}
         render["commit_message"] = f"render: EDK2 {release} with Radxa {radxa} and CIX {cix} components"
         render["steps"] = [
             {"component": {"path": f"src/cix-v{cix}/tf-a", "ref": f"source/component/cix/{cix}/tf-a"}},
@@ -441,18 +444,18 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
         entry["source_ref"] = branch
     else:
         if cix:
-            render["base"] = {"ref": f"source/release/vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"}
-            delta_ref = f"source/delta/local/{edk2_ref}"
+            render["base"] = {"ref": f"{CACHE_RELEASE_PREFIX}vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"}
+            delta_ref = f"source/delta/unofficial/{edk2_ref}"
             render["commit_message"] = (
                 f"render: firmware variant with EDK2 {release}, Radxa {radxa}, "
-                f"CIX {cix} components, and local changes"
+                f"CIX {cix} components, and unofficial changes"
             )
         else:
-            render["base"] = {"ref": f"source/release/upstream/edk2-{release}/radxa-{radxa}"}
-            delta_ref = f"source/delta/local/{edk2_ref}-radxa-{radxa}"
+            render["base"] = {"ref": f"{CACHE_RELEASE_PREFIX}upstream/edk2-{release}/radxa-{radxa}"}
+            delta_ref = f"source/delta/unofficial/{edk2_ref}-radxa-{radxa}"
             render["commit_message"] = (
                 f"render: firmware variant with EDK2 {release}, Radxa {radxa}, "
-                "and local changes"
+                "and unofficial changes"
             )
         render["steps"] = [{"delta": delta_ref}]
         target = alias_target_for(branch, parts)
@@ -476,14 +479,14 @@ def default_release(repo: Path) -> str:
     custom = [
         branch
         for branch in entries
-        if branch.startswith("source/release/custom/")
+        if branch.startswith(f"{CACHE_RELEASE_PREFIX}custom/")
         and "/cix-" in branch
-        and re.search(r"/local-[^/]+$", branch)
+        and re.search(r"/unofficial-[^/]+$", branch)
     ]
     if not custom:
-        custom = [branch for branch in entries if branch.startswith("source/release/custom/") and branch.endswith("/local")]
+        custom = [branch for branch in entries if branch.startswith(f"{CACHE_RELEASE_PREFIX}custom/") and branch.endswith("/unofficial")]
     if not custom:
-        raise ReconstructionError("no default release is configured and no custom local variant can be derived")
+        raise ReconstructionError("no default release is configured and no custom unofficial variant can be derived")
     return variant_name(sorted(custom, key=release_branch_sort_key)[-1])
 
 
@@ -493,7 +496,7 @@ def release_branch_sort_key(branch: str) -> tuple[Any, ...]:
         version_key(parts["release"]),
         version_key(parts.get("cix", "")),
         version_key(parts["radxa"]),
-        version_key(parts.get("local", "")),
+        version_key(parts.get("unofficial", "")),
         version_key(parts["stage"]),
     )
 
@@ -682,7 +685,7 @@ def render_base_tree_commit(repo: Path, base_ref: str) -> str:
 def resolve_ref_or_generated_cache(repo: Path, ref: str) -> str:
     if ref_exists(repo, ref):
         return ref
-    if ref.startswith("source/base/rendered/"):
+    if ref.startswith(CACHE_BASE_EDK2_PREFIX):
         return render_base_tree_commit(repo, ref)
     raise ReconstructionError(f"ref is unavailable locally and is not a generated cache ref: {ref}")
 
@@ -850,7 +853,7 @@ def refresh_ref_record(repo: Path, manifest_name: str, ref: str, extra: dict[str
 
 def refresh_release_tree(repo: Path, branch: str) -> None:
     if branch not in release_entries(repo):
-        raise ReconstructionError(f"cannot update variant manifest for unknown source/release branch: {branch}")
+        raise ReconstructionError(f"cannot update variant manifest for unknown source/cache/release branch: {branch}")
     update_ref_record(
         repo,
         VARIANT_TREE_MANIFEST,
@@ -878,7 +881,7 @@ def is_immutable_namespace(ref: str) -> bool:
         return True
     if ref.startswith("source/component/cix/"):
         return True
-    if ref.startswith("source/delta/local/"):
+    if ref.startswith("source/delta/unofficial/"):
         return False
     if ref.startswith("source/delta/"):
         return True

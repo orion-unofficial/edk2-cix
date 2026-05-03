@@ -39,9 +39,9 @@ Checks:
 
 
 BASE_COMPONENT_TEMPLATES = {
-    "src/edk2": "source/base/edk2/edk2/{edk2_ref}",
-    "src/edk2-platforms": "source/base/edk2/edk2-platforms/{edk2_ref}",
-    "src/edk2-non-osi": "source/base/edk2/edk2-non-osi/{edk2_ref}",
+    "src/edk2": "source/base/edk2/{edk2_ref}",
+    "src/edk2-platforms": "source/base/edk2-platforms/{edk2_ref}",
+    "src/edk2-non-osi": "source/base/edk2-non-osi/{edk2_ref}",
 }
 
 

@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from reconstruction_common import (
+    CACHE_BASE_EDK2_PREFIX,
+    CACHE_RELEASE_PREFIX,
     ReconstructionError,
     base_tree_records,
     git,
@@ -38,12 +40,12 @@ Optional variables:
 Checks:
   - every derived firmware variant has a render plan
   - every firmware variant branch/ref derived from source refs is renderable
-  - required base, vendor, component, and local refs exist
-  - retained source/release branches are all derivable from source refs
-  - retained source/release branches match config/refs/variant-tree_id.json tree IDs
+  - required base, vendor, component, and unofficial refs exist
+  - retained source/cache/release branches are all derivable from source refs
+  - retained source/cache/release branches match config/refs/variant-tree_id.json tree IDs
   - Radxa delta refs and regenerable rendered-base cache plans cover every supported EDK2 release
-  - local compatibility tags are reachable from retained source/local branches
-  - versioned local aliases have the same tree as their non-alias local branch
+  - unofficial compatibility tags are reachable from retained source/unofficial branches
+  - versioned unofficial aliases have the same tree as their non-alias branch
 """
 
 
@@ -57,7 +59,7 @@ def entry_required_refs(entry: dict[str, Any]) -> set[str]:
     refs: set[str] = set()
     render = entry.get("render", {})
     base = render.get("base", {})
-    if base.get("ref") and not base["ref"].startswith("source/release/"):
+    if base.get("ref") and not base["ref"].startswith(CACHE_RELEASE_PREFIX):
         refs.add(base["ref"])
     for step in render.get("steps", []):
         if step.get("delta"):
@@ -78,14 +80,14 @@ def expected_from_source_refs(repo: Path) -> tuple[set[str], set[str], dict[str,
     for entry in releases.values():
         expected_required_refs.update(entry_required_refs(entry))
         edk2_ref = entry.get("edk2_release")
-        if entry.get("local_delta") and edk2_ref:
+        if entry.get("unofficial_delta") and edk2_ref:
             expected_required_refs.add(f"source/unofficial/{edk2_ref}")
     _branches, aliases = matrix_release_branches(repo)
     return expected_releases, expected_required_refs, aliases
 
 
 def actual_source_release_refs(repo: Path) -> set[str]:
-    result = git(repo, "for-each-ref", "--format=%(refname:lstrip=2)", "refs/heads/source/release", check=False)
+    result = git(repo, "for-each-ref", "--format=%(refname:lstrip=2)", "refs/heads/source/cache/release", check=False)
     if result.returncode != 0:
         return set()
     return {line for line in result.stdout.splitlines() if line}
@@ -140,9 +142,16 @@ def require_manifested_release_entries(
         problems.append("derived render plans contain variants not derivable from source refs:\n" + "\n".join(f"  - {r}" for r in extra_config))
 
     actual = actual_source_release_refs(repo)
+    legacy_release_refs = actual_refs(repo, "source/release")
+    legacy_base_refs = actual_refs(repo, "source/base/rendered")
+    if legacy_release_refs or legacy_base_refs:
+        problems.append(
+            "legacy generated cache refs are not supported; generated refs must be under source/cache/**:\n"
+            + "\n".join(f"  - {r}" for r in sorted(legacy_release_refs | legacy_base_refs))
+        )
     extra_refs = sorted(actual - expected_releases)
     if extra_refs:
-        problems.append("source/release refs are not derivable from current source refs:\n" + "\n".join(f"  - {r}" for r in extra_refs))
+        problems.append("source/cache/release refs are not derivable from current source refs:\n" + "\n".join(f"  - {r}" for r in extra_refs))
 
     rendered_records = rendered_ref_records(repo)
     extra_records = sorted(set(rendered_records) - expected_releases)
@@ -176,7 +185,7 @@ def require_source_refs(
     verbose: bool,
 ) -> list[str]:
     problems: list[str] = []
-    expected_base_rendered = {f"source/base/rendered/edk2-stable{release}" for release in all_releases}
+    expected_base_rendered = {f"{CACHE_BASE_EDK2_PREFIX}edk2-stable{release}" for release in all_releases}
     expected_radxa = {ref for ref in expected_required_refs if ref.startswith("source/delta/radxa/")}
     expected_local_tags = {
         local_compatibility_tag_for_branch(ref)
@@ -197,10 +206,10 @@ def require_source_refs(
     if missing:
         problems.append("required source refs are unavailable locally:\n" + "\n".join(f"  - {r}" for r in missing))
 
-    actual_base_rendered = actual_refs(repo, "source/base/rendered")
+    actual_base_rendered = actual_refs(repo, "source/cache/base/edk2")
     actual_radxa = actual_refs(repo, "source/delta/radxa")
     actual_local_tags = local_tag_refs(repo)
-    actual_local_branches = actual_refs(repo, "source/local")
+    actual_local_branches = actual_refs(repo, "source/unofficial")
     base_records = rendered_base_records(repo)
 
     missing_base_rendered = expected_base_rendered - actual_base_rendered
@@ -208,7 +217,7 @@ def require_source_refs(
     non_regenerable_base = sorted(ref for ref in missing_base_rendered if ref not in base_records)
     if non_regenerable_base:
         problems.append(
-            "source/base/rendered cache refs are missing and not regenerable from config/refs/base-tree_id.json:\n"
+            "source/cache/base/edk2 cache refs are missing and not regenerable from config/refs/base-tree_id.json:\n"
             + "\n".join(f"  - {r}" for r in non_regenerable_base)
         )
     missing_base_components: list[str] = []
@@ -219,12 +228,12 @@ def require_source_refs(
                 missing_base_components.append(f"{ref}: missing component {component_ref}")
     if missing_base_components:
         problems.append(
-            "source/base/rendered cache refs are missing and cannot be regenerated because components are unavailable:\n"
+            "source/cache/base/edk2 cache refs are missing and cannot be regenerated because components are unavailable:\n"
             + "\n".join(f"  - {r}" for r in missing_base_components)
         )
     if extra_base_rendered:
         problems.append(
-            "source/base/rendered cache refs do not match supported EDK2 source/base refs:\n"
+            "source/cache/base/edk2 cache refs do not match supported EDK2 source/base refs:\n"
             + "\n".join(f"  - {r}" for r in sorted(extra_base_rendered))
         )
     if expected_radxa != actual_radxa:
@@ -234,20 +243,20 @@ def require_source_refs(
         )
     missing_tags = expected_local_tags - actual_local_tags
     if missing_tags:
-        problems.append("missing local compatibility tags:\n" + "\n".join(f"  - {r}" for r in sorted(missing_tags)))
+        problems.append("missing unofficial compatibility tags:\n" + "\n".join(f"  - {r}" for r in sorted(missing_tags)))
     extra_tags = actual_local_tags - expected_local_tags
     if extra_tags:
-        problems.append("local compatibility tags are not used by any derived firmware variant:\n" + "\n".join(f"  - {r}" for r in sorted(extra_tags)))
+        problems.append("unofficial compatibility tags are not used by any derived firmware variant:\n" + "\n".join(f"  - {r}" for r in sorted(extra_tags)))
     missing_local_branches = expected_local_branches - actual_local_branches
     if missing_local_branches:
         problems.append(
-            "missing source/local compatibility branches:\n"
+            "missing source/unofficial compatibility branches:\n"
             + "\n".join(f"  - {r}" for r in sorted(missing_local_branches))
         )
     orphaned_tags = sorted(tag for tag in expected_local_tags & actual_local_tags if not tag_reachable_from_local_branch(repo, tag))
     if orphaned_tags:
         problems.append(
-            "local compatibility tags are not reachable from any retained source/local branch:\n"
+            "unofficial compatibility tags are not reachable from any retained source/unofficial branch:\n"
             + "\n".join(f"  - {r}" for r in orphaned_tags)
         )
 
