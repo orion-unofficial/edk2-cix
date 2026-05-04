@@ -64,9 +64,10 @@ def validate_variant_manifest(repo: Path, verbose: bool) -> list[str]:
     problems: list[str] = []
     records = rendered_ref_records(repo)
     generated = release_entries(repo)
-    raw_count = len(ref_manifest_records(repo, VARIANT_TREE_MANIFEST))
-    if raw_count != len(records):
-        problems.append(f"{VARIANT_TREE_MANIFEST}: duplicate or missing ref records after expansion")
+    manifest_records = ref_manifest_records(repo, VARIANT_TREE_MANIFEST)
+    manifest_refs = [record.get("ref") for record in manifest_records]
+    if len(set(manifest_refs)) != len(manifest_refs):
+        problems.append(f"{VARIANT_TREE_MANIFEST}: duplicate ref records after expansion")
     for ref, record in sorted(records.items()):
         if ref not in generated:
             problems.append(f"{VARIANT_TREE_MANIFEST}: record is not derivable from source refs: {ref}")
@@ -80,6 +81,13 @@ def validate_variant_manifest(repo: Path, verbose: bool) -> list[str]:
             problems.append(f"{ref}: missing tree_id")
         elif generated[ref].get("tree_id") != record["tree_id"]:
             problems.append(f"{ref}: generated entry tree_id differs from manifest")
+        alias_of = record.get("alias_of")
+        if alias_of:
+            target = records.get(alias_of)
+            if not target:
+                problems.append(f"{ref}: alias target is missing from manifest: {alias_of}")
+            elif record.get("tree_id") != target.get("tree_id"):
+                problems.append(f"{ref}: alias tree differs from {alias_of}")
         if ref_exists(repo, ref) and tree_id(repo, ref) != record.get("tree_id"):
             problems.append(f"{ref}: persisted cache ref tree differs from manifest")
         if verbose:

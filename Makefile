@@ -14,6 +14,7 @@ INSTALL_ROOT ?= /boot/efi
 INSTALL_SOURCE ?=
 FORCE ?= 0
 DELETE ?= 0
+REPACK ?= 1
 ARTEFACT_MODE ?= custom
 FIRMWARE_BOARD ?= O6
 FIRMWARE_TARGET ?= RELEASE
@@ -57,10 +58,10 @@ define PRINT_HELP_SHELL_PROLOGUE
 	}
 endef
 
-.PHONY: help help-vars help-dev help-variants help-releases all build-all install zip targz clean prune buildbox-firmware-build buildbox-firmware-stage \
+.PHONY: help help-vars help-dev help-variants help-releases all build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-unofficial-commits \
-	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity check-identity-integrity ref-report cleanup-report \
+	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity check-identity-integrity ref-report cleanup-report export-minimal-repo \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
 	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help
 
@@ -74,7 +75,8 @@ help:
 	print_help_line 'make install' 'Build, safety-check, and install firmware.'; \
 	print_help_line 'make zip' 'Create a firmware .zip via the buildbox.'; \
 	print_help_line 'make targz' 'Create a firmware .tar.gz via the buildbox.'; \
-	print_help_line 'make clean' 'Remove transient filesystem caches; does not delete Git refs.'; \
+	print_help_line 'make clean' 'Remove stale filesystem cache entries; does not delete Git refs.'; \
+	print_help_line 'make realclean' 'Remove all filesystem cache entries; does not delete Git refs.'; \
 	print_section 'Buildbox Targets'; \
 	print_help_line 'make buildbox-firmware-build' 'Delegate firmware build to the selected buildbox.'; \
 	print_help_line 'make buildbox-firmware-stage' 'Delegate firmware staging to the selected buildbox.'; \
@@ -117,6 +119,7 @@ help-dev:
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
+	print_help_line 'make export-minimal-repo' 'Create a bare repo containing only build plus required non-cache source refs and tags.'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
 	print_help_line 'make lint' 'Run JSON, Markdown, shell, and Python linting in the quality container.'; \
 	print_section 'Source Integration Variables'; \
@@ -141,6 +144,8 @@ help-dev:
 	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-integrity.'; \
 	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan persistent unofficial/Radxa source refs in check-identity-integrity.'; \
 	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
+	print_help_line 'DIR=<path>' 'Destination directory for export-minimal-repo.'; \
+	print_help_line 'REPACK=0|1' 'Repack the destination produced by export-minimal-repo.\nDefault: 1.'; \
 	print_section 'Rendering and Qualification Variables'; \
 	print_help_line 'RELEASE=<variant>' 'Firmware variant name for render-release-branch and verify-release-branch.'; \
 	print_help_line 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/cache/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a Git cache branch.'; \
@@ -212,17 +217,17 @@ targz:
 	$(call run_release_make,buildbox-targz)
 
 clean:
-	@set -e; \
-	for path in .cache/edk2-cix/worktrees .cache/edk2-cix/tmp .cache/edk2-cix/reports .cache/edk2-cix/signing-certs; do \
-		if [ -e "$$path" ]; then \
-			printf 'removing %s\n' "$$path"; \
-			rm -rf "$$path"; \
-		fi; \
-	done; \
-	printf 'filesystem cache clean complete; Git refs were not touched\n'
+	@DEBUG="$(DEBUG)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/clean_cache.py --mode stale --force "$(FORCE)" --v "$(V)"
+
+realclean:
+	@DEBUG="$(DEBUG)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/clean_cache.py --mode all --force "$(FORCE)" --v "$(V)"
 
 prune:
 	@DEBUG="$(DEBUG)" DELETE="$(DELETE)" V="$(V)" $(PYTHON) scripts/prune_cache_refs.py --delete "$(DELETE)" --v "$(V)"
+
+export-minimal-repo:
+	@if [ -z "$(DIR)" ]; then $(PYTHON) scripts/export_minimal_repo.py --help; printf '%s\n' 'missing required variable: DIR' >&2; exit 2; fi
+	@DEBUG="$(DEBUG)" DIR="$(DIR)" REPACK="$(REPACK)" V="$(V)" $(PYTHON) scripts/export_minimal_repo.py --dir "$(DIR)" --repack "$(REPACK)" --v "$(V)"
 
 buildbox-firmware-build:
 	$(call run_release_make,buildbox-firmware-build)

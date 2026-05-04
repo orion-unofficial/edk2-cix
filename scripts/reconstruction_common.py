@@ -85,35 +85,135 @@ def records_from_manifest(repo: Path, relative: str) -> list[dict[str, Any]]:
     data = load_json(repo, relative)
     defaults = manifest_defaults(data)
     records: list[dict[str, Any]] = []
+    if "releases" in data:
+        records.extend(records_from_release_manifest(relative, data, defaults))
     for item in data.get("refs", []):
-        item_refs = item.get("refs")
-        if item_refs is None:
-            refs = [item.get("ref")]
-        elif isinstance(item_refs, list):
-            refs = item_refs
-        else:
-            raise ReconstructionError(f"{relative}: refs must be an array when present")
+        records.extend(expand_ref_manifest_item(relative, defaults, item))
+    derive_manifest_fields(records)
+    return records
 
-        for ref in refs:
-            if not ref:
-                raise ReconstructionError(f"{relative}: manifest record is missing ref")
+
+def expand_ref_manifest_item(relative: str, defaults: dict[str, Any], item: dict[str, Any]) -> list[dict[str, Any]]:
+    item_refs = item.get("refs")
+    if item_refs is None:
+        refs = [item.get("ref")]
+    elif isinstance(item_refs, list):
+        refs = item_refs
+    else:
+        raise ReconstructionError(f"{relative}: refs must be an array when present")
+
+    records: list[dict[str, Any]] = []
+    for ref in refs:
+        if not ref:
+            raise ReconstructionError(f"{relative}: manifest record is missing ref")
+        record = deepcopy(defaults)
+        record.update(deepcopy(item))
+        record.pop("refs", None)
+        record["ref"] = ref
+        templates = defaults.get("component_templates")
+        if templates and "components" not in item and record.get("ref"):
+            edk2_ref = str(record["ref"]).rsplit("/", 1)[-1]
+            record["components"] = [
+                {
+                    key: str(value).format(edk2_ref=edk2_ref)
+                    for key, value in template.items()
+                }
+                for template in templates
+            ]
+        record.pop("component_templates", None)
+        records.append(record)
+    return records
+
+
+def format_manifest_value(value: Any, context: dict[str, Any]) -> Any:
+    if isinstance(value, str):
+        return value.format(**context)
+    if isinstance(value, list):
+        return [format_manifest_value(item, context) for item in value]
+    if isinstance(value, dict):
+        return {key: format_manifest_value(item, context) for key, item in value.items()}
+    return value
+
+
+def records_from_release_manifest(
+    relative: str,
+    data: dict[str, Any],
+    defaults: dict[str, Any],
+) -> list[dict[str, Any]]:
+    templates = data.get("component_templates")
+    if not isinstance(templates, dict):
+        raise ReconstructionError(f"{relative}: releases require component_templates object")
+
+    records: list[dict[str, Any]] = []
+    for release in data.get("releases", []):
+        if not isinstance(release, dict):
+            raise ReconstructionError(f"{relative}: release records must be objects")
+        edk2_ref = release.get("edk2_ref")
+        components = release.get("components")
+        if not isinstance(edk2_ref, str) or not edk2_ref:
+            raise ReconstructionError(f"{relative}: release record is missing edk2_ref")
+        if not isinstance(components, dict):
+            raise ReconstructionError(f"{relative}: release {edk2_ref} is missing components")
+
+        release_context = {
+            key: value
+            for key, value in release.items()
+            if key != "components"
+        }
+        for component, component_data in components.items():
+            if component not in templates:
+                raise ReconstructionError(f"{relative}: no component template for {component}")
+            if not isinstance(component_data, dict):
+                raise ReconstructionError(f"{relative}: component {component} in {edk2_ref} must be an object")
+            context = dict(release_context)
+            context["component"] = component
             record = deepcopy(defaults)
-            record.update(deepcopy(item))
-            record.pop("refs", None)
-            record["ref"] = ref
-            templates = defaults.get("component_templates")
-            if templates and "components" not in item and record.get("ref"):
-                edk2_ref = str(record["ref"]).rsplit("/", 1)[-1]
-                record["components"] = [
-                    {
-                        key: str(value).format(edk2_ref=edk2_ref)
-                        for key, value in template.items()
-                    }
-                    for template in templates
-                ]
-            record.pop("component_templates", None)
+            record.update(format_manifest_value(templates[component], context))
+            record.update(deepcopy(component_data))
+            record["component"] = component
             records.append(record)
     return records
+
+
+def derive_manifest_fields(records: list[dict[str, Any]]) -> None:
+    for record in records:
+        ref = str(record.get("ref", ""))
+        match = RADXA_SOURCE_RE.match(ref)
+        if not match:
+            continue
+        source = match.group("source")
+        radxa = match.group("radxa")
+        edk2 = match.group("edk2")
+        record.setdefault("vendor", "radxa")
+        record.setdefault("format", "materialised source tree")
+        record.setdefault("radxa_release", radxa)
+        record.setdefault("edk2_base", edk2)
+        record.setdefault("base_ref", f"{CACHE_BASE_EDK2_PREFIX}{edk2}")
+        record.setdefault(
+            "type",
+            "vendor-source" if source == "vendor" else "ported-vendor-source",
+        )
+
+    previous_by_radxa: dict[str, str] = {}
+    radxa_records = [
+        record
+        for record in records
+        if RADXA_SOURCE_RE.match(str(record.get("ref", "")))
+    ]
+    radxa_records.sort(
+        key=lambda record: (
+            version_key(str(record.get("radxa_release", ""))),
+            version_key(str(record.get("edk2_base", ""))),
+            str(record.get("ref", "")),
+        )
+    )
+    for record in radxa_records:
+        ref = str(record["ref"])
+        radxa = str(record["radxa_release"])
+        match = RADXA_SOURCE_RE.match(ref)
+        if match and match.group("source") == "port" and radxa in previous_by_radxa:
+            record.setdefault("ported_from", previous_by_radxa[radxa])
+        previous_by_radxa[radxa] = ref
 
 
 def ref_manifest_records(repo: Path, manifest_name: str) -> list[dict[str, Any]]:
@@ -404,7 +504,22 @@ def rendered_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
     if not path.exists():
         return {}
     records = ref_manifest_records(repo, VARIANT_TREE_MANIFEST)
-    return {record["ref"]: record for record in records if record.get("ref")}
+    by_ref = {record["ref"]: record for record in records if record.get("ref")}
+    for ref, record in list(by_ref.items()):
+        try:
+            parts = release_branch_parts(ref)
+        except ReconstructionError:
+            continue
+        if parts.get("unofficial") != "unofficial":
+            continue
+        alias = f"{ref}-{parts['radxa']}"
+        if alias in by_ref:
+            continue
+        alias_record = deepcopy(record)
+        alias_record["ref"] = alias
+        alias_record["alias_of"] = ref
+        by_ref[alias] = alias_record
+    return by_ref
 
 
 def base_tree_records(repo: Path) -> dict[str, dict[str, Any]]:
@@ -442,7 +557,17 @@ def release_branch_parts(branch: str) -> dict[str, str]:
 
 
 def rendered_tree_for(repo: Path, branch: str) -> str | None:
-    return rendered_ref_records(repo).get(branch, {}).get("tree_id")
+    records = rendered_ref_records(repo)
+    if branch in records:
+        return records[branch].get("tree_id")
+    try:
+        parts = release_branch_parts(branch)
+    except ReconstructionError:
+        return None
+    target = alias_target_for(branch, parts)
+    if target:
+        return records.get(target, {}).get("tree_id")
+    return None
 
 
 def alias_target_for(branch: str, parts: dict[str, str]) -> str | None:
@@ -922,10 +1047,12 @@ def refresh_ref_record(repo: Path, manifest_name: str, ref: str, extra: dict[str
 def refresh_release_tree(repo: Path, branch: str) -> None:
     if branch not in release_entries(repo):
         raise ReconstructionError(f"cannot update variant manifest for unknown source/cache/release branch: {branch}")
+    parts = release_branch_parts(branch)
+    manifest_branch = alias_target_for(branch, parts) or branch
     update_ref_record(
         repo,
         VARIANT_TREE_MANIFEST,
-        branch,
+        manifest_branch,
         {
             "object_id": None,
             "tree_id": tree_id(repo, branch),

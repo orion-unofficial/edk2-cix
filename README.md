@@ -148,7 +148,9 @@ Render plans can also include an explicit `materialise_submodules` step. If any 
 
 `source/cache/release/**` branches are materialised firmware branches. They are generated from the base, component, vendor, and unofficial layers. They are convenient to inspect or build, but they are not required source inputs: this repository treats them as caches, and a checkout may omit them and regenerate the selected variant from the recorded source layers and manifests.
 
-Generated Git cache branches always live under `source/cache/**`. Use `make prune` to report cache branches that are safe to remove, and `make prune DELETE=1` to delete only verified cache branches. Use `make clean` for transient filesystem caches such as detached worktrees; it does not delete Git refs.
+Generated Git cache branches always live under `source/cache/**`. Use `make prune` to report cache branches that are safe to remove, and `make prune DELETE=1` to delete only verified cache branches. Use `make clean` to remove stale transient filesystem caches, such as detached worktrees whose source tree no longer matches the current manifests. Use `make realclean` to remove all transient filesystem caches. Neither target deletes Git refs.
+
+The variant tree-ID manifest records canonical rendered trees. Versioned unofficial aliases, such as `/unofficial-1.2.1`, are derived from the matching canonical `/unofficial` variant for the same EDK2/CIX/Radxa combination, and must always resolve to the same tree.
 
 ## How do I start developing on this codebase?
 
@@ -279,6 +281,14 @@ After adding source refs for a new supported EDK2 release:
 The persistent `source/cache/release/**` branch created in step 2 is a cache. Once the tree ID has been recorded and validation passes, it may be deleted without losing the ability to regenerate the variant.
 
 `make help-variants` lists firmware variants derived from the available EDK2, Radxa, CIX, and unofficial refs.
+
+To create a smaller bare repository containing only the build branch plus the non-cache source refs and tags required for deterministic reconstruction, use:
+
+```bash
+make export-minimal-repo DIR=/path/to/edk2-cix.minimal.git
+```
+
+The destination directory must be empty or absent. Generated `source/cache/**`, legacy, private, and diagnostic branches are omitted from the export.
 
 ## How do I project `source/unofficial/current` to a materialised firmware branch?
 

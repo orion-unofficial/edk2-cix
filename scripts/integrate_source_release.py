@@ -11,6 +11,7 @@ from pathlib import Path
 
 from reconstruction_common import (
     CACHE_BASE_EDK2_PREFIX,
+    RADXA_SOURCE_RE,
     ReconstructionError,
     check_immutable_refs,
     git,
@@ -23,6 +24,7 @@ from reconstruction_common import (
     truthy,
     rev_parse,
     temp_dir,
+    version_key,
 )
 from render_release_branch import gitlinks, materialise_submodules
 
@@ -204,15 +206,88 @@ def radxa_target_ref(repo: Path, release: str, edk2_base: str, source: str) -> t
     return port_ref, "ported-vendor-source"
 
 
+def compact_record_for_manifest(data: dict, record: dict) -> dict:
+    compact = dict(record)
+    defaults = data.get("defaults", {})
+    if isinstance(defaults, dict):
+        for key, value in defaults.items():
+            if compact.get(key) == value:
+                compact.pop(key)
+    if RADXA_SOURCE_RE.match(str(compact.get("ref", ""))):
+        for key in ("base_ref", "edk2_base", "format", "ported_from", "radxa_release", "type", "vendor"):
+            compact.pop(key, None)
+    return compact
+
+
+def upsert_edk2_manifest(repo: Path, path: Path, target: str, record: dict) -> None:
+    data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {
+        "defaults": {"immutable": True, "type": "base"},
+        "component_templates": {
+            "edk2": {
+                "ref": "source/base/edk2/{edk2_ref}",
+                "upstream_ref": "refs/tags/{edk2_ref}",
+            },
+            "edk2-platforms": {
+                "ref": "source/base/edk2-platforms/{edk2_ref}",
+                "upstream_ref": "refs/heads/master",
+            },
+            "edk2-non-osi": {
+                "ref": "source/base/edk2-non-osi/{edk2_ref}",
+                "upstream_ref": "refs/heads/master",
+            },
+        },
+        "releases": [],
+    }
+    component = str(record.get("component", ""))
+    edk2_ref = target.rsplit("/", 1)[-1]
+    if component not in {"edk2", "edk2-platforms", "edk2-non-osi"}:
+        raise ReconstructionError(f"cannot update EDK2 manifest for unknown component: {component}")
+
+    releases = data.setdefault("releases", [])
+    release_record = None
+    for item in releases:
+        if item.get("edk2_ref") == edk2_ref:
+            release_record = item
+            break
+    if release_record is None:
+        release_record = {"edk2_ref": edk2_ref, "components": {}}
+        releases.append(release_record)
+    components = release_record.setdefault("components", {})
+    component_record = {
+        "object_id": record["object_id"],
+        "tree_id": record["tree_id"],
+    }
+    upstream_ref = record.get("upstream_ref")
+    if component == "edk2":
+        default_upstream_ref = f"refs/tags/{edk2_ref}"
+    else:
+        default_upstream_ref = "refs/heads/master"
+        if record.get("selected_at_or_before"):
+            release_record["selected_at_or_before"] = record["selected_at_or_before"]
+    if upstream_ref and upstream_ref != default_upstream_ref:
+        component_record["upstream_ref"] = upstream_ref
+    components[component] = component_record
+    releases.sort(key=lambda item: version_key(str(item.get("edk2_ref", ""))))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def upsert_manifest(repo: Path, target: str, record: dict) -> None:
     path = repo / manifest_path_for(target)
+    if path.name == "edk2.json":
+        upsert_edk2_manifest(repo, path, target, record)
+        return
     if path.exists():
         data = json.loads(path.read_text(encoding="utf-8"))
     else:
         data = {"refs": []}
     refs = data.setdefault("refs", [])
-    refs[:] = [item for item in refs if item.get("ref") != target]
-    refs.append(record)
+    refs[:] = [
+        item
+        for item in refs
+        if item.get("ref") != target and target not in item.get("refs", [])
+    ]
+    refs.append(compact_record_for_manifest(data, record))
     refs.sort(key=lambda item: item.get("ref", ""))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
