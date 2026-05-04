@@ -31,10 +31,10 @@ DEBUG_VERBOSE ?=
 DEBUG_PRINT_ERROR_LEVEL ?=
 CIX_RELEASE ?=
 QUALITY_IMAGE ?= edk2-cix-build-quality:latest
-SOURCE_FRESHNESS_MODE ?= policy
-SOURCE_FRESHNESS_ONLY ?=
-SOURCE_FRESHNESS_FORMAT ?= text
-SOURCE_FRESHNESS_SNAPSHOT ?=
+UPSTREAM_VERSION_MODE ?= policy
+UPSTREAM_VERSION_ONLY ?=
+UPSTREAM_VERSION_FORMAT ?= text
+UPSTREAM_VERSION_SNAPSHOT ?=
 ACT_WORKFLOW ?=
 ACT_EVENT ?= workflow_dispatch
 ACT_JOB ?=
@@ -71,13 +71,13 @@ define PRINT_HELP_SHELL_PROLOGUE
 	}
 endef
 
-.PHONY: help help-vars help-dev help-variants build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage \
+.PHONY: help help-vars help-dev help-variants build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-unofficial-commits \
-	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity verify-minimised-clone check-identity-integrity check-vendor-workflow-drift check-source-freshness ref-report cleanup-report create-minimised-clone \
+	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity verify-minimised-clone check-identity-integrity check-vendor-workflow-drift check-upstream-versions ref-report cleanup-report create-minimised-clone \
 	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
-	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help check-source-freshness-help
+	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help check-upstream-versions-help
 
 help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
@@ -130,7 +130,7 @@ help-dev:
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
 	print_help_line 'make check-identity-integrity' 'Scan generated files and refs for path/identity integrity issues.'; \
 	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
-	print_help_line 'make check-source-freshness' 'Check recorded source refs against external upstream/vendor remotes.'; \
+	print_help_line 'make check-upstream-versions' 'Check recorded source refs against external upstream/vendor remotes.'; \
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
@@ -138,6 +138,8 @@ help-dev:
 	print_help_line 'make gha-act-list' 'List GitHub Actions workflows and jobs through a repo-local act wrapper.'; \
 	print_help_line 'make gha-act-dry-run' 'Dry-run a selected GitHub Actions workflow through act.'; \
 	print_help_line 'make gha-act-run' 'Execute a selected GitHub Actions workflow through act.'; \
+	print_help_line 'make docs-build' 'Build the mdBook product documentation under docs/.'; \
+	print_help_line 'make docs-workflow-local' 'Run the documentation workflow in its local Docker wrapper.'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
 	print_help_line 'make lint' 'Run JSON, YAML, Markdown, shell, and Python linting in the quality container.'; \
 	print_section 'Source Integration Variables'; \
@@ -161,10 +163,10 @@ help-dev:
 	print_help_line 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch; defaults to source/unofficial/current.'; \
 	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-integrity.'; \
 	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan persistent unofficial/Radxa source refs in check-identity-integrity.'; \
-	print_help_line 'SOURCE_FRESHNESS_MODE=advisory|policy|strict' 'Freshness failure mode. advisory never fails on stale remotes; policy fails checks marked strict; strict fails any stale or unavailable check.\nDefault: policy.'; \
-	print_help_line 'SOURCE_FRESHNESS_ONLY=<id[,id...]>' 'Optional comma-separated source freshness check IDs.'; \
-	print_help_line 'SOURCE_FRESHNESS_FORMAT=text|github|json' 'Source freshness output format. github emits workflow annotations.\nDefault: text.'; \
-	print_help_line 'SOURCE_FRESHNESS_SNAPSHOT=<path>' 'Offline git ls-remote snapshot for source freshness tests.\nDefault: unset.'; \
+	print_help_line 'UPSTREAM_VERSION_MODE=advisory|policy|strict' 'Version-check failure mode. advisory never fails on stale remotes; policy fails checks marked strict; strict fails any stale or unavailable check.\nDefault: policy.'; \
+	print_help_line 'UPSTREAM_VERSION_ONLY=<id[,id...]>' 'Optional comma-separated upstream version check IDs.'; \
+	print_help_line 'UPSTREAM_VERSION_FORMAT=text|github|json' 'Upstream versions output format. github emits workflow annotations.\nDefault: text.'; \
+	print_help_line 'UPSTREAM_VERSION_SNAPSHOT=<path>' 'Offline git ls-remote snapshot for upstream version tests.\nDefault: unset.'; \
 	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
 	print_help_line 'DIR=<path>' 'Destination directory for create-minimised-clone, or optional workspace directory for verify-minimised-clone.'; \
 	print_help_line 'KEEP=0|1' 'Keep the temporary verification workspace created by verify-minimised-clone.\nDefault: 0.'; \
@@ -198,7 +200,7 @@ help-dev:
 	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
 	print_help_line 'make verify-build-matrix-help' 'Show verify-build-matrix arguments.'; \
 	print_help_line 'make check-vendor-workflow-drift-help' 'Show check-vendor-workflow-drift arguments.'; \
-	print_help_line 'make check-source-freshness-help' 'Show check-source-freshness arguments.'
+	print_help_line 'make check-upstream-versions-help' 'Show check-upstream-versions arguments.'
 
 help-variants:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/list_configured_variants.py
@@ -267,6 +269,12 @@ buildbox-firmware-build:
 buildbox-firmware-stage:
 	$(call run_release_make,buildbox-firmware-stage)
 
+docs-build:
+	@docs/scripts/run_docs_build.sh
+
+docs-workflow-local:
+	@docs/scripts/run_docs_workflow_local.sh
+
 render-release-branch:
 	@if [ -z "$(RELEASE)" ]; then $(MAKE) --no-print-directory render-release-branch-help; printf '%s\n' 'missing required variable: RELEASE' >&2; exit 2; fi
 	@DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" PERSIST="$(PERSIST)" REBUILD="$(REBUILD)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --require-release --persist "$(PERSIST)" --rebuild "$(REBUILD)" --force "$(FORCE)" --v "$(V)"
@@ -302,8 +310,8 @@ check-identity-integrity:
 check-vendor-workflow-drift:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_vendor_workflow_drift.py --v "$(V)"
 
-check-source-freshness:
-	@DEBUG="$(DEBUG)" SOURCE_FRESHNESS_MODE="$(SOURCE_FRESHNESS_MODE)" SOURCE_FRESHNESS_ONLY="$(SOURCE_FRESHNESS_ONLY)" SOURCE_FRESHNESS_FORMAT="$(SOURCE_FRESHNESS_FORMAT)" SOURCE_FRESHNESS_SNAPSHOT="$(SOURCE_FRESHNESS_SNAPSHOT)" V="$(V)" $(PYTHON) scripts/check_source_freshness.py --v "$(V)"
+check-upstream-versions:
+	@DEBUG="$(DEBUG)" UPSTREAM_VERSION_MODE="$(UPSTREAM_VERSION_MODE)" UPSTREAM_VERSION_ONLY="$(UPSTREAM_VERSION_ONLY)" UPSTREAM_VERSION_FORMAT="$(UPSTREAM_VERSION_FORMAT)" UPSTREAM_VERSION_SNAPSHOT="$(UPSTREAM_VERSION_SNAPSHOT)" V="$(V)" $(PYTHON) scripts/check_upstream_versions.py --v "$(V)"
 
 ref-report:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/ref_report.py --v "$(V)"
@@ -349,5 +357,5 @@ import-unofficial-commits-help:
 check-vendor-workflow-drift-help:
 	@$(PYTHON) scripts/check_vendor_workflow_drift.py --help
 
-check-source-freshness-help:
-	@$(PYTHON) scripts/check_source_freshness.py --help
+check-upstream-versions-help:
+	@$(PYTHON) scripts/check_upstream_versions.py --help

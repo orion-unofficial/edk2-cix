@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Unit checks for check_source_freshness.py."""
+"""Unit checks for check_upstream_versions.py."""
 
 from __future__ import annotations
 
-from check_source_freshness import LocalState, RemoteRef, compare_head, compare_tag, latest_remote_tag
+from check_upstream_versions import LocalState, RemoteRef, compare_head, compare_tag, latest_remote_tag
 
 
 def require(condition: bool, message: str) -> None:
@@ -65,7 +65,7 @@ def main() -> None:
     test_latest_remote_tag_prefers_peeled_commit()
     test_compare_tag_statuses()
     test_compare_head_statuses()
-    print("check_source_freshness tests passed")
+    print("check_upstream_versions tests passed")
 
 
 if __name__ == "__main__":

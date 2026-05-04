@@ -1,4 +1,4 @@
-name: Source freshness
+name: Upstream versions
 
 on:
   schedule:
@@ -7,7 +7,7 @@ on:
     inputs:
       mode:
         default: policy
-        description: Freshness failure mode.
+        description: Version-check failure mode.
         options:
           - advisory
           - policy
@@ -16,7 +16,7 @@ on:
         type: choice
       only:
         default: ''
-        description: Optional comma-separated freshness check IDs.
+        description: Optional comma-separated version check IDs.
         required: false
         type: string
 
@@ -28,8 +28,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  source-freshness:
-    name: Check upstream source freshness
+  upstream-versions:
+    name: Check upstream versions
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -46,9 +46,9 @@ jobs:
           git fetch --force --no-tags origin '+refs/heads/source/*:refs/remotes/origin/source/*'
           git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
 
-      - name: Check source freshness
+      - name: Check upstream versions
         env:
-          SOURCE_FRESHNESS_FORMAT: github
-          SOURCE_FRESHNESS_MODE: ${{ inputs.mode || 'policy' }}
-          SOURCE_FRESHNESS_ONLY: ${{ inputs.only || '' }}
-        run: make check-source-freshness
+          UPSTREAM_VERSION_FORMAT: github
+          UPSTREAM_VERSION_MODE: ${{ inputs.mode || 'policy' }}
+          UPSTREAM_VERSION_ONLY: ${{ inputs.only || '' }}
+        run: make check-upstream-versions

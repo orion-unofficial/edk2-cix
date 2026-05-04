@@ -26,7 +26,7 @@ def git_files(*patterns: str) -> list[str]:
 
 
 def lint_json() -> None:
-    files = git_files("config/*.json")
+    files = git_files("config/*.json", "docs/devenv.lock")
     for file_name in files:
         with Path(file_name).open("r", encoding="utf-8") as f:
             json.load(f)
@@ -34,23 +34,23 @@ def lint_json() -> None:
 
 
 def lint_yaml() -> None:
-    files = git_files("*.yaml", "*.yml", ".github/**/*.yaml", ".github/**/*.yml")
+    files = git_files("*.yaml", "*.yml", ".github/**/*.yaml", ".github/**/*.yml", "docs/**/*.yaml", "docs/**/*.yml")
     if files:
         run(["yamllint", *sorted(set(files))])
 
 
 def lint_python() -> None:
-    run(["flake8", "--extend-ignore=E203,E501,W503", "scripts"])
+    run(["flake8", "--extend-ignore=E203,E501,W503", "scripts", "docs/scripts"])
 
 
 def lint_shell() -> None:
-    files = git_files("*.sh", "scripts/*.sh")
+    files = git_files("*.sh", "scripts/*.sh", "docs/scripts/*.sh")
     if files:
         run(["shellcheck", *files])
 
 
 def lint_markdown() -> None:
-    files = git_files("*.md", "config/**/*.md", "scripts/**/*.md")
+    files = git_files("*.md", "config/**/*.md", "scripts/**/*.md", "docs/**/*.md")
     if files:
         run(["mdl", "--rules", "~MD013,~MD026,~MD029", *files])
 
@@ -65,7 +65,7 @@ def lint() -> None:
 
 def test() -> None:
     run(["python3", "-m", "py_compile", *git_files("scripts/*.py")])
-    run(["python3", "scripts/test_check_source_freshness.py"])
+    run(["python3", "scripts/test_check_upstream_versions.py"])
     run(["make", "verify-build-matrix", "--no-print-directory"])
     run(["make", "verify-manifest-integrity", "--no-print-directory"])
     run(["make", "verify-ref-integrity", "--no-print-directory"])

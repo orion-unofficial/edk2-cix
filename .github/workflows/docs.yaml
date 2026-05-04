@@ -1,0 +1,85 @@
+name: Documentation
+
+on:
+  merge_group:
+  pull_request:
+    paths:
+      - docs/**
+      - Makefile
+      - .github/workflows/docs.yaml
+  push:
+    branches:
+      - build
+    paths:
+      - docs/**
+      - Makefile
+      - .github/workflows/docs.yaml
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  build-docs:
+    name: Build documentation
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          install_options: --no-daemon
+          extra_nix_config: |
+            accept-flake-config = true
+
+      - name: Use cachix
+        uses: cachix/cachix-action@v17
+        with:
+          name: devenv
+
+      - name: Install devenv.sh
+        run: nix profile add --accept-flake-config nixpkgs#devenv nixpkgs#cargo nixpkgs#rustc
+
+      - name: Build documentation
+        run: ./docs/scripts/run_docs_build.sh
+        shell: bash
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Archive Pages artifact
+        run: |
+          tar \
+            --dereference --hard-dereference \
+            --directory ./docs/book/html \
+            -cvf "${RUNNER_TEMP}/artifact.tar" \
+            --exclude=.git \
+            --exclude=.github \
+            --exclude='.[^/]*' \
+            .
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
+
+      - if: github.event_name != 'pull_request'
+        name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v5

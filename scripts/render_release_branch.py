@@ -360,7 +360,7 @@ def main() -> None:
         )
 
     expected_tree = entry.get("tree_id")
-    if expected_tree and tree_id(repo, target_ref) != expected_tree:
+    if expected_tree and tree_id(repo, target_ref) != expected_tree and not allow_manifest_refresh:
         raise ReconstructionError(
             f"resolved tree for {branch} does not match manifest: {tree_id(repo, target_ref)} != {expected_tree}"
         )

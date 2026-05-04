@@ -32,7 +32,7 @@ env:
 
 jobs:
   metadata:
-    name: Payload metadata and Microsoft freshness
+    name: Payload metadata and Microsoft version
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -68,7 +68,7 @@ jobs:
       - name: Test firmware payload metadata audit
         run: python3 "${FIRMWARE_WORKTREE}/scripts/test_firmware_metadata_audit.py"
 
-      - name: Check pinned Microsoft Secure Boot release freshness
+      - name: Check pinned Microsoft Secure Boot release version
         shell: bash
         run: |
           set -euo pipefail

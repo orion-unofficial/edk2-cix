@@ -33,22 +33,22 @@ from reconstruction_common import (
 )
 
 
-HELP = """check-source-freshness
+HELP = """check-upstream-versions
 
 No variables are required.
 
 Optional variables:
-  SOURCE_FRESHNESS_MODE=advisory|policy|strict
+  UPSTREAM_VERSION_MODE=advisory|policy|strict
       advisory: report stale sources but exit successfully
-      policy: fail only checks marked strict in config/source-freshness.json
+      policy: fail only checks marked strict in config/upstream-versions.json
       strict: fail any stale or unavailable check
       Default: policy
-  SOURCE_FRESHNESS_ONLY=<id[,id...]>
-      Limit checks to the named freshness IDs.
-  SOURCE_FRESHNESS_FORMAT=text|github|json
+  UPSTREAM_VERSION_ONLY=<id[,id...]>
+      Limit checks to the named version check IDs.
+  UPSTREAM_VERSION_FORMAT=text|github|json
       Output format. github emits workflow annotations.
       Default: text
-  SOURCE_FRESHNESS_SNAPSHOT=<path>
+  UPSTREAM_VERSION_SNAPSHOT=<path>
       Offline ls-remote snapshot for tests.
   V=0|1
       Show checked remote refs.
@@ -69,7 +69,7 @@ class LocalState:
 
 
 @dataclass
-class FreshnessResult:
+class UpstreamVersionResult:
     check_id: str
     description: str
     mode: str
@@ -81,10 +81,10 @@ class FreshnessResult:
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
-    p.add_argument("--mode", default=os.environ.get("SOURCE_FRESHNESS_MODE", "policy"), choices=("advisory", "policy", "strict"))
-    p.add_argument("--only", default=os.environ.get("SOURCE_FRESHNESS_ONLY", ""))
-    p.add_argument("--format", default=os.environ.get("SOURCE_FRESHNESS_FORMAT", "text"), choices=("text", "github", "json"))
-    p.add_argument("--snapshot", default=os.environ.get("SOURCE_FRESHNESS_SNAPSHOT", ""))
+    p.add_argument("--mode", default=os.environ.get("UPSTREAM_VERSION_MODE", "policy"), choices=("advisory", "policy", "strict"))
+    p.add_argument("--only", default=os.environ.get("UPSTREAM_VERSION_ONLY", ""))
+    p.add_argument("--format", default=os.environ.get("UPSTREAM_VERSION_FORMAT", "text"), choices=("text", "github", "json"))
+    p.add_argument("--snapshot", default=os.environ.get("UPSTREAM_VERSION_SNAPSHOT", ""))
     p.add_argument("--v", default=os.environ.get("V", "0"), help="verbosity flag propagated from make")
     return p
 
@@ -132,7 +132,7 @@ def ls_remote(repo: Path, remote_key: str, snapshot: dict[str, list[RemoteRef]],
             refs.append(RemoteRef(oid, ref))
     if verbose:
         for item in refs:
-            print(f"[freshness] {remote_key}: {item.oid} {item.ref}")
+            print(f"[upstream-version] {remote_key}: {item.oid} {item.ref}")
     return refs
 
 
@@ -222,7 +222,7 @@ def local_state(repo: Path, check: dict[str, Any]) -> LocalState:
     elif local_type == "json-field":
         state = local_json_field(repo, local)
     else:
-        raise ReconstructionError(f"unsupported freshness local type: {local_type}")
+        raise ReconstructionError(f"unsupported version-check local type: {local_type}")
 
     if local.get("compare_object") is False:
         state.object_id = None
@@ -258,7 +258,7 @@ def remote_branch_head(refs: list[RemoteRef], ref: str) -> LocalState | None:
 
 def compare_tag(local: LocalState, remote: LocalState) -> tuple[str, str]:
     if local.version is None or remote.version is None:
-        raise ReconstructionError("tag freshness comparison requires local and remote versions")
+        raise ReconstructionError("tag version comparison requires local and remote versions")
     local_key = version_key(local.version)
     remote_key = version_key(remote.version)
     if remote_key > local_key:
@@ -283,7 +283,7 @@ def evaluate_check(
     check: dict[str, Any],
     snapshot: dict[str, list[RemoteRef]],
     verbose: bool,
-) -> FreshnessResult:
+) -> UpstreamVersionResult:
     check_id = str(check.get("id", ""))
     description = str(check.get("description", check_id))
     mode = str(check.get("mode", "advisory"))
@@ -292,26 +292,26 @@ def evaluate_check(
     try:
         refs = ls_remote(repo, remote_key, snapshot, verbose)
     except ReconstructionError as exc:
-        return FreshnessResult(check_id, description, mode, "unavailable", local.label, "<unavailable>", str(exc))
+        return UpstreamVersionResult(check_id, description, mode, "unavailable", local.label, "<unavailable>", str(exc))
 
     kind = check.get("kind")
     if kind == "latest_tag":
         remote = latest_remote_tag(refs, str(check["tag_pattern"]))
         if remote is None:
-            return FreshnessResult(check_id, description, mode, "unavailable", local.label, "<no matching tag>", "remote has no matching tags")
+            return UpstreamVersionResult(check_id, description, mode, "unavailable", local.label, "<no matching tag>", "remote has no matching tags")
         status, detail = compare_tag(local, remote)
     elif kind == "branch_head":
         remote = remote_branch_head(refs, str(check["ref"]))
         if remote is None:
-            return FreshnessResult(check_id, description, mode, "unavailable", local.label, str(check["ref"]), "remote has no matching branch")
+            return UpstreamVersionResult(check_id, description, mode, "unavailable", local.label, str(check["ref"]), "remote has no matching branch")
         status, detail = compare_head(local, remote)
     else:
-        raise ReconstructionError(f"{check_id}: unsupported freshness kind: {kind}")
+        raise ReconstructionError(f"{check_id}: unsupported version-check kind: {kind}")
 
-    return FreshnessResult(check_id, description, mode, status, local.label, remote.label, detail)
+    return UpstreamVersionResult(check_id, description, mode, status, local.label, remote.label, detail)
 
 
-def should_fail(result: FreshnessResult, mode: str) -> bool:
+def should_fail(result: UpstreamVersionResult, mode: str) -> bool:
     if result.status in {"current", "ahead"}:
         return False
     if mode == "advisory":
@@ -325,8 +325,8 @@ def github_escape(value: str) -> str:
     return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A").replace(":", "%3A").replace(",", "%2C")
 
 
-def print_text(results: list[FreshnessResult]) -> None:
-    print("Source Freshness")
+def print_text(results: list[UpstreamVersionResult]) -> None:
+    print("Upstream Versions")
     for result in results:
         print(f"- {result.check_id}: {result.status}")
         print(f"  local:  {result.local}")
@@ -334,7 +334,7 @@ def print_text(results: list[FreshnessResult]) -> None:
         print(f"  detail: {result.detail}")
 
 
-def print_github(results: list[FreshnessResult]) -> None:
+def print_github(results: list[UpstreamVersionResult]) -> None:
     print_text(results)
     for result in results:
         if result.status in {"current", "ahead"}:
@@ -351,15 +351,15 @@ def main() -> None:
     verbose = truthy(args.v)
     snapshot = load_snapshot(args.snapshot)
     selected = {item.strip() for item in args.only.split(",") if item.strip()}
-    manifest = load_json(repo, "config/source-freshness.json")
+    manifest = load_json(repo, "config/upstream-versions.json")
     checks = manifest.get("checks", [])
     if not isinstance(checks, list) or not checks:
-        raise ReconstructionError("config/source-freshness.json has no checks")
+        raise ReconstructionError("config/upstream-versions.json has no checks")
 
     results = []
     for check in checks:
         if not isinstance(check, dict):
-            raise ReconstructionError("config/source-freshness.json checks must be objects")
+            raise ReconstructionError("config/upstream-versions.json checks must be objects")
         if selected and check.get("id") not in selected:
             continue
         results.append(evaluate_check(repo, check, snapshot, verbose))
@@ -372,10 +372,10 @@ def main() -> None:
         print_text(results)
 
     failing = [result for result in results if should_fail(result, args.mode)]
-    print(f"checked source freshness in {format_duration(time.monotonic() - started)}")
+    print(f"checked upstream versions in {format_duration(time.monotonic() - started)}")
     if failing:
         summary = "\n".join(f"- {result.check_id}: {result.detail}" for result in failing)
-        raise ReconstructionError(f"source freshness check failed in {args.mode} mode:\n{summary}")
+        raise ReconstructionError(f"upstream version check failed in {args.mode} mode:\n{summary}")
 
 
 if __name__ == "__main__":
