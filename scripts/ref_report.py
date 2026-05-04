@@ -148,8 +148,8 @@ def main() -> None:
     print(f"EDK2 releases: {len(releases)}")
     print(f"Firmware variants derivable from source refs: {len(variants)}")
     print(f"Required non-cache source refs: {len(required)}")
-    print(f"Generated base cache refs described by manifest: {len(base_cache)}")
-    print(f"Generated variant cache refs described by manifest: {len(variant_cache)}")
+    print(f"Generated base cache refs derivable from EDK2 refs: {len(base_cache)}")
+    print(f"Generated variant cache refs described or derivable: {len(variant_cache)}")
 
     if verbose:
         print_section("Required non-cache source refs", sorted(required))

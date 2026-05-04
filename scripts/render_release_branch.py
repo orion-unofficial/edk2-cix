@@ -51,7 +51,7 @@ Optional variables:
   REBUILD=0|1
              Regenerate the variant from its render plan.
   FORCE=0|1  With PERSIST=1 and REBUILD=1, intentionally replace the rendered
-             branch and refresh config/refs/variant-tree_id.json.
+             branch and refresh config/refs-variant-cache.json.
   V=0|1      Print delegated git operations and warnings.
 
 Example:

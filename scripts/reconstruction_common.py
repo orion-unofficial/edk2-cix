@@ -19,6 +19,17 @@ class ReconstructionError(RuntimeError):
     """Raised for expected user-facing workflow failures."""
 
 
+_REF_MANIFEST_RECORD_CACHE: dict[tuple[str, str], list[dict[str, Any]]] = {}
+_RENDERED_REF_RECORD_CACHE: dict[str, dict[str, dict[str, Any]]] = {}
+_BASE_TREE_RECORD_CACHE: dict[str, dict[str, dict[str, Any]]] = {}
+
+
+def clear_metadata_caches() -> None:
+    _REF_MANIFEST_RECORD_CACHE.clear()
+    _RENDERED_REF_RECORD_CACHE.clear()
+    _BASE_TREE_RECORD_CACHE.clear()
+
+
 def run(cmd: list[str], cwd: Path | str | None = None, check: bool = True, capture: bool = True) -> subprocess.CompletedProcess[str]:
     kwargs: dict[str, Any] = {"text": True}
     if capture:
@@ -217,7 +228,10 @@ def derive_manifest_fields(records: list[dict[str, Any]]) -> None:
 
 
 def ref_manifest_records(repo: Path, manifest_name: str) -> list[dict[str, Any]]:
-    return records_from_manifest(repo, f"config/refs/{manifest_name}")
+    key = (str(repo.resolve()), manifest_name)
+    if key not in _REF_MANIFEST_RECORD_CACHE:
+        _REF_MANIFEST_RECORD_CACHE[key] = records_from_manifest(repo, f"config/{manifest_name}")
+    return _REF_MANIFEST_RECORD_CACHE[key]
 
 
 def truthy(value: str | int | bool | None) -> bool:
@@ -240,8 +254,11 @@ def format_duration(seconds: float) -> str:
 RELEASE_STAGE_PREFIXES = ("custom", "vendor", "upstream")
 UNBUILDABLE_RADXA_RELEASES = {"0.1.1-1"}
 MIN_SUPPORTED_EDK2_RELEASE = "202208"
-BASE_TREE_MANIFEST = "base-tree_id.json"
-VARIANT_TREE_MANIFEST = "variant-tree_id.json"
+ARM_REFS_MANIFEST = "refs-arm.json"
+CIX_REFS_MANIFEST = "refs-cix.json"
+EDK2_REFS_MANIFEST = "refs-edk2.json"
+RADXA_REFS_MANIFEST = "refs-radxa.json"
+VARIANT_CACHE_MANIFEST = "refs-variant-cache.json"
 CACHE_REF_PREFIX = "source/cache/"
 CACHE_RELEASE_PREFIX = "source/cache/release/"
 CACHE_BASE_EDK2_PREFIX = "source/cache/base/edk2/"
@@ -538,11 +555,31 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
 
 
 def rendered_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
-    path = repo / "config" / "refs" / VARIANT_TREE_MANIFEST
+    cache_key = str(repo.resolve())
+    if cache_key in _RENDERED_REF_RECORD_CACHE:
+        return _RENDERED_REF_RECORD_CACHE[cache_key]
+    path = repo / "config" / VARIANT_CACHE_MANIFEST
     if not path.exists():
         return {}
-    records = ref_manifest_records(repo, VARIANT_TREE_MANIFEST)
+    records = ref_manifest_records(repo, VARIANT_CACHE_MANIFEST)
     by_ref = {record["ref"]: record for record in records if record.get("ref")}
+    for ref in radxa_source_refs(repo):
+        match = RADXA_SOURCE_RE.match(ref)
+        if not match:
+            continue
+        release = release_for_edk2_ref(match.group("edk2"))
+        radxa = match.group("radxa")
+        branch = f"{CACHE_RELEASE_PREFIX}upstream/edk2-{release}/radxa-{radxa}"
+        by_ref.setdefault(
+            branch,
+            {
+                "ref": branch,
+                "immutable": True,
+                "type": "rendered-upstream-radxa-release",
+                "tree_id": tree_id(repo, ref),
+                "derived_from": ref,
+            },
+        )
     for ref, record in list(by_ref.items()):
         try:
             parts = release_branch_parts(ref)
@@ -557,15 +594,47 @@ def rendered_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
         alias_record["ref"] = alias
         alias_record["alias_of"] = ref
         by_ref[alias] = alias_record
+    _RENDERED_REF_RECORD_CACHE[cache_key] = by_ref
     return by_ref
 
 
 def base_tree_records(repo: Path) -> dict[str, dict[str, Any]]:
-    path = repo / "config" / "refs" / BASE_TREE_MANIFEST
-    if not path.exists():
-        return {}
-    records = ref_manifest_records(repo, BASE_TREE_MANIFEST)
-    return {record["ref"]: record for record in records if record.get("ref")}
+    cache_key = str(repo.resolve())
+    if cache_key in _BASE_TREE_RECORD_CACHE:
+        return _BASE_TREE_RECORD_CACHE[cache_key]
+    records: dict[str, dict[str, Any]] = {}
+    grouped: dict[str, dict[str, str]] = {}
+    paths = {
+        "edk2": "src/edk2",
+        "edk2-platforms": "src/edk2-platforms",
+        "edk2-non-osi": "src/edk2-non-osi",
+    }
+    for record in ref_manifest_records(repo, EDK2_REFS_MANIFEST):
+        component = record.get("component")
+        ref = record.get("ref")
+        if component not in paths or not isinstance(ref, str):
+            continue
+        edk2_ref = ref.rsplit("/", 1)[-1]
+        grouped.setdefault(edk2_ref, {})[component] = ref
+
+    for edk2_ref, components_by_name in sorted(grouped.items(), key=lambda item: version_key(item[0])):
+        if set(paths) - set(components_by_name):
+            continue
+        components = [
+            {"path": path, "ref": components_by_name[component]}
+            for component, path in paths.items()
+        ]
+        ref = f"{CACHE_BASE_EDK2_PREFIX}{edk2_ref}"
+        records[ref] = {
+            "ref": ref,
+            "component": "rendered-edk2-base",
+            "components": components,
+            "immutable": True,
+            "tree_id": component_skeleton_tree(repo, components),
+            "type": "component-skeleton",
+        }
+    _BASE_TREE_RECORD_CACHE[cache_key] = records
+    return records
 
 
 RELEASE_BRANCH_RE = re.compile(
@@ -838,9 +907,8 @@ def mktree_from_entries(repo: Path, entries: list[tuple[str, str, str, str]]) ->
     ).stdout.decode("ascii").strip()
 
 
-def commit_component_skeleton(repo: Path, components: list[dict[str, str]], message: str) -> str:
-    """Create a commit whose tree contains component refs at their configured paths."""
-
+def component_skeleton_tree(repo: Path, components: list[dict[str, str]]) -> str:
+    """Return the deterministic tree ID for component refs at configured paths."""
     root_entries: dict[str, dict[str, Any]] = {}
 
     def add_path(parts: list[str], oid: str, node: dict[str, Any]) -> None:
@@ -868,7 +936,13 @@ def commit_component_skeleton(repo: Path, components: list[dict[str, str]], mess
             entries.append(("040000", "tree", oid, name))
         return mktree_from_entries(repo, entries)
 
-    root_tree = build(root_entries)
+    return build(root_entries)
+
+
+def commit_component_skeleton(repo: Path, components: list[dict[str, str]], message: str) -> str:
+    """Create a commit whose tree contains component refs at their configured paths."""
+
+    root_tree = component_skeleton_tree(repo, components)
     return subprocess.run(
         ["git", "-C", str(repo), "commit-tree", root_tree, "-m", message],
         stdout=subprocess.PIPE,
@@ -882,7 +956,7 @@ def render_base_tree_commit(repo: Path, base_ref: str) -> str:
 
     record = base_tree_records(repo).get(base_ref)
     if not record:
-        raise ReconstructionError(f"generated base cache is not described by {BASE_TREE_MANIFEST}: {base_ref}")
+        raise ReconstructionError(f"generated base cache cannot be derived from {EDK2_REFS_MANIFEST}: {base_ref}")
     components = record.get("components", [])
     if not components:
         raise ReconstructionError(f"generated base cache is missing component metadata: {base_ref}")
@@ -1026,10 +1100,7 @@ def is_dirty_worktree(path: Path) -> bool:
 
 def load_ref_records(repo: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    refs_dir = repo / "config" / "refs"
-    if not refs_dir.exists():
-        return records
-    for path in sorted(refs_dir.glob("*.json")):
+    for path in sorted((repo / "config").glob("refs-*.json")):
         for record in ref_manifest_records(repo, path.name):
             record = dict(record)
             record.setdefault("manifest", str(path.relative_to(repo)))
@@ -1038,11 +1109,11 @@ def load_ref_records(repo: Path) -> list[dict[str, Any]]:
 
 
 def update_ref_record(repo: Path, manifest_name: str, ref: str, updates: dict[str, Any]) -> None:
-    """Update or create a config/refs record for a ref moved by an explicit workflow."""
+    """Update or create a config refs-* record for a ref moved by an explicit workflow."""
 
-    path = repo / "config" / "refs" / manifest_name
+    path = repo / "config" / manifest_name
     if path.exists():
-        data = load_json(repo, f"config/refs/{manifest_name}")
+        data = load_json(repo, f"config/{manifest_name}")
     else:
         data = {"refs": []}
     records = data.setdefault("refs", [])
@@ -1080,6 +1151,7 @@ def update_ref_record(repo: Path, manifest_name: str, ref: str, updates: dict[st
             record[key] = value
     data["refs"] = sorted(records, key=manifest_record_sort_key)
     write_json(path, data)
+    clear_metadata_caches()
 
 
 def refresh_ref_record(repo: Path, manifest_name: str, ref: str, extra: dict[str, Any] | None = None) -> None:
@@ -1099,7 +1171,7 @@ def refresh_release_tree(repo: Path, branch: str) -> None:
     manifest_branch = alias_target_for(branch, parts) or branch
     update_ref_record(
         repo,
-        VARIANT_TREE_MANIFEST,
+        VARIANT_CACHE_MANIFEST,
         manifest_branch,
         {
             "object_id": None,
@@ -1148,7 +1220,7 @@ def check_immutable_refs(repo: Path, allow_manifest_update: bool = False, refs: 
     if not allow_manifest_update and not wanted:
         for ref in immutable_namespace_refs(repo):
             if ref not in recorded_refs:
-                problems.append(f"{ref}: immutable namespace ref is not recorded in config/refs/*.json")
+                problems.append(f"{ref}: immutable namespace ref is not recorded in config/refs-*.json")
     for record in records:
         ref = record.get("ref")
         if not ref or (wanted and ref not in wanted):

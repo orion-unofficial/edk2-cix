@@ -11,7 +11,11 @@ from pathlib import Path
 
 from reconstruction_common import (
     CACHE_BASE_EDK2_PREFIX,
+    ARM_REFS_MANIFEST,
+    CIX_REFS_MANIFEST,
+    EDK2_REFS_MANIFEST,
     RADXA_SOURCE_RE,
+    RADXA_REFS_MANIFEST,
     ReconstructionError,
     check_immutable_refs,
     git,
@@ -123,7 +127,7 @@ def remote_url(repo: Path, *, component: str = "", vendor: str = "", remote_type
 def cix_component_records(repo: Path, release: str) -> list[dict[str, str]]:
     release = release.removeprefix("v")
     records = []
-    for record in load_json(repo, "config/refs/cix.json").get("refs", []):
+    for record in load_json(repo, f"config/{CIX_REFS_MANIFEST}").get("refs", []):
         ref = str(record.get("ref", ""))
         if not ref.startswith(f"source/component/cix/{release}/"):
             continue
@@ -176,14 +180,14 @@ def fetch_to_ref(repo: Path, remote: str, source: str, target: str, verbose: boo
 
 def manifest_path_for(target: str) -> str:
     if target.startswith(("source/base/edk2/", "source/base/edk2-platforms/", "source/base/edk2-non-osi/")):
-        return "config/refs/edk2.json"
+        return f"config/{EDK2_REFS_MANIFEST}"
     if target.startswith("source/base/arm/"):
-        return "config/refs/arm.json"
+        return f"config/{ARM_REFS_MANIFEST}"
     if target.startswith("source/component/cix/"):
-        return "config/refs/cix.json"
+        return f"config/{CIX_REFS_MANIFEST}"
     if target.startswith(("source/vendor/radxa/", "source/port/radxa/")):
-        return "config/refs/radxa.json"
-    return "config/refs/integrated.json"
+        return f"config/{RADXA_REFS_MANIFEST}"
+    return "config/refs-integrated.json"
 
 
 def radxa_vendor_refs(repo: Path, release: str) -> list[str]:
@@ -275,7 +279,7 @@ def upsert_edk2_manifest(repo: Path, path: Path, target: str, record: dict) -> N
 
 def upsert_manifest(repo: Path, target: str, record: dict) -> None:
     path = repo / manifest_path_for(target)
-    if path.name == "edk2.json":
+    if path.name == EDK2_REFS_MANIFEST:
         upsert_edk2_manifest(repo, path, target, record)
         return
     if path.exists():
@@ -422,14 +426,14 @@ def main() -> None:
         records = cix_component_records(repo, args.release)
         if not records:
             raise ReconstructionError(
-                f"no CIX component records found for release {args.release} in config/refs/cix.json"
+                f"no CIX component records found for release {args.release} in config/{CIX_REFS_MANIFEST}"
             )
         for item in records:
             remote = cix_record_remote(repo, item)
             source = str(item.get("upstream_ref") or item.get("object_id") or "")
             target = str(item.get("ref", ""))
             if not source or not target:
-                raise ReconstructionError(f"incomplete CIX component record in config/refs/cix.json: {item}")
+                raise ReconstructionError(f"incomplete CIX component record in config/{CIX_REFS_MANIFEST}: {item}")
             operations.append((
                 remote,
                 source,
@@ -504,7 +508,7 @@ def main() -> None:
         else:
             fetch_to_ref(repo, remote, source, target, verbose, allow_replace)
         upsert_manifest(repo, target, manifest_record(repo, target, **meta))
-    print("integration refs and config/refs metadata updated")
+    print("integration refs and config metadata updated")
 
 
 if __name__ == "__main__":

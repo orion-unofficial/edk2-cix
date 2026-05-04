@@ -37,7 +37,7 @@ Checks:
   - rendered tree has no gitlinks
   - rendered tree has no active root .gitmodules
   - missing source/cache/release refs can be regenerated from source refs
-  - immutable source refs match config/refs metadata
+  - immutable source refs match config refs metadata
   - git log and git blame work on representative paths when a worktree is supplied
 """
 

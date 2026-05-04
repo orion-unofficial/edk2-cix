@@ -7,8 +7,7 @@ import argparse
 from pathlib import Path
 
 from reconstruction_common import (
-    BASE_TREE_MANIFEST,
-    VARIANT_TREE_MANIFEST,
+    VARIANT_CACHE_MANIFEST,
     ReconstructionError,
     base_tree_records,
     main_wrapper,
@@ -64,13 +63,13 @@ def validate_variant_manifest(repo: Path, verbose: bool) -> list[str]:
     problems: list[str] = []
     records = rendered_ref_records(repo)
     generated = release_entries(repo)
-    manifest_records = ref_manifest_records(repo, VARIANT_TREE_MANIFEST)
+    manifest_records = ref_manifest_records(repo, VARIANT_CACHE_MANIFEST)
     manifest_refs = [record.get("ref") for record in manifest_records]
     if len(set(manifest_refs)) != len(manifest_refs):
-        problems.append(f"{VARIANT_TREE_MANIFEST}: duplicate ref records after expansion")
+        problems.append(f"{VARIANT_CACHE_MANIFEST}: duplicate ref records after expansion")
     for ref, record in sorted(records.items()):
         if ref not in generated:
-            problems.append(f"{VARIANT_TREE_MANIFEST}: record is not derivable from source refs: {ref}")
+            problems.append(f"{VARIANT_CACHE_MANIFEST}: record is not derivable from source refs: {ref}")
             continue
         expected_type = expected_variant_type(ref)
         if record.get("type") != expected_type:
@@ -98,9 +97,6 @@ def validate_variant_manifest(repo: Path, verbose: bool) -> list[str]:
 def validate_base_manifest(repo: Path, verbose: bool) -> list[str]:
     problems: list[str] = []
     records = base_tree_records(repo)
-    raw_count = len(ref_manifest_records(repo, BASE_TREE_MANIFEST))
-    if raw_count != len(records):
-        problems.append(f"{BASE_TREE_MANIFEST}: duplicate or missing ref records after expansion")
     for ref, record in sorted(records.items()):
         edk2_ref = ref.rsplit("/", 1)[-1]
         if record.get("type") != "component-skeleton":

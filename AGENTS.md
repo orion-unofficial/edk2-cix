@@ -26,7 +26,7 @@ the old refs:
 
 The manifests and policies on this branch are also required source metadata:
 
-- `config/refs/*.json`
+- `config/refs-*.json`
 - `config/remotes.json`
 - `config/policies.json`
 
@@ -45,8 +45,8 @@ variants are derivable and a representative `make verify-release-branch
 RELEASE=<variant>` can regenerate a missing variant from the required refs above.
 
 `refs/heads/source/cache/base/edk2/**` refs are generated EDK2 component skeleton
-caches. They may likewise be omitted when `config/refs/base-tree_id.json` and
-the referenced EDK2 component refs are present.
+caches. They may likewise be omitted when `config/refs-edk2.json` and the
+referenced EDK2 component refs are present.
 
 ## Before Pruning
 

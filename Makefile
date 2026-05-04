@@ -15,6 +15,7 @@ INSTALL_SOURCE ?=
 FORCE ?= 0
 DELETE ?= 0
 REPACK ?= 1
+KEEP ?= 0
 ARTEFACT_MODE ?= custom
 FIRMWARE_BOARD ?= O6
 FIRMWARE_TARGET ?= RELEASE
@@ -61,7 +62,7 @@ endef
 .PHONY: help help-vars help-dev help-variants help-releases all build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-unofficial-commits \
-	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity check-identity-integrity ref-report cleanup-report export-minimal-repo \
+	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity verify-minimal-repo check-identity-integrity ref-report cleanup-report export-minimal-repo \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
 	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help
 
@@ -112,6 +113,7 @@ help-dev:
 	print_help_line 'make verify-build-matrix' 'Validate build/source variant combinations derived from source refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
 	print_help_line 'make verify-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
+	print_help_line 'make verify-minimal-repo' 'Export and clone a minimal repo, then verify that it can render the default variant.'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
@@ -144,7 +146,8 @@ help-dev:
 	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-integrity.'; \
 	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan persistent unofficial/Radxa source refs in check-identity-integrity.'; \
 	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
-	print_help_line 'DIR=<path>' 'Destination directory for export-minimal-repo.'; \
+	print_help_line 'DIR=<path>' 'Destination directory for export-minimal-repo, or optional workspace directory for verify-minimal-repo.'; \
+	print_help_line 'KEEP=0|1' 'Keep the temporary verification workspace created by verify-minimal-repo.\nDefault: 0.'; \
 	print_help_line 'REPACK=0|1' 'Repack the destination produced by export-minimal-repo.\nDefault: 1.'; \
 	print_section 'Rendering and Qualification Variables'; \
 	print_help_line 'RELEASE=<variant>' 'Firmware variant name for render-release-branch and verify-release-branch.'; \
@@ -251,6 +254,9 @@ verify-manifest-integrity:
 
 verify-ref-integrity:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/verify_ref_integrity.py --v "$(V)"
+
+verify-minimal-repo:
+	@DEBUG="$(DEBUG)" DIR="$(DIR)" KEEP="$(KEEP)" REPACK="$(REPACK)" V="$(V)" $(PYTHON) scripts/verify_minimal_repo.py --dir "$(DIR)" --keep "$(KEEP)" --repack "$(REPACK)" --v "$(V)"
 
 extract-vendor-delta:
 	@DEBUG="$(DEBUG)" VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"

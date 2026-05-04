@@ -11,6 +11,8 @@ from typing import Any
 from reconstruction_common import (
     CACHE_BASE_EDK2_PREFIX,
     CACHE_RELEASE_PREFIX,
+    EDK2_REFS_MANIFEST,
+    VARIANT_CACHE_MANIFEST,
     ReconstructionError,
     base_tree_records,
     for_each_ref,
@@ -45,7 +47,7 @@ Checks:
   - every firmware variant branch/ref derived from source refs is renderable
   - required base, vendor, component, and unofficial refs exist
   - retained source/cache/release branches are all derivable from source refs
-  - retained source/cache/release branches match config/refs/variant-tree_id.json tree IDs
+  - retained source/cache/release branches match config/refs-variant-cache.json tree IDs
   - Radxa vendor/port source refs and regenerable rendered-base cache plans cover every supported EDK2 release
   - obsolete source/delta/unofficial refs are absent
   - unofficial compatibility tags are reachable from retained source/unofficial branches
@@ -155,7 +157,7 @@ def require_manifested_release_entries(
     extra_records = sorted(set(rendered_records) - expected_releases)
     if extra_records:
         problems.append(
-            "config/refs/variant-tree_id.json contains variants not derivable from current source refs:\n"
+            f"config/{VARIANT_CACHE_MANIFEST} contains variants not derivable from current source refs:\n"
             + "\n".join(f"  - {r}" for r in extra_records)
         )
 
@@ -164,7 +166,7 @@ def require_manifested_release_entries(
             continue
         expected_tree = releases[ref].get("tree_id")
         if expected_tree and tree_id(repo, ref) != expected_tree:
-            problems.append(f"{ref}: tree ID differs from config/refs/variant-tree_id.json ({tree_id(repo, ref)} != {expected_tree})")
+            problems.append(f"{ref}: tree ID differs from config/{VARIANT_CACHE_MANIFEST} ({tree_id(repo, ref)} != {expected_tree})")
         if verbose:
             print(f"retained variant ok: {ref}")
 
@@ -221,7 +223,7 @@ def require_source_refs(
     non_regenerable_base = sorted(ref for ref in missing_base_rendered if ref not in base_records)
     if non_regenerable_base:
         problems.append(
-            "source/cache/base/edk2 cache refs are missing and not regenerable from config/refs/base-tree_id.json:\n"
+            f"source/cache/base/edk2 cache refs are missing and not derivable from config/{EDK2_REFS_MANIFEST}:\n"
             + "\n".join(f"  - {r}" for r in non_regenerable_base)
         )
     missing_base_components: list[str] = []

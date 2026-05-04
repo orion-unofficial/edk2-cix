@@ -26,7 +26,7 @@ def git_files(*patterns: str) -> list[str]:
 
 
 def lint_json() -> None:
-    files = git_files("config/*.json", "config/refs/*.json")
+    files = git_files("config/*.json")
     for file_name in files:
         with Path(file_name).open("r", encoding="utf-8") as f:
             json.load(f)
@@ -61,6 +61,7 @@ def test() -> None:
     run(["make", "verify-build-matrix", "--no-print-directory"])
     run(["make", "verify-manifest-integrity", "--no-print-directory"])
     run(["make", "verify-ref-integrity", "--no-print-directory"])
+    run(["make", "verify-minimal-repo", "REPACK=0", "--no-print-directory"])
     run(["make", "ref-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
     run(["make", "cleanup-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
     run(["make", "prune", "--no-print-directory"], stdout=subprocess.DEVNULL)

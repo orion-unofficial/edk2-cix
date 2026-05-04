@@ -20,7 +20,7 @@
     ],
     "mutable_unofficial_ref": "source/unofficial/current",
     "rules": [
-      "config/refs/*.json records expected object IDs and tree IDs",
+      "config/refs-*.json records expected object IDs and tree IDs where those values are not derived",
       "scripts compare immutable refs against manifests before use",
       "unmanifested refs under immutable namespaces cause an abort outside integration workflows",
       "if an immutable ref moved outside integrate-source-release, abort",
@@ -31,15 +31,16 @@
     ]
   },
   "rendered_base_policy": {
-    "manifest": "config/refs/base-tree_id.json",
+    "derived_from": "config/refs-edk2.json",
     "rules": [
       "source/cache/base/edk2/** refs are generated EDK2 component skeleton caches rather than irreducible source inputs",
-      "a pruned clone may omit source/cache/base/edk2/** branches when config/refs/base-tree_id.json and the referenced component refs are present",
+      "a pruned clone may omit source/cache/base/edk2/** branches when config/refs-edk2.json and the referenced component refs are present",
+      "generated skeleton tree IDs are derived from the referenced EDK2, edk2-platforms, and edk2-non-osi component refs",
       "generated skeleton commits are validated by tree ID rather than object ID because commit metadata may differ after regeneration"
     ]
   },
   "rendered_branch_policy": {
-    "manifest": "config/refs/variant-tree_id.json",
+    "manifest": "config/refs-variant-cache.json",
     "requirements": [
       "source/cache/release/** refs are generated firmware artefacts, not irreducible source inputs.",
       "A pruned clone may omit source/cache/release/** branches when the source/base, source/vendor or source/port, source/component, and source/unofficial refs needed to regenerate them are present.",
@@ -79,7 +80,7 @@
       "unofficial compatibility tags mark full unofficial source checkpoints for each supported EDK2 release",
       "each unofficial compatibility tag must be reachable from its matching retained source/unofficial/edk2-stable* branch",
       "tag names must not exactly duplicate branch names",
-      "base, CIX, and Radxa source versions are recorded as branches plus config/refs metadata; duplicating them as tags is optional and not required by the build model"
+      "base, CIX, and Radxa source versions are recorded as branches plus config refs metadata; duplicating them as tags is optional and not required by the build model"
     ]
   }
 }

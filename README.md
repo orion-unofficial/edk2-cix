@@ -17,7 +17,7 @@ make help-variants
 
 ## How do I build the latest firmware?
 
-The default firmware variant is derived from the latest available supported EDK2 release, CIX release, Radxa release, and unofficial source checkpoint. The supported variant set is generated from source refs such as `source/base/edk2/**`, `source/vendor/radxa/**`, `source/port/radxa/**`, `source/component/cix/**`, and the source/ref manifests under `config/refs/`. If you do not set `RELEASE=...`, the build targets use that derived default variant. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
+The default firmware variant is derived from the latest available supported EDK2 release, CIX release, Radxa release, and unofficial source checkpoint. The supported variant set is generated from source refs such as `source/base/edk2/**`, `source/vendor/radxa/**`, `source/port/radxa/**`, `source/component/cix/**`, and the source/ref manifests under `config/`. If you do not set `RELEASE=...`, the build targets use that derived default variant. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
 
 For a normal single firmware build, choose the board and build target:
 
@@ -111,7 +111,7 @@ make render-release-branch \
   PERSIST=1 REBUILD=1 FORCE=1
 ```
 
-That command also refreshes the variant tree-ID metadata in `config/refs/variant-tree_id.json`.
+That command also refreshes the variant tree-ID metadata in `config/refs-variant-cache.json`.
 
 A configured build variation is considered supported only when all of its source inputs are recorded locally. At a high level, this means:
 
@@ -121,7 +121,7 @@ A configured build variation is considered supported only when all of its source
 - the compatible unofficial project source checkpoint is present
 - `source/base/edk2/edk2-stable*` refs declare the supported EDK2 release set from `202208` onward
 - the chosen Radxa, CIX, and unofficial source layers are present as repo refs
-- `config/refs/*.json` records the source and rendered tree IDs needed to verify it
+- `config/refs-*.json` records the source and rendered tree IDs needed to verify it
 - the build policy records the relevant distro defaults and replay availability
 
 Run this to check that the derived build matrix and available refs agree:
@@ -134,7 +134,7 @@ make verify-build-matrix
 
 The firmware tree is built from several layers rather than from one permanent monolithic branch.
 
-`source/base/**` branches contain upstream sources, such as EDK2, TF-A, and OP-TEE, at recorded versions. For EDK2 releases, the separate upstream `edk2`, `edk2-platforms`, and `edk2-non-osi` repos are combined into generated `source/cache/base/edk2/**` skeleton caches when needed. Those cache refs are not required source data when `config/refs/base-tree_id.json` and the referenced component refs are present.
+`source/base/**` branches contain upstream sources, such as EDK2, TF-A, and OP-TEE, at recorded versions. For EDK2 releases, the separate upstream `edk2`, `edk2-platforms`, and `edk2-non-osi` repos are combined into generated `source/cache/base/edk2/**` skeleton caches when needed. Those cache refs are not required source data when `config/refs-edk2.json` and the referenced component refs are present. The base-cache tree IDs are derived from that EDK2 ref metadata rather than stored in a separate manifest.
 
 `source/component/cix/**` branches contain CIX-provided components. CIX publishes OP-TEE under a `tee` directory, but this source model records that component as `op-tee`.
 
@@ -142,7 +142,7 @@ The firmware tree is built from several layers rather than from one permanent mo
 
 `source/unofficial/**` branches contain this project's unofficial firmware changes as normal source trees. Release-specific branches such as `source/unofficial/edk2-stable202602` are compatibility checkpoints known to build with a selected EDK2 release. `source/unofficial/current` is the current development checkpoint.
 
-Render plans are derived from the selected variant name and available source refs, then verified against the ref metadata in `config/refs/`.
+Render plans are derived from the selected variant name and available source refs, then verified against the ref metadata in `config/`.
 
 Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`. That report is mainly a diagnostic and audit aid: it records which submodule paths were flattened, which commit IDs were used, which URL was recorded for each submodule, and which `.gitmodules` file supplied that mapping. You can usually ignore it when a build succeeds, but it is useful when checking that a rendered branch contains ordinary files rather than active submodules.
 
@@ -169,7 +169,7 @@ make render-release-branch \
 git switch -c my-change source/cache/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/unofficial
 ```
 
-The supported workflows guard `source/base/**`, `source/vendor/**`, `source/port/**`, and `source/component/cix/**` refs by comparing them against the expected object IDs and tree IDs in `config/refs/*.json`. Git itself does not make those branch names immutable, so do not edit or move them by hand. If a guarded ref moved unexpectedly, or is checked out in a dirty worktree, the scripts abort before using it. Only `make integrate-source-release` should create or advance those refs.
+The supported workflows guard `source/base/**`, `source/vendor/**`, `source/port/**`, and `source/component/cix/**` refs by comparing them against the expected object IDs and tree IDs in `config/refs-*.json`. Git itself does not make those branch names immutable, so do not edit or move them by hand. If a guarded ref moved unexpectedly, or is checked out in a dirty worktree, the scripts abort before using it. Only `make integrate-source-release` should create or advance those refs.
 
 ## How do I persist development changes back to `source/unofficial/current`?
 
@@ -220,7 +220,7 @@ make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=e
 make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202602 RADXA_SOURCE=port REF=<ported-ref>
 ```
 
-When the dry run is correct, add `WRITE=1`. The same change updates `config/refs/*.json` with the new object IDs and tree IDs before being committed.
+When the dry run is correct, add `WRITE=1`. The same change updates `config/refs-*.json` with the new object IDs and tree IDs before being committed.
 
 `TYPE=upstream` is for base components: `edk2`, `edk2-platforms`, `edk2-non-osi`, `tf-a`, or `op-tee`. `TYPE=vendor` is for a vendor integration target. `VENDOR=radxa` records an actual Radxa-published source tree under `source/vendor/radxa/**` or this project's port of that source tree under `source/port/radxa/**`. `VENDOR=cix` updates the CIX release bundle, whose TF-A and OP-TEE contents are tracked as separate internal components so future Arm-upstream uplifts remain possible.
 
@@ -247,7 +247,7 @@ The CIX bundle records original vendor provenance. To start an experimental upli
 
 4. Add or update a firmware variant entry that selects the uplifted component ref, render it, and run the same build/audit qualification used for EDK2 releases.
 
-The component port itself is intentionally a source-level engineering step rather than an automatic patch replay. The deterministic part starts once the reviewed component ref is recorded in `source/component/cix/**` and `config/refs/cix.json`.
+The component port itself is intentionally a source-level engineering step rather than an automatic patch replay. The deterministic part starts once the reviewed component ref is recorded in `source/component/cix/**` and `config/refs-cix.json`.
 
 Radxa non-release updates use the same vendor integration path. First update or fetch the vendor source branch into a local ref, then give the source checkpoint a release-like name that records the most recent release plus the vendor commit, for example:
 
@@ -290,6 +290,14 @@ make export-minimal-repo DIR=/path/to/edk2-cix.minimal.git
 
 The destination directory must be empty or absent. Generated `source/cache/**`, legacy, private, and diagnostic branches are omitted from the export.
 
+To prove that a minimal export can be cloned normally, validated, and used to render the default variant, run:
+
+```bash
+make verify-minimal-repo
+```
+
+This creates a temporary verification workspace under `.cache/edk2-cix/tmp` and removes it when the check completes. Set `KEEP=1` to retain that workspace for inspection, or `DIR=<path>` to choose an explicit workspace directory.
+
 ## How do I project `source/unofficial/current` to a materialised firmware branch?
 
 Render a configured variant that includes the unofficial layer:
@@ -317,7 +325,7 @@ Integrate the upstream component using an explicit `REF` or a release-like name 
 make integrate-source-release TYPE=upstream COMPONENT=edk2 REF=<upstream-object> RELEASE=floating-test WRITE=1
 ```
 
-Floating-tip tests should use clearly named experimental refs and should not replace stable `source/base/**` refs until the release mapping and validation results are recorded in `config/refs/`.
+Floating-tip tests should use clearly named experimental refs and should not replace stable `source/base/**` refs until the release mapping and validation results are recorded in `config/`.
 
 ## How do I work when an upstream remote is unavailable?
 
@@ -341,6 +349,7 @@ make test
 make lint
 make verify-build-matrix
 make verify-manifest-integrity
+make verify-minimal-repo
 make check-identity-integrity
 make ref-report
 ```
