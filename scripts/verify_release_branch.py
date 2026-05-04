@@ -17,6 +17,7 @@ from reconstruction_common import (
     main_wrapper,
     ref_exists,
     release_entry,
+    resolve_ref,
     repo_root,
     truthy,
 )
@@ -51,7 +52,8 @@ def parser() -> argparse.ArgumentParser:
 
 
 def tree_has_path(repo: Path, ref: str, path: str) -> bool:
-    return git(repo, "cat-file", "-e", f"{ref}:{path}", check=False).returncode == 0
+    resolved_ref = resolve_ref(repo, ref)
+    return git(repo, "cat-file", "-e", f"{resolved_ref}:{path}", check=False).returncode == 0
 
 
 def text_sample_paths(repo: Path, ref: str) -> list[str]:
@@ -65,7 +67,7 @@ def text_sample_paths(repo: Path, ref: str) -> list[str]:
     paths = [p for p in preferred if tree_has_path(repo, ref, p)]
     if paths:
         return paths[:3]
-    result = git(repo, "ls-tree", "-r", "--name-only", ref)
+    result = git(repo, "ls-tree", "-r", "--name-only", resolve_ref(repo, ref))
     return [line for line in result.stdout.splitlines() if line][:3]
 
 
@@ -91,7 +93,7 @@ def main() -> None:
 
     check_immutable_refs(repo)
 
-    tree = git(repo, "ls-tree", "-r", ref).stdout.splitlines()
+    tree = git(repo, "ls-tree", "-r", resolve_ref(repo, ref)).stdout.splitlines()
     gitlinks = [line for line in tree if line.startswith("160000 ")]
     if gitlinks:
         sample = "\n".join(f"  {line}" for line in gitlinks[:20])

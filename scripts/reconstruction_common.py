@@ -268,11 +268,49 @@ def latest_value(values: Iterable[str], label: str) -> str:
     return values[-1]
 
 
+def source_ref_candidates(ref: str) -> list[str]:
+    """Return equivalent local and remote-tracking names for source refs."""
+
+    if ref.startswith("refs/"):
+        return [ref]
+    if not ref.startswith("source/"):
+        return [ref]
+    return [f"refs/heads/{ref}", ref, f"refs/remotes/origin/{ref}"]
+
+
+def resolve_ref(repo: Path, ref: str, check: bool = True) -> str | None:
+    """Resolve a ref, accepting origin/source/** when local source heads are absent."""
+
+    for candidate in source_ref_candidates(ref):
+        result = git(
+            repo,
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            f"{candidate}^{{commit}}",
+            check=False,
+        )
+        if result.returncode == 0:
+            return candidate
+    if check:
+        raise ReconstructionError(f"ref is unavailable locally: {ref}")
+    return None
+
+
 def for_each_ref(repo: Path, namespace: str) -> list[str]:
-    result = git(repo, "for-each-ref", "--format=%(refname:lstrip=2)", f"refs/heads/{namespace}", check=False)
-    if result.returncode != 0:
-        return []
-    return sorted((line for line in result.stdout.splitlines() if line), key=version_key)
+    refs: set[str] = set()
+    prefixes = [
+        ("refs/heads/", f"refs/heads/{namespace}"),
+        ("refs/remotes/origin/", f"refs/remotes/origin/{namespace}"),
+    ]
+    for strip_prefix, query in prefixes:
+        result = git(repo, "for-each-ref", "--format=%(refname)", query, check=False)
+        if result.returncode != 0:
+            continue
+        for line in result.stdout.splitlines():
+            if line.startswith(strip_prefix):
+                refs.add(line[len(strip_prefix) :])
+    return sorted(refs, key=version_key)
 
 
 def release_to_branch(release: str) -> str:
@@ -680,27 +718,33 @@ def safe_name(value: str) -> str:
 
 
 def ref_exists(repo: Path, ref: str) -> bool:
-    return git(repo, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False).returncode == 0
+    return resolve_ref(repo, ref, check=False) is not None
 
 
 def rev_parse(repo: Path, ref: str) -> str:
-    return git(repo, "rev-parse", f"{ref}^{{commit}}").stdout.strip()
+    resolved = resolve_ref(repo, ref)
+    return git(repo, "rev-parse", f"{resolved}^{{commit}}").stdout.strip()
 
 
 def tree_id(repo: Path, ref: str) -> str:
-    return git(repo, "rev-parse", f"{ref}^{{tree}}").stdout.strip()
+    resolved = resolve_ref(repo, ref)
+    return git(repo, "rev-parse", f"{resolved}^{{tree}}").stdout.strip()
 
 
 def ref_type(repo: Path, ref: str) -> str | None:
-    result = git(repo, "cat-file", "-t", ref, check=False)
+    resolved = resolve_ref(repo, ref, check=False) or ref
+    result = git(repo, "cat-file", "-t", resolved, check=False)
     if result.returncode != 0:
         return None
     return result.stdout.strip()
 
 
 def show_file(repo: Path, ref: str, path: str, check: bool = True) -> bytes:
+    resolved = resolve_ref(repo, ref, check=check)
+    if resolved is None:
+        return b""
     result = subprocess.run(
-        ["git", "-C", str(repo), "show", f"{ref}:{path}"],
+        ["git", "-C", str(repo), "show", f"{resolved}:{path}"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
@@ -857,8 +901,9 @@ def render_base_tree_commit(repo: Path, base_ref: str) -> str:
 
 
 def resolve_ref_or_generated_cache(repo: Path, ref: str) -> str:
-    if ref_exists(repo, ref):
-        return ref
+    resolved = resolve_ref(repo, ref, check=False)
+    if resolved:
+        return resolved
     if ref.startswith(CACHE_BASE_EDK2_PREFIX):
         return render_base_tree_commit(repo, ref)
     raise ReconstructionError(f"ref is unavailable locally and is not a generated cache ref: {ref}")
@@ -866,13 +911,14 @@ def resolve_ref_or_generated_cache(repo: Path, ref: str) -> str:
 
 def delta_metadata(repo: Path, base_ref: str, target_ref: str, kind: str, name: str) -> dict[str, Any]:
     gitlinks = []
-    for line in git(repo, "ls-tree", "-r", target_ref).stdout.splitlines():
+    resolved_target = resolve_ref(repo, target_ref)
+    for line in git(repo, "ls-tree", "-r", resolved_target).stdout.splitlines():
         if line.startswith("160000 "):
             meta, path = line.split("\t", 1)
             _mode, _kind, oid = meta.split()
             gitlinks.append({"path": path, "object_id": oid})
     gitmodules = []
-    for line in git(repo, "ls-tree", "-r", target_ref).stdout.splitlines():
+    for line in git(repo, "ls-tree", "-r", resolved_target).stdout.splitlines():
         if "\t" in line:
             path = line.split("\t", 1)[1]
             if path == ".gitmodules" or path.endswith("/.gitmodules"):
@@ -912,8 +958,10 @@ def create_delta_artefact(
     old = rev_parse(repo, artefact_ref) if ref_exists(repo, artefact_ref) else None
     if old and not allow_replace:
         raise ReconstructionError(f"delta artefact ref already exists: {artefact_ref}")
+    resolved_base = resolve_ref(repo, base_ref)
+    resolved_target = resolve_ref(repo, target_ref)
     diff_result = subprocess.run(
-        ["git", "-C", str(repo), "diff", "--binary", "--full-index", f"{base_ref}..{target_ref}"],
+        ["git", "-C", str(repo), "diff", "--binary", "--full-index", f"{resolved_base}..{resolved_target}"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,

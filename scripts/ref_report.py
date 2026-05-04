@@ -18,6 +18,7 @@ from reconstruction_common import (
     rendered_ref_records,
     release_entries,
     repo_root,
+    resolve_ref,
     rev_parse,
     truthy,
     worktree_paths,
@@ -95,7 +96,7 @@ def local_tag_problems(repo: Path) -> list[str]:
         if not ref_exists(repo, branch):
             problems.append(f"{tag}: matching branch is missing: {branch}")
             continue
-        result = git(repo, "merge-base", "--is-ancestor", rev_parse(repo, tag), branch, check=False)
+        result = git(repo, "merge-base", "--is-ancestor", rev_parse(repo, tag), resolve_ref(repo, branch), check=False)
         if result.returncode != 0:
             problems.append(f"{tag}: tag commit is not reachable from {branch}")
     return problems

@@ -8,7 +8,7 @@ import os
 import re
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, git, main_wrapper, repo_root, truthy
+from reconstruction_common import ReconstructionError, for_each_ref, git, main_wrapper, repo_root, resolve_ref, truthy
 
 
 HELP = """check-identity-integrity
@@ -96,17 +96,24 @@ def scan_commits(repo: Path) -> list[str]:
 
 
 def source_refs(repo: Path) -> list[str]:
-    result = git(
+    refs = set()
+    for namespace in [
+        "source/unofficial",
+        "source/vendor/radxa",
+        "source/port/radxa",
+        "source/cache/release/custom",
+    ]:
+        refs.update(for_each_ref(repo, namespace))
+    tags = git(
         repo,
         "for-each-ref",
         "--format=%(refname:short)",
-        "refs/heads/source/unofficial",
         "refs/tags/source/unofficial/edk2",
-        "refs/heads/source/vendor/radxa",
-        "refs/heads/source/port/radxa",
-        "refs/heads/source/cache/release/custom",
+        check=False,
     )
-    return [line for line in result.stdout.splitlines() if line]
+    if tags.returncode == 0:
+        refs.update(line for line in tags.stdout.splitlines() if line)
+    return sorted(refs)
 
 
 def scan_source_refs(repo: Path, verbose: bool) -> list[str]:
@@ -115,13 +122,14 @@ def scan_source_refs(repo: Path, verbose: bool) -> list[str]:
     for ref in source_refs(repo):
         if verbose:
             print(f"scan ref {ref}")
-        commit = git(repo, "log", "-1", "--format=%H%x00%B", ref, check=False)
+        resolved_ref = resolve_ref(repo, ref, check=False) or ref
+        commit = git(repo, "log", "-1", "--format=%H%x00%B", resolved_ref, check=False)
         if commit.returncode == 0:
             commit_text = commit.stdout
             for match in re.finditer(pattern, commit_text):
                 line = commit_text.count("\n", 0, match.start()) + 1
                 problems.append(f"{ref}:commit-message:{line}: old branch name: {match.group(0)}")
-        result = git(repo, "grep", "-n", "-I", "-E", pattern, ref, "--", ".", check=False)
+        result = git(repo, "grep", "-n", "-I", "-E", pattern, resolved_ref, "--", ".", check=False)
         if result.returncode == 0:
             problems.extend(f"{ref}: {line}" for line in result.stdout.splitlines())
         elif result.returncode != 1:

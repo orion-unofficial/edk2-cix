@@ -25,6 +25,7 @@ from reconstruction_common import (
     release_entries,
     release_entry,
     render_base_tree_commit,
+    resolve_ref,
     repo_root,
     rev_parse,
     safe_name,
@@ -112,8 +113,9 @@ def ensure_base_ref(repo: Path, entry: dict, verbose: bool) -> str | None:
     components = base.get("components", [])
     if not base_ref:
         return None
-    if ref_exists(repo, base_ref):
-        return base_ref
+    resolved_base_ref = resolve_ref(repo, base_ref, check=False)
+    if resolved_base_ref:
+        return resolved_base_ref
     releases = release_entries(repo)
     if base_ref in releases:
         if verbose:
@@ -150,8 +152,9 @@ def replace_component_path(repo: Path, worktree: Path, path: str, ref: str, verb
         raise ReconstructionError("component replacement path must not be empty")
     if verbose:
         print(f"Replacing {clean_path} from {ref}", file=sys.stderr)
+    resolved_ref = resolve_ref(repo, ref)
     git(worktree, "rm", "-r", "--ignore-unmatch", "--", clean_path, capture=not verbose)
-    git(worktree, "read-tree", f"--prefix={clean_path}/", "-u", ref, capture=not verbose)
+    git(worktree, "read-tree", f"--prefix={clean_path}/", "-u", resolved_ref, capture=not verbose)
 
 
 def gitlinks(worktree: Path) -> list[dict[str, str]]:

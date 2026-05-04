@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, git, main_wrapper, ref_exists, repo_root
+from reconstruction_common import ReconstructionError, git, main_wrapper, ref_exists, repo_root, resolve_ref
 
 
 HELP = """extract-vendor-delta
@@ -57,10 +57,12 @@ def main() -> None:
     for ref in [args.base_ref, args.vendor_ref]:
         if not ref_exists(repo, ref):
             raise ReconstructionError(f"ref is unavailable locally: {ref}")
+    base_ref = resolve_ref(repo, args.base_ref)
+    vendor_ref = resolve_ref(repo, args.vendor_ref)
 
-    stat = git(repo, "diff", "--stat", f"{args.base_ref}..{args.vendor_ref}").stdout
-    summary = git(repo, "diff", "--summary", f"{args.base_ref}..{args.vendor_ref}").stdout
-    changed = git(repo, "diff", "--name-status", f"{args.base_ref}..{args.vendor_ref}").stdout.splitlines()
+    stat = git(repo, "diff", "--stat", f"{base_ref}..{vendor_ref}").stdout
+    summary = git(repo, "diff", "--summary", f"{base_ref}..{vendor_ref}").stdout
+    changed = git(repo, "diff", "--name-status", f"{base_ref}..{vendor_ref}").stdout.splitlines()
     report = {
         "vendor": args.vendor,
         "base_ref": args.base_ref,
@@ -76,7 +78,7 @@ def main() -> None:
         out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if args.patch_output:
         patch_result = subprocess.run(
-            ["git", "-C", str(repo), "diff", "--binary", "--full-index", f"{args.base_ref}..{args.vendor_ref}"],
+            ["git", "-C", str(repo), "diff", "--binary", "--full-index", f"{base_ref}..{vendor_ref}"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,

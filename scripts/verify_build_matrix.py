@@ -13,6 +13,7 @@ from reconstruction_common import (
     CACHE_RELEASE_PREFIX,
     ReconstructionError,
     base_tree_records,
+    for_each_ref,
     git,
     load_json,
     local_compatibility_branch_for_tag,
@@ -26,6 +27,7 @@ from reconstruction_common import (
     repo_root,
     rev_parse,
     radxa_source_refs,
+    resolve_ref,
     tree_id,
     truthy,
 )
@@ -89,17 +91,11 @@ def expected_from_source_refs(repo: Path) -> tuple[set[str], set[str], dict[str,
 
 
 def actual_source_release_refs(repo: Path) -> set[str]:
-    result = git(repo, "for-each-ref", "--format=%(refname:lstrip=2)", "refs/heads/source/cache/release", check=False)
-    if result.returncode != 0:
-        return set()
-    return {line for line in result.stdout.splitlines() if line}
+    return set(for_each_ref(repo, "source/cache/release"))
 
 
 def actual_refs(repo: Path, namespace: str) -> set[str]:
-    result = git(repo, "for-each-ref", "--format=%(refname:lstrip=2)", f"refs/heads/{namespace}", check=False)
-    if result.returncode != 0:
-        return set()
-    return {line for line in result.stdout.splitlines() if line}
+    return set(for_each_ref(repo, namespace))
 
 
 def local_tag_refs(repo: Path) -> set[str]:
@@ -117,7 +113,7 @@ def tag_reachable_from_local_branch(repo: Path, tag: str) -> bool:
         "merge-base",
         "--is-ancestor",
         commit,
-        expected_branch,
+        resolve_ref(repo, expected_branch),
         check=False,
     )
     return result.returncode == 0

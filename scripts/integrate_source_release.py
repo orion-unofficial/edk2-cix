@@ -19,6 +19,7 @@ from reconstruction_common import (
     main_wrapper,
     ref_exists,
     repo_root,
+    resolve_ref,
     resolve_ref_or_generated_cache,
     tree_id,
     truthy,
@@ -309,7 +310,7 @@ def materialise_vendor_ref(repo: Path, source_ref: str, release: str, verbose: b
 
     with temp_dir(repo, "vendor-materialise-") as tmp:
         worktree = Path(tmp) / "worktree"
-        git(repo, "worktree", "add", "--detach", str(worktree), source_ref, capture=not verbose)
+        git(repo, "worktree", "add", "--detach", str(worktree), resolve_ref(repo, source_ref), capture=not verbose)
         try:
             had_gitlinks = bool(gitlinks(worktree))
             materialise_submodules(repo, worktree, f"vendor-radxa-{release}", verbose)

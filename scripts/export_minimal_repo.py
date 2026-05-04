@@ -42,15 +42,18 @@ def ref_list(repo: Path, namespace: str) -> list[str]:
     return sorted(line for line in result.stdout.splitlines() if line)
 
 
-def required_refs(repo: Path) -> list[str]:
-    refs = ["refs/heads/build"]
-    refs.extend(
-        ref
-        for ref in ref_list(repo, "refs/heads/source")
-        if not ref.startswith("refs/heads/source/cache/")
-    )
-    refs.extend(ref_list(repo, "refs/tags/source"))
-    return sorted(set(refs))
+def required_refspecs(repo: Path) -> list[tuple[str, str]]:
+    refspecs: dict[str, str] = {"refs/heads/build": "refs/heads/build"}
+    for ref in ref_list(repo, "refs/heads/source"):
+        if not ref.startswith("refs/heads/source/cache/"):
+            refspecs.setdefault(ref, ref)
+    for ref in ref_list(repo, "refs/remotes/origin/source"):
+        branch = ref.removeprefix("refs/remotes/origin/")
+        if not branch.startswith("source/cache/"):
+            refspecs.setdefault(f"refs/heads/{branch}", ref)
+    for ref in ref_list(repo, "refs/tags/source"):
+        refspecs.setdefault(ref, ref)
+    return sorted((source, target) for target, source in refspecs.items())
 
 
 def destination_ready(path: Path) -> bool:
@@ -72,17 +75,17 @@ def main() -> None:
     if git(repo, "status", "--porcelain").stdout.strip():
         raise ReconstructionError("working tree is dirty; commit or stash changes before exporting a minimal repo")
 
-    refs = required_refs(repo)
+    refspecs = required_refspecs(repo)
     dest.parent.mkdir(parents=True, exist_ok=True)
     git(repo, "init", "--bare", str(dest), capture=not verbose)
-    refspecs = [f"+{ref}:{ref}" for ref in refs]
-    git(repo, "push", "--no-verify", str(dest), *refspecs, capture=not verbose)
+    push_refspecs = [f"+{source}:{target}" for source, target in refspecs]
+    git(repo, "push", "--no-verify", str(dest), *push_refspecs, capture=not verbose)
     run(["git", "--git-dir", str(dest), "symbolic-ref", "HEAD", "refs/heads/build"], capture=not verbose)
     if truthy(args.repack):
         run(["git", "--git-dir", str(dest), "repack", "-Ad", "--depth=50", "--window=250"], capture=not verbose)
         run(["git", "--git-dir", str(dest), "prune-packed"], capture=not verbose)
     print(f"exported minimal bare repository: {dest}")
-    print(f"refs exported: {len(refs)}")
+    print(f"refs exported: {len(refspecs)}")
 
 
 if __name__ == "__main__":

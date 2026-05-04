@@ -7,7 +7,7 @@ import argparse
 import os
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, for_each_ref, git, main_wrapper, repo_root, truthy
+from reconstruction_common import ReconstructionError, for_each_ref, git, main_wrapper, repo_root, resolve_ref, truthy
 
 
 HELP = """verify-ref-integrity
@@ -55,7 +55,7 @@ def scan_ref(repo: Path, ref: str) -> list[str]:
         "--line-number",
         "--extended-regexp",
         GENERATED_REF_PATTERN,
-        ref,
+        resolve_ref(repo, ref),
         "--",
         *SCAN_PATHS,
         check=False,
