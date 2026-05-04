@@ -261,6 +261,14 @@ make integrate-source-release \
 
 For Radxa vendor refs, `MATERIALISE=1` is the default. This recursively flattens a submodule-shaped vendor source ref before the `source/vendor/radxa/**` or `source/port/radxa/**` source ref is recorded, so the retained source tree contains ordinary file content rather than gitlinks.
 
+Vendor CI workflow changes are handled separately from firmware source changes. The build branch has its own GitHub Actions workflows, so upstream Radxa `.github/workflows` files are not executed directly here. Run this check after integrating any new Radxa vendor source ref:
+
+```bash
+make check-vendor-workflow-drift
+```
+
+If it fails, inspect the changed vendor workflow files and port any relevant intent to `.github/workflows/` on this branch before updating `config/vendor-workflow-baseline.json`. This keeps vendor CI changes visible without inheriting vendor workflows that assume the old submodule-based `main` branch layout.
+
 After adding source refs for a new supported EDK2 release:
 
 1. Integrate the required source refs with `make integrate-source-release`.
@@ -288,7 +296,7 @@ To create a smaller bare repository containing only the build branch plus the no
 make create-minimised-clone DIR=/path/to/edk2-cix.minimal.git
 ```
 
-The destination directory must be empty or absent. Generated `source/cache/**`, legacy, private, and diagnostic branches are omitted from the export.
+The destination directory must be empty or absent. Generated `source/cache/**`, legacy, private, and diagnostic branches are omitted from the export. The exported repository's default branch/`HEAD` is set to `build`, so a normal clone checks out the firmware build interface rather than an unborn or legacy branch.
 
 To prove that a minimised export can be cloned normally, validated, and used to render the default variant, run:
 
@@ -340,6 +348,17 @@ The fallback order is:
 
 There is no separate offline mode flag. The scripts try to proceed from local data first and warn or fail only when missing objects make the requested operation impossible.
 
+## How does CI work?
+
+The build branch carries its own workflows under `.github/workflows/`:
+
+- `Build branch CI` fetches the required `source/**` refs, runs `make test`, and runs `make lint`.
+- `Firmware build` is a manual workflow for rendering and building one selected firmware variant, or for running `build-all`.
+
+The lint suite checks JSON, YAML, Markdown, shell scripts, and Python scripts in the build branch using the same `make lint` target available locally. Dependabot is configured for GitHub Actions updates on the repository default branch. If a minimised clone is pushed as its own repository, that default branch should be `build`.
+
+The inherited Radxa `main` workflows are retained as vendor source data under `source/vendor/radxa/**`, but they are not run by this branch. `make check-vendor-workflow-drift` detects changes to those vendor workflow files so the build branch workflows can be reviewed and updated deliberately.
+
 ## Validation checklist
 
 For normal firmware building, the build target itself performs the necessary preflight checks. When changing source refs, variant manifests, or materialised branches, run:
@@ -351,6 +370,7 @@ make verify-build-matrix
 make verify-manifest-integrity
 make verify-minimised-clone
 make check-identity-integrity
+make check-vendor-workflow-drift
 make ref-report
 ```
 

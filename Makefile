@@ -62,9 +62,9 @@ endef
 .PHONY: help help-vars help-dev help-variants build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-unofficial-commits \
-	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity verify-minimised-clone check-identity-integrity ref-report cleanup-report create-minimised-clone \
+	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity verify-minimised-clone check-identity-integrity check-vendor-workflow-drift ref-report cleanup-report create-minimised-clone \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
-	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help
+	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help
 
 help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
@@ -116,12 +116,13 @@ help-dev:
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
 	print_help_line 'make check-identity-integrity' 'Scan generated files and refs for path/identity integrity issues.'; \
+	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
 	print_help_line 'make create-minimised-clone' 'Create a bare repo containing only build plus required non-cache source refs and tags.'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
-	print_help_line 'make lint' 'Run JSON, Markdown, shell, and Python linting in the quality container.'; \
+	print_help_line 'make lint' 'Run JSON, YAML, Markdown, shell, and Python linting in the quality container.'; \
 	print_section 'Source Integration Variables'; \
 	print_help_line 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa source refs or CIX-carried source layers.'; \
 	print_help_line 'COMPONENT=<name>' 'For TYPE=upstream: edk2, edk2-platforms, edk2-non-osi, tf-a, or op-tee.'; \
@@ -165,7 +166,8 @@ help-dev:
 	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
 	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
 	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
-	print_help_line 'make verify-build-matrix-help' 'Show verify-build-matrix arguments.'
+	print_help_line 'make verify-build-matrix-help' 'Show verify-build-matrix arguments.'; \
+	print_help_line 'make check-vendor-workflow-drift-help' 'Show check-vendor-workflow-drift arguments.'
 
 help-variants:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/list_configured_variants.py
@@ -266,6 +268,9 @@ import-unofficial-commits:
 check-identity-integrity:
 	@DEBUG="$(DEBUG)" SCAN_COMMITS="$(SCAN_COMMITS)" SCAN_SOURCE_REFS="$(SCAN_SOURCE_REFS)" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"
 
+check-vendor-workflow-drift:
+	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_vendor_workflow_drift.py --v "$(V)"
+
 ref-report:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/ref_report.py --v "$(V)"
 
@@ -295,3 +300,6 @@ integrate-source-release-help:
 
 import-unofficial-commits-help:
 	@$(PYTHON) scripts/import_unofficial_commits.py --help
+
+check-vendor-workflow-drift-help:
+	@$(PYTHON) scripts/check_vendor_workflow_drift.py --help

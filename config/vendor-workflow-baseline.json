@@ -1,0 +1,18 @@
+{
+  "checks": [
+    {
+      "baseline_ref": "source/vendor/radxa/1.2.1/edk2-stable202208",
+      "paths": {
+        ".github/workflows/check_linked_issue.yaml": "dabdbfa0acd8d27dc89c03b0e8f80d64b2be50f0",
+        ".github/workflows/dependabot.yaml": "e62baed90f8bbf67106e7be5c6477223ab8e60c2",
+        ".github/workflows/docs.yaml": "4745460e9ae774d9807866ce67efeba4d14d784c",
+        ".github/workflows/new_version.yaml": "74beabcc3edc34b0a5d3bb0fa7956408d610f10e",
+        ".github/workflows/release.yaml": "bf7bc2768aa12a141680db8b736b99c1967ba071"
+      },
+      "vendor": "radxa",
+      "workflow_dir": ".github/workflows",
+      "workflow_tree_id": "44ac4a62f2d22555192a6be4f2a68641b6c77505"
+    }
+  ],
+  "description": "Audited vendor workflow baseline. If future vendor refs change .github/workflows, review whether the build branch CI needs corresponding updates before refreshing this file."
+}

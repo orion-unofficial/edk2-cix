@@ -33,6 +33,12 @@ def lint_json() -> None:
         run(["jq", "--exit-status", "type", file_name], stdout=subprocess.DEVNULL)
 
 
+def lint_yaml() -> None:
+    files = git_files("*.yaml", "*.yml", ".github/**/*.yaml", ".github/**/*.yml")
+    if files:
+        run(["yamllint", *sorted(set(files))])
+
+
 def lint_python() -> None:
     run(["flake8", "--extend-ignore=E203,E501,W503", "scripts"])
 
@@ -51,6 +57,7 @@ def lint_markdown() -> None:
 
 def lint() -> None:
     lint_json()
+    lint_yaml()
     lint_python()
     lint_shell()
     lint_markdown()
@@ -62,6 +69,7 @@ def test() -> None:
     run(["make", "verify-manifest-integrity", "--no-print-directory"])
     run(["make", "verify-ref-integrity", "--no-print-directory"])
     run(["make", "verify-minimised-clone", "REPACK=0", "--no-print-directory"])
+    run(["make", "check-vendor-workflow-drift", "--no-print-directory"])
     run(["make", "ref-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
     run(["make", "cleanup-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
     run(["make", "prune", "--no-print-directory"], stdout=subprocess.DEVNULL)

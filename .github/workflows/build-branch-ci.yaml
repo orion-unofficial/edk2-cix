@@ -1,0 +1,41 @@
+name: Build branch CI
+
+on:
+  merge_group:
+  pull_request:
+  push:
+    branches:
+      - build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  source-model:
+    name: Source model, lint, and minimised clone
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Fetch source refs required by the build branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/remotes/origin/source/*'
+          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
+
+      - name: Run source-model tests
+        run: make test
+
+      - name: Run lint checks
+        run: make lint

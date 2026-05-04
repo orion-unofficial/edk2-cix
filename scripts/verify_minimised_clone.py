@@ -52,6 +52,18 @@ def run_step(label: str, cmd: list[str], verbose: bool) -> None:
     print(f"[verify-minimised] {label} completed in {format_duration(time.monotonic() - started)}", file=sys.stderr)
 
 
+def require_default_branch(bare: Path, checkout: Path | None = None) -> None:
+    bare_head = run(["git", "--git-dir", str(bare), "symbolic-ref", "--quiet", "HEAD"], check=False)
+    if bare_head.returncode != 0 or bare_head.stdout.strip() != "refs/heads/build":
+        detail = bare_head.stdout.strip() or bare_head.stderr.strip() or "HEAD is not symbolic"
+        raise ReconstructionError(f"minimised export default branch is not build: {detail}")
+    if checkout:
+        checkout_head = git(checkout, "symbolic-ref", "--quiet", "--short", "HEAD", check=False)
+        if checkout_head.returncode != 0 or checkout_head.stdout.strip() != "build":
+            detail = checkout_head.stdout.strip() or checkout_head.stderr.strip() or "checkout is detached"
+            raise ReconstructionError(f"normal clone of minimised export did not check out build: {detail}")
+
+
 def verify_from_workspace(repo: Path, workspace: Path, keep: bool, repack: str, verbose: bool) -> None:
     bare = workspace / "minimal.git"
     checkout = workspace / "checkout"
@@ -76,9 +88,11 @@ def verify_from_workspace(repo: Path, workspace: Path, keep: bool, repack: str, 
     cache_refs = git(bare, "for-each-ref", "--format=%(refname)", "refs/heads/source/cache", check=False)
     if cache_refs.returncode == 0 and cache_refs.stdout.strip():
         raise ReconstructionError("minimised export unexpectedly contains source/cache/** refs")
+    require_default_branch(bare)
 
     print(f"[verify-minimised] Cloning exported repo to {checkout}", file=sys.stderr)
     run_step("Clone", ["git", "clone", str(bare), str(checkout)], verbose)
+    require_default_branch(bare, checkout)
 
     print("[verify-minimised] Verifying source matrix from minimised clone", file=sys.stderr)
     run_step(

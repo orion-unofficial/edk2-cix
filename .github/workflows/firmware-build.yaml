@@ -1,0 +1,103 @@
+name: Firmware build
+
+on:
+  workflow_dispatch:
+    inputs:
+      make_target:
+        default: buildbox-firmware-stage
+        description: Make target to run.
+        options:
+          - buildbox-firmware-stage
+          - buildbox-firmware-build
+          - zip
+          - targz
+          - build-all
+        required: true
+        type: choice
+      board:
+        default: O6
+        description: Firmware board.
+        options:
+          - O6
+          - O6N
+        required: true
+        type: choice
+      firmware_target:
+        default: RELEASE
+        description: Firmware build target.
+        options:
+          - RELEASE
+          - DEBUG
+        required: true
+        type: choice
+      artefact_mode:
+        default: custom
+        description: Build artefact mode.
+        options:
+          - custom
+          - upstream
+        required: true
+        type: choice
+      release:
+        default: ''
+        description: Optional firmware variant from make help-variants.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.make_target }}-${{ inputs.board }}
+
+jobs:
+  firmware:
+    name: ${{ inputs.make_target }} / ${{ inputs.board }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Fetch source refs required by the build branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/remotes/origin/source/*'
+          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
+
+      - name: Set up QEMU for buildbox Docker platforms
+        uses: docker/setup-qemu-action@v4
+
+      - name: Build selected firmware artefact
+        env:
+          ARTEFACT_MODE_INPUT: ${{ inputs.artefact_mode }}
+          FIRMWARE_BOARD_INPUT: ${{ inputs.board }}
+          FIRMWARE_TARGET_INPUT: ${{ inputs.firmware_target }}
+          MAKE_TARGET_INPUT: ${{ inputs.make_target }}
+          RELEASE_INPUT: ${{ inputs.release }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_arg=()
+          if [[ -n "${RELEASE_INPUT}" ]]; then
+            release_arg=("RELEASE=${RELEASE_INPUT}")
+          fi
+          make "${MAKE_TARGET_INPUT}" \
+            "FIRMWARE_BOARD=${FIRMWARE_BOARD_INPUT}" \
+            "FIRMWARE_TARGET=${FIRMWARE_TARGET_INPUT}" \
+            "ARTEFACT_MODE=${ARTEFACT_MODE_INPUT}" \
+            "V=0" \
+            "${release_arg[@]}"
+
+      - name: Upload generated firmware artefacts
+        if: ${{ always() && hashFiles('dist/**') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: warn
+          name: firmware-${{ inputs.board }}-${{ inputs.firmware_target }}-${{ inputs.make_target }}
+          path: dist/**

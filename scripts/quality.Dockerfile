@@ -12,6 +12,7 @@ RUN apt-get update \
         markdownlint \
         python3 \
         shellcheck \
+        yamllint \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
