@@ -354,10 +354,12 @@ The build branch carries its own workflows under `.github/workflows/`:
 
 - `Build branch CI` fetches the required `source/**` refs, runs `make test`, and runs `make lint`.
 - `Firmware build` is a manual workflow for rendering and building one selected firmware variant, or for running `build-all`.
+- `Deterministic replay` renders the replay-capable EDK2 `202208` unofficial variant, downloads the latest Radxa release package, and checks that the upstream-path rebuild still matches the published payload for O6 and O6N.
+- `Secure Boot audit` renders the selected custom variant, checks the pinned Microsoft Secure Boot payload metadata and release freshness, then builds and validates the embedded Secure Boot defaults for O6 and O6N.
 
 The lint suite checks JSON, YAML, Markdown, shell scripts, and Python scripts in the build branch using the same `make lint` target available locally. Dependabot is configured for GitHub Actions updates on the repository default branch. If a minimised clone is pushed as its own repository, that default branch should be `build`.
 
-The inherited Radxa `main` workflows are retained as vendor source data under `source/vendor/radxa/**`, but they are not run by this branch. `make check-vendor-workflow-drift` detects changes to those vendor workflow files so the build branch workflows can be reviewed and updated deliberately.
+The inherited Radxa `main` workflows are retained as vendor source data under `source/vendor/radxa/**`, but they are not run by this branch. Vendor packaging, release, and linked-issue workflows assume Radxa's upstream repository process and are not useful for normal firmware builds here. `make check-vendor-workflow-drift` detects changes to those vendor workflow files so the build branch workflows can be reviewed and updated deliberately.
 
 ## Validation checklist
 

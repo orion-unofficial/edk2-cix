@@ -1,0 +1,173 @@
+name: Secure Boot audit
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      release:
+        default: ''
+        description: Optional firmware variant from make help-variants.
+        required: false
+        type: string
+      firmware_distro:
+        default: trixie
+        description: Buildbox distro for custom firmware validation.
+        options:
+          - trixie
+          - bookworm
+        required: true
+        type: choice
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+env:
+  FIRMWARE_DISTRO: ${{ inputs.firmware_distro || 'trixie' }}
+  FIRMWARE_VARIANT: ${{ inputs.release || '' }}
+
+jobs:
+  metadata:
+    name: Payload metadata and Microsoft freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Fetch source refs required by the build branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/remotes/origin/source/*'
+          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
+
+      - name: Render selected firmware tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_arg=()
+          if [[ -n "${FIRMWARE_VARIANT}" ]]; then
+            release_arg=("--release" "${FIRMWARE_VARIANT}")
+          fi
+          worktree="$(
+            python3 scripts/render_release_branch.py \
+              "${release_arg[@]}" \
+              --ensure-worktree \
+              --print-worktree
+          )"
+          echo "FIRMWARE_WORKTREE=${worktree}" >>"${GITHUB_ENV}"
+
+      - name: Test firmware payload metadata audit
+        run: python3 "${FIRMWARE_WORKTREE}/scripts/test_firmware_metadata_audit.py"
+
+      - name: Check pinned Microsoft Secure Boot release freshness
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C "${FIRMWARE_WORKTREE}/src" check-microsoft-secure-boot-release \
+            MICROSOFT_SECURE_BOOT_RELEASE_CHECK_MODE=strict
+
+  secure-boot:
+    name: Secure Boot payloads / ${{ matrix.board }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: O6
+            product: orion-o6
+          - board: O6N
+            product: orion-o6n
+
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Fetch source refs required by the build branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/remotes/origin/source/*'
+          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
+
+      - name: Set up QEMU for buildbox Docker platforms
+        uses: docker/setup-qemu-action@v4
+
+      - name: Render selected firmware tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_arg=()
+          if [[ -n "${FIRMWARE_VARIANT}" ]]; then
+            release_arg=("--release" "${FIRMWARE_VARIANT}")
+          fi
+          worktree="$(
+            python3 scripts/render_release_branch.py \
+              "${release_arg[@]}" \
+              --ensure-worktree \
+              --print-worktree
+          )"
+          echo "FIRMWARE_WORKTREE=${worktree}" >>"${GITHUB_ENV}"
+
+      - name: Check pinned Microsoft Secure Boot payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C "${FIRMWARE_WORKTREE}/src" check-microsoft-secure-boot-defaults
+
+      - name: Build custom firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C "${FIRMWARE_WORKTREE}" buildbox-firmware-build V=1 \
+            ARTEFACT_MODE=custom \
+            FIRMWARE_BOARD="${{ matrix.board }}" \
+            FIRMWARE_PRODUCT="${{ matrix.product }}" \
+            FIRMWARE_TARGET=RELEASE \
+            FIRMWARE_DISTRO="${FIRMWARE_DISTRO}" \
+            BUILDBOX_PLATFORM=linux/amd64
+
+      - name: Validate embedded Secure Boot payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C "${FIRMWARE_WORKTREE}" buildbox-validate-secure-boot-defaults V=1 \
+            ARTEFACT_MODE=custom \
+            FIRMWARE_BOARD="${{ matrix.board }}" \
+            FIRMWARE_PRODUCT="${{ matrix.product }}" \
+            FIRMWARE_TARGET=RELEASE \
+            FIRMWARE_DISTRO="${FIRMWARE_DISTRO}" \
+            BUILDBOX_PLATFORM=linux/amd64
+
+      - name: Collect Secure Boot reports
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ci-artifacts
+          if [[ -d "${FIRMWARE_WORKTREE}/build-validation" ]]; then
+            cp -a "${FIRMWARE_WORKTREE}/build-validation" "ci-artifacts/build-validation"
+            python3 "${FIRMWARE_WORKTREE}/scripts/summarize_validation_reports.py" \
+              --report-root "${FIRMWARE_WORKTREE}/build-validation" \
+              --heading "Secure Boot reports for ${{ matrix.board }}" \
+              >>"${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Upload Secure Boot reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: warn
+          name: secure-boot-${{ matrix.board }}
+          path: ci-artifacts/**

@@ -1,0 +1,207 @@
+name: Deterministic replay
+
+on:
+  schedule:
+    - cron: '31 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      replay_variant:
+        default: edk2-202208/radxa-1.2.1/unofficial-1.2.1
+        description: Firmware variant to render before running replay.
+        required: true
+        type: string
+      upstream_repository:
+        default: radxa-pkg/edk2-cix
+        description: GitHub repository that publishes the release package.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+env:
+  REPLAY_VARIANT: ${{ inputs.replay_variant || 'edk2-202208/radxa-1.2.1/unofficial-1.2.1' }}
+  UPSTREAM_REPOSITORY: ${{ inputs.upstream_repository || 'radxa-pkg/edk2-cix' }}
+
+jobs:
+  resolve-release:
+    name: Resolve release package
+    runs-on: ubuntu-latest
+    outputs:
+      asset_download_url: ${{ steps.resolve.outputs.asset_download_url }}
+      asset_name: ${{ steps.resolve.outputs.asset_name }}
+      tag: ${{ steps.resolve.outputs.tag }}
+
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Fetch source refs required by the build branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/remotes/origin/source/*'
+          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
+
+      - name: Render replay-capable firmware tree
+        id: render
+        shell: bash
+        run: |
+          set -euo pipefail
+          worktree="$(
+            RELEASE="${REPLAY_VARIANT}" \
+              python3 scripts/render_release_branch.py \
+                --ensure-worktree \
+                --print-worktree
+          )"
+          echo "worktree=${worktree}" >>"${GITHUB_OUTPUT}"
+
+      - name: Resolve latest upstream release
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_json="${RUNNER_TEMP}/latest-release.json"
+          python3 "${{ steps.render.outputs.worktree }}/scripts/resolve_latest_release_asset.py" \
+            --repo-root "${{ steps.render.outputs.worktree }}" \
+            --github-repository "${UPSTREAM_REPOSITORY}" \
+            >"${release_json}"
+          cat "${release_json}"
+          python3 - "${release_json}" <<'PY' >>"${GITHUB_OUTPUT}"
+          import json
+          import pathlib
+          import sys
+
+          payload = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          for key in ("tag", "asset_name", "asset_download_url"):
+              value = payload.get(key)
+              if not value:
+                  raise SystemExit(f"Missing {key} in resolved release payload")
+              print(f"{key}={value}")
+          PY
+
+  replay:
+    name: Replay ${{ matrix.board }}
+    needs: resolve-release
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        board:
+          - O6
+          - O6N
+
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Fetch source refs required by the build branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/remotes/origin/source/*'
+          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
+
+      - name: Set up QEMU for replay buildbox
+        uses: docker/setup-qemu-action@v4
+
+      - name: Render replay-capable firmware tree
+        id: render
+        shell: bash
+        run: |
+          set -euo pipefail
+          worktree="$(
+            RELEASE="${REPLAY_VARIANT}" \
+              python3 scripts/render_release_branch.py \
+                --ensure-worktree \
+                --print-worktree
+          )"
+          echo "FIRMWARE_WORKTREE=${worktree}" >>"${GITHUB_ENV}"
+
+      - name: Check offline audit baseline schema
+        run: python3 "${FIRMWARE_WORKTREE}/scripts/test_offline_audit_baselines.py"
+
+      - name: Download upstream release package
+        id: download
+        shell: bash
+        run: |
+          set -euo pipefail
+          deb_path="${RUNNER_TEMP}/${{ needs.resolve-release.outputs.asset_name }}"
+          curl \
+            --fail \
+            --location \
+            --retry 5 \
+            --retry-delay 2 \
+            "${{ needs.resolve-release.outputs.asset_download_url }}" \
+            --output "${deb_path}"
+          echo "deb_path=${deb_path}" >>"${GITHUB_OUTPUT}"
+
+      - name: Run deterministic replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C "${FIRMWARE_WORKTREE}" deterministic-replay V=1 \
+            FIRMWARE_BOARD="${{ matrix.board }}" \
+            FIRMWARE_DISTRO=bookworm \
+            BUILDBOX_PLATFORM=linux/amd64 \
+            REPLAY_VERSION="${{ needs.resolve-release.outputs.tag }}" \
+            REPLAY_INPUT="${{ steps.download.outputs.deb_path }}"
+
+      - name: Audit final firmware manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C "${FIRMWARE_WORKTREE}" buildbox-audit-final-image-manifest V=1 \
+            ARTEFACT_MODE=upstream \
+            FIRMWARE_BOARD="${{ matrix.board }}" \
+            FIRMWARE_TARGET=RELEASE \
+            FIRMWARE_DISTRO=bookworm \
+            BUILDBOX_PLATFORM=linux/amd64 \
+            FIRMWARE_VALIDATION_PROFILE="upstream-${{ needs.resolve-release.outputs.tag }}-bookworm"
+
+      - name: Audit ACPI regression baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C "${FIRMWARE_WORKTREE}" buildbox-audit-acpi-regression V=1 \
+            ARTEFACT_MODE=upstream \
+            FIRMWARE_BOARD="${{ matrix.board }}" \
+            FIRMWARE_TARGET=RELEASE \
+            FIRMWARE_DISTRO=bookworm \
+            BUILDBOX_PLATFORM=linux/amd64 \
+            FIRMWARE_VALIDATION_PROFILE="upstream-${{ needs.resolve-release.outputs.tag }}-bookworm"
+
+      - name: Collect replay reports
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ci-artifacts
+          if [[ -d "${FIRMWARE_WORKTREE}/build-validation" ]]; then
+            cp -a "${FIRMWARE_WORKTREE}/build-validation" "ci-artifacts/build-validation"
+            python3 "${FIRMWARE_WORKTREE}/scripts/summarize_validation_reports.py" \
+              --report-root "${FIRMWARE_WORKTREE}/build-validation" \
+              --heading "Validation reports for ${{ matrix.board }} / ${{ needs.resolve-release.outputs.tag }}" \
+              >>"${GITHUB_STEP_SUMMARY}"
+          fi
+          if [[ -d "${FIRMWARE_WORKTREE}/.buildbox/replay" ]]; then
+            mkdir -p ci-artifacts/replay
+            cp -a "${FIRMWARE_WORKTREE}/.buildbox/replay/." "ci-artifacts/replay/"
+          fi
+
+      - name: Upload replay reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: warn
+          name: deterministic-replay-${{ matrix.board }}-${{ needs.resolve-release.outputs.tag }}
+          path: ci-artifacts/**
