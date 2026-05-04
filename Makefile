@@ -31,6 +31,18 @@ DEBUG_VERBOSE ?=
 DEBUG_PRINT_ERROR_LEVEL ?=
 CIX_RELEASE ?=
 QUALITY_IMAGE ?= edk2-cix-build-quality:latest
+SOURCE_FRESHNESS_MODE ?= policy
+SOURCE_FRESHNESS_ONLY ?=
+SOURCE_FRESHNESS_FORMAT ?= text
+SOURCE_FRESHNESS_SNAPSHOT ?=
+ACT_WORKFLOW ?=
+ACT_EVENT ?= workflow_dispatch
+ACT_JOB ?=
+ACT_MATRIX ?=
+ACT_SECRET_FILE ?=
+ACT_EXTRA_ARGS ?=
+ACT_CONTAINER_ARCH ?= linux/amd64
+ACT_RUNNER_IMAGE ?= catthehacker/ubuntu:act-latest
 
 define PRINT_HELP_SHELL_PROLOGUE
 	set -eu; \
@@ -62,9 +74,10 @@ endef
 .PHONY: help help-vars help-dev help-variants build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-unofficial-commits \
-	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity verify-minimised-clone check-identity-integrity check-vendor-workflow-drift ref-report cleanup-report create-minimised-clone \
+	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity verify-minimised-clone check-identity-integrity check-vendor-workflow-drift check-source-freshness ref-report cleanup-report create-minimised-clone \
+	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
-	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help
+	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help check-source-freshness-help
 
 help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
@@ -117,10 +130,14 @@ help-dev:
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
 	print_help_line 'make check-identity-integrity' 'Scan generated files and refs for path/identity integrity issues.'; \
 	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
+	print_help_line 'make check-source-freshness' 'Check recorded source refs against external upstream/vendor remotes.'; \
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
 	print_help_line 'make create-minimised-clone' 'Create a bare repo containing only build plus required non-cache source refs and tags.'; \
+	print_help_line 'make gha-act-list' 'List GitHub Actions workflows and jobs through a repo-local act wrapper.'; \
+	print_help_line 'make gha-act-dry-run' 'Dry-run a selected GitHub Actions workflow through act.'; \
+	print_help_line 'make gha-act-run' 'Execute a selected GitHub Actions workflow through act.'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
 	print_help_line 'make lint' 'Run JSON, YAML, Markdown, shell, and Python linting in the quality container.'; \
 	print_section 'Source Integration Variables'; \
@@ -144,6 +161,10 @@ help-dev:
 	print_help_line 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch; defaults to source/unofficial/current.'; \
 	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-integrity.'; \
 	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan persistent unofficial/Radxa source refs in check-identity-integrity.'; \
+	print_help_line 'SOURCE_FRESHNESS_MODE=advisory|policy|strict' 'Freshness failure mode. advisory never fails on stale remotes; policy fails checks marked strict; strict fails any stale or unavailable check.\nDefault: policy.'; \
+	print_help_line 'SOURCE_FRESHNESS_ONLY=<id[,id...]>' 'Optional comma-separated source freshness check IDs.'; \
+	print_help_line 'SOURCE_FRESHNESS_FORMAT=text|github|json' 'Source freshness output format. github emits workflow annotations.\nDefault: text.'; \
+	print_help_line 'SOURCE_FRESHNESS_SNAPSHOT=<path>' 'Offline git ls-remote snapshot for source freshness tests.\nDefault: unset.'; \
 	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
 	print_help_line 'DIR=<path>' 'Destination directory for create-minimised-clone, or optional workspace directory for verify-minimised-clone.'; \
 	print_help_line 'KEEP=0|1' 'Keep the temporary verification workspace created by verify-minimised-clone.\nDefault: 0.'; \
@@ -157,6 +178,15 @@ help-dev:
 	print_help_line 'WORKTREE=<path>' 'Existing rendered worktree to use for verify-release-branch history checks.'; \
 	print_help_line 'SIGNING_CERT_SOURCE_DIR=<path>' 'Copy exact-replay signing certs into the build worktree.\nDefault: unset.'; \
 	print_help_line 'INSTALL_SOURCE=<path>' 'Optional staged payload path, or path relative to dist/firmware.\nDefault: latest staged firmware payload.'; \
+	print_section 'Local GitHub Actions Variables'; \
+	print_help_line 'ACT_WORKFLOW=.github/workflows/<file>.yaml' 'Workflow file to list, dry-run, or execute through the local act wrapper. Optional for gha-act-list.'; \
+	print_help_line 'ACT_EVENT=workflow_dispatch|push|pull_request|schedule' 'Event name passed to act for gha-act-dry-run and gha-act-run.\nDefault: workflow_dispatch.'; \
+	print_help_line 'ACT_JOB=<job-id>' 'Optional act job filter.'; \
+	print_help_line 'ACT_MATRIX=<name:value>' 'Optional single act matrix filter, for example board:O6.'; \
+	print_help_line 'ACT_SECRET_FILE=<path>' 'Optional act --secret-file path for local workflow runs.'; \
+	print_help_line 'ACT_EXTRA_ARGS=<args>' 'Additional raw flags appended to act.'; \
+	print_help_line 'ACT_CONTAINER_ARCH=<platform>' 'Container architecture used by act.\nDefault: linux/amd64.'; \
+	print_help_line 'ACT_RUNNER_IMAGE=<image>' 'Runner image mapped to ubuntu-latest.\nDefault: catthehacker/ubuntu:act-latest.'; \
 	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
 	print_help_line 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
 	print_section 'Help Targets'; \
@@ -167,7 +197,8 @@ help-dev:
 	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
 	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
 	print_help_line 'make verify-build-matrix-help' 'Show verify-build-matrix arguments.'; \
-	print_help_line 'make check-vendor-workflow-drift-help' 'Show check-vendor-workflow-drift arguments.'
+	print_help_line 'make check-vendor-workflow-drift-help' 'Show check-vendor-workflow-drift arguments.'; \
+	print_help_line 'make check-source-freshness-help' 'Show check-source-freshness arguments.'
 
 help-variants:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/list_configured_variants.py
@@ -271,6 +302,9 @@ check-identity-integrity:
 check-vendor-workflow-drift:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_vendor_workflow_drift.py --v "$(V)"
 
+check-source-freshness:
+	@DEBUG="$(DEBUG)" SOURCE_FRESHNESS_MODE="$(SOURCE_FRESHNESS_MODE)" SOURCE_FRESHNESS_ONLY="$(SOURCE_FRESHNESS_ONLY)" SOURCE_FRESHNESS_FORMAT="$(SOURCE_FRESHNESS_FORMAT)" SOURCE_FRESHNESS_SNAPSHOT="$(SOURCE_FRESHNESS_SNAPSHOT)" V="$(V)" $(PYTHON) scripts/check_source_freshness.py --v "$(V)"
+
 ref-report:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/ref_report.py --v "$(V)"
 
@@ -282,6 +316,17 @@ test:
 
 lint:
 	@DEBUG="$(DEBUG)" V="$(V)" QUALITY_IMAGE="$(QUALITY_IMAGE)" scripts/run_quality_container.sh lint
+
+gha-act-list:
+	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh list
+
+gha-act-dry-run:
+	@if [ -z "$(ACT_WORKFLOW)" ]; then printf '%s\n' 'missing required variable: ACT_WORKFLOW=.github/workflows/<file>.yaml' >&2; exit 2; fi
+	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh dry-run
+
+gha-act-run:
+	@if [ -z "$(ACT_WORKFLOW)" ]; then printf '%s\n' 'missing required variable: ACT_WORKFLOW=.github/workflows/<file>.yaml' >&2; exit 2; fi
+	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh run
 
 render-release-branch-help:
 	@$(PYTHON) scripts/render_release_branch.py --help
@@ -303,3 +348,6 @@ import-unofficial-commits-help:
 
 check-vendor-workflow-drift-help:
 	@$(PYTHON) scripts/check_vendor_workflow_drift.py --help
+
+check-source-freshness-help:
+	@$(PYTHON) scripts/check_source_freshness.py --help

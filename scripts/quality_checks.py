@@ -65,6 +65,7 @@ def lint() -> None:
 
 def test() -> None:
     run(["python3", "-m", "py_compile", *git_files("scripts/*.py")])
+    run(["python3", "scripts/test_check_source_freshness.py"])
     run(["make", "verify-build-matrix", "--no-print-directory"])
     run(["make", "verify-manifest-integrity", "--no-print-directory"])
     run(["make", "verify-ref-integrity", "--no-print-directory"])

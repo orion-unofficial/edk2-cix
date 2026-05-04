@@ -44,6 +44,15 @@
       "note": "This remote does not publish edk2-stableYYYYMM tags; release mappings must be recorded explicitly when selected.",
       "type": "upstream",
       "url": "https://github.com/tianocore/edk2-platforms.git"
+    },
+    "microsoft-secureboot": {
+      "type": "security-payload",
+      "url": "https://github.com/microsoft/secureboot_objects.git"
+    },
+    "radxa-edk2-cix": {
+      "type": "vendor-superproject",
+      "url": "https://github.com/radxa-pkg/edk2-cix.git",
+      "vendor": "radxa"
     }
   }
 }

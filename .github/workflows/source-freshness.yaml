@@ -1,0 +1,54 @@
+name: Source freshness
+
+on:
+  schedule:
+    - cron: '23 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      mode:
+        default: policy
+        description: Freshness failure mode.
+        options:
+          - advisory
+          - policy
+          - strict
+        required: true
+        type: choice
+      only:
+        default: ''
+        description: Optional comma-separated freshness check IDs.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  source-freshness:
+    name: Check upstream source freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Fetch source refs required by the build branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/remotes/origin/source/*'
+          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
+
+      - name: Check source freshness
+        env:
+          SOURCE_FRESHNESS_FORMAT: github
+          SOURCE_FRESHNESS_MODE: ${{ inputs.mode || 'policy' }}
+          SOURCE_FRESHNESS_ONLY: ${{ inputs.only || '' }}
+        run: make check-source-freshness

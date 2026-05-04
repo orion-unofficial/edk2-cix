@@ -1,0 +1,92 @@
+{
+  "checks": [
+    {
+      "description": "Latest upstream EDK2 stable release tag",
+      "id": "edk2",
+      "kind": "latest_tag",
+      "local": {
+        "type": "edk2-release"
+      },
+      "mode": "strict",
+      "remote": "edk2",
+      "tag_pattern": "^refs/tags/edk2-stable(?P<version>\\d{6}(?:\\.\\d+)?)$"
+    },
+    {
+      "description": "Latest Radxa edk2-cix release tag",
+      "id": "radxa-release",
+      "kind": "latest_tag",
+      "local": {
+        "compare_object": false,
+        "type": "radxa-release"
+      },
+      "mode": "strict",
+      "remote": "radxa-edk2-cix",
+      "tag_pattern": "^refs/tags/(?P<version>\\d+\\.\\d+\\.\\d+(?:-\\d+)?)$"
+    },
+    {
+      "description": "Radxa edk2-cix main branch head",
+      "id": "radxa-main",
+      "kind": "branch_head",
+      "local": {
+        "type": "radxa-vendor-upstream-ref"
+      },
+      "mode": "advisory",
+      "ref": "refs/heads/main",
+      "remote": "radxa-edk2-cix"
+    },
+    {
+      "description": "CIX bios release-bundle development branch head",
+      "id": "cix-bios",
+      "kind": "branch_head",
+      "local": {
+        "component": "bios",
+        "type": "cix-component-ref"
+      },
+      "mode": "strict",
+      "ref": "refs/heads/cix_p1_community_dev",
+      "remote": "cix-bios"
+    },
+    {
+      "description": "Latest Arm TF-A release tag",
+      "id": "arm-tf-a",
+      "kind": "latest_tag",
+      "local": {
+        "component": "tf-a",
+        "type": "arm-base-release"
+      },
+      "mode": "advisory",
+      "remote": "arm-tf-a",
+      "tag_pattern": "^refs/tags/v(?P<version>\\d+\\.\\d+(?:\\.\\d+)?)$"
+    },
+    {
+      "description": "Latest OP-TEE OS release tag",
+      "id": "arm-op-tee",
+      "kind": "latest_tag",
+      "local": {
+        "component": "op-tee",
+        "type": "arm-base-release"
+      },
+      "mode": "advisory",
+      "remote": "arm-op-tee",
+      "tag_pattern": "^refs/tags/(?P<version>\\d+\\.\\d+\\.\\d+)$"
+    },
+    {
+      "description": "Latest Microsoft Secure Boot object release tag",
+      "id": "microsoft-secureboot",
+      "kind": "latest_tag",
+      "local": {
+        "field": "source_tag",
+        "manifest_path": "custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft/manifest.lock.json",
+        "object_field": "source_commit",
+        "ref": "source/unofficial/current",
+        "type": "json-field"
+      },
+      "mode": "strict",
+      "remote": "microsoft-secureboot",
+      "tag_pattern": "^refs/tags/v(?P<version>\\d+\\.\\d+\\.\\d+)$"
+    }
+  ],
+  "defaults": {
+    "unavailable": "warn"
+  }
+}

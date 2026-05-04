@@ -356,10 +356,35 @@ The build branch carries its own workflows under `.github/workflows/`:
 - `Firmware build` is a manual workflow for rendering and building one selected firmware variant, or for running `build-all`.
 - `Deterministic replay` renders the replay-capable EDK2 `202208` unofficial variant, downloads the latest Radxa release package, and checks that the upstream-path rebuild still matches the published payload for O6 and O6N.
 - `Secure Boot audit` renders the selected custom variant, checks the pinned Microsoft Secure Boot payload metadata and release freshness, then builds and validates the embedded Secure Boot defaults for O6 and O6N.
+- `Source freshness` checks whether recorded EDK2, Radxa, CIX, Arm TF-A, OP-TEE, and Microsoft Secure Boot source inputs lag their external remotes.
 
 The lint suite checks JSON, YAML, Markdown, shell scripts, and Python scripts in the build branch using the same `make lint` target available locally. Dependabot is configured for GitHub Actions updates on the repository default branch. If a minimised clone is pushed as its own repository, that default branch should be `build`.
 
+The build branch is the CI control plane. Workflows may render and test a selected firmware tree, but the workflow logic itself should live here rather than inside `source/unofficial/**`. Keeping CI here makes it visible from the default branch, avoids hidden behaviour in rendered source trees, and keeps vendor workflow changes reviewable as source inputs rather than executable policy. If `source/unofficial/**` still contains inherited workflows, treat them as historical source content until that source layer is deliberately rewritten and requalified.
+
 The inherited Radxa `main` workflows are retained as vendor source data under `source/vendor/radxa/**`, but they are not run by this branch. Vendor packaging, release, and linked-issue workflows assume Radxa's upstream repository process and are not useful for normal firmware builds here. `make check-vendor-workflow-drift` detects changes to those vendor workflow files so the build branch workflows can be reviewed and updated deliberately.
+
+To check source freshness locally:
+
+```bash
+make check-source-freshness
+make check-source-freshness SOURCE_FRESHNESS_MODE=advisory
+make check-source-freshness SOURCE_FRESHNESS_ONLY=edk2,radxa-release
+```
+
+The scheduled GitHub Actions workflow runs in `policy` mode. In that mode, stale checks marked `strict` in `config/source-freshness.json` fail the workflow, while advisory checks report warnings without failing. Use `SOURCE_FRESHNESS_MODE=strict` when you want any stale source to fail.
+
+To try GitHub Actions locally with `act`:
+
+```bash
+make gha-act-list
+make gha-act-dry-run ACT_WORKFLOW=.github/workflows/source-freshness.yaml
+make gha-act-run ACT_WORKFLOW=.github/workflows/source-freshness.yaml ACT_JOB=source-freshness
+```
+
+The wrapper downloads a pinned `act` binary into `.cache/edk2-cix/tools/act/`, verifies the release checksum, and stores `act` cache data under `.cache/edk2-cix/act-cache/`.
+
+The product documentation from the legacy branch is not currently published by this branch. Restoring it would require porting `book.toml`, `docs/**`, `theme/**`, `devenv.nix`, `devenv.yaml`, `devenv.lock`, and the documentation build wrapper, then updating the documentation text so it describes the `build`/`source/**` model rather than the old monolithic checkout layout. Once that content is ported, a documentation workflow can be added here using the same default-branch CI model.
 
 ## Validation checklist
 
