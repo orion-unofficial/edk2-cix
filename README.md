@@ -285,15 +285,15 @@ The persistent `source/cache/release/**` branch created in step 2 is a cache. On
 To create a smaller bare repository containing only the build branch plus the non-cache source refs and tags required for deterministic reconstruction, use:
 
 ```bash
-make export-minimal-repo DIR=/path/to/edk2-cix.minimal.git
+make create-minimised-clone DIR=/path/to/edk2-cix.minimal.git
 ```
 
 The destination directory must be empty or absent. Generated `source/cache/**`, legacy, private, and diagnostic branches are omitted from the export.
 
-To prove that a minimal export can be cloned normally, validated, and used to render the default variant, run:
+To prove that a minimised export can be cloned normally, validated, and used to render the default variant, run:
 
 ```bash
-make verify-minimal-repo
+make verify-minimised-clone
 ```
 
 This creates a temporary verification workspace under `.cache/edk2-cix/tmp` and removes it when the check completes. Set `KEEP=1` to retain that workspace for inspection, or `DIR=<path>` to choose an explicit workspace directory.
@@ -349,7 +349,7 @@ make test
 make lint
 make verify-build-matrix
 make verify-manifest-integrity
-make verify-minimal-repo
+make verify-minimised-clone
 make check-identity-integrity
 make ref-report
 ```

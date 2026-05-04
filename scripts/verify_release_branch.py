@@ -72,6 +72,7 @@ def text_sample_paths(repo: Path, ref: str) -> list[str]:
 
 
 def main() -> None:
+    started = time.monotonic()
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
@@ -87,9 +88,9 @@ def main() -> None:
         from render_release_branch import render_from_plan
 
         _branch, entry = release_entry(repo, args.release, require=True)
-        started = time.monotonic()
+        render_started = time.monotonic()
         ref = render_from_plan(repo, branch, entry, verbose)
-        print(f"[verify] Rendered {branch} in {format_duration(time.monotonic() - started)}", file=sys.stderr)
+        print(f"[verify] Rendered {branch} in {format_duration(time.monotonic() - render_started)}", file=sys.stderr)
 
     check_immutable_refs(repo)
 
@@ -126,7 +127,7 @@ def main() -> None:
                 if nested.exists():
                     git(nested, "log", "-1", "--", rel)
 
-    print(f"validated {branch} ({ref})")
+    print(f"validated {branch} ({ref}) in {format_duration(time.monotonic() - started)}")
 
 
 if __name__ == "__main__":

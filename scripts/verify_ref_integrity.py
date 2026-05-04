@@ -5,9 +5,10 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, for_each_ref, git, main_wrapper, repo_root, resolve_ref, truthy
+from reconstruction_common import ReconstructionError, for_each_ref, format_duration, git, main_wrapper, repo_root, resolve_ref, truthy
 
 
 HELP = """verify-ref-integrity
@@ -68,6 +69,7 @@ def scan_ref(repo: Path, ref: str) -> list[str]:
 
 
 def main() -> None:
+    started = time.monotonic()
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
@@ -90,7 +92,8 @@ def main() -> None:
 
     print(
         "validated persistent source reference integrity: "
-        f"{len(refs)} persistent source refs"
+        f"{len(refs)} persistent source refs "
+        f"in {format_duration(time.monotonic() - started)}"
     )
 
 

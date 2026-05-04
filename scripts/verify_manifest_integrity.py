@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import time
 from pathlib import Path
 
 from reconstruction_common import (
     VARIANT_CACHE_MANIFEST,
     ReconstructionError,
     base_tree_records,
+    format_duration,
     main_wrapper,
     ref_exists,
     ref_manifest_records,
@@ -125,6 +127,7 @@ def validate_base_manifest(repo: Path, verbose: bool) -> list[str]:
 
 
 def main() -> None:
+    started = time.monotonic()
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
@@ -133,7 +136,11 @@ def main() -> None:
     if problems:
         details = "\n".join(f"  - {problem}" for problem in problems)
         raise ReconstructionError(f"manifest integrity verification failed:\n{details}")
-    print(f"validated manifest integrity: {len(rendered_ref_records(repo))} variant tree records, {len(base_tree_records(repo))} base tree records")
+    print(
+        f"validated manifest integrity: {len(rendered_ref_records(repo))} variant tree records, "
+        f"{len(base_tree_records(repo))} base tree records in "
+        f"{format_duration(time.monotonic() - started)}"
+    )
 
 
 if __name__ == "__main__":

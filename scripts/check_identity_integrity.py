@@ -6,9 +6,10 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import time
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, for_each_ref, git, main_wrapper, repo_root, resolve_ref, truthy
+from reconstruction_common import ReconstructionError, for_each_ref, format_duration, git, main_wrapper, repo_root, resolve_ref, truthy
 
 
 HELP = """check-identity-integrity
@@ -139,6 +140,7 @@ def scan_source_refs(repo: Path, verbose: bool) -> list[str]:
 
 
 def main() -> None:
+    started = time.monotonic()
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     problems = scan_files(repo, truthy(args.v))
@@ -148,7 +150,7 @@ def main() -> None:
         problems.extend(scan_source_refs(repo, truthy(args.v)))
     if problems:
         raise ReconstructionError("identity integrity check failed:\n" + "\n".join(f"  - {p}" for p in problems))
-    print("identity integrity check passed")
+    print(f"identity integrity check passed in {format_duration(time.monotonic() - started)}")
 
 
 if __name__ == "__main__":

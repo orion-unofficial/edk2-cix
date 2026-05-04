@@ -6,12 +6,13 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, git, main_wrapper, repo_root, run, truthy
+from reconstruction_common import ReconstructionError, format_duration, git, main_wrapper, repo_root, run, truthy
 
 
-HELP = """export-minimal-repo
+HELP = """create-minimised-clone
 
 Required variables:
   DIR=<path>  Destination directory for the new bare repository.
@@ -61,6 +62,7 @@ def destination_ready(path: Path) -> bool:
 
 
 def main() -> None:
+    started = time.monotonic()
     args = parser().parse_args()
     if not args.dir:
         print(HELP)
@@ -73,7 +75,7 @@ def main() -> None:
     if not destination_ready(dest):
         raise ReconstructionError(f"destination already exists and is not empty: {dest}")
     if git(repo, "status", "--porcelain").stdout.strip():
-        raise ReconstructionError("working tree is dirty; commit or stash changes before exporting a minimal repo")
+        raise ReconstructionError("working tree is dirty; commit or stash changes before exporting a minimised clone")
 
     refspecs = required_refspecs(repo)
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -84,8 +86,9 @@ def main() -> None:
     if truthy(args.repack):
         run(["git", "--git-dir", str(dest), "repack", "-Ad", "--depth=50", "--window=250"], capture=not verbose)
         run(["git", "--git-dir", str(dest), "prune-packed"], capture=not verbose)
-    print(f"exported minimal bare repository: {dest}")
+    print(f"exported minimised bare repository: {dest}")
     print(f"refs exported: {len(refspecs)}")
+    print(f"created minimised clone in {format_duration(time.monotonic() - started)}")
 
 
 if __name__ == "__main__":

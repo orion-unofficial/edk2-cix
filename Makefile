@@ -59,14 +59,12 @@ define PRINT_HELP_SHELL_PROLOGUE
 	}
 endef
 
-.PHONY: help help-vars help-dev help-variants help-releases all build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage \
+.PHONY: help help-vars help-dev help-variants build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-unofficial-commits \
-	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity verify-minimal-repo check-identity-integrity ref-report cleanup-report export-minimal-repo \
+	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity verify-minimised-clone check-identity-integrity ref-report cleanup-report create-minimised-clone \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
 	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help
-
-all: help
 
 help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
@@ -113,7 +111,7 @@ help-dev:
 	print_help_line 'make verify-build-matrix' 'Validate build/source variant combinations derived from source refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
 	print_help_line 'make verify-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
-	print_help_line 'make verify-minimal-repo' 'Export and clone a minimal repo, then verify that it can render the default variant.'; \
+	print_help_line 'make verify-minimised-clone' 'Create and clone a minimised repository, then verify that it can render the default variant.'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
@@ -121,7 +119,7 @@ help-dev:
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
-	print_help_line 'make export-minimal-repo' 'Create a bare repo containing only build plus required non-cache source refs and tags.'; \
+	print_help_line 'make create-minimised-clone' 'Create a bare repo containing only build plus required non-cache source refs and tags.'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
 	print_help_line 'make lint' 'Run JSON, Markdown, shell, and Python linting in the quality container.'; \
 	print_section 'Source Integration Variables'; \
@@ -146,9 +144,9 @@ help-dev:
 	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-integrity.'; \
 	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan persistent unofficial/Radxa source refs in check-identity-integrity.'; \
 	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
-	print_help_line 'DIR=<path>' 'Destination directory for export-minimal-repo, or optional workspace directory for verify-minimal-repo.'; \
-	print_help_line 'KEEP=0|1' 'Keep the temporary verification workspace created by verify-minimal-repo.\nDefault: 0.'; \
-	print_help_line 'REPACK=0|1' 'Repack the destination produced by export-minimal-repo.\nDefault: 1.'; \
+	print_help_line 'DIR=<path>' 'Destination directory for create-minimised-clone, or optional workspace directory for verify-minimised-clone.'; \
+	print_help_line 'KEEP=0|1' 'Keep the temporary verification workspace created by verify-minimised-clone.\nDefault: 0.'; \
+	print_help_line 'REPACK=0|1' 'Repack the destination produced by create-minimised-clone.\nDefault: 1.'; \
 	print_section 'Rendering and Qualification Variables'; \
 	print_help_line 'RELEASE=<variant>' 'Firmware variant name for render-release-branch and verify-release-branch.'; \
 	print_help_line 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/cache/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a Git cache branch.'; \
@@ -171,8 +169,6 @@ help-dev:
 
 help-variants:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/list_configured_variants.py
-
-help-releases: help-variants
 
 BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
 
@@ -228,9 +224,9 @@ realclean:
 prune:
 	@DEBUG="$(DEBUG)" DELETE="$(DELETE)" V="$(V)" $(PYTHON) scripts/prune_cache_refs.py --delete "$(DELETE)" --v "$(V)"
 
-export-minimal-repo:
-	@if [ -z "$(DIR)" ]; then $(PYTHON) scripts/export_minimal_repo.py --help; printf '%s\n' 'missing required variable: DIR' >&2; exit 2; fi
-	@DEBUG="$(DEBUG)" DIR="$(DIR)" REPACK="$(REPACK)" V="$(V)" $(PYTHON) scripts/export_minimal_repo.py --dir "$(DIR)" --repack "$(REPACK)" --v "$(V)"
+create-minimised-clone:
+	@if [ -z "$(DIR)" ]; then $(PYTHON) scripts/create_minimised_clone.py --help; printf '%s\n' 'missing required variable: DIR' >&2; exit 2; fi
+	@DEBUG="$(DEBUG)" DIR="$(DIR)" REPACK="$(REPACK)" V="$(V)" $(PYTHON) scripts/create_minimised_clone.py --dir "$(DIR)" --repack "$(REPACK)" --v "$(V)"
 
 buildbox-firmware-build:
 	$(call run_release_make,buildbox-firmware-build)
@@ -255,8 +251,8 @@ verify-manifest-integrity:
 verify-ref-integrity:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/verify_ref_integrity.py --v "$(V)"
 
-verify-minimal-repo:
-	@DEBUG="$(DEBUG)" DIR="$(DIR)" KEEP="$(KEEP)" REPACK="$(REPACK)" V="$(V)" $(PYTHON) scripts/verify_minimal_repo.py --dir "$(DIR)" --keep "$(KEEP)" --repack "$(REPACK)" --v "$(V)"
+verify-minimised-clone:
+	@DEBUG="$(DEBUG)" DIR="$(DIR)" KEEP="$(KEEP)" REPACK="$(REPACK)" V="$(V)" $(PYTHON) scripts/verify_minimised_clone.py --dir "$(DIR)" --keep "$(KEEP)" --repack "$(REPACK)" --v "$(V)"
 
 extract-vendor-delta:
 	@DEBUG="$(DEBUG)" VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,7 @@ from reconstruction_common import (
     VARIANT_CACHE_MANIFEST,
     ReconstructionError,
     base_tree_records,
+    format_duration,
     for_each_ref,
     git,
     load_json,
@@ -325,6 +327,7 @@ def require_build_policy(releases: list[str]) -> list[str]:
 
 
 def main() -> None:
+    started = time.monotonic()
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
@@ -342,7 +345,8 @@ def main() -> None:
 
     print(
         f"validated derived build matrix: {len(releases)} EDK2 releases, "
-        f"{len(expected_releases)} firmware variant refs"
+        f"{len(expected_releases)} firmware variant refs "
+        f"in {format_duration(time.monotonic() - started)}"
     )
 
 
