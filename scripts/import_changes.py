@@ -50,8 +50,9 @@ Required variables:
 
 Optional variables:
   BASE_REF=<ref>        Source tree before the intended change. If omitted, the
-                        importer can infer a unique source/cache/** ancestor or
-                        source/unofficial/current ancestor.
+                        importer can infer a unique source/cache/** ancestor,
+                        source/unofficial/current ancestor, or retained branch
+                        fork point.
   SOURCE_UNOFFICIAL_REF=source/unofficial/current
                         Unofficial source branch to update. Checkpoint
                         propagation requires the default current branch.
@@ -161,6 +162,84 @@ def nearest_ancestor(repo: Path, from_ref: str, refs: list[str]) -> tuple[str, s
     return ref, oid
 
 
+def merge_base(repo: Path, left: str, right: str) -> str | None:
+    result = git(repo, "merge-base", left, right, check=False)
+    if result.returncode != 0:
+        return None
+    value = result.stdout.strip()
+    return value or None
+
+
+def branch_heads(repo: Path) -> list[str]:
+    result = git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads", check=False)
+    if result.returncode != 0:
+        return []
+    return [line for line in result.stdout.splitlines() if line]
+
+
+def broader_base_refs(repo: Path, from_ref: str) -> list[str]:
+    from_short = from_ref.removeprefix("refs/heads/")
+    refs: list[str] = []
+    for ref in branch_heads(repo):
+        if ref == from_short:
+            continue
+        if ref == "build" or ref.startswith("source/cache/") or ref.startswith("source/unofficial/"):
+            continue
+        refs.append(ref)
+    return refs
+
+
+def base_label_sort_key(label: str) -> tuple[int, str]:
+    ref = label
+    if label.startswith("merge-base("):
+        ref = label[len("merge-base(") :].split(",", 1)[0]
+    if ref == "main-monorepo":
+        return (0, label)
+    if ref == "main" or ref.startswith("main-monorepo"):
+        return (1, label)
+    if ref.startswith("codex/"):
+        return (9, label)
+    return (5, label)
+
+
+def infer_broader_base(repo: Path, from_ref: str, refs: list[str]) -> tuple[str, str] | None:
+    from_oid = rev_parse(repo, from_ref)
+    candidates_by_oid: dict[str, dict[str, Any]] = {}
+    for ref in refs:
+        oid = rev_parse(repo, ref)
+        if oid == from_oid:
+            continue
+        base_oid = merge_base(repo, ref, from_ref)
+        if not base_oid or base_oid == from_oid:
+            continue
+        count = int(git(repo, "rev-list", "--count", f"{base_oid}..{from_ref}").stdout.strip())
+        label = ref if oid == base_oid else f"merge-base({ref}, FROM_REF)"
+        record = candidates_by_oid.setdefault(base_oid, {"count": count, "labels": []})
+        record["count"] = min(int(record["count"]), count)
+        record["labels"].append(label)
+
+    if not candidates_by_oid:
+        return None
+
+    ordered = sorted(
+        (
+            (int(record["count"]), oid, sorted(set(record["labels"]), key=base_label_sort_key))
+            for oid, record in candidates_by_oid.items()
+        ),
+        key=lambda item: (item[0], item[1]),
+    )
+    best_count = ordered[0][0]
+    best = [item for item in ordered if item[0] == best_count]
+    if len(best) > 1:
+        lines = ["could not infer BASE_REF unambiguously; candidate fork points:"]
+        for _count, oid, labels in best:
+            lines.append(f"  - {oid} from {', '.join(labels)}")
+        lines.append("re-run with BASE_REF=<ref>")
+        raise ReconstructionError("\n".join(lines))
+    _count, oid, labels = best[0]
+    return labels[0], oid
+
+
 def infer_base(repo: Path, from_ref: str, explicit_base: str, target_ref: str) -> tuple[str, str]:
     from_oid = rev_parse(repo, from_ref)
     if explicit_base:
@@ -176,6 +255,10 @@ def infer_base(repo: Path, from_ref: str, explicit_base: str, target_ref: str) -
     target_base = nearest_ancestor(repo, from_ref, [target_ref])
     if target_base:
         return target_base
+
+    broader_base = infer_broader_base(repo, from_ref, broader_base_refs(repo, from_ref))
+    if broader_base:
+        return broader_base
 
     raise ReconstructionError(
         "could not infer BASE_REF. Re-run with BASE_REF=<source tree before the intended change>."
@@ -252,8 +335,10 @@ def apply_patch_to_target(target: dict[str, Any], patch_path: Path, message: str
         target["apply_stdout"] = result.stdout
         target["apply_stderr"] = result.stderr
         return False
-    detail = (result.stderr or result.stdout).strip()
-    raise ReconstructionError(f"could not apply extracted patch to {target['ref']}: {detail}")
+    target["status"] = "conflict"
+    target["apply_stdout"] = result.stdout
+    target["apply_stderr"] = result.stderr
+    return False
 
 
 def build_targets(repo: Path, args: argparse.Namespace) -> list[dict[str, Any]]:
@@ -288,8 +373,16 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
     for target in targets:
         if target.get("status") == "conflict":
             lines.append(f"  {target['scratch']}")
+            detail = (target.get("apply_stderr") or target.get("apply_stdout") or "").strip()
+            if detail:
+                lines.append("  apply output:")
+                lines.extend(f"    {line}" for line in detail.splitlines()[:12])
     lines.extend(
         [
+            "",
+            "If Git did not create conflict markers, apply the intended change",
+            "manually in the scratch tree, stage the resolved files with git add,",
+            "and then continue.",
             "",
             "Then run:",
             f"  make import-changes CONTINUE=1 OP_ID={op_id} WRITE=1",
@@ -409,6 +502,12 @@ def dry_run_conflict_message(paused: list[dict[str, Any]]) -> str:
         "Conflicting target(s):",
     ]
     lines.extend(f"  - {target['ref']}" for target in paused)
+    lines.extend(
+        [
+            "",
+            "Some patches may require manual application when re-run with WRITE=1.",
+        ]
+    )
     return "\n".join(lines)
 
 

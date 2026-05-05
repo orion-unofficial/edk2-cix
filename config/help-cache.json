@@ -6,7 +6,7 @@
   "signature": {
     "files": [
       {
-        "object_id": "cca28c4db53860ab10694ee3968e259ed18574f0",
+        "object_id": "deaf76b64c48a1ed0c80f1282ea18a76d461c8ab",
         "path": "Makefile"
       },
       {
@@ -82,7 +82,7 @@
         "path": "scripts/help_cache.py"
       },
       {
-        "object_id": "8be4431d624d0eb344914ec9095dab4969737f0a",
+        "object_id": "91879d828a895c0cd9174a474ac8104d08c0c769",
         "path": "scripts/import_changes.py"
       },
       {
@@ -142,7 +142,7 @@
         "path": "scripts/test_check_upstream_versions.py"
       },
       {
-        "object_id": "4a2136bf54b6cede7584930d3dee608830097468",
+        "object_id": "4f862325288d50052dc76fd2258b157fc756df36",
         "path": "scripts/test_import_changes.py"
       },
       {
@@ -580,6 +580,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "eadfcc85dc11857d5a9f9f183a6193d51cef5dd44a11a11b3f3feab7b133e8b8"
+    "sha256": "26a7d2eaf7630799dc865cc6c4a044bdb822714c60f80d5a18da63a5c9ff666e"
   }
 }

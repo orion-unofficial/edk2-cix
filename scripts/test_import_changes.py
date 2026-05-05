@@ -106,6 +106,10 @@ def make_repo() -> Path:
     write_file(tmp, "firmware.txt", "legacy base\n")
     commit_all(tmp, "legacy base")
 
+    git(tmp, "switch", "-c", "main-monorepo", "legacy-base")
+    write_file(tmp, "firmware.txt", "main-monorepo base\n")
+    commit_all(tmp, "main-monorepo base")
+
     git(tmp, "switch", "build")
     return tmp
 
@@ -178,10 +182,57 @@ def test_import_with_explicit_legacy_base() -> None:
         shutil.rmtree(repo)
 
 
+def test_import_infers_retained_legacy_branch_base() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "-c", "legacy-topic", "main-monorepo")
+        write_file(repo, "overlay/new-driver.txt", "new broader-source file\n")
+        commit_all(repo, "legacy topic change")
+        git(repo, "switch", "build")
+
+        dry_run = run_import_changes(repo, FROM_REF="legacy-topic")
+        require(dry_run.returncode == 0, dry_run.stderr + dry_run.stdout)
+        require("main-monorepo" in dry_run.stdout, "dry-run base label was not retained in output")
+
+        result = run_import_changes(repo, FROM_REF="legacy-topic", WRITE="1")
+        require(result.returncode == 0, result.stderr + result.stdout)
+        require(show(repo, "source/unofficial/current", "overlay/new-driver.txt") == "new broader-source file\n", "inferred legacy import failed")
+        require(show(repo, "source/unofficial/current", "firmware.txt") == "base\n", "legacy base contents leaked into current")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_import_infers_retained_legacy_fork_point_after_base_moves() -> None:
+    repo = make_repo()
+    try:
+        fork_point = rev_parse(repo, "main-monorepo")
+        git(repo, "switch", "main-monorepo")
+        write_file(repo, "mainline-only.txt", "new mainline work\n")
+        commit_all(repo, "advance main-monorepo")
+        git(repo, "switch", "-c", "legacy-topic", fork_point)
+        write_file(repo, "overlay/forked-driver.txt", "forked broader-source file\n")
+        commit_all(repo, "legacy forked topic change")
+        git(repo, "switch", "build")
+
+        dry_run = run_import_changes(repo, FROM_REF="legacy-topic")
+        require(dry_run.returncode == 0, dry_run.stderr + dry_run.stdout)
+        require("merge-base(main-monorepo, FROM_REF)" in dry_run.stdout, "fork-point base was not reported")
+
+        result = run_import_changes(repo, FROM_REF="legacy-topic", WRITE="1")
+        require(result.returncode == 0, result.stderr + result.stdout)
+        require(show(repo, "source/unofficial/current", "overlay/forked-driver.txt") == "forked broader-source file\n", "fork-point import failed")
+        missing = git(repo, "show", "source/unofficial/current:mainline-only.txt", check=False)
+        require(missing.returncode != 0, "post-fork main-monorepo changes leaked into current")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_missing_base_is_rejected_when_no_base_can_be_inferred() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "-c", "orphan-topic", "legacy-base")
+        switch_orphan(repo, "orphan-topic")
+        write_file(repo, "firmware.txt", "orphan base\n")
+        commit_all(repo, "orphan base")
         write_file(repo, "firmware.txt", "legacy topic\n")
         commit_all(repo, "orphan topic change")
         git(repo, "switch", "build")
@@ -233,6 +284,34 @@ def test_conflict_pauses_without_moving_refs_then_continue_finalises() -> None:
         shutil.rmtree(repo)
 
 
+def test_failed_apply_without_conflict_markers_pauses_for_manual_resolution() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "main-monorepo")
+        write_file(repo, "legacy-only.txt", "legacy base\n")
+        commit_all(repo, "add legacy-only file")
+        git(repo, "switch", "-c", "legacy-topic")
+        write_file(repo, "legacy-only.txt", "legacy topic\n")
+        commit_all(repo, "modify legacy-only file")
+        git(repo, "switch", "build")
+        old_current = rev_parse(repo, "source/unofficial/current")
+
+        result = run_import_changes(repo, FROM_REF="legacy-topic", WRITE="1")
+        require(result.returncode != 0, "failed apply should pause for manual resolution")
+        require("Import paused due to conflicts" in result.stderr, result.stderr)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite failed apply")
+
+        op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
+        scratch = conflicted_scratch(op_dir)
+        write_file(scratch, "legacy-only.txt", "legacy topic\n")
+        git(scratch, "add", "legacy-only.txt")
+        continued = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name, WRITE="1")
+        require(continued.returncode == 0, continued.stderr + continued.stdout)
+        require(show(repo, "source/unofficial/current", "legacy-only.txt") == "legacy topic\n", "manual resolution was not finalised")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_propagation_updates_checkpoints_and_tags() -> None:
     repo = make_repo()
     try:
@@ -263,9 +342,12 @@ def main() -> None:
     test_dry_run_infers_materialised_base_without_moving_refs()
     test_import_from_materialised_topic_creates_commit_on_current()
     test_import_with_explicit_legacy_base()
+    test_import_infers_retained_legacy_branch_base()
+    test_import_infers_retained_legacy_fork_point_after_base_moves()
     test_missing_base_is_rejected_when_no_base_can_be_inferred()
     test_empty_diff_is_rejected()
     test_conflict_pauses_without_moving_refs_then_continue_finalises()
+    test_failed_apply_without_conflict_markers_pauses_for_manual_resolution()
     test_propagation_updates_checkpoints_and_tags()
     print("import_changes tests passed")
 

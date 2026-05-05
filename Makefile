@@ -165,7 +165,7 @@ help-dev:
 	print_help_variable 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release, import-changes, and import-unofficial-commits.'; \
 	print_help_variable 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
 	print_help_variable 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before recording source/vendor or source/port refs.\nDefault: 1.'; \
-	print_help_variable 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta, import-changes, or explicit replay base for import-unofficial-commits when automatic inference is ambiguous.'; \
+	print_help_variable 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta, or explicit override for import-changes/import-unofficial-commits when automatic inference is ambiguous.'; \
 	print_help_variable 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
 	print_help_variable 'FROM_REF=<ref>' 'Developer topic branch/ref for import-changes or import-unofficial-commits. Use import-changes for source/cache/**, legacy, or broader source trees.'; \
 	print_help_variable 'OUTPUT=<path>' 'Optional extract-vendor-delta metadata output path.'; \

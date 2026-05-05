@@ -188,9 +188,9 @@ The supported workflows guard `source/base/**`, `source/vendor/**`, `source/port
 
 Unofficial development changes are imported explicitly. Ordinary build and render targets never rewrite `source/unofficial/current` or release-specific `source/unofficial/edk2-stable*` checkpoints.
 
-Use `make import-changes` when the change was made on a materialised `source/cache/**` branch, on a branch derived from a materialised source tree, on a legacy source branch, or on any other broader tree. This is the normal path after following the development example above. The importer extracts only the diff between `BASE_REF` and `FROM_REF`, applies that patch to `source/unofficial/current` in a scratch tree, and updates the real source ref only after the patch applies cleanly.
+Use `make import-changes` when the change was made on a materialised `source/cache/**` branch, on a branch derived from a materialised source tree, on a legacy source branch, or on any other broader tree. This is the normal path after following the development example above. The importer finds the source tree before the intended change, extracts only that diff, applies the patch to `source/unofficial/current` in a scratch tree, and updates the real source ref only after the patch applies cleanly.
 
-For a topic branch created from a persistent materialised cache branch, the base can usually be inferred:
+For a topic branch created from a persistent materialised cache branch, a retained legacy branch such as `main-monorepo`, or another unique retained fork point, the base is inferred:
 
 ```bash
 make import-changes \
@@ -205,7 +205,7 @@ make import-changes \
   WRITE=1
 ```
 
-For a branch whose base cannot be inferred, provide the source tree before the intended change:
+For a branch whose base cannot be inferred unambiguously, provide the source tree before the intended change:
 
 ```bash
 make import-changes \
@@ -293,7 +293,7 @@ make import-unofficial-commits ABORT=1 OP_ID=<operation-id>
 The key variables are:
 
 - `FROM_REF` is the topic branch or commit containing your finished change.
-- `BASE_REF` is the source tree before the intended change. `make import-changes` can infer this for topics based on a unique `source/cache/**` branch, but broader or legacy sources should pass it explicitly.
+- `BASE_REF` is the source tree before the intended change. `make import-changes` infers this for topics based on a unique `source/cache/**` branch, `source/unofficial/current`, or retained branch fork point. Pass it explicitly only when the importer reports ambiguity or cannot find the intended base.
 - `SOURCE_UNOFFICIAL_REF` is the full unofficial source branch to update. It defaults to `source/unofficial/current` and must stay under `source/unofficial/`.
 - `PROPAGATE_CHECKPOINTS=all` replays or applies the imported change onto every `source/unofficial/edk2-stable*` checkpoint.
 - `UPDATE_COMPAT_TAGS=1` moves the matching `source/unofficial/edk2/stable-*` tags after every replay has succeeded.
