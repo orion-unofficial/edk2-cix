@@ -84,8 +84,10 @@ help:
 	default_release="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-default-release 2>/dev/null || printf '%s' '<unavailable>')"; \
 	printf '%s\n' 'edk2-cix firmware build targets'; \
 	print_section 'Build Targets'; \
-	print_help_line 'make build' "Build one firmware image for the selected board and source target.\nDefault source target:\n$$default_release"; \
-	print_help_line 'make install' "Build, safety-check, and install one firmware payload for the selected board and source target.\nDefault source target:\n$$default_release"; \
+	print_help_line 'make build' 'Build one firmware image for the selected board and source target.'; \
+	printf '    Default source target: %s\n' "$$default_release"; \
+	print_help_line 'make install' 'Build, safety-check, and install one firmware payload for the selected board and source target.'; \
+	printf '    Default source target: %s\n' "$$default_release"; \
 	print_help_line 'make build-all' 'Build a distributable archive containing all supported firmware build variants for the selected board and source target.'; \
 	print_help_line 'make zip' 'Create a firmware .zip via the buildbox.'; \
 	print_help_line 'make targz' 'Create a firmware .tar.gz via the buildbox.'; \
@@ -104,7 +106,8 @@ help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	default_release="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-default-release 2>/dev/null || printf '%s' '<unavailable>')"; \
 	print_section 'Common Build Variables'; \
-	print_help_line 'RELEASE=<source-target>' "Select a configured firmware source target.\nUse names from 'make help-source-targets' or a full source/cache/release/... branch name.\nDefault source target:\n$$default_release\nSource: latest available EDK2, CIX, Radxa, and unofficial refs."; \
+	print_help_line 'RELEASE=<source-target>' "Select a configured firmware source target.\nUse names from 'make help-source-targets' or a full source/cache/release/... branch name.\nSource: latest available EDK2, CIX, Radxa, and unofficial refs."; \
+	printf '    Default source target: %s\n' "$$default_release"; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
 	print_help_line 'FIRMWARE_TARGET=RELEASE|DEBUG' 'Select the firmware build target.\nDefault: RELEASE.'; \
 	print_help_line 'FIRMWARE_DISTRO=bookworm|trixie' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected source-target policy default.'; \
