@@ -10,6 +10,7 @@ WORKTREE ?=
 TARGET_REF ?=
 SOURCE_UNOFFICIAL_REF ?= source/unofficial/current
 BASE_REF ?=
+COMMIT_MESSAGE ?=
 INSTALL_ROOT ?= /boot/efi
 INSTALL_SOURCE ?=
 FORCE ?= 0
@@ -98,11 +99,11 @@ endef
 
 .PHONY: help help-vars help-dev help-source-targets build build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test lint \
-	extract-vendor-delta render-release-branch integrate-source-release import-unofficial-commits \
+	extract-vendor-delta render-release-branch integrate-source-release import-changes import-unofficial-commits \
 	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-help-cache refresh-help-cache ref-report cleanup-report create-minimised-clone \
 	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
-	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help check-upstream-versions-help
+	import-changes-help import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help check-upstream-versions-help
 
 help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
@@ -150,7 +151,8 @@ help-dev:
 	print_section 'Source Integration'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
-	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
+	print_help_line 'make import-changes' 'Extract a patch from a materialised, legacy, or broader source tree into source/unofficial refs.'; \
+	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint from an already unofficial-based topic branch.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa source refs or CIX-carried source layers.'; \
 	print_help_variable 'COMPONENT=<name>' 'For TYPE=upstream: edk2, edk2-platforms, edk2-non-osi, tf-a, or op-tee.'; \
@@ -160,20 +162,21 @@ help-dev:
 	print_help_variable 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
 	print_help_variable 'ARM_BASE=<release>' 'Arm upstream base used when recording a CIX TF-A or OP-TEE component uplift.'; \
 	print_help_variable 'RADXA_SOURCE=auto|vendor|port' 'Select whether a Radxa integration is a vendor-published source tree or this project'\''s port to an EDK2 base.\nDefault: auto.'; \
-	print_help_variable 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release and import-unofficial-commits.'; \
+	print_help_variable 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release, import-changes, and import-unofficial-commits.'; \
 	print_help_variable 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
 	print_help_variable 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before recording source/vendor or source/port refs.\nDefault: 1.'; \
-	print_help_variable 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta, or explicit replay base for import-unofficial-commits when automatic inference is ambiguous.'; \
+	print_help_variable 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta, import-changes, or explicit replay base for import-unofficial-commits when automatic inference is ambiguous.'; \
 	print_help_variable 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
-	print_help_variable 'FROM_REF=<ref>' 'Developer topic branch/ref for import-unofficial-commits. source/unofficial/** refs are rejected by default to avoid accidental replay of an unbounded range.'; \
+	print_help_variable 'FROM_REF=<ref>' 'Developer topic branch/ref for import-changes or import-unofficial-commits. Use import-changes for source/cache/**, legacy, or broader source trees.'; \
 	print_help_variable 'OUTPUT=<path>' 'Optional extract-vendor-delta metadata output path.'; \
 	print_help_variable 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
-	print_help_variable 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch; defaults to source/unofficial/current.'; \
-	print_help_variable 'PROPAGATE_CHECKPOINTS=none|all' 'For import-unofficial-commits. Replay the inferred FROM_REF change range onto every source/unofficial/edk2-stable* checkpoint after preparing all candidates safely.\nDefault: none.'; \
-	print_help_variable 'UPDATE_COMPAT_TAGS=0|1' 'For import-unofficial-commits. Move matching source/unofficial/edk2/stable-* tags only after all checkpoint replays succeed.\nDefault: 0.'; \
-	print_help_variable 'CONTINUE=0|1' 'Continue a paused import-unofficial-commits operation after conflicts are resolved in the scratch tree.'; \
-	print_help_variable 'ABORT=0|1' 'Abort a paused import-unofficial-commits operation and remove its scratch state without moving refs.'; \
-	print_help_variable 'OP_ID=<id>' 'Paused import-unofficial-commits operation ID for CONTINUE=1 or ABORT=1.'; \
+	print_help_variable 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch for import-changes or import-unofficial-commits; defaults to source/unofficial/current.'; \
+	print_help_variable 'PROPAGATE_CHECKPOINTS=none|all' 'For import targets. Replay or apply the imported change onto every source/unofficial/edk2-stable* checkpoint after preparing all candidates safely.\nDefault: none.'; \
+	print_help_variable 'UPDATE_COMPAT_TAGS=0|1' 'For import targets. Move matching source/unofficial/edk2/stable-* tags only after all checkpoint imports succeed.\nDefault: 0.'; \
+	print_help_variable 'COMMIT_MESSAGE=<text>' 'For import-changes. Commit message for the extracted patch.\nDefault: derived from FROM_REF.'; \
+	print_help_variable 'CONTINUE=0|1' 'Continue a paused import operation after conflicts are resolved in the scratch tree.'; \
+	print_help_variable 'ABORT=0|1' 'Abort a paused import operation and remove its scratch state without moving refs.'; \
+	print_help_variable 'OP_ID=<id>' 'Paused import operation ID for CONTINUE=1 or ABORT=1.'; \
 	print_help_variable 'ALLOW_SOURCE_REF_FROM=0|1' 'Maintainer escape hatch allowing FROM_REF=source/unofficial/** with an explicit BASE_REF.\nDefault: 0.'; \
 	print_section 'Rendering and Qualification'; \
 	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/cache/release branch.'; \
@@ -242,6 +245,7 @@ help-dev:
 	print_help_line 'make help-source-targets' 'Show configured firmware source targets.'; \
 	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
 	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
+	print_help_line 'make import-changes-help' 'Show import-changes arguments.'; \
 	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
 	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
 	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
@@ -354,6 +358,9 @@ integrate-source-release:
 import-unofficial-commits:
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_CHECKPOINTS="$(PROPAGATE_CHECKPOINTS)" UPDATE_COMPAT_TAGS="$(UPDATE_COMPAT_TAGS)" ALLOW_SOURCE_REF_FROM="$(ALLOW_SOURCE_REF_FROM)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
 
+import-changes:
+	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_CHECKPOINTS="$(PROPAGATE_CHECKPOINTS)" UPDATE_COMPAT_TAGS="$(UPDATE_COMPAT_TAGS)" COMMIT_MESSAGE="$(COMMIT_MESSAGE)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_changes.py --v "$(V)"
+
 check-identity-integrity:
 	@DEBUG="$(DEBUG)" SCAN_COMMITS="0" SCAN_SOURCE_REFS="0" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"
 
@@ -412,6 +419,9 @@ integrate-source-release-help:
 
 import-unofficial-commits-help:
 	@$(PYTHON) scripts/import_unofficial_commits.py --help
+
+import-changes-help:
+	@$(PYTHON) scripts/import_changes.py --help
 
 check-vendor-workflow-drift-help:
 	@$(PYTHON) scripts/check_vendor_workflow_drift.py --help

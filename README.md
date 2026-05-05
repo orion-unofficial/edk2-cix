@@ -171,7 +171,7 @@ The source-target tree-ID manifest records canonical rendered trees. Versioned u
 2. Materialise that source target.
 3. Create a normal topic branch from the materialised firmware branch.
 4. Build and test your change.
-5. Import the finished change back through `source/unofficial/current` with `make import-unofficial-commits`.
+5. Import the finished change back through `source/unofficial/current` with `make import-changes`.
 
 Example:
 
@@ -188,7 +188,57 @@ The supported workflows guard `source/base/**`, `source/vendor/**`, `source/port
 
 Unofficial development changes are imported explicitly. Ordinary build and render targets never rewrite `source/unofficial/current` or release-specific `source/unofficial/edk2-stable*` checkpoints.
 
-Dry run first:
+Use `make import-changes` when the change was made on a materialised `source/cache/**` branch, on a branch derived from a materialised source tree, on a legacy source branch, or on any other broader tree. This is the normal path after following the development example above. The importer extracts only the diff between `BASE_REF` and `FROM_REF`, applies that patch to `source/unofficial/current` in a scratch tree, and updates the real source ref only after the patch applies cleanly.
+
+For a topic branch created from a persistent materialised cache branch, the base can usually be inferred:
+
+```bash
+make import-changes \
+  FROM_REF=my-change
+```
+
+If the dry run reports the expected base, changed paths, and update target, re-run with `WRITE=1`:
+
+```bash
+make import-changes \
+  FROM_REF=my-change \
+  WRITE=1
+```
+
+For a branch whose base cannot be inferred, provide the source tree before the intended change:
+
+```bash
+make import-changes \
+  FROM_REF=my-change \
+  BASE_REF=<source-tree-before-my-change> \
+  WRITE=1
+```
+
+To apply the extracted change to every release-specific checkpoint, ask the importer to propagate it:
+
+```bash
+make import-changes \
+  FROM_REF=my-change \
+  PROPAGATE_CHECKPOINTS=all \
+  UPDATE_COMPAT_TAGS=1 \
+  WRITE=1
+```
+
+If one target conflicts, no `source/unofficial/**` branch or compatibility tag is updated. Resolve the conflicts in the scratch tree printed by the command, then continue:
+
+```bash
+make import-changes CONTINUE=1 OP_ID=<operation-id> WRITE=1
+```
+
+Or abort without moving refs:
+
+```bash
+make import-changes ABORT=1 OP_ID=<operation-id>
+```
+
+Use `make import-unofficial-commits` only when `FROM_REF` is already a topic branch based directly on the `source/unofficial/**` branch being updated. This tool advances or replays already-compatible unofficial commits; it deliberately rejects generated `source/cache/**` refs and topics based on materialised cache refs.
+
+Dry run an already-unofficial-based topic first:
 
 ```bash
 make import-unofficial-commits \
@@ -243,10 +293,11 @@ make import-unofficial-commits ABORT=1 OP_ID=<operation-id>
 The key variables are:
 
 - `FROM_REF` is the topic branch or commit containing your finished change.
+- `BASE_REF` is the source tree before the intended change. `make import-changes` can infer this for topics based on a unique `source/cache/**` branch, but broader or legacy sources should pass it explicitly.
 - `SOURCE_UNOFFICIAL_REF` is the full unofficial source branch to update. It defaults to `source/unofficial/current` and must stay under `source/unofficial/`.
-- `PROPAGATE_CHECKPOINTS=all` replays the inferred topic change range onto every `source/unofficial/edk2-stable*` checkpoint.
+- `PROPAGATE_CHECKPOINTS=all` replays or applies the imported change onto every `source/unofficial/edk2-stable*` checkpoint.
 - `UPDATE_COMPAT_TAGS=1` moves the matching `source/unofficial/edk2/stable-*` tags after every replay has succeeded.
-- `BASE_REF` is normally inferred. Use it only when the importer reports that the replay base is ambiguous.
+- `COMMIT_MESSAGE` sets the commit message used by `make import-changes`. If it is omitted, the importer derives a message from `FROM_REF`.
 
 For each supported EDK2 release, the repo keeps two related records of the unofficial project changes:
 

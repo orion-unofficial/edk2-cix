@@ -95,6 +95,11 @@ def make_repo() -> Path:
         commit_all(tmp, f"checkpoint {release}")
         git(tmp, "tag", f"source/unofficial/edk2/stable-{release}")
 
+    git(tmp, "switch", "--orphan", "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
+    write_file(tmp, "firmware.txt", "base\n")
+    write_file(tmp, "release.txt", "current\n")
+    commit_all(tmp, "render cache")
+
     git(tmp, "switch", "build")
     return tmp
 
@@ -212,6 +217,34 @@ def test_checkpoint_from_ref_is_rejected_for_propagation() -> None:
         )
         require(result.returncode != 0, "checkpoint source refs should not be accepted as FROM_REF by default")
         require("ALLOW_SOURCE_REF_FROM=1" in result.stderr, result.stderr)
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_cache_based_from_ref_is_rejected() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "-c", "cache-topic", "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
+        write_file(repo, "firmware.txt", "cache topic\n")
+        commit_all(repo, "cache topic change")
+        git(repo, "switch", "build")
+        result = run_import(repo, FROM_REF="cache-topic", WRITE="1")
+        require(result.returncode != 0, "cache-based topic should not be accepted by import-unofficial-commits")
+        require("make import-changes" in result.stderr, result.stderr)
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_unrelated_from_ref_is_rejected() -> None:
+    repo = make_repo()
+    try:
+        switch_orphan(repo, "legacy-topic")
+        write_file(repo, "firmware.txt", "legacy topic\n")
+        commit_all(repo, "legacy topic")
+        git(repo, "switch", "build")
+        result = run_import(repo, FROM_REF="legacy-topic", WRITE="1")
+        require(result.returncode != 0, "unrelated topic should not be accepted by import-unofficial-commits")
+        require("Use make import-changes" in result.stderr, result.stderr)
     finally:
         shutil.rmtree(repo)
 
@@ -363,6 +396,8 @@ def main() -> None:
     test_direct_checkpoint_import_updates_matching_tag_when_requested()
     test_source_unofficial_from_ref_is_rejected_for_propagation()
     test_checkpoint_from_ref_is_rejected_for_propagation()
+    test_cache_based_from_ref_is_rejected()
+    test_unrelated_from_ref_is_rejected()
     test_propagation_dry_run_does_not_move_refs_or_tags()
     test_empty_replay_range_is_rejected()
     test_conflict_leaves_permanent_refs_unchanged_then_continue_finalises()

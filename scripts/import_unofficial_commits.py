@@ -18,6 +18,7 @@ from reconstruction_common import (
     branch_to_ref,
     cache_dir,
     checked_out_worktree,
+    for_each_ref,
     git,
     is_dirty_worktree,
     local_compatibility_refs,
@@ -40,6 +41,8 @@ HELP = """import-unofficial-commits
 
 Required variables:
   FROM_REF=<ref>        Developer topic branch or commit to import from.
+                        The ref must already be based on the target
+                        source/unofficial/** branch.
 
 Optional variables:
   SOURCE_UNOFFICIAL_REF=source/unofficial/current
@@ -59,6 +62,9 @@ Optional variables:
   OP_ID=<id>            Paused operation ID for CONTINUE=1 or ABORT=1.
   WRITE=0|1             Required before refs or tags are created or advanced.
   V=0|1                 Print delegated git operations.
+
+Use import-changes instead when the change was developed on a materialised
+source/cache/** branch, a legacy source branch, or any broader source tree.
 
 The propagation workflow prepares candidate commits in .cache/edk2-cix first.
 Permanent source/unofficial/** branches and compatibility tags are updated only
@@ -83,13 +89,18 @@ def parser() -> argparse.ArgumentParser:
 
 
 def short_source_ref(ref: str) -> str:
-    if ref.startswith("refs/heads/"):
-        return ref[len("refs/heads/") :]
+    for prefix in ("refs/heads/", "refs/remotes/origin/"):
+        if ref.startswith(prefix):
+            return ref[len(prefix) :]
     return ref
 
 
 def source_unofficial_ref(ref: str) -> bool:
     return short_source_ref(ref).startswith("source/unofficial/")
+
+
+def source_cache_ref(ref: str) -> bool:
+    return short_source_ref(ref).startswith("source/cache/")
 
 
 def full_tag_ref(tag: str) -> str:
@@ -107,6 +118,39 @@ def ref_oid(repo: Path, ref: str, *, tag: bool = False) -> str | None:
 def require_unofficial_target(ref: str) -> None:
     if not ref.startswith("source/unofficial/"):
         raise ReconstructionError("SOURCE_UNOFFICIAL_REF must be under source/unofficial/")
+
+
+def cache_ancestor_refs(repo: Path, from_ref: str) -> list[str]:
+    from_oid = rev_parse(repo, from_ref)
+    ancestors: list[str] = []
+    for ref in for_each_ref(repo, "source/cache"):
+        oid = rev_parse(repo, ref)
+        if oid != from_oid and is_ancestor(repo, oid, from_oid):
+            ancestors.append(ref)
+    return ancestors
+
+
+def require_valid_import_source(repo: Path, from_ref: str, target_ref: str, allow_source_ref_from: bool) -> None:
+    if source_unofficial_ref(from_ref) and not allow_source_ref_from:
+        raise ReconstructionError("FROM_REF must be a topic branch; set ALLOW_SOURCE_REF_FROM=1 only for maintainer recovery workflows")
+    if source_cache_ref(from_ref):
+        raise ReconstructionError(
+            "FROM_REF is a generated source/cache/** ref. Use make import-changes to extract changes from materialised or broader source trees."
+        )
+    cache_ancestors = cache_ancestor_refs(repo, from_ref)
+    if cache_ancestors:
+        refs = "\n".join(f"  - {ref}" for ref in cache_ancestors[:10])
+        extra = "" if len(cache_ancestors) <= 10 else f"\n  ... and {len(cache_ancestors) - 10} more"
+        raise ReconstructionError(
+            "FROM_REF appears to be based on generated source/cache/** content, which is not a valid input for import-unofficial-commits.\n"
+            "Use make import-changes to extract the intended diff onto source/unofficial/current.\n"
+            f"Detected cache ancestor(s):\n{refs}{extra}"
+        )
+    if not is_ancestor(repo, rev_parse(repo, target_ref), rev_parse(repo, from_ref)):
+        raise ReconstructionError(
+            f"FROM_REF is not based on {target_ref}. "
+            "Use make import-changes with BASE_REF=<base> to extract changes from a broader source tree."
+        )
 
 
 def ensure_target_not_checked_out_dirty(repo: Path, ref: str) -> None:
@@ -370,11 +414,7 @@ def pause_message(op_id: str, target: dict[str, Any]) -> str:
 def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> tuple[Path, dict[str, Any], dict[str, Any] | None]:
     if args.source_unofficial_ref != CURRENT_REF:
         raise ReconstructionError("PROPAGATE_CHECKPOINTS=all updates source/unofficial/current and all checkpoints; do not set SOURCE_UNOFFICIAL_REF")
-    if source_unofficial_ref(args.from_ref) and not truthy(args.allow_source_ref_from):
-        raise ReconstructionError(
-            "FROM_REF must be a topic branch for checkpoint propagation. "
-            "Use ALLOW_SOURCE_REF_FROM=1 with explicit BASE_REF only for maintainer recovery workflows."
-        )
+    require_valid_import_source(repo, args.from_ref, CURRENT_REF, truthy(args.allow_source_ref_from))
     old_current = rev_parse(repo, CURRENT_REF)
     from_oid = rev_parse(repo, args.from_ref)
     base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
@@ -473,8 +513,7 @@ def abort_operation(op_dir: Path) -> None:
 def direct_import(repo: Path, args: argparse.Namespace, verbose: bool) -> None:
     ref = args.source_unofficial_ref
     require_unofficial_target(ref)
-    if source_unofficial_ref(args.from_ref) and not truthy(args.allow_source_ref_from):
-        raise ReconstructionError("FROM_REF must be a topic branch; set ALLOW_SOURCE_REF_FROM=1 only for maintainer recovery workflows")
+    require_valid_import_source(repo, args.from_ref, ref, truthy(args.allow_source_ref_from))
     if not truthy(args.write):
         print("dry run; set WRITE=1 to update unofficial refs")
         print(f"  {args.from_ref} -> {ref}")
@@ -514,11 +553,7 @@ def main() -> None:
         raise ReconstructionError("PROPAGATE_CHECKPOINTS must be none or all")
 
     if propagate == "all":
-        if source_unofficial_ref(args.from_ref) and not truthy(args.allow_source_ref_from):
-            raise ReconstructionError(
-                "FROM_REF must be a topic branch for checkpoint propagation. "
-                "Use ALLOW_SOURCE_REF_FROM=1 with explicit BASE_REF only for maintainer recovery workflows."
-            )
+        require_valid_import_source(repo, args.from_ref, CURRENT_REF, truthy(args.allow_source_ref_from))
         old_current = rev_parse(repo, CURRENT_REF)
         base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
         commits = replay_commits(repo, base_oid, args.from_ref)
