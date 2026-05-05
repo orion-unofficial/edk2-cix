@@ -82,7 +82,7 @@
         "path": "scripts/help_cache.py"
       },
       {
-        "object_id": "91879d828a895c0cd9174a474ac8104d08c0c769",
+        "object_id": "ad8141da67a6c92d6111df772b4a6f0db46aac8e",
         "path": "scripts/import_changes.py"
       },
       {
@@ -142,7 +142,7 @@
         "path": "scripts/test_check_upstream_versions.py"
       },
       {
-        "object_id": "4f862325288d50052dc76fd2258b157fc756df36",
+        "object_id": "5ce44a9c69baefbe268fcacd4460a4cedcb6047a",
         "path": "scripts/test_import_changes.py"
       },
       {
@@ -580,6 +580,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "26a7d2eaf7630799dc865cc6c4a044bdb822714c60f80d5a18da63a5c9ff666e"
+    "sha256": "c511ec0e431c8184a0f16eb1e5b7ed5bdc5ad6e045c6fed1e696c229b759129d"
   }
 }

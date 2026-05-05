@@ -193,12 +193,10 @@ def base_label_sort_key(label: str) -> tuple[int, str]:
     ref = label
     if label.startswith("merge-base("):
         ref = label[len("merge-base(") :].split(",", 1)[0]
-    if ref == "main-monorepo":
+    if ref == "main":
         return (0, label)
-    if ref == "main" or ref.startswith("main-monorepo"):
+    if ref.startswith("main"):
         return (1, label)
-    if ref.startswith("codex/"):
-        return (9, label)
     return (5, label)
 
 

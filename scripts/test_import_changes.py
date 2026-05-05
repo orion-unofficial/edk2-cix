@@ -106,9 +106,9 @@ def make_repo() -> Path:
     write_file(tmp, "firmware.txt", "legacy base\n")
     commit_all(tmp, "legacy base")
 
-    git(tmp, "switch", "-c", "main-monorepo", "legacy-base")
-    write_file(tmp, "firmware.txt", "main-monorepo base\n")
-    commit_all(tmp, "main-monorepo base")
+    git(tmp, "switch", "-c", "mainline-source", "legacy-base")
+    write_file(tmp, "firmware.txt", "mainline-source base\n")
+    commit_all(tmp, "mainline-source base")
 
     git(tmp, "switch", "build")
     return tmp
@@ -185,14 +185,14 @@ def test_import_with_explicit_legacy_base() -> None:
 def test_import_infers_retained_legacy_branch_base() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "-c", "legacy-topic", "main-monorepo")
+        git(repo, "switch", "-c", "legacy-topic", "mainline-source")
         write_file(repo, "overlay/new-driver.txt", "new broader-source file\n")
         commit_all(repo, "legacy topic change")
         git(repo, "switch", "build")
 
         dry_run = run_import_changes(repo, FROM_REF="legacy-topic")
         require(dry_run.returncode == 0, dry_run.stderr + dry_run.stdout)
-        require("main-monorepo" in dry_run.stdout, "dry-run base label was not retained in output")
+        require("mainline-source" in dry_run.stdout, "dry-run base label was not retained in output")
 
         result = run_import_changes(repo, FROM_REF="legacy-topic", WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)
@@ -205,10 +205,10 @@ def test_import_infers_retained_legacy_branch_base() -> None:
 def test_import_infers_retained_legacy_fork_point_after_base_moves() -> None:
     repo = make_repo()
     try:
-        fork_point = rev_parse(repo, "main-monorepo")
-        git(repo, "switch", "main-monorepo")
+        fork_point = rev_parse(repo, "mainline-source")
+        git(repo, "switch", "mainline-source")
         write_file(repo, "mainline-only.txt", "new mainline work\n")
-        commit_all(repo, "advance main-monorepo")
+        commit_all(repo, "advance mainline-source")
         git(repo, "switch", "-c", "legacy-topic", fork_point)
         write_file(repo, "overlay/forked-driver.txt", "forked broader-source file\n")
         commit_all(repo, "legacy forked topic change")
@@ -216,13 +216,13 @@ def test_import_infers_retained_legacy_fork_point_after_base_moves() -> None:
 
         dry_run = run_import_changes(repo, FROM_REF="legacy-topic")
         require(dry_run.returncode == 0, dry_run.stderr + dry_run.stdout)
-        require("merge-base(main-monorepo, FROM_REF)" in dry_run.stdout, "fork-point base was not reported")
+        require("merge-base(mainline-source, FROM_REF)" in dry_run.stdout, "fork-point base was not reported")
 
         result = run_import_changes(repo, FROM_REF="legacy-topic", WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)
         require(show(repo, "source/unofficial/current", "overlay/forked-driver.txt") == "forked broader-source file\n", "fork-point import failed")
         missing = git(repo, "show", "source/unofficial/current:mainline-only.txt", check=False)
-        require(missing.returncode != 0, "post-fork main-monorepo changes leaked into current")
+        require(missing.returncode != 0, "post-fork mainline-source changes leaked into current")
     finally:
         shutil.rmtree(repo)
 
@@ -287,7 +287,7 @@ def test_conflict_pauses_without_moving_refs_then_continue_finalises() -> None:
 def test_failed_apply_without_conflict_markers_pauses_for_manual_resolution() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "main-monorepo")
+        git(repo, "switch", "mainline-source")
         write_file(repo, "legacy-only.txt", "legacy base\n")
         commit_all(repo, "add legacy-only file")
         git(repo, "switch", "-c", "legacy-topic")
