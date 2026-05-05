@@ -6,7 +6,7 @@
   "signature": {
     "files": [
       {
-        "object_id": "2e33e92bdffa21333ba4d065f3d3f30dbf0b4802",
+        "object_id": "5b05e1b4e956d1256563f0967f8a4729bccfc5b4",
         "path": "Makefile"
       },
       {
@@ -568,6 +568,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "17177401ffa8f3a1dae1c2940d63573ad90aba1fb54a194f7f8ac21008070f80"
+    "sha256": "ef3b6a80ead9db7169822ca072ea2ad4ebb05f180d9143a9a9815f26b22d6e56"
   }
 }

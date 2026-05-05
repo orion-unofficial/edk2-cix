@@ -89,7 +89,7 @@ define PRINT_HELP_SHELL_PROLOGUE
 					'{ sub(/^ +/, "", $$0); sub(/ +$$/, "", $$0); print cont $$0 }'; \
 		}; \
 		print_subtitle() { \
-			printf '  %s\n\n' "$$1"; \
+			printf '\n  %s\n\n' "$$1"; \
 		}; \
 		print_section() { \
 			printf '\n%s\n\n' "$$1"; \
@@ -148,7 +148,6 @@ help-vars:
 help-dev:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Source Integration'; \
-	print_subtitle 'Targets:'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
@@ -171,7 +170,6 @@ help-dev:
 	print_help_variable 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
 	print_help_variable 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch; defaults to source/unofficial/current.'; \
 	print_section 'Rendering and Qualification'; \
-	print_subtitle 'Targets:'; \
 	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/cache/release branch.'; \
 	print_help_line 'make verify-release-branch' 'Validate a materialised firmware source-target branch.'; \
 	print_help_line 'make verify-build-matrix' 'Validate build/source target combinations derived from source refs.'; \
@@ -185,7 +183,6 @@ help-dev:
 	print_help_variable 'SIGNING_CERT_SOURCE_DIR=<path>' 'Copy exact-replay signing certs into the build worktree.\nDefault: unset.'; \
 	print_help_variable 'INSTALL_SOURCE=<path>' 'Optional staged payload path, or path relative to dist/firmware.\nDefault: latest staged firmware payload.'; \
 	print_section 'Minimised Repository'; \
-	print_subtitle 'Targets:'; \
 	print_help_line 'make create-minimised-clone' 'Create a bare repo containing only build plus required non-cache source refs and tags.'; \
 	print_help_line 'make verify-minimised-clone' 'Create and clone a minimised repository, then verify that it can render the default source target.'; \
 	print_subtitle 'Variables:'; \
@@ -193,7 +190,6 @@ help-dev:
 	print_help_variable 'KEEP=0|1' 'Keep the temporary verification workspace created by verify-minimised-clone.\nDefault: 0.'; \
 	print_help_variable 'REPACK=0|1' 'Repack the destination produced by create-minimised-clone.\nDefault: 1.'; \
 	print_section 'Repository Maintenance'; \
-	print_subtitle 'Targets:'; \
 	print_help_line 'make check-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
 	print_help_line 'make check-identity-integrity' 'Quickly scan build-branch files for path/identity integrity issues.'; \
 	print_help_line 'make verify-identity-integrity' 'Deep-scan build-branch files, commit metadata, and persistent source refs for path/identity integrity issues.'; \
@@ -213,7 +209,6 @@ help-dev:
 	print_help_variable 'UPSTREAM_VERSION_SNAPSHOT=<path>' 'Offline git ls-remote snapshot for upstream version tests.\nDefault: unset.'; \
 	print_help_variable 'DELETE=0|1' 'Allow make prune to delete verified source/cache refs.\nDefault: 0.'; \
 	print_section 'Local GitHub Actions'; \
-	print_subtitle 'Targets:'; \
 	print_help_line 'make gha-act-list' 'List GitHub Actions workflows and jobs through a repo-local act wrapper.'; \
 	print_help_line 'make gha-act-dry-run' 'Dry-run a selected GitHub Actions workflow through act.'; \
 	print_help_line 'make gha-act-run' 'Execute a selected GitHub Actions workflow through act.'; \
@@ -227,11 +222,9 @@ help-dev:
 	print_help_variable 'ACT_CONTAINER_ARCH=<platform>' 'Container architecture used by act.\nDefault: linux/amd64.'; \
 	print_help_variable 'ACT_RUNNER_IMAGE=<image>' 'Runner image mapped to ubuntu-latest.\nDefault: catthehacker/ubuntu:act-latest.'; \
 	print_section 'Documentation'; \
-	print_subtitle 'Targets:'; \
 	print_help_line 'make docs-build' 'Build the mdBook product documentation under docs/.'; \
 	print_help_line 'make docs-workflow-local' 'Run the documentation workflow in its local Docker wrapper.'; \
 	print_section 'Quality'; \
-	print_subtitle 'Targets:'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
 	print_help_line 'make lint' 'Run JSON, YAML, Markdown, shell, and Python linting in the quality container.'; \
 	print_subtitle 'Variables:'; \
