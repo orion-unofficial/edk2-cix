@@ -135,9 +135,13 @@ def validate() -> None:
         require_boolean(name, env(name), problems)
 
     require_uint32("DEBUG_PRINT_ERROR_LEVEL", env("DEBUG_PRINT_ERROR_LEVEL"), problems)
-    validate_release(repo, problems)
-    validate_signing_cert_source(repo, problems)
-    validate_feature_relationships(repo, problems)
+
+    # Source-target resolution can be noticeably slower than checking simple
+    # environment values, so report obvious user input errors before doing it.
+    if not problems:
+        validate_release(repo, problems)
+        validate_signing_cert_source(repo, problems)
+        validate_feature_relationships(repo, problems)
 
     if problems:
         detail = "\n".join(f"  - {problem}" for problem in problems)

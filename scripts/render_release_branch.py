@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve and optionally materialise a configured firmware variant branch."""
+"""Resolve and optionally materialise a configured source target branch."""
 
 from __future__ import annotations
 
@@ -42,14 +42,14 @@ from reconstruction_common import (
 HELP = """render-release-branch
 
 Required variables:
-  RELEASE    Firmware variant name from 'make help-variants', or a full
+  RELEASE    Firmware source target name from 'make help-source-targets', or a full
              source/cache/release/... branch name.
 
 Optional variables:
   PERSIST=0|1
              Create the rendered source/cache/release/... branch if it is missing.
   REBUILD=0|1
-             Regenerate the variant from its render plan.
+             Regenerate the source target from its render plan.
   FORCE=0|1  With PERSIST=1 and REBUILD=1, intentionally replace the rendered
              branch and refresh config/refs-variant-cache.json.
   V=0|1      Print delegated git operations and warnings.
@@ -76,15 +76,15 @@ def ignore_worktree_cache(worktree: Path) -> None:
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
-    p.add_argument("--release", default=os.environ.get("RELEASE", ""), help="firmware variant name or source/cache/release/... branch")
+    p.add_argument("--release", default=os.environ.get("RELEASE", ""), help="source target name or source/cache/release/... branch")
     p.add_argument("--require-release", action="store_true", help="fail if --release is empty instead of using the default")
     p.add_argument("--persist", default=os.environ.get("PERSIST", "0"), help="create a persistent source/cache/release branch when set to 1")
     p.add_argument("--rebuild", default=os.environ.get("REBUILD", "0"), help="regenerate from render plan instead of reusing an existing branch")
     p.add_argument("--force", default=os.environ.get("FORCE", "0"), help="allow replacing an existing rendered branch with a different tree")
-    p.add_argument("--ensure-worktree", action="store_true", help="create or reuse a detached worktree for the resolved variant")
+    p.add_argument("--ensure-worktree", action="store_true", help="create or reuse a detached worktree for the resolved source target")
     p.add_argument("--print-worktree", action="store_true", help="print only the worktree path")
     p.add_argument("--print-ref", action="store_true", help="print the resolved ref/branch")
-    p.add_argument("--print-default-release", action="store_true", help="print the derived default variant")
+    p.add_argument("--print-default-release", action="store_true", help="print the derived default source target")
     p.add_argument("--v", default=os.environ.get("V", "0"), help="verbosity flag propagated from make")
     return p
 
@@ -354,7 +354,7 @@ def main() -> None:
 
     if target_ref is None:
         raise ReconstructionError(
-            f"firmware variant branch {branch} is unavailable locally and could not be regenerated.\n"
+            f"source target branch {branch} is unavailable locally and could not be regenerated.\n"
             "External upstream/vendor remotes are not contacted for ordinary rendering; "
             "run integrate-source-release if source objects are missing."
         )
@@ -400,7 +400,7 @@ def main() -> None:
     elif args.print_ref:
         print(branch if ref_exists(repo, branch) else target_ref)
     else:
-        print(f"variant: {variant_name(branch)}")
+        print(f"source target: {variant_name(branch)}")
         print(f"branch:  {branch}")
         print(f"ref:     {branch if ref_exists(repo, branch) else target_ref}")
         if wt:

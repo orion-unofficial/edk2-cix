@@ -120,10 +120,10 @@ Inside the `Ventoy` UI, `Shell.efi` should appear as an option if you copied
 everything. Run it to enter UEFI Shell.
 
 ```admonish caution
-If you built for multiple EDK2 variants, you may have multiple `Shell.efi`
+If you built for multiple EDK2 releases, you may have multiple `Shell.efi`
 entries in `Ventoy`. They are generally compatible with different platforms,
 but when in doubt, only use the one that came with your target platform and
-only copy the EDK2 variant for that platform.
+only copy the EDK2 release output for that platform.
 ```
 
 ## Update BIOS from UEFI Shell

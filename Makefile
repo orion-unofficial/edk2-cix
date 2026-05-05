@@ -71,7 +71,7 @@ define PRINT_HELP_SHELL_PROLOGUE
 	}
 endef
 
-.PHONY: help help-vars help-dev help-variants build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
+.PHONY: help help-vars help-dev help-source-targets help-variants build build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-unofficial-commits \
 	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-help-cache refresh-help-cache ref-report cleanup-report create-minimised-clone \
@@ -81,10 +81,12 @@ endef
 
 help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
+	default_release="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-default-release 2>/dev/null || printf '%s' '<unavailable>')"; \
 	printf '%s\n' 'edk2-cix firmware build targets'; \
 	print_section 'Build Targets'; \
-	print_help_line 'make build-all' 'Build a distributable archive containing all supported firmware variants for the selected board.'; \
-	print_help_line 'make install' 'Build, safety-check, and install firmware.'; \
+	print_help_line 'make build' "Build one firmware image for the selected board and source target.\nDefault source target:\n$$default_release"; \
+	print_help_line 'make install' "Build, safety-check, and install one firmware payload for the selected board and source target.\nDefault source target:\n$$default_release"; \
+	print_help_line 'make build-all' 'Build a distributable archive containing all supported firmware build variants for the selected board and source target.'; \
 	print_help_line 'make zip' 'Create a firmware .zip via the buildbox.'; \
 	print_help_line 'make targz' 'Create a firmware .tar.gz via the buildbox.'; \
 	print_help_line 'make clean' 'Remove stale filesystem cache entries; does not delete Git refs.'; \
@@ -95,36 +97,36 @@ help:
 	print_section 'Help Targets'; \
 	print_help_line 'make help' 'Show this help.'; \
 	print_help_line 'make help-vars' 'Show common build variables.'; \
-	print_help_line 'make help-variants' 'List configured firmware variants.'; \
+	print_help_line 'make help-source-targets' 'List configured firmware source targets.'; \
 	print_help_line 'make help-dev' 'Show source-update and developer tooling targets.'
 
 help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	default_release="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-default-release 2>/dev/null || printf '%s' '<unavailable>')"; \
 	print_section 'Common Build Variables'; \
-	print_help_line 'RELEASE=<variant>' "Select a configured firmware variant.\nUse names from 'make help-variants' or a full source/cache/release/... branch name.\nDefault variant:\n$$default_release\nSource: latest available EDK2, CIX, Radxa, and unofficial refs."; \
+	print_help_line 'RELEASE=<source-target>' "Select a configured firmware source target.\nUse names from 'make help-source-targets' or a full source/cache/release/... branch name.\nDefault source target:\n$$default_release\nSource: latest available EDK2, CIX, Radxa, and unofficial refs."; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
 	print_help_line 'FIRMWARE_TARGET=RELEASE|DEBUG' 'Select the firmware build target.\nDefault: RELEASE.'; \
-	print_help_line 'FIRMWARE_DISTRO=bookworm|trixie' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected variant policy default.'; \
+	print_help_line 'FIRMWARE_DISTRO=bookworm|trixie' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected source-target policy default.'; \
 	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds. See README.md, "How do I build the latest firmware?", for the difference.\nDefault: custom.'; \
 	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
 	print_help_line 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
 	print_section 'Install Variables'; \
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
 	print_help_line 'FORCE=0|1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \
-	print_section 'Variant Selection'; \
-	print_help_line 'make help-variants' 'List firmware variant names generated from source refs.'; \
+	print_section 'Source Target Selection'; \
+	print_help_line 'make help-source-targets' 'List firmware source-target names generated from source refs.'; \
 	printf '\n%s\n' 'For source-update and maintainer variables, run: make help-dev'
 
 help-dev:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Source Update and Developer Targets'; \
 	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/cache/release branch.'; \
-	print_help_line 'make verify-release-branch' 'Validate a materialised firmware variant branch.'; \
-	print_help_line 'make verify-build-matrix' 'Validate build/source variant combinations derived from source refs.'; \
+	print_help_line 'make verify-release-branch' 'Validate a materialised firmware source-target branch.'; \
+	print_help_line 'make verify-build-matrix' 'Validate build/source target combinations derived from source refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
 	print_help_line 'make check-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
-	print_help_line 'make verify-minimised-clone' 'Create and clone a minimised repository, then verify that it can render the default variant.'; \
+	print_help_line 'make verify-minimised-clone' 'Create and clone a minimised repository, then verify that it can render the default source target.'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
@@ -175,9 +177,9 @@ help-dev:
 	print_help_line 'KEEP=0|1' 'Keep the temporary verification workspace created by verify-minimised-clone.\nDefault: 0.'; \
 	print_help_line 'REPACK=0|1' 'Repack the destination produced by create-minimised-clone.\nDefault: 1.'; \
 	print_section 'Rendering and Qualification Variables'; \
-	print_help_line 'RELEASE=<variant>' 'Firmware variant name for render-release-branch and verify-release-branch.'; \
+	print_help_line 'RELEASE=<source-target>' 'Firmware source-target name for render-release-branch and verify-release-branch.'; \
 	print_help_line 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/cache/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a Git cache branch.'; \
-	print_help_line 'REBUILD=0|1' 'Regenerate a rendered firmware variant from its render plan instead of reusing an existing ref.'; \
+	print_help_line 'REBUILD=0|1' 'Regenerate a rendered firmware source target from its render plan instead of reusing an existing ref.'; \
 	print_help_line 'FORCE=0|1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass.'; \
 	print_help_line 'DELETE=0|1' 'Allow make prune to delete verified source/cache refs.\nDefault: 0.'; \
 	print_help_line 'WORKTREE=<path>' 'Existing rendered worktree to use for verify-release-branch history checks.'; \
@@ -195,7 +197,8 @@ help-dev:
 	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
 	print_help_line 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
 	print_section 'Help Targets'; \
-	print_help_line 'make help-variants' 'Show configured firmware variants.'; \
+	print_help_line 'make help-source-targets' 'Show configured firmware source targets.'; \
+	print_help_line 'make help-variants' 'Compatibility alias for make help-source-targets.'; \
 	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
 	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
 	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
@@ -205,8 +208,10 @@ help-dev:
 	print_help_line 'make check-vendor-workflow-drift-help' 'Show check-vendor-workflow-drift arguments.'; \
 	print_help_line 'make check-upstream-versions-help' 'Show check-upstream-versions arguments.'
 
-help-variants:
+help-source-targets:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-variants
+
+help-variants: help-source-targets
 
 BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
 
@@ -224,6 +229,9 @@ define run_release_make
 	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(1) $(DELEGATED_BUILD_ARGS)"; fi; \
 	$(MAKE) --no-print-directory -C "$$wt" $(1) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg
 endef
+
+build:
+	$(call run_release_make,buildbox-firmware-build)
 
 build-all:
 	$(call run_release_make,build-all)

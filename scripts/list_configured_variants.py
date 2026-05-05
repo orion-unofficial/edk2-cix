@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print configured firmware variants in the same layout as Makefile help."""
+"""Print configured firmware source targets in the same layout as Makefile help."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ def canonical_branches(releases: dict[str, object]) -> tuple[list[str], list[str
     return sorted_variants(canonical), sorted(alias_versions)
 
 
-def print_variant_list(branches: list[str]) -> None:
+def print_source_target_list(branches: list[str]) -> None:
     current_edk2 = ""
     first = True
     for branch in branches:
@@ -83,14 +83,14 @@ def print_help(repo: Path) -> None:
     default = variant_name(default_release(repo))
     branches, alias_versions = canonical_branches(releases)
 
-    print("Configured Firmware Variants")
+    print("Configured Firmware Source Targets")
     print()
     paragraph(
-        "A firmware variant is the chosen combination of EDK2, Radxa, CIX, "
-        "and unofficial project sources."
+        "A source target is the chosen combination of EDK2, Radxa, CIX, "
+        "and unofficial project sources used to construct the firmware tree."
     )
     paragraph(
-        "All listed variants are rendered as ordinary files before building, "
+        "All listed source targets are rendered as ordinary files before building, "
         "without the use of git submodules."
     )
     paragraph(
@@ -99,24 +99,25 @@ def print_help(repo: Path) -> None:
         "an existing branch name from git branch output."
     )
     print()
-    print(f"Default variant: {default}")
-    print()
     print("Name components:")
     print("  edk2-YYYYMM[.NN]    selects the upstream EDK2 release")
     print("  radxa-X.Y.Z[-R]     adds the Radxa EDK2 vendor layer")
     print("  cix-X.Y             adds CIX TF-A and OP-TEE component sources")
     print("  unofficial          adds this project's unofficial firmware changes")
     print()
-    print("Available variants:")
-    print_variant_list(branches)
+    print("Available source targets:")
+    print_source_target_list(branches)
     if alias_versions:
         print()
         print("Versioned unofficial aliases:")
         indented(
-            "Any listed /unofficial variant also accepts a versioned alias of the "
+            "Any listed /unofficial source target also accepts a versioned alias of the "
             f"form /unofficial-<version>; currently configured version(s): "
             f"{', '.join(alias_versions)}."
         )
+    print()
+    print("Default source target:")
+    print(f"  {default}")
 
 
 def render_help(repo: Path) -> str:

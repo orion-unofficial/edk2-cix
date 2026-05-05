@@ -32,9 +32,9 @@ Optional variables:
   V=0|1  Print every validated manifest record.
 
 Checks:
-  - defaults-expanded variant records retain the expected stage-specific type
+  - defaults-expanded source-target records retain the expected stage-specific type
   - defaults-expanded base records retain component skeleton metadata
-  - variant tree IDs match generated release entries
+  - source-target tree IDs match generated release entries
   - persisted generated cache refs, if present, match recorded tree IDs
 """
 
@@ -92,7 +92,7 @@ def validate_variant_manifest(repo: Path, verbose: bool) -> list[str]:
         if ref_exists(repo, ref) and tree_id(repo, ref) != record.get("tree_id"):
             problems.append(f"{ref}: persisted cache ref tree differs from manifest")
         if verbose:
-            print(f"variant manifest ok: {ref} ({expected_type})")
+            print(f"source-target manifest ok: {ref} ({expected_type})")
     return problems
 
 
@@ -137,7 +137,7 @@ def main() -> None:
         details = "\n".join(f"  - {problem}" for problem in problems)
         raise ReconstructionError(f"manifest integrity verification failed:\n{details}")
     print(
-        f"validated manifest integrity: {len(rendered_ref_records(repo))} variant tree records, "
+        f"validated manifest integrity: {len(rendered_ref_records(repo))} source-target tree records, "
         f"{len(base_tree_records(repo))} base tree records in "
         f"{format_duration(time.monotonic() - started)}"
     )

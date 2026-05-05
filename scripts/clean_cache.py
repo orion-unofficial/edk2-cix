@@ -24,7 +24,7 @@ HELP = """clean-cache
 
 Modes:
   stale  Remove rendered worktree cache entries that no longer match any
-         current firmware variant tree ID.
+         current firmware source-target tree ID.
   all    Remove all edk2-cix filesystem cache directories.
 
 Variables:
@@ -102,9 +102,9 @@ def clean_stale(repo: Path, verbose: bool) -> None:
         current_tree = worktree_tree(path)
         reason = ""
         if key not in expected:
-            reason = "no current variant uses this cache key"
+            reason = "no current source target uses this cache key"
         elif current_tree not in expected[key]:
-            reason = "tree no longer matches the current variant manifest"
+            reason = "tree no longer matches the current source-target manifest"
 
         if not reason:
             retained += 1

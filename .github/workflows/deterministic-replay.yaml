@@ -7,7 +7,7 @@ on:
     inputs:
       replay_variant:
         default: edk2-202208/radxa-1.2.1/unofficial-1.2.1
-        description: Firmware variant to render before running replay.
+        description: Firmware source target to render before running replay.
         required: true
         type: string
       upstream_repository:

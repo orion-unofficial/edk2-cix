@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate rendered firmware variant branch invariants."""
+"""Validate rendered source target branch invariants."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from reconstruction_common import (
 HELP = """verify-release-branch
 
 Required variables:
-  RELEASE    Firmware variant name from 'make help-variants', or a full
+  RELEASE    Firmware source target name from 'make help-source-targets', or a full
              source/cache/release/... branch name.
 
 Optional variables:
@@ -84,7 +84,7 @@ def main() -> None:
     branch, _entry = release_entry(repo, args.release, require=True)
     ref = branch if ref_exists(repo, branch) else None
     if ref is None:
-        print(f"[verify] Rendering generated firmware variant for validation: {branch}", file=sys.stderr)
+        print(f"[verify] Rendering generated source target for validation: {branch}", file=sys.stderr)
         from render_release_branch import render_from_plan
 
         _branch, entry = release_entry(repo, args.release, require=True)

@@ -10,26 +10,26 @@ For a quick overview, run:
 ```bash
 make help
 make help-vars
-make help-variants
+make help-source-targets
 ```
 
 ## Build One Firmware Image
 
-For the latest supported firmware variant, choose the board and target:
+For the latest supported source target, choose the board and target:
 
 ```bash
-make buildbox-firmware-build FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE
-make buildbox-firmware-build FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
+make build FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE
+make build FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
 ```
 
 `FIRMWARE_BOARD=O6|O6N` selects the board. `FIRMWARE_TARGET=RELEASE|DEBUG`
 selects the EDK2 build target. The defaults are `O6` and `RELEASE`.
 
-To build an explicit source combination, set `RELEASE` to one of the variants
-listed by `make help-variants`:
+To build an explicit source combination, set `RELEASE` to one of the source
+targets listed by `make help-source-targets`:
 
 ```bash
-make buildbox-firmware-build \
+make build \
   RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/unofficial \
   FIRMWARE_BOARD=O6N \
   FIRMWARE_TARGET=RELEASE
@@ -41,7 +41,7 @@ To stage a payload under `dist/firmware/`, use:
 make buildbox-firmware-stage FIRMWARE_BOARD=O6N
 ```
 
-To create distributable archives for one selected board and variant, use:
+To create distributable archives for one selected board and source target, use:
 
 ```bash
 make zip FIRMWARE_BOARD=O6
@@ -49,8 +49,10 @@ make targz FIRMWARE_BOARD=O6
 ```
 
 `make build-all` is intended for maintainers producing a complete distributable
-bundle of all supported firmware variants for a board. It is broader than most
-single-user builds.
+bundle of all supported firmware build variants for one board and source target.
+Here, a firmware build variant is one output selected by the rendered firmware
+tree's own build matrix, not a different EDK2/CIX/Radxa source combination. It
+is broader than most single-user builds.
 
 ## Install A Built Payload
 
@@ -70,7 +72,7 @@ Set `INSTALL_ROOT=/boot` or another mount point if your system does not use
 
 `ARTEFACT_MODE=custom` is the normal mode for this project. It permits the
 unofficial feature switches and source overlays carried by the selected
-variant.
+source target.
 
 `ARTEFACT_MODE=upstream` keeps the vendor-style build path for qualification
 and replay checks. It is useful when comparing against a published Radxa
@@ -102,14 +104,14 @@ specifically need to work inside that rendered tree.
 
 ## Help Cache
 
-`make help-vars` and `make help-variants` use the committed cache at
+`make help-vars` and `make help-source-targets` use the committed cache at
 `config/help-cache.json` so those commands stay fast. They are read-only: they
 do not rewrite the cache and they do not verify freshness every time they run.
 If the cache is missing, the help helper regenerates output in memory and asks
 you to refresh it.
 
 When you change `Makefile`, `config/`, `scripts/`, or source refs that affect
-the derived variant list, update the cache explicitly:
+the derived source-target list, update the cache explicitly:
 
 ```bash
 make refresh-help-cache
@@ -170,4 +172,4 @@ make check-upstream-versions
 ```
 
 Run `make refresh-help-cache` before `make check-help-cache` when your changes
-alter help text or the derived variant list.
+alter help text or the derived source-target list.

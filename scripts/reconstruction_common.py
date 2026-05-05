@@ -354,7 +354,7 @@ def short_release(branch: str) -> str:
 
 
 def variant_name(branch: str) -> str:
-    """Return the user-facing firmware variant name for a generated release cache branch."""
+    """Return the user-facing source-target name for a generated release cache branch."""
 
     short = short_release(branch)
     first, sep, rest = short.partition("/")
@@ -649,15 +649,15 @@ RELEASE_BRANCH_RE = re.compile(
 def release_branch_parts(branch: str) -> dict[str, str]:
     match = RELEASE_BRANCH_RE.match(branch)
     if not match:
-        raise ReconstructionError(f"cannot derive render plan from unsupported variant branch name: {branch}")
+        raise ReconstructionError(f"cannot derive render plan from unsupported source-target branch name: {branch}")
     parts = {k: v for k, v in match.groupdict().items() if v}
     stage = parts["stage"]
     if stage == "upstream" and (parts.get("cix") or parts.get("unofficial")):
-        raise ReconstructionError(f"invalid upstream variant branch: {branch}")
+        raise ReconstructionError(f"invalid upstream source-target branch: {branch}")
     if stage == "vendor" and (not parts.get("cix") or parts.get("unofficial")):
-        raise ReconstructionError(f"invalid vendor variant branch: {branch}")
+        raise ReconstructionError(f"invalid vendor source-target branch: {branch}")
     if stage == "custom" and not parts.get("unofficial"):
-        raise ReconstructionError(f"invalid custom variant branch: {branch}")
+        raise ReconstructionError(f"invalid custom source-target branch: {branch}")
     return parts
 
 
@@ -697,7 +697,7 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
     unofficial = parts.get("unofficial")
 
     entry: dict[str, Any] = {
-        "description": f"Firmware variant {variant_name(branch)}.",
+        "description": f"Firmware source target {variant_name(branch)}.",
         "edk2_release": edk2_ref,
         "unofficial_delta": bool(unofficial),
         "radxa_release": radxa,
@@ -728,12 +728,12 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
         render["base"] = {"ref": unofficial_ref}
         if cix:
             render["commit_message"] = (
-                f"render: firmware variant with EDK2 {release}, Radxa {radxa}, "
+                f"render: firmware source target with EDK2 {release}, Radxa {radxa}, "
                 f"CIX {cix} components, and unofficial source"
             )
         else:
             render["commit_message"] = (
-                f"render: firmware variant with EDK2 {release}, Radxa {radxa}, "
+                f"render: firmware source target with EDK2 {release}, Radxa {radxa}, "
                 "and unofficial source"
             )
         render["steps"] = []
@@ -765,7 +765,7 @@ def default_release(repo: Path) -> str:
     if not custom:
         custom = [branch for branch in entries if branch.startswith(f"{CACHE_RELEASE_PREFIX}custom/") and branch.endswith("/unofficial")]
     if not custom:
-        raise ReconstructionError("no default release is configured and no custom unofficial variant can be derived")
+        raise ReconstructionError("no default release is configured and no custom unofficial source target can be derived")
     return variant_name(sorted(custom, key=release_branch_sort_key)[-1])
 
 
@@ -839,12 +839,15 @@ def release_entry(repo: Path, release: str | None, require: bool = False) -> tup
         return matches[0]
     if len(matches) > 1:
         variants = "\n".join(f"  - {branch}" for branch, _entry in matches)
-        raise ReconstructionError(f"ambiguous firmware variant: {selected}\n{variants}")
+        raise ReconstructionError(f"ambiguous firmware source target: {selected}\n{variants}")
 
     branch = release_to_branch(selected)
     entry = entries.get(branch) or entries.get(short_release(branch))
     if entry is None:
-        raise ReconstructionError(f"unknown firmware variant: {selected}\nUse 'make help-variants' to list configured variants.")
+        raise ReconstructionError(
+            f"unknown firmware source target: {selected}\n"
+            "Use 'make help-source-targets' to list configured source targets."
+        )
     return branch, entry
 
 
@@ -1164,7 +1167,7 @@ def refresh_ref_record(repo: Path, manifest_name: str, ref: str, extra: dict[str
 
 def refresh_release_tree(repo: Path, branch: str) -> None:
     if branch not in release_entries(repo):
-        raise ReconstructionError(f"cannot update variant manifest for unknown source/cache/release branch: {branch}")
+        raise ReconstructionError(f"cannot update source-target manifest for unknown source/cache/release branch: {branch}")
     parts = release_branch_parts(branch)
     manifest_branch = alias_target_for(branch, parts) or branch
     update_ref_record(

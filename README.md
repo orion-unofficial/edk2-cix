@@ -12,29 +12,29 @@ Users who want to build firmware, rather than change the source model, should fi
 ```bash
 make help
 make help-vars
-make help-variants
+make help-source-targets
 ```
 
 ## How do I build the latest firmware?
 
-The default firmware variant is derived from the latest available supported EDK2 release, CIX release, Radxa release, and unofficial source checkpoint. The supported variant set is generated from source refs such as `source/base/edk2/**`, `source/vendor/radxa/**`, `source/port/radxa/**`, `source/component/cix/**`, and the source/ref manifests under `config/`. If you do not set `RELEASE=...`, the build targets use that derived default variant. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
+The default source target is derived from the latest available supported EDK2 release, CIX release, Radxa release, and unofficial source checkpoint. The supported source-target set is generated from source refs such as `source/base/edk2/**`, `source/vendor/radxa/**`, `source/port/radxa/**`, `source/component/cix/**`, and the source/ref manifests under `config/`. If you do not set `RELEASE=...`, the build targets use that derived default source target. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
 
 For a normal single firmware build, choose the board and build target:
 
 ```bash
-make buildbox-firmware-build FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE
-make buildbox-firmware-build FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
+make build FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE
+make build FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
 ```
 
 Common variables are:
 
 - `FIRMWARE_BOARD=O6|O6N` selects the board. The default is `O6`.
 - `FIRMWARE_TARGET=RELEASE|DEBUG` selects a release or debug firmware image. The default is `RELEASE`.
-- `RELEASE=<variant>` selects a configured firmware variant. Leave this unset to use the latest derived variant.
+- `RELEASE=<source-target>` selects a configured source target. Leave this unset to use the latest derived source-target.
 - `ARTEFACT_MODE=custom|upstream` selects the build and artefact mode inside the chosen source tree. The default is `custom`.
 - `V=1` enables verbose script and delegated build output. The default, `V=0`, keeps output concise.
 
-Most users should leave `ARTEFACT_MODE=custom`. It enables the unofficial firmware build switches exposed by this project. `ARTEFACT_MODE=upstream` is for vendor-style comparison or qualification builds; it does not change the selected source variant, and it rejects unofficial custom-only feature variables. Use `RELEASE=...` to choose source versions.
+Most users should leave `ARTEFACT_MODE=custom`. It enables the unofficial firmware build switches exposed by this project. `ARTEFACT_MODE=upstream` is for vendor-style comparison or qualification builds; it does not change the selected source target, and it rejects unofficial custom-only feature variables. Use `RELEASE=...` to choose source versions.
 
 To stage the deployable payload under `dist/firmware/`, use:
 
@@ -42,7 +42,7 @@ To stage the deployable payload under `dist/firmware/`, use:
 make buildbox-firmware-stage FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
 ```
 
-To create a single-board archive for the selected firmware variant, use:
+To create a single-board archive for the selected source target, use:
 
 ```bash
 make zip FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE
@@ -56,7 +56,7 @@ make install FIRMWARE_BOARD=O6 INSTALL_ROOT=/boot/efi
 make install FIRMWARE_BOARD=O6 INSTALL_ROOT=/boot/efi FORCE=1
 ```
 
-`make build-all` is for producing a distributable bundle containing all supported firmware variants for the selected board. It deliberately ignores most single-variant selection variables because it chooses the supported variant set itself.
+`make build-all` is for producing a distributable bundle containing all supported firmware build variants for the selected board and source target. Here, a firmware build variant means one output selected by the rendered firmware tree's own build matrix, not a different EDK2/CIX/Radxa source combination. It deliberately ignores most single-image build variables because it chooses that build-output set itself.
 
 ```bash
 make build-all FIRMWARE_BOARD=O6
@@ -66,16 +66,16 @@ Exact-replay comparisons can provide `SIGNING_CERT_SOURCE_DIR=<path>`. This is a
 
 ## How do I choose EDK2/CIX/Radxa source versions?
 
-A firmware variant selects the combination of EDK2, CIX, Radxa, and unofficial project sources to build. Use `make help-variants` to list the configured combinations.
+A source target selects the combination of EDK2, CIX, Radxa, and unofficial project sources to build. Use `make help-source-targets` to list the configured combinations.
 
 ```bash
-make help-variants
+make help-source-targets
 ```
 
-Use the `RELEASE` variable to select one of those combinations. The documented form is the prefixless variant name shown by `make help-variants`:
+Use the `RELEASE` variable to select one of those combinations. The documented form is the prefixless source-target name shown by `make help-source-targets`:
 
 ```bash
-make buildbox-firmware-build \
+make build \
   RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/unofficial \
   FIRMWARE_BOARD=O6N \
   FIRMWARE_TARGET=RELEASE
@@ -84,7 +84,7 @@ make buildbox-firmware-build \
 The full internal branch name is also accepted:
 
 ```bash
-make buildbox-firmware-build \
+make build \
   RELEASE=source/cache/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/unofficial \
   FIRMWARE_BOARD=O6N
 ```
@@ -111,7 +111,7 @@ make render-release-branch \
   PERSIST=1 REBUILD=1 FORCE=1
 ```
 
-That command also refreshes the variant tree-ID metadata in `config/refs-variant-cache.json`.
+That command also refreshes the source-target tree-ID metadata in `config/refs-variant-cache.json`.
 
 A configured build variation is considered supported only when all of its source inputs are recorded locally. At a high level, this means:
 
@@ -132,9 +132,9 @@ make verify-build-matrix
 
 ## How are help listings kept current?
 
-`make help-vars` and `make help-variants` read the committed help cache at `config/help-cache.json` so they can return quickly. They do not check whether that cache is stale on every invocation, and they do not rewrite files. If the cache file is missing, the helper regenerates the output in memory and prints a warning telling you to refresh the cache.
+`make help-vars` and `make help-source-targets` read the committed help cache at `config/help-cache.json` so they can return quickly. They do not check whether that cache is stale on every invocation, and they do not rewrite files. If the cache file is missing, the helper regenerates the output in memory and prints a warning telling you to refresh the cache.
 
-When changing `Makefile`, `config/`, `scripts/`, or source refs that affect the derived variant list, refresh and check the cache before committing:
+When changing `Makefile`, `config/`, `scripts/`, or source refs that affect the derived source-target list, refresh and check the cache before committing:
 
 ```bash
 make refresh-help-cache
@@ -155,20 +155,20 @@ The firmware tree is built from several layers rather than from one permanent mo
 
 `source/unofficial/**` branches contain this project's unofficial firmware changes as normal source trees. Release-specific branches such as `source/unofficial/edk2-stable202602` are compatibility checkpoints known to build with a selected EDK2 release. `source/unofficial/current` is the current development checkpoint.
 
-Render plans are derived from the selected variant name and available source refs, then verified against the ref metadata in `config/`.
+Render plans are derived from the selected source target name and available source refs, then verified against the ref metadata in `config/`.
 
 Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`. That report is mainly a diagnostic and audit aid: it records which submodule paths were flattened, which commit IDs were used, which URL was recorded for each submodule, and which `.gitmodules` file supplied that mapping. You can usually ignore it when a build succeeds, but it is useful when checking that a rendered branch contains ordinary files rather than active submodules.
 
-`source/cache/release/**` branches are materialised firmware branches. They are generated from the base, component, vendor, and unofficial layers. They are convenient to inspect or build, but they are not required source inputs: this repository treats them as caches, and a checkout may omit them and regenerate the selected variant from the recorded source layers and manifests.
+`source/cache/release/**` branches are materialised firmware branches. They are generated from the base, component, vendor, and unofficial layers. They are convenient to inspect or build, but they are not required source inputs: this repository treats them as caches, and a checkout may omit them and regenerate the selected source target from the recorded source layers and manifests.
 
 Generated Git cache branches always live under `source/cache/**`. Use `make prune` to report cache branches that are safe to remove, and `make prune DELETE=1` to delete only verified cache branches. Use `make clean` to remove stale transient filesystem caches, such as detached worktrees whose source tree no longer matches the current manifests. Use `make realclean` to remove all transient filesystem caches. Neither target deletes Git refs.
 
-The variant tree-ID manifest records canonical rendered trees. Versioned unofficial aliases, such as `/unofficial-1.2.1`, are derived from the matching canonical `/unofficial` variant for the same EDK2/CIX/Radxa combination, and must always resolve to the same tree.
+The source-target tree-ID manifest records canonical rendered trees. Versioned unofficial aliases, such as `/unofficial-1.2.1`, are derived from the matching canonical `/unofficial` source target for the same EDK2/CIX/Radxa combination, and must always resolve to the same tree.
 
 ## How do I start developing on this codebase?
 
-1. Choose the firmware variant you want to develop against with `make help-variants`.
-2. Materialise that firmware variant.
+1. Choose the source target you want to develop against with `make help-source-targets`.
+2. Materialise that source target.
 3. Create a normal topic branch from the materialised firmware branch.
 4. Build and test your change.
 5. Import the finished change back through `source/unofficial/current` with `make import-unofficial-commits`.
@@ -258,7 +258,7 @@ The CIX bundle records original vendor provenance. To start an experimental upli
 
    The recorded ref is `source/component/cix/1.2/tf-a/v2.12`. Use `COMPONENT=op-tee ARM_BASE=4.4.0` for OP-TEE.
 
-4. Add or update a firmware variant entry that selects the uplifted component ref, render it, and run the same build/audit qualification used for EDK2 releases.
+4. Add or update a source target entry that selects the uplifted component ref, render it, and run the same build/audit qualification used for EDK2 releases.
 
 The component port itself is intentionally a source-level engineering step rather than an automatic patch replay. The deterministic part starts once the reviewed component ref is recorded in `source/component/cix/**` and `config/refs-cix.json`.
 
@@ -288,7 +288,7 @@ After adding source refs for a new supported EDK2 release:
 
    At minimum this means the upstream `edk2` base ref and the selected companion `edk2-platforms` and `edk2-non-osi` refs. Once `source/base/edk2/<edk2-release>` exists, the release is discoverable; there is no separate release-list file to update.
 
-2. Generate the variant once and refresh its recorded tree ID:
+2. Generate the source target once and refresh its recorded tree ID:
 
    ```bash
    make render-release-branch \
@@ -296,12 +296,12 @@ After adding source refs for a new supported EDK2 release:
      PERSIST=1 REBUILD=1 FORCE=1
    ```
 
-3. Run `make verify-build-matrix` to confirm the derived matrix, variant manifest, refs, aliases, and tree IDs agree.
-4. Run the normal build/audit qualification for the new variant before publishing it.
+3. Run `make verify-build-matrix` to confirm the derived matrix, source-target manifest, refs, aliases, and tree IDs agree.
+4. Run the normal build/audit qualification for the new source target before publishing it.
 
-The persistent `source/cache/release/**` branch created in step 2 is a cache. Once the tree ID has been recorded and validation passes, it may be deleted without losing the ability to regenerate the variant.
+The persistent `source/cache/release/**` branch created in step 2 is a cache. Once the tree ID has been recorded and validation passes, it may be deleted without losing the ability to regenerate the source target.
 
-`make help-variants` lists firmware variants derived from the available EDK2, Radxa, CIX, and unofficial refs.
+`make help-source-targets` lists source targets derived from the available EDK2, Radxa, CIX, and unofficial refs.
 
 To create a smaller bare repository containing only the build branch plus the non-cache source refs and tags required for deterministic reconstruction, use:
 
@@ -311,7 +311,7 @@ make create-minimised-clone DIR=/path/to/edk2-cix.minimal.git
 
 The destination directory must be empty or absent. Generated `source/cache/**`, legacy, private, and diagnostic branches are omitted from the export. The exported repository's default branch/`HEAD` is set to `build`, so a normal clone checks out the firmware build interface rather than an unborn or legacy branch.
 
-To prove that a minimised export can be cloned normally, validated, and used to render the default variant, run:
+To prove that a minimised export can be cloned normally, validated, and used to render the default source target, run:
 
 ```bash
 make verify-minimised-clone
@@ -321,7 +321,7 @@ This creates a temporary verification workspace under `.cache/edk2-cix/tmp` and 
 
 ## How do I project `source/unofficial/current` to a materialised firmware branch?
 
-Render a configured variant that includes the unofficial layer:
+Render a configured source target that includes the unofficial layer:
 
 ```bash
 make render-release-branch \
@@ -340,7 +340,7 @@ Materialised refs are generated mechanically from `source/base/**`, `source/vend
 
 ## How do I test a floating upstream tip instead of the latest release?
 
-Integrate the upstream component using an explicit `REF` or a release-like name chosen for the experiment, then render a test variant branch that references it.
+Integrate the upstream component using an explicit `REF` or a release-like name chosen for the experiment, then render a test source-target branch that references it.
 
 ```bash
 make integrate-source-release TYPE=upstream COMPONENT=edk2 REF=<upstream-object> RELEASE=floating-test WRITE=1
@@ -355,7 +355,7 @@ Ordinary builds do not require GitHub or any external upstream/vendor remote whe
 The fallback order is:
 
 1. Use a generated `source/cache/release/**` cache if it exists.
-2. Regenerate the selected variant from source refs and manifests.
+2. Regenerate the selected source target from source refs and manifests.
 3. For source integration only, contact the external upstream/vendor remote if required objects are missing.
 4. Fail only if required source data is unavailable locally and remotely.
 
@@ -366,9 +366,9 @@ There is no separate offline mode flag. The scripts try to proceed from local da
 The build branch carries its own workflows under `.github/workflows/`:
 
 - `Build branch CI` fetches the required `source/**` refs, runs `make test`, and runs `make lint`.
-- `Firmware build` is a manual workflow for rendering and building one selected firmware variant, or for running `build-all`.
-- `Deterministic replay` renders the replay-capable EDK2 `202208` unofficial variant, downloads the latest Radxa release package, and checks that the upstream-path rebuild still matches the published payload for O6 and O6N.
-- `Secure Boot audit` renders the selected custom variant, checks the pinned Microsoft Secure Boot payload metadata and release version, then builds and validates the embedded Secure Boot defaults for O6 and O6N.
+- `Firmware build` is a manual workflow for rendering and building one selected source target, or for running `build-all`.
+- `Deterministic replay` renders the replay-capable EDK2 `202208` unofficial source target, downloads the latest Radxa release package, and checks that the upstream-path rebuild still matches the published payload for O6 and O6N.
+- `Secure Boot audit` renders the selected custom source target, checks the pinned Microsoft Secure Boot payload metadata and release version, then builds and validates the embedded Secure Boot defaults for O6 and O6N.
 - `Upstream versions` checks whether recorded EDK2, Radxa, CIX, Arm TF-A, OP-TEE, and Microsoft Secure Boot source inputs lag their external remotes.
 - `Build documentation` builds the mdBook product documentation from `docs/` and uploads the GitHub Pages artefact.
 
@@ -407,7 +407,7 @@ The wrapper downloads a pinned `act` binary into `.cache/edk2-cix/tools/act/`, v
 
 ## Validation checklist
 
-For normal firmware building, the build target itself performs the necessary preflight checks. When changing source refs, variant manifests, or materialised branches, run:
+For normal firmware building, the build target itself performs the necessary preflight checks. When changing source refs, source-target manifests, or materialised branches, run:
 
 ```bash
 make test
@@ -423,7 +423,7 @@ make check-vendor-workflow-drift
 make ref-report
 ```
 
-If any of those changes affect help or variant output, run `make refresh-help-cache` first so `make check-help-cache` validates the updated cache rather than the previous one.
+If any of those changes affect help or source-target output, run `make refresh-help-cache` first so `make check-help-cache` validates the updated cache rather than the previous one.
 
 For a materialised branch, also run:
 

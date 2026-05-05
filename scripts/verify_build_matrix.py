@@ -45,11 +45,11 @@ HELP = """verify-build-matrix
 No variables are required.
 
 Optional variables:
-  V=0|1  Print every expected firmware variant branch and required source ref.
+  V=0|1  Print every expected firmware source-target branch and required source ref.
 
 Checks:
-  - every derived firmware variant has a render plan
-  - every firmware variant branch/ref derived from source refs is renderable
+  - every derived firmware source target has a render plan
+  - every firmware source-target branch/ref derived from source refs is renderable
   - required base, vendor, component, and unofficial refs exist
   - retained source/cache/release branches are all derivable from source refs
   - retained source/cache/release branches match config/refs-variant-cache.json tree IDs
@@ -142,9 +142,9 @@ def require_manifested_release_entries(
     missing_config = sorted(expected_releases - configured)
     extra_config = sorted(configured - expected_releases)
     if missing_config:
-        problems.append("derived render plans are missing source-derived variants:\n" + "\n".join(f"  - {r}" for r in missing_config))
+        problems.append("derived render plans are missing source-derived source targets:\n" + "\n".join(f"  - {r}" for r in missing_config))
     if extra_config:
-        problems.append("derived render plans contain variants not derivable from source refs:\n" + "\n".join(f"  - {r}" for r in extra_config))
+        problems.append("derived render plans contain source targets not derivable from source refs:\n" + "\n".join(f"  - {r}" for r in extra_config))
 
     actual = actual_source_release_refs(repo)
     legacy_release_refs = actual_refs(repo, "source/release")
@@ -162,7 +162,7 @@ def require_manifested_release_entries(
     extra_records = sorted(set(rendered_records) - expected_releases)
     if extra_records:
         problems.append(
-            f"config/{VARIANT_CACHE_MANIFEST} contains variants not derivable from current source refs:\n"
+            f"config/{VARIANT_CACHE_MANIFEST} contains source targets not derivable from current source refs:\n"
             + "\n".join(f"  - {r}" for r in extra_records)
         )
 
@@ -173,12 +173,12 @@ def require_manifested_release_entries(
         if expected_tree and tree_id(repo, ref) != expected_tree:
             problems.append(f"{ref}: tree ID differs from config/{VARIANT_CACHE_MANIFEST} ({tree_id(repo, ref)} != {expected_tree})")
         if verbose:
-            print(f"retained variant ok: {ref}")
+            print(f"retained source target ok: {ref}")
 
     if verbose:
         omitted = sorted(expected_releases - actual)
         for ref in omitted:
-            print(f"generated variant ok: {ref}")
+            print(f"generated source target ok: {ref}")
 
     return problems
 
@@ -269,7 +269,7 @@ def require_source_refs(
         problems.append("missing unofficial compatibility tags:\n" + "\n".join(f"  - {r}" for r in sorted(missing_tags)))
     extra_tags = actual_local_tags - expected_local_tags
     if extra_tags:
-        problems.append("unofficial compatibility tags are not used by any derived firmware variant:\n" + "\n".join(f"  - {r}" for r in sorted(extra_tags)))
+        problems.append("unofficial compatibility tags are not used by any derived firmware source target:\n" + "\n".join(f"  - {r}" for r in sorted(extra_tags)))
     missing_local_branches = expected_local_branches - actual_local_branches
     if missing_local_branches:
         problems.append(
@@ -335,7 +335,7 @@ def require_non_cix_unofficial_variants(
             missing = [ref for ref in (variant, alias) if ref not in expected_releases]
             if missing:
                 problems.append(
-                    f"{edk2_ref}/radxa-{radxa}: missing non-CIX unofficial variant(s):\n"
+                    f"{edk2_ref}/radxa-{radxa}: missing non-CIX unofficial source target(s):\n"
                     + "\n".join(f"  - {ref}" for ref in missing)
                 )
     return problems
@@ -375,7 +375,7 @@ def main() -> None:
 
     print(
         f"validated derived build matrix: {len(releases)} EDK2 releases, "
-        f"{len(expected_releases)} firmware variant refs "
+        f"{len(expected_releases)} firmware source-target refs "
         f"in {format_duration(time.monotonic() - started)}"
     )
 

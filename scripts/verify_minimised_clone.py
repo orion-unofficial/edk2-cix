@@ -24,7 +24,7 @@ Optional variables:
   V=0|1         Print delegated git and make operations.
 
 The check exports a minimised bare repository, clones it normally, verifies the
-source/build matrix from that clone, and renders the default firmware variant.
+source/build matrix from that clone, and renders the default firmware source target.
 It fails if the export contains generated source/cache/** branches.
 """
 
@@ -111,7 +111,7 @@ def verify_from_workspace(repo: Path, workspace: Path, keep: bool, repack: str, 
         verbose,
     )
 
-    print(f"[verify-minimised] Rendering default variant: {default_variant}", file=sys.stderr)
+    print(f"[verify-minimised] Rendering default source target: {default_variant}", file=sys.stderr)
     run_step(
         "Render",
         [

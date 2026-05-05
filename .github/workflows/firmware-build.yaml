@@ -40,7 +40,7 @@ on:
         type: choice
       release:
         default: ''
-        description: Optional firmware variant from make help-variants.
+        description: Optional source target from make help-source-targets.
         required: false
         type: string
 
