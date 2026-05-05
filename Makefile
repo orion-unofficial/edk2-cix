@@ -184,8 +184,11 @@ help-dev:
 	print_help_line 'make verify-build-matrix' 'Validate build/source target combinations derived from source refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
 	print_help_line 'make verify-source-policy' 'Validate shared source-tree policy checks, including overlay symlink rules.'; \
+	print_help_line 'make verify-source-lifecycle' 'Validate deterministic overlay/source lifecycle projection across unofficial source checkpoints.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'RELEASE=<source-target>' 'Firmware source-target name for render-release-branch and verify-release-branch.'; \
+	print_help_variable 'FROM_REF=<ref>' 'Source ref for verify-source-lifecycle projection.\nDefault: source/unofficial/current.'; \
+	print_help_variable 'TARGET_REF=<ref[,ref...]>' 'Optional comma-separated target refs for verify-source-lifecycle. Leave unset to check every source/unofficial/edk2-stable* checkpoint.'; \
 	print_help_variable 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/cache/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a Git cache branch.'; \
 	print_help_variable 'REBUILD=0|1' 'Regenerate a rendered firmware source target from its render plan instead of reusing an existing ref.'; \
 	print_help_variable 'FORCE=0|1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass.'; \
@@ -346,6 +349,9 @@ verify-manifest-integrity:
 
 verify-source-policy:
 	@DEBUG="$(DEBUG)" REF="$(REF)" V="$(V)" $(PYTHON) scripts/verify_source_policy.py --ref "$(REF)" --v "$(V)"
+
+verify-source-lifecycle:
+	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" TARGET_REF="$(TARGET_REF)" V="$(V)" $(PYTHON) scripts/verify_source_lifecycle.py --from-ref "$(or $(FROM_REF),source/unofficial/current)" --target-ref "$(TARGET_REF)" --v "$(V)"
 
 check-ref-integrity:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_ref_integrity.py --v "$(V)"

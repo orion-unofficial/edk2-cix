@@ -6,7 +6,7 @@
   "signature": {
     "files": [
       {
-        "object_id": "40da7ea3f2e0d268329dffcdcd7fc99c001e82f9",
+        "object_id": "3d3c15fe76ec2f4c1fac6aa56b02903628987c4f",
         "path": "Makefile"
       },
       {
@@ -118,7 +118,7 @@
         "path": "scripts/quality.Dockerfile"
       },
       {
-        "object_id": "4765585b1041363f861dc8507f9dd130f578613a",
+        "object_id": "dd088d11994f22aa87d17ea47640a01c9901a034",
         "path": "scripts/quality_checks.py"
       },
       {
@@ -142,6 +142,10 @@
         "path": "scripts/run_quality_container.sh"
       },
       {
+        "object_id": "b52373f13eaf6ae7cdb4a1c7081f436c0bf2d637",
+        "path": "scripts/source_lifecycle.py"
+      },
+      {
         "object_id": "4446564510d1dc328dfaad6800eaf8c0de28e2e7",
         "path": "scripts/source_policy.py"
       },
@@ -156,6 +160,10 @@
       {
         "object_id": "cb4505e1c3f8b7532e4e0678127546c2433e3f33",
         "path": "scripts/test_import_unofficial_commits.py"
+      },
+      {
+        "object_id": "de772a0eb6bc884c2e7f62316309872b15449fd2",
+        "path": "scripts/test_source_lifecycle.py"
       },
       {
         "object_id": "f259a03401a915ff0bf4ca27c9c611df89bd2afb",
@@ -184,6 +192,10 @@
       {
         "object_id": "49b147bef801535877fc3c85698f5b31abcc2bbb",
         "path": "scripts/verify_release_branch.py"
+      },
+      {
+        "object_id": "33b5dd26b128aed9bcc5ebe5de96eb1ae22ba997",
+        "path": "scripts/verify_source_lifecycle.py"
       },
       {
         "object_id": "7db3aa7cfa518ccce34c33841196c277f2f97c18",
@@ -600,6 +612,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "128aefdce0259d1907aa0f38b6a98368d7e1eb5f1283d05b6a270aa74b217eb0"
+    "sha256": "78ee964fb49923ca3d07c02a0f65c04053f124bc9106c516c4969e904659ce34"
   }
 }
