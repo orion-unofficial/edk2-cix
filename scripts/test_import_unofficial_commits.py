@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import shutil
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -26,6 +27,7 @@ SCRIPT_FILES = [
     "import_workflow.py",
     "import_unofficial_commits.py",
     "reconstruction_common.py",
+    "source_lifecycle.py",
     "source_policy.py",
 ]
 
@@ -65,10 +67,42 @@ def run_import(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
     return run(["python3", "scripts/import_unofficial_commits.py"], repo, check=False, env=env)
 
 
+def symlink(repo: Path, target: str, link: str) -> None:
+    path = repo / link
+    path.parent.mkdir(parents=True, exist_ok=True)
+    os.symlink(target, path)
+
+
 def make_topic(repo: Path, name: str = "topic", text: str = "topic change\n") -> tuple[str, str]:
     base = rev_parse(repo, "source/unofficial/current")
     git(repo, "switch", "-c", name, "source/unofficial/current")
     write_file(repo, "firmware.txt", text)
+    commit_all(repo, f"{name} change")
+    git(repo, "switch", "build")
+    return base, name
+
+
+def add_current_source_and_checkpoint_rename(repo: Path) -> None:
+    git(repo, "switch", "source/unofficial/current")
+    write_file(repo, "src/component/new.c", "renamed source\n")
+    commit_all(repo, "current renamed source")
+
+    git(repo, "switch", "source/unofficial/edk2-stable202208")
+    write_file(repo, "src/component/old.c", "renamed source\n")
+    commit_all(repo, "older source path")
+    git(repo, "tag", "-f", "source/unofficial/edk2/stable-202208")
+
+    git(repo, "switch", "source/unofficial/edk2-stable202602")
+    write_file(repo, "src/component/new.c", "renamed source\n")
+    commit_all(repo, "newer source path")
+    git(repo, "tag", "-f", "source/unofficial/edk2/stable-202602")
+    git(repo, "switch", "build")
+
+
+def make_overlay_symlink_topic(repo: Path, path: str = "new.c", name: str = "overlay-symlink-topic") -> tuple[str, str]:
+    base = rev_parse(repo, "source/unofficial/current")
+    git(repo, "switch", "-c", name, "source/unofficial/current")
+    symlink(repo, f"../../../src/component/{path}", f"custom/overlay/component/{path}")
     commit_all(repo, f"{name} change")
     git(repo, "switch", "build")
     return base, name
@@ -109,6 +143,86 @@ def test_propagate_all_updates_current_checkpoints_and_tags() -> None:
             branch = f"source/unofficial/edk2-stable{release}"
             tag = f"source/unofficial/edk2/stable-{release}"
             require(rev_parse(repo, tag) == rev_parse(repo, branch), f"{tag} was not updated to {branch}")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_propagation_normalises_exact_mirror_rename() -> None:
+    repo = make_repo()
+    try:
+        add_current_source_and_checkpoint_rename(repo)
+        _base, topic = make_overlay_symlink_topic(repo)
+        result = run_import(
+            repo,
+            FROM_REF=topic,
+            PROPAGATE_CHECKPOINTS="all",
+            UPDATE_COMPAT_TAGS="1",
+            WRITE="1",
+        )
+        require(result.returncode == 0, result.stderr + result.stdout)
+        require(
+            show(repo, "source/unofficial/current", "custom/overlay/component/new.c") == "../../../src/component/new.c",
+            "current did not keep the new mirror path",
+        )
+        require(
+            show(repo, "source/unofficial/edk2-stable202208", "custom/overlay/component/old.c") == "../../../src/component/old.c",
+            "older checkpoint did not receive the retargeted mirror path",
+        )
+        missing = git(repo, "show", "source/unofficial/edk2-stable202208:custom/overlay/component/new.c", check=False)
+        require(missing.returncode != 0, "older checkpoint kept the broken new mirror path")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_propagation_validate_mode_reports_required_normalisation() -> None:
+    repo = make_repo()
+    try:
+        add_current_source_and_checkpoint_rename(repo)
+        _base, topic = make_overlay_symlink_topic(repo)
+        old_current = rev_parse(repo, "source/unofficial/current")
+        old_checkpoint = rev_parse(repo, "source/unofficial/edk2-stable202208")
+        result = run_import(
+            repo,
+            FROM_REF=topic,
+            PROPAGATE_CHECKPOINTS="all",
+            UPDATE_COMPAT_TAGS="1",
+            SOURCE_LIFECYCLE_NORMALISE="validate",
+            WRITE="1",
+        )
+        require(result.returncode != 0, "validate mode should reject required lifecycle rewrites")
+        require("source lifecycle normalisation is required" in result.stderr, result.stderr)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite validation failure")
+        require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_checkpoint, "checkpoint moved despite validation failure")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_propagation_drops_mirror_for_source_missing_in_checkpoint() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "source/unofficial/current")
+        write_file(repo, "src/component/later-only.c", "later source\n")
+        commit_all(repo, "current-only source")
+        git(repo, "switch", "source/unofficial/edk2-stable202602")
+        write_file(repo, "src/component/later-only.c", "later source\n")
+        commit_all(repo, "newer-only source")
+        git(repo, "switch", "build")
+
+        _base, topic = make_overlay_symlink_topic(repo, path="later-only.c", name="drop-mirror-topic")
+        result = run_import(
+            repo,
+            FROM_REF=topic,
+            PROPAGATE_CHECKPOINTS="all",
+            UPDATE_COMPAT_TAGS="1",
+            WRITE="1",
+        )
+        require(result.returncode == 0, result.stderr + result.stdout)
+        missing = git(repo, "show", "source/unofficial/edk2-stable202208:custom/overlay/component/later-only.c", check=False)
+        require(missing.returncode != 0, "older checkpoint kept mirror for missing source path")
+        require(
+            show(repo, "source/unofficial/edk2-stable202602", "custom/overlay/component/later-only.c") == "../../../src/component/later-only.c",
+            "newer checkpoint lost valid mirror path",
+        )
     finally:
         shutil.rmtree(repo)
 
@@ -363,6 +477,9 @@ def test_concurrent_ref_movement_aborts_finalise() -> None:
 def main() -> None:
     test_direct_import_dry_run_does_not_move_ref()
     test_propagate_all_updates_current_checkpoints_and_tags()
+    test_propagation_normalises_exact_mirror_rename()
+    test_propagation_validate_mode_reports_required_normalisation()
+    test_propagation_drops_mirror_for_source_missing_in_checkpoint()
     test_direct_checkpoint_import_updates_matching_tag_when_requested()
     test_direct_import_rejects_identical_overlay_copy()
     test_source_unofficial_from_ref_is_rejected_for_propagation()

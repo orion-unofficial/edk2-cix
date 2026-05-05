@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import shutil
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -27,6 +28,7 @@ SCRIPT_FILES = [
     "import_workflow.py",
     "import_unofficial_commits.py",
     "reconstruction_common.py",
+    "source_lifecycle.py",
     "source_policy.py",
 ]
 
@@ -75,12 +77,67 @@ def run_import_changes(repo: Path, **env: str) -> subprocess.CompletedProcess[st
     return run(["python3", "scripts/import_changes.py"], repo, check=False, env=env)
 
 
+def symlink(repo: Path, target: str, link: str) -> None:
+    path = repo / link
+    path.parent.mkdir(parents=True, exist_ok=True)
+    os.symlink(target, path)
+
+
 def make_materialised_topic(repo: Path, name: str = "materialised-topic", text: str = "from materialised\n") -> str:
     git(repo, "switch", "-c", name, "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
     write_file(repo, "firmware.txt", text)
     commit_all(repo, "materialised topic change")
     git(repo, "switch", "build")
     return name
+
+
+def add_materialised_overlay_rename_fixture(repo: Path) -> None:
+    git(repo, "switch", "source/unofficial/current")
+    write_file(repo, "src/component/new.c", "renamed source\n")
+    commit_all(repo, "current renamed source")
+
+    git(repo, "switch", "source/unofficial/edk2-stable202208")
+    write_file(repo, "src/component/old.c", "renamed source\n")
+    commit_all(repo, "older source path")
+    git(repo, "tag", "-f", "source/unofficial/edk2/stable-202208")
+
+    git(repo, "switch", "source/unofficial/edk2-stable202602")
+    write_file(repo, "src/component/new.c", "renamed source\n")
+    commit_all(repo, "newer source path")
+    git(repo, "tag", "-f", "source/unofficial/edk2/stable-202602")
+
+    git(repo, "switch", "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
+    write_file(repo, "src/component/new.c", "renamed source\n")
+    commit_all(repo, "cache renamed source")
+    git(repo, "switch", "build")
+
+
+def make_materialised_overlay_topic(repo: Path) -> str:
+    git(repo, "switch", "-c", "materialised-overlay-lifecycle-topic", "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
+    symlink(repo, "../../../src/component/new.c", "custom/overlay/component/new.c")
+    commit_all(repo, "materialised overlay lifecycle change")
+    git(repo, "switch", "build")
+    return "materialised-overlay-lifecycle-topic"
+
+
+def add_materialised_drop_fixture(repo: Path) -> None:
+    for ref in (
+        "source/unofficial/current",
+        "source/unofficial/edk2-stable202602",
+        "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial",
+    ):
+        git(repo, "switch", ref)
+        write_file(repo, "src/component/later-only.c", "later source\n")
+        commit_all(repo, f"{ref} later-only source")
+    git(repo, "switch", "build")
+
+
+def make_materialised_drop_topic(repo: Path) -> str:
+    git(repo, "switch", "-c", "materialised-drop-lifecycle-topic", "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
+    symlink(repo, "../../../src/component/later-only.c", "custom/overlay/component/later-only.c")
+    commit_all(repo, "materialised drop lifecycle change")
+    git(repo, "switch", "build")
+    return "materialised-drop-lifecycle-topic"
 
 
 def test_dry_run_infers_materialised_base_without_moving_refs() -> None:
@@ -111,6 +168,54 @@ def test_import_from_materialised_topic_creates_commit_on_current() -> None:
         require(git(repo, "show", "-s", "--format=%s", "source/unofficial/current").stdout.strip() == "import materialised change", "commit message not used")
         missing = git(repo, "show", "source/unofficial/current:render-only.txt", check=False)
         require(missing.returncode != 0, "materialised-only base file leaked into current")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_import_changes_normalises_overlay_lifecycle_when_propagating() -> None:
+    repo = make_repo()
+    try:
+        add_materialised_overlay_rename_fixture(repo)
+        topic = make_materialised_overlay_topic(repo)
+        result = run_import_changes(
+            repo,
+            FROM_REF=topic,
+            PROPAGATE_CHECKPOINTS="all",
+            UPDATE_COMPAT_TAGS="1",
+            WRITE="1",
+        )
+        require(result.returncode == 0, result.stderr + result.stdout)
+        require(
+            show(repo, "source/unofficial/current", "custom/overlay/component/new.c") == "../../../src/component/new.c",
+            "current did not receive materialised overlay change",
+        )
+        require(
+            show(repo, "source/unofficial/edk2-stable202208", "custom/overlay/component/old.c") == "../../../src/component/old.c",
+            "older checkpoint did not receive normalised overlay path",
+        )
+        missing = git(repo, "show", "source/unofficial/edk2-stable202208:custom/overlay/component/new.c", check=False)
+        require(missing.returncode != 0, "older checkpoint kept the unnormalised overlay path")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_import_changes_drops_mirror_when_source_is_absent_from_checkpoint() -> None:
+    repo = make_repo()
+    try:
+        add_materialised_drop_fixture(repo)
+        topic = make_materialised_drop_topic(repo)
+        old_checkpoint = rev_parse(repo, "source/unofficial/edk2-stable202208")
+        result = run_import_changes(
+            repo,
+            FROM_REF=topic,
+            PROPAGATE_CHECKPOINTS="all",
+            UPDATE_COMPAT_TAGS="1",
+            WRITE="1",
+        )
+        require(result.returncode == 0, result.stderr + result.stdout)
+        missing = git(repo, "show", "source/unofficial/edk2-stable202208:custom/overlay/component/later-only.c", check=False)
+        require(missing.returncode != 0, "older checkpoint kept mirror for missing source path")
+        require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_checkpoint, "unchanged older checkpoint moved")
     finally:
         shutil.rmtree(repo)
 
@@ -272,7 +377,10 @@ def test_import_rejects_identical_overlay_copy() -> None:
 
         result = run_import_changes(repo, FROM_REF="materialised-overlay-topic", WRITE="1")
         require(result.returncode != 0, "identical overlay copy should be rejected")
-        require("source-tree policy failed" in result.stderr, result.stderr)
+        require(
+            "source-tree policy failed" in result.stderr or "source lifecycle projection failed" in result.stderr,
+            result.stderr,
+        )
         require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite source policy failure")
         operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
         require(not operations.exists() or not any(operations.iterdir()), "policy failure left operation state")
@@ -309,6 +417,8 @@ def test_propagation_updates_checkpoints_and_tags() -> None:
 def main() -> None:
     test_dry_run_infers_materialised_base_without_moving_refs()
     test_import_from_materialised_topic_creates_commit_on_current()
+    test_import_changes_normalises_overlay_lifecycle_when_propagating()
+    test_import_changes_drops_mirror_when_source_is_absent_from_checkpoint()
     test_import_with_explicit_legacy_base()
     test_import_infers_retained_legacy_branch_base()
     test_import_infers_retained_legacy_fork_point_after_base_moves()

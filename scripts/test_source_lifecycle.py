@@ -11,6 +11,7 @@ from pathlib import Path
 from source_lifecycle import (
     SourceLifecycle,
     lifecycle_errors,
+    normalise_overlay_lifecycle,
     project_overlay_tree,
 )
 from test_support import commit_all, git, require, switch_orphan, write_file
@@ -168,6 +169,100 @@ def test_broken_mirror_symlink_is_an_error() -> None:
         shutil.rmtree(repo)
 
 
+def test_normalise_exact_mirror_rename_retargets_symlink() -> None:
+    repo = make_repo()
+    try:
+        write_file(repo, "src/component/new.c", "same content\n")
+        symlink(repo, "../../../src/component/new.c", "custom/overlay/component/new.c")
+        commit_all(repo, "current")
+
+        switch_orphan(repo, "older")
+        write_file(repo, "src/component/old.c", "same content\n")
+        commit_all(repo, "older")
+
+        git(repo, "switch", "-c", "scratch", "older")
+        symlink(repo, "../../../src/component/new.c", "custom/overlay/component/new.c")
+        git(repo, "add", "custom/overlay/component/new.c")
+
+        normalise_overlay_lifecycle(
+            repo,
+            source_repo=repo,
+            from_ref="current",
+            to_ref="older",
+            paths=["custom/overlay/component/new.c"],
+            mode="exact",
+        )
+        require(
+            os.readlink(repo / "custom/overlay/component/old.c") == "../../../src/component/old.c",
+            "mirror symlink was not retargeted to the older source path",
+        )
+        require(not (repo / "custom/overlay/component/new.c").exists(), "old overlay path was not removed")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_normalise_validate_reports_required_changes_without_mutating() -> None:
+    repo = make_repo()
+    try:
+        write_file(repo, "src/component/new.c", "same content\n")
+        symlink(repo, "../../../src/component/new.c", "custom/overlay/component/new.c")
+        commit_all(repo, "current")
+
+        switch_orphan(repo, "older")
+        write_file(repo, "src/component/old.c", "same content\n")
+        commit_all(repo, "older")
+
+        git(repo, "switch", "-c", "scratch", "older")
+        symlink(repo, "../../../src/component/new.c", "custom/overlay/component/new.c")
+        git(repo, "add", "custom/overlay/component/new.c")
+
+        try:
+            normalise_overlay_lifecycle(
+                repo,
+                source_repo=repo,
+                from_ref="current",
+                to_ref="older",
+                paths=["custom/overlay/component/new.c"],
+                mode="validate",
+            )
+        except Exception as exc:
+            require("source lifecycle normalisation is required" in str(exc), str(exc))
+        else:
+            raise AssertionError("validate mode should report required normalisation")
+        require((repo / "custom/overlay/component/new.c").is_symlink(), "validate mode mutated the scratch tree")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_normalise_exact_regular_overlay_rename() -> None:
+    repo = make_repo()
+    try:
+        write_file(repo, "src/component/new.c", "same content\n")
+        write_file(repo, "custom/overlay/component/new.c", "patched content\n")
+        commit_all(repo, "current")
+
+        switch_orphan(repo, "older")
+        write_file(repo, "src/component/old.c", "same content\n")
+        commit_all(repo, "older")
+
+        git(repo, "switch", "-c", "scratch", "older")
+        write_file(repo, "custom/overlay/component/new.c", "patched content\n")
+        git(repo, "add", "custom/overlay/component/new.c")
+
+        normalise_overlay_lifecycle(
+            repo,
+            source_repo=repo,
+            from_ref="current",
+            to_ref="older",
+            paths=["custom/overlay/component/new.c"],
+            mode="exact",
+        )
+        require(git(repo, "show", ":custom/overlay/component/old.c").stdout == "patched content\n", "regular overlay was not renamed")
+        require(git(repo, "ls-files", "--error-unmatch", "custom/overlay/component/new.c", check=False).returncode != 0, "old regular overlay path is still staged")
+    finally:
+        shutil.rmtree(repo)
+
+
 def main() -> None:
     test_same_path_projection_keeps_overlay_path()
     test_exact_rename_projection_renames_overlay_path()
@@ -176,6 +271,9 @@ def main() -> None:
     test_deleted_non_mirror_overlay_is_an_error()
     test_custom_only_overlay_file_is_kept()
     test_broken_mirror_symlink_is_an_error()
+    test_normalise_exact_mirror_rename_retargets_symlink()
+    test_normalise_validate_reports_required_changes_without_mutating()
+    test_normalise_exact_regular_overlay_rename()
     print("source_lifecycle tests passed")
 
 

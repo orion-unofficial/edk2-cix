@@ -198,6 +198,16 @@ from being hidden inside mirrored directories. To run that check explicitly:
 make verify-source-policy
 ```
 
+When a change is propagated across EDK2 checkpoints, the import tools also
+check whether any changed `custom/overlay/` path refers to a `src/` file that
+was renamed or removed in another checkpoint. By default,
+`SOURCE_LIFECYCLE_NORMALISE=exact` automatically applies only deterministic
+fix-ups: exact object renames are retargeted, mirror symlinks for source files
+that do not exist in an older checkpoint are dropped, and ambiguous cases fail
+before any permanent ref moves. Set `SOURCE_LIFECYCLE_NORMALISE=validate` to
+see where a rewrite would be needed without changing scratch trees, `mirror`
+to allow only mirror-symlink fix-ups, or `off` to disable this layer.
+
 Use `make import-changes` when the change was made on a materialised `source/cache/**` branch, on a branch derived from a materialised source tree, on a legacy source branch, or on any other broader tree. This is the normal path after following the development example above. The importer finds the source tree before the intended change, extracts only that diff, applies the patch to `source/unofficial/current` in a scratch tree, and updates the real source ref only after the patch applies cleanly.
 
 For a topic branch created from a persistent materialised cache branch, a retained source branch, or another unique retained fork point, the base is inferred:
@@ -307,6 +317,7 @@ The key variables are:
 - `SOURCE_UNOFFICIAL_REF` is the full unofficial source branch to update. It defaults to `source/unofficial/current` and must stay under `source/unofficial/`.
 - `PROPAGATE_CHECKPOINTS=all` replays or applies the imported change onto every `source/unofficial/edk2-stable*` checkpoint.
 - `UPDATE_COMPAT_TAGS=1` moves the matching `source/unofficial/edk2/stable-*` tags after every replay has succeeded.
+- `SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact` controls deterministic overlay path normalisation while propagating changes across EDK2 checkpoints. The default is `exact`.
 - `COMMIT_MESSAGE` sets the commit message used by `make import-changes`. If it is omitted, the importer derives a message from `FROM_REF`.
 
 For each supported EDK2 release, the repo keeps two related records of the unofficial project changes:

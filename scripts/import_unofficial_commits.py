@@ -45,6 +45,11 @@ from reconstruction_common import (
     truthy,
 )
 from source_policy import enforce_source_tree_policy
+from source_lifecycle import (
+    changed_overlay_paths,
+    normalise_mode,
+    normalise_overlay_lifecycle,
+)
 
 
 OP_NAMESPACE = "import-unofficial"
@@ -66,6 +71,10 @@ Optional variables:
                         With checkpoint propagation, update matching
                         source/unofficial/edk2/stable-* tags after all replays succeed.
   BASE_REF=<ref>        Replay base. Usually inferred from source/unofficial/current.
+  SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact
+                        How to handle overlay paths whose corresponding src/
+                        files moved or disappeared between source checkpoints.
+                        Default: exact.
   ALLOW_SOURCE_REF_FROM=0|1
                         Allow FROM_REF to be a source/unofficial/** ref. This is a
                         maintainer escape hatch and normally should not be needed.
@@ -91,6 +100,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--source-unofficial-ref", default=os.environ.get("SOURCE_UNOFFICIAL_REF", CURRENT_REF))
     p.add_argument("--propagate-checkpoints", default=os.environ.get("PROPAGATE_CHECKPOINTS", "none"))
     p.add_argument("--update-compat-tags", default=os.environ.get("UPDATE_COMPAT_TAGS", os.environ.get("UPDATE_COMPAT_TAG", "0")))
+    p.add_argument("--source-lifecycle-normalise", default=os.environ.get("SOURCE_LIFECYCLE_NORMALISE", "exact"))
     p.add_argument("--allow-source-ref-from", default=os.environ.get("ALLOW_SOURCE_REF_FROM", "0"))
     p.add_argument("--continue-import", default=os.environ.get("CONTINUE", "0"))
     p.add_argument("--abort", default=os.environ.get("ABORT", "0"))
@@ -209,7 +219,31 @@ def cherry_pick_one(repo: Path, commit: str, verbose: bool) -> str:
     raise ReconstructionError(f"cherry-pick failed for {commit}: {detail}")
 
 
-def apply_remaining(target: dict[str, Any], commits: list[str], verbose: bool) -> bool:
+def staged_changes(repo: Path) -> bool:
+    return git(repo, "diff", "--cached", "--quiet", check=False).returncode != 0
+
+
+def tree_id(repo: Path, ref: str) -> str:
+    return git(repo, "rev-parse", f"{ref}^{{tree}}").stdout.strip()
+
+
+def index_tree_id(repo: Path) -> str:
+    return git(repo, "write-tree").stdout.strip()
+
+
+def normalise_target(repo: Path, target: dict[str, Any], state: dict[str, Any], verbose: bool) -> None:
+    normalise_overlay_lifecycle(
+        Path(target["scratch"]),
+        source_repo=repo,
+        from_ref=state["from_oid"],
+        to_ref=target["old_oid"],
+        paths=state.get("changed_overlay_paths", []),
+        mode=state.get("source_lifecycle_normalise", "exact"),
+        verbose=verbose,
+    )
+
+
+def apply_remaining(repo: Path, target: dict[str, Any], state: dict[str, Any], commits: list[str], verbose: bool) -> bool:
     scratch = Path(target["scratch"])
     index = int(target.get("next_index", 0))
     while index < len(commits):
@@ -220,7 +254,19 @@ def apply_remaining(target: dict[str, Any], commits: list[str], verbose: bool) -
             return False
         index += 1
         target["next_index"] = index
-    enforce_source_tree_policy(scratch, ref="HEAD", label=f"import scratch for {target['ref']}")
+    normalise_target(repo, target, state, verbose)
+    if staged_changes(scratch):
+        enforce_source_tree_policy(scratch, index=True, label=f"import scratch index for {target['ref']}")
+        head_oid = rev_parse(scratch, "HEAD")
+        parent = git(scratch, "rev-parse", "--verify", "HEAD^", check=False)
+        if parent.returncode == 0 and index_tree_id(scratch) == tree_id(scratch, parent.stdout.strip()):
+            git(scratch, "reset", "--hard", parent.stdout.strip(), capture=not verbose)
+        elif head_oid == target["old_oid"]:
+            git(scratch, "commit", "-m", f"source lifecycle normalisation for {target['ref']}", capture=not verbose)
+        else:
+            git(scratch, "commit", "--amend", "--no-edit", capture=not verbose)
+    else:
+        enforce_source_tree_policy(scratch, ref="HEAD", label=f"import scratch for {target['ref']}")
     target["status"] = "ready"
     target["candidate_oid"] = rev_parse(scratch, "HEAD")
     return True
@@ -267,6 +313,7 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
     enforce_source_tree_policy(repo, ref=args.from_ref, label=args.from_ref)
     base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
     commits = replay_commits(repo, base_oid, args.from_ref)
+    lifecycle_mode = normalise_mode(args.source_lifecycle_normalise)
     targets = checkpoint_targets(repo)
     for ref in [CURRENT_REF, *targets]:
         ensure_target_not_checked_out_dirty(repo, ref)
@@ -283,6 +330,8 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
         "base_ref": args.base_ref,
         "base_oid": base_oid,
         "commits": commits,
+        "changed_overlay_paths": changed_overlay_paths(repo, base_oid, args.from_ref),
+        "source_lifecycle_normalise": lifecycle_mode,
         "update_compat_tags": truthy(args.update_compat_tags),
         "current_update": {
             "ref": CURRENT_REF,
@@ -306,18 +355,18 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
         state["targets"].append(target)
 
     save_state(op_dir, state)
-    paused = run_replays(op_dir, state, verbose)
+    paused = run_replays(repo, op_dir, state, verbose)
     return op_dir, state, paused
 
 
-def run_replays(op_dir: Path, state: dict[str, Any], verbose: bool) -> dict[str, Any] | None:
+def run_replays(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> dict[str, Any] | None:
     commits = state["commits"]
     for target in state["targets"]:
         if target.get("status") == "ready":
             continue
         if target.get("status") == "conflict":
             return target
-        if not apply_remaining(target, commits, verbose):
+        if not apply_remaining(repo, target, state, commits, verbose):
             save_state(op_dir, state)
             return target
         save_state(op_dir, state)
@@ -347,7 +396,7 @@ def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> 
         target["status"] = "pending"
         save_state(op_dir, state)
 
-    paused = run_replays(op_dir, state, verbose)
+    paused = run_replays(repo, op_dir, state, verbose)
     if paused:
         raise ReconstructionError(pause_message(state["op_id"], paused))
     finalise(repo, op_dir, state, verbose)
@@ -403,10 +452,17 @@ def main() -> None:
         base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
         commits = replay_commits(repo, base_oid, args.from_ref)
         targets = checkpoint_targets(repo)
+        lifecycle_mode = normalise_mode(args.source_lifecycle_normalise)
         if not truthy(args.write):
             print("dry run; set WRITE=1 to update unofficial refs")
             print(f"  base: {base_oid}")
             print(f"  commits: {len(commits)}")
+            print(f"  source lifecycle normalise: {lifecycle_mode}")
+            overlay_paths = changed_overlay_paths(repo, base_oid, args.from_ref)
+            if overlay_paths:
+                print("  changed overlay paths:")
+                for path in overlay_paths:
+                    print(f"    {path}")
             print(f"  update: {CURRENT_REF}")
             for target in targets:
                 line = f"  replay: {target}"

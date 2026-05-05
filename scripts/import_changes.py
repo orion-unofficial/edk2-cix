@@ -45,6 +45,11 @@ from reconstruction_common import (
     truthy,
 )
 from source_policy import enforce_source_tree_policy
+from source_lifecycle import (
+    changed_overlay_paths_from_name_status,
+    normalise_mode,
+    normalise_overlay_lifecycle,
+)
 
 
 OP_NAMESPACE = "import-changes"
@@ -71,6 +76,10 @@ Optional variables:
                         source/unofficial/edk2/stable-* tags after every
                         checkpoint import succeeds.
   COMMIT_MESSAGE=<text> Commit message for the imported patch.
+  SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact
+                        How to handle overlay paths whose corresponding src/
+                        files moved or disappeared between source checkpoints.
+                        Default: exact.
   CONTINUE=0|1          Continue a paused import after conflicts are resolved.
   ABORT=0|1             Remove paused import state without moving refs.
   OP_ID=<id>            Paused operation ID for CONTINUE=1 or ABORT=1.
@@ -91,6 +100,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--propagate-checkpoints", default=os.environ.get("PROPAGATE_CHECKPOINTS", "none"))
     p.add_argument("--update-compat-tags", default=os.environ.get("UPDATE_COMPAT_TAGS", "0"))
     p.add_argument("--commit-message", default=os.environ.get("COMMIT_MESSAGE", ""))
+    p.add_argument("--source-lifecycle-normalise", default=os.environ.get("SOURCE_LIFECYCLE_NORMALISE", "exact"))
     p.add_argument("--continue-import", default=os.environ.get("CONTINUE", "0"))
     p.add_argument("--abort", default=os.environ.get("ABORT", "0"))
     p.add_argument("--op-id", default=os.environ.get("OP_ID", ""))
@@ -241,7 +251,19 @@ def commit_scratch(repo: Path, message: str) -> str:
     return rev_parse(repo, "HEAD")
 
 
-def apply_patch_to_target(target: dict[str, Any], patch_path: Path, message: str, verbose: bool) -> bool:
+def normalise_target(repo: Path, target: dict[str, Any], state: dict[str, Any], verbose: bool) -> None:
+    normalise_overlay_lifecycle(
+        Path(target["scratch"]),
+        source_repo=repo,
+        from_ref=state["from_oid"],
+        to_ref=target["old_oid"],
+        paths=state.get("changed_overlay_paths", []),
+        mode=state.get("source_lifecycle_normalise", "exact"),
+        verbose=verbose,
+    )
+
+
+def apply_patch_to_target(repo: Path, target: dict[str, Any], state: dict[str, Any], patch_path: Path, message: str, verbose: bool) -> bool:
     scratch = Path(target["scratch"])
     result = subprocess.run(
         ["git", "-C", str(scratch), "apply", "--3way", "--index", "--binary", str(patch_path)],
@@ -251,7 +273,11 @@ def apply_patch_to_target(target: dict[str, Any], patch_path: Path, message: str
         check=False,
     )
     if result.returncode == 0:
+        normalise_target(repo, target, state, verbose)
         target["status"] = "ready"
+        if not staged_changes(scratch) and not dirty_paths(scratch):
+            target["candidate_oid"] = target["old_oid"]
+            return True
         target["candidate_oid"] = commit_scratch(scratch, message)
         return True
     if unmerged_paths(scratch):
@@ -333,6 +359,7 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
     patch_path = op_dir / "change.patch"
     changes = write_patch(repo, base_oid, args.from_ref, patch_path)
     message = args.commit_message or f"import: changes from {args.from_ref}"
+    lifecycle_mode = normalise_mode(args.source_lifecycle_normalise)
     state: dict[str, Any] = {
         "op_id": op_id,
         "from_ref": args.from_ref,
@@ -341,6 +368,8 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
         "base_oid": base_oid,
         "patch_path": str(patch_path),
         "changes": changes,
+        "changed_overlay_paths": changed_overlay_paths_from_name_status(changes),
+        "source_lifecycle_normalise": lifecycle_mode,
         "message": message,
         "targets": targets,
     }
@@ -349,7 +378,7 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
     try:
         for target in targets:
             target["scratch"] = str(clone_scratch(repo, op_dir, target["ref"], verbose))
-            if not apply_patch_to_target(target, patch_path, message, verbose):
+            if not apply_patch_to_target(repo, target, state, patch_path, message, verbose):
                 paused.append(target)
             save_state(op_dir, state)
     except Exception:
@@ -385,6 +414,11 @@ def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> 
             continue
         scratch = Path(target["scratch"])
         try:
+            normalise_target(repo, target, state, verbose)
+            if not staged_changes(scratch) and not dirty_paths(scratch):
+                target["candidate_oid"] = target["old_oid"]
+                target["status"] = "ready"
+                continue
             target["candidate_oid"] = commit_scratch(scratch, state["message"])
             target["status"] = "ready"
         except ReconstructionError:
@@ -402,6 +436,11 @@ def print_dry_run(state: dict[str, Any]) -> None:
     print("  changed paths:")
     for change in state["changes"]:
         print(f"    {change}")
+    print(f"  source lifecycle normalise: {state.get('source_lifecycle_normalise', 'exact')}")
+    if state.get("changed_overlay_paths"):
+        print("  changed overlay paths:")
+        for path in state["changed_overlay_paths"]:
+            print(f"    {path}")
     print("  update targets:")
     for target in state["targets"]:
         line = f"    {target['ref']}"

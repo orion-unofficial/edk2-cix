@@ -12,12 +12,13 @@ or manual follow-up work.
 
 from __future__ import annotations
 
+import os
 import posixpath
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from reconstruction_common import git
+from reconstruction_common import ReconstructionError, git
 from source_policy import (
     NORMAL_FILE_MODES,
     OVERLAY_PREFIX,
@@ -53,6 +54,11 @@ class OverlayProjection:
     source_path: str | None
     target_overlay_path: str | None
     detail: str
+    mirror: bool = False
+
+
+NORMALISE_MODES = ("off", "validate", "mirror", "exact")
+NORMALISE_REQUIRED_ACTIONS = {"drop-mirror", "rename"}
 
 
 def parse_ls_tree_record(record: str) -> TreeEntry:
@@ -79,6 +85,13 @@ def source_entries(repo: Path, ref: str) -> dict[str, TreeEntry]:
 
 def overlay_entries(repo: Path, ref: str) -> dict[str, TreeEntry]:
     return tree_entries(repo, ref, [OVERLAY_PREFIX.rstrip("/")])
+
+
+def tree_entry(repo: Path, ref: str, path: str) -> TreeEntry | None:
+    result = git(repo, "ls-tree", ref, "--", path)
+    if not result.stdout.strip():
+        return None
+    return parse_ls_tree_record(result.stdout.strip())
 
 
 def source_component_key(path: str) -> str:
@@ -200,17 +213,17 @@ def project_overlay_entry(repo: Path, lifecycle: SourceLifecycle, overlay_path: 
     mapping = lifecycle.map_source_path(source_path)
     if mapping.kind == "missing-from-source":
         if mirror:
-            return OverlayProjection("error", "broken-source-mirror", overlay_path, source_path, None, mapping.detail)
+            return OverlayProjection("error", "broken-source-mirror", overlay_path, source_path, None, mapping.detail, mirror=True)
         return OverlayProjection("ok", "keep-custom-file", overlay_path, source_path, overlay_path, f"{overlay_path} has no source counterpart in {lifecycle.from_ref}")
 
     if mapping.kind in {"same-path", "same-path-type-change", "exact-rename"} and mapping.target_path:
         target_overlay = overlay_path_for_source(mapping.target_path)
         action = "keep" if target_overlay == overlay_path else "rename"
-        return OverlayProjection("ok", action, overlay_path, source_path, target_overlay, mapping.detail or f"{overlay_path} maps to {target_overlay}")
+        return OverlayProjection("ok", action, overlay_path, source_path, target_overlay, mapping.detail or f"{overlay_path} maps to {target_overlay}", mirror=mirror)
 
     if mapping.kind == "deleted":
         if mirror:
-            return OverlayProjection("ok", "drop-mirror", overlay_path, source_path, None, mapping.detail)
+            return OverlayProjection("ok", "drop-mirror", overlay_path, source_path, None, mapping.detail, mirror=True)
         if entry.mode in NORMAL_FILE_MODES:
             return OverlayProjection(
                 "error",
@@ -273,3 +286,142 @@ def summarise_projections(projections: Iterable[OverlayProjection]) -> dict[str,
 def format_projection(projection: OverlayProjection) -> str:
     target = f" -> {projection.target_overlay_path}" if projection.target_overlay_path else ""
     return f"{projection.severity}: {projection.action}: {projection.overlay_path}{target}: {projection.detail}"
+
+
+def normalise_mode(value: str | None) -> str:
+    mode = (value or "exact").strip().lower()
+    if not mode:
+        mode = "exact"
+    if mode not in NORMALISE_MODES:
+        raise ReconstructionError(
+            "SOURCE_LIFECYCLE_NORMALISE must be one of: " + ", ".join(NORMALISE_MODES)
+        )
+    return mode
+
+
+def changed_overlay_paths_from_name_status(changes: Iterable[str]) -> list[str]:
+    paths: set[str] = set()
+    for line in changes:
+        if not line:
+            continue
+        parts = line.split("\t")
+        status = parts[0]
+        if status.startswith("D"):
+            continue
+        if status.startswith(("R", "C")):
+            path = parts[-1] if len(parts) >= 3 else ""
+        else:
+            path = parts[-1] if len(parts) >= 2 else ""
+        if path.startswith(OVERLAY_PREFIX):
+            paths.add(path)
+    return sorted(paths)
+
+
+def changed_overlay_paths(repo: Path, base_oid: str, from_ref: str) -> list[str]:
+    result = git(repo, "diff", "--name-status", f"{base_oid}..{from_ref}", "--", OVERLAY_PREFIX.rstrip("/"))
+    return changed_overlay_paths_from_name_status(result.stdout.splitlines())
+
+
+def required_normalisation(projections: Iterable[OverlayProjection]) -> list[OverlayProjection]:
+    return [projection for projection in projections if projection.action in NORMALISE_REQUIRED_ACTIONS]
+
+
+def mirror_symlink_target(overlay_path: str) -> str:
+    return posixpath.relpath(overlay_source_path(overlay_path), posixpath.dirname(overlay_path))
+
+
+def remove_index_and_worktree_path(repo: Path, path: str) -> None:
+    git(repo, "rm", "-f", "--ignore-unmatch", "--", path)
+    filesystem_path = repo / path
+    if filesystem_path.is_symlink() or filesystem_path.is_file():
+        filesystem_path.unlink()
+
+
+def write_mirror_symlink(repo: Path, overlay_path: str) -> None:
+    filesystem_path = repo / overlay_path
+    filesystem_path.parent.mkdir(parents=True, exist_ok=True)
+    if filesystem_path.is_symlink() or filesystem_path.is_file():
+        filesystem_path.unlink()
+    elif filesystem_path.exists():
+        raise ReconstructionError(f"cannot replace directory with mirror symlink: {overlay_path}")
+    os.symlink(mirror_symlink_target(overlay_path), filesystem_path)
+    git(repo, "add", "--", overlay_path)
+
+
+def write_overlay_entry_from_ref(repo: Path, source_repo: Path, from_ref: str, source_path: str, target_path: str) -> None:
+    entry = tree_entry(source_repo, from_ref, source_path)
+    if entry is None:
+        raise ReconstructionError(f"cannot normalise missing overlay path: {from_ref}:{source_path}")
+    if entry.mode not in NORMAL_FILE_MODES and entry.mode != SYMLINK_MODE:
+        raise ReconstructionError(f"cannot normalise unsupported overlay mode {entry.mode}: {source_path}")
+    filesystem_path = repo / target_path
+    filesystem_path.parent.mkdir(parents=True, exist_ok=True)
+    git(repo, "update-index", "--add", "--cacheinfo", entry.mode, entry.object_id, target_path)
+    git(repo, "checkout-index", "-f", "--", target_path)
+
+
+def apply_projection(repo: Path, source_repo: Path, from_ref: str, projection: OverlayProjection, mode: str) -> None:
+    if projection.action == "keep":
+        return
+    if projection.action == "keep-custom-file":
+        return
+    if projection.action == "drop-mirror":
+        remove_index_and_worktree_path(repo, projection.overlay_path)
+        return
+    if projection.action != "rename" or not projection.target_overlay_path:
+        raise ReconstructionError(f"cannot normalise lifecycle action {projection.action}: {format_projection(projection)}")
+
+    if mode == "mirror" and not projection.mirror:
+        raise ReconstructionError(
+            "source lifecycle normalisation requires exact mode for non-mirror overlay rename:\n"
+            f"  - {format_projection(projection)}"
+        )
+
+    if projection.target_overlay_path != projection.overlay_path:
+        remove_index_and_worktree_path(repo, projection.overlay_path)
+        remove_index_and_worktree_path(repo, projection.target_overlay_path)
+
+    if projection.mirror:
+        write_mirror_symlink(repo, projection.target_overlay_path)
+    else:
+        write_overlay_entry_from_ref(repo, source_repo, from_ref, projection.overlay_path, projection.target_overlay_path)
+
+
+def normalise_overlay_lifecycle(
+    repo: Path,
+    *,
+    source_repo: Path,
+    from_ref: str,
+    to_ref: str,
+    paths: Iterable[str],
+    mode: str | None = None,
+    verbose: bool = False,
+) -> list[OverlayProjection]:
+    selected = sorted(set(paths))
+    resolved_mode = normalise_mode(mode)
+    if resolved_mode == "off" or not selected:
+        return []
+
+    projections = project_overlay_tree(source_repo, from_ref, to_ref, selected)
+    errors = lifecycle_errors(projections)
+    if errors:
+        sample = "\n".join(f"  - {format_projection(projection)}" for projection in errors[:20])
+        extra = "" if len(errors) <= 20 else f"\n  ... and {len(errors) - 20} more"
+        raise ReconstructionError(f"source lifecycle projection failed:\n{sample}{extra}")
+
+    required = required_normalisation(projections)
+    if resolved_mode == "validate" and required:
+        sample = "\n".join(f"  - {format_projection(projection)}" for projection in required[:20])
+        extra = "" if len(required) <= 20 else f"\n  ... and {len(required) - 20} more"
+        raise ReconstructionError(f"source lifecycle normalisation is required:\n{sample}{extra}")
+
+    for projection in required:
+        if resolved_mode == "mirror" and projection.action == "rename" and not projection.mirror:
+            raise ReconstructionError(
+                "source lifecycle normalisation requires exact mode for non-mirror overlay rename:\n"
+                f"  - {format_projection(projection)}"
+            )
+        if verbose:
+            print(f"[source-lifecycle] {format_projection(projection)}")
+        apply_projection(repo, source_repo, from_ref, projection, resolved_mode)
+    return projections
