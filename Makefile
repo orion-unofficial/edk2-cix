@@ -132,8 +132,8 @@ help-dev:
 	print_help_line 'make verify-identity-integrity' 'Deep-scan build-branch files, commit metadata, and persistent source refs for path/identity integrity issues.'; \
 	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
 	print_help_line 'make check-upstream-versions' 'Check recorded source refs against external upstream/vendor remotes.'; \
-	print_help_line 'make check-help-cache' 'Check the committed help cache matches current source refs and help-generation inputs.'; \
-	print_help_line 'make refresh-help-cache' 'Refresh the committed help cache used by make help-vars and make help-variants.'; \
+	print_help_line 'make check-help-cache' 'Check config/help-cache.json matches current source refs and help-generation inputs. make test runs this check.'; \
+	print_help_line 'make refresh-help-cache' 'Refresh config/help-cache.json after changing Makefile, config/, scripts/, or source refs. No Git hook is installed automatically.'; \
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \

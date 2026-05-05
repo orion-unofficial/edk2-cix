@@ -130,6 +130,19 @@ Run this to check that the derived build matrix and available refs agree:
 make verify-build-matrix
 ```
 
+## How are help listings kept current?
+
+`make help-vars` and `make help-variants` read the committed help cache at `config/help-cache.json` so they can return quickly. They do not check whether that cache is stale on every invocation, and they do not rewrite files. If the cache file is missing, the helper regenerates the output in memory and prints a warning telling you to refresh the cache.
+
+When changing `Makefile`, `config/`, `scripts/`, or source refs that affect the derived variant list, refresh and check the cache before committing:
+
+```bash
+make refresh-help-cache
+make check-help-cache
+```
+
+`make test` also runs `make check-help-cache`, so CI catches stale committed cache data. This repository does not install or rely on a Git pre-commit hook for this; keeping the cache current is an explicit maintainer step enforced by tests.
+
 ## How are source layers represented?
 
 The firmware tree is built from several layers rather than from one permanent monolithic branch.
@@ -409,6 +422,8 @@ make check-help-cache
 make check-vendor-workflow-drift
 make ref-report
 ```
+
+If any of those changes affect help or variant output, run `make refresh-help-cache` first so `make check-help-cache` validates the updated cache rather than the previous one.
 
 For a materialised branch, also run:
 
