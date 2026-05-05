@@ -39,6 +39,7 @@ from reconstruction_common import (
     safe_name,
     truthy,
 )
+from source_policy import enforce_overlay_symlink_policy
 
 
 OP_NAMESPACE = "import-changes"
@@ -293,6 +294,7 @@ def commit_scratch(repo: Path, message: str) -> str:
     unresolved = unmerged_paths(repo)
     if unresolved:
         raise ReconstructionError("import still has unresolved conflicts:\n" + "\n".join(f"  - {path}" for path in unresolved))
+    enforce_overlay_symlink_policy(repo, index=True, label="import scratch index")
     if not staged_changes(repo):
         dirty = dirty_paths(repo)
         if dirty:
@@ -409,11 +411,15 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
     }
 
     paused: list[dict[str, Any]] = []
-    for target in targets:
-        target["scratch"] = str(clone_scratch(repo, op_dir, target["ref"], verbose))
-        if not apply_patch_to_target(target, patch_path, message, verbose):
-            paused.append(target)
-        save_state(op_dir, state)
+    try:
+        for target in targets:
+            target["scratch"] = str(clone_scratch(repo, op_dir, target["ref"], verbose))
+            if not apply_patch_to_target(target, patch_path, message, verbose):
+                paused.append(target)
+            save_state(op_dir, state)
+    except Exception:
+        shutil.rmtree(op_dir, ignore_errors=True)
+        raise
     return op_dir, state, paused
 
 

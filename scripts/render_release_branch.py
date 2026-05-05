@@ -37,6 +37,7 @@ from reconstruction_common import (
     update_ref,
     source_target_name,
 )
+from source_policy import enforce_overlay_symlink_policy
 
 
 HELP = """render-release-branch
@@ -309,6 +310,7 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_
                 git(worktree, "rm", "-f", ".gitmodules", capture=not verbose)
             if gitlinks(worktree):
                 materialise_submodules(repo, worktree, branch, verbose)
+            enforce_overlay_symlink_policy(worktree, index=True, label=branch)
             status = git(worktree, "status", "--porcelain").stdout.strip()
             if not status:
                 git(worktree, "commit", "--allow-empty", "-m", f"render: {short_release(branch)}", capture=not verbose)

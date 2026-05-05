@@ -16,6 +16,7 @@ SCRIPT_FILES = [
     "import_changes.py",
     "import_unofficial_commits.py",
     "reconstruction_common.py",
+    "source_policy.py",
 ]
 
 
@@ -312,6 +313,26 @@ def test_failed_apply_without_conflict_markers_pauses_for_manual_resolution() ->
         shutil.rmtree(repo)
 
 
+def test_import_rejects_identical_overlay_copy() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "-c", "materialised-overlay-topic", "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
+        write_file(repo, "src/component/file.c", "same\n")
+        write_file(repo, "custom/overlay/component/file.c", "same\n")
+        commit_all(repo, "add bad overlay copy")
+        git(repo, "switch", "build")
+        old_current = rev_parse(repo, "source/unofficial/current")
+
+        result = run_import_changes(repo, FROM_REF="materialised-overlay-topic", WRITE="1")
+        require(result.returncode != 0, "identical overlay copy should be rejected")
+        require("overlay symlink policy failed" in result.stderr, result.stderr)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite source policy failure")
+        operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
+        require(not operations.exists() or not any(operations.iterdir()), "policy failure left operation state")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_propagation_updates_checkpoints_and_tags() -> None:
     repo = make_repo()
     try:
@@ -348,6 +369,7 @@ def main() -> None:
     test_empty_diff_is_rejected()
     test_conflict_pauses_without_moving_refs_then_continue_finalises()
     test_failed_apply_without_conflict_markers_pauses_for_manual_resolution()
+    test_import_rejects_identical_overlay_copy()
     test_propagation_updates_checkpoints_and_tags()
     print("import_changes tests passed")
 

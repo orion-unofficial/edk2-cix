@@ -18,7 +18,9 @@ uses the correct spelling "platform".
 These are module-level mirrors, not patch fragments. Once EDK2 resolves a
 module from the overlay tree, its relative include and source paths are also
 resolved from that tree. That means some files stay byte-for-byte identical to
-the imported source on purpose, simply to keep the module complete.
+the imported source on purpose, simply to keep the module complete. Those
+unchanged mirror files must be Git symlinks to the corresponding `src/` file,
+not duplicate file copies, so that future overlay drift is easy to see.
 
 The custom ACPI overlays should follow three rules:
 
@@ -28,6 +30,8 @@ The custom ACPI overlays should follow three rules:
   across unrelated tables
 - keep the mirrored module file lists aligned with the imported source so a
   vendor import cannot silently add or remove ACPI sources behind the overlay
+- keep byte-identical mirror files as symlinks to the corresponding `src/`
+  files
 
 Today the main custom differences are:
 

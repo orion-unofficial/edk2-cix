@@ -188,6 +188,16 @@ The supported workflows guard `source/base/**`, `source/vendor/**`, `source/port
 
 Unofficial development changes are imported explicitly. Ordinary build and render targets never rewrite `source/unofficial/current` or release-specific `source/unofficial/edk2-stable*` checkpoints.
 
+The import and render tools also enforce shared source-tree policy checks. In
+particular, files under `custom/overlay/` that are byte-identical to their
+corresponding `src/` file must be Git symlinks rather than duplicate file
+copies. This keeps overlay-only changes visible and prevents accidental drift
+from being hidden inside mirrored directories. To run that check explicitly:
+
+```bash
+make verify-source-policy
+```
+
 Use `make import-changes` when the change was made on a materialised `source/cache/**` branch, on a branch derived from a materialised source tree, on a legacy source branch, or on any other broader tree. This is the normal path after following the development example above. The importer finds the source tree before the intended change, extracts only that diff, applies the patch to `source/unofficial/current` in a scratch tree, and updates the real source ref only after the patch applies cleanly.
 
 For a topic branch created from a persistent materialised cache branch, a retained source branch, or another unique retained fork point, the base is inferred:

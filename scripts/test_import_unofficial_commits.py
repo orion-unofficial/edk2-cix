@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SCRIPT_FILES = [
     "import_unofficial_commits.py",
     "reconstruction_common.py",
+    "source_policy.py",
 ]
 
 
@@ -185,6 +186,28 @@ def test_direct_checkpoint_import_updates_matching_tag_when_requested() -> None:
             rev_parse(repo, "source/unofficial/edk2/stable-202602") == rev_parse(repo, "source/unofficial/edk2-stable202602"),
             "direct checkpoint import did not update compatibility tag",
         )
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_direct_import_rejects_identical_overlay_copy() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "-c", "topic", "source/unofficial/current")
+        write_file(repo, "src/component/file.c", "same\n")
+        write_file(repo, "custom/overlay/component/file.c", "same\n")
+        commit_all(repo, "add bad overlay copy")
+        git(repo, "switch", "build")
+        old_current = rev_parse(repo, "source/unofficial/current")
+
+        result = run_import(repo, FROM_REF="topic")
+        require(result.returncode != 0, "identical overlay copy should be rejected during dry run")
+        require("overlay symlink policy failed" in result.stderr, result.stderr)
+
+        result = run_import(repo, FROM_REF="topic", WRITE="1")
+        require(result.returncode != 0, "identical overlay copy should be rejected")
+        require("overlay symlink policy failed" in result.stderr, result.stderr)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite source policy failure")
     finally:
         shutil.rmtree(repo)
 
@@ -394,6 +417,7 @@ def main() -> None:
     test_direct_import_dry_run_does_not_move_ref()
     test_propagate_all_updates_current_checkpoints_and_tags()
     test_direct_checkpoint_import_updates_matching_tag_when_requested()
+    test_direct_import_rejects_identical_overlay_copy()
     test_source_unofficial_from_ref_is_rejected_for_propagation()
     test_checkpoint_from_ref_is_rejected_for_propagation()
     test_cache_based_from_ref_is_rejected()

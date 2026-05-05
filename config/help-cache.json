@@ -6,7 +6,7 @@
   "signature": {
     "files": [
       {
-        "object_id": "deaf76b64c48a1ed0c80f1282ea18a76d461c8ab",
+        "object_id": "40da7ea3f2e0d268329dffcdcd7fc99c001e82f9",
         "path": "Makefile"
       },
       {
@@ -82,11 +82,11 @@
         "path": "scripts/help_cache.py"
       },
       {
-        "object_id": "74b6a64a7c381c1f52a0ac73b4f99f6c4bbb9a59",
+        "object_id": "be9584cf1f78a4e84da4cd7ba7186e1f542d5e77",
         "path": "scripts/import_changes.py"
       },
       {
-        "object_id": "93cc0fb54092488a7851fc8cae23cbf9ea6cdc17",
+        "object_id": "711e246a2e8eb78c16e19cdd360814d5f97acf2c",
         "path": "scripts/import_unofficial_commits.py"
       },
       {
@@ -114,7 +114,7 @@
         "path": "scripts/quality.Dockerfile"
       },
       {
-        "object_id": "919751a2abaa3de78b455e02998b71c881eac361",
+        "object_id": "4765585b1041363f861dc8507f9dd130f578613a",
         "path": "scripts/quality_checks.py"
       },
       {
@@ -126,7 +126,7 @@
         "path": "scripts/ref_report.py"
       },
       {
-        "object_id": "d41f25069fdcb1ca165e3cdb6cf5900bfb478106",
+        "object_id": "0cc597cfd24420ca1c899f8a40be3f5ebe7063fb",
         "path": "scripts/render_release_branch.py"
       },
       {
@@ -138,16 +138,24 @@
         "path": "scripts/run_quality_container.sh"
       },
       {
+        "object_id": "94f199b65ccd45279605303fa35108ca3310321e",
+        "path": "scripts/source_policy.py"
+      },
+      {
         "object_id": "5d92dd9645ec12ff111b05400a5a175e4a05298b",
         "path": "scripts/test_check_upstream_versions.py"
       },
       {
-        "object_id": "bb6bdf220eb658b6ff0da20623eb759eb07b8039",
+        "object_id": "f9f315979b6a6368a216ccd1d7f1c344a365d01f",
         "path": "scripts/test_import_changes.py"
       },
       {
-        "object_id": "a2a09f2007befeb9cfd039380c790fe8fe0ddf93",
+        "object_id": "419136eb468cb778c045cba2f53fe32ffcf5ea16",
         "path": "scripts/test_import_unofficial_commits.py"
+      },
+      {
+        "object_id": "fc4c736ffaa1c88f6254edab1f840b56a90b9f0e",
+        "path": "scripts/test_source_policy.py"
       },
       {
         "object_id": "99e21bc455b000e556ee5e2c5f563ff79e3e91f2",
@@ -166,8 +174,12 @@
         "path": "scripts/verify_minimised_clone.py"
       },
       {
-        "object_id": "b4dd4e2ffe294f386fee433e90ccddf69f5e03d2",
+        "object_id": "4bb054dfd6df8bac0592d97c54bc61f0cc54e186",
         "path": "scripts/verify_release_branch.py"
+      },
+      {
+        "object_id": "6eade75c2cbae3636240e4900de7e29908834f46",
+        "path": "scripts/verify_source_policy.py"
       }
     ],
     "refs": [
@@ -580,6 +592,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "f703fa4f15ac94323d370af265375e0fd4ebff1a3a3407ce5357d952843ff9a7"
+    "sha256": "d6ec0f2d03e0ed4bed766754f496f5aee8d8ea4fc2dc9b23b221eaaa754acd9b"
   }
 }

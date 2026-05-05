@@ -31,6 +31,7 @@ from reconstruction_common import (
     truthy,
     version_key,
 )
+from source_policy import enforce_overlay_symlink_policy
 
 
 ZERO_OID = "0" * 40
@@ -331,6 +332,7 @@ def apply_remaining(target: dict[str, Any], commits: list[str], verbose: bool) -
             return False
         index += 1
         target["next_index"] = index
+    enforce_overlay_symlink_policy(scratch, ref="HEAD", label=f"import scratch for {target['ref']}")
     target["status"] = "ready"
     target["candidate_oid"] = rev_parse(scratch, "HEAD")
     return True
@@ -417,6 +419,7 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
     require_valid_import_source(repo, args.from_ref, CURRENT_REF, truthy(args.allow_source_ref_from))
     old_current = rev_parse(repo, CURRENT_REF)
     from_oid = rev_parse(repo, args.from_ref)
+    enforce_overlay_symlink_policy(repo, ref=args.from_ref, label=args.from_ref)
     base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
     commits = replay_commits(repo, base_oid, args.from_ref)
     targets = checkpoint_targets(repo)
@@ -514,6 +517,7 @@ def direct_import(repo: Path, args: argparse.Namespace, verbose: bool) -> None:
     ref = args.source_unofficial_ref
     require_unofficial_target(ref)
     require_valid_import_source(repo, args.from_ref, ref, truthy(args.allow_source_ref_from))
+    enforce_overlay_symlink_policy(repo, ref=args.from_ref, label=args.from_ref)
     if not truthy(args.write):
         print("dry run; set WRITE=1 to update unofficial refs")
         print(f"  {args.from_ref} -> {ref}")
@@ -554,6 +558,7 @@ def main() -> None:
 
     if propagate == "all":
         require_valid_import_source(repo, args.from_ref, CURRENT_REF, truthy(args.allow_source_ref_from))
+        enforce_overlay_symlink_policy(repo, ref=args.from_ref, label=args.from_ref)
         old_current = rev_parse(repo, CURRENT_REF)
         base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
         commits = replay_commits(repo, base_oid, args.from_ref)

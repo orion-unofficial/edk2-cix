@@ -158,7 +158,7 @@ help-dev:
 	print_help_variable 'COMPONENT=<name>' 'For TYPE=upstream: edk2, edk2-platforms, edk2-non-osi, tf-a, or op-tee.'; \
 	print_help_variable 'VENDOR=radxa|cix' 'For TYPE=vendor. Radxa records vendor-published or ported EDK2 source trees; CIX updates the TF-A/OP-TEE release bundle.'; \
 	print_help_variable 'RELEASE=<name>' 'For source integration: release, tag, or source version name.'; \
-	print_help_variable 'REF=<ref>' 'Input ref/object for source integration.'; \
+	print_help_variable 'REF=<ref>' 'Input ref/object for source integration, or source ref for verify-source-policy.'; \
 	print_help_variable 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
 	print_help_variable 'ARM_BASE=<release>' 'Arm upstream base used when recording a CIX TF-A or OP-TEE component uplift.'; \
 	print_help_variable 'RADXA_SOURCE=auto|vendor|port' 'Select whether a Radxa integration is a vendor-published source tree or this project'\''s port to an EDK2 base.\nDefault: auto.'; \
@@ -183,6 +183,7 @@ help-dev:
 	print_help_line 'make verify-release-branch' 'Validate a materialised firmware source-target branch.'; \
 	print_help_line 'make verify-build-matrix' 'Validate build/source target combinations derived from source refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
+	print_help_line 'make verify-source-policy' 'Validate shared source-tree policy checks, including overlay symlink rules.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'RELEASE=<source-target>' 'Firmware source-target name for render-release-branch and verify-release-branch.'; \
 	print_help_variable 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/cache/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a Git cache branch.'; \
@@ -342,6 +343,9 @@ verify-build-matrix:
 
 verify-manifest-integrity:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/verify_manifest_integrity.py --v "$(V)"
+
+verify-source-policy:
+	@DEBUG="$(DEBUG)" REF="$(REF)" V="$(V)" $(PYTHON) scripts/verify_source_policy.py --ref "$(REF)" --v "$(V)"
 
 check-ref-integrity:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_ref_integrity.py --v "$(V)"
