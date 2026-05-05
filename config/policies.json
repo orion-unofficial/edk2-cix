@@ -40,7 +40,7 @@
     ]
   },
   "rendered_branch_policy": {
-    "manifest": "config/refs-variant-cache.json",
+    "manifest": "config/refs-source-target-cache.json",
     "requirements": [
       "source/cache/release/** refs are generated firmware artefacts, not irreducible source inputs.",
       "A pruned clone may omit source/cache/release/** branches when the source/base, source/vendor or source/port, source/component, and source/unofficial refs needed to regenerate them are present.",
@@ -50,7 +50,7 @@
       "Submodule metadata is retained in manifests/reports, not as active submodule state.",
       "Normal git log <path> and git blame <path> must work from any directory inside the repo.",
       "Rendered branches are produced from render steps derived from available source refs and the selected source/cache/release branch name.",
-      "Versioned unofficial rendered variants are aliases of the matching canonical /unofficial rendered variant for the same EDK2/CIX/Radxa tuple.",
+      "Versioned unofficial rendered source targets are aliases of the matching canonical /unofficial rendered source target for the same EDK2/CIX/Radxa tuple.",
       "Nested .gitmodules files inside upstream source trees may remain as inert source files when no gitlink points at them.",
       "If gitlinks remain after configured render steps, the renderer recursively materialises them using recorded .gitmodules URL mappings before validation."
     ]

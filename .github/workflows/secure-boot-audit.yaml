@@ -28,7 +28,7 @@ concurrency:
 
 env:
   FIRMWARE_DISTRO: ${{ inputs.firmware_distro || 'trixie' }}
-  FIRMWARE_VARIANT: ${{ inputs.release || '' }}
+  FIRMWARE_SOURCE_TARGET: ${{ inputs.release || '' }}
 
 jobs:
   metadata:
@@ -54,8 +54,8 @@ jobs:
         run: |
           set -euo pipefail
           release_arg=()
-          if [[ -n "${FIRMWARE_VARIANT}" ]]; then
-            release_arg=("--release" "${FIRMWARE_VARIANT}")
+          if [[ -n "${FIRMWARE_SOURCE_TARGET}" ]]; then
+            release_arg=("--release" "${FIRMWARE_SOURCE_TARGET}")
           fi
           worktree="$(
             python3 scripts/render_release_branch.py \
@@ -109,8 +109,8 @@ jobs:
         run: |
           set -euo pipefail
           release_arg=()
-          if [[ -n "${FIRMWARE_VARIANT}" ]]; then
-            release_arg=("--release" "${FIRMWARE_VARIANT}")
+          if [[ -n "${FIRMWARE_SOURCE_TARGET}" ]]; then
+            release_arg=("--release" "${FIRMWARE_SOURCE_TARGET}")
           fi
           worktree="$(
             python3 scripts/render_release_branch.py \

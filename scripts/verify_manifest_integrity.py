@@ -8,14 +8,14 @@ import time
 from pathlib import Path
 
 from reconstruction_common import (
-    VARIANT_CACHE_MANIFEST,
+    SOURCE_TARGET_CACHE_MANIFEST,
     ReconstructionError,
     base_tree_records,
     format_duration,
     main_wrapper,
     ref_exists,
     ref_manifest_records,
-    rendered_ref_records,
+    source_target_ref_records,
     release_branch_parts,
     release_entries,
     repo_root,
@@ -63,15 +63,15 @@ def expected_variant_type(ref: str) -> str:
 
 def validate_variant_manifest(repo: Path, verbose: bool) -> list[str]:
     problems: list[str] = []
-    records = rendered_ref_records(repo)
+    records = source_target_ref_records(repo)
     generated = release_entries(repo)
-    manifest_records = ref_manifest_records(repo, VARIANT_CACHE_MANIFEST)
+    manifest_records = ref_manifest_records(repo, SOURCE_TARGET_CACHE_MANIFEST)
     manifest_refs = [record.get("ref") for record in manifest_records]
     if len(set(manifest_refs)) != len(manifest_refs):
-        problems.append(f"{VARIANT_CACHE_MANIFEST}: duplicate ref records after expansion")
+        problems.append(f"{SOURCE_TARGET_CACHE_MANIFEST}: duplicate ref records after expansion")
     for ref, record in sorted(records.items()):
         if ref not in generated:
-            problems.append(f"{VARIANT_CACHE_MANIFEST}: record is not derivable from source refs: {ref}")
+            problems.append(f"{SOURCE_TARGET_CACHE_MANIFEST}: record is not derivable from source refs: {ref}")
             continue
         expected_type = expected_variant_type(ref)
         if record.get("type") != expected_type:
@@ -137,7 +137,7 @@ def main() -> None:
         details = "\n".join(f"  - {problem}" for problem in problems)
         raise ReconstructionError(f"manifest integrity verification failed:\n{details}")
     print(
-        f"validated manifest integrity: {len(rendered_ref_records(repo))} source-target tree records, "
+        f"validated manifest integrity: {len(source_target_ref_records(repo))} source-target tree records, "
         f"{len(base_tree_records(repo))} base tree records in "
         f"{format_duration(time.monotonic() - started)}"
     )

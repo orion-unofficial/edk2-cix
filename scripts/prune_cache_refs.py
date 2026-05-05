@@ -16,7 +16,7 @@ from reconstruction_common import (
     git,
     main_wrapper,
     ref_exists,
-    rendered_ref_records,
+    source_target_ref_records,
     repo_root,
     rev_parse,
     tree_id,
@@ -52,7 +52,7 @@ def cache_refs(repo: Path) -> list[str]:
 
 def expected_cache_refs(repo: Path) -> dict[str, str]:
     records = {}
-    for ref, record in {**base_tree_records(repo), **rendered_ref_records(repo)}.items():
+    for ref, record in {**base_tree_records(repo), **source_target_ref_records(repo)}.items():
         if not ref.startswith(CACHE_REF_PREFIX):
             raise ReconstructionError(f"cache manifest record is outside {CACHE_REF_PREFIX}: {ref}")
         tree = record.get("tree_id")

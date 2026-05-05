@@ -5,7 +5,7 @@ on:
     - cron: '31 3 * * 0'
   workflow_dispatch:
     inputs:
-      replay_variant:
+      replay_source_target:
         default: edk2-202208/radxa-1.2.1/unofficial-1.2.1
         description: Firmware source target to render before running replay.
         required: true
@@ -24,7 +24,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 
 env:
-  REPLAY_VARIANT: ${{ inputs.replay_variant || 'edk2-202208/radxa-1.2.1/unofficial-1.2.1' }}
+  REPLAY_SOURCE_TARGET: ${{ inputs.replay_source_target || 'edk2-202208/radxa-1.2.1/unofficial-1.2.1' }}
   UPSTREAM_REPOSITORY: ${{ inputs.upstream_repository || 'radxa-pkg/edk2-cix' }}
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           worktree="$(
-            RELEASE="${REPLAY_VARIANT}" \
+            RELEASE="${REPLAY_SOURCE_TARGET}" \
               python3 scripts/render_release_branch.py \
                 --ensure-worktree \
                 --print-worktree
@@ -120,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           worktree="$(
-            RELEASE="${REPLAY_VARIANT}" \
+            RELEASE="${REPLAY_SOURCE_TARGET}" \
               python3 scripts/render_release_branch.py \
                 --ensure-worktree \
                 --print-worktree

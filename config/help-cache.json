@@ -1,16 +1,16 @@
 {
   "generated": {
     "default_release": "edk2-202602/cix-1.2/radxa-1.2.1/unofficial-1.2.1",
-    "variants_help": "Configured Firmware Source Targets\n\nA source target is the chosen combination of EDK2, Radxa, CIX, and unofficial\nproject sources used to construct the firmware tree.\nAll listed source targets are rendered as ordinary files before building,\nwithout the use of git submodules.\nThe names below are the recommended RELEASE= values. A full branch name such as\nsource/cache/release/custom/... is also accepted when copying an existing branch\nname from git branch output.\n\nName components:\n  edk2-YYYYMM[.NN]    selects the upstream EDK2 release\n  radxa-X.Y.Z[-R]     adds the Radxa EDK2 vendor layer\n  cix-X.Y             adds CIX TF-A and OP-TEE component sources\n  unofficial          adds this project's unofficial firmware changes\n\nAvailable source targets:\n  edk2-202208/radxa-1.2.1\n  edk2-202208/radxa-1.2.1/unofficial\n  edk2-202208/cix-1.2/radxa-1.2.1\n  edk2-202208/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202211/radxa-1.2.1\n  edk2-202211/radxa-1.2.1/unofficial\n  edk2-202211/cix-1.2/radxa-1.2.1\n  edk2-202211/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202302/radxa-1.2.1\n  edk2-202302/radxa-1.2.1/unofficial\n  edk2-202302/cix-1.2/radxa-1.2.1\n  edk2-202302/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202305/radxa-1.2.1\n  edk2-202305/radxa-1.2.1/unofficial\n  edk2-202305/cix-1.2/radxa-1.2.1\n  edk2-202305/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202308/radxa-1.2.1\n  edk2-202308/radxa-1.2.1/unofficial\n  edk2-202308/cix-1.2/radxa-1.2.1\n  edk2-202308/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202311/radxa-1.2.1\n  edk2-202311/radxa-1.2.1/unofficial\n  edk2-202311/cix-1.2/radxa-1.2.1\n  edk2-202311/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202402/radxa-1.2.1\n  edk2-202402/radxa-1.2.1/unofficial\n  edk2-202402/cix-1.2/radxa-1.2.1\n  edk2-202402/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202405/radxa-1.2.1\n  edk2-202405/radxa-1.2.1/unofficial\n  edk2-202405/cix-1.2/radxa-1.2.1\n  edk2-202405/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202408/radxa-1.2.1\n  edk2-202408/radxa-1.2.1/unofficial\n  edk2-202408/cix-1.2/radxa-1.2.1\n  edk2-202408/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202408.01/radxa-1.2.1\n  edk2-202408.01/radxa-1.2.1/unofficial\n  edk2-202408.01/cix-1.2/radxa-1.2.1\n  edk2-202408.01/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202411/radxa-1.2.1\n  edk2-202411/radxa-1.2.1/unofficial\n  edk2-202411/cix-1.2/radxa-1.2.1\n  edk2-202411/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202502/radxa-1.2.1\n  edk2-202502/radxa-1.2.1/unofficial\n  edk2-202502/cix-1.2/radxa-1.2.1\n  edk2-202502/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202505/radxa-1.2.1\n  edk2-202505/radxa-1.2.1/unofficial\n  edk2-202505/cix-1.2/radxa-1.2.1\n  edk2-202505/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202508/radxa-1.2.1\n  edk2-202508/radxa-1.2.1/unofficial\n  edk2-202508/cix-1.2/radxa-1.2.1\n  edk2-202508/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202511/radxa-1.2.1\n  edk2-202511/radxa-1.2.1/unofficial\n  edk2-202511/cix-1.2/radxa-1.2.1\n  edk2-202511/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202602/radxa-1.2.1\n  edk2-202602/radxa-1.2.1/unofficial\n  edk2-202602/cix-1.2/radxa-1.2.1\n  edk2-202602/cix-1.2/radxa-1.2.1/unofficial\n\nVersioned unofficial aliases:\n  Any listed /unofficial source target also accepts a versioned alias of the\n  form /unofficial-<version>; currently configured version(s): 1.2.1.\n\nDefault source target:\n  edk2-202602/cix-1.2/radxa-1.2.1/unofficial-1.2.1\n"
+    "source_targets_help": "Configured Firmware Source Targets\n\nA source target is the chosen combination of EDK2, Radxa, CIX, and unofficial\nproject sources used to construct the firmware tree.\nAll listed source targets are rendered as ordinary files before building,\nwithout the use of git submodules.\nThe names below are the recommended RELEASE= values. A full branch name such as\nsource/cache/release/custom/... is also accepted when copying an existing branch\nname from git branch output.\n\nName components:\n  edk2-YYYYMM[.NN]    selects the upstream EDK2 release\n  radxa-X.Y.Z[-R]     adds the Radxa EDK2 vendor layer\n  cix-X.Y             adds CIX TF-A and OP-TEE component sources\n  unofficial          adds this project's unofficial firmware changes\n\nAvailable source targets:\n  edk2-202208/radxa-1.2.1\n  edk2-202208/radxa-1.2.1/unofficial\n  edk2-202208/cix-1.2/radxa-1.2.1\n  edk2-202208/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202211/radxa-1.2.1\n  edk2-202211/radxa-1.2.1/unofficial\n  edk2-202211/cix-1.2/radxa-1.2.1\n  edk2-202211/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202302/radxa-1.2.1\n  edk2-202302/radxa-1.2.1/unofficial\n  edk2-202302/cix-1.2/radxa-1.2.1\n  edk2-202302/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202305/radxa-1.2.1\n  edk2-202305/radxa-1.2.1/unofficial\n  edk2-202305/cix-1.2/radxa-1.2.1\n  edk2-202305/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202308/radxa-1.2.1\n  edk2-202308/radxa-1.2.1/unofficial\n  edk2-202308/cix-1.2/radxa-1.2.1\n  edk2-202308/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202311/radxa-1.2.1\n  edk2-202311/radxa-1.2.1/unofficial\n  edk2-202311/cix-1.2/radxa-1.2.1\n  edk2-202311/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202402/radxa-1.2.1\n  edk2-202402/radxa-1.2.1/unofficial\n  edk2-202402/cix-1.2/radxa-1.2.1\n  edk2-202402/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202405/radxa-1.2.1\n  edk2-202405/radxa-1.2.1/unofficial\n  edk2-202405/cix-1.2/radxa-1.2.1\n  edk2-202405/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202408/radxa-1.2.1\n  edk2-202408/radxa-1.2.1/unofficial\n  edk2-202408/cix-1.2/radxa-1.2.1\n  edk2-202408/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202408.01/radxa-1.2.1\n  edk2-202408.01/radxa-1.2.1/unofficial\n  edk2-202408.01/cix-1.2/radxa-1.2.1\n  edk2-202408.01/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202411/radxa-1.2.1\n  edk2-202411/radxa-1.2.1/unofficial\n  edk2-202411/cix-1.2/radxa-1.2.1\n  edk2-202411/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202502/radxa-1.2.1\n  edk2-202502/radxa-1.2.1/unofficial\n  edk2-202502/cix-1.2/radxa-1.2.1\n  edk2-202502/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202505/radxa-1.2.1\n  edk2-202505/radxa-1.2.1/unofficial\n  edk2-202505/cix-1.2/radxa-1.2.1\n  edk2-202505/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202508/radxa-1.2.1\n  edk2-202508/radxa-1.2.1/unofficial\n  edk2-202508/cix-1.2/radxa-1.2.1\n  edk2-202508/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202511/radxa-1.2.1\n  edk2-202511/radxa-1.2.1/unofficial\n  edk2-202511/cix-1.2/radxa-1.2.1\n  edk2-202511/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202602/radxa-1.2.1\n  edk2-202602/radxa-1.2.1/unofficial\n  edk2-202602/cix-1.2/radxa-1.2.1\n  edk2-202602/cix-1.2/radxa-1.2.1/unofficial\n\nVersioned unofficial aliases:\n  Any listed /unofficial source target also accepts a versioned alias of the\n  form /unofficial-<version>; currently configured version(s): 1.2.1.\n\nDefault source target:\n  edk2-202602/cix-1.2/radxa-1.2.1/unofficial-1.2.1\n"
   },
   "signature": {
     "files": [
       {
-        "object_id": "bee8019ea9112446dde58f855d1e65ff79e0223b",
+        "object_id": "92db8d3b643b16847e9a98b2a4f9c789508bd7b3",
         "path": "Makefile"
       },
       {
-        "object_id": "fdc3422e91f2d7af34359df3eb0b75a46c22d4a4",
+        "object_id": "12774b9d1ac67e741aa38e78643306700249f700",
         "path": "config/policies.json"
       },
       {
@@ -28,10 +28,6 @@
       {
         "object_id": "67e29a307a002eb5626f0ceaae670ff27798aeb2",
         "path": "config/refs-radxa.json"
-      },
-      {
-        "object_id": "b973c54e5d6c6ffd74ed8ea0e6cefced08e360cf",
-        "path": "config/refs-variant-cache.json"
       },
       {
         "object_id": "ea894603a3c3d58d97a07d11a1fe057f8f9b1344",
@@ -78,7 +74,7 @@
         "path": "scripts/extract_vendor_delta.py"
       },
       {
-        "object_id": "daa42944a7f0d4f029290ff47991189d52adb313",
+        "object_id": "182f77e8ab04a8242431e7a099f3676254ee54b8",
         "path": "scripts/help_cache.py"
       },
       {
@@ -94,15 +90,11 @@
         "path": "scripts/integrate_source_release.py"
       },
       {
-        "object_id": "ddf1f33be6bd47f94c95ad1068b8b0a10a9c4fca",
-        "path": "scripts/list_configured_variants.py"
-      },
-      {
         "object_id": "467511260a061041c1af4c9343d6fb8c7dd32720",
         "path": "scripts/prepare_release_worktree.py"
       },
       {
-        "object_id": "5fd11257904b932209423172f8b7e39cd8eb5083",
+        "object_id": "d159976157d39ed06a617c9efb174fdd1205c91c",
         "path": "scripts/prune_cache_refs.py"
       },
       {
@@ -114,15 +106,15 @@
         "path": "scripts/quality_checks.py"
       },
       {
-        "object_id": "0bd168ffde26388edd43d659260b543dceb9be4e",
+        "object_id": "fe0ad59e6ea8babb5b930f8179ca57386d82386d",
         "path": "scripts/reconstruction_common.py"
       },
       {
-        "object_id": "1fa5e1d560ecace6b8d2ab6dd045478c12b0655d",
+        "object_id": "df0ffb3e6279324bd90a4e0c5c289222c6eb135f",
         "path": "scripts/ref_report.py"
       },
       {
-        "object_id": "531b98164bff9959c235cff8616669e27c2ee988",
+        "object_id": "d41f25069fdcb1ca165e3cdb6cf5900bfb478106",
         "path": "scripts/render_release_branch.py"
       },
       {
@@ -142,15 +134,15 @@
         "path": "scripts/validate_build_variables.py"
       },
       {
-        "object_id": "e2e014cb7703d3578af4bc0f343333591653129f",
+        "object_id": "130820f1d14e7f74a754ffc484d5c223603ec102",
         "path": "scripts/verify_build_matrix.py"
       },
       {
-        "object_id": "575b583be960499c330fda709a3ebee6bc8b92d9",
+        "object_id": "d946c1d838e1955068f518dd02ac2586acf7fdc0",
         "path": "scripts/verify_manifest_integrity.py"
       },
       {
-        "object_id": "e5ec5ce98b367ba9e0158e3b0c1bdbdd23723382",
+        "object_id": "dff1919c1ff0370d3008ecaecb5c728ab67c2739",
         "path": "scripts/verify_minimised_clone.py"
       },
       {
@@ -568,6 +560,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "0da966f4b39db3a61876058d57f838a68d60cb59aa472ad54cf91fdcc2951d3d"
+    "sha256": "01edf001fdfb641bb7bb0ed86e0e4bf778ff7a6366fca88cb18abf1550285530"
   }
 }

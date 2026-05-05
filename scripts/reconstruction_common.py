@@ -258,7 +258,7 @@ ARM_REFS_MANIFEST = "refs-arm.json"
 CIX_REFS_MANIFEST = "refs-cix.json"
 EDK2_REFS_MANIFEST = "refs-edk2.json"
 RADXA_REFS_MANIFEST = "refs-radxa.json"
-VARIANT_CACHE_MANIFEST = "refs-variant-cache.json"
+SOURCE_TARGET_CACHE_MANIFEST = "refs-source-target-cache.json"
 CACHE_REF_PREFIX = "source/cache/"
 CACHE_RELEASE_PREFIX = "source/cache/release/"
 CACHE_BASE_EDK2_PREFIX = "source/cache/base/edk2/"
@@ -353,7 +353,7 @@ def short_release(branch: str) -> str:
     return branch[len(CACHE_RELEASE_PREFIX) :] if branch.startswith(CACHE_RELEASE_PREFIX) else branch
 
 
-def variant_name(branch: str) -> str:
+def source_target_name(branch: str) -> str:
     """Return the user-facing source-target name for a generated release cache branch."""
 
     short = short_release(branch)
@@ -400,15 +400,15 @@ def expand_matrix_template(template: str, release: str) -> str:
     return template.format(release=release, edk2_ref=edk2_ref_for_release(release))
 
 
-def matrix_variant_releases(variant: dict[str, Any], all_releases: list[str]) -> list[str]:
-    releases = variant.get("releases")
+def matrix_source_target_releases(source_target: dict[str, Any], all_releases: list[str]) -> list[str]:
+    releases = source_target.get("releases")
     if releases == "all":
         return all_releases
     if isinstance(releases, list):
         return releases
-    if "release" in variant:
-        return [variant["release"]]
-    raise ReconstructionError(f"variant has no release selection: {variant.get('name', '<unnamed>')}")
+    if "release" in source_target:
+        return [source_target["release"]]
+    raise ReconstructionError(f"source target has no release selection: {source_target.get('name', '<unnamed>')}")
 
 
 RADXA_SOURCE_RE = re.compile(r"^source/(?P<source>vendor|port)/radxa/(?P<radxa>[^/]+)/(?P<edk2>edk2-stable[^/]+)$")
@@ -552,14 +552,14 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
     return branches, aliases
 
 
-def rendered_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
+def source_target_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
     cache_key = str(repo.resolve())
     if cache_key in _RENDERED_REF_RECORD_CACHE:
         return _RENDERED_REF_RECORD_CACHE[cache_key]
-    path = repo / "config" / VARIANT_CACHE_MANIFEST
+    path = repo / "config" / SOURCE_TARGET_CACHE_MANIFEST
     if not path.exists():
         return {}
-    records = ref_manifest_records(repo, VARIANT_CACHE_MANIFEST)
+    records = ref_manifest_records(repo, SOURCE_TARGET_CACHE_MANIFEST)
     by_ref = {record["ref"]: record for record in records if record.get("ref")}
     for ref in radxa_source_refs(repo):
         match = RADXA_SOURCE_RE.match(ref)
@@ -662,7 +662,7 @@ def release_branch_parts(branch: str) -> dict[str, str]:
 
 
 def rendered_tree_for(repo: Path, branch: str) -> str | None:
-    records = rendered_ref_records(repo)
+    records = source_target_ref_records(repo)
     if branch in records:
         return records[branch].get("tree_id")
     try:
@@ -697,7 +697,7 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
     unofficial = parts.get("unofficial")
 
     entry: dict[str, Any] = {
-        "description": f"Firmware source target {variant_name(branch)}.",
+        "description": f"Firmware source target {source_target_name(branch)}.",
         "edk2_release": edk2_ref,
         "unofficial_delta": bool(unofficial),
         "radxa_release": radxa,
@@ -766,7 +766,7 @@ def default_release(repo: Path) -> str:
         custom = [branch for branch in entries if branch.startswith(f"{CACHE_RELEASE_PREFIX}custom/") and branch.endswith("/unofficial")]
     if not custom:
         raise ReconstructionError("no default release is configured and no custom unofficial source target can be derived")
-    return variant_name(sorted(custom, key=release_branch_sort_key)[-1])
+    return source_target_name(sorted(custom, key=release_branch_sort_key)[-1])
 
 
 def release_branch_sort_key(branch: str) -> tuple[Any, ...]:
@@ -833,13 +833,13 @@ def release_entry(repo: Path, release: str | None, require: bool = False) -> tup
     matches = [
         (branch, entry)
         for branch, entry in entries.items()
-        if selected in {branch, short_release(branch), variant_name(branch)}
+        if selected in {branch, short_release(branch), source_target_name(branch)}
     ]
     if len(matches) == 1:
         return matches[0]
     if len(matches) > 1:
-        variants = "\n".join(f"  - {branch}" for branch, _entry in matches)
-        raise ReconstructionError(f"ambiguous firmware source target: {selected}\n{variants}")
+        source_targets = "\n".join(f"  - {branch}" for branch, _entry in matches)
+        raise ReconstructionError(f"ambiguous firmware source target: {selected}\n{source_targets}")
 
     branch = release_to_branch(selected)
     entry = entries.get(branch) or entries.get(short_release(branch))
@@ -1172,7 +1172,7 @@ def refresh_release_tree(repo: Path, branch: str) -> None:
     manifest_branch = alias_target_for(branch, parts) or branch
     update_ref_record(
         repo,
-        VARIANT_CACHE_MANIFEST,
+        SOURCE_TARGET_CACHE_MANIFEST,
         manifest_branch,
         {
             "object_id": None,

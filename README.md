@@ -111,7 +111,7 @@ make render-release-branch \
   PERSIST=1 REBUILD=1 FORCE=1
 ```
 
-That command also refreshes the source-target tree-ID metadata in `config/refs-variant-cache.json`.
+That command also refreshes the source-target tree-ID metadata in `config/refs-source-target-cache.json`.
 
 A configured build variation is considered supported only when all of its source inputs are recorded locally. At a high level, this means:
 

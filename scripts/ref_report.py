@@ -15,7 +15,7 @@ from reconstruction_common import (
     local_compatibility_branch_for_tag,
     matrix_release_values,
     ref_exists,
-    rendered_ref_records,
+    source_target_ref_records,
     release_entries,
     repo_root,
     resolve_ref,
@@ -131,30 +131,30 @@ def main() -> None:
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
     releases = matrix_release_values(repo)
-    variants = set(release_entries(repo))
+    source_targets = set(release_entries(repo))
     required = required_source_refs(repo)
     base_cache = set(base_tree_records(repo))
-    variant_cache = set(rendered_ref_records(repo))
+    source_target_cache = set(source_target_ref_records(repo))
     actual_release = refs_under(repo, "refs/heads/source/cache/release")
     actual_base_cache = refs_under(repo, "refs/heads/source/cache/base/edk2")
     legacy_cache = refs_under(repo, "refs/heads/source/release") | refs_under(repo, "refs/heads/source/base/rendered")
-    stale_release = sorted(actual_release - variants)
-    present_variant_cache = sorted(actual_release & variant_cache)
+    stale_release = sorted(actual_release - source_targets)
+    present_source_target_cache = sorted(actual_release & source_target_cache)
     present_base_cache = sorted(actual_base_cache & base_cache)
     unexpected_base_cache = sorted(actual_base_cache - base_cache)
 
     heading = "Clean-up Report" if args.cleanup else "Ref Report"
     print(heading)
     print(f"EDK2 releases: {len(releases)}")
-    print(f"Firmware variants derivable from source refs: {len(variants)}")
+    print(f"Firmware source targets derivable from source refs: {len(source_targets)}")
     print(f"Required non-cache source refs: {len(required)}")
     print(f"Generated base cache refs derivable from EDK2 refs: {len(base_cache)}")
-    print(f"Generated variant cache refs described or derivable: {len(variant_cache)}")
+    print(f"Generated source-target cache refs described or derivable: {len(source_target_cache)}")
 
     if verbose:
         print_section("Required non-cache source refs", sorted(required))
 
-    print_section("Present generated source/cache/release refs", present_variant_cache)
+    print_section("Present generated source/cache/release refs", present_source_target_cache)
     print_section("Stale source/cache/release refs", stale_release)
     print_section("Present generated source/cache/base/edk2 refs", present_base_cache)
     print_section("Unexpected source/cache/base/edk2 refs", unexpected_base_cache)

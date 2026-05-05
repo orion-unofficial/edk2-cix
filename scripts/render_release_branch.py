@@ -35,7 +35,7 @@ from reconstruction_common import (
     tree_id,
     truthy,
     update_ref,
-    variant_name,
+    source_target_name,
 )
 
 
@@ -51,7 +51,7 @@ Optional variables:
   REBUILD=0|1
              Regenerate the source target from its render plan.
   FORCE=0|1  With PERSIST=1 and REBUILD=1, intentionally replace the rendered
-             branch and refresh config/refs-variant-cache.json.
+             branch and refresh config/refs-source-target-cache.json.
   V=0|1      Print delegated git operations and warnings.
 
 Example:
@@ -332,7 +332,7 @@ def main() -> None:
     started = time.monotonic()
 
     if args.print_default_release:
-        print(variant_name(default_release(repo)))
+        print(source_target_name(default_release(repo)))
         return
 
     if args.require_release and not args.release:
@@ -400,7 +400,7 @@ def main() -> None:
     elif args.print_ref:
         print(branch if ref_exists(repo, branch) else target_ref)
     else:
-        print(f"source target: {variant_name(branch)}")
+        print(f"source target: {source_target_name(branch)}")
         print(f"branch:  {branch}")
         print(f"ref:     {branch if ref_exists(repo, branch) else target_ref}")
         if wt:

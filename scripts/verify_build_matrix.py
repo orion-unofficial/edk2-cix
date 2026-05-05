@@ -13,7 +13,7 @@ from reconstruction_common import (
     CACHE_BASE_EDK2_PREFIX,
     CACHE_RELEASE_PREFIX,
     EDK2_REFS_MANIFEST,
-    VARIANT_CACHE_MANIFEST,
+    SOURCE_TARGET_CACHE_MANIFEST,
     ReconstructionError,
     base_tree_records,
     format_duration,
@@ -29,7 +29,7 @@ from reconstruction_common import (
     matrix_release_values,
     ref_exists,
     radxa_releases_by_edk2,
-    rendered_ref_records,
+    source_target_ref_records,
     release_entries,
     repo_root,
     rev_parse,
@@ -52,7 +52,7 @@ Checks:
   - every firmware source-target branch/ref derived from source refs is renderable
   - required base, vendor, component, and unofficial refs exist
   - retained source/cache/release branches are all derivable from source refs
-  - retained source/cache/release branches match config/refs-variant-cache.json tree IDs
+  - retained source/cache/release branches match config/refs-source-target-cache.json tree IDs
   - Radxa vendor/port source refs and regenerable rendered-base cache plans cover every supported EDK2 release
   - obsolete source/delta/unofficial refs are absent
   - unofficial compatibility tags are reachable from retained source/unofficial branches
@@ -158,11 +158,11 @@ def require_manifested_release_entries(
     if extra_refs:
         problems.append("source/cache/release refs are not derivable from current source refs:\n" + "\n".join(f"  - {r}" for r in extra_refs))
 
-    rendered_records = rendered_ref_records(repo)
-    extra_records = sorted(set(rendered_records) - expected_releases)
+    source_target_records = source_target_ref_records(repo)
+    extra_records = sorted(set(source_target_records) - expected_releases)
     if extra_records:
         problems.append(
-            f"config/{VARIANT_CACHE_MANIFEST} contains source targets not derivable from current source refs:\n"
+            f"config/{SOURCE_TARGET_CACHE_MANIFEST} contains source targets not derivable from current source refs:\n"
             + "\n".join(f"  - {r}" for r in extra_records)
         )
 
@@ -171,7 +171,7 @@ def require_manifested_release_entries(
             continue
         expected_tree = releases[ref].get("tree_id")
         if expected_tree and tree_id(repo, ref) != expected_tree:
-            problems.append(f"{ref}: tree ID differs from config/{VARIANT_CACHE_MANIFEST} ({tree_id(repo, ref)} != {expected_tree})")
+            problems.append(f"{ref}: tree ID differs from config/{SOURCE_TARGET_CACHE_MANIFEST} ({tree_id(repo, ref)} != {expected_tree})")
         if verbose:
             print(f"retained source target ok: {ref}")
 
@@ -315,7 +315,7 @@ def require_alias_trees(repo: Path, aliases: dict[str, str]) -> list[str]:
     return problems
 
 
-def require_non_cix_unofficial_variants(
+def require_non_cix_unofficial_source_targets(
     repo: Path,
     releases: list[str],
     expected_releases: set[str],
@@ -330,9 +330,9 @@ def require_non_cix_unofficial_variants(
         if edk2_ref not in unofficial_edk2:
             continue
         for radxa in radxa_by_edk2.get(edk2_ref, []):
-            variant = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
-            alias = f"{variant}-{radxa}"
-            missing = [ref for ref in (variant, alias) if ref not in expected_releases]
+            source_target = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
+            alias = f"{source_target}-{radxa}"
+            missing = [ref for ref in (source_target, alias) if ref not in expected_releases]
             if missing:
                 problems.append(
                     f"{edk2_ref}/radxa-{radxa}: missing non-CIX unofficial source target(s):\n"
@@ -367,7 +367,7 @@ def main() -> None:
     problems.extend(require_manifested_release_entries(repo, expected_releases, verbose))
     problems.extend(require_source_refs(repo, releases, expected_required_refs, verbose))
     problems.extend(require_alias_trees(repo, aliases))
-    problems.extend(require_non_cix_unofficial_variants(repo, releases, expected_releases))
+    problems.extend(require_non_cix_unofficial_source_targets(repo, releases, expected_releases))
     problems.extend(require_build_policy(releases))
 
     if problems:

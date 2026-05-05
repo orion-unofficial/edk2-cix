@@ -1,7 +1,7 @@
 # Agent Guardrails
 
 This branch contains the build orchestration and source-ref model for producing
-EDK2-CIX firmware variants. Treat the source refs below as required source data,
+EDK2-CIX firmware source targets. Treat the source refs below as required source data,
 not as scratch branches.
 
 ## Required Refs
@@ -31,7 +31,7 @@ The manifests and policies on this branch are also required source metadata:
 - `config/policies.json`
 
 These refs and files are the minimum source material needed to deterministically
-reconstruct supported firmware variants if generated release branches are absent.
+reconstruct supported firmware source targets if generated release branches are absent.
 Do not treat them as temporary branches merely because they live under a `source/`
 namespace.
 
@@ -41,8 +41,8 @@ namespace.
 useful cached, inspectable materialisations, but they are not irreducible source
 inputs. The canonical repository may omit them. If they are present locally, they
 may be deleted as caches only after `make verify-build-matrix` confirms the
-variants are derivable and a representative `make verify-release-branch
-RELEASE=<variant>` can regenerate a missing variant from the required refs above.
+source targets are derivable and a representative `make verify-release-branch
+RELEASE=<source-target>` can regenerate a missing source target from the required refs above.
 
 `refs/heads/source/cache/base/edk2/**` refs are generated EDK2 component skeleton
 caches. They may likewise be omitted when `config/refs-edk2.json` and the

@@ -8,7 +8,7 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-from reconstruction_common import default_release, release_branch_sort_key, release_entries, repo_root, variant_name
+from reconstruction_common import default_release, release_branch_sort_key, release_entries, repo_root, source_target_name
 
 
 WIDTH = 80
@@ -16,7 +16,7 @@ STAGE_ORDER = {"upstream": 0, "custom-radxa": 1, "vendor": 2, "custom-cix": 3, "
 
 
 def stage(branch: str) -> str:
-    name = variant_name(branch)
+    name = source_target_name(branch)
     if "/unofficial" in name and "/cix-" in name:
         return "custom-cix"
     if "/unofficial" in name:
@@ -33,9 +33,9 @@ def edk2_key(name: str) -> str:
     return first.removeprefix("edk2-")
 
 
-def sorted_variants(branches: list[str]) -> list[str]:
+def sorted_source_targets(branches: list[str]) -> list[str]:
     def key(branch: str) -> tuple[object, ...]:
-        name = variant_name(branch)
+        name = source_target_name(branch)
         return (release_branch_sort_key(branch), STAGE_ORDER.get(stage(branch), 9), name)
 
     return sorted(branches, key=key)
@@ -46,21 +46,21 @@ def canonical_branches(releases: dict[str, object]) -> tuple[list[str], list[str
     alias_versions: set[str] = set()
     for branch, entry in releases.items():
         entry = entry if isinstance(entry, dict) else {}
-        name = variant_name(branch)
+        name = source_target_name(branch)
         if "/unofficial-" in name:
             alias_versions.add(name.rsplit("/unofficial-", 1)[1])
             continue
         if entry.get("alias_of") or entry.get("alias_of_template"):
             continue
         canonical.append(branch)
-    return sorted_variants(canonical), sorted(alias_versions)
+    return sorted_source_targets(canonical), sorted(alias_versions)
 
 
 def print_source_target_list(branches: list[str]) -> None:
     current_edk2 = ""
     first = True
     for branch in branches:
-        name = variant_name(branch)
+        name = source_target_name(branch)
         edk2 = edk2_key(name)
         if edk2 != current_edk2:
             current_edk2 = edk2
@@ -80,7 +80,7 @@ def indented(text: str, indent: str = "  ") -> None:
 
 def print_help(repo: Path) -> None:
     releases = release_entries(repo)
-    default = variant_name(default_release(repo))
+    default = source_target_name(default_release(repo))
     branches, alias_versions = canonical_branches(releases)
 
     print("Configured Firmware Source Targets")

@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from list_configured_variants import render_help
+from list_source_targets import render_help
 from reconstruction_common import (
     ReconstructionError,
     default_release,
@@ -19,7 +19,7 @@ from reconstruction_common import (
     git,
     main_wrapper,
     repo_root,
-    variant_name,
+    source_target_name,
     write_json,
 )
 
@@ -48,7 +48,7 @@ def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
     actions = p.add_mutually_exclusive_group(required=True)
     actions.add_argument("--print-default-release", action="store_true")
-    actions.add_argument("--print-variants", action="store_true")
+    actions.add_argument("--print-source-targets", action="store_true")
     actions.add_argument("--refresh", action="store_true")
     actions.add_argument("--verify", action="store_true")
     p.add_argument("--v", default="0")
@@ -115,8 +115,8 @@ def dependency_signature(repo: Path) -> dict[str, Any]:
 def build_cache(repo: Path) -> dict[str, Any]:
     return {
         "generated": {
-            "default_release": variant_name(default_release(repo)),
-            "variants_help": render_help(repo),
+            "default_release": source_target_name(default_release(repo)),
+            "source_targets_help": render_help(repo),
         },
         "signature": dependency_signature(repo),
     }
@@ -179,8 +179,8 @@ def main() -> None:
     generated = cache.get("generated", {})
     if args.print_default_release:
         print(str(generated.get("default_release", "<unavailable>")))
-    elif args.print_variants:
-        print(str(generated.get("variants_help", "")), end="")
+    elif args.print_source_targets:
+        print(str(generated.get("source_targets_help", "")), end="")
 
 
 if __name__ == "__main__":

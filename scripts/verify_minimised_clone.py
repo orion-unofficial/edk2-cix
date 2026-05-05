@@ -67,7 +67,7 @@ def require_default_branch(bare: Path, checkout: Path | None = None) -> None:
 def verify_from_workspace(repo: Path, workspace: Path, keep: bool, repack: str, verbose: bool) -> None:
     bare = workspace / "minimal.git"
     checkout = workspace / "checkout"
-    default_variant = default_release(repo)
+    default_source_target = default_release(repo)
 
     print(f"[verify-minimised] Exporting minimised clone to {bare}", file=sys.stderr)
     run_step(
@@ -111,7 +111,7 @@ def verify_from_workspace(repo: Path, workspace: Path, keep: bool, repack: str, 
         verbose,
     )
 
-    print(f"[verify-minimised] Rendering default source target: {default_variant}", file=sys.stderr)
+    print(f"[verify-minimised] Rendering default source target: {default_source_target}", file=sys.stderr)
     run_step(
         "Render",
         [
@@ -119,7 +119,7 @@ def verify_from_workspace(repo: Path, workspace: Path, keep: bool, repack: str, 
             "-C",
             str(checkout),
             "render-release-branch",
-            f"RELEASE={default_variant}",
+            f"RELEASE={default_source_target}",
             "--no-print-directory",
         ],
         verbose,
