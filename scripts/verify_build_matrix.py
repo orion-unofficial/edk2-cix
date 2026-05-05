@@ -20,12 +20,15 @@ from reconstruction_common import (
     for_each_ref,
     git,
     load_json,
+    edk2_ref_for_release,
     local_compatibility_branch_for_tag,
+    local_compatibility_edk2_refs,
     local_compatibility_tag_for_branch,
     main_wrapper,
     matrix_release_branches,
     matrix_release_values,
     ref_exists,
+    radxa_releases_by_edk2,
     rendered_ref_records,
     release_entries,
     repo_root,
@@ -312,6 +315,32 @@ def require_alias_trees(repo: Path, aliases: dict[str, str]) -> list[str]:
     return problems
 
 
+def require_non_cix_unofficial_variants(
+    repo: Path,
+    releases: list[str],
+    expected_releases: set[str],
+) -> list[str]:
+    problems: list[str] = []
+    unofficial_edk2 = local_compatibility_edk2_refs(repo)
+    supported_edk2 = {edk2_ref_for_release(release) for release in releases}
+    radxa_by_edk2 = radxa_releases_by_edk2(repo, supported_edk2)
+
+    for release in releases:
+        edk2_ref = edk2_ref_for_release(release)
+        if edk2_ref not in unofficial_edk2:
+            continue
+        for radxa in radxa_by_edk2.get(edk2_ref, []):
+            variant = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
+            alias = f"{variant}-{radxa}"
+            missing = [ref for ref in (variant, alias) if ref not in expected_releases]
+            if missing:
+                problems.append(
+                    f"{edk2_ref}/radxa-{radxa}: missing non-CIX unofficial variant(s):\n"
+                    + "\n".join(f"  - {ref}" for ref in missing)
+                )
+    return problems
+
+
 def build_policy_for_release(release: str) -> str:
     return "edk2-stable202208" if release == "202208" else "post-edk2-stable202208"
 
@@ -338,6 +367,7 @@ def main() -> None:
     problems.extend(require_manifested_release_entries(repo, expected_releases, verbose))
     problems.extend(require_source_refs(repo, releases, expected_required_refs, verbose))
     problems.extend(require_alias_trees(repo, aliases))
+    problems.extend(require_non_cix_unofficial_variants(repo, releases, expected_releases))
     problems.extend(require_build_policy(releases))
 
     if problems:

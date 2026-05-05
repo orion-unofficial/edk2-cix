@@ -525,7 +525,6 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
     radxa_by_edk2 = radxa_releases_by_edk2(repo, supported_edk2)
     cix_releases = available_cix_releases(repo)
     unofficial_edk2 = local_compatibility_edk2_refs(repo)
-    rendered_records = rendered_ref_records(repo)
     branches: set[str] = set()
     aliases: dict[str, str] = {}
 
@@ -537,10 +536,9 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
 
             if edk2_ref in unofficial_edk2:
                 unofficial = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
-                if unofficial in rendered_records:
-                    alias = f"{unofficial}-{radxa}"
-                    branches.update({unofficial, alias})
-                    aliases[alias] = unofficial
+                alias = f"{unofficial}-{radxa}"
+                branches.update({unofficial, alias})
+                aliases[alias] = unofficial
 
             for cix in cix_releases:
                 vendor = f"{CACHE_RELEASE_PREFIX}vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"
