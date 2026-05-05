@@ -71,7 +71,7 @@ define PRINT_HELP_SHELL_PROLOGUE
 	}
 endef
 
-.PHONY: help help-vars help-dev help-source-targets help-variants build build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
+.PHONY: help help-vars help-dev help-source-targets build build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-unofficial-commits \
 	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-help-cache refresh-help-cache ref-report cleanup-report create-minimised-clone \
@@ -201,7 +201,6 @@ help-dev:
 	print_help_line 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make help-source-targets' 'Show configured firmware source targets.'; \
-	print_help_line 'make help-variants' 'Compatibility alias for make help-source-targets.'; \
 	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
 	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
 	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
@@ -213,8 +212,6 @@ help-dev:
 
 help-source-targets:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-variants
-
-help-variants: help-source-targets
 
 BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
 
