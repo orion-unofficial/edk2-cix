@@ -190,7 +190,7 @@ Unofficial development changes are imported explicitly. Ordinary build and rende
 
 Use `make import-changes` when the change was made on a materialised `source/cache/**` branch, on a branch derived from a materialised source tree, on a legacy source branch, or on any other broader tree. This is the normal path after following the development example above. The importer finds the source tree before the intended change, extracts only that diff, applies the patch to `source/unofficial/current` in a scratch tree, and updates the real source ref only after the patch applies cleanly.
 
-For a topic branch created from a persistent materialised cache branch, a retained legacy branch such as `mainline-source`, or another unique retained fork point, the base is inferred:
+For a topic branch created from a persistent materialised cache branch, a retained source branch, or another unique retained fork point, the base is inferred:
 
 ```bash
 make import-changes \

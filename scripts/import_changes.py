@@ -189,17 +189,6 @@ def broader_base_refs(repo: Path, from_ref: str) -> list[str]:
     return refs
 
 
-def base_label_sort_key(label: str) -> tuple[int, str]:
-    ref = label
-    if label.startswith("merge-base("):
-        ref = label[len("merge-base(") :].split(",", 1)[0]
-    if ref == "main":
-        return (0, label)
-    if ref.startswith("main"):
-        return (1, label)
-    return (5, label)
-
-
 def infer_broader_base(repo: Path, from_ref: str, refs: list[str]) -> tuple[str, str] | None:
     from_oid = rev_parse(repo, from_ref)
     candidates_by_oid: dict[str, dict[str, Any]] = {}
@@ -221,7 +210,7 @@ def infer_broader_base(repo: Path, from_ref: str, refs: list[str]) -> tuple[str,
 
     ordered = sorted(
         (
-            (int(record["count"]), oid, sorted(set(record["labels"]), key=base_label_sort_key))
+            (int(record["count"]), oid, sorted(set(record["labels"])))
             for oid, record in candidates_by_oid.items()
         ),
         key=lambda item: (item[0], item[1]),
