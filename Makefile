@@ -163,12 +163,18 @@ help-dev:
 	print_help_variable 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release and import-unofficial-commits.'; \
 	print_help_variable 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
 	print_help_variable 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before recording source/vendor or source/port refs.\nDefault: 1.'; \
-	print_help_variable 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta.'; \
+	print_help_variable 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta, or explicit replay base for import-unofficial-commits when automatic inference is ambiguous.'; \
 	print_help_variable 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
-	print_help_variable 'FROM_REF=<ref>' 'Developer topic branch/ref for import-unofficial-commits.'; \
+	print_help_variable 'FROM_REF=<ref>' 'Developer topic branch/ref for import-unofficial-commits. source/unofficial/** refs are rejected by default to avoid accidental replay of an unbounded range.'; \
 	print_help_variable 'OUTPUT=<path>' 'Optional extract-vendor-delta metadata output path.'; \
 	print_help_variable 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
 	print_help_variable 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch; defaults to source/unofficial/current.'; \
+	print_help_variable 'PROPAGATE_CHECKPOINTS=none|all' 'For import-unofficial-commits. Replay the inferred FROM_REF change range onto every source/unofficial/edk2-stable* checkpoint after preparing all candidates safely.\nDefault: none.'; \
+	print_help_variable 'UPDATE_COMPAT_TAGS=0|1' 'For import-unofficial-commits. Move matching source/unofficial/edk2/stable-* tags only after all checkpoint replays succeed.\nDefault: 0.'; \
+	print_help_variable 'CONTINUE=0|1' 'Continue a paused import-unofficial-commits operation after conflicts are resolved in the scratch tree.'; \
+	print_help_variable 'ABORT=0|1' 'Abort a paused import-unofficial-commits operation and remove its scratch state without moving refs.'; \
+	print_help_variable 'OP_ID=<id>' 'Paused import-unofficial-commits operation ID for CONTINUE=1 or ABORT=1.'; \
+	print_help_variable 'ALLOW_SOURCE_REF_FROM=0|1' 'Maintainer escape hatch allowing FROM_REF=source/unofficial/** with an explicit BASE_REF.\nDefault: 0.'; \
 	print_section 'Rendering and Qualification'; \
 	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/cache/release branch.'; \
 	print_help_line 'make verify-release-branch' 'Validate a materialised firmware source-target branch.'; \
@@ -346,7 +352,7 @@ integrate-source-release:
 	@DEBUG="$(DEBUG)" TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" RADXA_SOURCE="$(RADXA_SOURCE)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(MATERIALISE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
 import-unofficial-commits:
-	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
+	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_CHECKPOINTS="$(PROPAGATE_CHECKPOINTS)" UPDATE_COMPAT_TAGS="$(UPDATE_COMPAT_TAGS)" ALLOW_SOURCE_REF_FROM="$(ALLOW_SOURCE_REF_FROM)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
 
 check-identity-integrity:
 	@DEBUG="$(DEBUG)" SCAN_COMMITS="0" SCAN_SOURCE_REFS="0" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"

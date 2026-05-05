@@ -203,10 +203,50 @@ make import-unofficial-commits \
   WRITE=1
 ```
 
+To apply the same finished topic branch to every release-specific checkpoint,
+ask the importer to propagate it:
+
+```bash
+make import-unofficial-commits \
+  FROM_REF=my-change \
+  PROPAGATE_CHECKPOINTS=all \
+  UPDATE_COMPAT_TAGS=1
+```
+
+If the dry run reports the expected replay range and checkpoint list, re-run
+with `WRITE=1`:
+
+```bash
+make import-unofficial-commits \
+  FROM_REF=my-change \
+  PROPAGATE_CHECKPOINTS=all \
+  UPDATE_COMPAT_TAGS=1 \
+  WRITE=1
+```
+
+Propagation prepares all candidate checkpoint commits under
+`.cache/edk2-cix/operations/import-unofficial/` before moving any permanent
+refs. If one checkpoint conflicts, no `source/unofficial/**` branch or
+compatibility tag is updated. Resolve the conflicts in the scratch tree printed
+by the command, then continue:
+
+```bash
+make import-unofficial-commits CONTINUE=1 OP_ID=<operation-id> WRITE=1
+```
+
+Or abort without moving refs:
+
+```bash
+make import-unofficial-commits ABORT=1 OP_ID=<operation-id>
+```
+
 The key variables are:
 
 - `FROM_REF` is the topic branch or commit containing your finished change.
 - `SOURCE_UNOFFICIAL_REF` is the full unofficial source branch to update. It defaults to `source/unofficial/current` and must stay under `source/unofficial/`.
+- `PROPAGATE_CHECKPOINTS=all` replays the inferred topic change range onto every `source/unofficial/edk2-stable*` checkpoint.
+- `UPDATE_COMPAT_TAGS=1` moves the matching `source/unofficial/edk2/stable-*` tags after every replay has succeeded.
+- `BASE_REF` is normally inferred. Use it only when the importer reports that the replay base is ambiguous.
 
 For each supported EDK2 release, the repo keeps two related records of the unofficial project changes:
 
@@ -215,9 +255,15 @@ For each supported EDK2 release, the repo keeps two related records of the unoff
 
 Here, an EDK2 release means the upstream EDK2 code together with its matching `edk2-platforms` and `edk2-non-osi` companion sources. Some unofficial changes apply unchanged across several EDK2 releases; others need small adjustments because upstream files moved or changed.
 
-For example, if the same unofficial source commit works on both `edk2-stable202502` and `edk2-stable202505`, both checkpoint tags may point at that commit. If `edk2-stable202508` needs an extra adjustment, make that adjustment at the `202508` checkpoint, then tag the adjusted commit as `source/unofficial/edk2/stable-202508`.
+For example, if the same unofficial source commit works on both `edk2-stable202502` and `edk2-stable202505`, both checkpoint tags may point at that commit. If `edk2-stable202508` needs an extra adjustment, the importer pauses at that checkpoint and lets you resolve the release-specific conflict before it updates any branch or tag.
 
 Checkpoint tags must remain reachable from retained `source/unofficial/**` branches, rather than becoming tag-only orphan commits. The tags deliberately use the non-colliding `source/unofficial/edk2/stable-*` namespace while the matching branches use `source/unofficial/edk2-stable*`.
+
+`FROM_REF=source/unofficial/current` and
+`FROM_REF=source/unofficial/edk2-stable*` are rejected for propagation by
+default. Use a normal topic branch as the input. Maintainers can use
+`ALLOW_SOURCE_REF_FROM=1` with an explicit `BASE_REF` for recovery workflows,
+but ordinary development should not need this escape hatch.
 
 ## How do I update upstream EDK2, Arm TF-A, OP-TEE, CIX, or Radxa sources?
 
