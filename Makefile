@@ -46,14 +46,16 @@ ACT_RUNNER_IMAGE ?= catthehacker/ubuntu:act-latest
 
 define PRINT_HELP_SHELL_PROLOGUE
 	set -eu; \
-	help_pad=31; \
-	help_gap=2; \
-	help_width=80; \
-	desc_width=$$((help_width - 2 - help_pad - help_gap)); \
-	desc_indent=$$(printf '%*s' "$$((2 + help_pad + help_gap))" ''); \
-	print_help_line() { \
-		label="$$1"; \
-		desc="$$2"; \
+		help_pad=31; \
+		nested_help_pad=29; \
+		help_gap=2; \
+		help_width=80; \
+		desc_width=$$((help_width - 2 - help_pad - help_gap)); \
+		desc_indent=$$(printf '%*s' "$$((2 + help_pad + help_gap))" ''); \
+		nested_desc_indent=$$(printf '%*s' "$$((4 + nested_help_pad + help_gap))" ''); \
+		print_help_line() { \
+			label="$$1"; \
+			desc="$$2"; \
 		if [ "$${#label}" -le "$$help_pad" ]; then \
 			first_indent=$$(printf '  %-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
 			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
@@ -61,15 +63,33 @@ define PRINT_HELP_SHELL_PROLOGUE
 					'{ sub(/ +$$/, "", $$0) } NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
 		else \
 			printf '  %s\n' "$$label"; \
-			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
-				awk -v cont="$$desc_indent" \
-					'{ sub(/^ +/, "", $$0); sub(/ +$$/, "", $$0); print cont $$0 }'; \
-		fi; \
+				printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+					awk -v cont="$$desc_indent" \
+						'{ sub(/^ +/, "", $$0); sub(/ +$$/, "", $$0); print cont $$0 }'; \
+			fi; \
+		}; \
+		print_help_variable() { \
+			label="$$1"; \
+			desc="$$2"; \
+			if [ "$${#label}" -le "$$nested_help_pad" ]; then \
+				first_indent=$$(printf '    %-*s%*s' "$$nested_help_pad" "$$label" "$$help_gap" ''); \
+				printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+					awk -v first="$$first_indent" -v cont="$$nested_desc_indent" \
+						'{ sub(/ +$$/, "", $$0) } NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
+			else \
+				printf '    %s\n' "$$label"; \
+				printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+					awk -v cont="$$nested_desc_indent" \
+						'{ sub(/^ +/, "", $$0); sub(/ +$$/, "", $$0); print cont $$0 }'; \
+			fi; \
 		}; \
 		print_help_note() { \
 			printf '%b\n' "$$1" | fold -s -w "$$desc_width" | \
 				awk -v cont="$$desc_indent" \
 					'{ sub(/^ +/, "", $$0); sub(/ +$$/, "", $$0); print cont $$0 }'; \
+		}; \
+		print_subtitle() { \
+			printf '  %s\n\n' "$$1"; \
 		}; \
 		print_section() { \
 			printf '\n%s\n\n' "$$1"; \
@@ -128,45 +148,52 @@ help-vars:
 help-dev:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Source Integration'; \
+	print_subtitle 'Targets:'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
-	print_help_line 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa source refs or CIX-carried source layers.'; \
-	print_help_line 'COMPONENT=<name>' 'For TYPE=upstream: edk2, edk2-platforms, edk2-non-osi, tf-a, or op-tee.'; \
-	print_help_line 'VENDOR=radxa|cix' 'For TYPE=vendor. Radxa records vendor-published or ported EDK2 source trees; CIX updates the TF-A/OP-TEE release bundle.'; \
-	print_help_line 'RELEASE=<name>' 'For source integration: release, tag, or source version name.'; \
-	print_help_line 'REF=<ref>' 'Input ref/object for source integration.'; \
-	print_help_line 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
-	print_help_line 'ARM_BASE=<release>' 'Arm upstream base used when recording a CIX TF-A or OP-TEE component uplift.'; \
-	print_help_line 'RADXA_SOURCE=auto|vendor|port' 'Select whether a Radxa integration is a vendor-published source tree or this project'\''s port to an EDK2 base.\nDefault: auto.'; \
-	print_help_line 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release and import-unofficial-commits.'; \
-	print_help_line 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
-	print_help_line 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before recording source/vendor or source/port refs.\nDefault: 1.'; \
-	print_help_line 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta.'; \
-	print_help_line 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
-	print_help_line 'FROM_REF=<ref>' 'Developer topic branch/ref for import-unofficial-commits.'; \
-	print_help_line 'OUTPUT=<path>' 'Optional extract-vendor-delta metadata output path.'; \
-	print_help_line 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
-	print_help_line 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch; defaults to source/unofficial/current.'; \
+	print_subtitle 'Variables:'; \
+	print_help_variable 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa source refs or CIX-carried source layers.'; \
+	print_help_variable 'COMPONENT=<name>' 'For TYPE=upstream: edk2, edk2-platforms, edk2-non-osi, tf-a, or op-tee.'; \
+	print_help_variable 'VENDOR=radxa|cix' 'For TYPE=vendor. Radxa records vendor-published or ported EDK2 source trees; CIX updates the TF-A/OP-TEE release bundle.'; \
+	print_help_variable 'RELEASE=<name>' 'For source integration: release, tag, or source version name.'; \
+	print_help_variable 'REF=<ref>' 'Input ref/object for source integration.'; \
+	print_help_variable 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
+	print_help_variable 'ARM_BASE=<release>' 'Arm upstream base used when recording a CIX TF-A or OP-TEE component uplift.'; \
+	print_help_variable 'RADXA_SOURCE=auto|vendor|port' 'Select whether a Radxa integration is a vendor-published source tree or this project'\''s port to an EDK2 base.\nDefault: auto.'; \
+	print_help_variable 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release and import-unofficial-commits.'; \
+	print_help_variable 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
+	print_help_variable 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before recording source/vendor or source/port refs.\nDefault: 1.'; \
+	print_help_variable 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta.'; \
+	print_help_variable 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
+	print_help_variable 'FROM_REF=<ref>' 'Developer topic branch/ref for import-unofficial-commits.'; \
+	print_help_variable 'OUTPUT=<path>' 'Optional extract-vendor-delta metadata output path.'; \
+	print_help_variable 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
+	print_help_variable 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch; defaults to source/unofficial/current.'; \
 	print_section 'Rendering and Qualification'; \
+	print_subtitle 'Targets:'; \
 	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/cache/release branch.'; \
 	print_help_line 'make verify-release-branch' 'Validate a materialised firmware source-target branch.'; \
 	print_help_line 'make verify-build-matrix' 'Validate build/source target combinations derived from source refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
-	print_help_line 'RELEASE=<source-target>' 'Firmware source-target name for render-release-branch and verify-release-branch.'; \
-	print_help_line 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/cache/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a Git cache branch.'; \
-	print_help_line 'REBUILD=0|1' 'Regenerate a rendered firmware source target from its render plan instead of reusing an existing ref.'; \
-	print_help_line 'FORCE=0|1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass.'; \
-	print_help_line 'WORKTREE=<path>' 'Existing rendered worktree to use for verify-release-branch history checks.'; \
-	print_help_line 'SIGNING_CERT_SOURCE_DIR=<path>' 'Copy exact-replay signing certs into the build worktree.\nDefault: unset.'; \
-	print_help_line 'INSTALL_SOURCE=<path>' 'Optional staged payload path, or path relative to dist/firmware.\nDefault: latest staged firmware payload.'; \
+	print_subtitle 'Variables:'; \
+	print_help_variable 'RELEASE=<source-target>' 'Firmware source-target name for render-release-branch and verify-release-branch.'; \
+	print_help_variable 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/cache/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a Git cache branch.'; \
+	print_help_variable 'REBUILD=0|1' 'Regenerate a rendered firmware source target from its render plan instead of reusing an existing ref.'; \
+	print_help_variable 'FORCE=0|1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass.'; \
+	print_help_variable 'WORKTREE=<path>' 'Existing rendered worktree to use for verify-release-branch history checks.'; \
+	print_help_variable 'SIGNING_CERT_SOURCE_DIR=<path>' 'Copy exact-replay signing certs into the build worktree.\nDefault: unset.'; \
+	print_help_variable 'INSTALL_SOURCE=<path>' 'Optional staged payload path, or path relative to dist/firmware.\nDefault: latest staged firmware payload.'; \
 	print_section 'Minimised Repository'; \
+	print_subtitle 'Targets:'; \
 	print_help_line 'make create-minimised-clone' 'Create a bare repo containing only build plus required non-cache source refs and tags.'; \
 	print_help_line 'make verify-minimised-clone' 'Create and clone a minimised repository, then verify that it can render the default source target.'; \
-	print_help_line 'DIR=<path>' 'Destination directory for create-minimised-clone, or optional workspace directory for verify-minimised-clone.'; \
-	print_help_line 'KEEP=0|1' 'Keep the temporary verification workspace created by verify-minimised-clone.\nDefault: 0.'; \
-	print_help_line 'REPACK=0|1' 'Repack the destination produced by create-minimised-clone.\nDefault: 1.'; \
+	print_subtitle 'Variables:'; \
+	print_help_variable 'DIR=<path>' 'Destination directory for create-minimised-clone, or optional workspace directory for verify-minimised-clone.'; \
+	print_help_variable 'KEEP=0|1' 'Keep the temporary verification workspace created by verify-minimised-clone.\nDefault: 0.'; \
+	print_help_variable 'REPACK=0|1' 'Repack the destination produced by create-minimised-clone.\nDefault: 1.'; \
 	print_section 'Repository Maintenance'; \
+	print_subtitle 'Targets:'; \
 	print_help_line 'make check-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
 	print_help_line 'make check-identity-integrity' 'Quickly scan build-branch files for path/identity integrity issues.'; \
 	print_help_line 'make verify-identity-integrity' 'Deep-scan build-branch files, commit metadata, and persistent source refs for path/identity integrity issues.'; \
@@ -177,35 +204,41 @@ help-dev:
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
 	print_help_line 'make refresh-help-cache' 'Refresh config/help-cache.json after changing Makefile, config/, scripts/, or source refs. No Git hook is installed automatically.'; \
 	print_help_line 'make check-help-cache' 'Check config/help-cache.json matches current source refs and help-generation inputs. make test runs this check.'; \
-	print_help_line 'SCAN_COMMITS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
-	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
-	print_help_line 'UPSTREAM_VERSION_MODE=advisory|policy|strict' 'Version-check failure mode. advisory never fails on stale remotes; policy fails checks marked strict; strict fails any stale or unavailable check.\nDefault: policy.'; \
-	print_help_line 'UPSTREAM_VERSION_ONLY=<id[,id...]>' 'Optional comma-separated source IDs, or source:release/source:commits comparison IDs, for check-upstream-versions.'; \
-	print_help_line 'UPSTREAM_VERSION_FORMAT=text|github|json' 'Upstream versions output format. github emits workflow annotations.\nDefault: text.'; \
-	print_help_line 'UPSTREAM_VERSION_SNAPSHOT=<path>' 'Offline git ls-remote snapshot for upstream version tests.\nDefault: unset.'; \
-	print_help_line 'DELETE=0|1' 'Allow make prune to delete verified source/cache refs.\nDefault: 0.'; \
+	print_subtitle 'Variables:'; \
+	print_help_variable 'SCAN_COMMITS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
+	print_help_variable 'SCAN_SOURCE_REFS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
+	print_help_variable 'UPSTREAM_VERSION_MODE=advisory|policy|strict' 'Version-check failure mode. advisory never fails on stale remotes; policy fails checks marked strict; strict fails any stale or unavailable check.\nDefault: policy.'; \
+	print_help_variable 'UPSTREAM_VERSION_ONLY=<id[,id...]>' 'Optional comma-separated source IDs, or source:release/source:commits comparison IDs, for check-upstream-versions.'; \
+	print_help_variable 'UPSTREAM_VERSION_FORMAT=text|github|json' 'Upstream versions output format. github emits workflow annotations.\nDefault: text.'; \
+	print_help_variable 'UPSTREAM_VERSION_SNAPSHOT=<path>' 'Offline git ls-remote snapshot for upstream version tests.\nDefault: unset.'; \
+	print_help_variable 'DELETE=0|1' 'Allow make prune to delete verified source/cache refs.\nDefault: 0.'; \
 	print_section 'Local GitHub Actions'; \
+	print_subtitle 'Targets:'; \
 	print_help_line 'make gha-act-list' 'List GitHub Actions workflows and jobs through a repo-local act wrapper.'; \
 	print_help_line 'make gha-act-dry-run' 'Dry-run a selected GitHub Actions workflow through act.'; \
 	print_help_line 'make gha-act-run' 'Execute a selected GitHub Actions workflow through act.'; \
-	print_help_line 'ACT_WORKFLOW=.github/workflows/<file>.yaml' 'Workflow file to list, dry-run, or execute through the local act wrapper. Optional for gha-act-list.'; \
-	print_help_line 'ACT_EVENT=workflow_dispatch|push|pull_request|schedule' 'Event name passed to act for gha-act-dry-run and gha-act-run.\nDefault: workflow_dispatch.'; \
-	print_help_line 'ACT_JOB=<job-id>' 'Optional act job filter.'; \
-	print_help_line 'ACT_MATRIX=<name:value>' 'Optional single act matrix filter, for example board:O6.'; \
-	print_help_line 'ACT_SECRET_FILE=<path>' 'Optional act --secret-file path for local workflow runs.'; \
-	print_help_line 'ACT_EXTRA_ARGS=<args>' 'Additional raw flags appended to act.'; \
-	print_help_line 'ACT_CONTAINER_ARCH=<platform>' 'Container architecture used by act.\nDefault: linux/amd64.'; \
-	print_help_line 'ACT_RUNNER_IMAGE=<image>' 'Runner image mapped to ubuntu-latest.\nDefault: catthehacker/ubuntu:act-latest.'; \
+	print_subtitle 'Variables:'; \
+	print_help_variable 'ACT_WORKFLOW=.github/workflows/<file>.yaml' 'Workflow file to list, dry-run, or execute through the local act wrapper. Optional for gha-act-list.'; \
+	print_help_variable 'ACT_EVENT=workflow_dispatch|push|pull_request|schedule' 'Event name passed to act for gha-act-dry-run and gha-act-run.\nDefault: workflow_dispatch.'; \
+	print_help_variable 'ACT_JOB=<job-id>' 'Optional act job filter.'; \
+	print_help_variable 'ACT_MATRIX=<name:value>' 'Optional single act matrix filter, for example board:O6.'; \
+	print_help_variable 'ACT_SECRET_FILE=<path>' 'Optional act --secret-file path for local workflow runs.'; \
+	print_help_variable 'ACT_EXTRA_ARGS=<args>' 'Additional raw flags appended to act.'; \
+	print_help_variable 'ACT_CONTAINER_ARCH=<platform>' 'Container architecture used by act.\nDefault: linux/amd64.'; \
+	print_help_variable 'ACT_RUNNER_IMAGE=<image>' 'Runner image mapped to ubuntu-latest.\nDefault: catthehacker/ubuntu:act-latest.'; \
 	print_section 'Documentation'; \
+	print_subtitle 'Targets:'; \
 	print_help_line 'make docs-build' 'Build the mdBook product documentation under docs/.'; \
 	print_help_line 'make docs-workflow-local' 'Run the documentation workflow in its local Docker wrapper.'; \
 	print_section 'Quality'; \
+	print_subtitle 'Targets:'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
 	print_help_line 'make lint' 'Run JSON, YAML, Markdown, shell, and Python linting in the quality container.'; \
-	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
+	print_subtitle 'Variables:'; \
+	print_help_variable 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
 	print_section 'Common Variables'; \
-	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
-	print_help_line 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
+	print_help_variable 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
+	print_help_variable 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make help-source-targets' 'Show configured firmware source targets.'; \
 	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
