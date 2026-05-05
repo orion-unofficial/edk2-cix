@@ -81,21 +81,20 @@ endef
 
 help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
-	default_release="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-default-release 2>/dev/null || printf '%s' '<unavailable>')"; \
 	printf '%s\n' 'edk2-cix firmware build targets'; \
 	print_section 'Build Targets'; \
-	print_help_line 'make build' 'Build one firmware image for the selected board and source target.'; \
-	printf '    Default source target: %s\n' "$$default_release"; \
-	print_help_line 'make install' 'Build, safety-check, and install one firmware payload for the selected board and source target.'; \
-	printf '    Default source target: %s\n' "$$default_release"; \
-	print_help_line 'make build-all' 'Build a distributable archive containing all supported firmware build variants for the selected board and source target.'; \
+	print_help_line 'make build' 'Build one firmware image in buildbox for the selected board and source target.'; \
+	print_help_line 'make install' 'Build one firmware payload in buildbox, safety-check it on the local host, then install it for the selected board and source target.'; \
+	print_help_line 'make build-all' 'Build a distributable archive in buildbox containing all supported firmware build variants for the selected board and source target.'; \
+	printf '    See make help-source-targets for the available and default source targets.\n'; \
 	print_help_line 'make zip' 'Create a firmware .zip via the buildbox.'; \
 	print_help_line 'make targz' 'Create a firmware .tar.gz via the buildbox.'; \
-	print_help_line 'make clean' 'Remove stale filesystem cache entries; does not delete Git refs.'; \
-	print_help_line 'make realclean' 'Remove all filesystem cache entries; does not delete Git refs.'; \
+	printf '\n'; \
+	print_help_line 'make clean' 'Remove stale filesystem cache entries.'; \
+	print_help_line 'make realclean' 'Remove all filesystem cache entries.'; \
 	print_section 'Buildbox Targets'; \
-	print_help_line 'make buildbox-firmware-build' 'Delegate firmware build to the selected buildbox.'; \
-	print_help_line 'make buildbox-firmware-stage' 'Delegate firmware staging to the selected buildbox.'; \
+	print_help_line 'make buildbox-firmware-build' 'Delegate firmware build through the rendered firmware tree buildbox wrapper.'; \
+	print_help_line 'make buildbox-firmware-stage' 'Delegate firmware staging through the rendered firmware tree buildbox wrapper.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make help' 'Show this help.'; \
 	print_help_line 'make help-vars' 'Show common build variables.'; \
@@ -123,31 +122,36 @@ help-vars:
 
 help-dev:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
-	print_section 'Source Update and Developer Targets'; \
+	print_section 'Source Integration Targets'; \
+	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
+	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
+	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
+	print_section 'Rendering and Qualification Targets'; \
 	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/cache/release branch.'; \
 	print_help_line 'make verify-release-branch' 'Validate a materialised firmware source-target branch.'; \
 	print_help_line 'make verify-build-matrix' 'Validate build/source target combinations derived from source refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
-	print_help_line 'make check-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
 	print_help_line 'make verify-minimised-clone' 'Create and clone a minimised repository, then verify that it can render the default source target.'; \
-	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
-	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
-	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
+	print_section 'Repository Maintenance Targets'; \
+	print_help_line 'make check-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
 	print_help_line 'make check-identity-integrity' 'Quickly scan build-branch files for path/identity integrity issues.'; \
 	print_help_line 'make verify-identity-integrity' 'Deep-scan build-branch files, commit metadata, and persistent source refs for path/identity integrity issues.'; \
 	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
 	print_help_line 'make check-upstream-versions' 'Check recorded source refs against external upstream/vendor remotes.'; \
-	print_help_line 'make check-help-cache' 'Check config/help-cache.json matches current source refs and help-generation inputs. make test runs this check.'; \
-	print_help_line 'make refresh-help-cache' 'Refresh config/help-cache.json after changing Makefile, config/, scripts/, or source refs. No Git hook is installed automatically.'; \
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
+	print_help_line 'make refresh-help-cache' 'Refresh config/help-cache.json after changing Makefile, config/, scripts/, or source refs. No Git hook is installed automatically.'; \
+	print_help_line 'make check-help-cache' 'Check config/help-cache.json matches current source refs and help-generation inputs. make test runs this check.'; \
 	print_help_line 'make create-minimised-clone' 'Create a bare repo containing only build plus required non-cache source refs and tags.'; \
+	print_section 'Local GitHub Actions Targets'; \
 	print_help_line 'make gha-act-list' 'List GitHub Actions workflows and jobs through a repo-local act wrapper.'; \
 	print_help_line 'make gha-act-dry-run' 'Dry-run a selected GitHub Actions workflow through act.'; \
 	print_help_line 'make gha-act-run' 'Execute a selected GitHub Actions workflow through act.'; \
+	print_section 'Documentation Targets'; \
 	print_help_line 'make docs-build' 'Build the mdBook product documentation under docs/.'; \
 	print_help_line 'make docs-workflow-local' 'Run the documentation workflow in its local Docker wrapper.'; \
+	print_section 'Quality Targets'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
 	print_help_line 'make lint' 'Run JSON, YAML, Markdown, shell, and Python linting in the quality container.'; \
 	print_section 'Source Integration Variables'; \

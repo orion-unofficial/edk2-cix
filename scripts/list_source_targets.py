@@ -89,10 +89,12 @@ def print_help(repo: Path) -> None:
         "A source target is the chosen combination of EDK2, Radxa, CIX, "
         "and unofficial project sources used to construct the firmware tree."
     )
+    print()
     paragraph(
         "All listed source targets are rendered as ordinary files before building, "
         "without the use of git submodules."
     )
+    print()
     paragraph(
         "The names below are the recommended RELEASE= values. A full branch "
         "name such as source/cache/release/custom/... is also accepted when copying "
@@ -103,18 +105,16 @@ def print_help(repo: Path) -> None:
     print("  edk2-YYYYMM[.NN]    selects the upstream EDK2 release")
     print("  radxa-X.Y.Z[-R]     adds the Radxa EDK2 vendor layer")
     print("  cix-X.Y             adds CIX TF-A and OP-TEE component sources")
-    print("  unofficial          adds this project's unofficial firmware changes")
+    print("  unofficial[-X.Y.Z]  adds this project's unofficial firmware changes")
+    if alias_versions:
+        indented(
+            "Optional version suffixes select the matching unofficial source-target alias; "
+            f"currently configured suffix(es): {', '.join(alias_versions)}.",
+            indent="                      ",
+        )
     print()
     print("Available source targets:")
     print_source_target_list(branches)
-    if alias_versions:
-        print()
-        print("Versioned unofficial aliases:")
-        indented(
-            "Any listed /unofficial source target also accepts a versioned alias of the "
-            f"form /unofficial-<version>; currently configured version(s): "
-            f"{', '.join(alias_versions)}."
-        )
     print()
     print("Default source target:")
     print(f"  {default}")
