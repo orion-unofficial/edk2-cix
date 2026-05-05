@@ -30,6 +30,10 @@
         "path": "config/refs-radxa.json"
       },
       {
+        "object_id": "b973c54e5d6c6ffd74ed8ea0e6cefced08e360cf",
+        "path": "config/refs-source-target-cache.json"
+      },
+      {
         "object_id": "ea894603a3c3d58d97a07d11a1fe057f8f9b1344",
         "path": "config/remotes.json"
       },
@@ -88,6 +92,10 @@
       {
         "object_id": "b9d16a64a46cff2a119cf7aab27c36f07b3bc5ce",
         "path": "scripts/integrate_source_release.py"
+      },
+      {
+        "object_id": "2e60d79d24b18c5794ed821ab93bdb7d3ec04fd6",
+        "path": "scripts/list_source_targets.py"
       },
       {
         "object_id": "467511260a061041c1af4c9343d6fb8c7dd32720",
@@ -560,6 +568,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "01edf001fdfb641bb7bb0ed86e0e4bf778ff7a6366fca88cb18abf1550285530"
+    "sha256": "f7556e8bfb662a8c41b07cc6145e131272969458429dc1028f93cdb9b7f82c9d"
   }
 }
