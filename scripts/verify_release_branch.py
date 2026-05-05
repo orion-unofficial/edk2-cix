@@ -21,7 +21,7 @@ from reconstruction_common import (
     repo_root,
     truthy,
 )
-from source_policy import enforce_overlay_symlink_policy
+from source_policy import enforce_source_tree_policy
 
 
 HELP = """verify-release-branch
@@ -110,7 +110,7 @@ def main() -> None:
     if inert_gitmodules and verbose:
         print(f"note: {len(inert_gitmodules)} nested .gitmodules files are present as inert source files")
 
-    enforce_overlay_symlink_policy(repo, ref=ref, label=branch)
+    enforce_source_tree_policy(repo, ref=ref, label=branch)
 
     if args.worktree:
         wt = Path(args.worktree)

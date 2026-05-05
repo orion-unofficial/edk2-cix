@@ -5,38 +5,12 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 
 from reconstruction_common import ReconstructionError
-from source_policy import enforce_overlay_symlink_policy
-
-
-def run(cmd: list[str], cwd: Path, *, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        cmd,
-        cwd=str(cwd),
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=check,
-    )
-
-
-def git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return run(["git", *args], repo, check=check)
-
-
-def require(condition: bool, message: str) -> None:
-    if not condition:
-        raise AssertionError(message)
-
-
-def write_file(repo: Path, relative: str, text: str) -> None:
-    path = repo / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+from source_policy import enforce_source_tree_policy
+from test_support import git, require, write_file
 
 
 def make_repo() -> Path:
@@ -54,7 +28,7 @@ def make_repo() -> Path:
 def test_changed_overlay_file_is_allowed() -> None:
     repo = make_repo()
     try:
-        enforce_overlay_symlink_policy(repo, ref="HEAD")
+        enforce_source_tree_policy(repo, ref="HEAD")
     finally:
         shutil.rmtree(repo)
 
@@ -66,7 +40,7 @@ def test_identical_overlay_file_is_rejected_from_ref() -> None:
         git(repo, "add", ".")
         git(repo, "commit", "-m", "make overlay identical")
         try:
-            enforce_overlay_symlink_policy(repo, ref="HEAD")
+            enforce_source_tree_policy(repo, ref="HEAD")
         except ReconstructionError as exc:
             require("byte-identical" in str(exc), str(exc))
         else:
@@ -81,7 +55,7 @@ def test_identical_overlay_file_is_rejected_from_index() -> None:
         write_file(repo, "custom/overlay/component/file.c", "source\n")
         git(repo, "add", "custom/overlay/component/file.c")
         try:
-            enforce_overlay_symlink_policy(repo, index=True)
+            enforce_source_tree_policy(repo, index=True)
         except ReconstructionError as exc:
             require("byte-identical" in str(exc), str(exc))
         else:
@@ -97,7 +71,7 @@ def test_matching_overlay_symlink_is_allowed() -> None:
         os.symlink("../../../src/component/file.c", repo / "custom/overlay/component/file.c")
         git(repo, "add", ".")
         git(repo, "commit", "-m", "replace overlay with symlink")
-        enforce_overlay_symlink_policy(repo, ref="HEAD")
+        enforce_source_tree_policy(repo, ref="HEAD")
     finally:
         shutil.rmtree(repo)
 
@@ -110,7 +84,7 @@ def test_bad_overlay_symlink_target_is_rejected() -> None:
         git(repo, "add", ".")
         git(repo, "commit", "-m", "bad symlink")
         try:
-            enforce_overlay_symlink_policy(repo, ref="HEAD")
+            enforce_source_tree_policy(repo, ref="HEAD")
         except ReconstructionError as exc:
             require("expected 'src/component/file.c'" in str(exc), str(exc))
         else:

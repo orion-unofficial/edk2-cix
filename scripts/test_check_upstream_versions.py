@@ -4,11 +4,7 @@
 from __future__ import annotations
 
 from check_upstream_versions import LocalState, RemoteRef, compare_head, compare_tag, comparison_items, latest_remote_tag
-
-
-def require(condition: bool, message: str) -> None:
-    if not condition:
-        raise AssertionError(message)
+from test_support import require
 
 
 def test_latest_remote_tag_prefers_peeled_commit() -> None:

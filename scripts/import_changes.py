@@ -4,31 +4,37 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
-import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import Any
 
-from import_unofficial_commits import (
+from import_workflow import (
     CURRENT_REF,
     ZERO_OID,
+    abort_operation,
     checkpoint_targets,
+    clone_scratch,
     ensure_target_not_checked_out_dirty,
+    fetch_candidate_objects,
     full_tag_ref,
-    git_config,
     is_ancestor,
+    load_state,
+    make_op_id,
+    merge_base,
+    operation_path,
     ref_oid,
+    remove_operation_state,
+    require_unofficial_target,
+    resolve_operation,
+    save_state,
     transaction_update_refs,
     unmerged_paths,
 )
 from reconstruction_common import (
     ReconstructionError,
     branch_to_ref,
-    cache_dir,
     for_each_ref,
     git,
     local_compatibility_tag_for_branch,
@@ -36,10 +42,9 @@ from reconstruction_common import (
     ref_exists,
     repo_root,
     rev_parse,
-    safe_name,
     truthy,
 )
-from source_policy import enforce_overlay_symlink_policy
+from source_policy import enforce_source_tree_policy
 
 
 OP_NAMESPACE = "import-changes"
@@ -94,55 +99,6 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
-def operations_root(repo: Path) -> Path:
-    return cache_dir(repo, "operations", OP_NAMESPACE)
-
-
-def operation_path(repo: Path, op_id: str) -> Path:
-    return operations_root(repo) / op_id
-
-
-def state_path(op_dir: Path) -> Path:
-    return op_dir / "state.json"
-
-
-def load_state(op_dir: Path) -> dict[str, Any]:
-    with state_path(op_dir).open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def save_state(op_dir: Path, state: dict[str, Any]) -> None:
-    with state_path(op_dir).open("w", encoding="utf-8") as f:
-        json.dump(state, f, indent=2, sort_keys=True)
-        f.write("\n")
-
-
-def resolve_operation(repo: Path, op_id: str) -> Path:
-    root = operations_root(repo)
-    if op_id:
-        op_dir = root / op_id
-        if not op_dir.exists():
-            raise ReconstructionError(f"import operation does not exist: {op_id}")
-        return op_dir
-    ops = [path for path in root.iterdir() if path.is_dir()] if root.exists() else []
-    if len(ops) == 1:
-        return ops[0]
-    if not ops:
-        raise ReconstructionError("no paused import-changes operation exists")
-    lines = ["multiple paused import-changes operations exist; re-run with OP_ID=<id>:"]
-    lines.extend(f"  - {path.name}" for path in sorted(ops))
-    raise ReconstructionError("\n".join(lines))
-
-
-def make_op_id(from_ref: str) -> str:
-    return f"{int(time.time())}-{safe_name(from_ref)}"
-
-
-def require_unofficial_target(ref: str) -> None:
-    if not ref.startswith("source/unofficial/"):
-        raise ReconstructionError("SOURCE_UNOFFICIAL_REF must be under source/unofficial/")
-
-
 def nearest_ancestor(repo: Path, from_ref: str, refs: list[str]) -> tuple[str, str] | None:
     from_oid = rev_parse(repo, from_ref)
     candidates: list[tuple[int, str, str]] = []
@@ -161,14 +117,6 @@ def nearest_ancestor(repo: Path, from_ref: str, refs: list[str]) -> tuple[str, s
         raise ReconstructionError(f"could not infer BASE_REF unambiguously; candidates:\n{tied}\nre-run with BASE_REF=<ref>")
     _count, ref, oid = candidates[0]
     return ref, oid
-
-
-def merge_base(repo: Path, left: str, right: str) -> str | None:
-    result = git(repo, "merge-base", left, right, check=False)
-    if result.returncode != 0:
-        return None
-    value = result.stdout.strip()
-    return value or None
 
 
 def branch_heads(repo: Path) -> list[str]:
@@ -268,19 +216,6 @@ def write_patch(repo: Path, base_oid: str, from_ref: str, patch_path: Path) -> l
     return changes
 
 
-def clone_scratch(repo: Path, op_dir: Path, ref: str, verbose: bool) -> Path:
-    scratch_root = op_dir / "scratch"
-    scratch_root.mkdir(parents=True, exist_ok=True)
-    scratch = scratch_root / safe_name(ref)
-    if scratch.exists():
-        shutil.rmtree(scratch)
-    git(repo, "clone", "--shared", "--no-checkout", str(repo), str(scratch), capture=not verbose)
-    git(scratch, "switch", "--detach", rev_parse(repo, ref), capture=not verbose)
-    git(scratch, "config", "user.name", git_config(repo, "user.name") or "edk2-cix importer")
-    git(scratch, "config", "user.email", git_config(repo, "user.email") or "edk2-cix-import")
-    return scratch
-
-
 def staged_changes(repo: Path) -> bool:
     return git(repo, "diff", "--cached", "--quiet", check=False).returncode != 0
 
@@ -294,7 +229,7 @@ def commit_scratch(repo: Path, message: str) -> str:
     unresolved = unmerged_paths(repo)
     if unresolved:
         raise ReconstructionError("import still has unresolved conflicts:\n" + "\n".join(f"  - {path}" for path in unresolved))
-    enforce_overlay_symlink_policy(repo, index=True, label="import scratch index")
+    enforce_source_tree_policy(repo, index=True, label="import scratch index")
     if not staged_changes(repo):
         dirty = dirty_paths(repo)
         if dirty:
@@ -391,7 +326,7 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
         ensure_target_not_checked_out_dirty(repo, target["ref"])
 
     op_id = args.op_id or make_op_id(args.from_ref)
-    op_dir = operation_path(repo, op_id)
+    op_dir = operation_path(repo, OP_NAMESPACE, op_id)
     if op_dir.exists():
         raise ReconstructionError(f"import operation already exists: {op_id}")
     op_dir.mkdir(parents=True)
@@ -418,15 +353,9 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
                 paused.append(target)
             save_state(op_dir, state)
     except Exception:
-        shutil.rmtree(op_dir, ignore_errors=True)
+        remove_operation_state(op_dir, ignore_errors=True)
         raise
     return op_dir, state, paused
-
-
-def fetch_candidate_objects(repo: Path, state: dict[str, Any], verbose: bool) -> None:
-    for target in state["targets"]:
-        if target.get("candidate_oid"):
-            git(repo, "fetch", "--no-tags", str(Path(target["scratch"])), target["candidate_oid"], capture=not verbose)
 
 
 def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> None:
@@ -443,7 +372,7 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
     print("updated unofficial refs:")
     for full_ref, new_oid, _old_oid in updates:
         print(f"  {full_ref} -> {new_oid}")
-    shutil.rmtree(op_dir)
+    remove_operation_state(op_dir)
 
 
 def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> None:
@@ -464,11 +393,6 @@ def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> 
     if paused:
         raise ReconstructionError(pause_message(state["op_id"], paused))
     finalise(repo, op_dir, state, verbose)
-
-
-def abort_operation(op_dir: Path) -> None:
-    shutil.rmtree(op_dir)
-    print(f"aborted import operation {op_dir.name}")
 
 
 def print_dry_run(state: dict[str, Any]) -> None:
@@ -510,10 +434,10 @@ def main() -> None:
     verbose = truthy(args.v)
 
     if truthy(args.abort):
-        abort_operation(resolve_operation(repo, args.op_id))
+        abort_operation(resolve_operation(repo, OP_NAMESPACE, "import-changes", args.op_id), "import-changes")
         return
     if truthy(args.continue_import):
-        continue_operation(repo, resolve_operation(repo, args.op_id), verbose, truthy(args.write))
+        continue_operation(repo, resolve_operation(repo, OP_NAMESPACE, "import-changes", args.op_id), verbose, truthy(args.write))
         return
 
     if not args.from_ref:
@@ -530,7 +454,7 @@ def main() -> None:
             if paused:
                 raise ReconstructionError(dry_run_conflict_message(paused))
         finally:
-            shutil.rmtree(op_dir)
+            remove_operation_state(op_dir)
         return
 
     op_dir, state, paused = prepare_operation(repo, args, verbose)

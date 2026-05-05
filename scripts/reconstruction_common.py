@@ -61,6 +61,51 @@ def load_json(repo: Path, relative: str) -> dict[str, Any]:
         return json.load(f)
 
 
+def configured_remote_url(
+    repo: Path,
+    *,
+    remote_key: str = "",
+    component: str = "",
+    vendor: str = "",
+    remote_type: str = "",
+) -> str:
+    """Return a URL from config/remotes.json by key or by metadata filters."""
+
+    remotes = load_json(repo, "config/remotes.json").get("remotes", {})
+    if not isinstance(remotes, dict):
+        raise ReconstructionError("config/remotes.json must contain a remotes object")
+
+    if remote_key:
+        entry = remotes.get(remote_key)
+        if not isinstance(entry, dict) or not entry.get("url"):
+            raise ReconstructionError(f"config/remotes.json has no URL for remote {remote_key}")
+        return str(entry["url"])
+
+    for record in remotes.values():
+        if not isinstance(record, dict):
+            continue
+        if component and record.get("component") != component:
+            continue
+        if vendor and record.get("vendor") != vendor:
+            continue
+        if remote_type and record.get("type") != remote_type:
+            continue
+        url = record.get("url")
+        if url:
+            return str(url)
+
+    detail = ", ".join(
+        item
+        for item in (
+            f"component={component}" if component else "",
+            f"vendor={vendor}" if vendor else "",
+            f"type={remote_type}" if remote_type else "",
+        )
+        if item
+    ) or "requested filters"
+    raise ReconstructionError(f"no remote URL recorded in config/remotes.json for {detail}")
+
+
 def write_json(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
@@ -361,6 +406,31 @@ def source_target_name(branch: str) -> str:
     if sep and first in RELEASE_STAGE_PREFIXES:
         return rest
     return short
+
+
+def release_entry_required_refs(entry: dict[str, Any]) -> set[str]:
+    """Return persistent source refs needed to render a release entry."""
+
+    refs: set[str] = set()
+    render = entry.get("render", {})
+    base = render.get("base", {})
+    base_ref = base.get("ref")
+    if (
+        base_ref
+        and not base_ref.startswith(CACHE_RELEASE_PREFIX)
+        and not base_ref.startswith(CACHE_BASE_EDK2_PREFIX)
+    ):
+        refs.add(base_ref)
+    for step in render.get("steps", []):
+        if step.get("delta"):
+            refs.add(step["delta"])
+        component = step.get("component", {})
+        if component.get("ref"):
+            refs.add(component["ref"])
+    source_ref = entry.get("source_ref")
+    if source_ref and source_ref.startswith("source/unofficial/"):
+        refs.add(source_ref)
+    return refs
 
 
 EDK2_BASE_REF_RE = re.compile(

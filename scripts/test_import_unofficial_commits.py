@@ -3,75 +3,31 @@
 
 from __future__ import annotations
 
-import os
-import json
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
+from test_support import (
+    commit_all,
+    conflicted_scratch,
+    git,
+    require,
+    rev_parse,
+    run,
+    show,
+    switch_orphan,
+    write_file,
+)
+
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT_FILES = [
+    "import_workflow.py",
     "import_unofficial_commits.py",
     "reconstruction_common.py",
     "source_policy.py",
 ]
-
-
-def run(cmd: list[str], cwd: Path, *, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-    full_env = os.environ.copy()
-    if env:
-        full_env.update(env)
-    return subprocess.run(
-        cmd,
-        cwd=str(cwd),
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=check,
-        env=full_env,
-    )
-
-
-def git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return run(["git", *args], repo, check=check)
-
-
-def require(condition: bool, message: str) -> None:
-    if not condition:
-        raise AssertionError(message)
-
-
-def write_file(repo: Path, relative: str, text: str) -> None:
-    path = repo / relative
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
-
-
-def commit_all(repo: Path, message: str) -> str:
-    git(repo, "add", ".", ":!.cache")
-    git(repo, "commit", "-m", message)
-    return rev_parse(repo, "HEAD")
-
-
-def rev_parse(repo: Path, ref: str) -> str:
-    return git(repo, "rev-parse", f"{ref}^{{commit}}").stdout.strip()
-
-
-def show(repo: Path, ref: str, relative: str) -> str:
-    return git(repo, "show", f"{ref}:{relative}").stdout
-
-
-def switch_orphan(repo: Path, branch: str) -> None:
-    git(repo, "switch", "--orphan", branch)
-    for path in repo.iterdir():
-        if path.name == ".git":
-            continue
-        if path.is_dir():
-            shutil.rmtree(path)
-        else:
-            path.unlink()
 
 
 def make_repo() -> Path:
@@ -107,15 +63,6 @@ def make_repo() -> Path:
 
 def run_import(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
     return run(["python3", "scripts/import_unofficial_commits.py"], repo, check=False, env=env)
-
-
-def conflicted_scratch(op_dir: Path) -> Path:
-    with (op_dir / "state.json").open("r", encoding="utf-8") as f:
-        state = json.load(f)
-    for target in state["targets"]:
-        if target.get("status") == "conflict":
-            return Path(target["scratch"])
-    raise AssertionError("operation has no conflicted scratch tree")
 
 
 def make_topic(repo: Path, name: str = "topic", text: str = "topic change\n") -> tuple[str, str]:
@@ -202,11 +149,11 @@ def test_direct_import_rejects_identical_overlay_copy() -> None:
 
         result = run_import(repo, FROM_REF="topic")
         require(result.returncode != 0, "identical overlay copy should be rejected during dry run")
-        require("overlay symlink policy failed" in result.stderr, result.stderr)
+        require("source-tree policy failed" in result.stderr, result.stderr)
 
         result = run_import(repo, FROM_REF="topic", WRITE="1")
         require(result.returncode != 0, "identical overlay copy should be rejected")
-        require("overlay symlink policy failed" in result.stderr, result.stderr)
+        require("source-tree policy failed" in result.stderr, result.stderr)
         require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite source policy failure")
     finally:
         shutil.rmtree(repo)

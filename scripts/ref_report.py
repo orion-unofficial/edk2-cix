@@ -15,6 +15,7 @@ from reconstruction_common import (
     local_compatibility_branch_for_tag,
     matrix_release_values,
     ref_exists,
+    release_entry_required_refs,
     source_target_ref_records,
     release_entries,
     repo_root,
@@ -49,26 +50,7 @@ def branch_tag_collisions(repo: Path) -> list[str]:
 
 
 def entry_required_refs(entry: dict) -> set[str]:
-    refs: set[str] = set()
-    render = entry.get("render", {})
-    base = render.get("base", {})
-    base_ref = base.get("ref")
-    if (
-        base_ref
-        and not base_ref.startswith(CACHE_RELEASE_PREFIX)
-        and not base_ref.startswith(CACHE_BASE_EDK2_PREFIX)
-    ):
-        refs.add(base_ref)
-    for step in render.get("steps", []):
-        if step.get("delta"):
-            refs.add(step["delta"])
-        component = step.get("component", {})
-        if component.get("ref"):
-            refs.add(component["ref"])
-    source_ref = entry.get("source_ref")
-    if source_ref and source_ref.startswith("source/unofficial/"):
-        refs.add(source_ref)
-    return refs
+    return release_entry_required_refs(entry)
 
 
 def required_source_refs(repo: Path) -> set[str]:

@@ -19,6 +19,7 @@ from reconstruction_common import (
     RADXA_REFS_MANIFEST,
     ReconstructionError,
     available_radxa_releases,
+    configured_remote_url,
     format_duration,
     latest_value,
     load_json,
@@ -100,14 +101,6 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
-def remote_url(repo: Path, remote_key: str) -> str:
-    remotes = load_json(repo, "config/remotes.json").get("remotes", {})
-    entry = remotes.get(remote_key)
-    if not isinstance(entry, dict) or not entry.get("url"):
-        raise ReconstructionError(f"config/remotes.json has no URL for remote {remote_key}")
-    return str(entry["url"])
-
-
 def load_snapshot(path: str) -> dict[str, list[RemoteRef]]:
     if not path:
         return {}
@@ -130,7 +123,7 @@ def ls_remote(repo: Path, remote_key: str, snapshot: dict[str, list[RemoteRef]],
     if remote_key in snapshot:
         refs = snapshot[remote_key]
     else:
-        url = remote_url(repo, remote_key)
+        url = configured_remote_url(repo, remote_key=remote_key)
         result = run(["git", "ls-remote", url], check=False)
         if result.returncode != 0:
             detail = (result.stderr or result.stdout or "").strip()

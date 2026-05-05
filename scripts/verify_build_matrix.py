@@ -8,7 +8,6 @@ import os
 import time
 from pathlib import Path
 from typing import Any
-
 from reconstruction_common import (
     CACHE_BASE_EDK2_PREFIX,
     CACHE_RELEASE_PREFIX,
@@ -29,6 +28,7 @@ from reconstruction_common import (
     matrix_release_values,
     ref_exists,
     radxa_releases_by_edk2,
+    release_entry_required_refs,
     source_target_ref_records,
     release_entries,
     repo_root,
@@ -66,30 +66,12 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
-def entry_required_refs(entry: dict[str, Any]) -> set[str]:
-    refs: set[str] = set()
-    render = entry.get("render", {})
-    base = render.get("base", {})
-    if base.get("ref") and not base["ref"].startswith(CACHE_RELEASE_PREFIX):
-        refs.add(base["ref"])
-    for step in render.get("steps", []):
-        if step.get("delta"):
-            refs.add(step["delta"])
-        component = step.get("component", {})
-        if component.get("ref"):
-            refs.add(component["ref"])
-    source_ref = entry.get("source_ref")
-    if source_ref and source_ref.startswith("source/unofficial/"):
-        refs.add(source_ref)
-    return refs
-
-
 def expected_from_source_refs(repo: Path) -> tuple[set[str], set[str], dict[str, str]]:
     releases = release_entries(repo)
     expected_releases = set(releases)
     expected_required_refs: set[str] = set()
     for entry in releases.values():
-        expected_required_refs.update(entry_required_refs(entry))
+        expected_required_refs.update(release_entry_required_refs(entry))
         edk2_ref = entry.get("edk2_release")
         if entry.get("unofficial_delta") and edk2_ref:
             expected_required_refs.add(f"source/unofficial/{edk2_ref}")

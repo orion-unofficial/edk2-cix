@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Shared source-tree policy checks for firmware source refs."""
+"""Shared source-tree policy checks for firmware source refs.
+
+This module is intentionally a general policy layer. Individual checks, such as
+overlay symlink integrity, are implemented as small rules and exposed through
+the source-tree policy entry points below.
+"""
 
 from __future__ import annotations
 
@@ -72,18 +77,15 @@ def resolved_symlink_path(path: str, target: str) -> str:
     return posixpath.normpath(posixpath.join(posixpath.dirname(path), target))
 
 
-def overlay_symlink_policy_violations(repo: Path, *, ref: str | None = None, index: bool = False) -> list[str]:
-    """Return overlay files that violate the symlink policy.
-
-    Any overlay file whose bytes are identical to the corresponding source file
-    under src/ must be represented as a Git symlink. Symlinks must point at that
-    corresponding src/ path using a relative target.
-    """
-
-    if bool(ref) == index:
+def collect_source_entries(repo: Path, *, ref: str | None = None, index: bool = False) -> dict[str, TreeEntry]:
+    if index and ref:
         raise ValueError("pass exactly one of ref=... or index=True")
+    return index_entries(repo) if index else tree_entries(repo, ref or "HEAD")
 
-    entries = index_entries(repo) if index else tree_entries(repo, ref or "HEAD")
+
+def overlay_symlink_policy_violations(repo: Path, entries: dict[str, TreeEntry]) -> list[str]:
+    """Return overlay files that violate the overlay symlink policy."""
+
     violations: list[str] = []
     for path, entry in sorted(entries.items()):
         if not path.startswith(OVERLAY_PREFIX):
@@ -114,19 +116,24 @@ def overlay_symlink_policy_violations(repo: Path, *, ref: str | None = None, ind
     return violations
 
 
-def enforce_overlay_symlink_policy(
+def source_tree_policy_violations(repo: Path, *, ref: str | None = None, index: bool = False) -> list[str]:
+    entries = collect_source_entries(repo, ref=ref, index=index)
+    return overlay_symlink_policy_violations(repo, entries)
+
+
+def enforce_source_tree_policy(
     repo: Path,
     *,
     ref: str | None = None,
     index: bool = False,
     label: str | None = None,
 ) -> None:
-    violations = overlay_symlink_policy_violations(repo, ref=ref, index=index)
+    violations = source_tree_policy_violations(repo, ref=ref, index=index)
     if not violations:
         return
     subject = label or ("index" if index else ref or "HEAD")
     sample = "\n".join(f"  - {item}" for item in violations[:20])
     extra = "" if len(violations) <= 20 else f"\n  ... and {len(violations) - 20} more"
     raise ReconstructionError(
-        f"overlay symlink policy failed for {subject}:\n{sample}{extra}"
+        f"source-tree policy failed for {subject}:\n{sample}{extra}"
     )

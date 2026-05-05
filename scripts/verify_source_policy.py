@@ -11,7 +11,7 @@ from pathlib import Path
 
 from import_unofficial_commits import CURRENT_REF, checkpoint_targets
 from reconstruction_common import ReconstructionError, format_duration, main_wrapper, ref_exists, repo_root
-from source_policy import enforce_overlay_symlink_policy
+from source_policy import enforce_source_tree_policy
 
 
 HELP = """verify-source-policy
@@ -40,7 +40,7 @@ def main() -> None:
             raise ReconstructionError(f"source ref is unavailable locally: {ref}")
         if args.v.strip() not in {"", "0", "false", "False"}:
             print(f"checking source policy: {ref}", file=sys.stderr)
-        enforce_overlay_symlink_policy(repo, ref=ref, label=ref)
+        enforce_source_tree_policy(repo, ref=ref, label=ref)
         checked += 1
     print(f"validated source policy for {checked} ref(s) in {format_duration(time.monotonic() - started)}")
 

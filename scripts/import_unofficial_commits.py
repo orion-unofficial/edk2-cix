@@ -4,39 +4,50 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
-import shutil
-import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import Any
 
+from import_workflow import (
+    CURRENT_REF,
+    ZERO_OID,
+    abort_operation,
+    checkpoint_targets,
+    cherry_pick_head,
+    clone_scratch,
+    ensure_target_not_checked_out_dirty,
+    fetch_candidate_objects,
+    full_tag_ref,
+    is_ancestor,
+    load_state,
+    make_op_id,
+    merge_base,
+    operation_path,
+    ref_oid,
+    remove_operation_state,
+    require_unofficial_target,
+    resolve_operation,
+    save_state,
+    transaction_update_refs,
+    unmerged_paths,
+)
 from reconstruction_common import (
     ReconstructionError,
     branch_to_ref,
-    cache_dir,
-    checked_out_worktree,
     for_each_ref,
     git,
-    is_dirty_worktree,
-    local_compatibility_refs,
     local_compatibility_tag_for_branch,
     main_wrapper,
     ref_exists,
     repo_root,
     rev_parse,
-    safe_name,
     truthy,
-    version_key,
 )
-from source_policy import enforce_overlay_symlink_policy
+from source_policy import enforce_source_tree_policy
 
 
-ZERO_OID = "0" * 40
 OP_NAMESPACE = "import-unofficial"
-CURRENT_REF = "source/unofficial/current"
 
 HELP = """import-unofficial-commits
 
@@ -104,23 +115,6 @@ def source_cache_ref(ref: str) -> bool:
     return short_source_ref(ref).startswith("source/cache/")
 
 
-def full_tag_ref(tag: str) -> str:
-    return tag if tag.startswith("refs/tags/") else f"refs/tags/{tag}"
-
-
-def ref_oid(repo: Path, ref: str, *, tag: bool = False) -> str | None:
-    full = full_tag_ref(ref) if tag else branch_to_ref(ref)
-    result = git(repo, "rev-parse", "--verify", "--quiet", f"{full}^{{commit}}", check=False)
-    if result.returncode != 0:
-        return None
-    return result.stdout.strip()
-
-
-def require_unofficial_target(ref: str) -> None:
-    if not ref.startswith("source/unofficial/"):
-        raise ReconstructionError("SOURCE_UNOFFICIAL_REF must be under source/unofficial/")
-
-
 def cache_ancestor_refs(repo: Path, from_ref: str) -> list[str]:
     from_oid = rev_parse(repo, from_ref)
     ancestors: list[str] = []
@@ -152,28 +146,6 @@ def require_valid_import_source(repo: Path, from_ref: str, target_ref: str, allo
             f"FROM_REF is not based on {target_ref}. "
             "Use make import-changes with BASE_REF=<base> to extract changes from a broader source tree."
         )
-
-
-def ensure_target_not_checked_out_dirty(repo: Path, ref: str) -> None:
-    worktree = checked_out_worktree(repo, ref)
-    if not worktree:
-        return
-    if is_dirty_worktree(worktree):
-        raise ReconstructionError(f"{ref} is checked out in dirty worktree {worktree}")
-    raise ReconstructionError(f"{ref} is checked out in worktree {worktree}; switch that worktree away before importing")
-
-
-def is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
-    result = git(repo, "merge-base", "--is-ancestor", ancestor, descendant, check=False)
-    return result.returncode == 0
-
-
-def merge_base(repo: Path, *args: str) -> str | None:
-    result = git(repo, "merge-base", *args, check=False)
-    if result.returncode != 0:
-        return None
-    value = result.stdout.strip()
-    return value or None
 
 
 def infer_base(repo: Path, from_ref: str, explicit_base: str, old_current: str) -> str:
@@ -224,90 +196,6 @@ def replay_commits(repo: Path, base_oid: str, from_ref: str) -> list[str]:
     return commits
 
 
-def checkpoint_targets(repo: Path) -> list[str]:
-    refs = local_compatibility_refs(repo)
-    if not refs:
-        raise ReconstructionError("no source/unofficial/edk2-stable* checkpoints are available")
-    return sorted(refs, key=version_key)
-
-
-def operations_root(repo: Path) -> Path:
-    return cache_dir(repo, "operations", OP_NAMESPACE)
-
-
-def operation_path(repo: Path, op_id: str) -> Path:
-    return operations_root(repo) / op_id
-
-
-def state_path(op_dir: Path) -> Path:
-    return op_dir / "state.json"
-
-
-def load_state(op_dir: Path) -> dict[str, Any]:
-    with state_path(op_dir).open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def save_state(op_dir: Path, state: dict[str, Any]) -> None:
-    with state_path(op_dir).open("w", encoding="utf-8") as f:
-        json.dump(state, f, indent=2, sort_keys=True)
-        f.write("\n")
-
-
-def resolve_operation(repo: Path, op_id: str) -> Path:
-    root = operations_root(repo)
-    if op_id:
-        op_dir = root / op_id
-        if not op_dir.exists():
-            raise ReconstructionError(f"import operation does not exist: {op_id}")
-        return op_dir
-    ops = [path for path in root.iterdir() if path.is_dir()] if root.exists() else []
-    if len(ops) == 1:
-        return ops[0]
-    if not ops:
-        raise ReconstructionError("no paused import-unofficial operation exists")
-    lines = ["multiple paused import-unofficial operations exist; re-run with OP_ID=<id>:"]
-    lines.extend(f"  - {path.name}" for path in sorted(ops))
-    raise ReconstructionError("\n".join(lines))
-
-
-def make_op_id(from_ref: str) -> str:
-    return f"{int(time.time())}-{safe_name(from_ref)}"
-
-
-def clone_scratch(repo: Path, op_dir: Path, ref: str, verbose: bool) -> Path:
-    scratch_root = op_dir / "scratch"
-    scratch_root.mkdir(parents=True, exist_ok=True)
-    scratch = scratch_root / safe_name(ref)
-    if scratch.exists():
-        shutil.rmtree(scratch)
-    git(repo, "clone", "--shared", "--no-checkout", str(repo), str(scratch), capture=not verbose)
-    git(scratch, "switch", "--detach", rev_parse(repo, ref), capture=not verbose)
-    git(scratch, "config", "user.name", git_config(repo, "user.name") or "edk2-cix importer")
-    git(scratch, "config", "user.email", git_config(repo, "user.email") or "edk2-cix-import")
-    return scratch
-
-
-def git_config(repo: Path, key: str) -> str:
-    result = git(repo, "config", "--get", key, check=False)
-    return result.stdout.strip() if result.returncode == 0 else ""
-
-
-def git_path(repo: Path, name: str) -> Path:
-    path = git(repo, "rev-parse", "--git-path", name).stdout.strip()
-    result = Path(path)
-    return result if result.is_absolute() else repo / result
-
-
-def cherry_pick_head(repo: Path) -> bool:
-    return git_path(repo, "CHERRY_PICK_HEAD").exists()
-
-
-def unmerged_paths(repo: Path) -> list[str]:
-    result = git(repo, "diff", "--name-only", "--diff-filter=U", check=False)
-    return [line for line in result.stdout.splitlines() if line]
-
-
 def cherry_pick_one(repo: Path, commit: str, verbose: bool) -> str:
     result = git(repo, "cherry-pick", "--allow-empty", commit, check=False, capture=not verbose)
     if result.returncode == 0:
@@ -332,53 +220,10 @@ def apply_remaining(target: dict[str, Any], commits: list[str], verbose: bool) -
             return False
         index += 1
         target["next_index"] = index
-    enforce_overlay_symlink_policy(scratch, ref="HEAD", label=f"import scratch for {target['ref']}")
+    enforce_source_tree_policy(scratch, ref="HEAD", label=f"import scratch for {target['ref']}")
     target["status"] = "ready"
     target["candidate_oid"] = rev_parse(scratch, "HEAD")
     return True
-
-
-def fetch_candidate_objects(repo: Path, state: dict[str, Any], verbose: bool) -> None:
-    for target in state["targets"]:
-        if target.get("candidate_oid"):
-            git(repo, "fetch", "--no-tags", str(Path(target["scratch"])), target["candidate_oid"], capture=not verbose)
-
-
-def current_ref_value(repo: Path, full_ref: str) -> str:
-    result = git(repo, "rev-parse", "--verify", "--quiet", f"{full_ref}^{{commit}}", check=False)
-    if result.returncode != 0:
-        return ZERO_OID
-    return result.stdout.strip()
-
-
-def check_old_values(repo: Path, updates: list[tuple[str, str, str]]) -> None:
-    problems = []
-    for full_ref, _new_oid, old_oid in updates:
-        actual = current_ref_value(repo, full_ref)
-        if actual != old_oid:
-            problems.append(f"{full_ref} changed during import: expected {old_oid}, found {actual}")
-    if problems:
-        raise ReconstructionError("ref guard check failed:\n" + "\n".join(f"  - {p}" for p in problems))
-
-
-def transaction_update_refs(repo: Path, updates: list[tuple[str, str, str]]) -> None:
-    if not updates:
-        return
-    check_old_values(repo, updates)
-    lines = ["start"]
-    for full_ref, new_oid, old_oid in updates:
-        lines.append(f"update {full_ref} {new_oid} {old_oid}")
-    lines.extend(["prepare", "commit"])
-    proc = subprocess.run(
-        ["git", "-C", str(repo), "update-ref", "--stdin"],
-        input=("\n".join(lines) + "\n"),
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
-    if proc.returncode != 0:
-        raise ReconstructionError(proc.stderr.strip() or proc.stdout.strip() or "git update-ref transaction failed")
 
 
 def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> None:
@@ -399,7 +244,7 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
     print("updated unofficial refs:")
     for full_ref, new_oid, _old_oid in updates:
         print(f"  {full_ref} -> {new_oid}")
-    shutil.rmtree(op_dir)
+    remove_operation_state(op_dir)
 
 
 def pause_message(op_id: str, target: dict[str, Any]) -> str:
@@ -419,7 +264,7 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
     require_valid_import_source(repo, args.from_ref, CURRENT_REF, truthy(args.allow_source_ref_from))
     old_current = rev_parse(repo, CURRENT_REF)
     from_oid = rev_parse(repo, args.from_ref)
-    enforce_overlay_symlink_policy(repo, ref=args.from_ref, label=args.from_ref)
+    enforce_source_tree_policy(repo, ref=args.from_ref, label=args.from_ref)
     base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
     commits = replay_commits(repo, base_oid, args.from_ref)
     targets = checkpoint_targets(repo)
@@ -427,7 +272,7 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
         ensure_target_not_checked_out_dirty(repo, ref)
 
     op_id = args.op_id or make_op_id(args.from_ref)
-    op_dir = operation_path(repo, op_id)
+    op_dir = operation_path(repo, OP_NAMESPACE, op_id)
     if op_dir.exists():
         raise ReconstructionError(f"import operation already exists: {op_id}")
     op_dir.mkdir(parents=True)
@@ -508,16 +353,11 @@ def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> 
     finalise(repo, op_dir, state, verbose)
 
 
-def abort_operation(op_dir: Path) -> None:
-    shutil.rmtree(op_dir)
-    print(f"aborted import operation {op_dir.name}")
-
-
 def direct_import(repo: Path, args: argparse.Namespace, verbose: bool) -> None:
     ref = args.source_unofficial_ref
     require_unofficial_target(ref)
     require_valid_import_source(repo, args.from_ref, ref, truthy(args.allow_source_ref_from))
-    enforce_overlay_symlink_policy(repo, ref=args.from_ref, label=args.from_ref)
+    enforce_source_tree_policy(repo, ref=args.from_ref, label=args.from_ref)
     if not truthy(args.write):
         print("dry run; set WRITE=1 to update unofficial refs")
         print(f"  {args.from_ref} -> {ref}")
@@ -539,10 +379,10 @@ def main() -> None:
     verbose = truthy(args.v)
 
     if truthy(args.abort):
-        abort_operation(resolve_operation(repo, args.op_id))
+        abort_operation(resolve_operation(repo, OP_NAMESPACE, "import-unofficial", args.op_id), "import-unofficial")
         return
     if truthy(args.continue_import):
-        continue_operation(repo, resolve_operation(repo, args.op_id), verbose, truthy(args.write))
+        continue_operation(repo, resolve_operation(repo, OP_NAMESPACE, "import-unofficial", args.op_id), verbose, truthy(args.write))
         return
 
     if not args.from_ref:
@@ -558,7 +398,7 @@ def main() -> None:
 
     if propagate == "all":
         require_valid_import_source(repo, args.from_ref, CURRENT_REF, truthy(args.allow_source_ref_from))
-        enforce_overlay_symlink_policy(repo, ref=args.from_ref, label=args.from_ref)
+        enforce_source_tree_policy(repo, ref=args.from_ref, label=args.from_ref)
         old_current = rev_parse(repo, CURRENT_REF)
         base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
         commits = replay_commits(repo, base_oid, args.from_ref)

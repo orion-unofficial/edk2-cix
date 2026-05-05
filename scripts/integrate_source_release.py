@@ -18,6 +18,7 @@ from reconstruction_common import (
     RADXA_REFS_MANIFEST,
     ReconstructionError,
     check_immutable_refs,
+    configured_remote_url,
     git,
     load_json,
     main_wrapper,
@@ -108,22 +109,6 @@ def upstream_target(component: str, release: str) -> str:
     return f"source/base/arm/{component}/{release}"
 
 
-def remote_url(repo: Path, *, component: str = "", vendor: str = "", remote_type: str = "") -> str:
-    remotes = load_json(repo, "config/remotes.json").get("remotes", {})
-    for record in remotes.values():
-        if component and record.get("component") != component:
-            continue
-        if vendor and record.get("vendor") != vendor:
-            continue
-        if remote_type and record.get("type") != remote_type:
-            continue
-        url = record.get("url")
-        if url:
-            return url
-    detail = component or vendor or remote_type
-    raise ReconstructionError(f"no remote URL recorded in config/remotes.json for {detail}")
-
-
 def cix_component_records(repo: Path, release: str) -> list[dict[str, str]]:
     release = release.removeprefix("v")
     records = []
@@ -140,8 +125,8 @@ def cix_component_records(repo: Path, release: str) -> list[dict[str, str]]:
 def cix_record_remote(repo: Path, record: dict[str, str]) -> str:
     record_type = str(record.get("type", ""))
     if record_type == "vendor-bundle":
-        return remote_url(repo, vendor="cix", remote_type="vendor-bundle")
-    return remote_url(repo, component=str(record.get("component", "")), vendor="cix")
+        return configured_remote_url(repo, vendor="cix", remote_type="vendor-bundle")
+    return configured_remote_url(repo, component=str(record.get("component", "")), vendor="cix")
 
 
 def fetch_to_ref(repo: Path, remote: str, source: str, target: str, verbose: bool, allow_replace: bool) -> None:
@@ -402,7 +387,7 @@ def main() -> None:
         release = args.release or args.ref
         target = upstream_target(args.component, release)
         source = args.ref or f"refs/tags/{release}"
-        remote = remote_url(repo, component=args.component, remote_type="upstream")
+        remote = configured_remote_url(repo, component=args.component, remote_type="upstream")
         operations.append((remote, source, target, {"type": "base", "component": args.component, "upstream_ref": source}))
     elif args.vendor == "cix" and args.component:
         cix_release = args.release.removeprefix("v")
