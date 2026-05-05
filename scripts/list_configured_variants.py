@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import textwrap
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 from reconstruction_common import default_release, release_branch_sort_key, release_entries, repo_root, variant_name
@@ -76,8 +78,7 @@ def indented(text: str, indent: str = "  ") -> None:
     print(textwrap.fill(text, width=WIDTH, initial_indent=indent, subsequent_indent=indent))
 
 
-def main() -> None:
-    repo = repo_root(Path(__file__))
+def print_help(repo: Path) -> None:
     releases = release_entries(repo)
     default = variant_name(default_release(repo))
     branches, alias_versions = canonical_branches(releases)
@@ -116,6 +117,18 @@ def main() -> None:
             f"form /unofficial-<version>; currently configured version(s): "
             f"{', '.join(alias_versions)}."
         )
+
+
+def render_help(repo: Path) -> str:
+    buffer = StringIO()
+    with redirect_stdout(buffer):
+        print_help(repo)
+    return buffer.getvalue()
+
+
+def main() -> None:
+    repo = repo_root(Path(__file__))
+    print(render_help(repo), end="")
 
 
 if __name__ == "__main__":

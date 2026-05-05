@@ -357,7 +357,7 @@ The build branch carries its own workflows under `.github/workflows/`:
 - `Deterministic replay` renders the replay-capable EDK2 `202208` unofficial variant, downloads the latest Radxa release package, and checks that the upstream-path rebuild still matches the published payload for O6 and O6N.
 - `Secure Boot audit` renders the selected custom variant, checks the pinned Microsoft Secure Boot payload metadata and release version, then builds and validates the embedded Secure Boot defaults for O6 and O6N.
 - `Upstream versions` checks whether recorded EDK2, Radxa, CIX, Arm TF-A, OP-TEE, and Microsoft Secure Boot source inputs lag their external remotes.
-- `Documentation` builds the mdBook product documentation from `docs/` and uploads the GitHub Pages artefact.
+- `Build documentation` builds the mdBook product documentation from `docs/` and uploads the GitHub Pages artefact.
 
 The lint suite checks JSON, YAML, Markdown, shell scripts, and Python scripts in the build branch using the same `make lint` target available locally. Dependabot is configured for GitHub Actions updates on the repository default branch. If a minimised clone is pushed as its own repository, that default branch should be `build`.
 
@@ -376,10 +376,11 @@ To check upstream versions locally:
 ```bash
 make check-upstream-versions
 make check-upstream-versions UPSTREAM_VERSION_MODE=advisory
-make check-upstream-versions UPSTREAM_VERSION_ONLY=edk2,radxa-release
+make check-upstream-versions UPSTREAM_VERSION_ONLY=edk2,radxa
+make check-upstream-versions UPSTREAM_VERSION_ONLY=edk2:release
 ```
 
-The scheduled GitHub Actions workflow runs in `policy` mode. In that mode, stale checks marked `strict` in `config/upstream-versions.json` fail the workflow, while advisory checks report warnings without failing. Use `UPSTREAM_VERSION_MODE=strict` when you want any stale source to fail.
+Each source reports release-tag freshness separately from branch-head commit drift. Tagged release drift is the important signal for most sources. Branch-head drift is usually advisory because unreleased commits may be noisy or transient. The scheduled GitHub Actions workflow runs in `policy` mode. In that mode, stale checks marked `strict` in `config/upstream-versions.json` fail the workflow, while advisory checks report warnings without failing. Use `UPSTREAM_VERSION_MODE=strict` when you want any stale source to fail.
 
 To try GitHub Actions locally with `act`:
 
@@ -402,6 +403,9 @@ make verify-build-matrix
 make verify-manifest-integrity
 make verify-minimised-clone
 make check-identity-integrity
+make verify-identity-integrity
+make check-ref-integrity
+make check-help-cache
 make check-vendor-workflow-drift
 make ref-report
 ```

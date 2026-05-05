@@ -1,79 +1,105 @@
 {
   "checks": [
     {
-      "description": "Latest upstream EDK2 stable release tag",
+      "description": "Upstream EDK2 source",
       "id": "edk2",
-      "kind": "latest_tag",
       "local": {
         "type": "edk2-release"
       },
-      "mode": "strict",
       "remote": "edk2",
-      "tag_pattern": "^refs/tags/edk2-stable(?P<version>\\d{6}(?:\\.\\d+)?)$"
+      "release": {
+        "description": "Latest upstream EDK2 stable release tag",
+        "mode": "strict",
+        "tag_pattern": "^refs/tags/edk2-stable(?P<version>\\d{6}(?:\\.\\d+)?)$"
+      },
+      "commits": {
+        "description": "Upstream EDK2 master branch head",
+        "mode": "advisory",
+        "ref": "refs/heads/master"
+      }
     },
     {
-      "description": "Latest Radxa edk2-cix release tag",
-      "id": "radxa-release",
-      "kind": "latest_tag",
-      "local": {
-        "compare_object": false,
-        "type": "radxa-release"
-      },
-      "mode": "strict",
+      "description": "Radxa edk2-cix source",
+      "id": "radxa",
       "remote": "radxa-edk2-cix",
-      "tag_pattern": "^refs/tags/(?P<version>\\d+\\.\\d+\\.\\d+(?:-\\d+)?)$"
-    },
-    {
-      "description": "Radxa edk2-cix main branch head",
-      "id": "radxa-main",
-      "kind": "branch_head",
-      "local": {
-        "type": "radxa-vendor-upstream-ref"
+      "release": {
+        "description": "Latest Radxa edk2-cix release tag",
+        "local": {
+          "compare_object": false,
+          "type": "radxa-release"
+        },
+        "mode": "strict",
+        "tag_pattern": "^refs/tags/(?P<version>\\d+\\.\\d+\\.\\d+(?:-\\d+)?)$"
       },
-      "mode": "advisory",
-      "ref": "refs/heads/main",
-      "remote": "radxa-edk2-cix"
+      "commits": {
+        "description": "Radxa edk2-cix main branch head",
+        "local": {
+          "type": "radxa-vendor-upstream-ref"
+        },
+        "mode": "advisory",
+        "ref": "refs/heads/main"
+      }
     },
     {
-      "description": "CIX bios release-bundle development branch head",
+      "description": "CIX bios release bundle",
       "id": "cix-bios",
-      "kind": "branch_head",
       "local": {
         "component": "bios",
         "type": "cix-component-ref"
       },
-      "mode": "strict",
-      "ref": "refs/heads/cix_p1_community_dev",
-      "remote": "cix-bios"
+      "remote": "cix-bios",
+      "release": {
+        "description": "Latest CIX bios release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/v(?P<version>\\d+\\.\\d+(?:\\.\\d+)?)$"
+      },
+      "commits": {
+        "description": "CIX bios development branch head",
+        "mode": "strict",
+        "ref": "refs/heads/cix_p1_community_dev"
+      }
     },
     {
-      "description": "Latest Arm TF-A release tag",
+      "description": "Arm TF-A source",
       "id": "arm-tf-a",
-      "kind": "latest_tag",
       "local": {
         "component": "tf-a",
         "type": "arm-base-release"
       },
-      "mode": "advisory",
       "remote": "arm-tf-a",
-      "tag_pattern": "^refs/tags/v(?P<version>\\d+\\.\\d+(?:\\.\\d+)?)$"
+      "release": {
+        "description": "Latest Arm TF-A release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/v(?P<version>\\d+\\.\\d+(?:\\.\\d+)?)$"
+      },
+      "commits": {
+        "description": "Arm TF-A master branch head",
+        "mode": "advisory",
+        "ref": "refs/heads/master"
+      }
     },
     {
-      "description": "Latest OP-TEE OS release tag",
+      "description": "OP-TEE OS source",
       "id": "arm-op-tee",
-      "kind": "latest_tag",
       "local": {
         "component": "op-tee",
         "type": "arm-base-release"
       },
-      "mode": "advisory",
       "remote": "arm-op-tee",
-      "tag_pattern": "^refs/tags/(?P<version>\\d+\\.\\d+\\.\\d+)$"
+      "release": {
+        "description": "Latest OP-TEE OS release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/(?P<version>\\d+\\.\\d+\\.\\d+)$"
+      },
+      "commits": {
+        "description": "OP-TEE OS master branch head",
+        "mode": "advisory",
+        "ref": "refs/heads/master"
+      }
     },
     {
-      "description": "Latest Microsoft Secure Boot object release tag",
+      "description": "Microsoft Secure Boot object source",
       "id": "microsoft-secureboot",
-      "kind": "latest_tag",
       "local": {
         "field": "source_tag",
         "manifest_path": "custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft/manifest.lock.json",
@@ -81,9 +107,17 @@
         "ref": "source/unofficial/current",
         "type": "json-field"
       },
-      "mode": "strict",
       "remote": "microsoft-secureboot",
-      "tag_pattern": "^refs/tags/v(?P<version>\\d+\\.\\d+\\.\\d+)$"
+      "release": {
+        "description": "Latest Microsoft Secure Boot object release tag",
+        "mode": "strict",
+        "tag_pattern": "^refs/tags/v(?P<version>\\d+\\.\\d+\\.\\d+)$"
+      },
+      "commits": {
+        "description": "Microsoft Secure Boot object main branch head",
+        "mode": "advisory",
+        "ref": "refs/heads/main"
+      }
     }
   ],
   "defaults": {

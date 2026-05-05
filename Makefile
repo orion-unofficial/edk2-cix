@@ -74,7 +74,7 @@ endef
 .PHONY: help help-vars help-dev help-variants build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-unofficial-commits \
-	verify-release-branch verify-build-matrix verify-manifest-integrity verify-ref-integrity verify-minimised-clone check-identity-integrity check-vendor-workflow-drift check-upstream-versions ref-report cleanup-report create-minimised-clone \
+	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-help-cache refresh-help-cache ref-report cleanup-report create-minimised-clone \
 	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
 	import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help check-upstream-versions-help
@@ -100,7 +100,7 @@ help:
 
 help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
-	default_release="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/render_release_branch.py --print-default-release 2>/dev/null || printf '%s' '<unavailable>')"; \
+	default_release="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-default-release 2>/dev/null || printf '%s' '<unavailable>')"; \
 	print_section 'Common Build Variables'; \
 	print_help_line 'RELEASE=<variant>' "Select a configured firmware variant.\nUse names from 'make help-variants' or a full source/cache/release/... branch name.\nDefault variant:\n$$default_release\nSource: latest available EDK2, CIX, Radxa, and unofficial refs."; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
@@ -123,14 +123,17 @@ help-dev:
 	print_help_line 'make verify-release-branch' 'Validate a materialised firmware variant branch.'; \
 	print_help_line 'make verify-build-matrix' 'Validate build/source variant combinations derived from source refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
-	print_help_line 'make verify-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
+	print_help_line 'make check-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
 	print_help_line 'make verify-minimised-clone' 'Create and clone a minimised repository, then verify that it can render the default variant.'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint explicitly.'; \
-	print_help_line 'make check-identity-integrity' 'Scan generated files and refs for path/identity integrity issues.'; \
+	print_help_line 'make check-identity-integrity' 'Quickly scan build-branch files for path/identity integrity issues.'; \
+	print_help_line 'make verify-identity-integrity' 'Deep-scan build-branch files, commit metadata, and persistent source refs for path/identity integrity issues.'; \
 	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
 	print_help_line 'make check-upstream-versions' 'Check recorded source refs against external upstream/vendor remotes.'; \
+	print_help_line 'make check-help-cache' 'Check the committed help cache matches current source refs and help-generation inputs.'; \
+	print_help_line 'make refresh-help-cache' 'Refresh the committed help cache used by make help-vars and make help-variants.'; \
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
@@ -161,10 +164,10 @@ help-dev:
 	print_help_line 'OUTPUT=<path>' 'Optional extract-vendor-delta metadata output path.'; \
 	print_help_line 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
 	print_help_line 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch; defaults to source/unofficial/current.'; \
-	print_help_line 'SCAN_COMMITS=0|1' 'Also scan selected commit metadata in check-identity-integrity.'; \
-	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Also scan persistent unofficial/Radxa source refs in check-identity-integrity.'; \
+	print_help_line 'SCAN_COMMITS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
+	print_help_line 'SCAN_SOURCE_REFS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
 	print_help_line 'UPSTREAM_VERSION_MODE=advisory|policy|strict' 'Version-check failure mode. advisory never fails on stale remotes; policy fails checks marked strict; strict fails any stale or unavailable check.\nDefault: policy.'; \
-	print_help_line 'UPSTREAM_VERSION_ONLY=<id[,id...]>' 'Optional comma-separated upstream version check IDs.'; \
+	print_help_line 'UPSTREAM_VERSION_ONLY=<id[,id...]>' 'Optional comma-separated source IDs, or source:release/source:commits comparison IDs, for check-upstream-versions.'; \
 	print_help_line 'UPSTREAM_VERSION_FORMAT=text|github|json' 'Upstream versions output format. github emits workflow annotations.\nDefault: text.'; \
 	print_help_line 'UPSTREAM_VERSION_SNAPSHOT=<path>' 'Offline git ls-remote snapshot for upstream version tests.\nDefault: unset.'; \
 	print_help_line 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
@@ -203,7 +206,7 @@ help-dev:
 	print_help_line 'make check-upstream-versions-help' 'Show check-upstream-versions arguments.'
 
 help-variants:
-	@DEBUG="$(DEBUG)" $(PYTHON) scripts/list_configured_variants.py
+	@DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-variants
 
 BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
 
@@ -289,8 +292,8 @@ verify-build-matrix:
 verify-manifest-integrity:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/verify_manifest_integrity.py --v "$(V)"
 
-verify-ref-integrity:
-	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/verify_ref_integrity.py --v "$(V)"
+check-ref-integrity:
+	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_ref_integrity.py --v "$(V)"
 
 verify-minimised-clone:
 	@DEBUG="$(DEBUG)" DIR="$(DIR)" KEEP="$(KEEP)" REPACK="$(REPACK)" V="$(V)" $(PYTHON) scripts/verify_minimised_clone.py --dir "$(DIR)" --keep "$(KEEP)" --repack "$(REPACK)" --v "$(V)"
@@ -305,13 +308,22 @@ import-unofficial-commits:
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
 
 check-identity-integrity:
-	@DEBUG="$(DEBUG)" SCAN_COMMITS="$(SCAN_COMMITS)" SCAN_SOURCE_REFS="$(SCAN_SOURCE_REFS)" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"
+	@DEBUG="$(DEBUG)" SCAN_COMMITS="0" SCAN_SOURCE_REFS="0" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"
+
+verify-identity-integrity:
+	@DEBUG="$(DEBUG)" SCAN_COMMITS="1" SCAN_SOURCE_REFS="1" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"
 
 check-vendor-workflow-drift:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_vendor_workflow_drift.py --v "$(V)"
 
 check-upstream-versions:
 	@DEBUG="$(DEBUG)" UPSTREAM_VERSION_MODE="$(UPSTREAM_VERSION_MODE)" UPSTREAM_VERSION_ONLY="$(UPSTREAM_VERSION_ONLY)" UPSTREAM_VERSION_FORMAT="$(UPSTREAM_VERSION_FORMAT)" UPSTREAM_VERSION_SNAPSHOT="$(UPSTREAM_VERSION_SNAPSHOT)" V="$(V)" $(PYTHON) scripts/check_upstream_versions.py --v "$(V)"
+
+check-help-cache:
+	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/help_cache.py --verify --v "$(V)"
+
+refresh-help-cache:
+	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/help_cache.py --refresh --v "$(V)"
 
 ref-report:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/ref_report.py --v "$(V)"

@@ -1,0 +1,573 @@
+{
+  "generated": {
+    "default_release": "edk2-202602/cix-1.2/radxa-1.2.1/unofficial-1.2.1",
+    "variants_help": "Configured Firmware Variants\n\nA firmware variant is the chosen combination of EDK2, Radxa, CIX, and unofficial\nproject sources.\nAll listed variants are rendered as ordinary files before building, without the\nuse of git submodules.\nThe names below are the recommended RELEASE= values. A full branch name such as\nsource/cache/release/custom/... is also accepted when copying an existing branch\nname from git branch output.\n\nDefault variant: edk2-202602/cix-1.2/radxa-1.2.1/unofficial-1.2.1\n\nName components:\n  edk2-YYYYMM[.NN]    selects the upstream EDK2 release\n  radxa-X.Y.Z[-R]     adds the Radxa EDK2 vendor layer\n  cix-X.Y             adds CIX TF-A and OP-TEE component sources\n  unofficial          adds this project's unofficial firmware changes\n\nAvailable variants:\n  edk2-202208/radxa-1.2.1\n  edk2-202208/radxa-1.2.1/unofficial\n  edk2-202208/cix-1.2/radxa-1.2.1\n  edk2-202208/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202211/radxa-1.2.1\n  edk2-202211/cix-1.2/radxa-1.2.1\n  edk2-202211/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202302/radxa-1.2.1\n  edk2-202302/cix-1.2/radxa-1.2.1\n  edk2-202302/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202305/radxa-1.2.1\n  edk2-202305/cix-1.2/radxa-1.2.1\n  edk2-202305/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202308/radxa-1.2.1\n  edk2-202308/cix-1.2/radxa-1.2.1\n  edk2-202308/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202311/radxa-1.2.1\n  edk2-202311/cix-1.2/radxa-1.2.1\n  edk2-202311/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202402/radxa-1.2.1\n  edk2-202402/cix-1.2/radxa-1.2.1\n  edk2-202402/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202405/radxa-1.2.1\n  edk2-202405/cix-1.2/radxa-1.2.1\n  edk2-202405/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202408/radxa-1.2.1\n  edk2-202408/cix-1.2/radxa-1.2.1\n  edk2-202408/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202408.01/radxa-1.2.1\n  edk2-202408.01/cix-1.2/radxa-1.2.1\n  edk2-202408.01/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202411/radxa-1.2.1\n  edk2-202411/cix-1.2/radxa-1.2.1\n  edk2-202411/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202502/radxa-1.2.1\n  edk2-202502/cix-1.2/radxa-1.2.1\n  edk2-202502/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202505/radxa-1.2.1\n  edk2-202505/cix-1.2/radxa-1.2.1\n  edk2-202505/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202508/radxa-1.2.1\n  edk2-202508/cix-1.2/radxa-1.2.1\n  edk2-202508/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202511/radxa-1.2.1\n  edk2-202511/cix-1.2/radxa-1.2.1\n  edk2-202511/cix-1.2/radxa-1.2.1/unofficial\n\n  edk2-202602/radxa-1.2.1\n  edk2-202602/cix-1.2/radxa-1.2.1\n  edk2-202602/cix-1.2/radxa-1.2.1/unofficial\n\nVersioned unofficial aliases:\n  Any listed /unofficial variant also accepts a versioned alias of the form\n  /unofficial-<version>; currently configured version(s): 1.2.1.\n"
+  },
+  "signature": {
+    "files": [
+      {
+        "object_id": "eb1cd882e3572eeb139684443f355fbdc9b33326",
+        "path": "Makefile"
+      },
+      {
+        "object_id": "fdc3422e91f2d7af34359df3eb0b75a46c22d4a4",
+        "path": "config/policies.json"
+      },
+      {
+        "object_id": "aa82ea6deac34317e263de6d097c9e83d29cb3fe",
+        "path": "config/refs-arm.json"
+      },
+      {
+        "object_id": "670a41add66a2546be2bf6950ea5ad07ce0db7f0",
+        "path": "config/refs-cix.json"
+      },
+      {
+        "object_id": "8d4ab246b3018931dae5447ee25cc4778c962bf9",
+        "path": "config/refs-edk2.json"
+      },
+      {
+        "object_id": "67e29a307a002eb5626f0ceaae670ff27798aeb2",
+        "path": "config/refs-radxa.json"
+      },
+      {
+        "object_id": "b973c54e5d6c6ffd74ed8ea0e6cefced08e360cf",
+        "path": "config/refs-variant-cache.json"
+      },
+      {
+        "object_id": "ea894603a3c3d58d97a07d11a1fe057f8f9b1344",
+        "path": "config/remotes.json"
+      },
+      {
+        "object_id": "e465024cf90735b46dffc3d1a0637359182f96d3",
+        "path": "config/upstream-versions.json"
+      },
+      {
+        "object_id": "1b898866971a0b745afba0f4d0ff53453d6651a8",
+        "path": "config/vendor-workflow-baseline.json"
+      },
+      {
+        "object_id": "d65f3564629b42c70520a060e26768b5514a9064",
+        "path": "scripts/check_identity_integrity.py"
+      },
+      {
+        "object_id": "fa71f566d7bbe07aeead94da85724e613aa01994",
+        "path": "scripts/check_ref_integrity.py"
+      },
+      {
+        "object_id": "6bc77c70a653f8f7ce114a3b3ac99809373f4c5a",
+        "path": "scripts/check_upstream_versions.py"
+      },
+      {
+        "object_id": "075a3600edbbdbf6e99e822a8a874f1bd5249c96",
+        "path": "scripts/check_vendor_workflow_drift.py"
+      },
+      {
+        "object_id": "2e1779e89c2443514ee4597be2a6d5906f4380a3",
+        "path": "scripts/clean_cache.py"
+      },
+      {
+        "object_id": "cd965b379790c11fc64ceccc646d39877eba8dcb",
+        "path": "scripts/create_minimised_clone.py"
+      },
+      {
+        "object_id": "799aea5c84f6df087acd86aaf7e8c9f9cfb57ff8",
+        "path": "scripts/ensure_act.sh"
+      },
+      {
+        "object_id": "d18d0b5d78d4e277cf30c7b0dffd8d6b96c140b2",
+        "path": "scripts/extract_vendor_delta.py"
+      },
+      {
+        "object_id": "daa42944a7f0d4f029290ff47991189d52adb313",
+        "path": "scripts/help_cache.py"
+      },
+      {
+        "object_id": "3ff750d2b467f6862d244fe2523b9694bcc0ba87",
+        "path": "scripts/import_unofficial_commits.py"
+      },
+      {
+        "object_id": "b6c21ce7d2f0ee260ced0a010a0359231e846ef4",
+        "path": "scripts/install_release_payload.py"
+      },
+      {
+        "object_id": "b9d16a64a46cff2a119cf7aab27c36f07b3bc5ce",
+        "path": "scripts/integrate_source_release.py"
+      },
+      {
+        "object_id": "a1656f89a60e718271b30f77f66787e3db21cfda",
+        "path": "scripts/list_configured_variants.py"
+      },
+      {
+        "object_id": "467511260a061041c1af4c9343d6fb8c7dd32720",
+        "path": "scripts/prepare_release_worktree.py"
+      },
+      {
+        "object_id": "5fd11257904b932209423172f8b7e39cd8eb5083",
+        "path": "scripts/prune_cache_refs.py"
+      },
+      {
+        "object_id": "5f494a02738201cb2701794f99f4ebdb662aba09",
+        "path": "scripts/quality.Dockerfile"
+      },
+      {
+        "object_id": "681b59ef49955d29d18a4a0345e2b68ae1e147ee",
+        "path": "scripts/quality_checks.py"
+      },
+      {
+        "object_id": "a56f5949000971ff35565c13e427077bd5c8f26b",
+        "path": "scripts/reconstruction_common.py"
+      },
+      {
+        "object_id": "1fa5e1d560ecace6b8d2ab6dd045478c12b0655d",
+        "path": "scripts/ref_report.py"
+      },
+      {
+        "object_id": "90a90f21cd495d3d43b76d99bf534e7bfa23917a",
+        "path": "scripts/render_release_branch.py"
+      },
+      {
+        "object_id": "f50ebf0023534566cc70a6970a1fa641e69514c5",
+        "path": "scripts/run_github_actions_with_act.sh"
+      },
+      {
+        "object_id": "fdd0e662575dae12cc7afa16b5a82efa2932f310",
+        "path": "scripts/run_quality_container.sh"
+      },
+      {
+        "object_id": "5d92dd9645ec12ff111b05400a5a175e4a05298b",
+        "path": "scripts/test_check_upstream_versions.py"
+      },
+      {
+        "object_id": "14e8863a4c07e3b20591d8141501fc76fdc54d08",
+        "path": "scripts/validate_build_variables.py"
+      },
+      {
+        "object_id": "dc2ba1e43a1c012cff95e3f16158701542c5f67e",
+        "path": "scripts/verify_build_matrix.py"
+      },
+      {
+        "object_id": "b1571aa38354fc515386f25e8071a21927febfd3",
+        "path": "scripts/verify_manifest_integrity.py"
+      },
+      {
+        "object_id": "72c6c5510b63b4ff5416e2c31a8e2c0159b70c74",
+        "path": "scripts/verify_minimised_clone.py"
+      },
+      {
+        "object_id": "4784ff6ee7359a0a1f28f905690557d46524bc28",
+        "path": "scripts/verify_release_branch.py"
+      }
+    ],
+    "refs": [
+      {
+        "object_id": "f9e550142dd4b33ee1112f5dd64ffa94ba79cefa",
+        "ref": "source/base/arm/op-tee/3.17.0"
+      },
+      {
+        "object_id": "35f4c7295bafeb32c8bcbdfb6a3f2e74a57e732b",
+        "ref": "source/base/arm/tf-a/v2.7"
+      },
+      {
+        "object_id": "61662e8596dd9a64e3372f9a3ba6622d2628607c",
+        "ref": "source/base/edk2-non-osi/edk2-stable202208"
+      },
+      {
+        "object_id": "61662e8596dd9a64e3372f9a3ba6622d2628607c",
+        "ref": "source/base/edk2-non-osi/edk2-stable202211"
+      },
+      {
+        "object_id": "74d4da60a4f0fd75f8ca487296960c84d4ac03b9",
+        "ref": "source/base/edk2-non-osi/edk2-stable202302"
+      },
+      {
+        "object_id": "41876073afb7c7309018223baa1a6f8108bf23f0",
+        "ref": "source/base/edk2-non-osi/edk2-stable202305"
+      },
+      {
+        "object_id": "8c09bd0955338db38813e0d8ae1faa634f545f73",
+        "ref": "source/base/edk2-non-osi/edk2-stable202308"
+      },
+      {
+        "object_id": "ddae61c7547dba5b6aae060917896a2d4271fa32",
+        "ref": "source/base/edk2-non-osi/edk2-stable202311"
+      },
+      {
+        "object_id": "61b65fccfe4c75bc9ecb7b542412a436e3db5de6",
+        "ref": "source/base/edk2-non-osi/edk2-stable202402"
+      },
+      {
+        "object_id": "054cacf8819f82c91d1a681bda304d8f0da858f7",
+        "ref": "source/base/edk2-non-osi/edk2-stable202405"
+      },
+      {
+        "object_id": "4e36179c55f49a73fe4805baa2b5f9fdd0a07a67",
+        "ref": "source/base/edk2-non-osi/edk2-stable202408"
+      },
+      {
+        "object_id": "42fa13d9abb52ebeae075c9c5e3d28d29171972d",
+        "ref": "source/base/edk2-non-osi/edk2-stable202408.01"
+      },
+      {
+        "object_id": "42fa13d9abb52ebeae075c9c5e3d28d29171972d",
+        "ref": "source/base/edk2-non-osi/edk2-stable202411"
+      },
+      {
+        "object_id": "ea2040c2d4e2200557e87b9f9fbd4f8fb7a2b6e8",
+        "ref": "source/base/edk2-non-osi/edk2-stable202502"
+      },
+      {
+        "object_id": "ea2040c2d4e2200557e87b9f9fbd4f8fb7a2b6e8",
+        "ref": "source/base/edk2-non-osi/edk2-stable202505"
+      },
+      {
+        "object_id": "ea2040c2d4e2200557e87b9f9fbd4f8fb7a2b6e8",
+        "ref": "source/base/edk2-non-osi/edk2-stable202508"
+      },
+      {
+        "object_id": "94d048981116e2e3eda52dad1a89958ee404098d",
+        "ref": "source/base/edk2-non-osi/edk2-stable202511"
+      },
+      {
+        "object_id": "94d048981116e2e3eda52dad1a89958ee404098d",
+        "ref": "source/base/edk2-non-osi/edk2-stable202602"
+      },
+      {
+        "object_id": "3c3b1168017073c2bb2d97336c5929ebae805be1",
+        "ref": "source/base/edk2-platforms/edk2-stable202208"
+      },
+      {
+        "object_id": "844fa389d7fc0baca07735248b15f9b7c0f76578",
+        "ref": "source/base/edk2-platforms/edk2-stable202211"
+      },
+      {
+        "object_id": "54306d023e7d610d326d103852bc6a45c803012e",
+        "ref": "source/base/edk2-platforms/edk2-stable202302"
+      },
+      {
+        "object_id": "748929b8439662319849ab73a1e554b114b17ffc",
+        "ref": "source/base/edk2-platforms/edk2-stable202305"
+      },
+      {
+        "object_id": "e509ac5a729ebe2a3bc905aed1df23226aca4dc9",
+        "ref": "source/base/edk2-platforms/edk2-stable202308"
+      },
+      {
+        "object_id": "787154b500434dfdcd942015fe0a7184c0d2daa9",
+        "ref": "source/base/edk2-platforms/edk2-stable202311"
+      },
+      {
+        "object_id": "b5fa396700e728c0e18b512229226f65337bf74a",
+        "ref": "source/base/edk2-platforms/edk2-stable202402"
+      },
+      {
+        "object_id": "a912d9fcf7d1f735e999b6587896dd3597a36560",
+        "ref": "source/base/edk2-platforms/edk2-stable202405"
+      },
+      {
+        "object_id": "debfeb1f3052ca4d9cc386b9e8aaada5f7da4c60",
+        "ref": "source/base/edk2-platforms/edk2-stable202408"
+      },
+      {
+        "object_id": "ea33b279488f719a9103b81369c626eeea7a3756",
+        "ref": "source/base/edk2-platforms/edk2-stable202408.01"
+      },
+      {
+        "object_id": "9ddb3fb98d325e075aa6d748953f2b9d742a5a78",
+        "ref": "source/base/edk2-platforms/edk2-stable202411"
+      },
+      {
+        "object_id": "728c8bb974be69b4034fad7a1c60917cca2dd03d",
+        "ref": "source/base/edk2-platforms/edk2-stable202502"
+      },
+      {
+        "object_id": "2bfe3fa99e21b00492f31aa8969db1f6c0ff1a80",
+        "ref": "source/base/edk2-platforms/edk2-stable202505"
+      },
+      {
+        "object_id": "d1b297b2aa693fc723ac883866c925e9d04260c9",
+        "ref": "source/base/edk2-platforms/edk2-stable202508"
+      },
+      {
+        "object_id": "1e64c1109ae2ac0185351e8d0c19732970d4fecf",
+        "ref": "source/base/edk2-platforms/edk2-stable202511"
+      },
+      {
+        "object_id": "23625e812490e6cf66ab9e74972c6a5129bf3e2a",
+        "ref": "source/base/edk2-platforms/edk2-stable202602"
+      },
+      {
+        "object_id": "ba0e0e4c6a174b71b18ccd6e47319cc45878893c",
+        "ref": "source/base/edk2/edk2-stable202208"
+      },
+      {
+        "object_id": "fff6d81270b57ee786ea18ad74f43149b9f03494",
+        "ref": "source/base/edk2/edk2-stable202211"
+      },
+      {
+        "object_id": "f80f052277c88a67c55e107b550f504eeea947d3",
+        "ref": "source/base/edk2/edk2-stable202302"
+      },
+      {
+        "object_id": "ba91d0292e593df8528b66f99c1b0b14fadc8e16",
+        "ref": "source/base/edk2/edk2-stable202305"
+      },
+      {
+        "object_id": "819cfc6b42a68790a23509e4fcc58ceb70e1965e",
+        "ref": "source/base/edk2/edk2-stable202308"
+      },
+      {
+        "object_id": "8736b8fdca85e02933cdb0a13309de14c9799ece",
+        "ref": "source/base/edk2/edk2-stable202311"
+      },
+      {
+        "object_id": "edc6681206c1a8791981a2f911d2fb8b3d2f5768",
+        "ref": "source/base/edk2/edk2-stable202402"
+      },
+      {
+        "object_id": "3e722403cd16388a0e4044e705a2b34c841d76ca",
+        "ref": "source/base/edk2/edk2-stable202405"
+      },
+      {
+        "object_id": "b158dad150bf02879668f72ce306445250838201",
+        "ref": "source/base/edk2/edk2-stable202408"
+      },
+      {
+        "object_id": "4dfdca63a93497203f197ec98ba20e2327e4afe4",
+        "ref": "source/base/edk2/edk2-stable202408.01"
+      },
+      {
+        "object_id": "0f3867fa6ef0553e26c42f7d71ff6bdb98429742",
+        "ref": "source/base/edk2/edk2-stable202411"
+      },
+      {
+        "object_id": "fbe0805b2091393406952e84724188f8c1941837",
+        "ref": "source/base/edk2/edk2-stable202502"
+      },
+      {
+        "object_id": "6951dfe7d59d144a3a980bd7eda699db2d8554ac",
+        "ref": "source/base/edk2/edk2-stable202505"
+      },
+      {
+        "object_id": "d46aa46c8361194521391aa581593e556c707c6e",
+        "ref": "source/base/edk2/edk2-stable202508"
+      },
+      {
+        "object_id": "46548b1adac82211d8d11da12dd914f41e7aa775",
+        "ref": "source/base/edk2/edk2-stable202511"
+      },
+      {
+        "object_id": "b7a715f7c03c45c6b4575bf88596bfd79658b8ce",
+        "ref": "source/base/edk2/edk2-stable202602"
+      },
+      {
+        "object_id": "90f39f4469d39b3cd135ca8c5ae6400aca75b292",
+        "ref": "source/component/cix/1.2/bios"
+      },
+      {
+        "object_id": "cc66640f3815da4defc50f72b66ae3bac97cd48a",
+        "ref": "source/component/cix/1.2/op-tee"
+      },
+      {
+        "object_id": "114fb20577bcc4038025de4e12bca60e04dd5212",
+        "ref": "source/component/cix/1.2/tf-a"
+      },
+      {
+        "object_id": "89010cb349fe6b34a23b9aa290a69db1a5415f8c",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202211"
+      },
+      {
+        "object_id": "636eb5a259f4e008b220628102b93189893dc19b",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202302"
+      },
+      {
+        "object_id": "272aa0dde31d820491b287317b4102cff96329aa",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202305"
+      },
+      {
+        "object_id": "ce9f4d99edbef33d5e12d4cd9331aaebfedcde01",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202308"
+      },
+      {
+        "object_id": "e705ac8caa0af74b9854cdbcdb5953754c8eff2c",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202311"
+      },
+      {
+        "object_id": "8ba967b221f79df23992eb6cf0c6a62a68357219",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202402"
+      },
+      {
+        "object_id": "b6644e7c90d21454a4a0025857b794f88558aaff",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202405"
+      },
+      {
+        "object_id": "01ad3080223b300704eabaf7b4503cc49e36e513",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202408"
+      },
+      {
+        "object_id": "09dc54d76342e773ea4c8278253a9e62e9e84857",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202408.01"
+      },
+      {
+        "object_id": "4138546f37ef5eb230e7a8889f05e8ba890d646c",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202411"
+      },
+      {
+        "object_id": "f15ac3900487b2494f9147edc7d6aadce9d62054",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202502"
+      },
+      {
+        "object_id": "be58a92bb98f9cc511f9deab8e58f7399df80ea0",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202505"
+      },
+      {
+        "object_id": "2617ad56933fe21ca63dd8a13650c37ba7df2446",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202508"
+      },
+      {
+        "object_id": "391aaedf87bde8339e2aad4354cf1f406b60810a",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202511"
+      },
+      {
+        "object_id": "ddf064b0ddf33611f46777ca15ec829d1b6f8143",
+        "ref": "source/port/radxa/1.2.1/edk2-stable202602"
+      },
+      {
+        "object_id": "883bab691e9a4446f81a99f8683ec17b2e0413ac",
+        "ref": "source/unofficial/current"
+      },
+      {
+        "object_id": "6fac40a4a709faac6c17b1e2b3f274cdf5d6dd83",
+        "ref": "source/unofficial/edk2-stable202208"
+      },
+      {
+        "object_id": "8d6e209654591b9363407a6f1fbd81862652e086",
+        "ref": "source/unofficial/edk2-stable202211"
+      },
+      {
+        "object_id": "671bda5b610a188f16e441b3414ce1a4769ee555",
+        "ref": "source/unofficial/edk2-stable202302"
+      },
+      {
+        "object_id": "713c13bd677a21f7eb6bedb9665ec10fdace8b13",
+        "ref": "source/unofficial/edk2-stable202305"
+      },
+      {
+        "object_id": "fe44b2ea0f19b2dbe214ea26e5d0544d24da76bc",
+        "ref": "source/unofficial/edk2-stable202308"
+      },
+      {
+        "object_id": "5cdb31644a615a67945f01642485d05281022a77",
+        "ref": "source/unofficial/edk2-stable202311"
+      },
+      {
+        "object_id": "6d786f60e10b24b7011730a0b53c8a5cb16963a9",
+        "ref": "source/unofficial/edk2-stable202402"
+      },
+      {
+        "object_id": "f5fcf54e224ffc88b7287924321a88cdea7b149b",
+        "ref": "source/unofficial/edk2-stable202405"
+      },
+      {
+        "object_id": "b45217389830bb04e76be354803cbcd04493792d",
+        "ref": "source/unofficial/edk2-stable202408"
+      },
+      {
+        "object_id": "102e4c40d6d44989650b6b1e1de186095fc65ec8",
+        "ref": "source/unofficial/edk2-stable202408.01"
+      },
+      {
+        "object_id": "46e0b62977326a99f2de277f1430cd0efb95a13c",
+        "ref": "source/unofficial/edk2-stable202411"
+      },
+      {
+        "object_id": "f59573cd26699a925a63028079240b70682e5af1",
+        "ref": "source/unofficial/edk2-stable202502"
+      },
+      {
+        "object_id": "0a3bdb0fc0ca7a4f5b61be4242b1925e824e1ecf",
+        "ref": "source/unofficial/edk2-stable202505"
+      },
+      {
+        "object_id": "aba916e82df7a59bd4187fc5386b0d76a9a28e4d",
+        "ref": "source/unofficial/edk2-stable202508"
+      },
+      {
+        "object_id": "8bdfd22801424c550733353ada775b191578d128",
+        "ref": "source/unofficial/edk2-stable202511"
+      },
+      {
+        "object_id": "5eb51163d33b61540bc31d48cf1ad7c2f61ba9a1",
+        "ref": "source/unofficial/edk2-stable202602"
+      },
+      {
+        "object_id": "9125c8fd1fa315bf7d669549d0e848ca33c875db",
+        "ref": "source/unofficial/edk2/stable-202208"
+      },
+      {
+        "object_id": "167d870b478bbcad933ae6d8340664abd47ae287",
+        "ref": "source/unofficial/edk2/stable-202211"
+      },
+      {
+        "object_id": "670f932184a819e2337cd573fed2e7630a213080",
+        "ref": "source/unofficial/edk2/stable-202302"
+      },
+      {
+        "object_id": "d575a736f49f8bd1dcaa84923edd1fd1513252b3",
+        "ref": "source/unofficial/edk2/stable-202305"
+      },
+      {
+        "object_id": "688c721b8d95b971bbc0e06bb5037faf37bd74f6",
+        "ref": "source/unofficial/edk2/stable-202308"
+      },
+      {
+        "object_id": "a160d419be4051b761803a61bb90931ee3023b73",
+        "ref": "source/unofficial/edk2/stable-202311"
+      },
+      {
+        "object_id": "2412b67edeb7458c1cd2e9d1fb824826bd050393",
+        "ref": "source/unofficial/edk2/stable-202402"
+      },
+      {
+        "object_id": "9ee4e2fbc7496ebc715b123b0ee25d8398585a96",
+        "ref": "source/unofficial/edk2/stable-202405"
+      },
+      {
+        "object_id": "81a1b14ca5c8ed4596b998e37b46bdc864deaf9f",
+        "ref": "source/unofficial/edk2/stable-202408"
+      },
+      {
+        "object_id": "266fbc1eb91e434f6751505679f1ba46804f82b1",
+        "ref": "source/unofficial/edk2/stable-202408.01"
+      },
+      {
+        "object_id": "1a596134b22adad36c2cc6ebc59a0c12f118412c",
+        "ref": "source/unofficial/edk2/stable-202411"
+      },
+      {
+        "object_id": "0bdbca63b4344feba421ad765e4573bff90b54ba",
+        "ref": "source/unofficial/edk2/stable-202502"
+      },
+      {
+        "object_id": "aae914740f45f2328bd6a42727fd7e087f859134",
+        "ref": "source/unofficial/edk2/stable-202505"
+      },
+      {
+        "object_id": "23e555d5ac89d0960643445b352bdd5125ee6e44",
+        "ref": "source/unofficial/edk2/stable-202508"
+      },
+      {
+        "object_id": "5838855b44222afc19d69edd876692737d7d204b",
+        "ref": "source/unofficial/edk2/stable-202511"
+      },
+      {
+        "object_id": "ee1790935ec3a5daec046e6eeb30202669265209",
+        "ref": "source/unofficial/edk2/stable-202602"
+      },
+      {
+        "object_id": "d050e288c40822e28c11103fb8b3b51efc31d758",
+        "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
+      }
+    ],
+    "sha256": "d2560457362735a402a56d7e9f595047e11b7114c459fb0a7c1e5f5cfbf1632a"
+  }
+}

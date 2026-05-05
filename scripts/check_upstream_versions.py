@@ -44,7 +44,8 @@ Optional variables:
       strict: fail any stale or unavailable check
       Default: policy
   UPSTREAM_VERSION_ONLY=<id[,id...]>
-      Limit checks to the named version check IDs.
+      Limit checks to the named source IDs, or to source:release/source:commits
+      comparison IDs.
   UPSTREAM_VERSION_FORMAT=text|github|json
       Output format. github emits workflow annotations.
       Default: text
@@ -52,6 +53,14 @@ Optional variables:
       Offline ls-remote snapshot for tests.
   V=0|1
       Show checked remote refs.
+
+Each configured source can report two independent signals:
+  release
+      Whether a newer release tag exists than the recorded source checkpoint.
+  commits
+      Whether the tracked upstream branch head differs from the recorded source
+      checkpoint. This is usually advisory because unreleased commits are less
+      significant than tagged releases.
 """
 
 
@@ -70,7 +79,9 @@ class LocalState:
 
 @dataclass
 class UpstreamVersionResult:
+    source_id: str
     check_id: str
+    kind: str
     description: str
     mode: str
     status: str
@@ -278,37 +289,108 @@ def compare_head(local: LocalState, remote: LocalState) -> tuple[str, str]:
     return "current", "local record matches remote branch head"
 
 
-def evaluate_check(
+def comparison_items(check: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """Return release/commit comparisons for one configured source."""
+
+    if "kind" in check:
+        label = "release" if check.get("kind") == "latest_tag" else "commits"
+        merged = dict(check)
+        merged.setdefault("comparison_id", str(check.get("id", "")))
+        return [(label, merged)]
+
+    items: list[tuple[str, dict[str, Any]]] = []
+    for label, default_kind in (("release", "latest_tag"), ("commits", "branch_head")):
+        item = check.get(label)
+        if item is None:
+            continue
+        if not isinstance(item, dict):
+            raise ReconstructionError(f"{check.get('id', '<unknown>')}: {label} must be an object")
+        merged = {
+            key: value
+            for key, value in check.items()
+            if key not in {"id", "release", "commits"}
+        }
+        merged.update(item)
+        merged.setdefault("kind", default_kind)
+        merged.setdefault("comparison_id", f"{check.get('id', '')}:{label}")
+        items.append((label, merged))
+    return items
+
+
+def evaluate_comparison(
     repo: Path,
     check: dict[str, Any],
+    kind_label: str,
+    comparison: dict[str, Any],
     snapshot: dict[str, list[RemoteRef]],
     verbose: bool,
 ) -> UpstreamVersionResult:
     check_id = str(check.get("id", ""))
-    description = str(check.get("description", check_id))
-    mode = str(check.get("mode", "advisory"))
-    local = local_state(repo, check)
-    remote_key = str(check["remote"])
+    comparison_id = str(comparison.get("comparison_id", f"{check_id}:{kind_label}"))
+    description = str(comparison.get("description", check.get("description", comparison_id)))
+    mode = str(comparison.get("mode", check.get("mode", "advisory")))
+    local = local_state(repo, comparison)
+    remote_key = str(comparison["remote"])
     try:
         refs = ls_remote(repo, remote_key, snapshot, verbose)
     except ReconstructionError as exc:
-        return UpstreamVersionResult(check_id, description, mode, "unavailable", local.label, "<unavailable>", str(exc))
+        return UpstreamVersionResult(
+            check_id,
+            comparison_id,
+            kind_label,
+            description,
+            mode,
+            "unavailable",
+            local.label,
+            "<unavailable>",
+            str(exc),
+        )
 
-    kind = check.get("kind")
+    kind = comparison.get("kind")
     if kind == "latest_tag":
-        remote = latest_remote_tag(refs, str(check["tag_pattern"]))
+        remote = latest_remote_tag(refs, str(comparison["tag_pattern"]))
         if remote is None:
-            return UpstreamVersionResult(check_id, description, mode, "unavailable", local.label, "<no matching tag>", "remote has no matching tags")
+            return UpstreamVersionResult(
+                check_id,
+                comparison_id,
+                kind_label,
+                description,
+                mode,
+                "unavailable",
+                local.label,
+                "<no matching tag>",
+                "remote has no matching tags",
+            )
         status, detail = compare_tag(local, remote)
     elif kind == "branch_head":
-        remote = remote_branch_head(refs, str(check["ref"]))
+        remote = remote_branch_head(refs, str(comparison["ref"]))
         if remote is None:
-            return UpstreamVersionResult(check_id, description, mode, "unavailable", local.label, str(check["ref"]), "remote has no matching branch")
+            return UpstreamVersionResult(
+                check_id,
+                comparison_id,
+                kind_label,
+                description,
+                mode,
+                "unavailable",
+                local.label,
+                str(comparison["ref"]),
+                "remote has no matching branch",
+            )
         status, detail = compare_head(local, remote)
     else:
-        raise ReconstructionError(f"{check_id}: unsupported version-check kind: {kind}")
+        raise ReconstructionError(f"{comparison_id}: unsupported version-check kind: {kind}")
 
-    return UpstreamVersionResult(check_id, description, mode, status, local.label, remote.label, detail)
+    return UpstreamVersionResult(
+        check_id,
+        comparison_id,
+        kind_label,
+        description,
+        mode,
+        status,
+        local.label,
+        remote.label,
+        detail,
+    )
 
 
 def should_fail(result: UpstreamVersionResult, mode: str) -> bool:
@@ -327,11 +409,15 @@ def github_escape(value: str) -> str:
 
 def print_text(results: list[UpstreamVersionResult]) -> None:
     print("Upstream Versions")
+    current_source = ""
     for result in results:
-        print(f"- {result.check_id}: {result.status}")
-        print(f"  local:  {result.local}")
-        print(f"  remote: {result.remote}")
-        print(f"  detail: {result.detail}")
+        if result.source_id != current_source:
+            current_source = result.source_id
+            print(f"- {result.source_id}:")
+        print(f"  {result.kind}: {result.status} ({result.mode})")
+        print(f"    local:  {result.local}")
+        print(f"    remote: {result.remote}")
+        print(f"    detail: {result.detail}")
 
 
 def print_github(results: list[UpstreamVersionResult]) -> None:
@@ -360,9 +446,12 @@ def main() -> None:
     for check in checks:
         if not isinstance(check, dict):
             raise ReconstructionError("config/upstream-versions.json checks must be objects")
-        if selected and check.get("id") not in selected:
-            continue
-        results.append(evaluate_check(repo, check, snapshot, verbose))
+        for kind_label, comparison in comparison_items(check):
+            check_id = str(check.get("id", ""))
+            comparison_id = str(comparison.get("comparison_id", f"{check_id}:{kind_label}"))
+            if selected and check_id not in selected and comparison_id not in selected:
+                continue
+            results.append(evaluate_comparison(repo, check, kind_label, comparison, snapshot, verbose))
 
     if args.format == "json":
         print(json.dumps([result.__dict__ for result in results], indent=2, sort_keys=True))

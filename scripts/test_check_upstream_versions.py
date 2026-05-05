@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from check_upstream_versions import LocalState, RemoteRef, compare_head, compare_tag, latest_remote_tag
+from check_upstream_versions import LocalState, RemoteRef, compare_head, compare_tag, comparison_items, latest_remote_tag
 
 
 def require(condition: bool, message: str) -> None:
@@ -61,10 +61,25 @@ def test_compare_head_statuses() -> None:
     require(stale[0] == "stale", "different branch head should be stale")
 
 
+def test_grouped_comparison_items() -> None:
+    check = {
+        "id": "edk2",
+        "local": {"type": "edk2-release"},
+        "release": {"tag_pattern": "tag-regex"},
+        "commits": {"ref": "refs/heads/master", "mode": "advisory"},
+    }
+    items = comparison_items(check)
+    require([label for label, _item in items] == ["release", "commits"], "expected release then commits checks")
+    require(items[0][1]["kind"] == "latest_tag", "release comparison should default to latest_tag")
+    require(items[1][1]["kind"] == "branch_head", "commits comparison should default to branch_head")
+    require(items[1][1]["local"] == {"type": "edk2-release"}, "grouped comparison should inherit local state")
+
+
 def main() -> None:
     test_latest_remote_tag_prefers_peeled_commit()
     test_compare_tag_statuses()
     test_compare_head_statuses()
+    test_grouped_comparison_items()
     print("check_upstream_versions tests passed")
 
 

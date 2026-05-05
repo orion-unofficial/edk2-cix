@@ -68,13 +68,14 @@ def test() -> None:
     run(["python3", "scripts/test_check_upstream_versions.py"])
     run(["make", "verify-build-matrix", "--no-print-directory"])
     run(["make", "verify-manifest-integrity", "--no-print-directory"])
-    run(["make", "verify-ref-integrity", "--no-print-directory"])
+    run(["make", "check-ref-integrity", "--no-print-directory"])
+    run(["make", "check-help-cache", "--no-print-directory"])
     run(["make", "verify-minimised-clone", "REPACK=0", "--no-print-directory"])
     run(["make", "check-vendor-workflow-drift", "--no-print-directory"])
     run(["make", "ref-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
     run(["make", "cleanup-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
     run(["make", "prune", "--no-print-directory"], stdout=subprocess.DEVNULL)
-    run(["make", "check-identity-integrity", "SCAN_SOURCE_REFS=1", "--no-print-directory"])
+    run(["make", "verify-identity-integrity", "--no-print-directory"])
 
 
 def main() -> None:

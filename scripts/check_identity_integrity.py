@@ -12,14 +12,16 @@ from pathlib import Path
 from reconstruction_common import ReconstructionError, for_each_ref, format_duration, git, main_wrapper, repo_root, resolve_ref, truthy
 
 
-HELP = """check-identity-integrity
+HELP = """check-identity-integrity / verify-identity-integrity
 
 Optional variables:
   SCAN_COMMITS=0|1
                   Also scan commits reachable from HEAD for generated-identity strings.
+                  The make verify-identity-integrity wrapper enables this.
   SCAN_SOURCE_REFS=0|1
                   Also scan persistent unofficial and Radxa source refs, plus
                   generated custom cache refs, for stale old branch names.
+                  The make verify-identity-integrity wrapper enables this.
   V=0|1           Print scanned paths.
 
 The scanner is intentionally conservative for the build branch. It looks for

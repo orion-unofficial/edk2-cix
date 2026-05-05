@@ -141,8 +141,10 @@ make test
 make lint
 make verify-build-matrix
 make verify-manifest-integrity
-make verify-ref-integrity
+make check-ref-integrity
 make verify-minimised-clone
+make check-help-cache
+make verify-identity-integrity
 make check-vendor-workflow-drift
 make check-upstream-versions
 ```

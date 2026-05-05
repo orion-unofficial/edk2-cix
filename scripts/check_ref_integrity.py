@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify persistent source refs do not depend on generated cache refs."""
+"""Check persistent source refs do not depend on generated cache refs."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 from reconstruction_common import ReconstructionError, for_each_ref, format_duration, git, main_wrapper, repo_root, resolve_ref, truthy
 
 
-HELP = """verify-ref-integrity
+HELP = """check-ref-integrity
 
 No variables are required.
 
