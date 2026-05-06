@@ -76,6 +76,7 @@ def test() -> None:
     run(["make", "verify-source-lifecycle", "--no-print-directory"])
     run(["make", "check-ref-integrity", "--no-print-directory"])
     run(["make", "check-help-cache", "--no-print-directory"])
+    run(["make", "check-first-output-latency", "--no-print-directory"])
     run(["make", "verify-minimised-clone", "REPACK=0", "--no-print-directory"])
     run(["make", "check-vendor-workflow-drift", "--no-print-directory"])
     run(["make", "ref-report", "--no-print-directory"], stdout=subprocess.DEVNULL)

@@ -92,6 +92,10 @@ instead when FROM_REF is already a topic branch based on source/unofficial/curre
 """
 
 
+def progress(message: str) -> None:
+    print(f"[import-changes] {message}", file=sys.stderr, flush=True)
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
     p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
@@ -345,8 +349,11 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
 
 
 def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tuple[Path, dict[str, Any], list[dict[str, Any]]]:
+    progress("inferring base ref")
     base_ref, base_oid = infer_base(repo, args.from_ref, args.base_ref, args.source_unofficial_ref)
+    progress(f"using base {base_ref} ({base_oid[:12]})")
     from_oid = rev_parse(repo, args.from_ref)
+    progress("preparing update targets")
     targets = build_targets(repo, args)
     for target in targets:
         ensure_target_not_checked_out_dirty(repo, target["ref"])
@@ -357,6 +364,7 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
         raise ReconstructionError(f"import operation already exists: {op_id}")
     op_dir.mkdir(parents=True)
     patch_path = op_dir / "change.patch"
+    progress("extracting change patch")
     changes = write_patch(repo, base_oid, args.from_ref, patch_path)
     message = args.commit_message or f"import: changes from {args.from_ref}"
     lifecycle_mode = normalise_mode(args.source_lifecycle_normalise)
@@ -376,8 +384,11 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
 
     paused: list[dict[str, Any]] = []
     try:
+        progress(f"applying patch to {len(targets)} target(s)")
         for target in targets:
+            progress(f"preparing scratch tree for {target['ref']}")
             target["scratch"] = str(clone_scratch(repo, op_dir, target["ref"], verbose))
+            progress(f"applying patch to {target['ref']}")
             if not apply_patch_to_target(repo, target, state, patch_path, message, verbose):
                 paused.append(target)
             save_state(op_dir, state)
@@ -391,12 +402,14 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
     not_ready = [target["ref"] for target in state["targets"] if target.get("status") != "ready"]
     if not_ready:
         raise ReconstructionError("cannot finalise; target is not ready:\n" + "\n".join(f"  - {ref}" for ref in not_ready))
+    progress("fetching candidate objects")
     fetch_candidate_objects(repo, state, verbose)
     updates: list[tuple[str, str, str]] = []
     for target in state["targets"]:
         updates.append((branch_to_ref(target["ref"]), target["candidate_oid"], target["old_oid"]))
         if target.get("tag"):
             updates.append((full_tag_ref(target["tag"]), target["candidate_oid"], target.get("tag_old_oid") or ZERO_OID))
+    progress("updating refs")
     transaction_update_refs(repo, updates)
     print("updated unofficial refs:")
     for full_ref, new_oid, _old_oid in updates:
@@ -407,6 +420,7 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
 def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> None:
     if not write:
         raise ReconstructionError("WRITE=1 is required to continue and finalise an import")
+    progress(f"continuing paused operation {op_dir.name}")
     state = load_state(op_dir)
     paused: list[dict[str, Any]] = []
     for target in state["targets"]:
@@ -473,6 +487,7 @@ def main() -> None:
     verbose = truthy(args.v)
 
     if truthy(args.abort):
+        progress("aborting paused operation")
         abort_operation(resolve_operation(repo, OP_NAMESPACE, "import-changes", args.op_id), "import-changes")
         return
     if truthy(args.continue_import):
@@ -483,6 +498,7 @@ def main() -> None:
         print(HELP)
         print("missing required variable(s): FROM_REF", file=sys.stderr)
         raise SystemExit(2)
+    progress(f"starting import from {args.from_ref}")
     if not ref_exists(repo, args.from_ref):
         raise ReconstructionError(f"FROM_REF is unavailable locally: {args.from_ref}")
 

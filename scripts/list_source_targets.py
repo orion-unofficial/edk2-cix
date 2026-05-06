@@ -3,16 +3,49 @@
 
 from __future__ import annotations
 
+import argparse
 import textwrap
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-from reconstruction_common import default_release, release_branch_sort_key, release_entries, repo_root, source_target_name
-
 
 WIDTH = 80
 STAGE_ORDER = {"upstream": 0, "custom-radxa": 1, "vendor": 2, "custom-cix": 3, "other": 9}
+default_release = None
+release_branch_sort_key = None
+release_entries = None
+repo_root = None
+source_target_name = None
+
+
+def load_reconstruction_common() -> None:
+    global default_release
+    global release_branch_sort_key
+    global release_entries
+    global repo_root
+    global source_target_name
+
+    if default_release is not None:
+        return
+
+    from reconstruction_common import (  # pylint: disable=import-outside-toplevel
+        default_release as loaded_default_release,
+    )
+    from reconstruction_common import (  # pylint: disable=import-outside-toplevel
+        release_branch_sort_key as loaded_release_branch_sort_key,
+    )
+    from reconstruction_common import (  # pylint: disable=import-outside-toplevel
+        release_entries as loaded_release_entries,
+    )
+    from reconstruction_common import repo_root as loaded_repo_root  # pylint: disable=import-outside-toplevel
+    from reconstruction_common import source_target_name as loaded_source_target_name  # pylint: disable=import-outside-toplevel
+
+    default_release = loaded_default_release
+    release_branch_sort_key = loaded_release_branch_sort_key
+    release_entries = loaded_release_entries
+    repo_root = loaded_repo_root
+    source_target_name = loaded_source_target_name
 
 
 def stage(branch: str) -> str:
@@ -79,6 +112,7 @@ def indented(text: str, indent: str = "  ") -> None:
 
 
 def print_help(repo: Path) -> None:
+    load_reconstruction_common()
     releases = release_entries(repo)
     default = source_target_name(default_release(repo))
     branches, alias_versions = canonical_branches(releases)
@@ -128,6 +162,8 @@ def render_help(repo: Path) -> str:
 
 
 def main() -> None:
+    argparse.ArgumentParser(description=__doc__).parse_args()
+    load_reconstruction_common()
     repo = repo_root(Path(__file__))
     print(render_help(repo), end="")
 

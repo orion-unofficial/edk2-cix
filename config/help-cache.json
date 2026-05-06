@@ -6,7 +6,7 @@
   "signature": {
     "files": [
       {
-        "object_id": "b7c99cb751525396fc88f62005629d21d08bc048",
+        "object_id": "427428df4385a773814bcfcc9444a5f35ae1865a",
         "path": "Makefile"
       },
       {
@@ -82,11 +82,11 @@
         "path": "scripts/help_cache.py"
       },
       {
-        "object_id": "ddc8af38c33fa45ad35a13323c41c51d8ccb2a69",
+        "object_id": "f8df19cb68a4d48315d6f30910e2e1922cfdf0d6",
         "path": "scripts/import_changes.py"
       },
       {
-        "object_id": "265b2e8fd46ea0d96c6e8693fb5d66b4f1121a87",
+        "object_id": "24ac149105477bccd87b2667b50879fe39d6461b",
         "path": "scripts/import_unofficial_commits.py"
       },
       {
@@ -102,7 +102,7 @@
         "path": "scripts/integrate_source_release.py"
       },
       {
-        "object_id": "168b76c375de55d77a934e3668c9ef6df8ff544b",
+        "object_id": "ea5dae4e986a87dbb11c6fba9b02d7079a1ffc04",
         "path": "scripts/list_source_targets.py"
       },
       {
@@ -118,7 +118,7 @@
         "path": "scripts/quality.Dockerfile"
       },
       {
-        "object_id": "dd088d11994f22aa87d17ea47640a01c9901a034",
+        "object_id": "1f3c3040349621eb9b9b4d38d48a12eaddd8a1c7",
         "path": "scripts/quality_checks.py"
       },
       {
@@ -612,6 +612,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "830d1f9e7eb1f566dca41697b4e26a91d75aee03a4dd5d697884ab755e90c6aa"
+    "sha256": "7ba7964bc50508e2e5a661ea71d19333e8d8d41e1f679585c44f57fe0bb5cd83"
   }
 }

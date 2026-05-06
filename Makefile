@@ -46,6 +46,11 @@ ACT_EXTRA_ARGS ?=
 ACT_CONTAINER_ARCH ?= linux/amd64
 ACT_RUNNER_IMAGE ?= catthehacker/ubuntu:act-latest
 DOCS_BUILD_MODE ?= auto
+FIRST_OUTPUT_PROBE ?= 0
+
+define PROGRESS_PROBE
+	@printf '%s\n' '$(1)' >&2; if [ "$(FIRST_OUTPUT_PROBE)" = "1" ]; then exit 0; fi
+endef
 
 define PRINT_HELP_SHELL_PROLOGUE
 	set -eu; \
@@ -102,7 +107,7 @@ endef
 .PHONY: help help-vars help-dev help-source-targets build build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-changes import-unofficial-commits \
-	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-help-cache refresh-help-cache ref-report cleanup-report create-minimised-clone \
+	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-help-cache check-first-output-latency refresh-help-cache ref-report cleanup-report create-minimised-clone \
 	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
 	import-changes-help import-unofficial-commits-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help check-upstream-versions-help
@@ -215,6 +220,7 @@ help-dev:
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
 	print_help_line 'make refresh-help-cache' 'Refresh config/help-cache.json after changing Makefile, config/, scripts/, or source refs. No Git hook is installed automatically.'; \
 	print_help_line 'make check-help-cache' 'Check config/help-cache.json matches current source refs and help-generation inputs. make test runs this check.'; \
+	print_help_line 'make check-first-output-latency' 'Check safe make/script entry points emit first output within 0.5 seconds. make test runs this check.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'SCAN_COMMITS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
 	print_help_variable 'SCAN_SOURCE_REFS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
@@ -270,6 +276,8 @@ DELEGATED_BUILD_ARGS = V="$(V)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD=
 
 define run_release_make
 	@set -e; \
+	printf '[build] Resolving source target for %s\n' "$(1)" >&2; \
+	if [ "$(FIRST_OUTPUT_PROBE)" = "1" ]; then exit 0; fi; \
 	release_label="$(RELEASE)"; \
 	if [ -z "$$release_label" ]; then release_label="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-default-release 2>/dev/null || printf '%s' '<default source target>')"; fi; \
 	printf '[build] Preparing release worktree: %s\n' "$$release_label" >&2; \
@@ -289,6 +297,8 @@ build-all:
 
 install:
 	@set -e; \
+	printf '[build] Resolving source target for install\n' >&2; \
+	if [ "$(FIRST_OUTPUT_PROBE)" = "1" ]; then exit 0; fi; \
 	release_label="$(RELEASE)"; \
 	if [ -z "$$release_label" ]; then release_label="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-default-release 2>/dev/null || printf '%s' '<default source target>')"; fi; \
 	printf '[build] Preparing release worktree: %s\n' "$$release_label" >&2; \
@@ -313,16 +323,20 @@ targz:
 	$(call run_release_make,buildbox-targz)
 
 clean:
+	$(call PROGRESS_PROBE,[clean] Removing stale filesystem cache entries)
 	@DEBUG="$(DEBUG)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/clean_cache.py --mode stale --force "$(FORCE)" --v "$(V)"
 
 realclean:
+	$(call PROGRESS_PROBE,[clean] Removing all filesystem cache entries)
 	@DEBUG="$(DEBUG)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/clean_cache.py --mode all --force "$(FORCE)" --v "$(V)"
 
 prune:
+	$(call PROGRESS_PROBE,[prune] Checking generated source/cache refs)
 	@DEBUG="$(DEBUG)" DELETE="$(DELETE)" V="$(V)" $(PYTHON) scripts/prune_cache_refs.py --delete "$(DELETE)" --v "$(V)"
 
 create-minimised-clone:
 	@if [ -z "$(DIR)" ]; then $(PYTHON) scripts/create_minimised_clone.py --help; printf '%s\n' 'missing required variable: DIR' >&2; exit 2; fi
+	$(call PROGRESS_PROBE,[repo] Creating minimised clone in $(DIR))
 	@DEBUG="$(DEBUG)" DIR="$(DIR)" REPACK="$(REPACK)" V="$(V)" $(PYTHON) scripts/create_minimised_clone.py --dir "$(DIR)" --repack "$(REPACK)" --v "$(V)"
 
 buildbox-firmware-build:
@@ -332,88 +346,119 @@ buildbox-firmware-stage:
 	$(call run_release_make,buildbox-firmware-stage)
 
 docs-build:
+	$(call PROGRESS_PROBE,[docs] Starting documentation build)
 	@DOCS_BUILD_MODE="$(DOCS_BUILD_MODE)" docs/scripts/run_docs_build.sh
 
 docs-workflow-local:
+	$(call PROGRESS_PROBE,[docs] Starting local documentation workflow)
 	@docs/scripts/run_docs_workflow_local.sh
 
 render-release-branch:
 	@if [ -z "$(RELEASE)" ]; then $(MAKE) --no-print-directory render-release-branch-help; printf '%s\n' 'missing required variable: RELEASE' >&2; exit 2; fi
+	$(call PROGRESS_PROBE,[render] Resolving source target: $(RELEASE))
 	@DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" PERSIST="$(PERSIST)" REBUILD="$(REBUILD)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --require-release --persist "$(PERSIST)" --rebuild "$(REBUILD)" --force "$(FORCE)" --v "$(V)"
 
 verify-release-branch:
 	@if [ -z "$(RELEASE)" ]; then $(MAKE) --no-print-directory verify-release-branch-help; printf '%s\n' 'missing required variable: RELEASE' >&2; exit 2; fi
+	$(call PROGRESS_PROBE,[verify] Checking release branch: $(RELEASE))
 	@DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" WORKTREE="$(WORKTREE)" V="$(V)" $(PYTHON) scripts/verify_release_branch.py --v "$(V)"
 
 verify-build-matrix:
+	$(call PROGRESS_PROBE,[verify] Checking build matrix)
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/verify_build_matrix.py --v "$(V)"
 
 verify-manifest-integrity:
+	$(call PROGRESS_PROBE,[verify] Checking manifest integrity)
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/verify_manifest_integrity.py --v "$(V)"
 
 verify-source-policy:
+	$(call PROGRESS_PROBE,[verify] Checking source policy)
 	@DEBUG="$(DEBUG)" REF="$(REF)" V="$(V)" $(PYTHON) scripts/verify_source_policy.py --ref "$(REF)" --v "$(V)"
 
 verify-source-lifecycle:
+	$(call PROGRESS_PROBE,[verify] Checking source lifecycle)
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" TARGET_REF="$(TARGET_REF)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" V="$(V)" $(PYTHON) scripts/verify_source_lifecycle.py --from-ref "$(or $(FROM_REF),source/unofficial/current)" --target-ref "$(TARGET_REF)" --normalise-mode "$(SOURCE_LIFECYCLE_NORMALISE)" --v "$(V)"
 
 check-ref-integrity:
+	$(call PROGRESS_PROBE,[check] Checking ref integrity)
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_ref_integrity.py --v "$(V)"
 
 verify-minimised-clone:
+	$(call PROGRESS_PROBE,[verify] Checking minimised clone reconstruction)
 	@DEBUG="$(DEBUG)" DIR="$(DIR)" KEEP="$(KEEP)" REPACK="$(REPACK)" V="$(V)" $(PYTHON) scripts/verify_minimised_clone.py --dir "$(DIR)" --keep "$(KEEP)" --repack "$(REPACK)" --v "$(V)"
 
 extract-vendor-delta:
+	$(call PROGRESS_PROBE,[delta] Extracting vendor delta)
 	@DEBUG="$(DEBUG)" VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"
 
 integrate-source-release:
+	$(call PROGRESS_PROBE,[integrate] Starting source integration)
 	@DEBUG="$(DEBUG)" TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" RADXA_SOURCE="$(RADXA_SOURCE)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(MATERIALISE)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
 import-unofficial-commits:
+	$(call PROGRESS_PROBE,[import-unofficial] Starting unofficial import)
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_CHECKPOINTS="$(PROPAGATE_CHECKPOINTS)" UPDATE_COMPAT_TAGS="$(UPDATE_COMPAT_TAGS)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" ALLOW_SOURCE_REF_FROM="$(ALLOW_SOURCE_REF_FROM)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
 
 import-changes:
+	$(call PROGRESS_PROBE,[import-changes] Starting change import)
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_CHECKPOINTS="$(PROPAGATE_CHECKPOINTS)" UPDATE_COMPAT_TAGS="$(UPDATE_COMPAT_TAGS)" COMMIT_MESSAGE="$(COMMIT_MESSAGE)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_changes.py --v "$(V)"
 
 check-identity-integrity:
+	$(call PROGRESS_PROBE,[check] Checking identity integrity)
 	@DEBUG="$(DEBUG)" SCAN_COMMITS="0" SCAN_SOURCE_REFS="0" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"
 
 verify-identity-integrity:
+	$(call PROGRESS_PROBE,[verify] Checking identity integrity)
 	@DEBUG="$(DEBUG)" SCAN_COMMITS="1" SCAN_SOURCE_REFS="1" V="$(V)" $(PYTHON) scripts/check_identity_integrity.py --v "$(V)"
 
 check-vendor-workflow-drift:
+	$(call PROGRESS_PROBE,[check] Checking vendor workflow drift)
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_vendor_workflow_drift.py --v "$(V)"
 
 check-upstream-versions:
+	$(call PROGRESS_PROBE,[check] Checking upstream versions)
 	@DEBUG="$(DEBUG)" UPSTREAM_VERSION_MODE="$(UPSTREAM_VERSION_MODE)" UPSTREAM_VERSION_ONLY="$(UPSTREAM_VERSION_ONLY)" UPSTREAM_VERSION_FORMAT="$(UPSTREAM_VERSION_FORMAT)" UPSTREAM_VERSION_SNAPSHOT="$(UPSTREAM_VERSION_SNAPSHOT)" V="$(V)" $(PYTHON) scripts/check_upstream_versions.py --v "$(V)"
 
 check-help-cache:
+	$(call PROGRESS_PROBE,[check] Checking help cache)
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/help_cache.py --verify --v "$(V)"
 
+check-first-output-latency:
+	$(call PROGRESS_PROBE,[check] Checking first-output latency)
+	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_first_output_latency.py --v "$(V)"
+
 refresh-help-cache:
+	$(call PROGRESS_PROBE,[cache] Refreshing help cache)
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/help_cache.py --refresh --v "$(V)"
 
 ref-report:
+	$(call PROGRESS_PROBE,[report] Generating ref report)
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/ref_report.py --v "$(V)"
 
 cleanup-report:
+	$(call PROGRESS_PROBE,[report] Generating cleanup report)
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/ref_report.py --cleanup --v "$(V)"
 
 test:
+	$(call PROGRESS_PROBE,[quality] Starting tests)
 	@DEBUG="$(DEBUG)" V="$(V)" QUALITY_IMAGE="$(QUALITY_IMAGE)" scripts/run_quality_container.sh test
 
 lint:
+	$(call PROGRESS_PROBE,[quality] Starting lint checks)
 	@DEBUG="$(DEBUG)" V="$(V)" QUALITY_IMAGE="$(QUALITY_IMAGE)" scripts/run_quality_container.sh lint
 
 gha-act-list:
+	$(call PROGRESS_PROBE,[gha] Listing local GitHub Actions jobs)
 	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh list
 
 gha-act-dry-run:
 	@if [ -z "$(ACT_WORKFLOW)" ]; then printf '%s\n' 'missing required variable: ACT_WORKFLOW=.github/workflows/<file>.yaml' >&2; exit 2; fi
+	$(call PROGRESS_PROBE,[gha] Dry-running local GitHub Actions workflow: $(ACT_WORKFLOW))
 	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh dry-run
 
 gha-act-run:
 	@if [ -z "$(ACT_WORKFLOW)" ]; then printf '%s\n' 'missing required variable: ACT_WORKFLOW=.github/workflows/<file>.yaml' >&2; exit 2; fi
+	$(call PROGRESS_PROBE,[gha] Running local GitHub Actions workflow: $(ACT_WORKFLOW))
 	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh run
 
 render-release-branch-help:

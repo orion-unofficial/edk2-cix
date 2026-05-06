@@ -93,6 +93,10 @@ after every requested replay is clean and guarded old object IDs still match.
 """
 
 
+def progress(message: str) -> None:
+    print(f"[import-unofficial] {message}", file=sys.stderr, flush=True)
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
     p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
@@ -305,14 +309,17 @@ def pause_message(op_id: str, target: dict[str, Any]) -> str:
 
 
 def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> tuple[Path, dict[str, Any], dict[str, Any] | None]:
+    progress("preparing propagation import")
     if args.source_unofficial_ref != CURRENT_REF:
         raise ReconstructionError("PROPAGATE_CHECKPOINTS=all updates source/unofficial/current and all checkpoints; do not set SOURCE_UNOFFICIAL_REF")
     require_valid_import_source(repo, args.from_ref, CURRENT_REF, truthy(args.allow_source_ref_from))
     old_current = rev_parse(repo, CURRENT_REF)
     from_oid = rev_parse(repo, args.from_ref)
     enforce_source_tree_policy(repo, ref=args.from_ref, label=args.from_ref)
+    progress("inferring replay base")
     base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
     commits = replay_commits(repo, base_oid, args.from_ref)
+    progress(f"replaying {len(commits)} commit(s)")
     lifecycle_mode = normalise_mode(args.source_lifecycle_normalise)
     targets = checkpoint_targets(repo)
     for ref in [CURRENT_REF, *targets]:
@@ -341,6 +348,7 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
         "targets": [],
     }
     for ref in targets:
+        progress(f"preparing scratch tree for {ref}")
         target: dict[str, Any] = {
             "ref": ref,
             "old_oid": rev_parse(repo, ref),
@@ -366,6 +374,7 @@ def run_replays(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) 
             continue
         if target.get("status") == "conflict":
             return target
+        progress(f"replaying onto {target['ref']}")
         if not apply_remaining(repo, target, state, commits, verbose):
             save_state(op_dir, state)
             return target
@@ -377,6 +386,7 @@ def run_replays(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) 
 def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> None:
     if not write:
         raise ReconstructionError("WRITE=1 is required to continue and finalise an import")
+    progress(f"continuing paused operation {op_dir.name}")
     state = load_state(op_dir)
     conflicted = [target for target in state["targets"] if target.get("status") == "conflict"]
     if conflicted:
@@ -404,6 +414,7 @@ def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> 
 
 def direct_import(repo: Path, args: argparse.Namespace, verbose: bool) -> None:
     ref = args.source_unofficial_ref
+    progress(f"checking direct import into {ref}")
     require_unofficial_target(ref)
     require_valid_import_source(repo, args.from_ref, ref, truthy(args.allow_source_ref_from))
     enforce_source_tree_policy(repo, ref=args.from_ref, label=args.from_ref)
@@ -428,6 +439,7 @@ def main() -> None:
     verbose = truthy(args.v)
 
     if truthy(args.abort):
+        progress("aborting paused operation")
         abort_operation(resolve_operation(repo, OP_NAMESPACE, "import-unofficial", args.op_id), "import-unofficial")
         return
     if truthy(args.continue_import):
@@ -438,6 +450,7 @@ def main() -> None:
         print(HELP)
         print("missing required variable(s): FROM_REF", file=sys.stderr)
         raise SystemExit(2)
+    progress(f"starting import from {args.from_ref}")
     if not ref_exists(repo, args.from_ref):
         raise ReconstructionError(f"FROM_REF is unavailable locally: {args.from_ref}")
 
