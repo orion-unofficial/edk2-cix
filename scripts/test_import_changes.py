@@ -151,7 +151,9 @@ def test_dry_run_infers_materialised_base_without_moving_refs() -> None:
         require("M\tfirmware.txt" in result.stdout, "dry run did not report changed path")
         require("Dry-run succeeded. To apply this change permanently" in result.stdout, "dry run did not print apply guidance")
         require(f"FROM_REF={topic}" in result.stdout and "WRITE=1" in result.stdout, "dry run did not print write command")
+        require("BASE_REF=" not in result.stdout, "dry run printed inferred BASE_REF in write command")
         require("make test" in result.stdout, "dry run did not print qualification guidance")
+        require("firmware qualification" not in result.stdout, "dry run printed overly broad qualification guidance")
         require(rev_parse(repo, "source/unofficial/current") == old_current, "dry run moved source/unofficial/current")
         operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
         require(not operations.exists() or not any(operations.iterdir()), "dry run left operation state")
@@ -256,6 +258,10 @@ def test_import_with_explicit_legacy_base() -> None:
         write_file(repo, "overlay/new-driver.txt", "new broader-source file\n")
         commit_all(repo, "legacy topic change")
         git(repo, "switch", "build")
+
+        dry_run = run_import_changes(repo, FROM_REF="legacy-topic", BASE_REF="legacy-base")
+        require(dry_run.returncode == 0, dry_run.stderr + dry_run.stdout)
+        require("BASE_REF=legacy-base" in dry_run.stdout, "explicit BASE_REF was not preserved in dry-run write command")
 
         result = run_import_changes(repo, FROM_REF="legacy-topic", BASE_REF="legacy-base", WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)

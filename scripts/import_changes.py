@@ -461,6 +461,7 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
         "source_lifecycle_normalise": lifecycle_mode,
         "message": message,
         "requested": {
+            "base_ref": args.base_ref,
             "commit_message": args.commit_message,
             "propagate_checkpoints": args.propagate_checkpoints,
             "source_lifecycle_normalise": args.source_lifecycle_normalise,
@@ -595,13 +596,6 @@ def print_dry_run(state: dict[str, Any]) -> None:
     print()
     print("After the ref update succeeds, run at least:")
     print("  make test")
-    print()
-    print("Then run firmware qualification for the affected source target(s),")
-    print("for example:")
-    print("  make build FIRMWARE_BOARD=O6 RELEASE=<affected-source-target>")
-    print("  make build FIRMWARE_BOARD=O6N RELEASE=<affected-source-target>")
-    print()
-    print("Use make help-source-targets to list source targets.")
     sys.stdout.flush()
 
 
@@ -612,9 +606,12 @@ def make_arg(name: str, value: str) -> str:
 def write_command(state: dict[str, Any]) -> list[str]:
     command = ["make", "import-changes"]
     command.append(make_arg("FROM_REF", state["from_ref"]))
-    command.append(make_arg("BASE_REF", state["base_ref"]))
 
     requested = state.get("requested", {})
+    base_ref = str(requested.get("base_ref") or "")
+    if base_ref:
+        command.append(make_arg("BASE_REF", base_ref))
+
     source_ref = str(requested.get("source_unofficial_ref") or CURRENT_REF)
     if source_ref != CURRENT_REF:
         command.append(make_arg("SOURCE_UNOFFICIAL_REF", source_ref))

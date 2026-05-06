@@ -334,8 +334,8 @@ make import-changes \
 
 If the dry run reports the expected base, changed paths, and update target,
 re-run with `WRITE=1`. The successful dry-run output prints a ready-to-copy
-command that pins the inferred `BASE_REF`, followed by the minimum validation
-commands to run after the ref update:
+command, followed by the minimum validation command to run after the ref
+update. The command includes `BASE_REF` only if you provided it explicitly:
 
 ```bash
 make import-changes \
