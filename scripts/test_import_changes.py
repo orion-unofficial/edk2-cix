@@ -337,6 +337,29 @@ def test_conflict_pauses_without_moving_refs_then_continue_finalises() -> None:
         shutil.rmtree(repo)
 
 
+def test_dry_run_conflict_reports_paths_without_moving_refs() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "source/unofficial/current")
+        write_file(repo, "firmware.txt", "current conflict\n")
+        commit_all(repo, "current conflict")
+        git(repo, "switch", "build")
+        old_current = rev_parse(repo, "source/unofficial/current")
+
+        topic = make_materialised_topic(repo, text="topic conflict\n")
+        result = run_import_changes(repo, FROM_REF=topic)
+        require(result.returncode != 0, "conflicting dry-run should fail")
+        require("dry run detected conflicts" in result.stderr, result.stderr)
+        require("conflicting file(s):" in result.stderr, result.stderr)
+        require("firmware.txt" in result.stderr, result.stderr)
+        require("CONTINUE=1 OP_ID=<operation-id> WRITE=1" in result.stderr, result.stderr)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "dry-run conflict moved current")
+        operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
+        require(not operations.exists() or not any(operations.iterdir()), "dry-run conflict left operation state")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_failed_apply_without_conflict_markers_pauses_for_manual_resolution() -> None:
     repo = make_repo()
     try:
@@ -425,6 +448,7 @@ def main() -> None:
     test_missing_base_is_rejected_when_no_base_can_be_inferred()
     test_empty_diff_is_rejected()
     test_conflict_pauses_without_moving_refs_then_continue_finalises()
+    test_dry_run_conflict_reports_paths_without_moving_refs()
     test_failed_apply_without_conflict_markers_pauses_for_manual_resolution()
     test_import_rejects_identical_overlay_copy()
     test_propagation_updates_checkpoints_and_tags()

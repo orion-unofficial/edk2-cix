@@ -89,6 +89,12 @@ Optional variables:
 This target is for changes developed on materialised source/cache/** branches,
 legacy source branches, or other broader trees. Use import-unofficial-commits
 instead when FROM_REF is already a topic branch based on source/unofficial/current.
+
+Dry-run mode still applies the extracted patch in disposable scratch trees for
+every target, but removes those scratch trees before exiting and never moves
+refs or tags. Re-run with WRITE=1 to keep scratch trees for conflict
+resolution, then continue with CONTINUE=1 OP_ID=<operation-id> WRITE=1 after
+staging the resolved files in every conflicted scratch tree.
 """
 
 
@@ -284,12 +290,15 @@ def apply_patch_to_target(repo: Path, target: dict[str, Any], state: dict[str, A
             return True
         target["candidate_oid"] = commit_scratch(scratch, message)
         return True
-    if unmerged_paths(scratch):
+    conflicts = unmerged_paths(scratch)
+    if conflicts:
         target["status"] = "conflict"
+        target["conflict_paths"] = conflicts
         target["apply_stdout"] = result.stdout
         target["apply_stderr"] = result.stderr
         return False
     target["status"] = "conflict"
+    target["conflict_paths"] = []
     target["apply_stdout"] = result.stdout
     target["apply_stderr"] = result.stderr
     return False
@@ -327,6 +336,10 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
     for target in targets:
         if target.get("status") == "conflict":
             lines.append(f"  {target['scratch']}")
+            conflict_paths = target.get("conflict_paths") or []
+            if conflict_paths:
+                lines.append("  conflicting file(s):")
+                lines.extend(f"    {path}" for path in conflict_paths)
             detail = (target.get("apply_stderr") or target.get("apply_stdout") or "").strip()
             if detail:
                 lines.append("  apply output:")
@@ -467,15 +480,29 @@ def dry_run_conflict_message(paused: list[dict[str, Any]]) -> str:
     lines = [
         "dry run detected conflicts while applying the extracted patch.",
         "No refs were moved and the temporary scratch trees were removed.",
-        "Re-run with WRITE=1 to keep scratch state for conflict resolution.",
+        "Dry-run still attempts every target in disposable scratch trees so it",
+        "can prove whether a later write would succeed.",
+        "Re-run the same command with WRITE=1 to keep scratch state for conflict",
+        "resolution.",
         "",
         "Conflicting target(s):",
     ]
-    lines.extend(f"  - {target['ref']}" for target in paused)
+    for target in paused:
+        lines.append(f"  - {target['ref']}")
+        conflict_paths = target.get("conflict_paths") or []
+        if conflict_paths:
+            lines.append("    conflicting file(s):")
+            lines.extend(f"      {path}" for path in conflict_paths)
+        detail = (target.get("apply_stderr") or target.get("apply_stdout") or "").strip()
+        if detail:
+            lines.append("    apply output:")
+            lines.extend(f"      {line}" for line in detail.splitlines()[:8])
     lines.extend(
         [
             "",
-            "Some patches may require manual application when re-run with WRITE=1.",
+            "When re-run with WRITE=1, resolve each printed scratch tree, stage",
+            "the resolved files with git add inside that scratch tree, then run:",
+            "  make import-changes CONTINUE=1 OP_ID=<operation-id> WRITE=1",
         ]
     )
     return "\n".join(lines)
@@ -503,6 +530,7 @@ def main() -> None:
         raise ReconstructionError(f"FROM_REF is unavailable locally: {args.from_ref}")
 
     if not truthy(args.write):
+        progress("dry run: scratch trees will be removed after validation")
         op_dir, state, paused = prepare_operation(repo, args, verbose)
         try:
             print_dry_run(state)
