@@ -45,6 +45,7 @@ ACT_SECRET_FILE ?=
 ACT_EXTRA_ARGS ?=
 ACT_CONTAINER_ARCH ?= linux/amd64
 ACT_RUNNER_IMAGE ?= catthehacker/ubuntu:act-latest
+DOCS_BUILD_MODE ?= auto
 
 define PRINT_HELP_SHELL_PROLOGUE
 	set -eu; \
@@ -236,8 +237,10 @@ help-dev:
 	print_help_variable 'ACT_CONTAINER_ARCH=<platform>' 'Container architecture used by act.\nDefault: linux/amd64.'; \
 	print_help_variable 'ACT_RUNNER_IMAGE=<image>' 'Runner image mapped to ubuntu-latest.\nDefault: catthehacker/ubuntu:act-latest.'; \
 	print_section 'Documentation'; \
-	print_help_line 'make docs-build' 'Build the mdBook product documentation under docs/.'; \
+	print_help_line 'make docs-build' 'Build the mdBook product documentation under docs/, using the docs container if host tools are missing.'; \
 	print_help_line 'make docs-workflow-local' 'Run the documentation workflow in its local Docker wrapper.'; \
+	print_subtitle 'Variables:'; \
+	print_help_variable 'DOCS_BUILD_MODE=auto|host|container' 'Documentation build environment. auto uses host tools when available and the docs container otherwise.\nDefault: auto.'; \
 	print_section 'Quality'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
 	print_help_line 'make lint' 'Run JSON, YAML, Markdown, shell, and Python linting in the quality container.'; \
@@ -329,7 +332,7 @@ buildbox-firmware-stage:
 	$(call run_release_make,buildbox-firmware-stage)
 
 docs-build:
-	@docs/scripts/run_docs_build.sh
+	@DOCS_BUILD_MODE="$(DOCS_BUILD_MODE)" docs/scripts/run_docs_build.sh
 
 docs-workflow-local:
 	@docs/scripts/run_docs_workflow_local.sh

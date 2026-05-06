@@ -732,6 +732,12 @@ build-branch root. Build it with:
 make docs-build
 ```
 
+`make docs-build` defaults to `DOCS_BUILD_MODE=auto`. It uses the host
+`devenv`/`cargo` toolchain when those tools are available, and otherwise falls
+back to the same documentation container used by `make docs-workflow-local`.
+Use `DOCS_BUILD_MODE=host` to require a host-only build or
+`DOCS_BUILD_MODE=container` to force the container path.
+
 To check upstream versions locally:
 
 ```bash

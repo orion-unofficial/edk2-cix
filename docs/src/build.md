@@ -131,6 +131,12 @@ build-branch root. Build the mdBook site with:
 make docs-build
 ```
 
+By default, `make docs-build` uses `DOCS_BUILD_MODE=auto`: it builds with the
+host `devenv`/`cargo` toolchain when available and falls back to the
+documentation container when those host tools are missing. Use
+`DOCS_BUILD_MODE=host` to require a host-only build, or
+`DOCS_BUILD_MODE=container` to force the container path.
+
 The generated site is written to `docs/book/html/`.
 
 ## Test GitHub Actions Locally

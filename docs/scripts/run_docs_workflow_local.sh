@@ -45,6 +45,9 @@ printf '[docs-repro] Container logs: docker logs -f %s\n' "$container_name"
 docker run --rm \
     --name "$container_name" \
     "${run_args[@]}" \
+    -e DOCS_BUILD_MODE=host \
+    -e EDK2_CIX_DOCS_BUILD_MODE=host \
+    -e EDK2_CIX_DOCS_IN_CONTAINER=1 \
     -v "${repo_root}:/work" \
     -w /work \
     "$image" \
