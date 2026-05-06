@@ -400,6 +400,45 @@ def test_failed_apply_without_conflict_markers_pauses_for_manual_resolution() ->
         shutil.rmtree(repo)
 
 
+def test_dry_run_failed_apply_without_conflict_markers_keeps_rejects() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "retained-source")
+        write_file(repo, "legacy-only.txt", "legacy base\n")
+        commit_all(repo, "add legacy-only file")
+        git(repo, "switch", "-c", "legacy-topic")
+        write_file(repo, "legacy-only.txt", "legacy topic\n")
+        commit_all(repo, "modify legacy-only file")
+        git(repo, "switch", "build")
+        old_current = rev_parse(repo, "source/unofficial/current")
+
+        result = run_import_changes(repo, FROM_REF="legacy-topic")
+        require(result.returncode != 0, "failed dry-run apply should pause")
+        require("dry run detected conflicts" in result.stderr, result.stderr)
+        require("BASE_REF:" in result.stderr, result.stderr)
+        require("extracted patch:" in result.stderr, result.stderr)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "dry-run moved current")
+
+        op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
+        scratch = conflicted_scratch(op_dir)
+        clean_continue = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name)
+        require(clean_continue.returncode != 0, "clean conflicted scratch must not become ready")
+        require("has no staged or unstaged changes" in clean_continue.stderr, clean_continue.stderr)
+
+        write_file(scratch, "legacy-only.txt", "legacy topic\n")
+        git(scratch, "add", "legacy-only.txt")
+        prepared = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name)
+        require(prepared.returncode == 0, prepared.stderr + prepared.stdout)
+        require("import candidates are ready" in prepared.stdout, prepared.stdout)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "continue without WRITE moved current")
+
+        finalised = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name, WRITE="1")
+        require(finalised.returncode == 0, finalised.stderr + finalised.stdout)
+        require(show(repo, "source/unofficial/current", "legacy-only.txt") == "legacy topic\n", "manual reject resolution was not finalised")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_import_rejects_identical_overlay_copy() -> None:
     repo = make_repo()
     try:
@@ -462,6 +501,7 @@ def main() -> None:
     test_conflict_pauses_without_moving_refs_then_continue_finalises()
     test_dry_run_conflict_reports_paths_without_moving_refs()
     test_failed_apply_without_conflict_markers_pauses_for_manual_resolution()
+    test_dry_run_failed_apply_without_conflict_markers_keeps_rejects()
     test_import_rejects_identical_overlay_copy()
     test_propagation_updates_checkpoints_and_tags()
     print("import_changes tests passed")

@@ -364,11 +364,31 @@ make import-changes \
 
 If one target conflicts, no `source/unofficial/**` branch or compatibility tag
 is updated. The failed dry run keeps the scratch trees and prints the operation
-id. Each scratch tree is a normal detached Git checkout; inspect it with
-`git status`, edit the conflicted files or apply the intended change manually,
-then stage the resolved files with `git add` inside that scratch tree. When all
-printed scratch trees are resolved and staged, validate the candidate commits
-without moving refs:
+id, `BASE_REF`, `FROM_REF`, and the scratch path for each target. Each scratch
+tree is a normal detached Git checkout for the target being updated, not the
+`build` branch and not `BASE_REF`. Inspect it directly:
+
+```bash
+git -C <scratch-tree> status
+git -C <scratch-tree> diff --name-only --diff-filter=U
+git -C <scratch-tree> diff
+```
+
+If Git could not create conflict stages, the importer tries to keep the scratch
+tree useful by applying whatever hunks it can and writing `.rej` files for
+rejected hunks. In that case, use the `.rej` files and the source diff to apply
+the intended change manually:
+
+```bash
+git -C /path/to/edk2-cix diff <BASE_REF>..<FROM_REF> -- path/to/file
+```
+
+If Git cannot create `.rej` files either, the output prints the extracted patch
+stored under `.cache/edk2-cix/operations/.../change.patch`; use that patch as
+the manual source of truth. Edit the conflicted or rejected files, remove any
+`.rej` files once they are no longer needed, then stage the resolved files with
+`git add` inside that scratch tree. When all printed scratch trees are resolved
+and staged, validate the candidate commits without moving refs:
 
 ```bash
 make import-changes CONTINUE=1 OP_ID=<operation-id>

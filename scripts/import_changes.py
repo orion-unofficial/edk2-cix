@@ -246,6 +246,24 @@ def dirty_paths(repo: Path) -> list[str]:
     return [line for line in result.stdout.splitlines() if line]
 
 
+def reject_paths(repo: Path) -> list[str]:
+    result = git(repo, "ls-files", "--others", "--exclude-standard", "--", "*.rej", check=False)
+    return sorted(line for line in result.stdout.splitlines() if line)
+
+
+def changed_paths(changes: list[str]) -> list[str]:
+    paths: list[str] = []
+    for change in changes:
+        parts = change.split("\t")
+        if len(parts) < 2:
+            continue
+        if parts[0].startswith(("R", "C")) and len(parts) >= 3:
+            paths.extend(parts[1:3])
+        else:
+            paths.extend(parts[1:])
+    return sorted(set(paths))
+
+
 def commit_scratch(repo: Path, message: str) -> str:
     unresolved = unmerged_paths(repo)
     if unresolved:
@@ -298,10 +316,28 @@ def apply_patch_to_target(repo: Path, target: dict[str, Any], state: dict[str, A
         target["apply_stdout"] = result.stdout
         target["apply_stderr"] = result.stderr
         return False
+
+    # Some git-apply failures cannot form index conflict stages and otherwise
+    # leave a clean tree. Replay with rejects so the user has concrete files to
+    # inspect and resolve from the dry-run scratch tree.
+    git(scratch, "reset", "--hard", target["old_oid"], capture=not verbose)
+    git(scratch, "clean", "-fd", capture=not verbose)
+    reject_result = subprocess.run(
+        ["git", "-C", str(scratch), "apply", "--reject", "--binary", str(patch_path)],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
     target["status"] = "conflict"
-    target["conflict_paths"] = []
+    target["conflict_paths"] = changed_paths(state.get("changes", []))
+    target["reject_paths"] = reject_paths(scratch)
+    target["dirty_paths"] = dirty_paths(scratch)
+    target["manual_patch_path"] = str(patch_path)
     target["apply_stdout"] = result.stdout
     target["apply_stderr"] = result.stderr
+    target["reject_apply_stdout"] = reject_result.stdout
+    target["reject_apply_stderr"] = reject_result.stderr
     return False
 
 
@@ -341,16 +377,36 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
             if conflict_paths:
                 lines.append("  conflicting file(s):")
                 lines.extend(f"    {path}" for path in conflict_paths)
+            reject_paths_value = target.get("reject_paths") or []
+            if reject_paths_value:
+                lines.append("  reject file(s):")
+                lines.extend(f"    {path}" for path in reject_paths_value)
+            dirty_paths_value = target.get("dirty_paths") or []
+            if dirty_paths_value:
+                lines.append("  scratch status:")
+                lines.extend(f"    {path}" for path in dirty_paths_value[:12])
+            manual_patch_path = target.get("manual_patch_path")
+            if manual_patch_path:
+                lines.append(f"  extracted patch: {manual_patch_path}")
+            resolution_error = target.get("resolution_error")
+            if resolution_error:
+                lines.append("  current issue:")
+                lines.extend(f"    {line}" for line in resolution_error.splitlines()[:8])
             detail = (target.get("apply_stderr") or target.get("apply_stdout") or "").strip()
             if detail:
                 lines.append("  apply output:")
                 lines.extend(f"    {line}" for line in detail.splitlines()[:12])
+            reject_detail = (target.get("reject_apply_stderr") or target.get("reject_apply_stdout") or "").strip()
+            if reject_detail:
+                lines.append("  reject apply output:")
+                lines.extend(f"    {line}" for line in reject_detail.splitlines()[:12])
     lines.extend(
         [
             "",
-            "If Git did not create conflict markers, apply the intended change",
-            "manually in the scratch tree, stage the resolved files with git add,",
-            "and then continue.",
+            "If Git created .rej files, use them to apply the missing hunks.",
+            "If it could not create .rej files, use the printed extracted patch",
+            "as the manual source of truth. Remove .rej files when they are no",
+            "longer needed, stage all resolved files with git add, and continue.",
             "",
             "Then validate the resolved candidates without moving refs:",
             f"  make import-changes CONTINUE=1 OP_ID={op_id}",
@@ -484,12 +540,15 @@ def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> 
         try:
             normalise_target(repo, target, state, verbose)
             if not staged_changes(scratch) and not dirty_paths(scratch):
-                target["candidate_oid"] = target["old_oid"]
-                target["status"] = "ready"
-                continue
+                raise ReconstructionError(
+                    "conflicted scratch tree has no staged or unstaged changes. "
+                    "Apply or resolve the intended change in the printed scratch tree, "
+                    "stage the resolved files with git add, and then continue."
+                )
             target["candidate_oid"] = commit_scratch(scratch, state["message"])
             target["status"] = "ready"
-        except ReconstructionError:
+        except ReconstructionError as exc:
+            target["resolution_error"] = str(exc)
             paused.append(target)
     save_state(op_dir, state)
     if paused:
@@ -498,7 +557,7 @@ def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> 
 
 
 def print_dry_run(state: dict[str, Any]) -> None:
-    print("dry run; set WRITE=1 to update unofficial refs")
+    print("dry run; no refs or tags will be moved")
     print(f"  base: {state['base_ref']} ({state['base_oid']})")
     print(f"  from: {state['from_ref']} ({state['from_oid']})")
     print("  changed paths:")
@@ -515,6 +574,7 @@ def print_dry_run(state: dict[str, Any]) -> None:
         if target.get("tag"):
             line += f" and {target['tag']}"
         print(line)
+    sys.stdout.flush()
 
 
 def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]) -> str:
@@ -522,6 +582,8 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
     lines = [
         "dry run detected conflicts while applying the extracted patch.",
         "No refs or tags were moved.",
+        f"BASE_REF: {state['base_ref']} ({state['base_oid']})",
+        f"FROM_REF: {state['from_ref']} ({state['from_oid']})",
         "Dry-run still attempts every target in disposable scratch trees so it",
         "can prove whether a later write would succeed.",
         "Because this dry-run found conflicts, the scratch trees have been kept",
@@ -539,15 +601,34 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
         if conflict_paths:
             lines.append("    conflicting file(s):")
             lines.extend(f"      {path}" for path in conflict_paths)
+        reject_paths_value = target.get("reject_paths") or []
+        if reject_paths_value:
+            lines.append("    reject file(s):")
+            lines.extend(f"      {path}" for path in reject_paths_value)
+        dirty_paths_value = target.get("dirty_paths") or []
+        if dirty_paths_value:
+            lines.append("    scratch status:")
+            lines.extend(f"      {path}" for path in dirty_paths_value[:12])
+        manual_patch_path = target.get("manual_patch_path")
+        if manual_patch_path:
+            lines.append(f"    extracted patch: {manual_patch_path}")
         detail = (target.get("apply_stderr") or target.get("apply_stdout") or "").strip()
         if detail:
             lines.append("    apply output:")
             lines.extend(f"      {line}" for line in detail.splitlines()[:8])
+        reject_detail = (target.get("reject_apply_stderr") or target.get("reject_apply_stdout") or "").strip()
+        if reject_detail:
+            lines.append("    reject apply output:")
+            lines.extend(f"      {line}" for line in reject_detail.splitlines()[:8])
     lines.extend(
         [
             "",
-            "Resolve each printed scratch tree, stage the resolved files with git",
-            "add inside that scratch tree, then validate the resolved candidates:",
+            "Resolve each printed scratch tree. If .rej files were created, use",
+            "them to apply the missing hunks. If Git could not create .rej files,",
+            "use the printed extracted patch as the manual source of truth.",
+            "Remove .rej files when they are no longer needed. Stage all resolved",
+            "files with git add inside that scratch tree, then validate the",
+            "resolved candidates:",
             f"  make import-changes CONTINUE=1 OP_ID={op_id}",
             "",
             "Only after that validation succeeds, move refs and tags:",
