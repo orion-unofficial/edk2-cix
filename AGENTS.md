@@ -76,29 +76,33 @@ rewrite checkpoint history wholesale.
 ## Ephemeral Worktrees And Temporary Data
 
 Treat Git worktrees as ephemeral execution state, not as durable storage. A
-worktree under `/private/tmp`, `/tmp`, or another temporary location may
-disappear on reboot, under operating-system storage pressure, or during normal
-temporary-directory cleanup. If a task needs a branch checked out as a
-temporary worktree, remove that worktree once the task is complete instead of
-leaving it behind for manual and uncertain cleanup.
+worktree under an operating-system temporary location may disappear on reboot,
+under storage pressure, or during normal temporary-directory cleanup. If a task
+needs a branch checked out as a temporary worktree, remove that worktree once
+the task is complete instead of leaving it behind for manual and uncertain
+cleanup.
 
 Do not store unique work only in a temporary worktree. Commit, stash, bundle,
 or otherwise preserve any useful data in an associated Git repository before
 assuming it is safe to remove the worktree.
 
-All directly Codex-created ephemeral data must live under a directory named
-after the active Codex session id. Use `CODEX_THREAD_ID` as that id when it is
-available. For example, a temporary root may be:
+All directly agent-created ephemeral data must live under a directory named
+after the active session id provided by the execution harness. For example,
+after assigning that value to `AGENT_SESSION_ID`, a temporary root may be:
 
 ```bash
-${TMPDIR:-/tmp}/edk2-cix-codex/${CODEX_THREAD_ID}
+: "${TMPDIR:?set TMPDIR to a writable temporary root first}"
+: "${AGENT_SESSION_ID:?set AGENT_SESSION_ID to the active session id first}"
+${TMPDIR%/}/edk2-cix-agent/${AGENT_SESSION_ID}
 ```
 
 When invoking scripts or tools that may create temporary files, set the
 temporary environment variables to that session-specific root, for example:
 
 ```bash
-export TMPDIR="${TMPDIR:-/tmp}/edk2-cix-codex/${CODEX_THREAD_ID}"
+: "${TMPDIR:?set TMPDIR to a writable temporary root first}"
+: "${AGENT_SESSION_ID:?set AGENT_SESSION_ID to the active session id first}"
+export TMPDIR="${TMPDIR%/}/edk2-cix-agent/${AGENT_SESSION_ID}"
 export TMP="$TMPDIR"
 export TEMP="$TMPDIR"
 mkdir -p "$TMPDIR"
@@ -107,9 +111,9 @@ mkdir -p "$TMPDIR"
 The intent is that every worktree, temporary file, build scratch directory,
 download cache, log, archive, and other non-repository artefact written by an
 agent can be traced back to the agent session that created it. If
-`CODEX_THREAD_ID` is unavailable, create a clearly labelled substitute id and
-record it in user-facing progress or final output before creating temporary
-state.
+the execution harness does not expose a session id, create a clearly labelled
+substitute id and record it in user-facing progress or final output before
+creating temporary state.
 
 ## Before Pruning
 
