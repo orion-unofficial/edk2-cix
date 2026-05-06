@@ -73,6 +73,44 @@ created fiptool source-build commits that never received that helper. Future
 agents should treat this as a propagation-audit lesson, not as permission to
 rewrite checkpoint history wholesale.
 
+## Ephemeral Worktrees And Temporary Data
+
+Treat Git worktrees as ephemeral execution state, not as durable storage. A
+worktree under `/private/tmp`, `/tmp`, or another temporary location may
+disappear on reboot, under operating-system storage pressure, or during normal
+temporary-directory cleanup. If a task needs a branch checked out as a
+temporary worktree, remove that worktree once the task is complete instead of
+leaving it behind for manual and uncertain cleanup.
+
+Do not store unique work only in a temporary worktree. Commit, stash, bundle,
+or otherwise preserve any useful data in an associated Git repository before
+assuming it is safe to remove the worktree.
+
+All directly Codex-created ephemeral data must live under a directory named
+after the active Codex session id. Use `CODEX_THREAD_ID` as that id when it is
+available. For example, a temporary root may be:
+
+```bash
+${TMPDIR:-/tmp}/edk2-cix-codex/${CODEX_THREAD_ID}
+```
+
+When invoking scripts or tools that may create temporary files, set the
+temporary environment variables to that session-specific root, for example:
+
+```bash
+export TMPDIR="${TMPDIR:-/tmp}/edk2-cix-codex/${CODEX_THREAD_ID}"
+export TMP="$TMPDIR"
+export TEMP="$TMPDIR"
+mkdir -p "$TMPDIR"
+```
+
+The intent is that every worktree, temporary file, build scratch directory,
+download cache, log, archive, and other non-repository artefact written by an
+agent can be traced back to the agent session that created it. If
+`CODEX_THREAD_ID` is unavailable, create a clearly labelled substitute id and
+record it in user-facing progress or final output before creating temporary
+state.
+
 ## Before Pruning
 
 Before deleting any branch or tag, check whether the checkout is a linked
