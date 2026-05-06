@@ -46,6 +46,10 @@
         "path": "config/vendor-workflow-baseline.json"
       },
       {
+        "object_id": "e65cdae071a1f34e8bd60d70db7c56f33fca1da9",
+        "path": "scripts/check_first_output_latency.py"
+      },
+      {
         "object_id": "d65f3564629b42c70520a060e26768b5514a9064",
         "path": "scripts/check_identity_integrity.py"
       },
@@ -612,6 +616,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "7ba7964bc50508e2e5a661ea71d19333e8d8d41e1f679585c44f57fe0bb5cd83"
+    "sha256": "d5f25879426cbe0a3107ae783fe7c2dde2a008a4b3096b0bf9b03d0f3bf9393c"
   }
 }
