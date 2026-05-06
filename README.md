@@ -317,9 +317,11 @@ path after following the development example above. The importer finds the
 source tree before the intended change, extracts only that diff, applies the
 patch to one or more temporary scratch trees, and updates the real source refs
 only after every target applies cleanly. A dry run still creates scratch trees
-and tries the patch against each target so it can report whether a later write
-would succeed, but it removes those scratch trees before exiting and never
-moves refs or tags.
+and tries the patch against each target so it can report whether the import is
+clean. If the dry run succeeds, those scratch trees are removed. If it
+conflicts, the scratch trees are kept under `.cache/edk2-cix/operations/` so
+you can resolve and validate the candidate import before any permanent ref or
+tag is moved.
 
 For a topic branch created from a persistent materialised cache branch, a
 retained source branch, or another unique retained fork point, the base is
@@ -361,21 +363,25 @@ make import-changes \
 ```
 
 If one target conflicts, no `source/unofficial/**` branch or compatibility tag
-is updated. Re-run the same command with `WRITE=1` to keep the scratch trees,
-then resolve the conflicts in every scratch tree printed by the command. Each
-scratch tree is a normal detached Git checkout; inspect it with `git status`,
-edit the conflicted files or apply the intended change manually, then stage the
-resolved files with `git add` inside that scratch tree. When all printed
-scratch trees are resolved and staged, continue:
+is updated. The failed dry run keeps the scratch trees and prints the operation
+id. Each scratch tree is a normal detached Git checkout; inspect it with
+`git status`, edit the conflicted files or apply the intended change manually,
+then stage the resolved files with `git add` inside that scratch tree. When all
+printed scratch trees are resolved and staged, validate the candidate commits
+without moving refs:
+
+```bash
+make import-changes CONTINUE=1 OP_ID=<operation-id>
+```
+
+The continue step commits each resolved scratch tree and reports the candidate
+commits. If any target is still unresolved, the import remains paused and no
+refs move. Once the candidates are ready, deliberately move the requested
+`source/unofficial/**` refs and compatibility tags in one guarded transaction:
 
 ```bash
 make import-changes CONTINUE=1 OP_ID=<operation-id> WRITE=1
 ```
-
-The continue step commits each resolved scratch tree, fetches those candidate
-commits back into the main repository, and then moves the requested
-`source/unofficial/**` refs and compatibility tags in one guarded transaction.
-If any target is still unresolved, the import remains paused and no refs move.
 
 Abort without moving refs:
 

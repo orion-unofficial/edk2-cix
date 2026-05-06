@@ -90,11 +90,12 @@ This target is for changes developed on materialised source/cache/** branches,
 legacy source branches, or other broader trees. Use import-unofficial-commits
 instead when FROM_REF is already a topic branch based on source/unofficial/current.
 
-Dry-run mode still applies the extracted patch in disposable scratch trees for
-every target, but removes those scratch trees before exiting and never moves
-refs or tags. Re-run with WRITE=1 to keep scratch trees for conflict
-resolution, then continue with CONTINUE=1 OP_ID=<operation-id> WRITE=1 after
-staging the resolved files in every conflicted scratch tree.
+Dry-run mode still applies the extracted patch in scratch trees for every
+target and never moves refs or tags. If the dry run succeeds, those scratch
+trees are removed. If it conflicts, scratch state is kept under .cache for
+resolution. Resolve and stage conflicted files there, run CONTINUE=1 without
+WRITE=1 to validate candidate commits, then add WRITE=1 only for the final
+guarded ref/tag update.
 """
 
 
@@ -351,7 +352,10 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
             "manually in the scratch tree, stage the resolved files with git add,",
             "and then continue.",
             "",
-            "Then run:",
+            "Then validate the resolved candidates without moving refs:",
+            f"  make import-changes CONTINUE=1 OP_ID={op_id}",
+            "",
+            "When the candidates are ready, move refs and tags deliberately:",
             f"  make import-changes CONTINUE=1 OP_ID={op_id} WRITE=1",
             "",
             "Or abort:",
@@ -430,9 +434,46 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
     remove_operation_state(op_dir)
 
 
-def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> None:
+def ready_message(state: dict[str, Any]) -> str:
+    op_id = state["op_id"]
+    lines = [
+        "import candidates are ready; no refs or tags were moved.",
+        "",
+        "Candidate scratch trees:",
+    ]
+    for target in state["targets"]:
+        candidate = target.get("candidate_oid", target.get("old_oid", ""))
+        lines.append(f"  - {target['ref']}: {candidate}")
+        scratch = target.get("scratch")
+        if scratch:
+            lines.append(f"    scratch: {scratch}")
+        if target.get("tag"):
+            lines.append(f"    tag: {target['tag']}")
+    lines.extend(
+        [
+            "",
+            "Review the scratch trees if needed. When ready, move refs and tags:",
+            f"  make import-changes CONTINUE=1 OP_ID={op_id} WRITE=1",
+            "",
+            "Or abort without moving refs:",
+            f"  make import-changes ABORT=1 OP_ID={op_id}",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def finalise_or_report_ready(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool, write: bool) -> None:
+    not_ready = [target["ref"] for target in state["targets"] if target.get("status") != "ready"]
+    if not_ready:
+        raise ReconstructionError("cannot finalise; target is not ready:\n" + "\n".join(f"  - {ref}" for ref in not_ready))
+    save_state(op_dir, state)
     if not write:
-        raise ReconstructionError("WRITE=1 is required to continue and finalise an import")
+        print(ready_message(state))
+        return
+    finalise(repo, op_dir, state, verbose)
+
+
+def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> None:
     progress(f"continuing paused operation {op_dir.name}")
     state = load_state(op_dir)
     paused: list[dict[str, Any]] = []
@@ -453,7 +494,7 @@ def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> 
     save_state(op_dir, state)
     if paused:
         raise ReconstructionError(pause_message(state["op_id"], paused))
-    finalise(repo, op_dir, state, verbose)
+    finalise_or_report_ready(repo, op_dir, state, verbose, write)
 
 
 def print_dry_run(state: dict[str, Any]) -> None:
@@ -476,19 +517,24 @@ def print_dry_run(state: dict[str, Any]) -> None:
         print(line)
 
 
-def dry_run_conflict_message(paused: list[dict[str, Any]]) -> str:
+def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]) -> str:
+    op_id = state["op_id"]
     lines = [
         "dry run detected conflicts while applying the extracted patch.",
-        "No refs were moved and the temporary scratch trees were removed.",
+        "No refs or tags were moved.",
         "Dry-run still attempts every target in disposable scratch trees so it",
         "can prove whether a later write would succeed.",
-        "Re-run the same command with WRITE=1 to keep scratch state for conflict",
-        "resolution.",
+        "Because this dry-run found conflicts, the scratch trees have been kept",
+        "for conflict resolution under:",
+        f"  {operation_path(repo_root(Path(__file__)), OP_NAMESPACE, op_id)}",
         "",
         "Conflicting target(s):",
     ]
     for target in paused:
         lines.append(f"  - {target['ref']}")
+        scratch = target.get("scratch")
+        if scratch:
+            lines.append(f"    scratch: {scratch}")
         conflict_paths = target.get("conflict_paths") or []
         if conflict_paths:
             lines.append("    conflicting file(s):")
@@ -500,9 +546,15 @@ def dry_run_conflict_message(paused: list[dict[str, Any]]) -> str:
     lines.extend(
         [
             "",
-            "When re-run with WRITE=1, resolve each printed scratch tree, stage",
-            "the resolved files with git add inside that scratch tree, then run:",
-            "  make import-changes CONTINUE=1 OP_ID=<operation-id> WRITE=1",
+            "Resolve each printed scratch tree, stage the resolved files with git",
+            "add inside that scratch tree, then validate the resolved candidates:",
+            f"  make import-changes CONTINUE=1 OP_ID={op_id}",
+            "",
+            "Only after that validation succeeds, move refs and tags:",
+            f"  make import-changes CONTINUE=1 OP_ID={op_id} WRITE=1",
+            "",
+            "Or abort without moving refs:",
+            f"  make import-changes ABORT=1 OP_ID={op_id}",
         ]
     )
     return "\n".join(lines)
@@ -530,14 +582,12 @@ def main() -> None:
         raise ReconstructionError(f"FROM_REF is unavailable locally: {args.from_ref}")
 
     if not truthy(args.write):
-        progress("dry run: scratch trees will be removed after validation")
+        progress("dry run: no refs or tags will be moved")
         op_dir, state, paused = prepare_operation(repo, args, verbose)
-        try:
-            print_dry_run(state)
-            if paused:
-                raise ReconstructionError(dry_run_conflict_message(paused))
-        finally:
-            remove_operation_state(op_dir)
+        print_dry_run(state)
+        if paused:
+            raise ReconstructionError(dry_run_conflict_message(state, paused))
+        remove_operation_state(op_dir)
         return
 
     op_dir, state, paused = prepare_operation(repo, args, verbose)

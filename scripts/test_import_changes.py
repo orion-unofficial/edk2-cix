@@ -352,10 +352,22 @@ def test_dry_run_conflict_reports_paths_without_moving_refs() -> None:
         require("dry run detected conflicts" in result.stderr, result.stderr)
         require("conflicting file(s):" in result.stderr, result.stderr)
         require("firmware.txt" in result.stderr, result.stderr)
-        require("CONTINUE=1 OP_ID=<operation-id> WRITE=1" in result.stderr, result.stderr)
+        require("CONTINUE=1 OP_ID=" in result.stderr, result.stderr)
         require(rev_parse(repo, "source/unofficial/current") == old_current, "dry-run conflict moved current")
         operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
-        require(not operations.exists() or not any(operations.iterdir()), "dry-run conflict left operation state")
+        op_dir = next(operations.iterdir())
+        scratch = conflicted_scratch(op_dir)
+        write_file(scratch, "firmware.txt", "resolved from dry-run\n")
+        git(scratch, "add", "firmware.txt")
+
+        prepared = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name)
+        require(prepared.returncode == 0, prepared.stderr + prepared.stdout)
+        require("import candidates are ready" in prepared.stdout, prepared.stdout)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "continue without WRITE moved current")
+
+        finalised = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name, WRITE="1")
+        require(finalised.returncode == 0, finalised.stderr + finalised.stdout)
+        require(show(repo, "source/unofficial/current", "firmware.txt") == "resolved from dry-run\n", "dry-run resolution was not finalised")
     finally:
         shutil.rmtree(repo)
 
