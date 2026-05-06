@@ -11,6 +11,7 @@ from pathlib import Path
 from source_lifecycle import (
     SourceLifecycle,
     lifecycle_errors,
+    normalisation_blockers,
     normalise_overlay_lifecycle,
     project_overlay_tree,
 )
@@ -263,6 +264,29 @@ def test_normalise_exact_regular_overlay_rename() -> None:
         shutil.rmtree(repo)
 
 
+def test_normalisation_blockers_respect_modes() -> None:
+    repo = make_repo()
+    try:
+        write_file(repo, "src/component/new.c", "same content\n")
+        write_file(repo, "custom/overlay/component/new.c", "patched content\n")
+        commit_all(repo, "current")
+
+        switch_orphan(repo, "older")
+        write_file(repo, "src/component/old.c", "same content\n")
+        commit_all(repo, "older")
+
+        projections = project_overlay_tree(repo, "current", "older")
+        require(not normalisation_blockers(projections, "exact"), "exact mode should accept exact regular overlay renames")
+        mirror_blockers = normalisation_blockers(projections, "mirror")
+        require(len(mirror_blockers) == 1, f"expected one mirror-mode blocker, got {mirror_blockers}")
+        require(mirror_blockers[0].action == "rename", mirror_blockers[0].action)
+        validate_blockers = normalisation_blockers(projections, "validate")
+        require(len(validate_blockers) == 1, f"expected one validate-mode blocker, got {validate_blockers}")
+        require(validate_blockers[0].action == "rename", validate_blockers[0].action)
+    finally:
+        shutil.rmtree(repo)
+
+
 def main() -> None:
     test_same_path_projection_keeps_overlay_path()
     test_exact_rename_projection_renames_overlay_path()
@@ -274,6 +298,7 @@ def main() -> None:
     test_normalise_exact_mirror_rename_retargets_symlink()
     test_normalise_validate_reports_required_changes_without_mutating()
     test_normalise_exact_regular_overlay_rename()
+    test_normalisation_blockers_respect_modes()
     print("source_lifecycle tests passed")
 
 

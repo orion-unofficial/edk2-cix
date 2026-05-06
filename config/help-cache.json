@@ -6,7 +6,7 @@
   "signature": {
     "files": [
       {
-        "object_id": "40b9c6128d791453089278f54e5edbd6c11da51e",
+        "object_id": "104133836b825f63ff9662c3af7c5aa364ce1521",
         "path": "Makefile"
       },
       {
@@ -142,7 +142,7 @@
         "path": "scripts/run_quality_container.sh"
       },
       {
-        "object_id": "dbeac69c16c0ed05873427b8edb9a655f14534ad",
+        "object_id": "34827e7b74356c84fb9f40dd0e869ca05c008f28",
         "path": "scripts/source_lifecycle.py"
       },
       {
@@ -162,7 +162,7 @@
         "path": "scripts/test_import_unofficial_commits.py"
       },
       {
-        "object_id": "8567744e7ff131d3fbfcf5b6e113fe93083e21ae",
+        "object_id": "924633317cb789554a941ee81adf6b59efb3906d",
         "path": "scripts/test_source_lifecycle.py"
       },
       {
@@ -194,7 +194,7 @@
         "path": "scripts/verify_release_branch.py"
       },
       {
-        "object_id": "33b5dd26b128aed9bcc5ebe5de96eb1ae22ba997",
+        "object_id": "9129ad9284912042636fc7148d5c4f83835d5455",
         "path": "scripts/verify_source_lifecycle.py"
       },
       {
@@ -612,6 +612,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "e721d85cc9f2cfa52481ffca2b775f1ef62095ceab5354112799c8ca3b4630f1"
+    "sha256": "188be2397ce02a8abd86dbdbe1025cabfcee89cd539b8482c3a01b93c104b5b6"
   }
 }

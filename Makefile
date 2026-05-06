@@ -174,7 +174,7 @@ help-dev:
 	print_help_variable 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch for import-changes or import-unofficial-commits; defaults to source/unofficial/current.'; \
 	print_help_variable 'PROPAGATE_CHECKPOINTS=none|all' 'For import targets. Replay or apply the imported change onto every source/unofficial/edk2-stable* checkpoint after preparing all candidates safely.\nDefault: none.'; \
 	print_help_variable 'UPDATE_COMPAT_TAGS=0|1' 'For import targets. Move matching source/unofficial/edk2/stable-* tags only after all checkpoint imports succeed.\nDefault: 0.'; \
-	print_help_variable 'SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact' 'For import targets. Control deterministic overlay/source lifecycle handling when an imported overlay path points at a source file that moved or disappeared in another checkpoint. validate reports required rewrites without changing the scratch tree; mirror rewrites mirror symlinks only; exact also rewrites exact regular overlay renames.\nDefault: exact.'; \
+	print_help_variable 'SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact' 'For import targets and verify-source-lifecycle. Control deterministic overlay/source lifecycle handling when an imported overlay path points at a source file that moved or disappeared in another checkpoint. validate reports required rewrites without changing the scratch tree; mirror rewrites mirror symlinks only; exact also rewrites exact regular overlay renames.\nDefault: exact.'; \
 	print_help_variable 'COMMIT_MESSAGE=<text>' 'For import-changes. Commit message for the extracted patch.\nDefault: derived from FROM_REF.'; \
 	print_help_variable 'CONTINUE=0|1' 'Continue a paused import operation after conflicts are resolved in the scratch tree.'; \
 	print_help_variable 'ABORT=0|1' 'Abort a paused import operation and remove its scratch state without moving refs.'; \
@@ -353,7 +353,7 @@ verify-source-policy:
 	@DEBUG="$(DEBUG)" REF="$(REF)" V="$(V)" $(PYTHON) scripts/verify_source_policy.py --ref "$(REF)" --v "$(V)"
 
 verify-source-lifecycle:
-	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" TARGET_REF="$(TARGET_REF)" V="$(V)" $(PYTHON) scripts/verify_source_lifecycle.py --from-ref "$(or $(FROM_REF),source/unofficial/current)" --target-ref "$(TARGET_REF)" --v "$(V)"
+	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" TARGET_REF="$(TARGET_REF)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" V="$(V)" $(PYTHON) scripts/verify_source_lifecycle.py --from-ref "$(or $(FROM_REF),source/unofficial/current)" --target-ref "$(TARGET_REF)" --normalise-mode "$(SOURCE_LIFECYCLE_NORMALISE)" --v "$(V)"
 
 check-ref-integrity:
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_ref_integrity.py --v "$(V)"

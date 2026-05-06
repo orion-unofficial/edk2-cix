@@ -326,6 +326,25 @@ def required_normalisation(projections: Iterable[OverlayProjection]) -> list[Ove
     return [projection for projection in projections if projection.action in NORMALISE_REQUIRED_ACTIONS]
 
 
+def normalisation_blockers(projections: Iterable[OverlayProjection], mode: str | None) -> list[OverlayProjection]:
+    resolved_mode = normalise_mode(mode)
+    if resolved_mode == "off":
+        return lifecycle_errors(projections)
+
+    projection_list = list(projections)
+    blockers = lifecycle_errors(projection_list)
+    required = required_normalisation(projection_list)
+    if resolved_mode == "validate":
+        blockers.extend(required)
+    elif resolved_mode == "mirror":
+        blockers.extend(
+            projection
+            for projection in required
+            if projection.action == "rename" and not projection.mirror
+        )
+    return blockers
+
+
 def mirror_symlink_target(overlay_path: str) -> str:
     return posixpath.relpath(overlay_source_path(overlay_path), posixpath.dirname(overlay_path))
 
@@ -403,24 +422,19 @@ def normalise_overlay_lifecycle(
         return []
 
     projections = project_overlay_tree(source_repo, from_ref, to_ref, selected)
-    errors = lifecycle_errors(projections)
-    if errors:
-        sample = "\n".join(f"  - {format_projection(projection)}" for projection in errors[:20])
-        extra = "" if len(errors) <= 20 else f"\n  ... and {len(errors) - 20} more"
-        raise ReconstructionError(f"source lifecycle projection failed:\n{sample}{extra}")
+    blockers = normalisation_blockers(projections, resolved_mode)
+    if blockers:
+        required = required_normalisation(projections)
+        if resolved_mode == "validate" and required and blockers == required:
+            heading = "source lifecycle normalisation is required"
+        else:
+            heading = "source lifecycle projection failed"
+        sample = "\n".join(f"  - {format_projection(projection)}" for projection in blockers[:20])
+        extra = "" if len(blockers) <= 20 else f"\n  ... and {len(blockers) - 20} more"
+        raise ReconstructionError(f"{heading}:\n{sample}{extra}")
 
     required = required_normalisation(projections)
-    if resolved_mode == "validate" and required:
-        sample = "\n".join(f"  - {format_projection(projection)}" for projection in required[:20])
-        extra = "" if len(required) <= 20 else f"\n  ... and {len(required) - 20} more"
-        raise ReconstructionError(f"source lifecycle normalisation is required:\n{sample}{extra}")
-
     for projection in required:
-        if resolved_mode == "mirror" and projection.action == "rename" and not projection.mirror:
-            raise ReconstructionError(
-                "source lifecycle normalisation requires exact mode for non-mirror overlay rename:\n"
-                f"  - {format_projection(projection)}"
-            )
         if verbose:
             print(f"[source-lifecycle] {format_projection(projection)}")
         apply_projection(repo, source_repo, from_ref, projection, resolved_mode)
