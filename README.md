@@ -376,7 +376,7 @@ The CIX bundle records original vendor provenance. To start an experimental upli
 
    The recorded ref is `source/component/cix/1.2/tf-a/v2.12`. Use `COMPONENT=op-tee ARM_BASE=4.4.0` for OP-TEE.
 
-4. Add or update a source target entry that selects the uplifted component ref, render it, and run the same build/audit qualification used for EDK2 releases.
+4. Record any additional source refs or metadata needed for the derived source-target list to select the uplifted component ref, render the resulting source target, and run the same build/audit qualification used for EDK2 releases.
 
 The component port itself is intentionally a source-level engineering step rather than an automatic patch replay. The deterministic part starts once the reviewed component ref is recorded in `source/component/cix/**` and `config/refs-cix.json`.
 

@@ -48,6 +48,29 @@ RELEASE=<source-target>` can regenerate a missing source target from the require
 caches. They may likewise be omitted when `config/refs-edk2.json` and the
 referenced EDK2 component refs are present.
 
+## Source Change Propagation
+
+Changes to `source/unofficial/current` are not automatically known-good for every
+EDK2 compatibility checkpoint. When importing a source change that should apply
+across supported releases, use the explicit import workflow with
+`PROPAGATE_CHECKPOINTS=all` and validate every checkpoint before moving refs.
+
+Do not use a broad historical replay as a substitute for review. If a change
+appears to exist in one checkpoint but not another, first audit with Git's
+patch-equivalence tools, for example `git cherry`, then classify each
+non-equivalent commit as one of:
+
+- already represented by a release-specific replay;
+- intentionally release-specific or obsolete;
+- superseded by a newer implementation;
+- a genuine missed fix that should be re-imported as a focused topic.
+
+The fiptool quiet-output repair was a missed focused fix: the 202208 checkpoint
+contained earlier quiet-output work, while later checkpoints had independently
+created fiptool source-build commits that never received that helper. Future
+agents should treat this as a propagation-audit lesson, not as permission to
+rewrite checkpoint history wholesale.
+
 ## Before Pruning
 
 Before deleting any branch or tag, check whether the checkout is a linked worktree:
