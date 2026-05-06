@@ -6,7 +6,7 @@
   "signature": {
     "files": [
       {
-        "object_id": "104133836b825f63ff9662c3af7c5aa364ce1521",
+        "object_id": "99d1c0da16e74b7ee423ca05f5a67cb04e302e70",
         "path": "Makefile"
       },
       {
@@ -30,7 +30,7 @@
         "path": "config/refs-radxa.json"
       },
       {
-        "object_id": "b973c54e5d6c6ffd74ed8ea0e6cefced08e360cf",
+        "object_id": "7acd319a6e103a0b5a848a255cdb9e0d34e4f85d",
         "path": "config/refs-source-target-cache.json"
       },
       {
@@ -476,7 +476,7 @@
         "ref": "source/port/radxa/1.2.1/edk2-stable202602"
       },
       {
-        "object_id": "883bab691e9a4446f81a99f8683ec17b2e0413ac",
+        "object_id": "0f4fa93799e2cdc07bfa1ece1dcc15f8d253d202",
         "ref": "source/unofficial/current"
       },
       {
@@ -484,63 +484,63 @@
         "ref": "source/unofficial/edk2-stable202208"
       },
       {
-        "object_id": "8d6e209654591b9363407a6f1fbd81862652e086",
+        "object_id": "4ce7cf407bbaf42476ab7d00104decea3a1c9db2",
         "ref": "source/unofficial/edk2-stable202211"
       },
       {
-        "object_id": "671bda5b610a188f16e441b3414ce1a4769ee555",
+        "object_id": "914c1a64405f71709a63ce28cd08f586a7a770a5",
         "ref": "source/unofficial/edk2-stable202302"
       },
       {
-        "object_id": "713c13bd677a21f7eb6bedb9665ec10fdace8b13",
+        "object_id": "e733bc40c388e27c6d19f102c7452d45a056e994",
         "ref": "source/unofficial/edk2-stable202305"
       },
       {
-        "object_id": "fe44b2ea0f19b2dbe214ea26e5d0544d24da76bc",
+        "object_id": "dedf15b20b8702c0b226d09b189d4b0ca79509e1",
         "ref": "source/unofficial/edk2-stable202308"
       },
       {
-        "object_id": "5cdb31644a615a67945f01642485d05281022a77",
+        "object_id": "fcd17ed5afae57c920fcd1d25a4a454b63fba276",
         "ref": "source/unofficial/edk2-stable202311"
       },
       {
-        "object_id": "6d786f60e10b24b7011730a0b53c8a5cb16963a9",
+        "object_id": "ec4f1cb6b0d7cb8a543d34130acffc183618e260",
         "ref": "source/unofficial/edk2-stable202402"
       },
       {
-        "object_id": "f5fcf54e224ffc88b7287924321a88cdea7b149b",
+        "object_id": "2c3a622b6dab3b391aef7ba2a963eb091871ec8d",
         "ref": "source/unofficial/edk2-stable202405"
       },
       {
-        "object_id": "b45217389830bb04e76be354803cbcd04493792d",
+        "object_id": "b01ee26cd50c9119d196f6b2515c3f669360a49c",
         "ref": "source/unofficial/edk2-stable202408"
       },
       {
-        "object_id": "102e4c40d6d44989650b6b1e1de186095fc65ec8",
+        "object_id": "3277ecab54d35c762d407aa3eb066a581c2bcdb6",
         "ref": "source/unofficial/edk2-stable202408.01"
       },
       {
-        "object_id": "46e0b62977326a99f2de277f1430cd0efb95a13c",
+        "object_id": "56cbe365fbc2a015f766eaa362ae1f72744d05f5",
         "ref": "source/unofficial/edk2-stable202411"
       },
       {
-        "object_id": "f59573cd26699a925a63028079240b70682e5af1",
+        "object_id": "b1867b16ab3f0a729b7be90037c1077a8b92f621",
         "ref": "source/unofficial/edk2-stable202502"
       },
       {
-        "object_id": "0a3bdb0fc0ca7a4f5b61be4242b1925e824e1ecf",
+        "object_id": "6c4afbedfbf7ba9a281e26ad8f89b202345cc4b9",
         "ref": "source/unofficial/edk2-stable202505"
       },
       {
-        "object_id": "aba916e82df7a59bd4187fc5386b0d76a9a28e4d",
+        "object_id": "09a8f94d022cb2ac7c8d16e19a802b1b59e14b35",
         "ref": "source/unofficial/edk2-stable202508"
       },
       {
-        "object_id": "8bdfd22801424c550733353ada775b191578d128",
+        "object_id": "f8bd41594be4a477eb054f731f4eeedc4ae0b637",
         "ref": "source/unofficial/edk2-stable202511"
       },
       {
-        "object_id": "5eb51163d33b61540bc31d48cf1ad7c2f61ba9a1",
+        "object_id": "bc5ce33bcf18f004ba1fd33756173a7e3d686387",
         "ref": "source/unofficial/edk2-stable202602"
       },
       {
@@ -612,6 +612,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "188be2397ce02a8abd86dbdbe1025cabfcee89cd539b8482c3a01b93c104b5b6"
+    "sha256": "bbf4ae8a4a46d63989b283faa5d03cae5cf89fc70de0a7c0472ba7912e7e9593"
   }
 }
