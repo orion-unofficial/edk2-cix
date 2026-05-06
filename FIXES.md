@@ -76,6 +76,17 @@ from the SCMI domain attributes instead.
 That keeps the static ACPI CPU-performance view aligned with the same SCMI
 performance model the firmware is already using underneath.
 
+### CPU Idle Default Migration (`_LPI`)
+
+ACPI `_LPI` objects describe CPU idle states. Vendor NVRAM can preserve a
+disabled CPU LPI setup value even when the custom firmware default enables the
+deepest advertised idle state.
+
+With `ENABLE_FIRMWARE_FIXES=true`, firmware performs a one-time migration from
+the disabled CPU LPI setting to the custom firmware default. The migration is
+recorded in NVRAM, so a later deliberate user change back to disabled is not
+overwritten on subsequent boots.
+
 ### Optional CPU Numbering Modes
 
 If you also set `ENABLE_CORE_ORDER` to one of the two additional modes below,
