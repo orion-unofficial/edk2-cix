@@ -27,8 +27,9 @@ For O6 and O6N, the practical combinations are:
   the header pins are muxed for UART use instead of GPIO.
 - `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG DEBUG_ON_UART3=true`: firmware
   `DEBUG()` output moves to UART3 and `UART3_ENABLE` is implied automatically.
-- `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG DEBUG_PRINT_ERROR_LEVEL=0x8000004f`:
-  firmware emits additional debug levels without changing the UART route.
+- To emit additional debug levels without changing the UART route, set
+  `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG` and
+  `DEBUG_PRINT_ERROR_LEVEL=0x8000004f`.
 - `ARTEFACT_MODE=custom FIRMWARE_TARGET=RELEASE DEBUG_VERBOSE=true`: RELEASE
   builds re-enable `DEBUG()` logging with a narrow debug-property mask while
   leaving asserts and related low-level debug behaviour disabled.
@@ -77,6 +78,6 @@ under `dist/firmware/<product>/<version>/`.
 For the non-`deb` staged layout and direct UEFI Shell entry points, continue in
 [Build](build.md#build).
 
-If you enable `devenv`, then you can run
-`edk2-install </dev/data_partition>` from the project root as a faster way to
-copy those files to a prepared USB disk.
+If you enable `devenv`, then you can run `edk2-install </dev/data_partition>`
+from the project root as a faster way to copy those files to a prepared USB
+disk.

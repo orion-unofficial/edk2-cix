@@ -1,13 +1,18 @@
 # EDK2-CIX Firmware Build
 
-This branch contains the Makefile, manifests, and scripts used to select source versions and build firmware for the Radxa Orion O6 and O6N boards. The source model combines:
+This branch contains the Makefile, manifests, and scripts used to select source
+versions and build firmware for the Radxa Orion O6 and O6N boards. The source
+model combines:
 
 - upstream bases such as EDK2, TF-A, and OP-TEE
 - Radxa and CIX vendor source layers
 - unofficial project changes
 - generated materialised firmware worktrees that are ready to build
 
-Users who want to build firmware, rather than change the source model, should find that the `make` targets provide the flexibility they need. In this document, a Git "ref" means a name that identifies a commit, such as a branch, tag, or commit ID. Start with:
+Users who want to build firmware, rather than change the source model, should
+find that the `make` targets provide the flexibility they need. In this
+document, a Git "ref" means a name that identifies a commit, such as a branch,
+tag, or commit ID. Start with:
 
 ```bash
 make help
@@ -17,7 +22,14 @@ make help-source-targets
 
 ## How do I build the latest firmware?
 
-The default source target is derived from the latest available supported EDK2 release, CIX release, Radxa release, and unofficial source checkpoint. The supported source-target set is generated from source refs such as `source/base/edk2/**`, `source/vendor/radxa/**`, `source/port/radxa/**`, `source/component/cix/**`, and the source/ref manifests under `config/`. If you do not set `RELEASE=...`, the build targets use that derived default source target. User-facing build and packaging targets use the buildbox by default, so the host does not need an AArch64 firmware toolchain installed.
+The default source target is derived from the latest available supported EDK2
+release, CIX release, Radxa release, and unofficial source checkpoint. The
+supported source-target set is generated from source refs such as
+`source/base/edk2/**`, `source/vendor/radxa/**`, `source/port/radxa/**`,
+`source/component/cix/**`, and the source/ref manifests under `config/`. If you
+do not set `RELEASE=...`, the build targets use that derived default source
+target. User-facing build and packaging targets use the buildbox by default, so
+the host does not need an AArch64 firmware toolchain installed.
 
 For a normal single firmware build, choose the board and build target:
 
@@ -29,12 +41,20 @@ make build FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
 Common variables are:
 
 - `FIRMWARE_BOARD=O6|O6N` selects the board. The default is `O6`.
-- `FIRMWARE_TARGET=RELEASE|DEBUG` selects a release or debug firmware image. The default is `RELEASE`.
-- `RELEASE=<source-target>` selects a configured source target. Leave this unset to use the latest derived source-target.
-- `ARTEFACT_MODE=custom|upstream` selects the build and artefact mode inside the chosen source tree. The default is `custom`.
-- `V=1` enables verbose script and delegated build output. The default, `V=0`, keeps output concise.
+- `FIRMWARE_TARGET=RELEASE|DEBUG` selects a release or debug firmware image.
+  The default is `RELEASE`.
+- `RELEASE=<source-target>` selects a configured source target. Leave this
+  unset to use the latest derived source-target.
+- `ARTEFACT_MODE=custom|upstream` selects the build and artefact mode inside
+  the chosen source tree. The default is `custom`.
+- `V=1` enables verbose script and delegated build output. The default, `V=0`,
+  keeps output concise.
 
-Most users should leave `ARTEFACT_MODE=custom`. It enables the unofficial firmware build switches exposed by this project. `ARTEFACT_MODE=upstream` is for vendor-style comparison or qualification builds; it does not change the selected source target, and it rejects unofficial custom-only feature variables. Use `RELEASE=...` to choose source versions.
+Most users should leave `ARTEFACT_MODE=custom`. It enables the unofficial
+firmware build switches exposed by this project. `ARTEFACT_MODE=upstream` is
+for vendor-style comparison or qualification builds; it does not change the
+selected source target, and it rejects unofficial custom-only feature
+variables. Use `RELEASE=...` to choose source versions.
 
 To stage the deployable payload under `dist/firmware/`, use:
 
@@ -49,30 +69,44 @@ make zip FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE
 make targz FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE
 ```
 
-`make install` builds and stages one selected payload, then checks the selected install root before copying anything. By default it installs under `/boot/efi`; set `INSTALL_ROOT=/boot` or another path if your system uses a different mount point. Existing firmware payload files under `INSTALL_ROOT` are never replaced unless you rerun with `FORCE=1`.
+`make install` builds and stages one selected payload, then checks the selected
+install root before copying anything. By default it installs under `/boot/efi`;
+set `INSTALL_ROOT=/boot` or another path if your system uses a different mount
+point. Existing firmware payload files under `INSTALL_ROOT` are never replaced
+unless you rerun with `FORCE=1`.
 
 ```bash
 make install FIRMWARE_BOARD=O6 INSTALL_ROOT=/boot/efi
 make install FIRMWARE_BOARD=O6 INSTALL_ROOT=/boot/efi FORCE=1
 ```
 
-`make build-all` is for producing a distributable bundle containing all supported firmware build variants for the selected board and source target. Here, a firmware build variant means one output selected by the rendered firmware tree's own build matrix, not a different EDK2/CIX/Radxa source combination. It deliberately ignores most single-image build variables because it chooses that build-output set itself.
+`make build-all` is for producing a distributable bundle containing all
+supported firmware build variants for the selected board and source target.
+Here, a firmware build variant means one output selected by the rendered
+firmware tree's own build matrix, not a different EDK2/CIX/Radxa source
+combination. It deliberately ignores most single-image build variables because
+it chooses that build-output set itself.
 
 ```bash
 make build-all FIRMWARE_BOARD=O6
 ```
 
-Exact-replay comparisons can provide `SIGNING_CERT_SOURCE_DIR=<path>`. This is a maintainer-oriented option documented by `make help-dev`; normal firmware builds do not need it.
+Exact-replay comparisons can provide `SIGNING_CERT_SOURCE_DIR=<path>`. This is
+a maintainer-oriented option documented by `make help-dev`; normal firmware
+builds do not need it.
 
 ## How do I choose EDK2/CIX/Radxa source versions?
 
-A source target selects the combination of EDK2, CIX, Radxa, and unofficial project sources to build. Use `make help-source-targets` to list the configured combinations.
+A source target selects the combination of EDK2, CIX, Radxa, and unofficial
+project sources to build. Use `make help-source-targets` to list the configured
+combinations.
 
 ```bash
 make help-source-targets
 ```
 
-Use the `RELEASE` variable to select one of those combinations. The documented form is the prefixless source-target name shown by `make help-source-targets`:
+Use the `RELEASE` variable to select one of those combinations. The documented
+form is the prefixless source-target name shown by `make help-source-targets`:
 
 ```bash
 make build \
@@ -89,7 +123,11 @@ make build \
   FIRMWARE_BOARD=O6N
 ```
 
-Build targets render or reuse a cached detached worktree. They do not normally create or advance a named `source/cache/release/**` branch, and those branches are treated as disposable caches rather than required source data. If you intentionally want a persistent materialised branch for development, inspection, or CI, set `PERSIST=1` with `make render-release-branch`:
+Build targets render or reuse a cached detached worktree. They do not normally
+create or advance a named `source/cache/release/**` branch, and those branches
+are treated as disposable caches rather than required source data. If you
+intentionally want a persistent materialised branch for development,
+inspection, or CI, set `PERSIST=1` with `make render-release-branch`:
 
 ```bash
 make render-release-branch \
@@ -103,7 +141,8 @@ This creates or verifies:
 source/cache/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/unofficial-1.2.1
 ```
 
-If an explicit unofficial import changes the rendered tree, rebuild and replace the persistent branch deliberately:
+If an explicit unofficial import changes the rendered tree, rebuild and replace
+the persistent branch deliberately:
 
 ```bash
 make render-release-branch \
@@ -111,17 +150,22 @@ make render-release-branch \
   PERSIST=1 REBUILD=1 FORCE=1
 ```
 
-That command also refreshes the source-target tree-ID metadata in `config/refs-source-target-cache.json`.
+That command also refreshes the source-target tree-ID metadata in
+`config/refs-source-target-cache.json`.
 
-A configured build variation is considered supported only when all of its source inputs are recorded locally. At a high level, this means:
+A configured build variation is considered supported only when all of its
+source inputs are recorded locally. At a high level, this means:
 
 - the selected EDK2, `edk2-platforms`, and `edk2-non-osi` base refs are present
 - the Radxa vendor changes are available for that EDK2 release
-- any selected CIX component refs are present under `source/component/cix/<cix-release>/`
+- any selected CIX component refs are present under
+  `source/component/cix/<cix-release>/`
 - the compatible unofficial project source checkpoint is present
-- `source/base/edk2/edk2-stable*` refs declare the supported EDK2 release set from `202208` onward
+- `source/base/edk2/edk2-stable*` refs declare the supported EDK2 release set
+  from `202208` onward
 - the chosen Radxa, CIX, and unofficial source layers are present as repo refs
-- `config/refs-*.json` records the source and rendered tree IDs needed to verify it
+- `config/refs-*.json` records the source and rendered tree IDs needed to
+  verify it
 - the build policy records the relevant distro defaults and replay availability
 
 Run this to check that the derived build matrix and available refs agree:
@@ -132,46 +176,96 @@ make verify-build-matrix
 
 ## How are help listings kept current?
 
-`make help-vars` and `make help-source-targets` read the committed help cache at `config/help-cache.json` so they can return quickly. They do not check whether that cache is stale on every invocation, and they do not rewrite files. If the cache file is missing, the helper regenerates the output in memory and prints a warning telling you to refresh the cache.
+`make help-vars` and `make help-source-targets` read the committed help cache
+at `config/help-cache.json` so they can return quickly. They do not check
+whether that cache is stale on every invocation, and they do not rewrite files.
+If the cache file is missing, the helper regenerates the output in memory and
+prints a warning telling you to refresh the cache.
 
-When changing `Makefile`, `config/`, `scripts/`, or source refs that affect the derived source-target list, refresh and check the cache before committing:
+When changing `Makefile`, `config/`, `scripts/`, or source refs that affect the
+derived source-target list, refresh and check the cache before committing:
 
 ```bash
 make refresh-help-cache
 make check-help-cache
 ```
 
-`make test` also runs `make check-help-cache`, so CI catches stale committed cache data. This repository does not install or rely on a Git pre-commit hook for this; keeping the cache current is an explicit maintainer step enforced by tests.
+`make test` also runs `make check-help-cache`, so CI catches stale committed
+cache data. This repository does not install or rely on a Git pre-commit hook
+for this; keeping the cache current is an explicit maintainer step enforced by
+tests.
 
 ## How are source layers represented?
 
-The firmware tree is built from several layers rather than from one permanent monolithic branch.
+The firmware tree is built from several layers rather than from one permanent
+monolithic branch.
 
-`source/base/**` branches contain upstream sources, such as EDK2, TF-A, and OP-TEE, at recorded versions. For EDK2 releases, the separate upstream `edk2`, `edk2-platforms`, and `edk2-non-osi` repos are combined into generated `source/cache/base/edk2/**` skeleton caches when needed. Those cache refs are not required source data when `config/refs-edk2.json` and the referenced component refs are present. The base-cache tree IDs are derived from that EDK2 ref metadata rather than stored in a separate manifest.
+`source/base/**` branches contain upstream sources, such as EDK2, TF-A, and
+OP-TEE, at recorded versions. For EDK2 releases, the separate upstream `edk2`,
+`edk2-platforms`, and `edk2-non-osi` repos are combined into generated
+`source/cache/base/edk2/**` skeleton caches when needed. Those cache refs are
+not required source data when `config/refs-edk2.json` and the referenced
+component refs are present. The base-cache tree IDs are derived from that EDK2
+ref metadata rather than stored in a separate manifest.
 
-`source/component/cix/**` branches contain CIX-provided components. CIX publishes OP-TEE under a `tee` directory, but this source model records that component as `op-tee`.
+`source/component/cix/**` branches contain CIX-provided components. CIX
+publishes OP-TEE under a `tee` directory, but this source model records that
+component as `op-tee`.
 
-`source/vendor/radxa/**` branches contain source trees actually published by Radxa for a recorded EDK2 base. `source/port/radxa/**` branches contain this project's deterministic ports of a Radxa release to later EDK2 bases. For example, Radxa `1.2.1` was published on `edk2-stable202208`, while `source/port/radxa/1.2.1/edk2-stable202602` records the same vendor intent ported forward to EDK2 `202602`.
+`source/vendor/radxa/**` branches contain source trees actually published by
+Radxa for a recorded EDK2 base. `source/port/radxa/**` branches contain this
+project's deterministic ports of a Radxa release to later EDK2 bases. For
+example, Radxa `1.2.1` was published on `edk2-stable202208`, while
+`source/port/radxa/1.2.1/edk2-stable202602` records the same vendor intent
+ported forward to EDK2 `202602`.
 
-`source/unofficial/**` branches contain this project's unofficial firmware changes as normal source trees. Release-specific branches such as `source/unofficial/edk2-stable202602` are compatibility checkpoints known to build with a selected EDK2 release. `source/unofficial/current` is the current development checkpoint.
+`source/unofficial/**` branches contain this project's unofficial firmware
+changes as normal source trees. Release-specific branches such as
+`source/unofficial/edk2-stable202602` are compatibility checkpoints known to
+build with a selected EDK2 release. `source/unofficial/current` is the current
+development checkpoint.
 
-Render plans are derived from the selected source target name and available source refs, then verified against the ref metadata in `config/`.
+Render plans are derived from the selected source target name and available
+source refs, then verified against the ref metadata in `config/`.
 
-Render plans can also include an explicit `materialise_submodules` step. If any gitlinks remain after all configured steps have run, the renderer attempts recursive submodule materialisation automatically using the nearest recorded `.gitmodules` mapping and writes a submodule report under `.cache/edk2-cix/reports/`. That report is mainly a diagnostic and audit aid: it records which submodule paths were flattened, which commit IDs were used, which URL was recorded for each submodule, and which `.gitmodules` file supplied that mapping. You can usually ignore it when a build succeeds, but it is useful when checking that a rendered branch contains ordinary files rather than active submodules.
+Render plans can also include an explicit `materialise_submodules` step. If any
+gitlinks remain after all configured steps have run, the renderer attempts
+recursive submodule materialisation automatically using the nearest recorded
+`.gitmodules` mapping and writes a submodule report under
+`.cache/edk2-cix/reports/`. That report is mainly a diagnostic and audit aid:
+it records which submodule paths were flattened, which commit IDs were used,
+which URL was recorded for each submodule, and which `.gitmodules` file
+supplied that mapping. You can usually ignore it when a build succeeds, but it
+is useful when checking that a rendered branch contains ordinary files rather
+than active submodules.
 
-`source/cache/release/**` branches are materialised firmware branches. They are generated from the base, component, vendor, and unofficial layers. They are convenient to inspect or build, but they are not required source inputs: this repository treats them as caches, and a checkout may omit them and regenerate the selected source target from the recorded source layers and manifests.
+`source/cache/release/**` branches are materialised firmware branches. They are
+generated from the base, component, vendor, and unofficial layers. They are
+convenient to inspect or build, but they are not required source inputs: this
+repository treats them as caches, and a checkout may omit them and regenerate
+the selected source target from the recorded source layers and manifests.
 
-Generated Git cache branches always live under `source/cache/**`. Use `make prune` to report cache branches that are safe to remove, and `make prune DELETE=1` to delete only verified cache branches. Use `make clean` to remove stale transient filesystem caches, such as detached worktrees whose source tree no longer matches the current manifests. Use `make realclean` to remove all transient filesystem caches. Neither target deletes Git refs.
+Generated Git cache branches always live under `source/cache/**`. Use the
+`make prune` target to report cache branches that are safe to remove, and
+`make prune DELETE=1` to delete only verified cache branches. Use `make clean`
+to remove stale transient filesystem caches, such as detached worktrees whose
+source tree no longer matches the current manifests. Use `make realclean` to
+remove all transient filesystem caches. Neither target deletes Git refs.
 
-The source-target tree-ID manifest records canonical rendered trees. Versioned unofficial aliases, such as `/unofficial-1.2.1`, are derived from the matching canonical `/unofficial` source target for the same EDK2/CIX/Radxa combination, and must always resolve to the same tree.
+The source-target tree-ID manifest records canonical rendered trees. Versioned
+unofficial aliases, such as `/unofficial-1.2.1`, are derived from the matching
+canonical `/unofficial` source target for the same EDK2/CIX/Radxa combination,
+and must always resolve to the same tree.
 
 ## How do I start developing on this codebase?
 
-1. Choose the source target you want to develop against with `make help-source-targets`.
+1. Choose the source target you want to develop against by running
+   `make help-source-targets`.
 2. Materialise that source target.
 3. Create a normal topic branch from the materialised firmware branch.
 4. Build and test your change.
-5. Import the finished change back through `source/unofficial/current` with `make import-changes`.
+5. Import the finished change back through `source/unofficial/current` with
+   `make import-changes`.
 
 Example:
 
@@ -182,11 +276,19 @@ make render-release-branch \
 git switch -c my-change source/cache/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/unofficial
 ```
 
-The supported workflows guard `source/base/**`, `source/vendor/**`, `source/port/**`, and `source/component/cix/**` refs by comparing them against the expected object IDs and tree IDs in `config/refs-*.json`. Git itself does not make those branch names immutable, so do not edit or move them by hand. If a guarded ref moved unexpectedly, or is checked out in a dirty worktree, the scripts abort before using it. Only `make integrate-source-release` should create or advance those refs.
+The supported workflows guard `source/base/**`, `source/vendor/**`,
+`source/port/**`, and `source/component/cix/**` refs by comparing them against
+the expected object IDs and tree IDs in `config/refs-*.json`. Git itself does
+not make those branch names immutable, so do not edit or move them by hand. If
+a guarded ref moved unexpectedly, or is checked out in a dirty worktree, the
+scripts abort before using it. Only `make integrate-source-release` should
+create or advance those refs.
 
 ## How do I persist development changes back to `source/unofficial/current`?
 
-Unofficial development changes are imported explicitly. Ordinary build and render targets never rewrite `source/unofficial/current` or release-specific `source/unofficial/edk2-stable*` checkpoints.
+Unofficial development changes are imported explicitly. Ordinary build and
+render targets never rewrite `source/unofficial/current` or release-specific
+`source/unofficial/edk2-stable*` checkpoints.
 
 The import and render tools also enforce shared source-tree policy checks. In
 particular, files under `custom/overlay/` that are byte-identical to their
@@ -205,19 +307,28 @@ was renamed or removed in another checkpoint. By default,
 fix-ups: exact object renames are retargeted, mirror symlinks for source files
 that do not exist in an older checkpoint are dropped, and ambiguous cases fail
 before any permanent ref moves. Set `SOURCE_LIFECYCLE_NORMALISE=validate` to
-see where a rewrite would be needed without changing scratch trees, `mirror`
-to allow only mirror-symlink fix-ups, or `off` to disable this layer.
+see where a rewrite would be needed without changing scratch trees, `mirror` to
+allow only mirror-symlink fix-ups, or `off` to disable this layer.
 
-Use `make import-changes` when the change was made on a materialised `source/cache/**` branch, on a branch derived from a materialised source tree, on a legacy source branch, or on any other broader tree. This is the normal path after following the development example above. The importer finds the source tree before the intended change, extracts only that diff, applies the patch to `source/unofficial/current` in a scratch tree, and updates the real source ref only after the patch applies cleanly.
+Use `make import-changes` when the change was made on a materialised
+`source/cache/**` branch, on a branch derived from a materialised source tree,
+on a legacy source branch, or on any other broader tree. This is the normal
+path after following the development example above. The importer finds the
+source tree before the intended change, extracts only that diff, applies the
+patch to `source/unofficial/current` in a scratch tree, and updates the real
+source ref only after the patch applies cleanly.
 
-For a topic branch created from a persistent materialised cache branch, a retained source branch, or another unique retained fork point, the base is inferred:
+For a topic branch created from a persistent materialised cache branch, a
+retained source branch, or another unique retained fork point, the base is
+inferred:
 
 ```bash
 make import-changes \
   FROM_REF=my-change
 ```
 
-If the dry run reports the expected base, changed paths, and update target, re-run with `WRITE=1`:
+If the dry run reports the expected base, changed paths, and update target,
+re-run with `WRITE=1`:
 
 ```bash
 make import-changes \
@@ -225,7 +336,8 @@ make import-changes \
   WRITE=1
 ```
 
-For a branch whose base cannot be inferred unambiguously, provide the source tree before the intended change:
+For a branch whose base cannot be inferred unambiguously, provide the source
+tree before the intended change:
 
 ```bash
 make import-changes \
@@ -234,7 +346,8 @@ make import-changes \
   WRITE=1
 ```
 
-To apply the extracted change to every release-specific checkpoint, ask the importer to propagate it:
+To apply the extracted change to every release-specific checkpoint, ask the
+importer to propagate it:
 
 ```bash
 make import-changes \
@@ -244,7 +357,9 @@ make import-changes \
   WRITE=1
 ```
 
-If one target conflicts, no `source/unofficial/**` branch or compatibility tag is updated. Resolve the conflicts in the scratch tree printed by the command, then continue:
+If one target conflicts, no `source/unofficial/**` branch or compatibility tag
+is updated. Resolve the conflicts in the scratch tree printed by the command,
+then continue:
 
 ```bash
 make import-changes CONTINUE=1 OP_ID=<operation-id> WRITE=1
@@ -256,7 +371,11 @@ Or abort without moving refs:
 make import-changes ABORT=1 OP_ID=<operation-id>
 ```
 
-Use `make import-unofficial-commits` only when `FROM_REF` is already a topic branch based directly on the `source/unofficial/**` branch being updated. This tool advances or replays already-compatible unofficial commits; it deliberately rejects generated `source/cache/**` refs and topics based on materialised cache refs.
+Use `make import-unofficial-commits` only when `FROM_REF` is already a topic
+branch based directly on the `source/unofficial/**` branch being updated. This
+tool advances or replays already-compatible unofficial commits; it deliberately
+rejects generated `source/cache/**` refs and topics based on materialised cache
+refs.
 
 Dry run an already-unofficial-based topic first:
 
@@ -313,23 +432,49 @@ make import-unofficial-commits ABORT=1 OP_ID=<operation-id>
 The key variables are:
 
 - `FROM_REF` is the topic branch or commit containing your finished change.
-- `BASE_REF` is the source tree before the intended change. `make import-changes` infers this for topics based on a unique `source/cache/**` branch, `source/unofficial/current`, or retained branch fork point. Pass it explicitly only when the importer reports ambiguity or cannot find the intended base.
-- `SOURCE_UNOFFICIAL_REF` is the full unofficial source branch to update. It defaults to `source/unofficial/current` and must stay under `source/unofficial/`.
-- `PROPAGATE_CHECKPOINTS=all` replays or applies the imported change onto every `source/unofficial/edk2-stable*` checkpoint.
-- `UPDATE_COMPAT_TAGS=1` moves the matching `source/unofficial/edk2/stable-*` tags after every replay has succeeded.
-- `SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact` controls deterministic overlay path normalisation while propagating changes across EDK2 checkpoints. The default is `exact`.
-- `COMMIT_MESSAGE` sets the commit message used by `make import-changes`. If it is omitted, the importer derives a message from `FROM_REF`.
+- `BASE_REF` is the source tree before the intended change.
+  `make import-changes` infers this for topics based on a unique
+  `source/cache/**` branch, `source/unofficial/current`, or retained branch
+  fork point. Pass it explicitly only when the importer reports ambiguity or
+  cannot find the intended base.
+- `SOURCE_UNOFFICIAL_REF` is the full unofficial source branch to update. It
+  defaults to `source/unofficial/current` and must stay under
+  `source/unofficial/`.
+- `PROPAGATE_CHECKPOINTS=all` replays or applies the imported change onto every
+  `source/unofficial/edk2-stable*` checkpoint.
+- `UPDATE_COMPAT_TAGS=1` moves the matching `source/unofficial/edk2/stable-*`
+  tags after every replay has succeeded.
+- `SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact` controls deterministic
+  overlay path normalisation while propagating changes across EDK2 checkpoints.
+  The default is `exact`.
+- `COMMIT_MESSAGE` sets the commit message used by `make import-changes`. If it
+  is omitted, the importer derives a message from `FROM_REF`.
 
-For each supported EDK2 release, the repo keeps two related records of the unofficial project changes:
+For each supported EDK2 release, the repo keeps two related records of the
+unofficial project changes:
 
-- an unofficial source checkpoint, such as `source/unofficial/edk2-stable202602`, which is a normal source branch known to apply cleanly to that EDK2 release
-- an unofficial checkpoint tag, such as `source/unofficial/edk2/stable-202602`, which marks the commit known to apply to that EDK2 release without colliding with the branch name
+- an unofficial source checkpoint, such as
+  `source/unofficial/edk2-stable202602`, which is a normal source branch known
+  to apply cleanly to that EDK2 release
+- an unofficial checkpoint tag, such as `source/unofficial/edk2/stable-202602`,
+  which marks the commit known to apply to that EDK2 release without colliding
+  with the branch name
 
-Here, an EDK2 release means the upstream EDK2 code together with its matching `edk2-platforms` and `edk2-non-osi` companion sources. Some unofficial changes apply unchanged across several EDK2 releases; others need small adjustments because upstream files moved or changed.
+Here, an EDK2 release means the upstream EDK2 code together with its matching
+`edk2-platforms` and `edk2-non-osi` companion sources. Some unofficial changes
+apply unchanged across several EDK2 releases; others need small adjustments
+because upstream files moved or changed.
 
-For example, if the same unofficial source commit works on both `edk2-stable202502` and `edk2-stable202505`, both checkpoint tags may point at that commit. If `edk2-stable202508` needs an extra adjustment, the importer pauses at that checkpoint and lets you resolve the release-specific conflict before it updates any branch or tag.
+For example, if the same unofficial source commit works on both
+`edk2-stable202502` and `edk2-stable202505`, both checkpoint tags may point at
+that commit. If `edk2-stable202508` needs an extra adjustment, the importer
+pauses at that checkpoint and lets you resolve the release-specific conflict
+before it updates any branch or tag.
 
-Checkpoint tags must remain reachable from retained `source/unofficial/**` branches, rather than becoming tag-only orphan commits. The tags deliberately use the non-colliding `source/unofficial/edk2/stable-*` namespace while the matching branches use `source/unofficial/edk2-stable*`.
+Checkpoint tags must remain reachable from retained `source/unofficial/**`
+branches, rather than becoming tag-only orphan commits. The tags deliberately
+use the non-colliding `source/unofficial/edk2/stable-*` namespace while the
+matching branches use `source/unofficial/edk2-stable*`.
 
 `FROM_REF=source/unofficial/current` and
 `FROM_REF=source/unofficial/edk2-stable*` are rejected for propagation by
@@ -339,7 +484,8 @@ but ordinary development should not need this escape hatch.
 
 ## How do I update upstream EDK2, Arm TF-A, OP-TEE, CIX, or Radxa sources?
 
-Use `make integrate-source-release`. Without `WRITE=1`, it validates arguments and prints the refs it would create.
+Use `make integrate-source-release`. Without `WRITE=1`, it validates arguments
+and prints the refs it would create.
 
 Examples:
 
@@ -351,11 +497,20 @@ make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=e
 make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202602 RADXA_SOURCE=port REF=<ported-ref>
 ```
 
-When the dry run is correct, add `WRITE=1`. The same change updates `config/refs-*.json` with the new object IDs and tree IDs before being committed.
+When the dry run is correct, add `WRITE=1`. The same change updates
+`config/refs-*.json` with the new object IDs and tree IDs before being
+committed.
 
-`TYPE=upstream` is for base components: `edk2`, `edk2-platforms`, `edk2-non-osi`, `tf-a`, or `op-tee`. `TYPE=vendor` is for a vendor integration target. `VENDOR=radxa` records an actual Radxa-published source tree under `source/vendor/radxa/**` or this project's port of that source tree under `source/port/radxa/**`. `VENDOR=cix` updates the CIX release bundle, whose TF-A and OP-TEE contents are tracked as separate internal components so future Arm-upstream uplifts remain possible.
+`TYPE=upstream` is for base components: `edk2`, `edk2-platforms`,
+`edk2-non-osi`, `tf-a`, or `op-tee`. `TYPE=vendor` is for a vendor integration
+target. `VENDOR=radxa` records an actual Radxa-published source tree under
+`source/vendor/radxa/**` or this project's port of that source tree under
+`source/port/radxa/**`. `VENDOR=cix` updates the CIX release bundle, whose TF-A
+and OP-TEE contents are tracked as separate internal components so future
+Arm-upstream uplifts remain possible.
 
-The CIX bundle records original vendor provenance. To start an experimental uplift of one CIX component to a newer Arm upstream:
+The CIX bundle records original vendor provenance. To start an experimental
+uplift of one CIX component to a newer Arm upstream:
 
 1. Integrate the Arm base you want to try:
 
@@ -364,8 +519,10 @@ The CIX bundle records original vendor provenance. To start an experimental upli
    make integrate-source-release TYPE=upstream COMPONENT=op-tee RELEASE=4.4.0 WRITE=1
    ```
 
-2. Create a normal topic branch from the selected Arm base and port the CIX component changes onto it.
-3. When the port builds and has been reviewed, record the resulting component ref:
+2. Create a normal topic branch from the selected Arm base and port the CIX
+   component changes onto it.
+3. When the port builds and has been reviewed, record the resulting component
+   ref:
 
    ```bash
    make integrate-source-release \
@@ -374,13 +531,23 @@ The CIX bundle records original vendor provenance. To start an experimental upli
      REF=<ported-tf-a-ref> WRITE=1
    ```
 
-   The recorded ref is `source/component/cix/1.2/tf-a/v2.12`. Use `COMPONENT=op-tee ARM_BASE=4.4.0` for OP-TEE.
+   The recorded ref is `source/component/cix/1.2/tf-a/v2.12`. Use
+   `COMPONENT=op-tee ARM_BASE=4.4.0` for OP-TEE.
 
-4. Record any additional source refs or metadata needed for the derived source-target list to select the uplifted component ref, render the resulting source target, and run the same build/audit qualification used for EDK2 releases.
+4. Record any additional source refs or metadata needed for the derived
+   source-target list to select the uplifted component ref, render the
+   resulting source target, and run the same build/audit qualification used for
+   EDK2 releases.
 
-The component port itself is intentionally a source-level engineering step rather than an automatic patch replay. The deterministic part starts once the reviewed component ref is recorded in `source/component/cix/**` and `config/refs-cix.json`.
+The component port itself is intentionally a source-level engineering step
+rather than an automatic patch replay. The deterministic part starts once the
+reviewed component ref is recorded in `source/component/cix/**` and
+`config/refs-cix.json`.
 
-Radxa non-release updates use the same vendor integration path. First update or fetch the vendor source branch into a local ref, then give the source checkpoint a release-like name that records the most recent release plus the vendor commit, for example:
+Radxa non-release updates use the same vendor integration path. First update or
+fetch the vendor source branch into a local ref, then give the source
+checkpoint a release-like name that records the most recent release plus the
+vendor commit, for example:
 
 ```bash
 make integrate-source-release \
@@ -390,21 +557,34 @@ make integrate-source-release \
   REF=main
 ```
 
-For Radxa vendor refs, `MATERIALISE=1` is the default. This recursively flattens a submodule-shaped vendor source ref before the `source/vendor/radxa/**` or `source/port/radxa/**` source ref is recorded, so the retained source tree contains ordinary file content rather than gitlinks.
+For Radxa vendor refs, `MATERIALISE=1` is the default. This recursively
+flattens a submodule-shaped vendor source ref before the
+`source/vendor/radxa/**` or `source/port/radxa/**` source ref is recorded, so
+the retained source tree contains ordinary file content rather than gitlinks.
 
-Vendor CI workflow changes are handled separately from firmware source changes. The build branch has its own GitHub Actions workflows, so upstream Radxa `.github/workflows` files are not executed directly here. Run this check after integrating any new Radxa vendor source ref:
+Vendor CI workflow changes are handled separately from firmware source changes.
+The build branch has its own GitHub Actions workflows, so upstream Radxa
+`.github/workflows` files are not executed directly here. Run this check after
+integrating any new Radxa vendor source ref:
 
 ```bash
 make check-vendor-workflow-drift
 ```
 
-If it fails, inspect the changed vendor workflow files and port any relevant intent to `.github/workflows/` on this branch before updating `config/vendor-workflow-baseline.json`. This keeps vendor CI changes visible without inheriting vendor workflows that assume the old submodule-based `main` branch layout.
+If it fails, inspect the changed vendor workflow files and port any relevant
+intent to `.github/workflows/` on this branch before updating
+`config/vendor-workflow-baseline.json`. This keeps vendor CI changes visible
+without inheriting vendor workflows that assume the old submodule-based `main`
+branch layout.
 
 After adding source refs for a new supported EDK2 release:
 
 1. Integrate the required source refs with `make integrate-source-release`.
 
-   At minimum this means the upstream `edk2` base ref and the selected companion `edk2-platforms` and `edk2-non-osi` refs. Once `source/base/edk2/<edk2-release>` exists, the release is discoverable; there is no separate release-list file to update.
+   At minimum this means the upstream `edk2` base ref and the selected
+   companion `edk2-platforms` and `edk2-non-osi` refs. Once
+   `source/base/edk2/<edk2-release>` exists, the release is discoverable; there
+   is no separate release-list file to update.
 
 2. Generate the source target once and refresh its recorded tree ID:
 
@@ -414,28 +594,41 @@ After adding source refs for a new supported EDK2 release:
      PERSIST=1 REBUILD=1 FORCE=1
    ```
 
-3. Run `make verify-build-matrix` to confirm the derived matrix, source-target manifest, refs, aliases, and tree IDs agree.
-4. Run the normal build/audit qualification for the new source target before publishing it.
+3. Run `make verify-build-matrix` to confirm the derived matrix, source-target
+   manifest, refs, aliases, and tree IDs agree.
+4. Run the normal build/audit qualification for the new source target before
+   publishing it.
 
-The persistent `source/cache/release/**` branch created in step 2 is a cache. Once the tree ID has been recorded and validation passes, it may be deleted without losing the ability to regenerate the source target.
+The persistent `source/cache/release/**` branch created in step 2 is a cache.
+Once the tree ID has been recorded and validation passes, it may be deleted
+without losing the ability to regenerate the source target.
 
-`make help-source-targets` lists source targets derived from the available EDK2, Radxa, CIX, and unofficial refs.
+`make help-source-targets` lists source targets derived from the available
+EDK2, Radxa, CIX, and unofficial refs.
 
-To create a smaller bare repository containing only the build branch plus the non-cache source refs and tags required for deterministic reconstruction, use:
+To create a smaller bare repository containing only the build branch plus the
+non-cache source refs and tags required for deterministic reconstruction, use:
 
 ```bash
 make create-minimised-clone DIR=/path/to/edk2-cix.minimal.git
 ```
 
-The destination directory must be empty or absent. Generated `source/cache/**`, legacy, private, and diagnostic branches are omitted from the export. The exported repository's default branch/`HEAD` is set to `build`, so a normal clone checks out the firmware build interface rather than an unborn or legacy branch.
+The destination directory must be empty or absent. Generated `source/cache/**`,
+legacy, private, and diagnostic branches are omitted from the export. The
+exported repository's default branch/`HEAD` is set to `build`, so a normal
+clone checks out the firmware build interface rather than an unborn or legacy
+branch.
 
-To prove that a minimised export can be cloned normally, validated, and used to render the default source target, run:
+To prove that a minimised export can be cloned normally, validated, and used to
+render the default source target, run:
 
 ```bash
 make verify-minimised-clone
 ```
 
-This creates a temporary verification workspace under `.cache/edk2-cix/tmp` and removes it when the check completes. Set `KEEP=1` to retain that workspace for inspection, or `DIR=<path>` to choose an explicit workspace directory.
+This creates a temporary verification workspace under `.cache/edk2-cix/tmp` and
+removes it when the check completes. Set `KEEP=1` to retain that workspace for
+inspection, or `DIR=<path>` to choose an explicit workspace directory.
 
 ## How do I project `source/unofficial/current` to a materialised firmware branch?
 
@@ -454,49 +647,86 @@ make verify-release-branch \
   RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/unofficial
 ```
 
-Materialised refs are generated mechanically from `source/base/**`, `source/vendor/**`, `source/port/**`, `source/component/**`, and `source/unofficial/**` compatibility checkpoints. They may be stored as `source/cache/release/**` branches for convenience, but ordinary build and validation targets regenerate them when those branches are absent.
+Materialised refs are generated mechanically from `source/base/**`,
+`source/vendor/**`, `source/port/**`, `source/component/**`, and
+`source/unofficial/**` compatibility checkpoints. They may be stored as
+`source/cache/release/**` branches for convenience, but ordinary build and
+validation targets regenerate them when those branches are absent.
 
 ## How do I test a floating upstream tip instead of the latest release?
 
-Integrate the upstream component using an explicit `REF` or a release-like name chosen for the experiment, then render a test source-target branch that references it.
+Integrate the upstream component using an explicit `REF` or a release-like name
+chosen for the experiment, then render a test source-target branch that
+references it.
 
 ```bash
 make integrate-source-release TYPE=upstream COMPONENT=edk2 REF=<upstream-object> RELEASE=floating-test WRITE=1
 ```
 
-Floating-tip tests should use clearly named experimental refs and should not replace stable `source/base/**` refs until the release mapping and validation results are recorded in `config/`.
+Floating-tip tests should use clearly named experimental refs and should not
+replace stable `source/base/**` refs until the release mapping and validation
+results are recorded in `config/`.
 
 ## How do I work when an upstream remote is unavailable?
 
-Ordinary builds do not require GitHub or any external upstream/vendor remote when the required source refs and manifests are present in this repository clone.
+Ordinary builds do not require GitHub or any external upstream/vendor remote
+when the required source refs and manifests are present in this repository
+clone.
 
 The fallback order is:
 
 1. Use a generated `source/cache/release/**` cache if it exists.
 2. Regenerate the selected source target from source refs and manifests.
-3. For source integration only, contact the external upstream/vendor remote if required objects are missing.
+3. For source integration only, contact the external upstream/vendor remote if
+   required objects are missing.
 4. Fail only if required source data is unavailable locally and remotely.
 
-There is no separate offline mode flag. The scripts try to proceed from local data first and warn or fail only when missing objects make the requested operation impossible.
+There is no separate offline mode flag. The scripts try to proceed from local
+data first and warn or fail only when missing objects make the requested
+operation impossible.
 
 ## How does CI work?
 
 The build branch carries its own workflows under `.github/workflows/`:
 
-- `Build branch CI` fetches the required `source/**` refs, runs `make test`, and runs `make lint`.
-- `Firmware build` is a manual workflow for rendering and building one selected source target, or for running `build-all`.
-- `Deterministic replay` renders the replay-capable EDK2 `202208` unofficial source target, downloads the latest Radxa release package, and checks that the upstream-path rebuild still matches the published payload for O6 and O6N.
-- `Secure Boot audit` renders the selected custom source target, checks the pinned Microsoft Secure Boot payload metadata and release version, then builds and validates the embedded Secure Boot defaults for O6 and O6N.
-- `Upstream versions` checks whether recorded EDK2, Radxa, CIX, Arm TF-A, OP-TEE, and Microsoft Secure Boot source inputs lag their external remotes.
-- `Build documentation` builds the mdBook product documentation from `docs/` and uploads the GitHub Pages artefact.
+- `Build branch CI` fetches the required `source/**` refs, runs `make test`,
+  and runs `make lint`.
+- `Firmware build` is a manual workflow for rendering and building one selected
+  source target, or for running `build-all`.
+- `Deterministic replay` renders the replay-capable EDK2 `202208` unofficial
+  source target, downloads the latest Radxa release package, and checks that
+  the upstream-path rebuild still matches the published payload for O6 and O6N.
+- `Secure Boot audit` renders the selected custom source target, checks the
+  pinned Microsoft Secure Boot payload metadata and release version, then
+  builds and validates the embedded Secure Boot defaults for O6 and O6N.
+- `Upstream versions` checks whether recorded EDK2, Radxa, CIX, Arm TF-A,
+  OP-TEE, and Microsoft Secure Boot source inputs lag their external remotes.
+- `Build documentation` builds the mdBook product documentation from `docs/`
+  and uploads the GitHub Pages artefact.
 
-The lint suite checks JSON, YAML, Markdown, shell scripts, and Python scripts in the build branch using the same `make lint` target available locally. Dependabot is configured for GitHub Actions updates on the repository default branch. If a minimised clone is pushed as its own repository, that default branch should be `build`.
+The lint suite checks JSON, YAML, Markdown, shell scripts, and Python scripts
+in the build branch using the same `make lint` target available locally.
+Dependabot is configured for GitHub Actions updates on the repository default
+branch. If a minimised clone is pushed as its own repository, that default
+branch should be `build`.
 
-The build branch is the CI control plane. Workflows may render and test a selected firmware tree, but the workflow logic itself lives here rather than inside `source/unofficial/**`. Keeping CI here makes it visible from the default branch, avoids hidden behaviour in rendered source trees, and keeps vendor workflow changes reviewable as source inputs rather than executable policy.
+The build branch is the CI control plane. Workflows may render and test a
+selected firmware tree, but the workflow logic itself lives here rather than
+inside `source/unofficial/**`. Keeping CI here makes it visible from the
+default branch, avoids hidden behaviour in rendered source trees, and keeps
+vendor workflow changes reviewable as source inputs rather than executable
+policy.
 
-The inherited Radxa `main` workflows are retained as vendor source data under `source/vendor/radxa/**`, but they are not run by this branch. Vendor packaging, release, and linked-issue workflows assume Radxa's upstream repository process and are not useful for normal firmware builds here. `make check-vendor-workflow-drift` detects changes to those vendor workflow files so the build branch workflows can be reviewed and updated deliberately.
+The inherited Radxa `main` workflows are retained as vendor source data under
+`source/vendor/radxa/**`, but they are not run by this branch. Vendor
+packaging, release, and linked-issue workflows assume Radxa's upstream
+repository process and are not useful for normal firmware builds here.
+`make check-vendor-workflow-drift` detects changes to those vendor workflow
+files so the build branch workflows can be reviewed and updated deliberately.
 
-Product documentation is kept under `docs/` so documentation-specific `book.toml`, `theme/`, `devenv*`, and helper scripts do not clutter the build-branch root. Build it with:
+Product documentation is kept under `docs/` so documentation-specific
+`book.toml`, `theme/`, `devenv*`, and helper scripts do not clutter the
+build-branch root. Build it with:
 
 ```bash
 make docs-build
@@ -511,7 +741,13 @@ make check-upstream-versions UPSTREAM_VERSION_ONLY=edk2,radxa
 make check-upstream-versions UPSTREAM_VERSION_ONLY=edk2:release
 ```
 
-Each source reports release-tag freshness separately from branch-head commit drift. Tagged release drift is the important signal for most sources. Branch-head drift is usually advisory because unreleased commits may be noisy or transient. The scheduled GitHub Actions workflow runs in `policy` mode. In that mode, stale checks marked `strict` in `config/upstream-versions.json` fail the workflow, while advisory checks report warnings without failing. Use `UPSTREAM_VERSION_MODE=strict` when you want any stale source to fail.
+Each source reports release-tag freshness separately from branch-head commit
+drift. Tagged release drift is the important signal for most sources.
+Branch-head drift is usually advisory because unreleased commits may be noisy
+or transient. The scheduled GitHub Actions workflow runs in `policy` mode. In
+that mode, stale checks marked `strict` in `config/upstream-versions.json` fail
+the workflow, while advisory checks report warnings without failing. Use
+`UPSTREAM_VERSION_MODE=strict` when you want any stale source to fail.
 
 To try GitHub Actions locally with `act`:
 
@@ -521,11 +757,15 @@ make gha-act-dry-run ACT_WORKFLOW=.github/workflows/upstream-versions.yaml
 make gha-act-run ACT_WORKFLOW=.github/workflows/upstream-versions.yaml ACT_JOB=upstream-versions
 ```
 
-The wrapper downloads a pinned `act` binary into `.cache/edk2-cix/tools/act/`, verifies the release checksum, and stores `act` cache data under `.cache/edk2-cix/act-cache/`.
+The wrapper downloads a pinned `act` binary into `.cache/edk2-cix/tools/act/`,
+verifies the release checksum, and stores `act` cache data under
+`.cache/edk2-cix/act-cache/`.
 
 ## Validation checklist
 
-For normal firmware building, the build target itself performs the necessary preflight checks. When changing source refs, source-target manifests, or materialised branches, run:
+For normal firmware building, the build target itself performs the necessary
+preflight checks. When changing source refs, source-target manifests, or
+materialised branches, run:
 
 ```bash
 make test
@@ -541,7 +781,9 @@ make check-vendor-workflow-drift
 make ref-report
 ```
 
-If any of those changes affect help or source-target output, run `make refresh-help-cache` first so `make check-help-cache` validates the updated cache rather than the previous one.
+If any of those changes affect help or source-target output, run
+`make refresh-help-cache` first so `make check-help-cache` validates the
+updated cache rather than the previous one.
 
 For a materialised branch, also run:
 

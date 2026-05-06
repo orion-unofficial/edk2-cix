@@ -4,8 +4,8 @@ This document lists the firmware-visible fixes and enhancements available in
 unofficial firmware builds from `source/unofficial/current`.
 
 The table focuses on changes that affect the firmware image or the behaviour it
-exposes to the operating system, setup UI, or shipped payload. The commit column
-gives a starting point for deeper investigation.
+exposes to the operating system, setup UI, or shipped payload. The commit
+column gives a starting point for deeper investigation.
 
 Except where the table says otherwise, entries require `ARTEFACT_MODE=custom`.
 The additional gate column lists any other `make` variables needed.

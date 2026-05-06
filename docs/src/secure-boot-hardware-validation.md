@@ -77,8 +77,7 @@ Recommended flow:
 3. Enable Secure Boot if the platform requires that setting to transition into
    User Mode.
 4. Reboot once.
-5. Re-enter setup or a UEFI shell and confirm the platform is now in User
-   Mode.
+5. Re-enter setup or a UEFI shell and confirm the platform is now in User Mode.
 
 Expected result:
 
@@ -136,8 +135,8 @@ If the shim binary is blocked:
    enrollment
 2. re-run `validate-secure-boot-defaults-<board>` on the exact firmware image
    that was flashed
-3. confirm the board is running the `custom` firmware rather than an
-   `upstream` build
+3. confirm the board is running the `custom` firmware rather than an `upstream`
+   build
 
 ## Test 4: Windows Boot With Secure Boot Enabled
 

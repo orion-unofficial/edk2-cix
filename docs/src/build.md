@@ -49,10 +49,10 @@ make targz FIRMWARE_BOARD=O6
 ```
 
 `make build-all` is intended for maintainers producing a complete distributable
-bundle of all supported firmware build variants for one board and source target.
-Here, a firmware build variant is one output selected by the rendered firmware
-tree's own build matrix, not a different EDK2/CIX/Radxa source combination. It
-is broader than most single-user builds.
+bundle of all supported firmware build variants for one board and source
+target. Here, a firmware build variant is one output selected by the rendered
+firmware tree's own build matrix, not a different EDK2/CIX/Radxa source
+combination. It is broader than most single-user builds.
 
 ## Install A Built Payload
 
@@ -71,8 +71,8 @@ Set `INSTALL_ROOT=/boot` or another mount point if your system does not use
 ## Build Modes
 
 `ARTEFACT_MODE=custom` is the normal mode for this project. It permits the
-unofficial feature switches and source overlays carried by the selected
-source target.
+unofficial feature switches and source overlays carried by the selected source
+target.
 
 `ARTEFACT_MODE=upstream` keeps the vendor-style build path for qualification
 and replay checks. It is useful when comparing against a published Radxa
@@ -148,9 +148,9 @@ make gha-act-run \
 ```
 
 The wrapper downloads a pinned `act` binary under `.cache/edk2-cix/tools/act/`
-and keeps its cache under `.cache/edk2-cix/act-cache/`. Set
-`ACT_WORKFLOW`, `ACT_EVENT`, `ACT_JOB`, `ACT_MATRIX`, `ACT_SECRET_FILE`, or
-`ACT_EXTRA_ARGS` when a workflow needs more specific inputs.
+and keeps its cache under `.cache/edk2-cix/act-cache/`. Set `ACT_WORKFLOW`,
+`ACT_EVENT`, `ACT_JOB`, `ACT_MATRIX`, `ACT_SECRET_FILE`, or `ACT_EXTRA_ARGS`
+when a workflow needs more specific inputs.
 
 ## Validation
 

@@ -60,14 +60,15 @@ Select the underlying EDK2 build target.
    - can still emit firmware logs if you opt into `DEBUG_VERBOSE=true`
 - `DEBUG`
    - intended for bring-up and firmware debugging
-   - enables the broader EDK2 debug/assert behaviour expected from a DEBUG build
+   - enables the broader EDK2 debug/assert behaviour expected from a DEBUG
+     build
 
 Default: `RELEASE`
 
 ### `FIRMWARE_DISTRO=bookworm|trixie`
 
-Select the default distro family used by the buildbox helpers and
-deterministic replay wrappers.
+Select the default distro family used by the buildbox helpers and deterministic
+replay wrappers.
 
 - `bookworm`
    - the default for `ARTEFACT_MODE=upstream`
@@ -406,8 +407,8 @@ The most important compatibility rules are:
 - `CIX_RELEASE=v1.2` is custom-only and board-limited to `O6` / `O6N`
 - the `O6_SMBIOS_*` asset-tag variables are custom-only and board-limited to
   `O6`
-- `ENABLE_FIRMWARE_FIXES=true` and
-  `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true` are designed to coexist
+- `ENABLE_FIRMWARE_FIXES=true` and `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true` are
+  designed to coexist
 
 ## Common Recipes
 

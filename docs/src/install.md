@@ -99,8 +99,8 @@ ways to do that:
 
 ### Via UEFI Setup
 
-Press `Escape` when prompted on the console. Then enter the `Boot Manager`
-menu and select `UEFI Shell`.
+Press `Escape` when prompted on the console. Then enter the `Boot Manager` menu
+and select `UEFI Shell`.
 
 ### Via `Ventoy`
 
@@ -157,4 +157,5 @@ fs0:radxa\orion-o6\startup.nsh
 
 The UEFI Shell provides limited auto-completion when you press `Tab`.
 
-Running this command will flash your BIOS. Follow its prompt to complete the process.
+Running this command will flash your BIOS. Follow its prompt to complete the
+process.

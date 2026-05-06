@@ -1,14 +1,16 @@
 # Custom ACPI Overlays
 
-`ARTEFACT_MODE=custom` carries a small set of ACPI source overlays on top of the
-imported Radxa/CIX trees. These overlays exist to keep the shipped firmware
+`ARTEFACT_MODE=custom` carries a small set of ACPI source overlays on top of
+the imported Radxa/CIX trees. These overlays exist to keep the shipped firmware
 closer to mainline expectations without rewriting the imported vendor baseline.
 
 The current ACPI overlay areas are:
 
-- `custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/`
-- `custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/`
-- `custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/LinuxAcpiConfig.h`
+```text
+custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/
+custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/
+custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/LinuxAcpiConfig.h
+```
 
 The `AcpiPlatfomTables` path above preserves an upstream Radxa/CIX directory
 name typo. We keep that path literal in source, overlay, and build references
