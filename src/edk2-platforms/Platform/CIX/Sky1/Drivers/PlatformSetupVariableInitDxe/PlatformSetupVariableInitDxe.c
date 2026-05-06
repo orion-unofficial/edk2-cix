@@ -30,6 +30,8 @@ PLATFORM_SETUP_DATA_INFO_TABLE  mPlatformSetupDataInfoTable = {
   (sizeof (PlatformSetupDataEntry)/ sizeof (PLATFORM_SETUP_DATA_ENTRY))
 };
 
+#define CUSTOM_LPI_DEFAULT_MIGRATION_VAR  L"CustomLpiDefaultMigrated"
+
 EFI_STATUS
 EFIAPI
 CheckCpuShareInfo (
@@ -104,6 +106,86 @@ IsRtcPowerfailure (
   }
 
   return FALSE;
+}
+
+STATIC
+BOOLEAN
+CustomLpiDefaultMigrationRecorded (
+  VOID
+  )
+{
+  EFI_STATUS  Status;
+  UINTN       VarSize;
+  UINT8       Migrated;
+
+  VarSize = sizeof (Migrated);
+  Status  = gRT->GetVariable (
+                   CUSTOM_LPI_DEFAULT_MIGRATION_VAR,
+                   &gCixGlobalVariableGuid,
+                   NULL,
+                   &VarSize,
+                   &Migrated
+                   );
+
+  return !EFI_ERROR (Status);
+}
+
+STATIC
+VOID
+RecordCustomLpiDefaultMigration (
+  VOID
+  )
+{
+  EFI_STATUS  Status;
+  UINT8       Migrated;
+
+  Migrated = 1;
+  Status   = gRT->SetVariable (
+                    CUSTOM_LPI_DEFAULT_MIGRATION_VAR,
+                    &gCixGlobalVariableGuid,
+                    EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
+                    sizeof (Migrated),
+                    &Migrated
+                    );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_INFO, "%a: EfiSetVariable failed - %r\n", __FUNCTION__, Status));
+  }
+}
+
+STATIC
+BOOLEAN
+ApplyCustomFirmwareSetupMigrations (
+  IN OUT PLATFORM_SETUP_DATA  *PlatformSetupVar
+  )
+{
+  BOOLEAN  Updated;
+  UINT8    DefaultLpiState;
+
+  Updated = FALSE;
+
+  if (!FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
+    return Updated;
+  }
+
+  if (CustomLpiDefaultMigrationRecorded ()) {
+    return Updated;
+  }
+
+  DefaultLpiState = FixedPcdGet8 (PcdAcpiCpuLpiState);
+  if ((PlatformSetupVar->CpuLpiState == 0) && (DefaultLpiState != 0)) {
+    DEBUG ((
+      DEBUG_INFO,
+      "%a: migrating CPU LPI max state from Disabled to %u\n",
+      __FUNCTION__,
+      DefaultLpiState
+      ));
+    PlatformSetupVar->CpuLpiState = DefaultLpiState;
+    Updated                       = TRUE;
+  }
+
+  RecordCustomLpiDefaultMigration ();
+
+  return Updated;
 }
 
 VOID
@@ -551,6 +633,7 @@ PlatformSetupVariableInit (
   EFI_STATUS           Status = EFI_SUCCESS;
   UINTN                VarSize;
   PLATFORM_SETUP_DATA  PlatformSetupVar;
+  BOOLEAN              SetupVarUpdated;
 
   VarSize = sizeof (PLATFORM_SETUP_DATA);
 
@@ -580,6 +663,24 @@ PlatformSetupVariableInit (
     }
   } else {
     DEBUG ((DEBUG_INFO, "%a: EfiGetVariable Success - %r\n", __FUNCTION__, Status));
+  }
+
+  SetupVarUpdated = FALSE;
+  if (!EFI_ERROR (Status)) {
+    SetupVarUpdated = ApplyCustomFirmwareSetupMigrations (&PlatformSetupVar);
+  }
+
+  if (!EFI_ERROR (Status) && SetupVarUpdated) {
+    Status = gRT->SetVariable (
+                    PLATFORM_SETUP_VAR,
+                    &gPlatformSetupVariableGuid,
+                    EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
+                    sizeof (PLATFORM_SETUP_DATA),
+                    &PlatformSetupVar
+                    );
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_INFO, "%a: EfiSetVariable failed - %r\n", __FUNCTION__, Status));
+    }
   }
 
   return Status;
