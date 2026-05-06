@@ -4,6 +4,19 @@ SHELL := bash
 HOST_ARCH ?= $(shell uname -m)
 PKG_CONFIG ?= $(or $(shell command -v pkg-config 2>/dev/null),$(shell command -v pkgconf 2>/dev/null))
 CC ?= cc
+V ?= 0
+
+ifeq ($(V),1)
+Q :=
+define PRINT_STATUS
+@:
+endef
+else
+Q := @
+define PRINT_STATUS
+@printf '  %-7s %s\n' '$(1)' '$(2)'
+endef
+endif
 
 BUILD_DIR := build/$(HOST_ARCH)
 OUTPUT := $(BUILD_DIR)/fiptool
@@ -48,15 +61,19 @@ print-upstream-tag:
 	printf '%s\n' '$(UPSTREAM_TAG)'
 
 $(BUILD_DIR):
-	mkdir -p '$@'
+	$(call PRINT_STATUS,MKDIR,$@)
+	$(Q)mkdir -p '$@'
 
 $(BUILD_DIR)/%.o: src/%.c $(HEADERS) | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c '$<' -o '$@'
+	$(call PRINT_STATUS,CC,$@)
+	$(Q)$(CC) $(CPPFLAGS) $(CFLAGS) -c '$<' -o '$@'
 
 $(OUTPUT): $(OBJECTS)
-	$(CC) $(OBJECTS) $(LDLIBS) -o '$@'
+	$(call PRINT_STATUS,LD,$@)
+	$(Q)$(CC) $(OBJECTS) $(LDLIBS) -o '$@'
 
 clean:
-	rm -rf build
+	$(call PRINT_STATUS,CLEAN,build)
+	$(Q)rm -rf build
 
 distclean: clean
