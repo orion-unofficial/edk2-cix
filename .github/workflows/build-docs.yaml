@@ -64,7 +64,7 @@ jobs:
         run: |
           tar \
             --dereference --hard-dereference \
-            --directory ./docs/book/html \
+            --directory ./.cache/edk2-cix/docs/book/html \
             -cvf "${RUNNER_TEMP}/artifact.tar" \
             --exclude=.git \
             --exclude=.github \

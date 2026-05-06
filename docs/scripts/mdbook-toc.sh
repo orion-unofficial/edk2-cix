@@ -4,7 +4,8 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 docs_root="$(dirname -- "$script_dir")"
-tool_root="${EDK2_CIX_DOCS_TOOLS_DIR:-${docs_root}/.docs-tools}"
+repo_root="$(dirname -- "$docs_root")"
+tool_root="${EDK2_CIX_DOCS_TOOLS_DIR:-${repo_root}/.cache/edk2-cix/docs/tools}"
 binary="${tool_root}/bin/mdbook-toc"
 
 if [[ ! -x "$binary" ]]; then

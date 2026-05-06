@@ -101,13 +101,21 @@ Default: unset
 
 Set the managed compiler-cache directory.
 
-Default: `$(REPO_ROOT)/build-cache/ccache`
+Default when running the rendered firmware tree directly:
+`$(REPO_ROOT)/build-cache/ccache`
+
+Default when invoking the firmware build through the `build` branch:
+`.cache/edk2-cix/firmware/ccache` inside the rendered worktree.
 
 ### `CCACHE_WRAPPER_ROOT=<path>`
 
 Set the directory used for generated compiler-wrapper symlinks.
 
-Default: `$(REPO_ROOT)/build-cache/ccache-toolchain`
+Default when running the rendered firmware tree directly:
+`$(REPO_ROOT)/build-cache/ccache-toolchain`
+
+Default when invoking the firmware build through the `build` branch:
+`.cache/edk2-cix/firmware/ccache-toolchain` inside the rendered worktree.
 
 ### `CCACHE_BIN=<path>`
 

@@ -284,9 +284,18 @@ define run_release_make
 	$(BUILD_VARIABLE_ENV) $(PYTHON) scripts/validate_build_variables.py --target "$(1)"; \
 	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
+	cache_root="$$wt/.cache/edk2-cix/firmware"; \
 	printf '[build] Starting %s: board=%s target=%s release=%s\n' "$(1)" "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
-	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(1) $(DELEGATED_BUILD_ARGS)"; fi; \
-	$(MAKE) --no-print-directory -C "$$wt" $(1) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg
+	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(1) $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox/tmp CCACHE_DIR=$$cache_root/ccache"; fi; \
+	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
+	$(MAKE) --no-print-directory -C "$$wt" $(1) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
+		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox/tmp" \
+		CCACHE_DIR="$$cache_root/ccache" \
+		CCACHE_WRAPPER_ROOT="$$cache_root/ccache-toolchain" \
+		CIX_RELEASE_CACHE_ROOT="$$cache_root/cix-release" \
+		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
+		BUILD_LOG_ROOT="$$cache_root/build-logs" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"
 endef
 
 build:
@@ -305,9 +314,18 @@ install:
 	$(BUILD_VARIABLE_ENV) $(PYTHON) scripts/validate_build_variables.py --target "install"; \
 	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
+	cache_root="$$wt/.cache/edk2-cix/firmware"; \
 	printf '[build] Starting buildbox-firmware-stage: board=%s target=%s release=%s\n' "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
-	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt buildbox-firmware-stage $(DELEGATED_BUILD_ARGS)"; fi; \
-	$(MAKE) --no-print-directory -C "$$wt" buildbox-firmware-stage $(DELEGATED_BUILD_ARGS) $$signing_cert_arg; \
+	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt buildbox-firmware-stage $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox/tmp CCACHE_DIR=$$cache_root/ccache"; fi; \
+	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
+	$(MAKE) --no-print-directory -C "$$wt" buildbox-firmware-stage $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
+		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox/tmp" \
+		CCACHE_DIR="$$cache_root/ccache" \
+		CCACHE_WRAPPER_ROOT="$$cache_root/ccache-toolchain" \
+		CIX_RELEASE_CACHE_ROOT="$$cache_root/cix-release" \
+		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
+		BUILD_LOG_ROOT="$$cache_root/build-logs" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"; \
 	force_arg=""; \
 	if [ "$(FORCE)" = "1" ]; then force_arg="--force"; fi; \
 	DEBUG="$(DEBUG)" INSTALL_SOURCE="$(INSTALL_SOURCE)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/install_release_payload.py \

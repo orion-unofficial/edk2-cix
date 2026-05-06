@@ -137,7 +137,9 @@ documentation container when those host tools are missing. Use
 `DOCS_BUILD_MODE=host` to require a host-only build, or
 `DOCS_BUILD_MODE=container` to force the container path.
 
-The generated site is written to `docs/book/html/`.
+The generated site is written to `.cache/edk2-cix/docs/book/html/`. Tool
+downloads, cargo state, and temporary files used by the documentation build are
+also kept under `.cache/edk2-cix/docs/`.
 
 ## Test GitHub Actions Locally
 

@@ -103,7 +103,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Validate that built mdBook HTML references only existing local asset files."
     )
-    parser.add_argument("build_dir", help="Path to the built docs root, usually book/html")
+    parser.add_argument("build_dir", help="Path to the built documentation root")
     args = parser.parse_args()
 
     build_root = pathlib.Path(args.build_dir).resolve()

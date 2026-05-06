@@ -1,7 +1,17 @@
 .cache
+.buildbox
+.devenv
 .git
+.worktrees
 **/__pycache__
 *.pyc
+book
 build-logs
+build-cache
+build-validation
 dist
+logs
 src
+docs/.devenv
+docs/.docs-tools
+docs/book

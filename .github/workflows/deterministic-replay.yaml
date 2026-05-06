@@ -126,6 +126,9 @@ jobs:
                 --print-worktree
           )"
           echo "FIRMWARE_WORKTREE=${worktree}" >>"${GITHUB_ENV}"
+          echo "FIRMWARE_CACHE=${worktree}/.cache/edk2-cix/firmware" >>"${GITHUB_ENV}"
+          buildbox_name_file="${worktree}/.cache/edk2-cix/firmware/buildbox/buildbox-name"
+          echo "EDK2_CIX_BUILDBOX_NAME_FILE=${buildbox_name_file}" >>"${GITHUB_ENV}"
 
       - name: Check offline audit baseline schema
         run: python3 "${FIRMWARE_WORKTREE}/scripts/test_offline_audit_baselines.py"
@@ -149,10 +152,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          replay_key="${{ matrix.board }}-${{ needs.resolve-release.outputs.tag }}"
           make -C "${FIRMWARE_WORKTREE}" deterministic-replay V=1 \
             FIRMWARE_BOARD="${{ matrix.board }}" \
             FIRMWARE_DISTRO=bookworm \
             BUILDBOX_PLATFORM=linux/amd64 \
+            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox/tmp" \
+            CCACHE_DIR="${FIRMWARE_CACHE}/ccache" \
+            CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
+            CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
+            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro" \
+            DETERMINISTIC_REPLAY_ROOT="${FIRMWARE_CACHE}/buildbox/replay/${replay_key}" \
+            DETERMINISTIC_REPLAY_MOUNT_ROOT="${FIRMWARE_CACHE}/buildbox" \
             REPLAY_VERSION="${{ needs.resolve-release.outputs.tag }}" \
             REPLAY_INPUT="${{ steps.download.outputs.deb_path }}"
 
@@ -166,6 +177,12 @@ jobs:
             FIRMWARE_TARGET=RELEASE \
             FIRMWARE_DISTRO=bookworm \
             BUILDBOX_PLATFORM=linux/amd64 \
+            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox/tmp" \
+            CCACHE_DIR="${FIRMWARE_CACHE}/ccache" \
+            CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
+            CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
+            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro" \
+            FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation" \
             FIRMWARE_VALIDATION_PROFILE="upstream-${{ needs.resolve-release.outputs.tag }}-bookworm"
 
       - name: Audit ACPI regression baseline
@@ -178,6 +195,12 @@ jobs:
             FIRMWARE_TARGET=RELEASE \
             FIRMWARE_DISTRO=bookworm \
             BUILDBOX_PLATFORM=linux/amd64 \
+            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox/tmp" \
+            CCACHE_DIR="${FIRMWARE_CACHE}/ccache" \
+            CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
+            CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
+            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro" \
+            FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation" \
             FIRMWARE_VALIDATION_PROFILE="upstream-${{ needs.resolve-release.outputs.tag }}-bookworm"
 
       - name: Collect replay reports
@@ -186,16 +209,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ci-artifacts
-          if [[ -d "${FIRMWARE_WORKTREE}/build-validation" ]]; then
-            cp -a "${FIRMWARE_WORKTREE}/build-validation" "ci-artifacts/build-validation"
+          if [[ -d "${FIRMWARE_CACHE}/build-validation" ]]; then
+            cp -a "${FIRMWARE_CACHE}/build-validation" "ci-artifacts/build-validation"
             python3 "${FIRMWARE_WORKTREE}/scripts/summarize_validation_reports.py" \
-              --report-root "${FIRMWARE_WORKTREE}/build-validation" \
+              --report-root "${FIRMWARE_CACHE}/build-validation" \
               --heading "Validation reports for ${{ matrix.board }} / ${{ needs.resolve-release.outputs.tag }}" \
               >>"${GITHUB_STEP_SUMMARY}"
           fi
-          if [[ -d "${FIRMWARE_WORKTREE}/.buildbox/replay" ]]; then
+          if [[ -d "${FIRMWARE_CACHE}/buildbox/replay" ]]; then
             mkdir -p ci-artifacts/replay
-            cp -a "${FIRMWARE_WORKTREE}/.buildbox/replay/." "ci-artifacts/replay/"
+            cp -a "${FIRMWARE_CACHE}/buildbox/replay/." "ci-artifacts/replay/"
           fi
 
       - name: Upload replay reports
