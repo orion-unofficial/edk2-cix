@@ -91,6 +91,15 @@ def make_materialised_topic(repo: Path, name: str = "materialised-topic", text: 
     return name
 
 
+def make_materialised_topic_with_message(repo: Path, name: str, message_args: list[str]) -> str:
+    git(repo, "switch", "-c", name, "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
+    write_file(repo, "firmware.txt", f"from {name}\n")
+    git(repo, "add", "firmware.txt")
+    git(repo, "commit", *message_args)
+    git(repo, "switch", "build")
+    return name
+
+
 def add_materialised_overlay_rename_fixture(repo: Path) -> None:
     git(repo, "switch", "source/unofficial/current")
     write_file(repo, "src/component/new.c", "renamed source\n")
@@ -152,11 +161,52 @@ def test_dry_run_infers_materialised_base_without_moving_refs() -> None:
         require("Dry-run succeeded. To apply this change permanently" in result.stdout, "dry run did not print apply guidance")
         require(f"FROM_REF={topic}" in result.stdout and "WRITE=1" in result.stdout, "dry run did not print write command")
         require("BASE_REF=" not in result.stdout, "dry run printed inferred BASE_REF in write command")
+        require("commit message source: from-ref" in result.stdout, "dry run did not report inherited message source")
+        require("materialised topic change" in result.stdout, "dry run did not print inherited commit message")
         require("make test" in result.stdout, "dry run did not print qualification guidance")
         require("firmware qualification" not in result.stdout, "dry run printed overly broad qualification guidance")
         require(rev_parse(repo, "source/unofficial/current") == old_current, "dry run moved source/unofficial/current")
         operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
         require(not operations.exists() or not any(operations.iterdir()), "dry run left operation state")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_import_inherits_multiline_from_ref_commit_message() -> None:
+    repo = make_repo()
+    try:
+        topic = make_materialised_topic_with_message(repo, "message-topic", ["-m", "topic subject", "-m", "topic body"])
+        result = run_import_changes(repo, FROM_REF=topic, WRITE="1")
+        require(result.returncode == 0, result.stderr + result.stdout)
+        message = git(repo, "log", "-1", "--format=%B", "source/unofficial/current").stdout.rstrip("\n")
+        require(message == "topic subject\n\ntopic body", f"unexpected inherited message: {message!r}")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_import_commit_message_literal_newlines_use_m_parameters() -> None:
+    repo = make_repo()
+    try:
+        topic = make_materialised_topic(repo, name="literal-message-topic")
+        result = run_import_changes(repo, FROM_REF=topic, COMMIT_MESSAGE=r"explicit subject\nexplicit body", WRITE="1")
+        require(result.returncode == 0, result.stderr + result.stdout)
+        message = git(repo, "log", "-1", "--format=%B", "source/unofficial/current").stdout.rstrip("\n")
+        require(message == "explicit subject\n\nexplicit body", f"unexpected explicit message: {message!r}")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_import_commit_message_file_and_signoff() -> None:
+    repo = make_repo()
+    try:
+        topic = make_materialised_topic(repo, name="file-message-topic")
+        message_file = repo / "message.txt"
+        message_file.write_text("file subject\n\nfile body line 1\nfile body line 2\n", encoding="utf-8")
+        result = run_import_changes(repo, FROM_REF=topic, COMMIT_MESSAGE_FILE="message.txt", SIGNOFF="1", WRITE="1")
+        require(result.returncode == 0, result.stderr + result.stdout)
+        message = git(repo, "log", "-1", "--format=%B", "source/unofficial/current").stdout.rstrip("\n")
+        require(message.startswith("file subject\n\nfile body line 1\nfile body line 2"), f"unexpected file message: {message!r}")
+        require("Signed-off-by: Import Test <import-test>" in message, f"missing signoff: {message!r}")
     finally:
         shutil.rmtree(repo)
 
@@ -525,6 +575,9 @@ def test_propagation_updates_checkpoints_and_tags() -> None:
 
 def main() -> None:
     test_dry_run_infers_materialised_base_without_moving_refs()
+    test_import_inherits_multiline_from_ref_commit_message()
+    test_import_commit_message_literal_newlines_use_m_parameters()
+    test_import_commit_message_file_and_signoff()
     test_import_from_materialised_topic_creates_commit_on_current()
     test_import_preserves_crlf_patch_context()
     test_import_changes_normalises_overlay_lifecycle_when_propagating()

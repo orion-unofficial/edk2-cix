@@ -76,7 +76,14 @@ Optional variables:
                         With checkpoint propagation, update matching
                         source/unofficial/edk2/stable-* tags after every
                         checkpoint import succeeds.
-  COMMIT_MESSAGE=<text> Commit message for the imported patch.
+  COMMIT_MESSAGE=<text> Commit message for the imported patch. Literal \\n
+                        sequences are mapped to separate git commit -m
+                        paragraphs. If no message input is set, the FROM_REF
+                        tip commit message is inherited.
+  COMMIT_MESSAGE_FILE=<path>
+                        File containing the commit message for the imported
+                        patch.
+  SIGNOFF=0|1           Add a Signed-off-by trailer with git commit -s.
   SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact
                         How to handle overlay paths whose corresponding src/
                         files moved or disappeared between source checkpoints.
@@ -112,6 +119,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--propagate-checkpoints", default=os.environ.get("PROPAGATE_CHECKPOINTS", "none"))
     p.add_argument("--update-compat-tags", default=os.environ.get("UPDATE_COMPAT_TAGS", "0"))
     p.add_argument("--commit-message", default=os.environ.get("COMMIT_MESSAGE", ""))
+    p.add_argument("--commit-message-file", default=os.environ.get("COMMIT_MESSAGE_FILE", ""))
+    p.add_argument("--signoff", default=os.environ.get("SIGNOFF", "0"))
     p.add_argument("--source-lifecycle-normalise", default=os.environ.get("SOURCE_LIFECYCLE_NORMALISE", "exact"))
     p.add_argument("--continue-import", default=os.environ.get("CONTINUE", "0"))
     p.add_argument("--abort", default=os.environ.get("ABORT", "0"))
@@ -272,7 +281,83 @@ def changed_paths(changes: list[str]) -> list[str]:
     return sorted(set(paths))
 
 
-def commit_scratch(repo: Path, message: str) -> str:
+def commit_message_from_ref(repo: Path, from_ref: str) -> str:
+    message = git(repo, "log", "-1", "--format=%B", from_ref).stdout.rstrip("\n")
+    if not message.strip():
+        raise ReconstructionError(f"FROM_REF has an empty commit message: {from_ref}")
+    return message
+
+
+def commit_message_file(repo: Path, message_file: str) -> Path:
+    path = Path(message_file)
+    if not path.is_absolute():
+        path = repo / path
+    if not path.is_file():
+        raise ReconstructionError(f"COMMIT_MESSAGE_FILE does not exist: {message_file}")
+    return path
+
+
+def explicit_message_parts(message: str) -> list[str]:
+    decoded = message.replace("\\n", "\n")
+    parts = [part for part in decoded.splitlines() if part]
+    if not parts:
+        raise ReconstructionError("COMMIT_MESSAGE is empty")
+    return parts
+
+
+def resolved_commit_message(repo: Path, args: argparse.Namespace) -> dict[str, Any]:
+    if args.commit_message and args.commit_message_file:
+        raise ReconstructionError("set only one of COMMIT_MESSAGE or COMMIT_MESSAGE_FILE")
+
+    if args.commit_message_file:
+        path = commit_message_file(repo, args.commit_message_file)
+        message = path.read_text(encoding="utf-8").rstrip("\n")
+        if not message.strip():
+            raise ReconstructionError(f"COMMIT_MESSAGE_FILE is empty: {args.commit_message_file}")
+        return {
+            "message": message,
+            "message_parts": [],
+            "message_source": "file",
+        }
+
+    if args.commit_message:
+        parts = explicit_message_parts(args.commit_message)
+        return {
+            "message": "\n".join(parts),
+            "message_parts": parts,
+            "message_source": "explicit",
+        }
+
+    return {
+        "message": commit_message_from_ref(repo, args.from_ref),
+        "message_parts": [],
+        "message_source": "from-ref",
+    }
+
+
+def git_commit(repo: Path, message: str, message_parts: list[str], signoff: bool) -> None:
+    cmd = ["git", "-C", str(repo), "commit"]
+    if signoff:
+        cmd.append("-s")
+    if message_parts:
+        for part in message_parts:
+            cmd.extend(["-m", part])
+        result = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    else:
+        cmd.extend(["-F", "-"])
+        result = subprocess.run(
+            cmd,
+            input=message if message.endswith("\n") else f"{message}\n",
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    if result.returncode != 0:
+        raise ReconstructionError((result.stderr or result.stdout).strip() or "git commit failed")
+
+
+def commit_scratch(repo: Path, state: dict[str, Any]) -> str:
     unresolved = unmerged_paths(repo)
     if unresolved:
         raise ReconstructionError("import still has unresolved conflicts:\n" + "\n".join(f"  - {path}" for path in unresolved))
@@ -284,7 +369,7 @@ def commit_scratch(repo: Path, message: str) -> str:
                 "resolved files are not staged in the scratch tree. Run git add for the resolved files, then continue the import."
             )
         raise ReconstructionError("import patch produced no staged changes")
-    git(repo, "commit", "-m", message)
+    git_commit(repo, state["message"], state.get("message_parts", []), truthy(str(state.get("signoff", "0"))))
     return rev_parse(repo, "HEAD")
 
 
@@ -300,7 +385,7 @@ def normalise_target(repo: Path, target: dict[str, Any], state: dict[str, Any], 
     )
 
 
-def apply_patch_to_target(repo: Path, target: dict[str, Any], state: dict[str, Any], patch_path: Path, message: str, verbose: bool) -> bool:
+def apply_patch_to_target(repo: Path, target: dict[str, Any], state: dict[str, Any], patch_path: Path, verbose: bool) -> bool:
     scratch = Path(target["scratch"])
     result = subprocess.run(
         ["git", "-C", str(scratch), "apply", "--3way", "--index", "--binary", str(patch_path)],
@@ -315,7 +400,7 @@ def apply_patch_to_target(repo: Path, target: dict[str, Any], state: dict[str, A
         if not staged_changes(scratch) and not dirty_paths(scratch):
             target["candidate_oid"] = target["old_oid"]
             return True
-        target["candidate_oid"] = commit_scratch(scratch, message)
+        target["candidate_oid"] = commit_scratch(scratch, state)
         return True
     conflicts = unmerged_paths(scratch)
     if conflicts:
@@ -447,7 +532,7 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
     patch_path = op_dir / "change.patch"
     progress("extracting change patch")
     changes = write_patch(repo, base_oid, args.from_ref, patch_path)
-    message = args.commit_message or f"import: changes from {args.from_ref}"
+    commit_message = resolved_commit_message(repo, args)
     lifecycle_mode = normalise_mode(args.source_lifecycle_normalise)
     state: dict[str, Any] = {
         "op_id": op_id,
@@ -459,11 +544,16 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
         "changes": changes,
         "changed_overlay_paths": changed_overlay_paths_from_name_status(changes),
         "source_lifecycle_normalise": lifecycle_mode,
-        "message": message,
+        "message": commit_message["message"],
+        "message_parts": commit_message["message_parts"],
+        "message_source": commit_message["message_source"],
+        "signoff": truthy(args.signoff),
         "requested": {
             "base_ref": args.base_ref,
             "commit_message": args.commit_message,
+            "commit_message_file": args.commit_message_file,
             "propagate_checkpoints": args.propagate_checkpoints,
+            "signoff": args.signoff,
             "source_lifecycle_normalise": args.source_lifecycle_normalise,
             "source_unofficial_ref": args.source_unofficial_ref,
             "update_compat_tags": args.update_compat_tags,
@@ -478,7 +568,7 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
             progress(f"preparing scratch tree for {target['ref']}")
             target["scratch"] = str(clone_scratch(repo, op_dir, target["ref"], verbose))
             progress(f"applying patch to {target['ref']}")
-            if not apply_patch_to_target(repo, target, state, patch_path, message, verbose):
+            if not apply_patch_to_target(repo, target, state, patch_path, verbose):
                 paused.append(target)
             save_state(op_dir, state)
     except Exception:
@@ -561,7 +651,7 @@ def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> 
                     "Apply or resolve the intended change in the printed scratch tree, "
                     "stage the resolved files with git add, and then continue."
                 )
-            target["candidate_oid"] = commit_scratch(scratch, state["message"])
+            target["candidate_oid"] = commit_scratch(scratch, state)
             target["status"] = "ready"
         except ReconstructionError as exc:
             target["resolution_error"] = str(exc)
@@ -584,6 +674,12 @@ def print_dry_run(state: dict[str, Any]) -> None:
         print("  changed overlay paths:")
         for path in state["changed_overlay_paths"]:
             print(f"    {path}")
+    print(f"  commit message source: {state.get('message_source', 'unknown')}")
+    print("  commit message:")
+    for line in str(state.get("message", "")).splitlines() or [""]:
+        print(f"    {line}")
+    if truthy(str(state.get("signoff", "0"))):
+        print("  signoff: yes")
     print("  update targets:")
     for target in state["targets"]:
         line = f"    {target['ref']}"
@@ -631,6 +727,14 @@ def write_command(state: dict[str, Any]) -> list[str]:
     commit_message = str(requested.get("commit_message") or "")
     if commit_message:
         command.append(make_arg("COMMIT_MESSAGE", commit_message))
+
+    commit_message_file = str(requested.get("commit_message_file") or "")
+    if commit_message_file:
+        command.append(make_arg("COMMIT_MESSAGE_FILE", commit_message_file))
+
+    signoff = str(requested.get("signoff") or "0")
+    if truthy(signoff):
+        command.append("SIGNOFF=1")
 
     command.append("WRITE=1")
     return command

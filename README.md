@@ -487,8 +487,13 @@ The key variables are:
 - `SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact` controls deterministic
   overlay path normalisation while propagating changes across EDK2 checkpoints.
   The default is `exact`.
-- `COMMIT_MESSAGE` sets the commit message used by `make import-changes`. If it
-  is omitted, the importer derives a message from `FROM_REF`.
+- `COMMIT_MESSAGE` sets the commit message used by `make import-changes`.
+  Literal `\n` sequences are treated as separate `git commit -m` paragraphs.
+- `COMMIT_MESSAGE_FILE` reads the `make import-changes` commit message from a
+  file and is mutually exclusive with `COMMIT_MESSAGE`.
+- `SIGNOFF=1` adds a `Signed-off-by` trailer with `git commit -s`.
+- If neither `COMMIT_MESSAGE` nor `COMMIT_MESSAGE_FILE` is set, the importer
+  inherits the full commit message from the `FROM_REF` tip commit.
 
 For each supported EDK2 release, the repo keeps two related records of the
 unofficial project changes:

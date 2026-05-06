@@ -11,6 +11,8 @@ TARGET_REF ?=
 SOURCE_UNOFFICIAL_REF ?= source/unofficial/current
 BASE_REF ?=
 COMMIT_MESSAGE ?=
+COMMIT_MESSAGE_FILE ?=
+SIGNOFF ?= 0
 SOURCE_LIFECYCLE_NORMALISE ?= exact
 INSTALL_ROOT ?= /boot/efi
 INSTALL_SOURCE ?=
@@ -180,7 +182,9 @@ help-dev:
 	print_help_variable 'PROPAGATE_CHECKPOINTS=none|all' 'For import targets. Replay or apply the imported change onto every source/unofficial/edk2-stable* checkpoint after preparing all candidates safely.\nDefault: none.'; \
 	print_help_variable 'UPDATE_COMPAT_TAGS=0|1' 'For import targets. Move matching source/unofficial/edk2/stable-* tags only after all checkpoint imports succeed.\nDefault: 0.'; \
 	print_help_variable 'SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact' 'For import targets and verify-source-lifecycle. Control deterministic overlay/source lifecycle handling when an imported overlay path points at a source file that moved or disappeared in another checkpoint. validate reports required rewrites without changing the scratch tree; mirror rewrites mirror symlinks only; exact also rewrites exact regular overlay renames.\nDefault: exact.'; \
-	print_help_variable 'COMMIT_MESSAGE=<text>' 'For import-changes. Commit message for the extracted patch.\nDefault: derived from FROM_REF.'; \
+	print_help_variable 'COMMIT_MESSAGE=<text>' 'For import-changes. Commit message for the extracted patch. Literal \\n sequences become separate git commit -m paragraphs.\nDefault: inherited from the FROM_REF tip commit.'; \
+	print_help_variable 'COMMIT_MESSAGE_FILE=<path>' 'For import-changes. Read the imported patch commit message from a file. Mutually exclusive with COMMIT_MESSAGE.'; \
+	print_help_variable 'SIGNOFF=0|1' 'For import-changes. Add a Signed-off-by trailer with git commit -s.\nDefault: 0.'; \
 	print_help_variable 'CONTINUE=0|1' 'Continue a paused import operation after conflicts are resolved in the scratch tree.'; \
 	print_help_variable 'ABORT=0|1' 'Abort a paused import operation and remove its scratch state without moving refs.'; \
 	print_help_variable 'OP_ID=<id>' 'Paused import operation ID for CONTINUE=1 or ABORT=1.'; \
@@ -419,7 +423,7 @@ import-unofficial-commits:
 
 import-changes:
 	$(if $(filter 1 true yes on,$(ABORT)),,$(call PROGRESS_PROBE,[import-changes] Starting change import))
-	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_CHECKPOINTS="$(PROPAGATE_CHECKPOINTS)" UPDATE_COMPAT_TAGS="$(UPDATE_COMPAT_TAGS)" COMMIT_MESSAGE="$(COMMIT_MESSAGE)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_changes.py --v "$(V)"
+	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_CHECKPOINTS="$(PROPAGATE_CHECKPOINTS)" UPDATE_COMPAT_TAGS="$(UPDATE_COMPAT_TAGS)" COMMIT_MESSAGE="$(COMMIT_MESSAGE)" COMMIT_MESSAGE_FILE="$(COMMIT_MESSAGE_FILE)" SIGNOFF="$(SIGNOFF)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_changes.py --v "$(V)"
 
 check-identity-integrity:
 	$(call PROGRESS_PROBE,[check] Checking identity integrity)
