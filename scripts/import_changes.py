@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -459,6 +460,13 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
         "changed_overlay_paths": changed_overlay_paths_from_name_status(changes),
         "source_lifecycle_normalise": lifecycle_mode,
         "message": message,
+        "requested": {
+            "commit_message": args.commit_message,
+            "propagate_checkpoints": args.propagate_checkpoints,
+            "source_lifecycle_normalise": args.source_lifecycle_normalise,
+            "source_unofficial_ref": args.source_unofficial_ref,
+            "update_compat_tags": args.update_compat_tags,
+        },
         "targets": targets,
     }
 
@@ -581,7 +589,54 @@ def print_dry_run(state: dict[str, Any]) -> None:
         if target.get("tag"):
             line += f" and {target['tag']}"
         print(line)
+    print()
+    print("Dry-run succeeded. To apply this change permanently, run:")
+    print("  " + " ".join(write_command(state)))
+    print()
+    print("After the ref update succeeds, run at least:")
+    print("  make test")
+    print()
+    print("Then run firmware qualification for the affected source target(s),")
+    print("for example:")
+    print("  make build FIRMWARE_BOARD=O6 RELEASE=<affected-source-target>")
+    print("  make build FIRMWARE_BOARD=O6N RELEASE=<affected-source-target>")
+    print()
+    print("Use make help-source-targets to list source targets.")
     sys.stdout.flush()
+
+
+def make_arg(name: str, value: str) -> str:
+    return shlex.quote(f"{name}={value}")
+
+
+def write_command(state: dict[str, Any]) -> list[str]:
+    command = ["make", "import-changes"]
+    command.append(make_arg("FROM_REF", state["from_ref"]))
+    command.append(make_arg("BASE_REF", state["base_ref"]))
+
+    requested = state.get("requested", {})
+    source_ref = str(requested.get("source_unofficial_ref") or CURRENT_REF)
+    if source_ref != CURRENT_REF:
+        command.append(make_arg("SOURCE_UNOFFICIAL_REF", source_ref))
+
+    propagate = str(requested.get("propagate_checkpoints") or "none")
+    if propagate not in {"", "none", "0", "false"}:
+        command.append(make_arg("PROPAGATE_CHECKPOINTS", propagate))
+
+    update_tags = str(requested.get("update_compat_tags") or "0")
+    if truthy(update_tags):
+        command.append(make_arg("UPDATE_COMPAT_TAGS", update_tags))
+
+    lifecycle = str(requested.get("source_lifecycle_normalise") or "exact")
+    if lifecycle != "exact":
+        command.append(make_arg("SOURCE_LIFECYCLE_NORMALISE", lifecycle))
+
+    commit_message = str(requested.get("commit_message") or "")
+    if commit_message:
+        command.append(make_arg("COMMIT_MESSAGE", commit_message))
+
+    command.append("WRITE=1")
+    return command
 
 
 def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]) -> str:

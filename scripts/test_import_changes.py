@@ -149,6 +149,9 @@ def test_dry_run_infers_materialised_base_without_moving_refs() -> None:
         require(result.returncode == 0, result.stderr + result.stdout)
         require("source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial" in result.stdout, "dry run did not report inferred cache base")
         require("M\tfirmware.txt" in result.stdout, "dry run did not report changed path")
+        require("Dry-run succeeded. To apply this change permanently" in result.stdout, "dry run did not print apply guidance")
+        require(f"FROM_REF={topic}" in result.stdout and "WRITE=1" in result.stdout, "dry run did not print write command")
+        require("make test" in result.stdout, "dry run did not print qualification guidance")
         require(rev_parse(repo, "source/unofficial/current") == old_current, "dry run moved source/unofficial/current")
         operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
         require(not operations.exists() or not any(operations.iterdir()), "dry run left operation state")
