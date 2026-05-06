@@ -172,6 +172,32 @@ def test_import_from_materialised_topic_creates_commit_on_current() -> None:
         shutil.rmtree(repo)
 
 
+def test_import_preserves_crlf_patch_context() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "source/unofficial/current")
+        (repo / "crlf-source.c").write_bytes(b"one\r\ntwo\r\nthree\r\n")
+        commit_all(repo, "add crlf source")
+        git(repo, "switch", "-c", "crlf-topic")
+        (repo / "crlf-source.c").write_bytes(b"one\r\ntwo\r\ninserted\r\nthree\r\n")
+        commit_all(repo, "modify crlf source")
+        git(repo, "switch", "build")
+
+        result = run_import_changes(repo, FROM_REF="crlf-topic", WRITE="1")
+        require(result.returncode == 0, result.stderr + result.stdout)
+        content = git(repo, "cat-file", "-p", "source/unofficial/current:crlf-source.c").stdout
+        require(content == "one\ntwo\ninserted\nthree\n", "CRLF import content not visible through text helper")
+        raw = subprocess.run(
+            ["git", "-C", str(repo), "cat-file", "-p", "source/unofficial/current:crlf-source.c"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        require(raw.stdout == b"one\r\ntwo\r\ninserted\r\nthree\r\n", "CRLF line endings were not preserved")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_import_changes_normalises_overlay_lifecycle_when_propagating() -> None:
     repo = make_repo()
     try:
@@ -491,6 +517,7 @@ def test_propagation_updates_checkpoints_and_tags() -> None:
 def main() -> None:
     test_dry_run_infers_materialised_base_without_moving_refs()
     test_import_from_materialised_topic_creates_commit_on_current()
+    test_import_preserves_crlf_patch_context()
     test_import_changes_normalises_overlay_lifecycle_when_propagating()
     test_import_changes_drops_mirror_when_source_is_absent_from_checkpoint()
     test_import_with_explicit_legacy_base()

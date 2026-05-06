@@ -232,8 +232,15 @@ def write_patch(repo: Path, base_oid: str, from_ref: str, patch_path: Path) -> l
     if not changes:
         raise ReconstructionError("change diff is empty; FROM_REF contains no tree changes after BASE_REF")
     patch_path.parent.mkdir(parents=True, exist_ok=True)
-    patch = git(repo, "diff", "--binary", "--full-index", f"{base_oid}..{from_ref}")
-    patch_path.write_text(patch.stdout, encoding="utf-8")
+    patch = subprocess.run(
+        ["git", "-C", str(repo), "diff", "--binary", "--full-index", f"{base_oid}..{from_ref}"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if patch.returncode != 0:
+        raise ReconstructionError((patch.stderr or patch.stdout).decode("utf-8", errors="replace").strip())
+    patch_path.write_bytes(patch.stdout)
     return changes
 
 
