@@ -30,7 +30,7 @@
         "path": "config/refs-radxa.json"
       },
       {
-        "object_id": "7acd319a6e103a0b5a848a255cdb9e0d34e4f85d",
+        "object_id": "731138fcc07cac7501bd458d211f857a89c11d73",
         "path": "config/refs-source-target-cache.json"
       },
       {
@@ -86,7 +86,7 @@
         "path": "scripts/help_cache.py"
       },
       {
-        "object_id": "a6eb885eaa47339190e92a7d10400ca6fe3610c8",
+        "object_id": "38a1d60764161f8a3dffa8213e1d061a95f4dd06",
         "path": "scripts/import_changes.py"
       },
       {
@@ -158,7 +158,7 @@
         "path": "scripts/test_check_upstream_versions.py"
       },
       {
-        "object_id": "ca48769f546f93b382dc72ea06147a2a5551f7c8",
+        "object_id": "55d4eedcd84336cfd290a20dc62ad1082331e864",
         "path": "scripts/test_import_changes.py"
       },
       {
@@ -480,135 +480,135 @@
         "ref": "source/port/radxa/1.2.1/edk2-stable202602"
       },
       {
-        "object_id": "0f4fa93799e2cdc07bfa1ece1dcc15f8d253d202",
+        "object_id": "d1b21d7ca0896397df91bb464dfe45d5ff8e026c",
         "ref": "source/unofficial/current"
       },
       {
-        "object_id": "6fac40a4a709faac6c17b1e2b3f274cdf5d6dd83",
+        "object_id": "11d6876ce3fa36cd585bcf5f9c90336f90deced2",
         "ref": "source/unofficial/edk2-stable202208"
       },
       {
-        "object_id": "4ce7cf407bbaf42476ab7d00104decea3a1c9db2",
+        "object_id": "87dd15fc34a36f64c25109e96544087a2be8ddf2",
         "ref": "source/unofficial/edk2-stable202211"
       },
       {
-        "object_id": "914c1a64405f71709a63ce28cd08f586a7a770a5",
+        "object_id": "6e1c897b1f07d293bbae71a915a14ccb15f56cf8",
         "ref": "source/unofficial/edk2-stable202302"
       },
       {
-        "object_id": "e733bc40c388e27c6d19f102c7452d45a056e994",
+        "object_id": "32d07d45a8a5bdb0cef93c3a8f1f075eb2448ae0",
         "ref": "source/unofficial/edk2-stable202305"
       },
       {
-        "object_id": "dedf15b20b8702c0b226d09b189d4b0ca79509e1",
+        "object_id": "2aecdd1a08cc3a26f47c964c0e27561de153b096",
         "ref": "source/unofficial/edk2-stable202308"
       },
       {
-        "object_id": "fcd17ed5afae57c920fcd1d25a4a454b63fba276",
+        "object_id": "d101f493c4509b7017613813d39e0facca98912f",
         "ref": "source/unofficial/edk2-stable202311"
       },
       {
-        "object_id": "ec4f1cb6b0d7cb8a543d34130acffc183618e260",
+        "object_id": "e6d3902e2976473e9c6da2adafb5a40cab5d6499",
         "ref": "source/unofficial/edk2-stable202402"
       },
       {
-        "object_id": "2c3a622b6dab3b391aef7ba2a963eb091871ec8d",
+        "object_id": "61b19ebb7aca6e22b654d0a14c9a37b30aa9b331",
         "ref": "source/unofficial/edk2-stable202405"
       },
       {
-        "object_id": "b01ee26cd50c9119d196f6b2515c3f669360a49c",
+        "object_id": "e8b95328104112512f6a1d2477ac519265d1db2d",
         "ref": "source/unofficial/edk2-stable202408"
       },
       {
-        "object_id": "3277ecab54d35c762d407aa3eb066a581c2bcdb6",
+        "object_id": "8c985ac3edcd16665d60349a776f475458ad93d5",
         "ref": "source/unofficial/edk2-stable202408.01"
       },
       {
-        "object_id": "56cbe365fbc2a015f766eaa362ae1f72744d05f5",
+        "object_id": "f98bfd7b12b12bd2f2223dacd667e163b7cfbb26",
         "ref": "source/unofficial/edk2-stable202411"
       },
       {
-        "object_id": "b1867b16ab3f0a729b7be90037c1077a8b92f621",
+        "object_id": "ca879be48bf15752fcb578a76996b96f7fef06d8",
         "ref": "source/unofficial/edk2-stable202502"
       },
       {
-        "object_id": "6c4afbedfbf7ba9a281e26ad8f89b202345cc4b9",
+        "object_id": "8cf3d7506e5ee1c98201d33b907dda15baa4a714",
         "ref": "source/unofficial/edk2-stable202505"
       },
       {
-        "object_id": "09a8f94d022cb2ac7c8d16e19a802b1b59e14b35",
+        "object_id": "5e949f5863a650d2c0ae0aea7f47d5a4deee0f49",
         "ref": "source/unofficial/edk2-stable202508"
       },
       {
-        "object_id": "f8bd41594be4a477eb054f731f4eeedc4ae0b637",
+        "object_id": "bdc66a0b5b223280e22c5541c35e9e767f71df2d",
         "ref": "source/unofficial/edk2-stable202511"
       },
       {
-        "object_id": "bc5ce33bcf18f004ba1fd33756173a7e3d686387",
+        "object_id": "ec79e85290f22c87e8c92bd9a2a71cf4d9a40694",
         "ref": "source/unofficial/edk2-stable202602"
       },
       {
-        "object_id": "9125c8fd1fa315bf7d669549d0e848ca33c875db",
+        "object_id": "11d6876ce3fa36cd585bcf5f9c90336f90deced2",
         "ref": "source/unofficial/edk2/stable-202208"
       },
       {
-        "object_id": "167d870b478bbcad933ae6d8340664abd47ae287",
+        "object_id": "87dd15fc34a36f64c25109e96544087a2be8ddf2",
         "ref": "source/unofficial/edk2/stable-202211"
       },
       {
-        "object_id": "670f932184a819e2337cd573fed2e7630a213080",
+        "object_id": "6e1c897b1f07d293bbae71a915a14ccb15f56cf8",
         "ref": "source/unofficial/edk2/stable-202302"
       },
       {
-        "object_id": "d575a736f49f8bd1dcaa84923edd1fd1513252b3",
+        "object_id": "32d07d45a8a5bdb0cef93c3a8f1f075eb2448ae0",
         "ref": "source/unofficial/edk2/stable-202305"
       },
       {
-        "object_id": "688c721b8d95b971bbc0e06bb5037faf37bd74f6",
+        "object_id": "2aecdd1a08cc3a26f47c964c0e27561de153b096",
         "ref": "source/unofficial/edk2/stable-202308"
       },
       {
-        "object_id": "a160d419be4051b761803a61bb90931ee3023b73",
+        "object_id": "d101f493c4509b7017613813d39e0facca98912f",
         "ref": "source/unofficial/edk2/stable-202311"
       },
       {
-        "object_id": "2412b67edeb7458c1cd2e9d1fb824826bd050393",
+        "object_id": "e6d3902e2976473e9c6da2adafb5a40cab5d6499",
         "ref": "source/unofficial/edk2/stable-202402"
       },
       {
-        "object_id": "9ee4e2fbc7496ebc715b123b0ee25d8398585a96",
+        "object_id": "61b19ebb7aca6e22b654d0a14c9a37b30aa9b331",
         "ref": "source/unofficial/edk2/stable-202405"
       },
       {
-        "object_id": "81a1b14ca5c8ed4596b998e37b46bdc864deaf9f",
+        "object_id": "e8b95328104112512f6a1d2477ac519265d1db2d",
         "ref": "source/unofficial/edk2/stable-202408"
       },
       {
-        "object_id": "266fbc1eb91e434f6751505679f1ba46804f82b1",
+        "object_id": "8c985ac3edcd16665d60349a776f475458ad93d5",
         "ref": "source/unofficial/edk2/stable-202408.01"
       },
       {
-        "object_id": "1a596134b22adad36c2cc6ebc59a0c12f118412c",
+        "object_id": "f98bfd7b12b12bd2f2223dacd667e163b7cfbb26",
         "ref": "source/unofficial/edk2/stable-202411"
       },
       {
-        "object_id": "0bdbca63b4344feba421ad765e4573bff90b54ba",
+        "object_id": "ca879be48bf15752fcb578a76996b96f7fef06d8",
         "ref": "source/unofficial/edk2/stable-202502"
       },
       {
-        "object_id": "aae914740f45f2328bd6a42727fd7e087f859134",
+        "object_id": "8cf3d7506e5ee1c98201d33b907dda15baa4a714",
         "ref": "source/unofficial/edk2/stable-202505"
       },
       {
-        "object_id": "23e555d5ac89d0960643445b352bdd5125ee6e44",
+        "object_id": "5e949f5863a650d2c0ae0aea7f47d5a4deee0f49",
         "ref": "source/unofficial/edk2/stable-202508"
       },
       {
-        "object_id": "5838855b44222afc19d69edd876692737d7d204b",
+        "object_id": "bdc66a0b5b223280e22c5541c35e9e767f71df2d",
         "ref": "source/unofficial/edk2/stable-202511"
       },
       {
-        "object_id": "ee1790935ec3a5daec046e6eeb30202669265209",
+        "object_id": "ec79e85290f22c87e8c92bd9a2a71cf4d9a40694",
         "ref": "source/unofficial/edk2/stable-202602"
       },
       {
@@ -616,6 +616,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "594c96e37c86326e1fcd889e44e0528a80ab982ef52376d3ef0b7e49cf1bc877"
+    "sha256": "7736bf10266f3422440dba1533727a0455459c80c2a033007a14a778d81179ae"
   }
 }

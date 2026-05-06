@@ -686,6 +686,10 @@ def print_dry_run(state: dict[str, Any]) -> None:
         if target.get("tag"):
             line += f" and {target['tag']}"
         print(line)
+    sys.stdout.flush()
+
+
+def print_dry_run_success(state: dict[str, Any]) -> None:
     print()
     print("Dry-run succeeded. To apply this change permanently, run:")
     print("  " + " ".join(write_command(state)))
@@ -831,6 +835,7 @@ def main() -> None:
         print_dry_run(state)
         if paused:
             raise ReconstructionError(dry_run_conflict_message(state, paused))
+        print_dry_run_success(state)
         remove_operation_state(op_dir)
         return
 
