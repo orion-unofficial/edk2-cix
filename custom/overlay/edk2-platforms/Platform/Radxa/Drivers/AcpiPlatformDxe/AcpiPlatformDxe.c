@@ -21,6 +21,28 @@ EFI_GUID  pAcpiPlatformTableStorageGuid = {
   0xc1bb2ead, 0xc76a, 0x45dd, { 0x90, 0xb5, 0xd4, 0x02, 0x55, 0x17, 0x0a, 0x9c }
 };
 
+STATIC
+VOID
+ApplyBoardDeviceModelDefaults (
+  OUT RADXA_SETUP_DATA  *RadxaSetupVar
+  )
+{
+  CHAR16  *SystemProductName;
+
+  RadxaSetupVar->PcieDeviceModel = RADXA_SETUP_PCIE_DEVICE_MODEL_LINUX;
+  RadxaSetupVar->UsbDeviceModel  = RADXA_SETUP_USB_DEVICE_MODEL_LINUX;
+
+  RadxaSetupVar->UsbGenericXhciVisible[0] = 1;
+  RadxaSetupVar->UsbGenericXhciVisible[1] = 0;
+  RadxaSetupVar->UsbGenericXhciVisible[2] = 1;
+  RadxaSetupVar->UsbGenericXhciVisible[3] = 0;
+
+  SystemProductName = (CHAR16 *)FixedPcdGetPtr (PcdSystemProductName);
+  if (!StrCmp (L"Radxa Orion O6N", SystemProductName)) {
+    RadxaSetupVar->UsbGenericXhciVisible[2] = 0;
+  }
+}
+
 VOID
 EFIAPI
 AcpiHookFunctionOnReadyToBoot (
@@ -40,6 +62,7 @@ AcpiHookFunctionOnReadyToBoot (
   VarSize = sizeof (RADXA_SETUP_DATA);
   if (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
     ZeroMem (&RadxaSetupVar, sizeof (RadxaSetupVar));
+    ApplyBoardDeviceModelDefaults (&RadxaSetupVar);
   }
   Status = gRT->GetVariable (
                   RADXA_SETUP_VAR,
@@ -75,6 +98,31 @@ AcpiHookFunctionOnReadyToBoot (
     Status = UpdateNameAslCode (SIGNATURE_32 ('P', 'C', 'D', 'M'), &(RadxaSetupVar.PcieDeviceModel), sizeof (RadxaSetupVar.PcieDeviceModel));
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "%a: Update PCDM failed, Status=%r\n", __FUNCTION__, Status));
+    }
+
+    Status = UpdateNameAslCode (SIGNATURE_32 ('U', 'S', 'D', 'M'), &(RadxaSetupVar.UsbDeviceModel), sizeof (RadxaSetupVar.UsbDeviceModel));
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a: Update USDM failed, Status=%r\n", __FUNCTION__, Status));
+    }
+
+    Status = UpdateNameAslCode (SIGNATURE_32 ('U', 'G', 'V', '0'), &(RadxaSetupVar.UsbGenericXhciVisible[0]), sizeof (RadxaSetupVar.UsbGenericXhciVisible[0]));
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a: Update UGV0 failed, Status=%r\n", __FUNCTION__, Status));
+    }
+
+    Status = UpdateNameAslCode (SIGNATURE_32 ('U', 'G', 'V', '1'), &(RadxaSetupVar.UsbGenericXhciVisible[1]), sizeof (RadxaSetupVar.UsbGenericXhciVisible[1]));
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a: Update UGV1 failed, Status=%r\n", __FUNCTION__, Status));
+    }
+
+    Status = UpdateNameAslCode (SIGNATURE_32 ('U', 'G', 'V', '2'), &(RadxaSetupVar.UsbGenericXhciVisible[2]), sizeof (RadxaSetupVar.UsbGenericXhciVisible[2]));
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a: Update UGV2 failed, Status=%r\n", __FUNCTION__, Status));
+    }
+
+    Status = UpdateNameAslCode (SIGNATURE_32 ('U', 'G', 'V', '3'), &(RadxaSetupVar.UsbGenericXhciVisible[3]), sizeof (RadxaSetupVar.UsbGenericXhciVisible[3]));
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a: Update UGV3 failed, Status=%r\n", __FUNCTION__, Status));
     }
   }
 

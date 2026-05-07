@@ -32,6 +32,7 @@ The custom ACPI overlays should follow three rules:
 Today the main custom differences are:
 
 - targeted ACPICA warning/remark cleanup in the Sky1 and O6 ACPI tables
+- PCIe and USB ACPI device-model selection on the custom firmware-fixes path
 - custom UART3 debug routing reflected in the ACPI debug-port description
 - the custom `ParseIomuxTemplate.py` helper path needed by the sparse custom
   overlay workspace
