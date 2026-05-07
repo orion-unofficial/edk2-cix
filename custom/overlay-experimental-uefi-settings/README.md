@@ -9,8 +9,11 @@ UI path instead of enabling the broader CIX `TOKEN_SETUP_SUPPORT` menu stack.
 Scope:
 
 - `O6`: `RTC Wakeup`, `On-Board LAN Power`, `WLAN Power`, `GFX Device Power`,
-  `M.2 SSD Power`, and `SR-IOV Support`
-- `O6N`: `RTC Wakeup`, `On-Board LAN Power`, and `WLAN Power`
+  `M.2 SSD Power`, PCIe and USB ACPI model controls when combined with
+  `ENABLE_FIRMWARE_FIXES=true`, USB Type-C controls, and `SR-IOV Support`
+- `O6N`: `RTC Wakeup`, `On-Board LAN Power`, `WLAN Power`, PCIe and USB ACPI
+  model controls when combined with `ENABLE_FIRMWARE_FIXES=true`, and USB
+  Type-C controls
 
 Explicitly not exposed here:
 
