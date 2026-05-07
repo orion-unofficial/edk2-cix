@@ -545,6 +545,22 @@ def test_empty_diff_is_rejected() -> None:
         shutil.rmtree(repo)
 
 
+def test_legacy_propagate_checkpoints_is_rejected() -> None:
+    repo = make_repo()
+    try:
+        topic = make_materialised_topic(repo)
+        result = run_import_changes(
+            repo,
+            FROM_REF=topic,
+            PROPAGATE_CHECKPOINTS="all",
+            UPDATE_RELEASE_TAGS="1",
+        )
+        require(result.returncode != 0, "legacy propagation variable should be rejected")
+        require("PROPAGATE_CHECKPOINTS was renamed to PROPAGATE_RELEASE_BRANCHES" in result.stderr, result.stderr)
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_conflict_pauses_without_moving_refs_then_continue_finalises() -> None:
     repo = make_repo()
     try:
@@ -945,6 +961,7 @@ def main() -> None:
     test_import_infers_retained_legacy_fork_point_after_base_moves()
     test_missing_base_is_rejected_when_no_base_can_be_inferred()
     test_empty_diff_is_rejected()
+    test_legacy_propagate_checkpoints_is_rejected()
     test_conflict_pauses_without_moving_refs_then_continue_finalises()
     test_dry_run_conflict_reports_paths_without_moving_refs()
     test_symlink_file_conflict_reports_expanded_context()

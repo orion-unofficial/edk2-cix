@@ -128,6 +128,22 @@ def test_direct_import_dry_run_does_not_move_ref() -> None:
         shutil.rmtree(repo)
 
 
+def test_legacy_propagate_checkpoints_is_rejected() -> None:
+    repo = make_repo()
+    try:
+        _base, topic = make_topic(repo)
+        result = run_import(
+            repo,
+            FROM_REF=topic,
+            PROPAGATE_CHECKPOINTS="all",
+            UPDATE_RELEASE_TAGS="1",
+        )
+        require(result.returncode != 0, "legacy propagation variable should be rejected")
+        require("PROPAGATE_CHECKPOINTS was renamed to PROPAGATE_RELEASE_BRANCHES" in result.stderr, result.stderr)
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_propagate_all_updates_current_release_branches_and_tags() -> None:
     repo = make_repo()
     try:
@@ -505,6 +521,7 @@ def test_concurrent_ref_movement_aborts_finalise() -> None:
 
 def main() -> None:
     test_direct_import_dry_run_does_not_move_ref()
+    test_legacy_propagate_checkpoints_is_rejected()
     test_propagate_all_updates_current_release_branches_and_tags()
     test_propagation_normalises_exact_mirror_rename()
     test_propagation_validate_mode_reports_required_normalisation()

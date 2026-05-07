@@ -537,10 +537,11 @@ The key variables are:
   `source/unofficial/`.
 - `PROPAGATE_RELEASE_BRANCHES=all` replays or applies the imported change onto
   every `source/unofficial/edk2-stable*` release branch.
-- `UPDATE_RELEASE_TAGS=1` is an import-target shortcut for moving the matching
-  `source/unofficial/edk2/stable-*` tags after every replay has succeeded. The
-  recommended workflow is to run `make update-release-tags` separately after
-  release-branch testing.
+- `UPDATE_RELEASE_TAGS=1` may be used with
+  `PROPAGATE_RELEASE_BRANCHES=all` to move the matching
+  `source/unofficial/edk2/stable-*` tags only after every replay has
+  succeeded. The safer staged workflow is to omit it, test the propagated
+  release branches, then run `make update-release-tags` separately.
 - `SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact` controls deterministic
   overlay path normalisation while propagating changes across EDK2 release
   branches. The default is `exact`.

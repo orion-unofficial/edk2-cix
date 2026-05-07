@@ -73,9 +73,10 @@ Optional variables:
                         source/unofficial/edk2-stable* release branch. The
                         default is none.
   UPDATE_RELEASE_TAGS=0|1
-                        With release-branch propagation, update matching
+                        Only valid with release-branch updates. Move matching
                         source/unofficial/edk2/stable-* tags after all replays
-                        succeed.
+                        succeed. The safer staged workflow is to run
+                        make update-release-tags separately after validation.
   BASE_REF=<ref>        Replay base. Usually inferred from source/unofficial/current.
   SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact
                         How to handle overlay paths whose corresponding src/
@@ -109,6 +110,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--base-ref", default=os.environ.get("BASE_REF", ""))
     p.add_argument("--source-unofficial-ref", default=os.environ.get("SOURCE_UNOFFICIAL_REF", CURRENT_REF))
     p.add_argument("--propagate-release-branches", dest="propagate_release_branches", default=os.environ.get("PROPAGATE_RELEASE_BRANCHES", "none"))
+    p.add_argument("--propagate-checkpoints", dest="propagate_checkpoints", default=os.environ.get("PROPAGATE_CHECKPOINTS", ""))
     p.add_argument("--update-release-tags", dest="update_release_tags", default=os.environ.get("UPDATE_RELEASE_TAGS", "0"))
     p.add_argument("--source-lifecycle-normalise", default=os.environ.get("SOURCE_LIFECYCLE_NORMALISE", "exact"))
     p.add_argument("--allow-source-ref-from", default=os.environ.get("ALLOW_SOURCE_REF_FROM", "0"))
@@ -485,9 +487,9 @@ def direct_import(repo: Path, args: argparse.Namespace, verbose: bool) -> None:
     require_unofficial_target(ref)
     if truthy(args.update_release_tags) and ref == CURRENT_REF:
         raise ReconstructionError(
-            "UPDATE_RELEASE_TAGS applies to release-specific source/unofficial/edk2-stable* branches. "
-            "Import and test source/unofficial/current first, then run make propagate-release-branches "
-            "and make update-release-tags."
+            "UPDATE_RELEASE_TAGS=1 cannot update source/unofficial/current because the matching tags belong "
+            "to release-specific source/unofficial/edk2-stable* branches. Omit UPDATE_RELEASE_TAGS, test the "
+            "import, then run make propagate-release-branches and make update-release-tags."
         )
     require_valid_import_source(repo, args.from_ref, ref, truthy(args.allow_source_ref_from))
     enforce_source_tree_policy(repo, ref=args.from_ref, label=args.from_ref)
@@ -536,6 +538,11 @@ def main() -> None:
     progress(f"starting import from {args.from_ref}")
     if not ref_exists(repo, args.from_ref):
         raise ReconstructionError(f"FROM_REF is unavailable locally: {args.from_ref}")
+    if args.propagate_checkpoints:
+        raise ReconstructionError(
+            "PROPAGATE_CHECKPOINTS was renamed to PROPAGATE_RELEASE_BRANCHES; "
+            "use PROPAGATE_RELEASE_BRANCHES=all."
+        )
 
     propagate = args.propagate_release_branches.strip().lower() or "none"
     if propagate not in {"none", "0", "false", "all"}:

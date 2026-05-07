@@ -77,9 +77,11 @@ Optional variables:
                         source/unofficial/edk2-stable* release branch. The
                         default is none.
   UPDATE_RELEASE_TAGS=0|1
-                        With release-branch propagation, update matching
-                        source/unofficial/edk2/stable-* tags after every
-                        release-branch import succeeds.
+                        Only valid with PROPAGATE_RELEASE_BRANCHES=all. Update
+                        matching source/unofficial/edk2/stable-* tags after
+                        every release-branch import succeeds. The safer staged
+                        workflow is to run make update-release-tags separately
+                        after validating the propagated release branches.
   COMMIT_MESSAGE=<text> Commit message for the imported patch. Literal \\n
                         sequences are mapped to separate git commit -m
                         paragraphs. If no message input is set, the FROM_REF
@@ -121,6 +123,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--base-ref", default=os.environ.get("BASE_REF", ""))
     p.add_argument("--source-unofficial-ref", default=os.environ.get("SOURCE_UNOFFICIAL_REF", CURRENT_REF))
     p.add_argument("--propagate-release-branches", dest="propagate_release_branches", default=os.environ.get("PROPAGATE_RELEASE_BRANCHES", "none"))
+    p.add_argument("--propagate-checkpoints", dest="propagate_checkpoints", default=os.environ.get("PROPAGATE_CHECKPOINTS", ""))
     p.add_argument("--update-release-tags", dest="update_release_tags", default=os.environ.get("UPDATE_RELEASE_TAGS", "0"))
     p.add_argument("--commit-message", default=os.environ.get("COMMIT_MESSAGE", ""))
     p.add_argument("--commit-message-file", default=os.environ.get("COMMIT_MESSAGE_FILE", ""))
@@ -477,6 +480,11 @@ def attach_conflict_report(op_dir: Path, target: dict[str, Any]) -> None:
 
 def build_targets(repo: Path, args: argparse.Namespace) -> list[dict[str, Any]]:
     require_unofficial_target(args.source_unofficial_ref)
+    if args.propagate_checkpoints:
+        raise ReconstructionError(
+            "PROPAGATE_CHECKPOINTS was renamed to PROPAGATE_RELEASE_BRANCHES; "
+            "use PROPAGATE_RELEASE_BRANCHES=all."
+        )
     propagate = args.propagate_release_branches.strip().lower() or "none"
     if propagate not in {"none", "0", "false", "all"}:
         raise ReconstructionError("PROPAGATE_RELEASE_BRANCHES must be none or all")
@@ -484,9 +492,9 @@ def build_targets(repo: Path, args: argparse.Namespace) -> list[dict[str, Any]]:
         raise ReconstructionError("PROPAGATE_RELEASE_BRANCHES=all updates source/unofficial/current and all release branches; do not set SOURCE_UNOFFICIAL_REF")
     if propagate != "all" and truthy(args.update_release_tags) and args.source_unofficial_ref == CURRENT_REF:
         raise ReconstructionError(
-            "UPDATE_RELEASE_TAGS applies to release-specific source/unofficial/edk2-stable* branches. "
-            "Import and test source/unofficial/current first, then run make propagate-release-branches "
-            "and make update-release-tags."
+            "UPDATE_RELEASE_TAGS=1 requires PROPAGATE_RELEASE_BRANCHES=all so tags only move after every "
+            "requested release-branch import succeeds. For the safer staged workflow, omit "
+            "UPDATE_RELEASE_TAGS, test the propagated branches, then run make update-release-tags."
         )
 
     refs = [args.source_unofficial_ref]
@@ -967,6 +975,11 @@ def main() -> None:
     progress(f"starting import from {args.from_ref}")
     if not ref_exists(repo, args.from_ref):
         raise ReconstructionError(f"FROM_REF is unavailable locally: {args.from_ref}")
+    if args.propagate_checkpoints:
+        raise ReconstructionError(
+            "PROPAGATE_CHECKPOINTS was renamed to PROPAGATE_RELEASE_BRANCHES; "
+            "use PROPAGATE_RELEASE_BRANCHES=all."
+        )
 
     if not truthy(args.write):
         progress("dry run: no refs or tags will be moved")

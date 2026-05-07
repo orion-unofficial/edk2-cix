@@ -189,7 +189,7 @@ help-dev:
 	print_help_variable 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
 	print_help_variable 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch for import-changes or import-unofficial-commits; defaults to source/unofficial/current.'; \
 	print_help_variable 'PROPAGATE_RELEASE_BRANCHES=none|all' 'For import targets. Replay or apply the imported change onto every source/unofficial/edk2-stable* release branch after preparing all candidates safely.\nDefault: none.'; \
-	print_help_variable 'UPDATE_RELEASE_TAGS=0|1' 'For import targets. Move matching source/unofficial/edk2/stable-* tags after all requested release-branch imports succeed. The recommended workflow is to run make update-release-tags separately after validation.\nDefault: 0.'; \
+	print_help_variable 'UPDATE_RELEASE_TAGS=0|1' 'For import targets, only with PROPAGATE_RELEASE_BRANCHES=all. Move matching source/unofficial/edk2/stable-* tags after all requested release-branch imports succeed. The safer staged workflow is to run make update-release-tags separately after validation.\nDefault: 0.'; \
 	print_help_variable 'SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact' 'For import targets and verify-source-lifecycle. Control deterministic overlay/source lifecycle handling when an imported overlay path points at a source file that moved or disappeared in another release branch. validate reports required rewrites without changing the scratch tree; mirror rewrites mirror symlinks only; exact also rewrites exact regular overlay renames.\nDefault: exact.'; \
 	print_help_variable 'COMMIT_MESSAGE=<text>' 'For import-changes. Commit message for the extracted patch. Literal \\n sequences become separate git commit -m paragraphs.\nDefault: inherited from the FROM_REF tip commit.'; \
 	print_help_variable 'COMMIT_MESSAGE_FILE=<path>' 'For import-changes. Read the imported patch commit message from a file. Mutually exclusive with COMMIT_MESSAGE.'; \
@@ -435,10 +435,12 @@ integrate-source-release:
 
 import-unofficial-commits:
 	$(call PROGRESS_PROBE,[import-unofficial] Starting unofficial import)
+	@if [ -n "$(PROPAGATE_CHECKPOINTS)" ]; then printf '%s\n' 'PROPAGATE_CHECKPOINTS was renamed to PROPAGATE_RELEASE_BRANCHES; use PROPAGATE_RELEASE_BRANCHES=all.' >&2; exit 2; fi
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_RELEASE_BRANCHES="$(PROPAGATE_RELEASE_BRANCHES)" UPDATE_RELEASE_TAGS="$(UPDATE_RELEASE_TAGS)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" ALLOW_SOURCE_REF_FROM="$(ALLOW_SOURCE_REF_FROM)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
 
 import-changes:
 	$(if $(filter 1 true yes on,$(ABORT)),,$(call PROGRESS_PROBE,[import-changes] Starting change import))
+	@if [ -n "$(PROPAGATE_CHECKPOINTS)" ]; then printf '%s\n' 'PROPAGATE_CHECKPOINTS was renamed to PROPAGATE_RELEASE_BRANCHES; use PROPAGATE_RELEASE_BRANCHES=all.' >&2; exit 2; fi
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_RELEASE_BRANCHES="$(PROPAGATE_RELEASE_BRANCHES)" UPDATE_RELEASE_TAGS="$(UPDATE_RELEASE_TAGS)" COMMIT_MESSAGE="$(COMMIT_MESSAGE)" COMMIT_MESSAGE_FILE="$(COMMIT_MESSAGE_FILE)" SIGNOFF="$(SIGNOFF)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_changes.py --v "$(V)"
 
 inspect-import-conflicts:
