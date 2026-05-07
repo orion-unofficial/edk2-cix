@@ -75,6 +75,24 @@ created fiptool source-build commits that never received that helper. Future
 agents should treat this as a propagation-audit lesson, not as permission to
 rewrite release-branch history wholesale.
 
+## Patch Formatting
+
+When creating or revising context diffs, every hunk must include at least three
+unchanged context lines before and after the changed region. The only
+exceptions are hunks whose changed region is within three lines of the start or
+end of the file, where the missing context physically cannot exist. Free-form
+preamble before the first `diff --git` line and trailing commentary after the
+last diff are fine, but they do not count as context for any hunk.
+
+Avoid hand-assembling diff hunks in memory when a safer path is available:
+this has repeatedly produced plausible-looking patches with invalid hunk
+headers or unsafe context. Wherever possible, construct patches from real file
+states instead. Preferred workflows are making the change in a scratch checkout
+and capturing it with `git diff`, or creating original and modified file copies
+and running `diff -u` between them. After capturing the patch, undo any scratch
+edit that was made only to generate the diff. If an existing hunk lacks the
+required context, reformulate it before delivering or committing it.
+
 ## Ephemeral Worktrees And Temporary Data
 
 Treat Git worktrees as ephemeral execution state, not as durable storage. A
