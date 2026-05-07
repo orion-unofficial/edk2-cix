@@ -16,12 +16,17 @@ extern EFI_GUID  gRadxaSetupVariableGuid;
 #define RADXA_SETUP_PCIE_DEVICE_MODEL_LINUX 0
 #define RADXA_SETUP_PCIE_DEVICE_MODEL_CIX   1
 
+#define RADXA_SETUP_USB_DEVICE_MODEL_LINUX  0
+#define RADXA_SETUP_USB_DEVICE_MODEL_CIX    1
+
 #pragma pack(1)
 
 typedef struct {
   UINT8     UFSPowerMode;
   UINT8     EnableAcpiScmi;
   UINT8     PcieDeviceModel;
+  UINT8     UsbDeviceModel;
+  UINT8     UsbGenericXhciVisible[4];
 } RADXA_SETUP_DATA;
 
 #pragma pack()
