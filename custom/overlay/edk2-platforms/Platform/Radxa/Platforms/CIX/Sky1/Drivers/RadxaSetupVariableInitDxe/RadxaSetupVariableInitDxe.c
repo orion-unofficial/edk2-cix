@@ -13,6 +13,28 @@
 #include <Library/PcdLib.h>
 #include "../../Include/RadxaSetupVar.h"
 
+STATIC
+VOID
+ApplyBoardDeviceModelDefaults (
+  OUT RADXA_SETUP_DATA  *RadxaSetupVar
+  )
+{
+  CHAR16  *SystemProductName;
+
+  RadxaSetupVar->PcieDeviceModel = RADXA_SETUP_PCIE_DEVICE_MODEL_LINUX;
+  RadxaSetupVar->UsbDeviceModel  = RADXA_SETUP_USB_DEVICE_MODEL_LINUX;
+
+  RadxaSetupVar->UsbGenericXhciVisible[0] = 1;
+  RadxaSetupVar->UsbGenericXhciVisible[1] = 0;
+  RadxaSetupVar->UsbGenericXhciVisible[2] = 1;
+  RadxaSetupVar->UsbGenericXhciVisible[3] = 0;
+
+  SystemProductName = (CHAR16 *)FixedPcdGetPtr (PcdSystemProductName);
+  if (!StrCmp (L"Radxa Orion O6N", SystemProductName)) {
+    RadxaSetupVar->UsbGenericXhciVisible[2] = 0;
+  }
+}
+
 EFI_STATUS
 EFIAPI
 RadxaSetupVariableInitDxeEntry (
@@ -28,6 +50,7 @@ RadxaSetupVariableInitDxeEntry (
   NeedsRewrite = FALSE;
   VarSize = sizeof (RADXA_SETUP_DATA);
   ZeroMem (&RadxaSetupVar, sizeof (RadxaSetupVar));
+  ApplyBoardDeviceModelDefaults (&RadxaSetupVar);
 
   Status = gRT->GetVariable (
                   RADXA_SETUP_VAR,
