@@ -273,6 +273,7 @@ CUSTOM_O6N_DRIVERS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Pla
 CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/PlatformSmbios)
 CUSTOM_ACPI_PLATFORM_DXE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Drivers/AcpiPlatformDxe)
 CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe)
+CUSTOM_RADXA_SE_CONFIG_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SeConfigUpdateDxe)
 CUSTOM_BASETOOLS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2/BaseTools)
 CUSTOM_BASETOOLS_VFR_OVERLAY := $(CUSTOM_BASETOOLS_OVERLAY_DIR)/Source/C/VfrCompile/VfrSyntax.g
 CUSTOM_EDK2_OVERLAY_SOURCES := \
@@ -318,6 +319,7 @@ CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(wildcard $(CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR)/*.inf) \
 	$(wildcard $(CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR)/*.vfr) \
 	$(wildcard $(CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR)/*.uni) \
+	$(wildcard $(CUSTOM_RADXA_SE_CONFIG_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_RADXA_SETUP_INCLUDE_OVERLAY_DIR)/*) \
 	$(wildcard $(CUSTOM_RADXA_SETUP_INIT_OVERLAY_DIR)/*) \
 	$(abspath ../custom/overlay/edk2/ArmPlatformPkg/Library/PL011UartLib/PL011Uart.h) \
@@ -336,6 +338,7 @@ EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/MemMenu/MemoryConfig.hfr) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.hfr) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.uni) \
+	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/UsbMenu/UsbConfig.hfr) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/UsbMenu/UsbConfig.uni) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLib.inf) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib/PlatformEnvHookLibCustom.c) \

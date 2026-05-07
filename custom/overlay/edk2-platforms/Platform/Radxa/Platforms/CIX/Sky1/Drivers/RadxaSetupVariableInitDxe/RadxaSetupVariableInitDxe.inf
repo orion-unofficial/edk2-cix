@@ -46,6 +46,7 @@
 [Protocols]
 
 [FixedPcd]
+  gArmTokenSpaceGuid.PcdSystemProductName
 
 [Depex]
   TRUE
