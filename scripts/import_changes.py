@@ -359,6 +359,32 @@ def infer_base(repo: Path, from_ref: str, explicit_base: str, target_ref: str) -
     )
 
 
+def base_extraction_notes(repo: Path, base_oid: str, targets: list[dict[str, Any]]) -> list[str]:
+    non_ancestor_targets = [
+        str(target["ref"])
+        for target in targets
+        if not is_ancestor(repo, base_oid, rev_parse(repo, str(target["ref"])))
+    ]
+    if not non_ancestor_targets:
+        return []
+
+    if len(non_ancestor_targets) == len(targets):
+        target_summary = "any update target"
+    elif len(non_ancestor_targets) == 1:
+        target_summary = non_ancestor_targets[0]
+    else:
+        shown = ", ".join(non_ancestor_targets[:3])
+        extra = "" if len(non_ancestor_targets) <= 3 else f", and {len(non_ancestor_targets) - 3} more"
+        target_summary = f"{shown}{extra}"
+
+    return [
+        "BASE_REF is the patch-extraction base, not the destination branch. "
+        f"It is not an ancestor of {target_summary}; this is expected when applying "
+        "a focused diff from another source line. Only the changed paths listed below "
+        "are applied to the update targets."
+    ]
+
+
 def changed_files(repo: Path, base_oid: str, from_ref: str) -> list[str]:
     result = git(repo, "diff", "--name-status", f"{base_oid}..{from_ref}")
     return [line for line in result.stdout.splitlines() if line]
@@ -719,6 +745,7 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
         "from_oid": from_oid,
         "base_ref": base_ref,
         "base_oid": base_oid,
+        "base_notes": base_extraction_notes(repo, base_oid, targets),
         "patch_path": str(patch_path),
         "changes": changes,
         "changed_overlay_paths": changed_overlay_paths_from_name_status(changes),
@@ -915,6 +942,11 @@ def print_dry_run(state: dict[str, Any]) -> None:
     print("dry run; no refs or tags will be moved")
     print(f"  base: {state['base_ref']} ({state['base_oid']})")
     print(f"  from: {state['from_ref']} ({state['from_oid']})")
+    for note in state.get("base_notes", []):
+        note_lines: list[str] = []
+        append_wrapped(note_lines, f"note: {note}", indent="  ")
+        for line in note_lines:
+            print(line)
     print("  changed paths:")
     for change in state["changes"]:
         print(f"    {change}")
@@ -1015,6 +1047,8 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
         f"BASE_REF: {state['base_ref']} ({state['base_oid']})",
         f"FROM_REF: {state['from_ref']} ({state['from_oid']})",
     ]
+    for note in state.get("base_notes", []):
+        append_wrapped(lines, f"Note: {note}")
     append_wrapped(
         lines,
         "Dry-run still attempts every target in disposable scratch trees so it can prove whether a later write would succeed.",

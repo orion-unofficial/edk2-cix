@@ -325,18 +325,23 @@ you can resolve and validate the candidate import before any permanent ref or
 tag is moved.
 
 For a topic branch created from a persistent materialised cache branch, a
-retained source branch, or another unique retained fork point, the base is
-inferred:
+retained source branch, or another unique retained fork point, the patch
+extraction base is inferred:
 
 ```bash
 make import-changes \
   FROM_REF=my-change
 ```
 
-If the dry run reports the expected base, changed paths, and update target,
-re-run with `WRITE=1`. The successful dry-run output prints a ready-to-copy
-command, followed by the minimum validation command to run after the ref
-update. The command includes `BASE_REF` only if you provided it explicitly:
+The reported `BASE_REF` is the tree used to extract the focused patch. It is
+not necessarily the destination branch being updated. For example, a topic
+branch forked from an older retained source line may correctly use that older
+fork point as `BASE_REF` while still applying the resulting small patch to
+`source/unofficial/current`. If the dry run reports the expected base, changed
+paths, and update target, re-run with `WRITE=1`. The successful dry-run output
+prints a ready-to-copy command, followed by the minimum validation command to
+run after the ref update. The command includes `BASE_REF` only if you provided
+it explicitly:
 
 ```bash
 make import-changes \

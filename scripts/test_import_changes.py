@@ -495,6 +495,7 @@ def test_import_infers_retained_legacy_branch_base() -> None:
         dry_run = run_import_changes(repo, FROM_REF="legacy-topic")
         require(dry_run.returncode == 0, dry_run.stderr + dry_run.stdout)
         require("retained-source" in dry_run.stdout, "dry-run base label was not retained in output")
+        require("BASE_REF is the patch-extraction base, not the destination branch" in dry_run.stdout, "dry-run did not explain non-target base")
 
         result = run_import_changes(repo, FROM_REF="legacy-topic", WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)
