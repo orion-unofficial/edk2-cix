@@ -458,6 +458,36 @@ def test_dry_run_conflict_reports_paths_without_moving_refs() -> None:
         shutil.rmtree(repo)
 
 
+def test_continue_rejects_changed_operation_options() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "source/unofficial/current")
+        write_file(repo, "firmware.txt", "current conflict\n")
+        commit_all(repo, "current conflict")
+        git(repo, "switch", "build")
+        old_current = rev_parse(repo, "source/unofficial/current")
+
+        topic = make_materialised_topic(repo, text="topic conflict\n")
+        result = run_import_changes(repo, FROM_REF=topic)
+        require(result.returncode != 0, "conflicting dry-run should fail")
+        op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
+
+        changed_continue = run_import_changes(
+            repo,
+            CONTINUE="1",
+            OP_ID=op_dir.name,
+            PROPAGATE_CHECKPOINTS="all",
+            UPDATE_COMPAT_TAGS="1",
+        )
+        require(changed_continue.returncode != 0, "continue with changed options should fail")
+        require("would be ignored" in changed_continue.stderr, changed_continue.stderr)
+        require("PROPAGATE_CHECKPOINTS='all'" in changed_continue.stderr, changed_continue.stderr)
+        require("UPDATE_COMPAT_TAGS='1'" in changed_continue.stderr, changed_continue.stderr)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "changed continue moved current")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_failed_apply_without_conflict_markers_pauses_for_manual_resolution() -> None:
     repo = make_repo()
     try:

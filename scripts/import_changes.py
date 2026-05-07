@@ -635,9 +635,60 @@ def finalise_or_report_ready(repo: Path, op_dir: Path, state: dict[str, Any], ve
     finalise(repo, op_dir, state, verbose)
 
 
-def continue_operation(repo: Path, op_dir: Path, verbose: bool, write: bool) -> None:
+def normalised_requested_option(name: str, value: str) -> str:
+    if name == "source_unofficial_ref":
+        return value or CURRENT_REF
+    if name == "propagate_checkpoints":
+        return (value or "none").lower()
+    if name in {"signoff", "update_compat_tags"}:
+        return "1" if truthy(value) else "0"
+    if name == "source_lifecycle_normalise":
+        return value or "exact"
+    return value or ""
+
+
+def validate_continue_arguments(args: argparse.Namespace, state: dict[str, Any]) -> None:
+    """Reject option changes that a paused operation cannot honour."""
+
+    requested = state.get("requested", {})
+    comparisons = {
+        "BASE_REF": ("base_ref", str(requested.get("base_ref") or "")),
+        "COMMIT_MESSAGE": ("commit_message", str(requested.get("commit_message") or "")),
+        "COMMIT_MESSAGE_FILE": ("commit_message_file", str(requested.get("commit_message_file") or "")),
+        "FROM_REF": ("from_ref", str(state.get("from_ref") or "")),
+        "PROPAGATE_CHECKPOINTS": ("propagate_checkpoints", str(requested.get("propagate_checkpoints") or "")),
+        "SIGNOFF": ("signoff", str(requested.get("signoff") or "")),
+        "SOURCE_LIFECYCLE_NORMALISE": (
+            "source_lifecycle_normalise",
+            str(requested.get("source_lifecycle_normalise") or ""),
+        ),
+        "SOURCE_UNOFFICIAL_REF": ("source_unofficial_ref", str(requested.get("source_unofficial_ref") or "")),
+        "UPDATE_COMPAT_TAGS": ("update_compat_tags", str(requested.get("update_compat_tags") or "")),
+    }
+    mismatches: list[str] = []
+    for env_name, (state_name, recorded) in comparisons.items():
+        supplied = os.environ.get(env_name, "")
+        if supplied == "":
+            continue
+        if normalised_requested_option(state_name, supplied) == normalised_requested_option(state_name, recorded):
+            continue
+        mismatches.append(
+            f"  - {env_name}={supplied!r}; operation has {normalised_requested_option(state_name, recorded)!r}"
+        )
+    if mismatches:
+        raise ReconstructionError(
+            "CONTINUE=1 uses the targets and options captured when the import operation was created.\n"
+            "The supplied option(s) would be ignored, so the import has been stopped:\n"
+            + "\n".join(mismatches)
+            + "\n\nAbort this operation and start a new dry run with the desired options, "
+            "or continue without changing them."
+        )
+
+
+def continue_operation(repo: Path, op_dir: Path, args: argparse.Namespace, verbose: bool, write: bool) -> None:
     progress(f"continuing paused operation {op_dir.name}")
     state = load_state(op_dir)
+    validate_continue_arguments(args, state)
     paused: list[dict[str, Any]] = []
     for target in state["targets"]:
         if target.get("status") != "conflict":
@@ -818,7 +869,7 @@ def main() -> None:
         abort_operation(resolve_operation(repo, OP_NAMESPACE, "import-changes", args.op_id), "import-changes")
         return
     if truthy(args.continue_import):
-        continue_operation(repo, resolve_operation(repo, OP_NAMESPACE, "import-changes", args.op_id), verbose, truthy(args.write))
+        continue_operation(repo, resolve_operation(repo, OP_NAMESPACE, "import-changes", args.op_id), args, verbose, truthy(args.write))
         return
 
     if not args.from_ref:

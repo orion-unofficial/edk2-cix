@@ -12,7 +12,13 @@ from pathlib import Path
 
 def run(cmd: list[str], *, stdout=None) -> None:
     print("+ " + " ".join(cmd), file=sys.stderr)
-    subprocess.run(cmd, check=True, stdout=stdout)
+    result = subprocess.run(cmd, check=False, stdout=stdout)
+    if result.returncode != 0:
+        print(
+            f"command failed with exit status {result.returncode}: {' '.join(cmd)}",
+            file=sys.stderr,
+        )
+        raise SystemExit(result.returncode)
 
 
 def git_files(*patterns: str) -> list[str]:

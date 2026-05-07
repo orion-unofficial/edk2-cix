@@ -86,7 +86,7 @@
         "path": "scripts/help_cache.py"
       },
       {
-        "object_id": "38a1d60764161f8a3dffa8213e1d061a95f4dd06",
+        "object_id": "a3e5541b816e5a31aabcdb531eb842375eae7125",
         "path": "scripts/import_changes.py"
       },
       {
@@ -122,7 +122,7 @@
         "path": "scripts/quality.Dockerfile"
       },
       {
-        "object_id": "1f3c3040349621eb9b9b4d38d48a12eaddd8a1c7",
+        "object_id": "bdec1f01bedb7e6733441916848e1eb23420f8af",
         "path": "scripts/quality_checks.py"
       },
       {
@@ -158,7 +158,7 @@
         "path": "scripts/test_check_upstream_versions.py"
       },
       {
-        "object_id": "55d4eedcd84336cfd290a20dc62ad1082331e864",
+        "object_id": "65352e987caba8962be74ae541dbd49a53be4a6d",
         "path": "scripts/test_import_changes.py"
       },
       {
@@ -480,7 +480,7 @@
         "ref": "source/port/radxa/1.2.1/edk2-stable202602"
       },
       {
-        "object_id": "d1b21d7ca0896397df91bb464dfe45d5ff8e026c",
+        "object_id": "7704e2a49a3970c4db5b934b17946a7f9c4ec527",
         "ref": "source/unofficial/current"
       },
       {
@@ -616,6 +616,6 @@
         "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
       }
     ],
-    "sha256": "7736bf10266f3422440dba1533727a0455459c80c2a033007a14a778d81179ae"
+    "sha256": "172ffb908599c80c509d25b4e094e010173b8c6330d77555a24e768dc76e276c"
   }
 }
