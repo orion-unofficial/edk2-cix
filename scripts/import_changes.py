@@ -666,33 +666,41 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
     lines = ["Import paused due to conflicts.", "", "Resolve conflicts in:"]
     for target in targets:
         if target.get("status") == "conflict":
+            lines.append("")
             lines.append(f"  {target['scratch']}")
             conflict_paths = target.get("conflict_paths") or []
             if conflict_paths:
+                lines.append("")
                 lines.append("  conflicting file(s):")
                 lines.extend(f"    {path}" for path in conflict_paths)
             reject_paths_value = target.get("reject_paths") or []
             if reject_paths_value:
+                lines.append("")
                 lines.append("  reject file(s):")
                 lines.extend(f"    {path}" for path in reject_paths_value)
             dirty_paths_value = target.get("dirty_paths") or []
             if dirty_paths_value:
+                lines.append("")
                 lines.append("  scratch status:")
                 lines.extend(f"    {path}" for path in dirty_paths_value[:12])
                 append_status_legend(lines, dirty_paths_value, indent="  ", porcelain=True)
             manual_patch_path = target.get("manual_patch_path")
             if manual_patch_path:
+                lines.append("")
                 lines.append(f"  extracted patch: {manual_patch_path}")
             resolution_error = target.get("resolution_error")
             if resolution_error:
+                lines.append("")
                 lines.append("  current issue:")
                 lines.extend(f"    {line}" for line in resolution_error.splitlines()[:8])
             detail = (target.get("apply_stderr") or target.get("apply_stdout") or "").strip()
             if detail:
+                lines.append("")
                 lines.append("  apply output (Git warnings/errors; whitespace-warning line content is quoted):")
                 lines.extend(f"    {line}" for line in format_apply_output(detail, limit=12))
             reject_detail = (target.get("reject_apply_stderr") or target.get("reject_apply_stdout") or "").strip()
             if reject_detail:
+                lines.append("")
                 lines.append("  reject apply output (Git warnings/errors; whitespace-warning line content is quoted):")
                 lines.extend(f"    {line}" for line in format_apply_output(reject_detail, limit=12))
             conflict_report_path = target.get("conflict_report_path")
@@ -947,6 +955,7 @@ def print_dry_run(state: dict[str, Any]) -> None:
         append_wrapped(note_lines, f"note: {note}", indent="  ")
         for line in note_lines:
             print(line)
+    print()
     print("  changed paths:")
     for change in state["changes"]:
         print(f"    {change}")
@@ -954,23 +963,28 @@ def print_dry_run(state: dict[str, Any]) -> None:
     append_status_legend(legend_lines, state["changes"], indent="  ")
     for line in legend_lines:
         print(line)
+    print()
     print(f"  source lifecycle normalise: {state.get('source_lifecycle_normalise', 'exact')}")
     if state.get("changed_overlay_paths"):
+        print()
         print("  changed overlay paths:")
         for path in state["changed_overlay_paths"]:
             print(f"    {path}")
+    print()
     print(f"  commit message source: {state.get('message_source', 'unknown')}")
     print("  commit message:")
     for line in str(state.get("message", "")).splitlines() or [""]:
         print(f"    {line}")
     if truthy(str(state.get("signoff", "0"))):
         print("  signoff: yes")
+    print()
     print("  update targets:")
     for target in state["targets"]:
         line = f"    {target['ref']}"
         if target.get("tag"):
             line += f" and {target['tag']}"
         print(line)
+    print()
     sys.stdout.flush()
 
 
@@ -1044,20 +1058,18 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
     lines = [
         "dry run detected conflicts while applying the extracted patch.",
         "No refs or tags were moved.",
+        "",
         f"BASE_REF: {state['base_ref']} ({state['base_oid']})",
         f"FROM_REF: {state['from_ref']} ({state['from_oid']})",
     ]
     for note in state.get("base_notes", []):
         append_wrapped(lines, f"Note: {note}")
+    lines.append("")
     append_wrapped(
         lines,
-        "Dry-run still attempts every target in disposable scratch trees so it can prove whether a later write would succeed.",
+        "Scratch trees have been kept for conflict resolution under:",
     )
-    append_wrapped(
-        lines,
-        "Because this dry-run found conflicts, the scratch trees have been kept for conflict resolution under:",
-    )
-    lines.extend([f"  {operation_path(repo_root(Path(__file__)), OP_NAMESPACE, op_id)}", "", "Conflicting target(s):"])
+    lines.extend([f"  {operation_path(repo_root(Path(__file__)), OP_NAMESPACE, op_id)}", "", "Conflicting target(s):", ""])
     for target in paused:
         lines.append(f"  - {target['ref']}")
         scratch = target.get("scratch")
@@ -1065,32 +1077,39 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
             lines.append(f"    scratch: {scratch}")
         conflict_paths = target.get("conflict_paths") or []
         if conflict_paths:
+            lines.append("")
             lines.append("    conflicting file(s):")
             lines.extend(f"      {path}" for path in conflict_paths)
         reject_paths_value = target.get("reject_paths") or []
         if reject_paths_value:
+            lines.append("")
             lines.append("    reject file(s):")
             lines.extend(f"      {path}" for path in reject_paths_value)
         dirty_paths_value = target.get("dirty_paths") or []
         if dirty_paths_value:
+            lines.append("")
             lines.append("    scratch status:")
             lines.extend(f"      {path}" for path in dirty_paths_value[:12])
             append_status_legend(lines, dirty_paths_value, indent="    ", porcelain=True)
         manual_patch_path = target.get("manual_patch_path")
         if manual_patch_path:
+            lines.append("")
             lines.append(f"    extracted patch: {manual_patch_path}")
         detail = (target.get("apply_stderr") or target.get("apply_stdout") or "").strip()
         if detail:
+            lines.append("")
             lines.append("    apply output (Git warnings/errors; whitespace-warning line content is quoted):")
             lines.extend(f"      {line}" for line in format_apply_output(detail, limit=8))
         reject_detail = (target.get("reject_apply_stderr") or target.get("reject_apply_stdout") or "").strip()
         if reject_detail:
+            lines.append("")
             lines.append("    reject apply output (Git warnings/errors; whitespace-warning line content is quoted):")
             lines.extend(f"      {line}" for line in format_apply_output(reject_detail, limit=8))
         conflict_report_path = target.get("conflict_report_path")
         if conflict_report_path:
             lines.append("")
             lines.append(f"    symlink-aware conflict report: {conflict_report_path}")
+        lines.append("")
     lines.append("")
     append_wrapped(
         lines,
