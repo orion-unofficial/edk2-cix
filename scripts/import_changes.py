@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from check_identity_integrity import scan_commit_message_for_legacy_branch
 from import_workflow import (
     CURRENT_REF,
     ZERO_OID,
@@ -387,6 +388,11 @@ def normalise_target(repo: Path, target: dict[str, Any], state: dict[str, Any], 
 
 def apply_patch_to_target(repo: Path, target: dict[str, Any], state: dict[str, Any], patch_path: Path, verbose: bool) -> bool:
     scratch = Path(target["scratch"])
+    if target["old_oid"] == state["from_oid"]:
+        target["status"] = "ready"
+        target["candidate_oid"] = target["old_oid"]
+        target["already_applied"] = True
+        return True
     result = subprocess.run(
         ["git", "-C", str(scratch), "apply", "--3way", "--index", "--binary", str(patch_path)],
         text=True,
@@ -581,6 +587,13 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
     not_ready = [target["ref"] for target in state["targets"] if target.get("status") != "ready"]
     if not_ready:
         raise ReconstructionError("cannot finalise; target is not ready:\n" + "\n".join(f"  - {ref}" for ref in not_ready))
+    message_problems = scan_commit_message_for_legacy_branch("import", state["message"])
+    if message_problems:
+        raise ReconstructionError(
+            "import commit message failed identity integrity check:\n"
+            + "\n".join(f"  - {problem}" for problem in message_problems)
+            + "\n\nUse COMMIT_MESSAGE=<text> or COMMIT_MESSAGE_FILE=<path> with a corrected message."
+        )
     progress("fetching candidate objects")
     fetch_candidate_objects(repo, state, verbose)
     updates: list[tuple[str, str, str]] = []

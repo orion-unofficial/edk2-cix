@@ -24,6 +24,7 @@ from test_support import (
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT_FILES = [
+    "check_identity_integrity.py",
     "import_changes.py",
     "import_workflow.py",
     "import_unofficial_commits.py",
@@ -276,6 +277,36 @@ def test_import_changes_normalises_overlay_lifecycle_when_propagating() -> None:
         )
         missing = git(repo, "show", "source/unofficial/edk2-stable202208:custom/overlay/component/new.c", check=False)
         require(missing.returncode != 0, "older checkpoint kept the unnormalised overlay path")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_import_changes_can_propagate_after_current_already_applied() -> None:
+    repo = make_repo()
+    try:
+        topic = make_materialised_topic(repo)
+        old_current = rev_parse(repo, "source/unofficial/current")
+
+        current_only = run_import_changes(repo, FROM_REF=topic, WRITE="1")
+        require(current_only.returncode == 0, current_only.stderr + current_only.stdout)
+        updated_current = rev_parse(repo, "source/unofficial/current")
+        require(updated_current != old_current, "current-only import did not move current")
+
+        propagated = run_import_changes(
+            repo,
+            FROM_REF="source/unofficial/current",
+            BASE_REF=old_current,
+            PROPAGATE_CHECKPOINTS="all",
+            UPDATE_COMPAT_TAGS="1",
+            WRITE="1",
+        )
+        require(propagated.returncode == 0, propagated.stderr + propagated.stdout)
+        require(rev_parse(repo, "source/unofficial/current") == updated_current, "already-applied current target moved")
+        for release in ("202208", "202602"):
+            branch = f"source/unofficial/edk2-stable{release}"
+            tag = f"source/unofficial/edk2/stable-{release}"
+            require(show(repo, branch, "firmware.txt") == "from materialised\n", f"{branch} did not receive propagated change")
+            require(rev_parse(repo, branch) == rev_parse(repo, tag), f"{tag} did not move with {branch}")
     finally:
         shutil.rmtree(repo)
 
@@ -579,6 +610,25 @@ def test_import_rejects_identical_overlay_copy() -> None:
         shutil.rmtree(repo)
 
 
+def test_import_rejects_legacy_branch_names_in_commit_message_on_write() -> None:
+    repo = make_repo()
+    try:
+        legacy_branch = "main-" + "monorepo"
+        topic = make_materialised_topic_with_message(
+            repo,
+            "legacy-message-topic",
+            ["-m", "legacy source message", "-m", f"mentions {legacy_branch}"],
+        )
+        old_current = rev_parse(repo, "source/unofficial/current")
+        result = run_import_changes(repo, FROM_REF=topic, WRITE="1")
+        require(result.returncode != 0, "legacy branch name in commit message should fail")
+        require("identity integrity check" in result.stderr, result.stderr)
+        require(legacy_branch in result.stderr, result.stderr)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "invalid-message import moved current")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_propagation_updates_checkpoints_and_tags() -> None:
     repo = make_repo()
     try:
@@ -613,6 +663,7 @@ def main() -> None:
     test_import_from_materialised_topic_creates_commit_on_current()
     test_import_preserves_crlf_patch_context()
     test_import_changes_normalises_overlay_lifecycle_when_propagating()
+    test_import_changes_can_propagate_after_current_already_applied()
     test_import_changes_drops_mirror_when_source_is_absent_from_checkpoint()
     test_import_with_explicit_legacy_base()
     test_import_infers_retained_legacy_branch_base()
@@ -621,9 +672,11 @@ def main() -> None:
     test_empty_diff_is_rejected()
     test_conflict_pauses_without_moving_refs_then_continue_finalises()
     test_dry_run_conflict_reports_paths_without_moving_refs()
+    test_continue_rejects_changed_operation_options()
     test_failed_apply_without_conflict_markers_pauses_for_manual_resolution()
     test_dry_run_failed_apply_without_conflict_markers_keeps_rejects()
     test_import_rejects_identical_overlay_copy()
+    test_import_rejects_legacy_branch_names_in_commit_message_on_write()
     test_propagation_updates_checkpoints_and_tags()
     print("import_changes tests passed")
 

@@ -98,6 +98,15 @@ def scan_commits(repo: Path) -> list[str]:
     return problems
 
 
+def scan_commit_message_for_legacy_branch(label: str, commit_text: str) -> list[str]:
+    problems: list[str] = []
+    pattern = legacy_branch_pattern().pattern
+    for match in re.finditer(pattern, commit_text):
+        line = commit_text.count("\n", 0, match.start()) + 1
+        problems.append(f"{label}:commit-message:{line}: old branch name: {match.group(0)}")
+    return problems
+
+
 def source_refs(repo: Path) -> list[str]:
     refs = set()
     for namespace in [
@@ -128,10 +137,7 @@ def scan_source_refs(repo: Path, verbose: bool) -> list[str]:
         resolved_ref = resolve_ref(repo, ref, check=False) or ref
         commit = git(repo, "log", "-1", "--format=%H%x00%B", resolved_ref, check=False)
         if commit.returncode == 0:
-            commit_text = commit.stdout
-            for match in re.finditer(pattern, commit_text):
-                line = commit_text.count("\n", 0, match.start()) + 1
-                problems.append(f"{ref}:commit-message:{line}: old branch name: {match.group(0)}")
+            problems.extend(scan_commit_message_for_legacy_branch(ref, commit.stdout))
         result = git(repo, "grep", "-n", "-I", "-E", pattern, resolved_ref, "--", ".", check=False)
         if result.returncode == 0:
             problems.extend(f"{ref}: {line}" for line in result.stdout.splitlines())
