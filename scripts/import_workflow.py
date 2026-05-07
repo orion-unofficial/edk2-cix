@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -82,6 +83,10 @@ def operation_path(repo: Path, namespace: str, op_id: str) -> Path:
     return operations_root(repo, namespace) / op_id
 
 
+def operation_short_id(op_id: str) -> str:
+    return op_id.split("-", 1)[0]
+
+
 def state_path(op_dir: Path) -> Path:
     return op_dir / "state.json"
 
@@ -101,9 +106,17 @@ def resolve_operation(repo: Path, namespace: str, label: str, op_id: str) -> Pat
     root = operations_root(repo, namespace)
     if op_id:
         op_dir = root / op_id
-        if not op_dir.exists():
-            raise ReconstructionError(f"{label} operation does not exist: {op_id}")
-        return op_dir
+        if op_dir.exists():
+            return op_dir
+        if op_id.isdigit() and root.exists():
+            matches = sorted(path for path in root.iterdir() if path.is_dir() and path.name.startswith(f"{op_id}-"))
+            if len(matches) == 1:
+                return matches[0]
+            if len(matches) > 1:
+                lines = [f"multiple paused {label} operations match OP_ID={op_id}; re-run with the full OP_ID:"]
+                lines.extend(f"  - {path.name}" for path in matches)
+                raise ReconstructionError("\n".join(lines))
+        raise ReconstructionError(f"{label} operation does not exist: {op_id}")
     ops = [path for path in root.iterdir() if path.is_dir()] if root.exists() else []
     if len(ops) == 1:
         return ops[0]
@@ -134,6 +147,74 @@ def clone_scratch(repo: Path, op_dir: Path, ref: str, verbose: bool) -> Path:
     git(scratch, "config", "user.name", git_config(repo, "user.name") or "edk2-cix importer")
     git(scratch, "config", "user.email", git_config(repo, "user.email") or "edk2-cix-import")
     return scratch
+
+
+def repo_from_operation_dir(op_dir: Path) -> Path | None:
+    for parent in op_dir.parents:
+        if parent.name == ".cache":
+            return parent.parent
+    return None
+
+
+def shortcut_points_inside(link: Path, op_dir: Path) -> bool:
+    try:
+        target = Path(os.readlink(link))
+    except OSError:
+        return False
+    if not target.is_absolute():
+        target = link.parent / target
+    try:
+        target.resolve().relative_to(op_dir.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def create_scratch_shortcuts(repo: Path, op_id: str, targets: list[dict[str, Any]]) -> None:
+    short = operation_short_id(op_id)
+    if not short.isdigit():
+        return
+    scratch_targets = [target for target in targets if target.get("scratch")]
+    if not scratch_targets:
+        return
+    primary = next((target for target in scratch_targets if target.get("ref") == CURRENT_REF), None)
+    if len(scratch_targets) == 1:
+        primary = scratch_targets[0]
+
+    for target in scratch_targets:
+        names: list[str]
+        if len(scratch_targets) == 1:
+            names = [short]
+        else:
+            names = [f"{short}-{safe_name(str(target['ref']))}"]
+            if target is primary:
+                names.insert(0, short)
+
+        scratch = Path(str(target["scratch"]))
+        created: list[str] = []
+        for name in names:
+            link = repo / name
+            if link.exists() or link.is_symlink():
+                if link.is_symlink() and shortcut_points_inside(link, Path(str(target["scratch"])).parents[1]):
+                    link.unlink()
+                else:
+                    raise ReconstructionError(f"cannot create scratch shortcut {name}: path already exists")
+            os.symlink(os.path.relpath(scratch, repo), link)
+            created.append(name)
+        if created:
+            target["scratch_shortcut"] = created[0]
+
+
+def cleanup_operation_shortcuts(op_dir: Path) -> None:
+    repo = repo_from_operation_dir(op_dir)
+    if not repo:
+        return
+    short = operation_short_id(op_dir.name)
+    if not short.isdigit():
+        return
+    for link in repo.glob(f"{short}*"):
+        if link.is_symlink() and shortcut_points_inside(link, op_dir):
+            link.unlink()
 
 
 def git_path(repo: Path, name: str) -> Path:
@@ -195,11 +276,13 @@ def transaction_update_refs(repo: Path, updates: list[tuple[str, str, str]]) -> 
 
 
 def abort_operation(op_dir: Path, label: str) -> None:
+    cleanup_operation_shortcuts(op_dir)
     shutil.rmtree(op_dir)
     print(f"aborted {label} operation {op_dir.name}")
 
 
 def remove_operation_state(op_dir: Path, *, ignore_errors: bool = False) -> None:
+    cleanup_operation_shortcuts(op_dir)
     shutil.rmtree(op_dir, ignore_errors=ignore_errors)
 
 

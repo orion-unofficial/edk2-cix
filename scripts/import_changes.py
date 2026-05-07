@@ -21,6 +21,7 @@ from import_workflow import (
     ZERO_OID,
     abort_operation,
     clone_scratch,
+    create_scratch_shortcuts,
     ensure_target_not_checked_out_dirty,
     fetch_candidate_objects,
     full_tag_ref,
@@ -668,6 +669,14 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
         if target.get("status") == "conflict":
             lines.append("")
             lines.append(f"  {target['scratch']}")
+            shortcut = target.get("scratch_shortcut")
+            if shortcut:
+                lines.append(f"  shortcut: {shortcut}")
+                lines.append("")
+                lines.append("  inspect with:")
+                lines.append(f"    git -C {shortcut} status")
+                lines.append(f"    git -C {shortcut} diff --name-only --diff-filter=U")
+                lines.append(f"    git -C {shortcut} diff")
             conflict_paths = target.get("conflict_paths") or []
             if conflict_paths:
                 lines.append("")
@@ -791,6 +800,9 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
     except Exception:
         remove_operation_state(op_dir, ignore_errors=True)
         raise
+    if paused:
+        create_scratch_shortcuts(repo, op_id, paused)
+        save_state(op_dir, state)
     return op_dir, state, paused
 
 
@@ -844,6 +856,9 @@ def ready_message(state: dict[str, Any]) -> str:
         scratch = target.get("scratch")
         if scratch:
             lines.append(f"    scratch: {scratch}")
+        shortcut = target.get("scratch_shortcut")
+        if shortcut:
+            lines.append(f"    shortcut: {shortcut}")
         if target.get("tag"):
             lines.append(f"    tag: {target['tag']}")
     lines.extend(
@@ -1079,6 +1094,14 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
         scratch = target.get("scratch")
         if scratch:
             lines.append(f"    scratch: {scratch}")
+            shortcut = target.get("scratch_shortcut")
+            if shortcut:
+                lines.append(f"    shortcut: {shortcut}")
+                lines.append("")
+                lines.append("    inspect with:")
+                lines.append(f"      git -C {shortcut} status")
+                lines.append(f"      git -C {shortcut} diff --name-only --diff-filter=U")
+                lines.append(f"      git -C {shortcut} diff")
         conflict_paths = target.get("conflict_paths") or []
         if conflict_paths:
             lines.append("")

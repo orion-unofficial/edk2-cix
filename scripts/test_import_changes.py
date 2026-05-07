@@ -670,18 +670,26 @@ def test_dry_run_conflict_reports_paths_without_moving_refs() -> None:
         require(rev_parse(repo, "source/unofficial/current") == old_current, "dry-run conflict moved current")
         operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
         op_dir = next(operations.iterdir())
+        short_op_id = op_dir.name.split("-", 1)[0]
         scratch = conflicted_scratch(op_dir)
+        shortcut = repo / short_op_id
+        require(shortcut.is_symlink(), "dry-run conflict did not create a root-level scratch shortcut")
+        require(shortcut.resolve() == scratch.resolve(), "scratch shortcut does not point at the conflicted scratch tree")
+        require(f"shortcut: {short_op_id}" in result.stderr, result.stderr)
+        require(f"git -C {short_op_id} status" in result.stderr, result.stderr)
+        require(f"git -C {short_op_id} diff --name-only --diff-filter=U" in result.stderr, result.stderr)
         write_file(scratch, "firmware.txt", "resolved from dry-run\n")
         git(scratch, "add", "firmware.txt")
 
-        prepared = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name)
+        prepared = run_import_changes(repo, CONTINUE="1", OP_ID=short_op_id)
         require(prepared.returncode == 0, prepared.stderr + prepared.stdout)
         require("import candidates are ready" in prepared.stdout, prepared.stdout)
         require(rev_parse(repo, "source/unofficial/current") == old_current, "continue without WRITE moved current")
 
-        finalised = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name, WRITE="1")
+        finalised = run_import_changes(repo, CONTINUE="1", OP_ID=short_op_id, WRITE="1")
         require(finalised.returncode == 0, finalised.stderr + finalised.stdout)
         require(show(repo, "source/unofficial/current", "firmware.txt") == "resolved from dry-run\n", "dry-run resolution was not finalised")
+        require(not shortcut.exists() and not shortcut.is_symlink(), "scratch shortcut was not removed after finalising")
     finally:
         shutil.rmtree(repo)
 
@@ -1000,6 +1008,20 @@ def test_abort_all_removes_all_paused_import_changes_operations() -> None:
         shutil.rmtree(repo)
 
 
+def test_numeric_op_id_prefix_must_be_unique() -> None:
+    repo = make_repo()
+    try:
+        operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
+        (operations / "123-first").mkdir(parents=True)
+        (operations / "123-second").mkdir()
+        result = run_import_changes(repo, CONTINUE="1", OP_ID="123")
+        require(result.returncode != 0, "ambiguous numeric OP_ID prefix should fail")
+        require("multiple paused import-changes operations match OP_ID=123" in result.stderr, result.stderr)
+        require("123-first" in result.stderr and "123-second" in result.stderr, result.stderr)
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_current_import_can_be_propagated_later_without_base_ref() -> None:
     repo = make_repo()
     try:
@@ -1068,6 +1090,7 @@ def main() -> None:
     test_import_rejects_legacy_branch_names_in_commit_message_on_write()
     test_propagation_updates_release_branches_and_tags()
     test_abort_all_removes_all_paused_import_changes_operations()
+    test_numeric_op_id_prefix_must_be_unique()
     test_current_import_can_be_propagated_later_without_base_ref()
     print("import_changes tests passed")
 

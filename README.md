@@ -393,14 +393,16 @@ make update-release-tags WRITE=1
 
 If one target conflicts, no `source/unofficial/**` branch or release tag
 is updated. The failed dry run keeps the scratch trees and prints the operation
-id, `BASE_REF`, `FROM_REF`, and the scratch path for each target. Each scratch
-tree is a normal detached Git checkout for the target being updated, not the
-`build` branch and not `BASE_REF`. Inspect it directly:
+id, `BASE_REF`, `FROM_REF`, and the scratch path for each target. For generated
+operation ids, the importer also creates an ignored root-level shortcut symlink
+such as `1778182731` pointing at the scratch tree. Each scratch tree is a
+normal detached Git checkout for the target being updated, not the `build`
+branch and not `BASE_REF`. Inspect it directly:
 
 ```bash
-git -C <scratch-tree> status
-git -C <scratch-tree> diff --name-only --diff-filter=U
-git -C <scratch-tree> diff
+git -C <scratch-tree-or-shortcut> status
+git -C <scratch-tree-or-shortcut> diff --name-only --diff-filter=U
+git -C <scratch-tree-or-shortcut> diff
 ```
 
 If Git could not create conflict stages, the importer tries to keep the scratch
@@ -458,6 +460,11 @@ commits without moving refs:
 ```bash
 make import-changes CONTINUE=1 OP_ID=<operation-id>
 ```
+
+If the operation id starts with a unique numeric prefix, `OP_ID` may use just
+that prefix. For example, `OP_ID=1778182731` resolves to
+`1778182731-my_topic_branch` when no other paused import
+shares the same prefix.
 
 The continue step commits each resolved scratch tree and reports the candidate
 commits. If any target is still unresolved, the import remains paused and no

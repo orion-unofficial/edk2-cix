@@ -9,6 +9,8 @@
 /dist/
 /logs/
 /src/
+# Short import-conflict scratch symlinks, e.g. 1778182731.
+/[0-9]*
 /docs/.devenv/
 /docs/.docs-tools/
 /docs/book/
