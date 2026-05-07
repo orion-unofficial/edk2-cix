@@ -150,6 +150,35 @@ def make_materialised_drop_topic(repo: Path) -> str:
     return "materialised-drop-lifecycle-topic"
 
 
+def add_materialised_typechange_fixture(repo: Path) -> None:
+    for ref in (
+        "source/unofficial/current",
+        "source/unofficial/edk2-stable202602",
+        "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial",
+    ):
+        git(repo, "switch", ref)
+        write_file(repo, "src/component/typechange.h", "base\n")
+        overlay = repo / "custom/overlay/component/typechange.h"
+        if overlay.exists() or overlay.is_symlink():
+            overlay.unlink()
+        symlink(repo, "../../../src/component/typechange.h", "custom/overlay/component/typechange.h")
+        commit_all(repo, f"{ref} typechange fixture")
+    git(repo, "switch", "source/unofficial/edk2-stable202208")
+    write_file(repo, "src/component/typechange.h", "base\n")
+    commit_all(repo, "source/unofficial/edk2-stable202208 typechange source-only fixture")
+    git(repo, "switch", "build")
+
+
+def make_materialised_typechange_topic(repo: Path) -> str:
+    git(repo, "switch", "-c", "materialised-typechange-topic", "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
+    overlay = repo / "custom/overlay/component/typechange.h"
+    overlay.unlink()
+    write_file(repo, "custom/overlay/component/typechange.h", "base\nextra\n")
+    commit_all(repo, "materialised typechange overlay")
+    git(repo, "switch", "build")
+    return "materialised-typechange-topic"
+
+
 def test_dry_run_infers_materialised_base_without_moving_refs() -> None:
     repo = make_repo()
     try:
@@ -328,6 +357,36 @@ def test_import_changes_drops_mirror_when_source_is_absent_from_checkpoint() -> 
         missing = git(repo, "show", "source/unofficial/edk2-stable202208:custom/overlay/component/later-only.c", check=False)
         require(missing.returncode != 0, "older checkpoint kept mirror for missing source path")
         require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_checkpoint, "unchanged older checkpoint moved")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_import_changes_accepts_clean_reject_fallback_typechange() -> None:
+    repo = make_repo()
+    try:
+        add_materialised_typechange_fixture(repo)
+        topic = make_materialised_typechange_topic(repo)
+        result = run_import_changes(
+            repo,
+            FROM_REF=topic,
+            PROPAGATE_CHECKPOINTS="all",
+            UPDATE_COMPAT_TAGS="1",
+            WRITE="1",
+        )
+        require(result.returncode == 0, result.stderr + result.stdout)
+        for ref in (
+            "source/unofficial/current",
+            "source/unofficial/edk2-stable202208",
+            "source/unofficial/edk2-stable202602",
+        ):
+            path = "custom/overlay/component/typechange.h"
+            require(show(repo, ref, path) == "base\nextra\n", f"{ref} did not receive materialised overlay")
+            mode = git(repo, "ls-tree", ref, "--", path).stdout.split()[0]
+            require(mode == "100644", f"{ref} kept symlink mode for {path}: {mode}")
+        for release in ("202208", "202602"):
+            branch = f"source/unofficial/edk2-stable{release}"
+            tag = f"source/unofficial/edk2/stable-{release}"
+            require(rev_parse(repo, branch) == rev_parse(repo, tag), f"{tag} did not move with {branch}")
     finally:
         shutil.rmtree(repo)
 
@@ -665,6 +724,7 @@ def main() -> None:
     test_import_changes_normalises_overlay_lifecycle_when_propagating()
     test_import_changes_can_propagate_after_current_already_applied()
     test_import_changes_drops_mirror_when_source_is_absent_from_checkpoint()
+    test_import_changes_accepts_clean_reject_fallback_typechange()
     test_import_with_explicit_legacy_base()
     test_import_infers_retained_legacy_branch_base()
     test_import_infers_retained_legacy_fork_point_after_base_moves()

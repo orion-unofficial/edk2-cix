@@ -428,9 +428,20 @@ def apply_patch_to_target(repo: Path, target: dict[str, Any], state: dict[str, A
         stderr=subprocess.PIPE,
         check=False,
     )
+    reject_files = reject_paths(scratch)
+    fallback_dirty = dirty_paths(scratch)
+    if not reject_files and (reject_result.returncode == 0 or fallback_dirty):
+        normalise_target(repo, target, state, verbose)
+        target["status"] = "ready"
+        if not staged_changes(scratch) and not dirty_paths(scratch):
+            target["candidate_oid"] = target["old_oid"]
+            return True
+        git(scratch, "add", "-A", capture=not verbose)
+        target["candidate_oid"] = commit_scratch(scratch, state)
+        return True
     target["status"] = "conflict"
     target["conflict_paths"] = changed_paths(state.get("changes", []))
-    target["reject_paths"] = reject_paths(scratch)
+    target["reject_paths"] = reject_files
     target["dirty_paths"] = dirty_paths(scratch)
     target["manual_patch_path"] = str(patch_path)
     target["apply_stdout"] = result.stdout
