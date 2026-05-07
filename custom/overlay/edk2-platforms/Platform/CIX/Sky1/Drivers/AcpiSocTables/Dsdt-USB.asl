@@ -6,6 +6,27 @@
 
 **/
 
+#ifdef ENABLE_FIRMWARE_FIXES
+Name (USDM, 0) /* USB device model: 0 = Linux/PNP0D10, 1 = CIX/CIXH203x */
+Name (UGV0, USBC0_GENERIC_XHCI_VISIBLE) /* Generic Linux xHCI visibility: USBC0 */
+Name (UGV1, USBC1_GENERIC_XHCI_VISIBLE) /* Generic Linux xHCI visibility: USBC1 */
+Name (UGV2, USBC2_GENERIC_XHCI_VISIBLE) /* Generic Linux xHCI visibility: USBC2 */
+Name (UGV3, USBC3_GENERIC_XHCI_VISIBLE) /* Generic Linux xHCI visibility: USBC3 */
+#define USB_GENERIC_DEVICE_STA(VisibleExpr, PresentExpr) \
+  If (LNotEqual (USDM, 1)) { \
+    If ((VisibleExpr) && (PresentExpr)) { \
+      Return (0xF) \
+    } \
+  } \
+  Return (0x0)
+#else
+#define USB_GENERIC_DEVICE_STA(VisibleExpr, PresentExpr) \
+  If (PresentExpr) { \
+    Return (0xF) \
+  } \
+  Return (0x0)
+#endif
+
 Device (XHC0)
 {
   Name (_HID, "PNP0D10")
@@ -14,11 +35,7 @@ Device (XHC0)
 
   Method (_STA)
   {
-    If(\_SB.GETV(ARV_USB3_TYPEC_DRD_ENABLE_OFFSET) && (\_SB.GETV(ARV_USB3_TYPEC_DRD_ROLE_OFFSET)==0)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    USB_GENERIC_DEVICE_STA (UGV0, \_SB.GETV(ARV_USB3_TYPEC_DRD_ENABLE_OFFSET) && (\_SB.GETV(ARV_USB3_TYPEC_DRD_ROLE_OFFSET)==0))
   }
 
   Method(_CRS, 0x0, Serialized) {
@@ -37,11 +54,7 @@ Device (XHC1)
 
   Method (_STA)
   {
-    If(\_SB.GETV(ARV_USB3_TYPEC_HOST0_ENABLE_OFFSET)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    USB_GENERIC_DEVICE_STA (UGV1, \_SB.GETV(ARV_USB3_TYPEC_HOST0_ENABLE_OFFSET))
   }
 
   Method(_CRS, 0x0, Serialized) {
@@ -60,11 +73,7 @@ Device (XHC2)
 
   Method (_STA)
   {
-    If(\_SB.GETV(ARV_USB3_TYPEC_HOST1_ENABLE_OFFSET)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    USB_GENERIC_DEVICE_STA (UGV2, \_SB.GETV(ARV_USB3_TYPEC_HOST1_ENABLE_OFFSET))
   }
 
   Method(_CRS, 0x0, Serialized) {
@@ -83,11 +92,7 @@ Device (XHC3)
 
   Method (_STA)
   {
-    If(\_SB.GETV(ARV_USB3_TYPEC_HOST2_ENABLE_OFFSET)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    USB_GENERIC_DEVICE_STA (UGV3, \_SB.GETV(ARV_USB3_TYPEC_HOST2_ENABLE_OFFSET))
   }
 
   Method(_CRS, 0x0, Serialized) {
@@ -107,11 +112,7 @@ Device (XHC4)
 
   Method (_STA)
   {
-    If(\_SB.GETV(ARV_USB3_TYPEA_DRD0_ENABLE_OFFSET) && (\_SB.GETV(ARV_USB3_TYPEA_DRD0_ROLE_OFFSET)==0)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    USB_GENERIC_DEVICE_STA (USBA4_GENERIC_XHCI_VISIBLE, \_SB.GETV(ARV_USB3_TYPEA_DRD0_ENABLE_OFFSET) && (\_SB.GETV(ARV_USB3_TYPEA_DRD0_ROLE_OFFSET)==0))
   }
 
   Method(_CRS, 0x0, Serialized) {
@@ -130,11 +131,7 @@ Device (XHC5)
 
   Method (_STA)
   {
-    If(\_SB.GETV(ARV_USB3_TYPEA_DRD1_ENABLE_OFFSET) && (\_SB.GETV(ARV_USB3_TYPEA_DRD1_ROLE_OFFSET)==0)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    USB_GENERIC_DEVICE_STA (USBA5_GENERIC_XHCI_VISIBLE, \_SB.GETV(ARV_USB3_TYPEA_DRD1_ENABLE_OFFSET) && (\_SB.GETV(ARV_USB3_TYPEA_DRD1_ROLE_OFFSET)==0))
   }
 
   Method(_CRS, 0x0, Serialized) {
@@ -153,11 +150,7 @@ Device (USB0)
 
   Method (_STA)
   {
-    If(\_SB.GETV(ARV_USB2_HOST0_ENABLE_OFFSET)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    USB_GENERIC_DEVICE_STA (USBH6_GENERIC_XHCI_VISIBLE, \_SB.GETV(ARV_USB2_HOST0_ENABLE_OFFSET))
   }
 
   Method(_CRS, 0x0, Serialized) {
@@ -176,11 +169,7 @@ Device (USB1)
 
   Method (_STA)
   {
-    If(\_SB.GETV(ARV_USB2_HOST1_ENABLE_OFFSET)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    USB_GENERIC_DEVICE_STA (USBH7_GENERIC_XHCI_VISIBLE, \_SB.GETV(ARV_USB2_HOST1_ENABLE_OFFSET))
   }
 
   Method(_CRS, 0x0, Serialized) {
@@ -199,11 +188,7 @@ Device (USB2)
 
   Method (_STA)
   {
-    If(\_SB.GETV(ARV_USB2_HOST2_ENABLE_OFFSET)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    USB_GENERIC_DEVICE_STA (USBH8_GENERIC_XHCI_VISIBLE, \_SB.GETV(ARV_USB2_HOST2_ENABLE_OFFSET))
   }
 
   Method(_CRS, 0x0, Serialized) {
@@ -222,11 +207,7 @@ Device (USB3)
 
   Method (_STA)
   {
-    If(\_SB.GETV(ARV_USB2_HOST3_ENABLE_OFFSET)){
-      Return (0xF)
-    } else {
-      Return (0x0)
-    }
+    USB_GENERIC_DEVICE_STA (USBH9_GENERIC_XHCI_VISIBLE, \_SB.GETV(ARV_USB2_HOST3_ENABLE_OFFSET))
   }
 
   Method(_CRS, 0x0, Serialized) {
