@@ -21,6 +21,9 @@ fi
 
 set -- docker run --rm \
     --user "$(id -u):$(id -g)" \
+    --env GIT_CONFIG_COUNT=1 \
+    --env GIT_CONFIG_KEY_0=safe.directory \
+    --env "GIT_CONFIG_VALUE_0=$repo" \
     --volume "$repo:$repo" \
     --workdir "$repo"
 
