@@ -416,11 +416,12 @@ If Git cannot create `.rej` files either, the output prints the extracted patch
 stored under `.cache/edk2-cix/operations/.../change.patch`; use that patch as
 the manual source of truth.
 
-For symlink/file mode conflicts, especially under `custom/overlay/`, Git's
-default conflict view can be misleading because a symlink side is displayed as
-only the symlink target string. The importer writes a symlink-aware conflict
-report for each conflicted scratch tree and prints the report path. You can
-also regenerate the report:
+For conflicts where one side is a symlink and the other is a regular file,
+especially under `custom/overlay/`, Git's default conflict view can be
+misleading because a symlink side is displayed as only the symlink target
+string. The importer writes a symlink-aware conflict report for each
+conflicted scratch tree and prints the report path. You can also regenerate
+the report:
 
 ```bash
 make inspect-import-conflicts OP_ID=<operation-id>

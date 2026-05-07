@@ -653,6 +653,16 @@ def test_dry_run_conflict_reports_paths_without_moving_refs() -> None:
         require("Dry-run still attempts every target" not in result.stderr, "conflict output kept obsolete dry-run commentary")
         require("Scratch trees have been kept for conflict resolution under:" in result.stderr, result.stderr)
         require("\n\nConflicting target(s):\n\n  - " in result.stderr, "conflicting targets should be visually separated")
+        require("For mode conflicts involving symlinks" not in result.stderr, "conflict output used Git jargon")
+        require(
+            "For conflicts where one side is a symlink and the other is a regular file" in result.stderr,
+            "conflict output did not describe symlink/file conflicts plainly",
+        )
+        require("inspect-import-conflicts OP_ID=" in result.stderr, result.stderr)
+        require("\n\nRemove .rej files" in result.stderr, "inspect command should be separated from following guidance")
+        abort_index = result.stderr.rfind("make import-changes ABORT=1 OP_ID=")
+        require(abort_index != -1, result.stderr)
+        require(result.stderr[abort_index:].endswith("\n\n"), "abort command should be followed by a blank line")
         require("Dry-run succeeded" not in result.stdout + result.stderr, "conflicting dry-run reported success")
         require("conflicting file(s):" in result.stderr, result.stderr)
         require("firmware.txt" in result.stderr, result.stderr)
@@ -868,6 +878,7 @@ def test_dry_run_failed_apply_without_conflict_markers_keeps_rejects() -> None:
         require("extracted patch:" in result.stderr, result.stderr)
         require("reject apply output" in result.stderr, result.stderr)
         require("\n\n    symlink-aware conflict report:" in result.stderr, "conflict report should be visually separated")
+        require("For mode conflicts involving symlinks" not in result.stderr, "reject output used Git jargon")
         require(rev_parse(repo, "source/unofficial/current") == old_current, "dry-run moved current")
 
         op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())

@@ -710,7 +710,7 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
     lines.append("")
     append_wrapped(lines, "If Git created .rej files, use them to apply the missing hunks. If it could not create .rej files, use the printed extracted patch as the manual source of truth. Remove .rej files when they are no longer needed, stage all resolved files with git add, and continue.")
     lines.append("")
-    append_wrapped(lines, "For mode conflicts involving symlinks, inspect the symlink-aware report or run:")
+    append_wrapped(lines, "For conflicts where one side is a symlink and the other is a regular file, inspect the symlink-aware report or run:")
     lines.extend(
         [
             f"  make inspect-import-conflicts OP_ID={op_id}",
@@ -723,6 +723,7 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
             "",
             "Or abort:",
             f"  make import-changes ABORT=1 OP_ID={op_id}",
+            "",
         ]
     )
     return "\n".join(lines)
@@ -853,6 +854,7 @@ def ready_message(state: dict[str, Any]) -> str:
             "",
             "Or abort without moving refs:",
             f"  make import-changes ABORT=1 OP_ID={op_id}",
+            "",
         ]
     )
     return "\n".join(lines)
@@ -1118,10 +1120,11 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
         "Resolve each printed scratch tree. If .rej files were created, use them to apply the missing hunks. If Git could not create .rej files, use the printed extracted patch as the manual source of truth.",
     )
     lines.append("")
-    append_wrapped(lines, "For mode conflicts involving symlinks, inspect the symlink-aware report or run:")
+    append_wrapped(lines, "For conflicts where one side is a symlink and the other is a regular file, inspect the symlink-aware report or run:")
     lines.extend(
         [
             f"  make inspect-import-conflicts OP_ID={op_id}",
+            "",
         ]
     )
     append_wrapped(
@@ -1137,6 +1140,7 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
             "",
             "Or abort without moving refs:",
             f"  make import-changes ABORT=1 OP_ID={op_id}",
+            "",
         ]
     )
     return "\n".join(lines)
