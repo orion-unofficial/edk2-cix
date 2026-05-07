@@ -426,11 +426,28 @@ conflicts, expands symlink targets where possible, compares expanded symlink
 content with regular-file conflict stages, and writes expanded stage files next
 to the report for manual inspection.
 
-Edit the conflicted or rejected files, remove any `.rej` files once they are no
-longer needed, then stage the resolved files with `git add` inside that scratch
-tree. The importer refuses to finalise while `.rej` files remain, so rejected
-hunks cannot be silently left behind. When all printed scratch trees are
-resolved and staged, validate the candidate commits without moving refs:
+For conflicts with Git index stages, the optional resolver can open every
+conflicted file in `vimdiff` with symlink stages expanded to their target
+content:
+
+```bash
+make resolve-conflicts OP_ID=<operation-id>
+```
+
+The resolver writes only to the paused scratch tree under `.cache`, stages the
+resolved files there, and never moves source refs or tags. If the edited
+resolution exactly matches an expanded symlink side, the resolver preserves the
+symlink by default instead of accidentally materialising the overlay file. Use
+`CONFLICT_EDITOR=<command>` to use a different editor, `CONFLICT_PATHS=...` to
+restrict the batch to selected paths, or `PRESERVE_SYMLINKS=0` if you really do
+want matching symlink content materialised as a regular file.
+
+If you do not use the resolver, edit the conflicted or rejected files manually,
+remove any `.rej` files once they are no longer needed, then stage the resolved
+files with `git add` inside that scratch tree. The importer refuses to finalise
+while `.rej` files remain, so rejected hunks cannot be silently left behind.
+When all printed scratch trees are resolved and staged, validate the candidate
+commits without moving refs:
 
 ```bash
 make import-changes CONTINUE=1 OP_ID=<operation-id>

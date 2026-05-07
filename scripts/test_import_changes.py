@@ -30,6 +30,7 @@ SCRIPT_FILES = [
     "import_unofficial_commits.py",
     "inspect_import_conflicts.py",
     "reconstruction_common.py",
+    "resolve_import_conflicts.py",
     "source_lifecycle.py",
     "source_policy.py",
 ]
@@ -85,6 +86,18 @@ def run_import_unofficial(repo: Path, **env: str) -> subprocess.CompletedProcess
 
 def run_inspect_conflicts(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
     return run(["python3", str(ROOT / "scripts" / "inspect_import_conflicts.py")], repo, check=False, env=env)
+
+
+def run_resolve_conflicts(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
+    script = str(ROOT / "scripts" / "resolve_import_conflicts.py") if env.get("SCRATCH") else "scripts/resolve_import_conflicts.py"
+    return run(["python3", script], repo, check=False, env=env)
+
+
+def editor_script(repo: Path, name: str, body: str) -> Path:
+    path = repo / name
+    path.write_text(body, encoding="utf-8")
+    path.chmod(0o755)
+    return path
 
 
 def symlink(repo: Path, target: str, link: str) -> None:
@@ -634,6 +647,79 @@ def test_symlink_file_conflict_reports_expanded_context() -> None:
         shutil.rmtree(repo)
 
 
+def test_resolve_conflicts_edits_scratch_only_then_continue_finalises() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "source/unofficial/current")
+        write_file(repo, "firmware.txt", "current conflict\n")
+        commit_all(repo, "current conflict")
+        git(repo, "switch", "build")
+        old_current = rev_parse(repo, "source/unofficial/current")
+
+        topic = make_materialised_topic(repo, text="topic conflict\n")
+        result = run_import_changes(repo, FROM_REF=topic)
+        require(result.returncode != 0, "conflicting dry-run should fail")
+        op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
+        script = editor_script(
+            repo,
+            "resolve-editor.sh",
+            "#!/usr/bin/env python3\n"
+            "from pathlib import Path\n"
+            "import sys\n"
+            "Path(sys.argv[-1]).write_text('resolved by helper\\n', encoding='utf-8')\n",
+        )
+
+        resolved = run_resolve_conflicts(repo, OP_ID=op_dir.name, CONFLICT_EDITOR=str(script))
+        require(resolved.returncode == 0, resolved.stderr + resolved.stdout)
+        require("No source refs or tags were moved." in resolved.stdout, resolved.stdout)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "resolver moved current ref")
+
+        prepared = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name)
+        require(prepared.returncode == 0, prepared.stderr + prepared.stdout)
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "continue without WRITE moved current")
+
+        finalised = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name, WRITE="1")
+        require(finalised.returncode == 0, finalised.stderr + finalised.stdout)
+        require(show(repo, "source/unofficial/current", "firmware.txt") == "resolved by helper\n", "helper resolution was not finalised")
+        require(script.exists(), "editor fixture should remain unrelated to import state")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_resolve_conflicts_preserves_matching_symlink_resolution() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "-c", "symlink-conflict-base", "source/unofficial/current")
+        write_file(repo, "src/component/a.h", "source A\n")
+        write_file(repo, "src/component/b.h", "source B\n")
+        symlink(repo, "../../../src/component/a.h", "custom/overlay/component/mode.h")
+        commit_all(repo, "symlink conflict base")
+
+        git(repo, "switch", "-c", "symlink-conflict-ours")
+        (repo / "custom/overlay/component/mode.h").unlink()
+        symlink(repo, "../../../src/component/b.h", "custom/overlay/component/mode.h")
+        commit_all(repo, "retarget overlay symlink")
+
+        git(repo, "switch", "-c", "symlink-conflict-theirs", "symlink-conflict-base")
+        (repo / "custom/overlay/component/mode.h").unlink()
+        write_file(repo, "custom/overlay/component/mode.h", "topic regular overlay\n")
+        commit_all(repo, "materialise overlay mode change")
+
+        git(repo, "switch", "symlink-conflict-ours")
+        merge = git(repo, "merge", "symlink-conflict-theirs", check=False)
+        require(merge.returncode != 0, "merge should create a symlink/file conflict")
+        script = editor_script(repo, "noop-editor.sh", "#!/bin/sh\nexit 0\n")
+
+        resolved = run_resolve_conflicts(repo, SCRATCH=str(repo), CONFLICT_EDITOR=str(script))
+        require(resolved.returncode == 0, resolved.stderr + resolved.stdout)
+        require(git(repo, "diff", "--name-only", "--diff-filter=U").stdout.strip() == "", "conflict remains unresolved")
+        overlay = repo / "custom/overlay/component/mode.h"
+        require(overlay.is_symlink(), "matching symlink target content should preserve the symlink")
+        require(os.readlink(overlay) == "../../../src/component/b.h", "preserved symlink target changed")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_continue_rejects_changed_operation_options() -> None:
     repo = make_repo()
     try:
@@ -862,6 +948,8 @@ def main() -> None:
     test_conflict_pauses_without_moving_refs_then_continue_finalises()
     test_dry_run_conflict_reports_paths_without_moving_refs()
     test_symlink_file_conflict_reports_expanded_context()
+    test_resolve_conflicts_edits_scratch_only_then_continue_finalises()
+    test_resolve_conflicts_preserves_matching_symlink_resolution()
     test_continue_rejects_changed_operation_options()
     test_failed_apply_without_conflict_markers_pauses_for_manual_resolution()
     test_dry_run_failed_apply_without_conflict_markers_keeps_rejects()

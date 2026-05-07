@@ -48,6 +48,10 @@ ACT_EXTRA_ARGS ?=
 ACT_CONTAINER_ARCH ?= linux/amd64
 ACT_RUNNER_IMAGE ?= catthehacker/ubuntu:act-latest
 DOCS_BUILD_MODE ?= auto
+CONFLICT_PATHS ?=
+CONFLICT_EDITOR ?=
+PRESERVE_SYMLINKS ?= 1
+ALLOW_CONFLICT_MARKERS ?= 0
 FIRST_OUTPUT_PROBE ?= 0
 
 define PROGRESS_PROBE
@@ -108,12 +112,12 @@ endef
 
 .PHONY: help help-vars help-dev help-source-targets build build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test lint \
-	extract-vendor-delta render-release-branch integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts \
+	extract-vendor-delta render-release-branch integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
 	propagate-release-branches update-release-tags \
 	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-help-cache check-first-output-latency refresh-help-cache ref-report cleanup-report create-minimised-clone \
 	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
-	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help check-upstream-versions-help
+	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help resolve-conflicts-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help check-upstream-versions-help
 
 help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
@@ -163,6 +167,7 @@ help-dev:
 	print_help_line 'make import-changes' 'Extract a patch from a materialised, legacy, or broader source tree into source/unofficial refs.'; \
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source branch from an already unofficial-based topic branch.'; \
 	print_help_line 'make inspect-import-conflicts' 'Inspect a paused import operation with symlink-aware conflict reporting.'; \
+	print_help_line 'make resolve-conflicts' 'Batch-resolve paused import conflicts in scratch trees with symlink-aware vimdiff panes.'; \
 	print_help_line 'make propagate-release-branches' 'Replay source/unofficial/current changes onto every release-specific source/unofficial branch.'; \
 	print_help_line 'make update-release-tags' 'Move source/unofficial/edk2/stable-* tags to matching release-branch heads after validation.'; \
 	print_subtitle 'Variables:'; \
@@ -193,8 +198,12 @@ help-dev:
 	print_help_variable 'ABORT=0|1' 'Abort a paused import operation and remove its scratch state without moving refs.'; \
 	print_help_variable 'OP_ID=<id>' 'Paused import operation ID for CONTINUE=1 or ABORT=1.'; \
 	print_help_variable 'IMPORT_TOOL=import-changes|import-unofficial' 'Optional operation namespace for inspect-import-conflicts when OP_ID is ambiguous.'; \
-	print_help_variable 'SCRATCH=<path>' 'Optional scratch tree path for inspect-import-conflicts when inspecting a tree directly.'; \
+	print_help_variable 'SCRATCH=<path>' 'Optional scratch tree path for inspect-import-conflicts or resolve-conflicts when operating on a tree directly.'; \
 	print_help_variable 'REPORT=<path>' 'Optional report path for inspect-import-conflicts SCRATCH mode.'; \
+	print_help_variable 'CONFLICT_PATHS=<path[,path...]>' 'Optional logical conflict path filter for resolve-conflicts.'; \
+	print_help_variable 'CONFLICT_EDITOR=<command>' 'Editor command for resolve-conflicts.\nDefault: vimdiff -f.'; \
+	print_help_variable 'PRESERVE_SYMLINKS=0|1' 'For resolve-conflicts. If the resolved content exactly matches an expanded conflicted symlink target, restore the symlink rather than materialising a regular file.\nDefault: 1.'; \
+	print_help_variable 'ALLOW_CONFLICT_MARKERS=0|1' 'For resolve-conflicts. Permit conflict-marker text in a resolved file.\nDefault: 0.'; \
 	print_help_variable 'ALLOW_SOURCE_REF_FROM=0|1' 'Maintainer escape hatch allowing FROM_REF=source/unofficial/** with an explicit BASE_REF.\nDefault: 0.'; \
 	print_section 'Rendering and Qualification'; \
 	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/cache/release branch.'; \
@@ -436,6 +445,10 @@ inspect-import-conflicts:
 	$(call PROGRESS_PROBE,[inspect] Inspecting import conflicts)
 	@DEBUG="$(DEBUG)" OP_ID="$(OP_ID)" IMPORT_TOOL="$(IMPORT_TOOL)" SCRATCH="$(SCRATCH)" REPORT="$(REPORT)" V="$(V)" $(PYTHON) scripts/inspect_import_conflicts.py
 
+resolve-conflicts:
+	$(call PROGRESS_PROBE,[resolve] Starting conflict resolver)
+	@DEBUG="$(DEBUG)" OP_ID="$(OP_ID)" IMPORT_TOOL="$(IMPORT_TOOL)" SCRATCH="$(SCRATCH)" CONFLICT_PATHS="$(CONFLICT_PATHS)" CONFLICT_EDITOR="$(CONFLICT_EDITOR)" PRESERVE_SYMLINKS="$(PRESERVE_SYMLINKS)" ALLOW_CONFLICT_MARKERS="$(ALLOW_CONFLICT_MARKERS)" V="$(V)" $(PYTHON) scripts/resolve_import_conflicts.py --v "$(V)"
+
 propagate-release-branches:
 	$(call PROGRESS_PROBE,[propagate] Propagating source/unofficial/current to release branches)
 	@DEBUG="$(DEBUG)" FROM_REF="$(or $(FROM_REF),source/unofficial/current)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="source/unofficial/current" PROPAGATE_RELEASE_BRANCHES="all" UPDATE_RELEASE_TAGS="0" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" ALLOW_SOURCE_REF_FROM="1" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
@@ -525,6 +538,9 @@ import-changes-help:
 
 inspect-import-conflicts-help:
 	@$(PYTHON) scripts/inspect_import_conflicts.py --help
+
+resolve-conflicts-help:
+	@$(PYTHON) scripts/resolve_import_conflicts.py --help
 
 check-vendor-workflow-drift-help:
 	@$(PYTHON) scripts/check_vendor_workflow_drift.py --help

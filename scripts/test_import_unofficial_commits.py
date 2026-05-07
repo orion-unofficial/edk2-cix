@@ -28,6 +28,7 @@ SCRIPT_FILES = [
     "import_unofficial_commits.py",
     "inspect_import_conflicts.py",
     "reconstruction_common.py",
+    "resolve_import_conflicts.py",
     "source_lifecycle.py",
     "source_policy.py",
     "update_release_tags.py",
