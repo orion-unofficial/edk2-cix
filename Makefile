@@ -222,8 +222,8 @@ help-dev:
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
-	print_help_line 'make refresh-help-cache' 'Refresh config/help-cache.json after changing Makefile, config/, scripts/, or source refs. No Git hook is installed automatically.'; \
-	print_help_line 'make check-help-cache' 'Check config/help-cache.json matches current source refs and help-generation inputs. make test runs this check.'; \
+	print_help_line 'make refresh-help-cache' 'Refresh the untracked runtime help cache under .cache/edk2-cix/help/.'; \
+	print_help_line 'make check-help-cache' 'Check that the runtime help cache can be generated and matches current source refs and help-generation inputs. make test runs this check.'; \
 	print_help_line 'make check-first-output-latency' 'Check safe make/script entry points emit first output within 0.5 seconds. make test runs this check.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'SCAN_COMMITS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \

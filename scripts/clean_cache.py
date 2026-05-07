@@ -34,7 +34,7 @@ Variables:
 This command removes only files under .cache/edk2-cix. It never deletes Git refs.
 """
 
-CACHE_SUBDIRS = ("tmp", "reports", "signing-certs", "docs", "firmware")
+CACHE_SUBDIRS = ("tmp", "reports", "signing-certs", "docs", "firmware", "help")
 
 
 def parser() -> argparse.ArgumentParser:

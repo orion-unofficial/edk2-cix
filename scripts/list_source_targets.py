@@ -13,16 +13,16 @@ from pathlib import Path
 WIDTH = 80
 STAGE_ORDER = {"upstream": 0, "custom-radxa": 1, "vendor": 2, "custom-cix": 3, "other": 9}
 default_release = None
+matrix_release_branches = None
 release_branch_sort_key = None
-release_entries = None
 repo_root = None
 source_target_name = None
 
 
 def load_reconstruction_common() -> None:
     global default_release
+    global matrix_release_branches
     global release_branch_sort_key
-    global release_entries
     global repo_root
     global source_target_name
 
@@ -33,17 +33,17 @@ def load_reconstruction_common() -> None:
         default_release as loaded_default_release,
     )
     from reconstruction_common import (  # pylint: disable=import-outside-toplevel
-        release_branch_sort_key as loaded_release_branch_sort_key,
+        matrix_release_branches as loaded_matrix_release_branches,
     )
     from reconstruction_common import (  # pylint: disable=import-outside-toplevel
-        release_entries as loaded_release_entries,
+        release_branch_sort_key as loaded_release_branch_sort_key,
     )
     from reconstruction_common import repo_root as loaded_repo_root  # pylint: disable=import-outside-toplevel
     from reconstruction_common import source_target_name as loaded_source_target_name  # pylint: disable=import-outside-toplevel
 
     default_release = loaded_default_release
+    matrix_release_branches = loaded_matrix_release_branches
     release_branch_sort_key = loaded_release_branch_sort_key
-    release_entries = loaded_release_entries
     repo_root = loaded_repo_root
     source_target_name = loaded_source_target_name
 
@@ -74,16 +74,13 @@ def sorted_source_targets(branches: list[str]) -> list[str]:
     return sorted(branches, key=key)
 
 
-def canonical_branches(releases: dict[str, object]) -> tuple[list[str], list[str]]:
+def canonical_branches(branches: list[str] | set[str]) -> tuple[list[str], list[str]]:
     canonical: list[str] = []
     alias_versions: set[str] = set()
-    for branch, entry in releases.items():
-        entry = entry if isinstance(entry, dict) else {}
+    for branch in branches:
         name = source_target_name(branch)
         if "/unofficial-" in name:
             alias_versions.add(name.rsplit("/unofficial-", 1)[1])
-            continue
-        if entry.get("alias_of") or entry.get("alias_of_template"):
             continue
         canonical.append(branch)
     return sorted_source_targets(canonical), sorted(alias_versions)
@@ -113,9 +110,9 @@ def indented(text: str, indent: str = "  ") -> None:
 
 def print_help(repo: Path) -> None:
     load_reconstruction_common()
-    releases = release_entries(repo)
+    release_branches, _aliases = matrix_release_branches(repo)
     default = source_target_name(default_release(repo))
-    branches, alias_versions = canonical_branches(releases)
+    branches, alias_versions = canonical_branches(release_branches)
 
     print("Configured Firmware Source Targets")
     print()

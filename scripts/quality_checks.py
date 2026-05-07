@@ -72,6 +72,7 @@ def lint() -> None:
 def test() -> None:
     run(["python3", "-m", "py_compile", *git_files("scripts/*.py")])
     run(["python3", "scripts/test_check_upstream_versions.py"])
+    run(["python3", "scripts/test_help_cache.py"])
     run(["python3", "scripts/test_import_changes.py"])
     run(["python3", "scripts/test_import_unofficial_commits.py"])
     run(["python3", "scripts/test_source_lifecycle.py"])

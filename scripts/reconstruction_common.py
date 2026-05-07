@@ -824,16 +824,21 @@ def release_entries(repo: Path) -> dict[str, dict[str, Any]]:
 
 
 def default_release(repo: Path) -> str:
-    entries = release_entries(repo)
+    branches, _aliases = matrix_release_branches(repo)
     custom = [
         branch
-        for branch in entries
+        for branch in branches
         if branch.startswith(f"{CACHE_RELEASE_PREFIX}custom/")
         and "/cix-" in branch
         and re.search(r"/unofficial-[^/]+$", branch)
     ]
     if not custom:
-        custom = [branch for branch in entries if branch.startswith(f"{CACHE_RELEASE_PREFIX}custom/") and branch.endswith("/unofficial")]
+        custom = [
+            branch
+            for branch in branches
+            if branch.startswith(f"{CACHE_RELEASE_PREFIX}custom/")
+            and branch.endswith("/unofficial")
+        ]
     if not custom:
         raise ReconstructionError("no default release is configured and no custom unofficial source target can be derived")
     return source_target_name(sorted(custom, key=release_branch_sort_key)[-1])
