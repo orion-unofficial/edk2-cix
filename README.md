@@ -468,6 +468,13 @@ Abort without moving refs:
 make import-changes ABORT=1 OP_ID=<operation-id>
 ```
 
+If several stale `import-changes` operations are present and all can be
+discarded, remove them in one step:
+
+```bash
+make import-changes ABORT_ALL=1
+```
+
 Use `make import-unofficial-commits` only when `FROM_REF` is already a topic
 branch based directly on the `source/unofficial/**` branch being updated. This
 tool advances or replays commits that were developed on an unofficial source

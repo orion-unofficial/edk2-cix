@@ -196,6 +196,7 @@ help-dev:
 	print_help_variable 'SIGNOFF=0|1' 'For import-changes. Add a Signed-off-by trailer with git commit -s.\nDefault: 0.'; \
 	print_help_variable 'CONTINUE=0|1' 'Continue a paused import operation after conflicts are resolved in the scratch tree.'; \
 	print_help_variable 'ABORT=0|1' 'Abort a paused import operation and remove its scratch state without moving refs.'; \
+	print_help_variable 'ABORT_ALL=0|1' 'For import-changes. Abort all paused import-changes operations and remove their scratch state without moving refs.'; \
 	print_help_variable 'OP_ID=<id>' 'Paused import operation ID for CONTINUE=1 or ABORT=1.'; \
 	print_help_variable 'IMPORT_TOOL=import-changes|import-unofficial' 'Optional operation namespace for inspect-import-conflicts when OP_ID is ambiguous.'; \
 	print_help_variable 'SCRATCH=<path>' 'Optional scratch tree path for inspect-import-conflicts or resolve-conflicts when operating on a tree directly.'; \
@@ -439,9 +440,9 @@ import-unofficial-commits:
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_RELEASE_BRANCHES="$(PROPAGATE_RELEASE_BRANCHES)" UPDATE_RELEASE_TAGS="$(UPDATE_RELEASE_TAGS)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" ALLOW_SOURCE_REF_FROM="$(ALLOW_SOURCE_REF_FROM)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
 
 import-changes:
-	$(if $(filter 1 true yes on,$(ABORT)),,$(call PROGRESS_PROBE,[import-changes] Starting change import))
+	$(if $(filter 1 true yes on,$(ABORT) $(ABORT_ALL)),,$(call PROGRESS_PROBE,[import-changes] Starting change import))
 	@if [ -n "$(PROPAGATE_CHECKPOINTS)" ]; then printf '%s\n' 'PROPAGATE_CHECKPOINTS was renamed to PROPAGATE_RELEASE_BRANCHES; use PROPAGATE_RELEASE_BRANCHES=all.' >&2; exit 2; fi
-	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_RELEASE_BRANCHES="$(PROPAGATE_RELEASE_BRANCHES)" UPDATE_RELEASE_TAGS="$(UPDATE_RELEASE_TAGS)" COMMIT_MESSAGE="$(COMMIT_MESSAGE)" COMMIT_MESSAGE_FILE="$(COMMIT_MESSAGE_FILE)" SIGNOFF="$(SIGNOFF)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_changes.py --v "$(V)"
+	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_RELEASE_BRANCHES="$(PROPAGATE_RELEASE_BRANCHES)" UPDATE_RELEASE_TAGS="$(UPDATE_RELEASE_TAGS)" COMMIT_MESSAGE="$(COMMIT_MESSAGE)" COMMIT_MESSAGE_FILE="$(COMMIT_MESSAGE_FILE)" SIGNOFF="$(SIGNOFF)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" ABORT_ALL="$(ABORT_ALL)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_changes.py --v "$(V)"
 
 inspect-import-conflicts:
 	$(call PROGRESS_PROBE,[inspect] Inspecting import conflicts)

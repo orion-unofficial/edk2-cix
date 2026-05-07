@@ -20,6 +20,7 @@ from test_support import (
     switch_orphan,
     write_file,
 )
+from import_changes import format_apply_output
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -121,6 +122,19 @@ def make_materialised_topic_with_message(repo: Path, name: str, message_args: li
     git(repo, "commit", *message_args)
     git(repo, "switch", "build")
     return name
+
+
+def test_git_apply_trailing_whitespace_output_quotes_line_content() -> None:
+    output = format_apply_output(
+        "scratch/change.patch:15981: trailing whitespace.\n"
+        "/** @file\n"
+        "scratch/change.patch:15982: trailing whitespace.\n"
+        "*   \n",
+        limit=10,
+    )
+    require(output[0].endswith("warning: trailing whitespace in patch input"), "warning was not labelled")
+    require(output[1] == "line content: '/** @file'", f"unexpected quoted line content: {output[1]}")
+    require(output[3] == "line content: '*   '", f"unexpected whitespace-preserving line content: {output[3]}")
 
 
 def add_materialised_overlay_rename_fixture(repo: Path) -> None:
@@ -247,6 +261,7 @@ def test_dry_run_infers_materialised_base_without_moving_refs() -> None:
         require(result.returncode == 0, result.stderr + result.stdout)
         require("source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial" in result.stdout, "dry run did not report inferred cache base")
         require("M\tfirmware.txt" in result.stdout, "dry run did not report changed path")
+        require("status legend: M=modified." in result.stdout, "dry run did not explain changed-path status codes")
         require("Dry-run succeeded. To apply this change permanently" in result.stdout, "dry run did not print apply guidance")
         require(f"FROM_REF={topic}" in result.stdout and "WRITE=1" in result.stdout, "dry run did not print write command")
         require("BASE_REF=" not in result.stdout, "dry run printed inferred BASE_REF in write command")
@@ -561,6 +576,32 @@ def test_legacy_propagate_checkpoints_is_rejected() -> None:
         shutil.rmtree(repo)
 
 
+def test_already_integrated_source_ref_does_not_infer_legacy_base() -> None:
+    repo = make_repo()
+    try:
+        switch_orphan(repo, "legacy-root")
+        write_file(repo, "legacy.txt", "root\n")
+        commit_all(repo, "legacy root")
+        git(repo, "switch", "-c", "legacy/ecc-dxe-fixes")
+        write_file(repo, "legacy.txt", "ecc base\n")
+        commit_all(repo, "ecc base")
+        git(repo, "switch", "-c", "legacy/custom-certain-firmware-fixes")
+        write_file(repo, "legacy.txt", "custom aggregate\n")
+        commit_all(repo, "custom aggregate")
+        aggregate_oid = rev_parse(repo, "legacy/custom-certain-firmware-fixes")
+        git(repo, "switch", "-C", "source/unofficial/edk2-stable202208", aggregate_oid)
+        write_file(repo, "release.txt", "release already has aggregate\n")
+        commit_all(repo, "release contains aggregate")
+        git(repo, "switch", "build")
+
+        result = run_import_changes(repo, FROM_REF="legacy/custom-certain-firmware-fixes")
+        require(result.returncode != 0, "already-integrated branch should not infer a legacy base")
+        require("already contained by retained source/unofficial ref" in result.stderr, result.stderr)
+        require("legacy/ecc-dxe-fixes" not in result.stderr, "rejected import should not select the legacy branch base")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_conflict_pauses_without_moving_refs_then_continue_finalises() -> None:
     repo = make_repo()
     try:
@@ -813,6 +854,8 @@ def test_dry_run_failed_apply_without_conflict_markers_keeps_rejects() -> None:
         require("Dry-run succeeded" not in result.stdout + result.stderr, "failed dry-run apply reported success")
         require("BASE_REF:" in result.stderr, result.stderr)
         require("extracted patch:" in result.stderr, result.stderr)
+        require("reject apply output" in result.stderr, result.stderr)
+        require("\n\n    symlink-aware conflict report:" in result.stderr, "conflict report should be visually separated")
         require(rev_parse(repo, "source/unofficial/current") == old_current, "dry-run moved current")
 
         op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
@@ -908,6 +951,32 @@ def test_propagation_updates_release_branches_and_tags() -> None:
         shutil.rmtree(repo)
 
 
+def test_abort_all_removes_all_paused_import_changes_operations() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "source/unofficial/current")
+        write_file(repo, "firmware.txt", "current conflict\n")
+        commit_all(repo, "current conflict")
+        git(repo, "switch", "build")
+        old_current = rev_parse(repo, "source/unofficial/current")
+        topic = make_materialised_topic(repo, text="topic conflict\n")
+
+        for op_id in ("first-paused-import", "second-paused-import"):
+            result = run_import_changes(repo, FROM_REF=topic, OP_ID=op_id)
+            require(result.returncode != 0, f"{op_id} should pause")
+
+        operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
+        require(sorted(path.name for path in operations.iterdir()) == ["first-paused-import", "second-paused-import"], "paused operations missing")
+        aborted = run_import_changes(repo, ABORT_ALL="1")
+        require(aborted.returncode == 0, aborted.stderr + aborted.stdout)
+        require("aborted import-changes operation first-paused-import" in aborted.stdout, aborted.stdout)
+        require("aborted import-changes operation second-paused-import" in aborted.stdout, aborted.stdout)
+        require(not any(operations.iterdir()), "abort-all left paused operations")
+        require(rev_parse(repo, "source/unofficial/current") == old_current, "abort-all moved refs")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_current_import_can_be_propagated_later_without_base_ref() -> None:
     repo = make_repo()
     try:
@@ -946,6 +1015,7 @@ def test_current_import_can_be_propagated_later_without_base_ref() -> None:
 
 
 def main() -> None:
+    test_git_apply_trailing_whitespace_output_quotes_line_content()
     test_dry_run_infers_materialised_base_without_moving_refs()
     test_import_inherits_multiline_from_ref_commit_message()
     test_import_commit_message_literal_newlines_use_m_parameters()
@@ -962,6 +1032,7 @@ def main() -> None:
     test_missing_base_is_rejected_when_no_base_can_be_inferred()
     test_empty_diff_is_rejected()
     test_legacy_propagate_checkpoints_is_rejected()
+    test_already_integrated_source_ref_does_not_infer_legacy_base()
     test_conflict_pauses_without_moving_refs_then_continue_finalises()
     test_dry_run_conflict_reports_paths_without_moving_refs()
     test_symlink_file_conflict_reports_expanded_context()
@@ -973,6 +1044,7 @@ def main() -> None:
     test_import_rejects_identical_overlay_copy()
     test_import_rejects_legacy_branch_names_in_commit_message_on_write()
     test_propagation_updates_release_branches_and_tags()
+    test_abort_all_removes_all_paused_import_changes_operations()
     test_current_import_can_be_propagated_later_without_base_ref()
     print("import_changes tests passed")
 

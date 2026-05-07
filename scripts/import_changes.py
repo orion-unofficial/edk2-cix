@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shlex
+import shutil
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +28,7 @@ from import_workflow import (
     load_state,
     make_op_id,
     merge_base,
+    operations_root,
     operation_path,
     ref_oid,
     remove_operation_state,
@@ -96,6 +100,8 @@ Optional variables:
                         Default: exact.
   CONTINUE=0|1          Continue a paused import after conflicts are resolved.
   ABORT=0|1             Remove paused import state without moving refs.
+  ABORT_ALL=0|1         Remove all paused import-changes operations without
+                        moving refs.
   OP_ID=<id>            Paused operation ID for CONTINUE=1 or ABORT=1.
   WRITE=0|1             Required before refs or tags are created or advanced.
   V=0|1                 Print delegated git operations.
@@ -117,6 +123,81 @@ def progress(message: str) -> None:
     print(f"[import-changes] {message}", file=sys.stderr, flush=True)
 
 
+def terminal_width() -> int:
+    return max(80, shutil.get_terminal_size(fallback=(80, 24)).columns)
+
+
+def append_wrapped(lines: list[str], text: str, *, indent: str = "") -> None:
+    lines.extend(textwrap.wrap(text, width=terminal_width(), initial_indent=indent, subsequent_indent=indent) or [indent])
+
+
+STATUS_LEGEND = {
+    "A": "added",
+    "C": "copied",
+    "D": "deleted",
+    "M": "modified",
+    "R": "renamed",
+    "T": "type changed",
+    "U": "unmerged",
+    "??": "untracked",
+}
+
+
+def status_codes(lines: list[str], *, porcelain: bool = False) -> list[str]:
+    codes: set[str] = set()
+    for line in lines:
+        if not line:
+            continue
+        if porcelain:
+            prefix = line[:2]
+            if prefix == "??":
+                codes.add("??")
+            else:
+                codes.update(ch for ch in prefix if ch != " ")
+            continue
+        code = line.split("\t", 1)[0]
+        if code:
+            codes.add(code[0])
+    return sorted(codes, key=lambda value: ("~" if value == "??" else value))
+
+
+def append_status_legend(lines: list[str], status_lines: list[str], *, indent: str, porcelain: bool = False) -> None:
+    codes = status_codes(status_lines, porcelain=porcelain)
+    if not codes:
+        return
+    meanings = ", ".join(f"{code}={STATUS_LEGEND.get(code, 'see git status')}" for code in codes)
+    lines.append(f"{indent}status legend: {meanings}.")
+    lines.append("")
+
+
+TRAILING_WHITESPACE_RE = re.compile(r"^(?P<path>.+):(?P<line>[0-9]+): trailing whitespace\.$")
+
+
+def format_apply_output(detail: str, *, limit: int) -> list[str]:
+    """Make git-apply diagnostics clearer for conflict reports."""
+
+    raw_lines = detail.splitlines()
+    formatted: list[str] = []
+    index = 0
+    while index < len(raw_lines):
+        line = raw_lines[index]
+        match = TRAILING_WHITESPACE_RE.match(line)
+        if match:
+            formatted.append(
+                f"{match.group('path')}:{match.group('line')}: warning: trailing whitespace in patch input"
+            )
+            if index + 1 < len(raw_lines):
+                formatted.append(f"line content: {raw_lines[index + 1]!r}")
+                index += 2
+                continue
+        else:
+            formatted.append(line)
+        index += 1
+    if len(formatted) > limit:
+        return formatted[:limit] + [f"... {len(formatted) - limit} more git-apply output line(s) omitted"]
+    return formatted
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
     p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
@@ -131,10 +212,21 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--source-lifecycle-normalise", default=os.environ.get("SOURCE_LIFECYCLE_NORMALISE", "exact"))
     p.add_argument("--continue-import", default=os.environ.get("CONTINUE", "0"))
     p.add_argument("--abort", default=os.environ.get("ABORT", "0"))
+    p.add_argument("--abort-all", default=os.environ.get("ABORT_ALL", "0"))
     p.add_argument("--op-id", default=os.environ.get("OP_ID", ""))
     p.add_argument("--write", default=os.environ.get("WRITE", "0"))
     p.add_argument("--v", default=os.environ.get("V", "0"))
     return p
+
+
+def abort_all_operations(repo: Path) -> None:
+    root = operations_root(repo, OP_NAMESPACE)
+    op_dirs = sorted(path for path in root.iterdir() if path.is_dir() and (path / "state.json").exists()) if root.exists() else []
+    if not op_dirs:
+        print("no paused import-changes operations exist")
+        return
+    for op_dir in op_dirs:
+        abort_operation(op_dir, "import-changes")
 
 
 def nearest_ancestor(repo: Path, from_ref: str, refs: list[str]) -> tuple[str, str] | None:
@@ -162,6 +254,32 @@ def branch_heads(repo: Path) -> list[str]:
     if result.returncode != 0:
         return []
     return [line for line in result.stdout.splitlines() if line]
+
+
+def containing_unofficial_refs(repo: Path, from_ref: str) -> list[str]:
+    from_oid = rev_parse(repo, from_ref)
+    refs = []
+    for ref in for_each_ref(repo, "source/unofficial"):
+        oid = rev_parse(repo, ref)
+        if oid == from_oid or is_ancestor(repo, from_oid, oid):
+            refs.append(ref)
+    return sorted(refs)
+
+
+def reject_already_integrated_source(repo: Path, from_ref: str) -> None:
+    containing = containing_unofficial_refs(repo, from_ref)
+    if not containing:
+        return
+    shown = "\n".join(f"  - {ref}" for ref in containing[:12])
+    extra = "" if len(containing) <= 12 else f"\n  ... and {len(containing) - 12} more"
+    raise ReconstructionError(
+        "FROM_REF is already contained by retained source/unofficial ref(s), so automatic base "
+        "inference will not fall back to an unrelated legacy branch and create a large aggregate diff:\n"
+        f"{shown}{extra}\n\n"
+        "If this is intentional, re-run with an explicit BASE_REF naming the source tree immediately "
+        "before the focused change. If you are propagating source/unofficial/current itself, use "
+        "make propagate-release-branches or pass BASE_REF explicitly."
+    )
 
 
 def broader_base_refs(repo: Path, from_ref: str) -> list[str]:
@@ -229,6 +347,8 @@ def infer_base(repo: Path, from_ref: str, explicit_base: str, target_ref: str) -
     target_base = nearest_ancestor(repo, from_ref, [target_ref])
     if target_base:
         return target_base
+
+    reject_already_integrated_source(repo, from_ref)
 
     broader_base = infer_broader_base(repo, from_ref, broader_base_refs(repo, from_ref))
     if broader_base:
@@ -533,33 +653,31 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
             if dirty_paths_value:
                 lines.append("  scratch status:")
                 lines.extend(f"    {path}" for path in dirty_paths_value[:12])
+                append_status_legend(lines, dirty_paths_value, indent="  ", porcelain=True)
             manual_patch_path = target.get("manual_patch_path")
             if manual_patch_path:
                 lines.append(f"  extracted patch: {manual_patch_path}")
-            conflict_report_path = target.get("conflict_report_path")
-            if conflict_report_path:
-                lines.append(f"  symlink-aware conflict report: {conflict_report_path}")
             resolution_error = target.get("resolution_error")
             if resolution_error:
                 lines.append("  current issue:")
                 lines.extend(f"    {line}" for line in resolution_error.splitlines()[:8])
             detail = (target.get("apply_stderr") or target.get("apply_stdout") or "").strip()
             if detail:
-                lines.append("  apply output:")
-                lines.extend(f"    {line}" for line in detail.splitlines()[:12])
+                lines.append("  apply output (Git warnings/errors; whitespace-warning line content is quoted):")
+                lines.extend(f"    {line}" for line in format_apply_output(detail, limit=12))
             reject_detail = (target.get("reject_apply_stderr") or target.get("reject_apply_stdout") or "").strip()
             if reject_detail:
-                lines.append("  reject apply output:")
-                lines.extend(f"    {line}" for line in reject_detail.splitlines()[:12])
+                lines.append("  reject apply output (Git warnings/errors; whitespace-warning line content is quoted):")
+                lines.extend(f"    {line}" for line in format_apply_output(reject_detail, limit=12))
+            conflict_report_path = target.get("conflict_report_path")
+            if conflict_report_path:
+                lines.append("")
+                lines.append(f"  symlink-aware conflict report: {conflict_report_path}")
+    lines.append("")
+    append_wrapped(lines, "If Git created .rej files, use them to apply the missing hunks. If it could not create .rej files, use the printed extracted patch as the manual source of truth. Remove .rej files when they are no longer needed, stage all resolved files with git add, and continue.")
+    append_wrapped(lines, "For mode conflicts involving symlinks, inspect the symlink-aware report or run:")
     lines.extend(
         [
-            "",
-            "If Git created .rej files, use them to apply the missing hunks.",
-            "If it could not create .rej files, use the printed extracted patch",
-            "as the manual source of truth. Remove .rej files when they are no",
-            "longer needed, stage all resolved files with git add, and continue.",
-            "For mode conflicts involving symlinks, inspect the symlink-aware",
-            "report or run:",
             f"  make inspect-import-conflicts OP_ID={op_id}",
             "",
             "Then validate the resolved candidates without moving refs:",
@@ -800,6 +918,10 @@ def print_dry_run(state: dict[str, Any]) -> None:
     print("  changed paths:")
     for change in state["changes"]:
         print(f"    {change}")
+    legend_lines: list[str] = []
+    append_status_legend(legend_lines, state["changes"], indent="  ")
+    for line in legend_lines:
+        print(line)
     print(f"  source lifecycle normalise: {state.get('source_lifecycle_normalise', 'exact')}")
     if state.get("changed_overlay_paths"):
         print("  changed overlay paths:")
@@ -892,14 +1014,16 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
         "No refs or tags were moved.",
         f"BASE_REF: {state['base_ref']} ({state['base_oid']})",
         f"FROM_REF: {state['from_ref']} ({state['from_oid']})",
-        "Dry-run still attempts every target in disposable scratch trees so it",
-        "can prove whether a later write would succeed.",
-        "Because this dry-run found conflicts, the scratch trees have been kept",
-        "for conflict resolution under:",
-        f"  {operation_path(repo_root(Path(__file__)), OP_NAMESPACE, op_id)}",
-        "",
-        "Conflicting target(s):",
     ]
+    append_wrapped(
+        lines,
+        "Dry-run still attempts every target in disposable scratch trees so it can prove whether a later write would succeed.",
+    )
+    append_wrapped(
+        lines,
+        "Because this dry-run found conflicts, the scratch trees have been kept for conflict resolution under:",
+    )
+    lines.extend([f"  {operation_path(repo_root(Path(__file__)), OP_NAMESPACE, op_id)}", "", "Conflicting target(s):"])
     for target in paused:
         lines.append(f"  - {target['ref']}")
         scratch = target.get("scratch")
@@ -917,32 +1041,39 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
         if dirty_paths_value:
             lines.append("    scratch status:")
             lines.extend(f"      {path}" for path in dirty_paths_value[:12])
+            append_status_legend(lines, dirty_paths_value, indent="    ", porcelain=True)
         manual_patch_path = target.get("manual_patch_path")
         if manual_patch_path:
             lines.append(f"    extracted patch: {manual_patch_path}")
-        conflict_report_path = target.get("conflict_report_path")
-        if conflict_report_path:
-            lines.append(f"    symlink-aware conflict report: {conflict_report_path}")
         detail = (target.get("apply_stderr") or target.get("apply_stdout") or "").strip()
         if detail:
-            lines.append("    apply output:")
-            lines.extend(f"      {line}" for line in detail.splitlines()[:8])
+            lines.append("    apply output (Git warnings/errors; whitespace-warning line content is quoted):")
+            lines.extend(f"      {line}" for line in format_apply_output(detail, limit=8))
         reject_detail = (target.get("reject_apply_stderr") or target.get("reject_apply_stdout") or "").strip()
         if reject_detail:
-            lines.append("    reject apply output:")
-            lines.extend(f"      {line}" for line in reject_detail.splitlines()[:8])
+            lines.append("    reject apply output (Git warnings/errors; whitespace-warning line content is quoted):")
+            lines.extend(f"      {line}" for line in format_apply_output(reject_detail, limit=8))
+        conflict_report_path = target.get("conflict_report_path")
+        if conflict_report_path:
+            lines.append("")
+            lines.append(f"    symlink-aware conflict report: {conflict_report_path}")
+    lines.append("")
+    append_wrapped(
+        lines,
+        "Resolve each printed scratch tree. If .rej files were created, use them to apply the missing hunks. If Git could not create .rej files, use the printed extracted patch as the manual source of truth.",
+    )
+    append_wrapped(lines, "For mode conflicts involving symlinks, inspect the symlink-aware report or run:")
     lines.extend(
         [
-            "",
-            "Resolve each printed scratch tree. If .rej files were created, use",
-            "them to apply the missing hunks. If Git could not create .rej files,",
-            "use the printed extracted patch as the manual source of truth.",
-            "For mode conflicts involving symlinks, inspect the symlink-aware",
-            "report or run:",
             f"  make inspect-import-conflicts OP_ID={op_id}",
-            "Remove .rej files when they are no longer needed. Stage all resolved",
-            "files with git add inside that scratch tree, then validate the",
-            "resolved candidates:",
+        ]
+    )
+    append_wrapped(
+        lines,
+        "Remove .rej files when they are no longer needed. Stage all resolved files with git add inside that scratch tree, then validate the resolved candidates:",
+    )
+    lines.extend(
+        [
             f"  make import-changes CONTINUE=1 OP_ID={op_id}",
             "",
             "Only after that validation succeeds, move refs and tags:",
@@ -963,6 +1094,10 @@ def main() -> None:
     if truthy(args.abort):
         progress("aborting paused operation")
         abort_operation(resolve_operation(repo, OP_NAMESPACE, "import-changes", args.op_id), "import-changes")
+        return
+    if truthy(args.abort_all):
+        progress("aborting all paused operations")
+        abort_all_operations(repo)
         return
     if truthy(args.continue_import):
         continue_operation(repo, resolve_operation(repo, OP_NAMESPACE, "import-changes", args.op_id), args, verbose, truthy(args.write))
