@@ -20,9 +20,9 @@ from reconstruction_common import (
     git,
     load_json,
     edk2_ref_for_release,
-    local_compatibility_branch_for_tag,
-    local_compatibility_edk2_refs,
-    local_compatibility_tag_for_branch,
+    unofficial_release_branch_for_tag,
+    unofficial_release_edk2_refs,
+    unofficial_release_tag_for_branch,
     main_wrapper,
     matrix_release_branches,
     matrix_release_values,
@@ -55,7 +55,7 @@ Checks:
   - retained source/cache/release branches match config/refs-source-target-cache.json tree IDs
   - Radxa vendor/port source refs and regenerable rendered-base cache plans cover every supported EDK2 release
   - obsolete source/delta/unofficial refs are absent
-  - unofficial compatibility tags are reachable from retained source/unofficial branches
+  - unofficial release tags are reachable from retained source/unofficial branches
   - versioned unofficial aliases have the same tree as their non-alias branch
 """
 
@@ -96,7 +96,7 @@ def local_tag_refs(repo: Path) -> set[str]:
 
 def tag_reachable_from_local_branch(repo: Path, tag: str) -> bool:
     commit = rev_parse(repo, tag)
-    expected_branch = local_compatibility_branch_for_tag(tag)
+    expected_branch = unofficial_release_branch_for_tag(tag)
     result = git(
         repo,
         "merge-base",
@@ -179,12 +179,12 @@ def require_source_refs(
         if ref.startswith(("source/vendor/radxa/", "source/port/radxa/"))
     }
     expected_local_tags = {
-        local_compatibility_tag_for_branch(ref)
+        unofficial_release_tag_for_branch(ref)
         for ref in expected_required_refs
         if ref.startswith("source/unofficial/")
     }
     expected_local_branches = {
-        local_compatibility_branch_for_tag(tag)
+        unofficial_release_branch_for_tag(tag)
         for tag in expected_local_tags
     }
     expected_local_branches.add("source/unofficial/current")
@@ -248,20 +248,20 @@ def require_source_refs(
         )
     missing_tags = expected_local_tags - actual_local_tags
     if missing_tags:
-        problems.append("missing unofficial compatibility tags:\n" + "\n".join(f"  - {r}" for r in sorted(missing_tags)))
+        problems.append("missing unofficial release tags:\n" + "\n".join(f"  - {r}" for r in sorted(missing_tags)))
     extra_tags = actual_local_tags - expected_local_tags
     if extra_tags:
-        problems.append("unofficial compatibility tags are not used by any derived firmware source target:\n" + "\n".join(f"  - {r}" for r in sorted(extra_tags)))
+        problems.append("unofficial release tags are not used by any derived firmware source target:\n" + "\n".join(f"  - {r}" for r in sorted(extra_tags)))
     missing_local_branches = expected_local_branches - actual_local_branches
     if missing_local_branches:
         problems.append(
-            "missing source/unofficial compatibility branches:\n"
+            "missing source/unofficial release branches:\n"
             + "\n".join(f"  - {r}" for r in sorted(missing_local_branches))
         )
     orphaned_tags = sorted(tag for tag in expected_local_tags & actual_local_tags if not tag_reachable_from_local_branch(repo, tag))
     if orphaned_tags:
         problems.append(
-            "unofficial compatibility tags are not reachable from any retained source/unofficial branch:\n"
+            "unofficial release tags are not reachable from any retained source/unofficial branch:\n"
             + "\n".join(f"  - {r}" for r in orphaned_tags)
         )
 
@@ -303,7 +303,7 @@ def require_non_cix_unofficial_source_targets(
     expected_releases: set[str],
 ) -> list[str]:
     problems: list[str] = []
-    unofficial_edk2 = local_compatibility_edk2_refs(repo)
+    unofficial_edk2 = unofficial_release_edk2_refs(repo)
     supported_edk2 = {edk2_ref_for_release(release) for release in releases}
     radxa_by_edk2 = radxa_releases_by_edk2(repo, supported_edk2)
 

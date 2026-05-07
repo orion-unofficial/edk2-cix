@@ -22,7 +22,7 @@ before removing the old refs:
 - `refs/heads/source/vendor/radxa/**`
 - `refs/heads/source/port/radxa/**`
 - `refs/heads/source/unofficial/**`
-- unofficial compatibility tags under
+- unofficial release tags under
   `refs/tags/source/unofficial/edk2/stable-*`
 
 The manifests and policies on this branch are also required source metadata:
@@ -53,12 +53,13 @@ the referenced EDK2 component refs are present.
 ## Source Change Propagation
 
 Changes to `source/unofficial/current` are not automatically known-good for
-every EDK2 compatibility checkpoint. When importing a source change that should
+every EDK2 release branch. When importing a source change that should
 apply across supported releases, use the explicit import workflow with
-`PROPAGATE_CHECKPOINTS=all` and validate every checkpoint before moving refs.
+`PROPAGATE_RELEASE_BRANCHES=all` and validate every release branch before
+moving refs.
 
 Do not use a broad historical replay as a substitute for review. If a change
-appears to exist in one checkpoint but not another, first audit with Git's
+appears to exist in one release branch but not another, first audit with Git's
 patch-equivalence tools, for example `git cherry`, then classify each
 non-equivalent commit as one of:
 
@@ -67,11 +68,12 @@ non-equivalent commit as one of:
 - superseded by a newer implementation;
 - a genuine missed fix that should be re-imported as a focused topic.
 
-The fiptool quiet-output repair was a missed focused fix: the 202208 checkpoint
-contained earlier quiet-output work, while later checkpoints had independently
+The fiptool quiet-output repair was a missed focused fix: the 202208 release
+branch contained earlier quiet-output work, while later release branches had
+independently
 created fiptool source-build commits that never received that helper. Future
 agents should treat this as a propagation-audit lesson, not as permission to
-rewrite checkpoint history wholesale.
+rewrite release-branch history wholesale.
 
 ## Ephemeral Worktrees And Temporary Data
 

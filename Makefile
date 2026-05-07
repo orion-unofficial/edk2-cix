@@ -109,6 +109,7 @@ endef
 .PHONY: help help-vars help-dev help-source-targets build build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-changes import-unofficial-commits \
+	propagate-release-branches update-release-tags \
 	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-help-cache check-first-output-latency refresh-help-cache ref-report cleanup-report create-minimised-clone \
 	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
@@ -160,7 +161,9 @@ help-dev:
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-changes' 'Extract a patch from a materialised, legacy, or broader source tree into source/unofficial refs.'; \
-	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source checkpoint from an already unofficial-based topic branch.'; \
+	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source branch from an already unofficial-based topic branch.'; \
+	print_help_line 'make propagate-release-branches' 'Replay source/unofficial/current changes onto every release-specific source/unofficial branch.'; \
+	print_help_line 'make update-release-tags' 'Move source/unofficial/edk2/stable-* tags to matching release-branch heads after validation.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa source refs or CIX-carried source layers.'; \
 	print_help_variable 'COMPONENT=<name>' 'For TYPE=upstream: edk2, edk2-platforms, edk2-non-osi, tf-a, or op-tee.'; \
@@ -170,7 +173,7 @@ help-dev:
 	print_help_variable 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
 	print_help_variable 'ARM_BASE=<release>' 'Arm upstream base used when recording a CIX TF-A or OP-TEE component uplift.'; \
 	print_help_variable 'RADXA_SOURCE=auto|vendor|port' 'Select whether a Radxa integration is a vendor-published source tree or this project'\''s port to an EDK2 base.\nDefault: auto.'; \
-	print_help_variable 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release, import-changes, and import-unofficial-commits.'; \
+	print_help_variable 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release, import-changes, import-unofficial-commits, propagate-release-branches, and update-release-tags.'; \
 	print_help_variable 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
 	print_help_variable 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before recording source/vendor or source/port refs.\nDefault: 1.'; \
 	print_help_variable 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta, or explicit override for import-changes/import-unofficial-commits when automatic inference is ambiguous.'; \
@@ -179,9 +182,9 @@ help-dev:
 	print_help_variable 'OUTPUT=<path>' 'Optional extract-vendor-delta metadata output path.'; \
 	print_help_variable 'PATCH_OUTPUT=<path>' 'Optional extract-vendor-delta patch output path.'; \
 	print_help_variable 'SOURCE_UNOFFICIAL_REF=<ref>' 'Unofficial source branch for import-changes or import-unofficial-commits; defaults to source/unofficial/current.'; \
-	print_help_variable 'PROPAGATE_CHECKPOINTS=none|all' 'For import targets. Replay or apply the imported change onto every source/unofficial/edk2-stable* checkpoint after preparing all candidates safely.\nDefault: none.'; \
-	print_help_variable 'UPDATE_COMPAT_TAGS=0|1' 'For import targets. Move matching source/unofficial/edk2/stable-* tags only after all checkpoint imports succeed.\nDefault: 0.'; \
-	print_help_variable 'SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact' 'For import targets and verify-source-lifecycle. Control deterministic overlay/source lifecycle handling when an imported overlay path points at a source file that moved or disappeared in another checkpoint. validate reports required rewrites without changing the scratch tree; mirror rewrites mirror symlinks only; exact also rewrites exact regular overlay renames.\nDefault: exact.'; \
+	print_help_variable 'PROPAGATE_RELEASE_BRANCHES=none|all' 'For import targets. Replay or apply the imported change onto every source/unofficial/edk2-stable* release branch after preparing all candidates safely.\nDefault: none.'; \
+	print_help_variable 'UPDATE_RELEASE_TAGS=0|1' 'For import targets. Move matching source/unofficial/edk2/stable-* tags after all requested release-branch imports succeed. The recommended workflow is to run make update-release-tags separately after validation.\nDefault: 0.'; \
+	print_help_variable 'SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact' 'For import targets and verify-source-lifecycle. Control deterministic overlay/source lifecycle handling when an imported overlay path points at a source file that moved or disappeared in another release branch. validate reports required rewrites without changing the scratch tree; mirror rewrites mirror symlinks only; exact also rewrites exact regular overlay renames.\nDefault: exact.'; \
 	print_help_variable 'COMMIT_MESSAGE=<text>' 'For import-changes. Commit message for the extracted patch. Literal \\n sequences become separate git commit -m paragraphs.\nDefault: inherited from the FROM_REF tip commit.'; \
 	print_help_variable 'COMMIT_MESSAGE_FILE=<path>' 'For import-changes. Read the imported patch commit message from a file. Mutually exclusive with COMMIT_MESSAGE.'; \
 	print_help_variable 'SIGNOFF=0|1' 'For import-changes. Add a Signed-off-by trailer with git commit -s.\nDefault: 0.'; \
@@ -195,11 +198,11 @@ help-dev:
 	print_help_line 'make verify-build-matrix' 'Validate build/source target combinations derived from source refs.'; \
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
 	print_help_line 'make verify-source-policy' 'Validate shared source-tree policy checks, including overlay symlink rules.'; \
-	print_help_line 'make verify-source-lifecycle' 'Validate deterministic overlay/source lifecycle projection across unofficial source checkpoints.'; \
+	print_help_line 'make verify-source-lifecycle' 'Validate deterministic overlay/source lifecycle projection across unofficial release branches.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'RELEASE=<source-target>' 'Firmware source-target name for render-release-branch and verify-release-branch.'; \
 	print_help_variable 'FROM_REF=<ref>' 'Source ref for verify-source-lifecycle projection.\nDefault: source/unofficial/current.'; \
-	print_help_variable 'TARGET_REF=<ref[,ref...]>' 'Optional comma-separated target refs for verify-source-lifecycle. Leave unset to check every source/unofficial/edk2-stable* checkpoint.'; \
+	print_help_variable 'TARGET_REF=<ref[,ref...]>' 'Optional comma-separated target refs for verify-source-lifecycle or update-release-tags. Leave unset to check every source/unofficial/edk2-stable* release branch.'; \
 	print_help_variable 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/cache/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a Git cache branch.'; \
 	print_help_variable 'REBUILD=0|1' 'Regenerate a rendered firmware source target from its render plan instead of reusing an existing ref.'; \
 	print_help_variable 'FORCE=0|1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass.'; \
@@ -419,11 +422,19 @@ integrate-source-release:
 
 import-unofficial-commits:
 	$(call PROGRESS_PROBE,[import-unofficial] Starting unofficial import)
-	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_CHECKPOINTS="$(PROPAGATE_CHECKPOINTS)" UPDATE_COMPAT_TAGS="$(UPDATE_COMPAT_TAGS)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" ALLOW_SOURCE_REF_FROM="$(ALLOW_SOURCE_REF_FROM)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
+	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_RELEASE_BRANCHES="$(PROPAGATE_RELEASE_BRANCHES)" UPDATE_RELEASE_TAGS="$(UPDATE_RELEASE_TAGS)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" ALLOW_SOURCE_REF_FROM="$(ALLOW_SOURCE_REF_FROM)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
 
 import-changes:
 	$(if $(filter 1 true yes on,$(ABORT)),,$(call PROGRESS_PROBE,[import-changes] Starting change import))
-	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_CHECKPOINTS="$(PROPAGATE_CHECKPOINTS)" UPDATE_COMPAT_TAGS="$(UPDATE_COMPAT_TAGS)" COMMIT_MESSAGE="$(COMMIT_MESSAGE)" COMMIT_MESSAGE_FILE="$(COMMIT_MESSAGE_FILE)" SIGNOFF="$(SIGNOFF)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_changes.py --v "$(V)"
+	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_RELEASE_BRANCHES="$(PROPAGATE_RELEASE_BRANCHES)" UPDATE_RELEASE_TAGS="$(UPDATE_RELEASE_TAGS)" COMMIT_MESSAGE="$(COMMIT_MESSAGE)" COMMIT_MESSAGE_FILE="$(COMMIT_MESSAGE_FILE)" SIGNOFF="$(SIGNOFF)" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_changes.py --v "$(V)"
+
+propagate-release-branches:
+	$(call PROGRESS_PROBE,[propagate] Propagating source/unofficial/current to release branches)
+	@DEBUG="$(DEBUG)" FROM_REF="$(or $(FROM_REF),source/unofficial/current)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="source/unofficial/current" PROPAGATE_RELEASE_BRANCHES="all" UPDATE_RELEASE_TAGS="0" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" ALLOW_SOURCE_REF_FROM="1" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
+
+update-release-tags:
+	$(call PROGRESS_PROBE,[tags] Checking unofficial release tags)
+	@DEBUG="$(DEBUG)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/update_release_tags.py --v "$(V)"
 
 check-identity-integrity:
 	$(call PROGRESS_PROBE,[check] Checking identity integrity)

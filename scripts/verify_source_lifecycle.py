@@ -12,7 +12,7 @@ from pathlib import Path
 from reconstruction_common import (
     ReconstructionError,
     format_duration,
-    local_compatibility_refs,
+    unofficial_release_branches,
     main_wrapper,
     ref_exists,
     repo_root,
@@ -36,7 +36,7 @@ Optional variables:
       Default: source/unofficial/current.
   TARGET_REF=<ref[,ref...]>
       Specific target refs to validate. If omitted, every
-      source/unofficial/edk2-stable* checkpoint is used.
+      source/unofficial/edk2-stable* release branch is used.
   V=0|1
       Print per-target projection summaries.
   SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact
@@ -60,7 +60,7 @@ def parser() -> argparse.ArgumentParser:
 def target_refs(repo: Path, value: str) -> list[str]:
     if value.strip():
         return [item.strip() for item in value.split(",") if item.strip()]
-    return local_compatibility_refs(repo)
+    return unofficial_release_branches(repo)
 
 
 def require_ref(repo: Path, ref: str, label: str) -> None:

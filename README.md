@@ -23,7 +23,7 @@ make help-source-targets
 ## How do I build the latest firmware?
 
 The default source target is derived from the latest available supported EDK2
-release, CIX release, Radxa release, and unofficial source checkpoint. The
+release, CIX release, Radxa release, and unofficial source branch. The
 supported source-target set is generated from source refs such as
 `source/base/edk2/**`, `source/vendor/radxa/**`, `source/port/radxa/**`,
 `source/component/cix/**`, and the source/ref manifests under `config/`. If you
@@ -160,7 +160,7 @@ source inputs are recorded locally. At a high level, this means:
 - the Radxa vendor changes are available for that EDK2 release
 - any selected CIX component refs are present under
   `source/component/cix/<cix-release>/`
-- the compatible unofficial project source checkpoint is present
+- the unofficial project source branch for the selected EDK2 release is present
 - `source/base/edk2/edk2-stable*` refs declare the supported EDK2 release set
   from `202208` onward
 - the chosen Radxa, CIX, and unofficial source layers are present as repo refs
@@ -222,9 +222,9 @@ ported forward to EDK2 `202602`.
 
 `source/unofficial/**` branches contain this project's unofficial firmware
 changes as normal source trees. Release-specific branches such as
-`source/unofficial/edk2-stable202602` are compatibility checkpoints known to
+`source/unofficial/edk2-stable202602` are release branches known to
 build with a selected EDK2 release. `source/unofficial/current` is the current
-development checkpoint.
+development branch.
 
 Render plans are derived from the selected source target name and available
 source refs, then verified against the ref metadata in `config/`.
@@ -289,7 +289,7 @@ create or advance those refs.
 
 Unofficial development changes are imported explicitly. Ordinary build and
 render targets never rewrite `source/unofficial/current` or release-specific
-`source/unofficial/edk2-stable*` checkpoints.
+`source/unofficial/edk2-stable*` branches.
 
 The import and render tools also enforce shared source-tree policy checks. In
 particular, files under `custom/overlay/` that are byte-identical to their
@@ -301,15 +301,15 @@ from being hidden inside mirrored directories. To run that check explicitly:
 make verify-source-policy
 ```
 
-When a change is propagated across EDK2 checkpoints, the import tools also
+When a change is propagated across EDK2 release branches, the import tools also
 check whether any changed `custom/overlay/` path refers to a `src/` file that
-was renamed or removed in another checkpoint. By default,
+was renamed or removed in another release branch. By default,
 `SOURCE_LIFECYCLE_NORMALISE=exact` automatically applies only deterministic
 fix-ups: exact object renames are retargeted, mirror symlinks for source files
-that do not exist in an older checkpoint are dropped, and ambiguous cases fail
-before any permanent ref moves. Set `SOURCE_LIFECYCLE_NORMALISE=validate` to
-see where a rewrite would be needed without changing scratch trees, `mirror` to
-allow only mirror-symlink fix-ups, or `off` to disable this layer.
+that do not exist in an older release branch are dropped, and ambiguous cases
+fail before any permanent ref moves. Set `SOURCE_LIFECYCLE_NORMALISE=validate`
+to see where a rewrite would be needed without changing scratch trees, `mirror`
+to allow only mirror-symlink fix-ups, or `off` to disable this layer.
 
 Use `make import-changes` when the change was made on a materialised
 `source/cache/**` branch, on a branch derived from a materialised source tree,
@@ -354,18 +354,39 @@ make import-changes \
   WRITE=1
 ```
 
-To apply the extracted change to every release-specific checkpoint, ask the
-importer to propagate it:
+After importing to `source/unofficial/current`, build and test the current
+source target. When that succeeds, propagate the same change to every
+release-specific `source/unofficial/edk2-stable*` branch:
 
 ```bash
-make import-changes \
-  FROM_REF=my-change \
-  PROPAGATE_CHECKPOINTS=all \
-  UPDATE_COMPAT_TAGS=1 \
-  WRITE=1
+make propagate-release-branches
 ```
 
-If one target conflicts, no `source/unofficial/**` branch or compatibility tag
+This target reads the previous `source/unofficial/current` commit from the last
+successful import receipt under `.cache/edk2-cix/operations/import-receipts/`
+or, if needed, from the local Git reflog. If neither is available, provide the
+previous current commit explicitly:
+
+```bash
+make propagate-release-branches \
+  BASE_REF=<previous-source/unofficial/current-commit>
+```
+
+Run the command first as a dry run, then re-run with `WRITE=1` after checking
+the output:
+
+```bash
+make propagate-release-branches WRITE=1
+```
+
+After testing the propagated release branches, move the matching release tags:
+
+```bash
+make update-release-tags
+make update-release-tags WRITE=1
+```
+
+If one target conflicts, no `source/unofficial/**` branch or release tag
 is updated. The failed dry run keeps the scratch trees and prints the operation
 id, `BASE_REF`, `FROM_REF`, and the scratch path for each target. Each scratch
 tree is a normal detached Git checkout for the target being updated, not the
@@ -400,7 +421,7 @@ make import-changes CONTINUE=1 OP_ID=<operation-id>
 The continue step commits each resolved scratch tree and reports the candidate
 commits. If any target is still unresolved, the import remains paused and no
 refs move. Once the candidates are ready, deliberately move the requested
-`source/unofficial/**` refs and compatibility tags in one guarded transaction:
+`source/unofficial/**` refs in one guarded transaction:
 
 ```bash
 make import-changes CONTINUE=1 OP_ID=<operation-id> WRITE=1
@@ -414,9 +435,9 @@ make import-changes ABORT=1 OP_ID=<operation-id>
 
 Use `make import-unofficial-commits` only when `FROM_REF` is already a topic
 branch based directly on the `source/unofficial/**` branch being updated. This
-tool advances or replays already-compatible unofficial commits; it deliberately
-rejects generated `source/cache/**` refs and topics based on materialised cache
-refs.
+tool advances or replays commits that were developed on an unofficial source
+branch; it deliberately rejects generated `source/cache/**` refs and topics
+based on materialised cache refs.
 
 Dry run an already-unofficial-based topic first:
 
@@ -433,32 +454,30 @@ make import-unofficial-commits \
   WRITE=1
 ```
 
-To apply the same finished topic branch to every release-specific checkpoint,
+To apply the same finished topic branch to every release-specific branch,
 ask the importer to propagate it:
 
 ```bash
 make import-unofficial-commits \
   FROM_REF=my-change \
-  PROPAGATE_CHECKPOINTS=all \
-  UPDATE_COMPAT_TAGS=1
+  PROPAGATE_RELEASE_BRANCHES=all
 ```
 
-If the dry run reports the expected replay range and checkpoint list, re-run
+If the dry run reports the expected replay range and release-branch list, re-run
 with `WRITE=1`:
 
 ```bash
 make import-unofficial-commits \
   FROM_REF=my-change \
-  PROPAGATE_CHECKPOINTS=all \
-  UPDATE_COMPAT_TAGS=1 \
+  PROPAGATE_RELEASE_BRANCHES=all \
   WRITE=1
 ```
 
-Propagation prepares all candidate checkpoint commits under
+Propagation prepares all candidate release-branch commits under
 `.cache/edk2-cix/operations/import-unofficial/` before moving any permanent
-refs. If one checkpoint conflicts, no `source/unofficial/**` branch or
-compatibility tag is updated. Resolve the conflicts in the scratch tree printed
-by the command, then continue:
+refs. If one release branch conflicts, no `source/unofficial/**` branch is
+updated. Resolve the conflicts in the scratch tree printed by the command, then
+continue:
 
 ```bash
 make import-unofficial-commits CONTINUE=1 OP_ID=<operation-id> WRITE=1
@@ -481,13 +500,15 @@ The key variables are:
 - `SOURCE_UNOFFICIAL_REF` is the full unofficial source branch to update. It
   defaults to `source/unofficial/current` and must stay under
   `source/unofficial/`.
-- `PROPAGATE_CHECKPOINTS=all` replays or applies the imported change onto every
-  `source/unofficial/edk2-stable*` checkpoint.
-- `UPDATE_COMPAT_TAGS=1` moves the matching `source/unofficial/edk2/stable-*`
-  tags after every replay has succeeded.
+- `PROPAGATE_RELEASE_BRANCHES=all` replays or applies the imported change onto
+  every `source/unofficial/edk2-stable*` release branch.
+- `UPDATE_RELEASE_TAGS=1` is an import-target shortcut for moving the matching
+  `source/unofficial/edk2/stable-*` tags after every replay has succeeded. The
+  recommended workflow is to run `make update-release-tags` separately after
+  release-branch testing.
 - `SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact` controls deterministic
-  overlay path normalisation while propagating changes across EDK2 checkpoints.
-  The default is `exact`.
+  overlay path normalisation while propagating changes across EDK2 release
+  branches. The default is `exact`.
 - `COMMIT_MESSAGE` sets the commit message used by `make import-changes`.
   Literal `\n` sequences are treated as separate `git commit -m` paragraphs.
 - `COMMIT_MESSAGE_FILE` reads the `make import-changes` commit message from a
@@ -499,10 +520,10 @@ The key variables are:
 For each supported EDK2 release, the repo keeps two related records of the
 unofficial project changes:
 
-- an unofficial source checkpoint, such as
+- an unofficial source branch, such as
   `source/unofficial/edk2-stable202602`, which is a normal source branch known
   to apply cleanly to that EDK2 release
-- an unofficial checkpoint tag, such as `source/unofficial/edk2/stable-202602`,
+- an unofficial release tag, such as `source/unofficial/edk2/stable-202602`,
   which marks the commit known to apply to that EDK2 release without colliding
   with the branch name
 
@@ -512,12 +533,12 @@ apply unchanged across several EDK2 releases; others need small adjustments
 because upstream files moved or changed.
 
 For example, if the same unofficial source commit works on both
-`edk2-stable202502` and `edk2-stable202505`, both checkpoint tags may point at
+`edk2-stable202502` and `edk2-stable202505`, both release tags may point at
 that commit. If `edk2-stable202508` needs an extra adjustment, the importer
-pauses at that checkpoint and lets you resolve the release-specific conflict
+pauses at that release branch and lets you resolve the release-specific conflict
 before it updates any branch or tag.
 
-Checkpoint tags must remain reachable from retained `source/unofficial/**`
+Release tags must remain reachable from retained `source/unofficial/**`
 branches, rather than becoming tag-only orphan commits. The tags deliberately
 use the non-colliding `source/unofficial/edk2/stable-*` namespace while the
 matching branches use `source/unofficial/edk2-stable*`.
@@ -592,7 +613,7 @@ reviewed component ref is recorded in `source/component/cix/**` and
 
 Radxa non-release updates use the same vendor integration path. First update or
 fetch the vendor source branch into a local ref, then give the source
-checkpoint a release-like name that records the most recent release plus the
+release branch a release-like name that records the most recent release plus the
 vendor commit, for example:
 
 ```bash
@@ -695,7 +716,7 @@ make verify-release-branch \
 
 Materialised refs are generated mechanically from `source/base/**`,
 `source/vendor/**`, `source/port/**`, `source/component/**`, and
-`source/unofficial/**` compatibility checkpoints. They may be stored as
+`source/unofficial/**` release branches. They may be stored as
 `source/cache/release/**` branches for convenience, but ordinary build and
 validation targets regenerate them when those branches are absent.
 

@@ -12,7 +12,7 @@ from reconstruction_common import (
     ReconstructionError,
     base_tree_records,
     git,
-    local_compatibility_branch_for_tag,
+    unofficial_release_branch_for_tag,
     matrix_release_values,
     ref_exists,
     release_entry_required_refs,
@@ -71,7 +71,7 @@ def local_tag_problems(repo: Path) -> list[str]:
     problems: list[str] = []
     for tag in sorted(refs_under(repo, "refs/tags/source/unofficial/edk2")):
         try:
-            branch = local_compatibility_branch_for_tag(tag)
+            branch = unofficial_release_branch_for_tag(tag)
         except ReconstructionError as exc:
             problems.append(f"{tag}: {exc}")
             continue
@@ -142,13 +142,13 @@ def main() -> None:
     print_section("Unexpected source/cache/base/edk2 refs", unexpected_base_cache)
     print_section("Unsupported legacy generated cache refs", sorted(legacy_cache))
     print_section("Branch/tag collisions", branch_tag_collisions(repo))
-    print_section("Unofficial checkpoint tag issues", local_tag_problems(repo))
+    print_section("Unofficial release tag issues", local_tag_problems(repo))
     print_section("Scratch/diagnostic worktrees", scratch_worktrees(repo))
 
     if args.cleanup:
         print("\nClean-up guidance")
         print("  - source/cache/release/** and source/cache/base/edk2/** refs listed as generated caches may be deleted after verify-build-matrix passes.")
-        print("  - Do not delete required non-cache source refs, source/unofficial checkpoint branches, or source/unofficial/edk2/stable-* tags.")
+        print("  - Do not delete required non-cache source refs, source/unofficial release branches, or source/unofficial/edk2/stable-* tags.")
         print("  - Treat scratch worktrees as informational only; confirm ownership before removing them.")
 
 

@@ -16,7 +16,6 @@ from import_workflow import (
     CURRENT_REF,
     ZERO_OID,
     abort_operation,
-    checkpoint_targets,
     clone_scratch,
     ensure_target_not_checked_out_dirty,
     fetch_candidate_objects,
@@ -30,16 +29,18 @@ from import_workflow import (
     remove_operation_state,
     require_unofficial_target,
     resolve_operation,
+    release_branch_targets,
     save_state,
     transaction_update_refs,
     unmerged_paths,
+    write_current_import_receipt,
 )
 from reconstruction_common import (
     ReconstructionError,
     branch_to_ref,
     for_each_ref,
     git,
-    local_compatibility_tag_for_branch,
+    unofficial_release_tag_for_branch,
     main_wrapper,
     ref_exists,
     repo_root,
@@ -67,16 +68,16 @@ Optional variables:
                         source/unofficial/current ancestor, or retained branch
                         fork point.
   SOURCE_UNOFFICIAL_REF=source/unofficial/current
-                        Unofficial source branch to update. Checkpoint
+                        Unofficial source branch to update. Release-branch
                         propagation requires the default current branch.
-  PROPAGATE_CHECKPOINTS=none|all
+  PROPAGATE_RELEASE_BRANCHES=none|all
                         Apply the extracted change to every
-                        source/unofficial/edk2-stable* checkpoint. The default
-                        is none.
-  UPDATE_COMPAT_TAGS=0|1
-                        With checkpoint propagation, update matching
+                        source/unofficial/edk2-stable* release branch. The
+                        default is none.
+  UPDATE_RELEASE_TAGS=0|1
+                        With release-branch propagation, update matching
                         source/unofficial/edk2/stable-* tags after every
-                        checkpoint import succeeds.
+                        release-branch import succeeds.
   COMMIT_MESSAGE=<text> Commit message for the imported patch. Literal \\n
                         sequences are mapped to separate git commit -m
                         paragraphs. If no message input is set, the FROM_REF
@@ -87,7 +88,7 @@ Optional variables:
   SIGNOFF=0|1           Add a Signed-off-by trailer with git commit -s.
   SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact
                         How to handle overlay paths whose corresponding src/
-                        files moved or disappeared between source checkpoints.
+                        files moved or disappeared between source release branches.
                         Default: exact.
   CONTINUE=0|1          Continue a paused import after conflicts are resolved.
   ABORT=0|1             Remove paused import state without moving refs.
@@ -117,8 +118,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
     p.add_argument("--base-ref", default=os.environ.get("BASE_REF", ""))
     p.add_argument("--source-unofficial-ref", default=os.environ.get("SOURCE_UNOFFICIAL_REF", CURRENT_REF))
-    p.add_argument("--propagate-checkpoints", default=os.environ.get("PROPAGATE_CHECKPOINTS", "none"))
-    p.add_argument("--update-compat-tags", default=os.environ.get("UPDATE_COMPAT_TAGS", "0"))
+    p.add_argument("--propagate-release-branches", dest="propagate_release_branches", default=os.environ.get("PROPAGATE_RELEASE_BRANCHES", "none"))
+    p.add_argument("--update-release-tags", dest="update_release_tags", default=os.environ.get("UPDATE_RELEASE_TAGS", "0"))
     p.add_argument("--commit-message", default=os.environ.get("COMMIT_MESSAGE", ""))
     p.add_argument("--commit-message-file", default=os.environ.get("COMMIT_MESSAGE_FILE", ""))
     p.add_argument("--signoff", default=os.environ.get("SIGNOFF", "0"))
@@ -453,15 +454,21 @@ def apply_patch_to_target(repo: Path, target: dict[str, Any], state: dict[str, A
 
 def build_targets(repo: Path, args: argparse.Namespace) -> list[dict[str, Any]]:
     require_unofficial_target(args.source_unofficial_ref)
-    propagate = args.propagate_checkpoints.strip().lower() or "none"
+    propagate = args.propagate_release_branches.strip().lower() or "none"
     if propagate not in {"none", "0", "false", "all"}:
-        raise ReconstructionError("PROPAGATE_CHECKPOINTS must be none or all")
+        raise ReconstructionError("PROPAGATE_RELEASE_BRANCHES must be none or all")
     if propagate == "all" and args.source_unofficial_ref != CURRENT_REF:
-        raise ReconstructionError("PROPAGATE_CHECKPOINTS=all updates source/unofficial/current and all checkpoints; do not set SOURCE_UNOFFICIAL_REF")
+        raise ReconstructionError("PROPAGATE_RELEASE_BRANCHES=all updates source/unofficial/current and all release branches; do not set SOURCE_UNOFFICIAL_REF")
+    if propagate != "all" and truthy(args.update_release_tags) and args.source_unofficial_ref == CURRENT_REF:
+        raise ReconstructionError(
+            "UPDATE_RELEASE_TAGS applies to release-specific source/unofficial/edk2-stable* branches. "
+            "Import and test source/unofficial/current first, then run make propagate-release-branches "
+            "and make update-release-tags."
+        )
 
     refs = [args.source_unofficial_ref]
     if propagate == "all":
-        refs.extend(checkpoint_targets(repo))
+        refs.extend(release_branch_targets(repo))
 
     targets: list[dict[str, Any]] = []
     for ref in refs:
@@ -470,8 +477,8 @@ def build_targets(repo: Path, args: argparse.Namespace) -> list[dict[str, Any]]:
             "old_oid": rev_parse(repo, ref),
             "status": "pending",
         }
-        if propagate == "all" and ref != args.source_unofficial_ref and truthy(args.update_compat_tags):
-            tag = local_compatibility_tag_for_branch(ref)
+        if truthy(args.update_release_tags) and (propagate != "all" or ref != args.source_unofficial_ref):
+            tag = unofficial_release_tag_for_branch(ref)
             target["tag"] = tag
             target["tag_old_oid"] = ref_oid(repo, tag, tag=True) or ZERO_OID
         targets.append(target)
@@ -569,11 +576,11 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
             "base_ref": args.base_ref,
             "commit_message": args.commit_message,
             "commit_message_file": args.commit_message_file,
-            "propagate_checkpoints": args.propagate_checkpoints,
+            "propagate_release_branches": args.propagate_release_branches,
             "signoff": args.signoff,
             "source_lifecycle_normalise": args.source_lifecycle_normalise,
             "source_unofficial_ref": args.source_unofficial_ref,
-            "update_compat_tags": args.update_compat_tags,
+            "update_release_tags": args.update_release_tags,
         },
         "targets": targets,
     }
@@ -614,6 +621,17 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
             updates.append((full_tag_ref(target["tag"]), target["candidate_oid"], target.get("tag_old_oid") or ZERO_OID))
     progress("updating refs")
     transaction_update_refs(repo, updates)
+    for target in state["targets"]:
+        if target["ref"] == CURRENT_REF and target.get("candidate_oid") != target.get("old_oid"):
+            write_current_import_receipt(
+                repo,
+                tool="import-changes",
+                from_ref=str(state.get("from_ref", "")),
+                base_ref=str(state.get("base_ref", "")),
+                base_oid=str(state.get("base_oid", "")),
+                old_oid=str(target.get("old_oid", "")),
+                new_oid=str(target.get("candidate_oid", "")),
+            )
     print("updated unofficial refs:")
     for full_ref, new_oid, _old_oid in updates:
         print(f"  {full_ref} -> {new_oid}")
@@ -662,9 +680,9 @@ def finalise_or_report_ready(repo: Path, op_dir: Path, state: dict[str, Any], ve
 def normalised_requested_option(name: str, value: str) -> str:
     if name == "source_unofficial_ref":
         return value or CURRENT_REF
-    if name == "propagate_checkpoints":
+    if name == "propagate_release_branches":
         return (value or "none").lower()
-    if name in {"signoff", "update_compat_tags"}:
+    if name in {"signoff", "update_release_tags"}:
         return "1" if truthy(value) else "0"
     if name == "source_lifecycle_normalise":
         return value or "exact"
@@ -680,14 +698,14 @@ def validate_continue_arguments(args: argparse.Namespace, state: dict[str, Any])
         "COMMIT_MESSAGE": ("commit_message", str(requested.get("commit_message") or "")),
         "COMMIT_MESSAGE_FILE": ("commit_message_file", str(requested.get("commit_message_file") or "")),
         "FROM_REF": ("from_ref", str(state.get("from_ref") or "")),
-        "PROPAGATE_CHECKPOINTS": ("propagate_checkpoints", str(requested.get("propagate_checkpoints") or "")),
+        "PROPAGATE_RELEASE_BRANCHES": ("propagate_release_branches", str(requested.get("propagate_release_branches") or "")),
         "SIGNOFF": ("signoff", str(requested.get("signoff") or "")),
         "SOURCE_LIFECYCLE_NORMALISE": (
             "source_lifecycle_normalise",
             str(requested.get("source_lifecycle_normalise") or ""),
         ),
         "SOURCE_UNOFFICIAL_REF": ("source_unofficial_ref", str(requested.get("source_unofficial_ref") or "")),
-        "UPDATE_COMPAT_TAGS": ("update_compat_tags", str(requested.get("update_compat_tags") or "")),
+        "UPDATE_RELEASE_TAGS": ("update_release_tags", str(requested.get("update_release_tags") or "")),
     }
     mismatches: list[str] = []
     for env_name, (state_name, recorded) in comparisons.items():
@@ -771,6 +789,16 @@ def print_dry_run_success(state: dict[str, Any]) -> None:
     print()
     print("After the ref update succeeds, run at least:")
     print("  make test")
+    if [target.get("ref") for target in state.get("targets", [])] == [CURRENT_REF]:
+        print()
+        print("Then test the updated source/unofficial/current source target.")
+        print("If the change should apply to every supported EDK2 release, run:")
+        print("  make propagate-release-branches")
+        print("When that dry run is clean, move the release branches:")
+        print("  make propagate-release-branches WRITE=1")
+        print("After release-branch testing succeeds, update the release tags:")
+        print("  make update-release-tags")
+        print("  make update-release-tags WRITE=1")
     sys.stdout.flush()
 
 
@@ -791,13 +819,13 @@ def write_command(state: dict[str, Any]) -> list[str]:
     if source_ref != CURRENT_REF:
         command.append(make_arg("SOURCE_UNOFFICIAL_REF", source_ref))
 
-    propagate = str(requested.get("propagate_checkpoints") or "none")
+    propagate = str(requested.get("propagate_release_branches") or "none")
     if propagate not in {"", "none", "0", "false"}:
-        command.append(make_arg("PROPAGATE_CHECKPOINTS", propagate))
+        command.append(make_arg("PROPAGATE_RELEASE_BRANCHES", propagate))
 
-    update_tags = str(requested.get("update_compat_tags") or "0")
+    update_tags = str(requested.get("update_release_tags") or "0")
     if truthy(update_tags):
-        command.append(make_arg("UPDATE_COMPAT_TAGS", update_tags))
+        command.append(make_arg("UPDATE_RELEASE_TAGS", update_tags))
 
     lifecycle = str(requested.get("source_lifecycle_normalise") or "exact")
     if lifecycle != "exact":

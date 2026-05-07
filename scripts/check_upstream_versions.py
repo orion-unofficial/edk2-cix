@@ -57,10 +57,10 @@ Optional variables:
 
 Each configured source can report two independent signals:
   release
-      Whether a newer release tag exists than the recorded source checkpoint.
+      Whether a newer release tag exists than the recorded source branch.
   commits
       Whether the tracked upstream branch head differs from the recorded source
-      checkpoint. This is usually advisory because unreleased commits are less
+      source branch. This is usually advisory because unreleased commits are less
       significant than tagged releases.
 """
 

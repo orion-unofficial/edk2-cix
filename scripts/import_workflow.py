@@ -17,7 +17,7 @@ from reconstruction_common import (
     checked_out_worktree,
     git,
     is_dirty_worktree,
-    local_compatibility_refs,
+    unofficial_release_branches,
     rev_parse,
     safe_name,
     version_key,
@@ -58,10 +58,10 @@ def merge_base(repo: Path, *refs: str) -> str | None:
     return value or None
 
 
-def checkpoint_targets(repo: Path) -> list[str]:
-    refs = local_compatibility_refs(repo)
+def release_branch_targets(repo: Path) -> list[str]:
+    refs = unofficial_release_branches(repo)
     if not refs:
-        raise ReconstructionError("no source/unofficial/edk2-stable* checkpoints are available")
+        raise ReconstructionError("no source/unofficial/edk2-stable* release branches are available")
     return sorted(refs, key=version_key)
 
 
@@ -201,3 +201,42 @@ def abort_operation(op_dir: Path, label: str) -> None:
 
 def remove_operation_state(op_dir: Path, *, ignore_errors: bool = False) -> None:
     shutil.rmtree(op_dir, ignore_errors=ignore_errors)
+
+
+def import_receipt_path(repo: Path) -> Path:
+    return cache_dir(repo, "operations", "import-receipts") / "last-unofficial-current.json"
+
+
+def write_current_import_receipt(
+    repo: Path,
+    *,
+    tool: str,
+    from_ref: str,
+    base_ref: str,
+    base_oid: str,
+    old_oid: str,
+    new_oid: str,
+) -> None:
+    path = import_receipt_path(repo)
+    payload = {
+        "base_oid": base_oid,
+        "base_ref": base_ref,
+        "from_ref": from_ref,
+        "new_oid": new_oid,
+        "old_oid": old_oid,
+        "tool": tool,
+    }
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, sort_keys=True)
+        f.write("\n")
+
+
+def read_current_import_receipt(repo: Path) -> dict[str, Any] | None:
+    path = import_receipt_path(repo)
+    if not path.exists():
+        return None
+    with path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        return None
+    return data

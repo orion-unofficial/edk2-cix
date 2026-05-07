@@ -483,8 +483,8 @@ def matrix_source_target_releases(source_target: dict[str, Any], all_releases: l
 
 RADXA_SOURCE_RE = re.compile(r"^source/(?P<source>vendor|port)/radxa/(?P<radxa>[^/]+)/(?P<edk2>edk2-stable[^/]+)$")
 CIX_COMPONENT_RE = re.compile(r"^source/component/cix/(?P<release>[^/]+)/(?P<component>[^/]+)$")
-LOCAL_COMPAT_RE = re.compile(r"^source/unofficial/(?P<edk2>edk2-stable[^/]+)$")
-LOCAL_COMPAT_TAG_RE = re.compile(r"^source/unofficial/edk2/stable-(?P<release>\d{6}(?:\.\d+)?)$")
+UNOFFICIAL_RELEASE_RE = re.compile(r"^source/unofficial/(?P<edk2>edk2-stable[^/]+)$")
+UNOFFICIAL_RELEASE_TAG_RE = re.compile(r"^source/unofficial/edk2/stable-(?P<release>\d{6}(?:\.\d+)?)$")
 
 
 def radxa_source_namespaces() -> tuple[str, ...]:
@@ -557,35 +557,35 @@ def available_cix_releases(repo: Path) -> list[str]:
     return sorted(releases, key=version_key)
 
 
-def local_compatibility_refs(repo: Path) -> list[str]:
+def unofficial_release_branches(repo: Path) -> list[str]:
     refs: list[str] = []
     for ref in for_each_ref(repo, "source/unofficial"):
-        if LOCAL_COMPAT_RE.match(ref):
+        if UNOFFICIAL_RELEASE_RE.match(ref):
             refs.append(ref)
     return sorted(refs, key=version_key)
 
 
-def local_compatibility_edk2_refs(repo: Path) -> set[str]:
+def unofficial_release_edk2_refs(repo: Path) -> set[str]:
     refs: set[str] = set()
-    for ref in local_compatibility_refs(repo):
-        match = LOCAL_COMPAT_RE.match(ref)
+    for ref in unofficial_release_branches(repo):
+        match = UNOFFICIAL_RELEASE_RE.match(ref)
         if match:
             refs.add(match.group("edk2"))
     return refs
 
 
-def local_compatibility_tag_for_branch(branch: str) -> str:
-    match = LOCAL_COMPAT_RE.match(branch)
+def unofficial_release_tag_for_branch(branch: str) -> str:
+    match = UNOFFICIAL_RELEASE_RE.match(branch)
     if not match:
-        raise ReconstructionError(f"not an unofficial compatibility branch: {branch}")
+        raise ReconstructionError(f"not an unofficial release branch: {branch}")
     release = release_for_edk2_ref(match.group("edk2"))
     return f"source/unofficial/edk2/stable-{release}"
 
 
-def local_compatibility_branch_for_tag(tag: str) -> str:
-    match = LOCAL_COMPAT_TAG_RE.match(tag)
+def unofficial_release_branch_for_tag(tag: str) -> str:
+    match = UNOFFICIAL_RELEASE_TAG_RE.match(tag)
     if not match:
-        raise ReconstructionError(f"not an unofficial compatibility tag: {tag}")
+        raise ReconstructionError(f"not an unofficial release tag: {tag}")
     return f"source/unofficial/{edk2_ref_for_release(match.group('release'))}"
 
 
@@ -594,7 +594,7 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
     supported_edk2 = {edk2_ref_for_release(release) for release in all_releases}
     radxa_by_edk2 = radxa_releases_by_edk2(repo, supported_edk2)
     cix_releases = available_cix_releases(repo)
-    unofficial_edk2 = local_compatibility_edk2_refs(repo)
+    unofficial_edk2 = unofficial_release_edk2_refs(repo)
     branches: set[str] = set()
     aliases: dict[str, str] = {}
 
@@ -631,6 +631,17 @@ def source_target_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
         return {}
     records = ref_manifest_records(repo, SOURCE_TARGET_CACHE_MANIFEST)
     by_ref = {record["ref"]: record for record in records if record.get("ref")}
+    for ref, record in list(by_ref.items()):
+        try:
+            parts = release_branch_parts(ref)
+        except ReconstructionError:
+            continue
+        if parts.get("stage") != "custom" or parts.get("unofficial") != "unofficial":
+            continue
+        unofficial_ref = f"source/unofficial/{edk2_ref_for_release(parts['release'])}"
+        if ref_exists(repo, unofficial_ref):
+            record["tree_id"] = tree_id(repo, unofficial_ref)
+            record["derived_from"] = unofficial_ref
     for ref in radxa_source_refs(repo):
         match = RADXA_SOURCE_RE.match(ref)
         if not match:
@@ -809,11 +820,13 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
         render["steps"] = []
         target = alias_target_for(branch, parts)
         entry["source_ref"] = unofficial_ref
+        if ref_exists(repo, unofficial_ref):
+            entry["tree_id"] = tree_id(repo, unofficial_ref)
         if target:
             entry["alias_of"] = target
 
     expected_tree = rendered_tree_for(repo, branch)
-    if expected_tree:
+    if expected_tree and not entry.get("tree_id"):
         entry["tree_id"] = expected_tree
     return entry
 

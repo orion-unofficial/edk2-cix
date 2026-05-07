@@ -53,7 +53,7 @@ def make_repo() -> Path:
     for release in ("202208", "202602"):
         git(tmp, "switch", "-c", f"source/unofficial/edk2-stable{release}", "source/unofficial/current")
         write_file(tmp, "release.txt", f"edk2-stable{release}\n")
-        commit_all(tmp, f"checkpoint {release}")
+        commit_all(tmp, f"release branch {release}")
         git(tmp, "tag", f"source/unofficial/edk2/stable-{release}")
 
     git(tmp, "switch", "--orphan", "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
@@ -76,6 +76,10 @@ def make_repo() -> Path:
 
 def run_import_changes(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
     return run(["python3", "scripts/import_changes.py"], repo, check=False, env=env)
+
+
+def run_import_unofficial(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
+    return run(["python3", "scripts/import_unofficial_commits.py"], repo, check=False, env=env)
 
 
 def symlink(repo: Path, target: str, link: str) -> None:
@@ -291,8 +295,8 @@ def test_import_changes_normalises_overlay_lifecycle_when_propagating() -> None:
         result = run_import_changes(
             repo,
             FROM_REF=topic,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(result.returncode == 0, result.stderr + result.stdout)
@@ -302,10 +306,10 @@ def test_import_changes_normalises_overlay_lifecycle_when_propagating() -> None:
         )
         require(
             show(repo, "source/unofficial/edk2-stable202208", "custom/overlay/component/old.c") == "../../../src/component/old.c",
-            "older checkpoint did not receive normalised overlay path",
+            "older release branch did not receive normalised overlay path",
         )
         missing = git(repo, "show", "source/unofficial/edk2-stable202208:custom/overlay/component/new.c", check=False)
-        require(missing.returncode != 0, "older checkpoint kept the unnormalised overlay path")
+        require(missing.returncode != 0, "older release branch kept the unnormalised overlay path")
     finally:
         shutil.rmtree(repo)
 
@@ -325,8 +329,8 @@ def test_import_changes_can_propagate_after_current_already_applied() -> None:
             repo,
             FROM_REF="source/unofficial/current",
             BASE_REF=old_current,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(propagated.returncode == 0, propagated.stderr + propagated.stdout)
@@ -340,23 +344,23 @@ def test_import_changes_can_propagate_after_current_already_applied() -> None:
         shutil.rmtree(repo)
 
 
-def test_import_changes_drops_mirror_when_source_is_absent_from_checkpoint() -> None:
+def test_import_changes_drops_mirror_when_source_is_absent_from_release_branch() -> None:
     repo = make_repo()
     try:
         add_materialised_drop_fixture(repo)
         topic = make_materialised_drop_topic(repo)
-        old_checkpoint = rev_parse(repo, "source/unofficial/edk2-stable202208")
+        old_release_branch = rev_parse(repo, "source/unofficial/edk2-stable202208")
         result = run_import_changes(
             repo,
             FROM_REF=topic,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(result.returncode == 0, result.stderr + result.stdout)
         missing = git(repo, "show", "source/unofficial/edk2-stable202208:custom/overlay/component/later-only.c", check=False)
-        require(missing.returncode != 0, "older checkpoint kept mirror for missing source path")
-        require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_checkpoint, "unchanged older checkpoint moved")
+        require(missing.returncode != 0, "older release branch kept mirror for missing source path")
+        require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_release_branch, "unchanged older release branch moved")
     finally:
         shutil.rmtree(repo)
 
@@ -369,8 +373,8 @@ def test_import_changes_accepts_clean_reject_fallback_typechange() -> None:
         result = run_import_changes(
             repo,
             FROM_REF=topic,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(result.returncode == 0, result.stderr + result.stdout)
@@ -566,13 +570,13 @@ def test_continue_rejects_changed_operation_options() -> None:
             repo,
             CONTINUE="1",
             OP_ID=op_dir.name,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
         )
         require(changed_continue.returncode != 0, "continue with changed options should fail")
         require("would be ignored" in changed_continue.stderr, changed_continue.stderr)
-        require("PROPAGATE_CHECKPOINTS='all'" in changed_continue.stderr, changed_continue.stderr)
-        require("UPDATE_COMPAT_TAGS='1'" in changed_continue.stderr, changed_continue.stderr)
+        require("PROPAGATE_RELEASE_BRANCHES='all'" in changed_continue.stderr, changed_continue.stderr)
+        require("UPDATE_RELEASE_TAGS='1'" in changed_continue.stderr, changed_continue.stderr)
         require(rev_parse(repo, "source/unofficial/current") == old_current, "changed continue moved current")
     finally:
         shutil.rmtree(repo)
@@ -688,15 +692,15 @@ def test_import_rejects_legacy_branch_names_in_commit_message_on_write() -> None
         shutil.rmtree(repo)
 
 
-def test_propagation_updates_checkpoints_and_tags() -> None:
+def test_propagation_updates_release_branches_and_tags() -> None:
     repo = make_repo()
     try:
         topic = make_materialised_topic(repo)
         result = run_import_changes(
             repo,
             FROM_REF=topic,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(result.returncode == 0, result.stderr + result.stdout)
@@ -714,6 +718,43 @@ def test_propagation_updates_checkpoints_and_tags() -> None:
         shutil.rmtree(repo)
 
 
+def test_current_import_can_be_propagated_later_without_base_ref() -> None:
+    repo = make_repo()
+    try:
+        topic = make_materialised_topic(repo)
+        import_result = run_import_changes(repo, FROM_REF=topic, WRITE="1")
+        require(import_result.returncode == 0, import_result.stderr)
+
+        dry_run = run_import_unofficial(
+            repo,
+            FROM_REF="source/unofficial/current",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            ALLOW_SOURCE_REF_FROM="1",
+        )
+        require(dry_run.returncode == 0, dry_run.stderr)
+        require("commits: 1" in dry_run.stdout, dry_run.stdout)
+        require("source/unofficial/edk2-stable202208" in dry_run.stdout, dry_run.stdout)
+
+        write_result = run_import_unofficial(
+            repo,
+            FROM_REF="source/unofficial/current",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            ALLOW_SOURCE_REF_FROM="1",
+            WRITE="1",
+        )
+        require(write_result.returncode == 0, write_result.stderr)
+        require(
+            show(repo, "source/unofficial/edk2-stable202208", "firmware.txt") == "from materialised\n",
+            "older release branch did not receive propagated current change",
+        )
+        require(
+            show(repo, "source/unofficial/edk2-stable202602", "firmware.txt") == "from materialised\n",
+            "newer release branch did not receive propagated current change",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
 def main() -> None:
     test_dry_run_infers_materialised_base_without_moving_refs()
     test_import_inherits_multiline_from_ref_commit_message()
@@ -723,7 +764,7 @@ def main() -> None:
     test_import_preserves_crlf_patch_context()
     test_import_changes_normalises_overlay_lifecycle_when_propagating()
     test_import_changes_can_propagate_after_current_already_applied()
-    test_import_changes_drops_mirror_when_source_is_absent_from_checkpoint()
+    test_import_changes_drops_mirror_when_source_is_absent_from_release_branch()
     test_import_changes_accepts_clean_reject_fallback_typechange()
     test_import_with_explicit_legacy_base()
     test_import_infers_retained_legacy_branch_base()
@@ -737,7 +778,8 @@ def main() -> None:
     test_dry_run_failed_apply_without_conflict_markers_keeps_rejects()
     test_import_rejects_identical_overlay_copy()
     test_import_rejects_legacy_branch_names_in_commit_message_on_write()
-    test_propagation_updates_checkpoints_and_tags()
+    test_propagation_updates_release_branches_and_tags()
+    test_current_import_can_be_propagated_later_without_base_ref()
     print("import_changes tests passed")
 
 

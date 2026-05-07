@@ -27,7 +27,7 @@
       "if an immutable ref is checked out in a dirty worktree, abort",
       "only integrate-source-release may create or advance immutable refs",
       "integration updates the relevant manifest in the same operation",
-      "ordinary build targets never rewrite source/unofficial/current or release-specific source/unofficial checkpoints"
+      "ordinary build targets never rewrite source/unofficial/current or release-specific source/unofficial branches"
     ]
   },
   "rendered_base_policy": {
@@ -59,7 +59,7 @@
     "committed_data": [
       "source refs and manifests needed to regenerate rendered buildable release branches",
       "base component refs needed by supported releases",
-      "vendor component refs, vendor source refs, ported vendor source refs, and unofficial source checkpoints",
+      "vendor component refs, vendor source refs, ported vendor source refs, and unofficial source branches",
       "non-public or fragile vendor blobs, tools, and certificates",
       "ref manifests and provenance metadata",
       "decision ledgers explaining carry-forward choices"
@@ -77,8 +77,8 @@
       "source/unofficial/edk2/stable-*"
     ],
     "rules": [
-      "unofficial compatibility tags mark full unofficial source checkpoints for each supported EDK2 release",
-      "each unofficial compatibility tag must be reachable from its matching retained source/unofficial/edk2-stable* branch",
+      "unofficial release tags mark full unofficial source branches for each supported EDK2 release",
+      "each unofficial release tag must be reachable from its matching retained source/unofficial/edk2-stable* branch",
       "tag names must not exactly duplicate branch names",
       "base, CIX, and Radxa source versions are recorded as branches plus config refs metadata; duplicating them as tags is optional and not required by the build model"
     ]

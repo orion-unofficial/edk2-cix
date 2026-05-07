@@ -9,7 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-from import_unofficial_commits import CURRENT_REF, checkpoint_targets
+from import_workflow import CURRENT_REF, release_branch_targets
 from reconstruction_common import ReconstructionError, format_duration, main_wrapper, ref_exists, repo_root
 from source_policy import enforce_source_tree_policy
 
@@ -17,7 +17,7 @@ from source_policy import enforce_source_tree_policy
 HELP = """verify-source-policy
 
 Optional variables:
-  REF=<ref>  Check one source ref instead of every unofficial source checkpoint.
+  REF=<ref>  Check one source ref instead of every unofficial release branch.
   V=0|1      Print each checked ref.
 """
 
@@ -33,7 +33,7 @@ def main() -> None:
     started = time.monotonic()
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
-    refs = [args.ref] if args.ref else [CURRENT_REF, *checkpoint_targets(repo)]
+    refs = [args.ref] if args.ref else [CURRENT_REF, *release_branch_targets(repo)]
     checked = 0
     for ref in refs:
         if not ref_exists(repo, ref):

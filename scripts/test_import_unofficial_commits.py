@@ -29,6 +29,7 @@ SCRIPT_FILES = [
     "reconstruction_common.py",
     "source_lifecycle.py",
     "source_policy.py",
+    "update_release_tags.py",
 ]
 
 
@@ -51,7 +52,7 @@ def make_repo() -> Path:
     for release in ("202208", "202602"):
         git(tmp, "switch", "-c", f"source/unofficial/edk2-stable{release}", "source/unofficial/current")
         write_file(tmp, "release.txt", f"edk2-stable{release}\n")
-        commit_all(tmp, f"checkpoint {release}")
+        commit_all(tmp, f"release branch {release}")
         git(tmp, "tag", f"source/unofficial/edk2/stable-{release}")
 
     git(tmp, "switch", "--orphan", "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
@@ -65,6 +66,10 @@ def make_repo() -> Path:
 
 def run_import(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
     return run(["python3", "scripts/import_unofficial_commits.py"], repo, check=False, env=env)
+
+
+def run_update_release_tags(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
+    return run(["python3", "scripts/update_release_tags.py"], repo, check=False, env=env)
 
 
 def symlink(repo: Path, target: str, link: str) -> None:
@@ -82,7 +87,7 @@ def make_topic(repo: Path, name: str = "topic", text: str = "topic change\n") ->
     return base, name
 
 
-def add_current_source_and_checkpoint_rename(repo: Path) -> None:
+def add_current_source_and_release_branch_rename(repo: Path) -> None:
     git(repo, "switch", "source/unofficial/current")
     write_file(repo, "src/component/new.c", "renamed source\n")
     commit_all(repo, "current renamed source")
@@ -121,15 +126,15 @@ def test_direct_import_dry_run_does_not_move_ref() -> None:
         shutil.rmtree(repo)
 
 
-def test_propagate_all_updates_current_checkpoints_and_tags() -> None:
+def test_propagate_all_updates_current_release_branches_and_tags() -> None:
     repo = make_repo()
     try:
         _base, topic = make_topic(repo)
         result = run_import(
             repo,
             FROM_REF=topic,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(result.returncode == 0, result.stderr + result.stdout)
@@ -150,13 +155,13 @@ def test_propagate_all_updates_current_checkpoints_and_tags() -> None:
 def test_propagation_normalises_exact_mirror_rename() -> None:
     repo = make_repo()
     try:
-        add_current_source_and_checkpoint_rename(repo)
+        add_current_source_and_release_branch_rename(repo)
         _base, topic = make_overlay_symlink_topic(repo)
         result = run_import(
             repo,
             FROM_REF=topic,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(result.returncode == 0, result.stderr + result.stdout)
@@ -166,10 +171,10 @@ def test_propagation_normalises_exact_mirror_rename() -> None:
         )
         require(
             show(repo, "source/unofficial/edk2-stable202208", "custom/overlay/component/old.c") == "../../../src/component/old.c",
-            "older checkpoint did not receive the retargeted mirror path",
+            "older release branch did not receive the retargeted mirror path",
         )
         missing = git(repo, "show", "source/unofficial/edk2-stable202208:custom/overlay/component/new.c", check=False)
-        require(missing.returncode != 0, "older checkpoint kept the broken new mirror path")
+        require(missing.returncode != 0, "older release branch kept the broken new mirror path")
     finally:
         shutil.rmtree(repo)
 
@@ -177,27 +182,27 @@ def test_propagation_normalises_exact_mirror_rename() -> None:
 def test_propagation_validate_mode_reports_required_normalisation() -> None:
     repo = make_repo()
     try:
-        add_current_source_and_checkpoint_rename(repo)
+        add_current_source_and_release_branch_rename(repo)
         _base, topic = make_overlay_symlink_topic(repo)
         old_current = rev_parse(repo, "source/unofficial/current")
-        old_checkpoint = rev_parse(repo, "source/unofficial/edk2-stable202208")
+        old_release_branch = rev_parse(repo, "source/unofficial/edk2-stable202208")
         result = run_import(
             repo,
             FROM_REF=topic,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             SOURCE_LIFECYCLE_NORMALISE="validate",
             WRITE="1",
         )
         require(result.returncode != 0, "validate mode should reject required lifecycle rewrites")
         require("source lifecycle normalisation is required" in result.stderr, result.stderr)
         require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite validation failure")
-        require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_checkpoint, "checkpoint moved despite validation failure")
+        require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_release_branch, "release branch moved despite validation failure")
     finally:
         shutil.rmtree(repo)
 
 
-def test_propagation_drops_mirror_for_source_missing_in_checkpoint() -> None:
+def test_propagation_drops_mirror_for_source_missing_in_release_branch() -> None:
     repo = make_repo()
     try:
         git(repo, "switch", "source/unofficial/current")
@@ -212,41 +217,63 @@ def test_propagation_drops_mirror_for_source_missing_in_checkpoint() -> None:
         result = run_import(
             repo,
             FROM_REF=topic,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(result.returncode == 0, result.stderr + result.stdout)
         missing = git(repo, "show", "source/unofficial/edk2-stable202208:custom/overlay/component/later-only.c", check=False)
-        require(missing.returncode != 0, "older checkpoint kept mirror for missing source path")
+        require(missing.returncode != 0, "older release branch kept mirror for missing source path")
         require(
             show(repo, "source/unofficial/edk2-stable202602", "custom/overlay/component/later-only.c") == "../../../src/component/later-only.c",
-            "newer checkpoint lost valid mirror path",
+            "newer release branch lost valid mirror path",
         )
     finally:
         shutil.rmtree(repo)
 
 
-def test_direct_checkpoint_import_updates_matching_tag_when_requested() -> None:
+def test_direct_release_branch_import_updates_matching_tag_when_requested() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "-c", "checkpoint-topic", "source/unofficial/edk2-stable202602")
-        write_file(repo, "firmware.txt", "checkpoint topic\n")
-        commit_all(repo, "checkpoint topic change")
+        git(repo, "switch", "-c", "release-branch-topic", "source/unofficial/edk2-stable202602")
+        write_file(repo, "firmware.txt", "release branch topic\n")
+        commit_all(repo, "release branch topic change")
         git(repo, "switch", "build")
         result = run_import(
             repo,
-            FROM_REF="checkpoint-topic",
+            FROM_REF="release-branch-topic",
             SOURCE_UNOFFICIAL_REF="source/unofficial/edk2-stable202602",
-            UPDATE_COMPAT_TAGS="1",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(result.returncode == 0, result.stderr + result.stdout)
-        require(show(repo, "source/unofficial/edk2-stable202602", "firmware.txt") == "checkpoint topic\n", "checkpoint branch did not move")
+        require(show(repo, "source/unofficial/edk2-stable202602", "firmware.txt") == "release branch topic\n", "release branch did not move")
         require(
             rev_parse(repo, "source/unofficial/edk2/stable-202602") == rev_parse(repo, "source/unofficial/edk2-stable202602"),
-            "direct checkpoint import did not update compatibility tag",
+            "direct release-branch import did not update release tag",
         )
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_update_release_tags_moves_tags_after_branch_validation() -> None:
+    repo = make_repo()
+    try:
+        old_tag = rev_parse(repo, "source/unofficial/edk2/stable-202602")
+        git(repo, "switch", "source/unofficial/edk2-stable202602")
+        write_file(repo, "firmware.txt", "release branch validated\n")
+        commit_all(repo, "release branch validated")
+        git(repo, "switch", "build")
+        new_branch = rev_parse(repo, "source/unofficial/edk2-stable202602")
+
+        dry_run = run_update_release_tags(repo, TARGET_REF="source/unofficial/edk2-stable202602")
+        require(dry_run.returncode == 0, dry_run.stderr)
+        require("dry run" in dry_run.stdout, dry_run.stdout)
+        require(rev_parse(repo, "source/unofficial/edk2/stable-202602") == old_tag, "dry run moved release tag")
+
+        write_result = run_update_release_tags(repo, TARGET_REF="source/unofficial/edk2-stable202602", WRITE="1")
+        require(write_result.returncode == 0, write_result.stderr)
+        require(rev_parse(repo, "source/unofficial/edk2/stable-202602") == new_branch, "release tag did not move")
     finally:
         shutil.rmtree(repo)
 
@@ -279,8 +306,8 @@ def test_source_unofficial_from_ref_is_rejected_for_propagation() -> None:
         result = run_import(
             repo,
             FROM_REF="source/unofficial/current",
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(result.returncode != 0, "source/unofficial/current should not be accepted as FROM_REF by default")
@@ -289,17 +316,17 @@ def test_source_unofficial_from_ref_is_rejected_for_propagation() -> None:
         shutil.rmtree(repo)
 
 
-def test_checkpoint_from_ref_is_rejected_for_propagation() -> None:
+def test_release_branch_from_ref_is_rejected_for_propagation() -> None:
     repo = make_repo()
     try:
         result = run_import(
             repo,
             FROM_REF="source/unofficial/edk2-stable202208",
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
-        require(result.returncode != 0, "checkpoint source refs should not be accepted as FROM_REF by default")
+        require(result.returncode != 0, "release-branch source refs should not be accepted as FROM_REF by default")
         require("ALLOW_SOURCE_REF_FROM=1" in result.stderr, result.stderr)
     finally:
         shutil.rmtree(repo)
@@ -350,12 +377,12 @@ def test_propagation_dry_run_does_not_move_refs_or_tags() -> None:
         result = run_import(
             repo,
             FROM_REF=topic,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
         )
         require(result.returncode == 0, result.stderr)
         require("dry run" in result.stdout, "propagation dry run should explain no write occurred")
-        require("source/unofficial/edk2/stable-202208" in result.stdout, "dry run should list compatibility tags")
+        require("source/unofficial/edk2/stable-202208" in result.stdout, "dry run should list release tags")
         for ref, old_oid in old_values.items():
             require(rev_parse(repo, ref) == old_oid, f"dry run moved {ref}")
     finally:
@@ -371,7 +398,7 @@ def test_empty_replay_range_is_rejected() -> None:
             FROM_REF="source/unofficial/current",
             BASE_REF=base,
             ALLOW_SOURCE_REF_FROM="1",
-            PROPAGATE_CHECKPOINTS="all",
+            PROPAGATE_RELEASE_BRANCHES="all",
             WRITE="1",
         )
         require(result.returncode != 0, "empty replay range should be rejected")
@@ -385,25 +412,25 @@ def test_conflict_leaves_permanent_refs_unchanged_then_continue_finalises() -> N
     try:
         base, topic = make_topic(repo, text="topic\n")
         git(repo, "switch", "source/unofficial/edk2-stable202208")
-        write_file(repo, "firmware.txt", "checkpoint conflict\n")
-        commit_all(repo, "make checkpoint conflict")
+        write_file(repo, "firmware.txt", "release-branch conflict\n")
+        commit_all(repo, "make release-branch conflict")
         git(repo, "tag", "-f", "source/unofficial/edk2/stable-202208")
         git(repo, "switch", "build")
 
         old_current = rev_parse(repo, "source/unofficial/current")
-        old_checkpoint = rev_parse(repo, "source/unofficial/edk2-stable202208")
+        old_release_branch = rev_parse(repo, "source/unofficial/edk2-stable202208")
         result = run_import(
             repo,
             FROM_REF=topic,
             BASE_REF=base,
-            PROPAGATE_CHECKPOINTS="all",
-            UPDATE_COMPAT_TAGS="1",
+            PROPAGATE_RELEASE_BRANCHES="all",
+            UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(result.returncode != 0, "conflicting replay should pause")
         require("Import paused due to conflicts" in result.stderr, result.stderr)
         require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite conflict")
-        require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_checkpoint, "checkpoint moved despite conflict")
+        require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_release_branch, "release branch moved despite conflict")
 
         op_dirs = sorted((repo / ".cache" / "edk2-cix" / "operations" / "import-unofficial").iterdir())
         require(len(op_dirs) == 1, "expected one paused operation")
@@ -415,10 +442,10 @@ def test_conflict_leaves_permanent_refs_unchanged_then_continue_finalises() -> N
         continued = run_import(repo, CONTINUE="1", OP_ID=op_id, WRITE="1")
         require(continued.returncode == 0, continued.stderr + continued.stdout)
         require(show(repo, "source/unofficial/current", "firmware.txt") == "topic\n", "current did not receive topic after continue")
-        require(show(repo, "source/unofficial/edk2-stable202208", "firmware.txt") == "resolved\n", "checkpoint resolution was not finalised")
+        require(show(repo, "source/unofficial/edk2-stable202208", "firmware.txt") == "resolved\n", "release branch resolution was not finalised")
         require(
             rev_parse(repo, "source/unofficial/edk2/stable-202208") == rev_parse(repo, "source/unofficial/edk2-stable202208"),
-            "checkpoint tag was not finalised",
+            "release tag was not finalised",
         )
     finally:
         shutil.rmtree(repo)
@@ -429,12 +456,12 @@ def test_abort_removes_paused_operation_without_moving_refs() -> None:
     try:
         base, topic = make_topic(repo, text="topic\n")
         git(repo, "switch", "source/unofficial/edk2-stable202208")
-        write_file(repo, "firmware.txt", "checkpoint conflict\n")
-        commit_all(repo, "make checkpoint conflict")
+        write_file(repo, "firmware.txt", "release-branch conflict\n")
+        commit_all(repo, "make release-branch conflict")
         git(repo, "switch", "build")
         old_current = rev_parse(repo, "source/unofficial/current")
 
-        result = run_import(repo, FROM_REF=topic, BASE_REF=base, PROPAGATE_CHECKPOINTS="all", WRITE="1")
+        result = run_import(repo, FROM_REF=topic, BASE_REF=base, PROPAGATE_RELEASE_BRANCHES="all", WRITE="1")
         require(result.returncode != 0, "conflicting replay should pause")
         op_id = next((repo / ".cache" / "edk2-cix" / "operations" / "import-unofficial").iterdir()).name
         aborted = run_import(repo, ABORT="1", OP_ID=op_id)
@@ -450,10 +477,10 @@ def test_concurrent_ref_movement_aborts_finalise() -> None:
     try:
         base, topic = make_topic(repo, text="topic\n")
         git(repo, "switch", "source/unofficial/edk2-stable202208")
-        write_file(repo, "firmware.txt", "checkpoint conflict\n")
-        commit_all(repo, "make checkpoint conflict")
+        write_file(repo, "firmware.txt", "release-branch conflict\n")
+        commit_all(repo, "make release-branch conflict")
         git(repo, "switch", "build")
-        result = run_import(repo, FROM_REF=topic, BASE_REF=base, PROPAGATE_CHECKPOINTS="all", WRITE="1")
+        result = run_import(repo, FROM_REF=topic, BASE_REF=base, PROPAGATE_RELEASE_BRANCHES="all", WRITE="1")
         require(result.returncode != 0, "conflicting replay should pause")
         op_id = next((repo / ".cache" / "edk2-cix" / "operations" / "import-unofficial").iterdir()).name
         scratch = conflicted_scratch(repo / ".cache" / "edk2-cix" / "operations" / "import-unofficial" / op_id)
@@ -476,14 +503,15 @@ def test_concurrent_ref_movement_aborts_finalise() -> None:
 
 def main() -> None:
     test_direct_import_dry_run_does_not_move_ref()
-    test_propagate_all_updates_current_checkpoints_and_tags()
+    test_propagate_all_updates_current_release_branches_and_tags()
     test_propagation_normalises_exact_mirror_rename()
     test_propagation_validate_mode_reports_required_normalisation()
-    test_propagation_drops_mirror_for_source_missing_in_checkpoint()
-    test_direct_checkpoint_import_updates_matching_tag_when_requested()
+    test_propagation_drops_mirror_for_source_missing_in_release_branch()
+    test_direct_release_branch_import_updates_matching_tag_when_requested()
+    test_update_release_tags_moves_tags_after_branch_validation()
     test_direct_import_rejects_identical_overlay_copy()
     test_source_unofficial_from_ref_is_rejected_for_propagation()
-    test_checkpoint_from_ref_is_rejected_for_propagation()
+    test_release_branch_from_ref_is_rejected_for_propagation()
     test_cache_based_from_ref_is_rejected()
     test_unrelated_from_ref_is_rejected()
     test_propagation_dry_run_does_not_move_refs_or_tags()

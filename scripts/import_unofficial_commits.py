@@ -13,7 +13,6 @@ from import_workflow import (
     CURRENT_REF,
     ZERO_OID,
     abort_operation,
-    checkpoint_targets,
     cherry_pick_head,
     clone_scratch,
     ensure_target_not_checked_out_dirty,
@@ -25,19 +24,22 @@ from import_workflow import (
     merge_base,
     operation_path,
     ref_oid,
+    read_current_import_receipt,
     remove_operation_state,
     require_unofficial_target,
     resolve_operation,
+    release_branch_targets,
     save_state,
     transaction_update_refs,
     unmerged_paths,
+    write_current_import_receipt,
 )
 from reconstruction_common import (
     ReconstructionError,
     branch_to_ref,
     for_each_ref,
     git,
-    local_compatibility_tag_for_branch,
+    unofficial_release_tag_for_branch,
     main_wrapper,
     ref_exists,
     repo_root,
@@ -64,16 +66,18 @@ Required variables:
 Optional variables:
   SOURCE_UNOFFICIAL_REF=source/unofficial/current
                         Unofficial source branch to update for direct imports.
-  PROPAGATE_CHECKPOINTS=none|all
-                        Replay FROM_REF changes onto every source/unofficial/edk2-stable*
-                        checkpoint. The default is none.
-  UPDATE_COMPAT_TAGS=0|1
-                        With checkpoint propagation, update matching
-                        source/unofficial/edk2/stable-* tags after all replays succeed.
+  PROPAGATE_RELEASE_BRANCHES=none|all
+                        Replay FROM_REF changes onto every
+                        source/unofficial/edk2-stable* release branch. The
+                        default is none.
+  UPDATE_RELEASE_TAGS=0|1
+                        With release-branch propagation, update matching
+                        source/unofficial/edk2/stable-* tags after all replays
+                        succeed.
   BASE_REF=<ref>        Replay base. Usually inferred from source/unofficial/current.
   SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact
                         How to handle overlay paths whose corresponding src/
-                        files moved or disappeared between source checkpoints.
+                        files moved or disappeared between source release branches.
                         Default: exact.
   ALLOW_SOURCE_REF_FROM=0|1
                         Allow FROM_REF to be a source/unofficial/** ref. This is a
@@ -88,8 +92,8 @@ Use import-changes instead when the change was developed on a materialised
 source/cache/** branch, a legacy source branch, or any broader source tree.
 
 The propagation workflow prepares candidate commits in .cache/edk2-cix first.
-Permanent source/unofficial/** branches and compatibility tags are updated only
-after every requested replay is clean and guarded old object IDs still match.
+Permanent source/unofficial/** branches and release tags are updated only after
+every requested replay is clean and guarded old object IDs still match.
 """
 
 
@@ -102,8 +106,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
     p.add_argument("--base-ref", default=os.environ.get("BASE_REF", ""))
     p.add_argument("--source-unofficial-ref", default=os.environ.get("SOURCE_UNOFFICIAL_REF", CURRENT_REF))
-    p.add_argument("--propagate-checkpoints", default=os.environ.get("PROPAGATE_CHECKPOINTS", "none"))
-    p.add_argument("--update-compat-tags", default=os.environ.get("UPDATE_COMPAT_TAGS", os.environ.get("UPDATE_COMPAT_TAG", "0")))
+    p.add_argument("--propagate-release-branches", dest="propagate_release_branches", default=os.environ.get("PROPAGATE_RELEASE_BRANCHES", "none"))
+    p.add_argument("--update-release-tags", dest="update_release_tags", default=os.environ.get("UPDATE_RELEASE_TAGS", "0"))
     p.add_argument("--source-lifecycle-normalise", default=os.environ.get("SOURCE_LIFECYCLE_NORMALISE", "exact"))
     p.add_argument("--allow-source-ref-from", default=os.environ.get("ALLOW_SOURCE_REF_FROM", "0"))
     p.add_argument("--continue-import", default=os.environ.get("CONTINUE", "0"))
@@ -169,6 +173,25 @@ def infer_base(repo: Path, from_ref: str, explicit_base: str, old_current: str) 
         if not is_ancestor(repo, base_oid, from_oid):
             raise ReconstructionError(f"BASE_REF is not an ancestor of FROM_REF: {explicit_base}")
         return base_oid
+
+    if short_source_ref(from_ref) == CURRENT_REF and from_oid == old_current:
+        receipt = read_current_import_receipt(repo)
+        if receipt and receipt.get("new_oid") == from_oid:
+            old_oid = str(receipt.get("old_oid", ""))
+            if old_oid and old_oid != from_oid and is_ancestor(repo, old_oid, from_oid):
+                return old_oid
+
+        reflog = git(repo, "rev-parse", "--verify", "--quiet", f"{CURRENT_REF}@{{1}}^{{commit}}", check=False)
+        if reflog.returncode == 0 and reflog.stdout.strip():
+            old_oid = reflog.stdout.strip()
+            if old_oid != from_oid and is_ancestor(repo, old_oid, from_oid):
+                return old_oid
+
+        raise ReconstructionError(
+            "could not infer the previous source/unofficial/current commit. "
+            "Run this immediately after make import-changes/import-unofficial-commits, "
+            "or re-run with BASE_REF=<previous source/unofficial/current commit>."
+        )
 
     candidates: list[tuple[str, str]] = []
     if is_ancestor(repo, old_current, from_oid):
@@ -291,6 +314,16 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
         if tag:
             updates.append((full_tag_ref(tag), target["candidate_oid"], target.get("tag_old_oid") or ZERO_OID))
     transaction_update_refs(repo, updates)
+    if current and current.get("candidate_oid") != current.get("old_oid"):
+        write_current_import_receipt(
+            repo,
+            tool="import-unofficial-commits",
+            from_ref=str(state.get("from_ref", "")),
+            base_ref=str(state.get("base_ref", "")),
+            base_oid=str(state.get("base_oid", "")),
+            old_oid=str(current.get("old_oid", "")),
+            new_oid=str(current.get("candidate_oid", "")),
+        )
     print("updated unofficial refs:")
     for full_ref, new_oid, _old_oid in updates:
         print(f"  {full_ref} -> {new_oid}")
@@ -311,7 +344,7 @@ def pause_message(op_id: str, target: dict[str, Any]) -> str:
 def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> tuple[Path, dict[str, Any], dict[str, Any] | None]:
     progress("preparing propagation import")
     if args.source_unofficial_ref != CURRENT_REF:
-        raise ReconstructionError("PROPAGATE_CHECKPOINTS=all updates source/unofficial/current and all checkpoints; do not set SOURCE_UNOFFICIAL_REF")
+        raise ReconstructionError("PROPAGATE_RELEASE_BRANCHES=all updates source/unofficial/current and all release branches; do not set SOURCE_UNOFFICIAL_REF")
     require_valid_import_source(repo, args.from_ref, CURRENT_REF, truthy(args.allow_source_ref_from))
     old_current = rev_parse(repo, CURRENT_REF)
     from_oid = rev_parse(repo, args.from_ref)
@@ -321,7 +354,7 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
     commits = replay_commits(repo, base_oid, args.from_ref)
     progress(f"replaying {len(commits)} commit(s)")
     lifecycle_mode = normalise_mode(args.source_lifecycle_normalise)
-    targets = checkpoint_targets(repo)
+    targets = release_branch_targets(repo)
     for ref in [CURRENT_REF, *targets]:
         ensure_target_not_checked_out_dirty(repo, ref)
 
@@ -339,7 +372,7 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
         "commits": commits,
         "changed_overlay_paths": changed_overlay_paths(repo, base_oid, args.from_ref),
         "source_lifecycle_normalise": lifecycle_mode,
-        "update_compat_tags": truthy(args.update_compat_tags),
+        "update_release_tags": truthy(args.update_release_tags),
         "current_update": {
             "ref": CURRENT_REF,
             "old_oid": old_current,
@@ -356,8 +389,8 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
             "next_index": 0,
             "status": "pending",
         }
-        if truthy(args.update_compat_tags):
-            tag = local_compatibility_tag_for_branch(ref)
+        if truthy(args.update_release_tags):
+            tag = unofficial_release_tag_for_branch(ref)
             target["tag"] = tag
             target["tag_old_oid"] = ref_oid(repo, tag, tag=True) or ZERO_OID
         state["targets"].append(target)
@@ -416,6 +449,12 @@ def direct_import(repo: Path, args: argparse.Namespace, verbose: bool) -> None:
     ref = args.source_unofficial_ref
     progress(f"checking direct import into {ref}")
     require_unofficial_target(ref)
+    if truthy(args.update_release_tags) and ref == CURRENT_REF:
+        raise ReconstructionError(
+            "UPDATE_RELEASE_TAGS applies to release-specific source/unofficial/edk2-stable* branches. "
+            "Import and test source/unofficial/current first, then run make propagate-release-branches "
+            "and make update-release-tags."
+        )
     require_valid_import_source(repo, args.from_ref, ref, truthy(args.allow_source_ref_from))
     enforce_source_tree_policy(repo, ref=args.from_ref, label=args.from_ref)
     if not truthy(args.write):
@@ -426,10 +465,20 @@ def direct_import(repo: Path, args: argparse.Namespace, verbose: bool) -> None:
     from_oid = rev_parse(repo, args.from_ref)
     old_oid = ref_oid(repo, ref) or ZERO_OID
     updates = [(branch_to_ref(ref), from_oid, old_oid)]
-    if truthy(args.update_compat_tags):
-        tag = local_compatibility_tag_for_branch(ref)
+    if truthy(args.update_release_tags):
+        tag = unofficial_release_tag_for_branch(ref)
         updates.append((full_tag_ref(tag), from_oid, ref_oid(repo, tag, tag=True) or ZERO_OID))
     transaction_update_refs(repo, updates)
+    if ref == CURRENT_REF and from_oid != old_oid:
+        write_current_import_receipt(
+            repo,
+            tool="import-unofficial-commits",
+            from_ref=args.from_ref,
+            base_ref=args.base_ref,
+            base_oid=old_oid,
+            old_oid=old_oid,
+            new_oid=from_oid,
+        )
     print(f"updated {ref}")
 
 
@@ -454,9 +503,9 @@ def main() -> None:
     if not ref_exists(repo, args.from_ref):
         raise ReconstructionError(f"FROM_REF is unavailable locally: {args.from_ref}")
 
-    propagate = args.propagate_checkpoints.strip().lower() or "none"
+    propagate = args.propagate_release_branches.strip().lower() or "none"
     if propagate not in {"none", "0", "false", "all"}:
-        raise ReconstructionError("PROPAGATE_CHECKPOINTS must be none or all")
+        raise ReconstructionError("PROPAGATE_RELEASE_BRANCHES must be none or all")
 
     if propagate == "all":
         require_valid_import_source(repo, args.from_ref, CURRENT_REF, truthy(args.allow_source_ref_from))
@@ -464,7 +513,7 @@ def main() -> None:
         old_current = rev_parse(repo, CURRENT_REF)
         base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
         commits = replay_commits(repo, base_oid, args.from_ref)
-        targets = checkpoint_targets(repo)
+        targets = release_branch_targets(repo)
         lifecycle_mode = normalise_mode(args.source_lifecycle_normalise)
         if not truthy(args.write):
             print("dry run; set WRITE=1 to update unofficial refs")
@@ -479,8 +528,8 @@ def main() -> None:
             print(f"  update: {CURRENT_REF}")
             for target in targets:
                 line = f"  replay: {target}"
-                if truthy(args.update_compat_tags):
-                    line += f" and {local_compatibility_tag_for_branch(target)}"
+                if truthy(args.update_release_tags):
+                    line += f" and {unofficial_release_tag_for_branch(target)}"
                 print(line)
             return
         op_dir, state, paused = prepare_propagation(repo, args, verbose)
