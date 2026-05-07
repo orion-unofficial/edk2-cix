@@ -63,6 +63,38 @@ before any NVMe or other PCIe-connected root device becomes visible. This
 setting exists because the two ACPI PCIe models are mutually exclusive in
 practice on Linux, and exposing both at once is not a stable long-term answer.
 
+### GPU Cache-Coherency Metadata
+
+Vendor/upstream ACPI marks the `CIXH5000` GPU as cache-coherent. Linux
+investigation against the vendor stack showed that Sky1 GPU DMA must instead
+be treated as non-coherent.
+
+With `ENABLE_FIRMWARE_FIXES=true`, custom firmware publishes `_CCA = 0` for
+`CIXH5000` directly in ACPI. That lets kernels consume the custom firmware
+metadata instead of carrying a runtime ACPI scan quirk to override it.
+
+### USB Device-Model Selector
+
+With `ENABLE_FIRMWARE_FIXES=true`, custom firmware can expose one USB ACPI
+model at a time:
+
+- `Linux (PNP0D10)`
+- `CIX (CIXH2030/CIXH2031)`
+
+`Linux (PNP0D10)` is the default and is the safer choice for upstream kernels.
+It exposes the generic ACPI xHCI-compatible controller objects and hides the
+overlapping vendor USB wrappers.
+
+`CIX (CIXH2030/CIXH2031)` exposes the vendor USB wrappers instead. Select it
+only when you are deliberately booting a kernel that uses the CIX USB stack.
+
+For O6 and O6N, the default generic USB view is also tightened to the
+board-plausible Type-C controller set derived from the public board
+documentation and the firmware's own per-board USB policy headers. If
+`ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true` is also enabled, the USB setup page
+adds controls for the USB model and the default Type-C generic-controller
+visibility choices.
+
 ### CPU Performance Description Repair (`_CPC` / CPPC)
 
 The ACPI `_CPC` objects are part of CPPC (Collaborative Processor Performance
@@ -174,6 +206,17 @@ display paths with empty-string placeholder values.
 With `ENABLE_FIRMWARE_FIXES=true`, the firmware only emits the `edp-panel`
 property for the real eDP path instead of attaching empty placeholders to DP
 or USB-C display outputs that are not panels.
+
+### Memory Tagging Extension Warning
+
+With `ENABLE_FIRMWARE_FIXES=true`, the SE configuration page makes the MTE
+memory-capacity tradeoff explicit in help text and as visible warning text
+below the selector.
+
+This does not change the MTE implementation. It warns users that, on systems
+with more than `32 GiB` installed, enabling MTE can reduce usable RAM to around
+`30 GiB`; on `64 GiB` boards that can remove more than half of installed
+memory.
 
 ## How to Enable These Fixes
 
