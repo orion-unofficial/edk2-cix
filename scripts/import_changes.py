@@ -380,8 +380,8 @@ def base_extraction_notes(repo: Path, base_oid: str, targets: list[dict[str, Any
     return [
         "BASE_REF is the patch-extraction base, not the destination branch. "
         f"It is not an ancestor of {target_summary}; this is expected when applying "
-        "a focused diff from another source line. Only the changed paths listed below "
-        "are applied to the update targets."
+        "a small patch from a branch with different history to the target branch. "
+        "Only the changed paths listed below are applied to the update targets."
     ]
 
 
@@ -709,6 +709,7 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
                 lines.append(f"  symlink-aware conflict report: {conflict_report_path}")
     lines.append("")
     append_wrapped(lines, "If Git created .rej files, use them to apply the missing hunks. If it could not create .rej files, use the printed extracted patch as the manual source of truth. Remove .rej files when they are no longer needed, stage all resolved files with git add, and continue.")
+    lines.append("")
     append_wrapped(lines, "For mode conflicts involving symlinks, inspect the symlink-aware report or run:")
     lines.extend(
         [
@@ -1115,6 +1116,7 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
         lines,
         "Resolve each printed scratch tree. If .rej files were created, use them to apply the missing hunks. If Git could not create .rej files, use the printed extracted patch as the manual source of truth.",
     )
+    lines.append("")
     append_wrapped(lines, "For mode conflicts involving symlinks, inspect the symlink-aware report or run:")
     lines.extend(
         [
