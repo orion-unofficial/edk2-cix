@@ -181,6 +181,9 @@ ways. This is not just a cosmetic tweak. The current scope includes:
 - ACPI and reserved-memory fixes
 - PCIe `_OSC` cleanup
 - the PCIe device-model selector
+- the USB device-model selector
+- GPU cache-coherency metadata correction
+- visible MTE capacity warnings
 - DSU PMU exposure
 - SMBIOS and PPTT improvements
 - display metadata cleanup
@@ -241,9 +244,12 @@ stack in place, rather than switching over to the broader CIX setup path.
 Current examples include:
 
 - RTC wakeup
+- PCIe ACPI model controls when combined with `ENABLE_FIRMWARE_FIXES=true`
 - selected power-control options
 - serial console handoff settings
 - setup console-size selection
+- USB ACPI model and Type-C visibility controls when combined with
+  `ENABLE_FIRMWARE_FIXES=true`
 - SR-IOV on `O6`
 
 This setting is only valid with:

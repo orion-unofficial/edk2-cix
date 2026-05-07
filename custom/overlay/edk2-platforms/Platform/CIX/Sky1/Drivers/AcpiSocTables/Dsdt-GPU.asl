@@ -70,7 +70,11 @@ Device (GPU) {
   Name (_HID, "CIXH5000")
   Name (_UID, 0x0)
   Name (_STA, 0xF)
+#ifdef ENABLE_FIRMWARE_FIXES
+  Name (_CCA, 0)
+#else
   Name (_CCA, 1)
+#endif
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (ReadWrite, GPU_RCSU_CONTROLLER_BASE, GPU_RCSU_CONTROLLER_SIZE)
     Memory32Fixed (ReadWrite, GPU_CONTROLLER_BASE, GPU_CONTROLLER_SIZE)
