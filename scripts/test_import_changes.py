@@ -28,6 +28,7 @@ SCRIPT_FILES = [
     "import_changes.py",
     "import_workflow.py",
     "import_unofficial_commits.py",
+    "inspect_import_conflicts.py",
     "reconstruction_common.py",
     "source_lifecycle.py",
     "source_policy.py",
@@ -80,6 +81,10 @@ def run_import_changes(repo: Path, **env: str) -> subprocess.CompletedProcess[st
 
 def run_import_unofficial(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
     return run(["python3", "scripts/import_unofficial_commits.py"], repo, check=False, env=env)
+
+
+def run_inspect_conflicts(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
+    return run(["python3", str(ROOT / "scripts" / "inspect_import_conflicts.py")], repo, check=False, env=env)
 
 
 def symlink(repo: Path, target: str, link: str) -> None:
@@ -181,6 +186,43 @@ def make_materialised_typechange_topic(repo: Path) -> str:
     commit_all(repo, "materialised typechange overlay")
     git(repo, "switch", "build")
     return "materialised-typechange-topic"
+
+
+def add_symlink_file_conflict_fixture(repo: Path) -> None:
+    for ref in (
+        "source/unofficial/current",
+        "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial",
+    ):
+        git(repo, "switch", ref)
+        write_file(repo, "src/component/a.h", "source A\n")
+        write_file(repo, "src/component/b.h", "source B\n")
+        overlay = repo / "custom/overlay/component/mode.h"
+        if overlay.exists() or overlay.is_symlink():
+            overlay.unlink()
+        symlink(repo, "../../../src/component/a.h", "custom/overlay/component/mode.h")
+        commit_all(repo, f"{ref} symlink-file conflict base")
+
+    git(repo, "switch", "source/unofficial/current")
+    overlay = repo / "custom/overlay/component/mode.h"
+    overlay.unlink()
+    symlink(repo, "../../../src/component/b.h", "custom/overlay/component/mode.h")
+    commit_all(repo, "current retargets overlay symlink")
+    git(repo, "switch", "build")
+
+
+def make_materialised_symlink_file_topic(repo: Path) -> str:
+    git(repo, "switch", "-c", "materialised-symlink-file-topic", "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial")
+    overlay = repo / "custom/overlay/component/mode.h"
+    overlay.unlink()
+    write_file(repo, "custom/overlay/component/mode.h", "topic regular overlay\n")
+    commit_all(repo, "materialise overlay mode change")
+    git(repo, "switch", "build")
+    return "materialised-symlink-file-topic"
+
+
+def remove_reject_files(repo: Path) -> None:
+    for path in repo.rglob("*.rej"):
+        path.unlink()
 
 
 def test_dry_run_infers_materialised_base_without_moving_refs() -> None:
@@ -552,6 +594,46 @@ def test_dry_run_conflict_reports_paths_without_moving_refs() -> None:
         shutil.rmtree(repo)
 
 
+def test_symlink_file_conflict_reports_expanded_context() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "switch", "-c", "symlink-conflict-base", "source/unofficial/current")
+        write_file(repo, "src/component/a.h", "source A\n")
+        write_file(repo, "src/component/b.h", "source B\n")
+        symlink(repo, "../../../src/component/a.h", "custom/overlay/component/mode.h")
+        commit_all(repo, "symlink conflict base")
+
+        git(repo, "switch", "-c", "symlink-conflict-ours")
+        (repo / "custom/overlay/component/mode.h").unlink()
+        symlink(repo, "../../../src/component/b.h", "custom/overlay/component/mode.h")
+        commit_all(repo, "retarget overlay symlink")
+
+        git(repo, "switch", "-c", "symlink-conflict-theirs", "symlink-conflict-base")
+        (repo / "custom/overlay/component/mode.h").unlink()
+        write_file(repo, "custom/overlay/component/mode.h", "topic regular overlay\n")
+        commit_all(repo, "materialise overlay mode change")
+
+        git(repo, "switch", "symlink-conflict-ours")
+        merge = git(repo, "merge", "symlink-conflict-theirs", check=False)
+        require(merge.returncode != 0, "merge should create a symlink/file conflict")
+
+        report_path = repo / "conflict-report.txt"
+        inspect = run_inspect_conflicts(repo, SCRATCH=str(repo), REPORT=str(report_path))
+        require(inspect.returncode == 0, inspect.stderr + inspect.stdout)
+        require("symlink/file conflict" in inspect.stdout, inspect.stdout)
+        report = report_path.read_text(encoding="utf-8")
+        require("symlink/file conflict" in report, report)
+        require("ours (target branch): symlink -> ../../../src/component/b.h" in report, report)
+        require("theirs (incoming change): regular file" in report, report)
+        require("recorded as: custom/overlay/component/mode.h~symlink-conflict-theirs" in report, report)
+        require("vs theirs (incoming change) regular file: different" in report, report)
+        expanded = report_path.parent / f"{report_path.stem}-expanded" / "custom_overlay_component_mode.h"
+        require((expanded / "ours.symlink-target").read_text(encoding="utf-8") == "source B\n", "ours symlink target was not expanded")
+        require((expanded / "theirs").read_text(encoding="utf-8") == "topic regular overlay\n", "theirs regular file was not expanded")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_continue_rejects_changed_operation_options() -> None:
     repo = make_repo()
     try:
@@ -602,6 +684,7 @@ def test_failed_apply_without_conflict_markers_pauses_for_manual_resolution() ->
         op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
         scratch = conflicted_scratch(op_dir)
         write_file(scratch, "legacy-only.txt", "legacy topic\n")
+        remove_reject_files(scratch)
         git(scratch, "add", "legacy-only.txt")
         continued = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name, WRITE="1")
         require(continued.returncode == 0, continued.stderr + continued.stdout)
@@ -637,7 +720,12 @@ def test_dry_run_failed_apply_without_conflict_markers_keeps_rejects() -> None:
         require("has no staged or unstaged changes" in clean_continue.stderr, clean_continue.stderr)
 
         write_file(scratch, "legacy-only.txt", "legacy topic\n")
+        write_file(scratch, "legacy-only.txt.rej", "rejected hunk\n")
         git(scratch, "add", "legacy-only.txt")
+        rejected_continue = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name)
+        require(rejected_continue.returncode != 0, "remaining .rej files should block continue")
+        require("reject files remain" in rejected_continue.stderr, rejected_continue.stderr)
+        remove_reject_files(scratch)
         prepared = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name)
         require(prepared.returncode == 0, prepared.stderr + prepared.stdout)
         require("import candidates are ready" in prepared.stdout, prepared.stdout)
@@ -773,6 +861,7 @@ def main() -> None:
     test_empty_diff_is_rejected()
     test_conflict_pauses_without_moving_refs_then_continue_finalises()
     test_dry_run_conflict_reports_paths_without_moving_refs()
+    test_symlink_file_conflict_reports_expanded_context()
     test_continue_rejects_changed_operation_options()
     test_failed_apply_without_conflict_markers_pauses_for_manual_resolution()
     test_dry_run_failed_apply_without_conflict_markers_keeps_rejects()

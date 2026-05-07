@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from check_identity_integrity import scan_commit_message_for_legacy_branch
+from inspect_import_conflicts import write_conflict_report
 from import_workflow import (
     CURRENT_REF,
     ZERO_OID,
@@ -45,6 +46,7 @@ from reconstruction_common import (
     ref_exists,
     repo_root,
     rev_parse,
+    safe_name,
     truthy,
 )
 from source_policy import enforce_source_tree_policy
@@ -270,6 +272,11 @@ def reject_paths(repo: Path) -> list[str]:
     return sorted(line for line in result.stdout.splitlines() if line)
 
 
+def reject_artifact_paths(repo: Path) -> list[str]:
+    tracked = git(repo, "ls-files", "--", "*.rej", check=False)
+    return sorted(set(reject_paths(repo) + [line for line in tracked.stdout.splitlines() if line]))
+
+
 def changed_paths(changes: list[str]) -> list[str]:
     paths: list[str] = []
     for change in changes:
@@ -363,6 +370,13 @@ def commit_scratch(repo: Path, state: dict[str, Any]) -> str:
     unresolved = unmerged_paths(repo)
     if unresolved:
         raise ReconstructionError("import still has unresolved conflicts:\n" + "\n".join(f"  - {path}" for path in unresolved))
+    rejects = reject_artifact_paths(repo)
+    if rejects:
+        raise ReconstructionError(
+            "reject files remain in the scratch tree. Apply or explicitly discard their hunks, "
+            "remove the .rej files, stage the resolved files, and then continue:\n"
+            + "\n".join(f"  - {path}" for path in rejects)
+        )
     enforce_source_tree_policy(repo, index=True, label="import scratch index")
     if not staged_changes(repo):
         dirty = dirty_paths(repo)
@@ -452,6 +466,15 @@ def apply_patch_to_target(repo: Path, target: dict[str, Any], state: dict[str, A
     return False
 
 
+def attach_conflict_report(op_dir: Path, target: dict[str, Any]) -> None:
+    scratch = target.get("scratch")
+    if not scratch:
+        return
+    report_path = op_dir / "reports" / f"{safe_name(target['ref'])}.txt"
+    write_conflict_report(Path(scratch), report_path, paths=target.get("conflict_paths") or None)
+    target["conflict_report_path"] = str(report_path)
+
+
 def build_targets(repo: Path, args: argparse.Namespace) -> list[dict[str, Any]]:
     require_unofficial_target(args.source_unofficial_ref)
     propagate = args.propagate_release_branches.strip().lower() or "none"
@@ -505,6 +528,9 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
             manual_patch_path = target.get("manual_patch_path")
             if manual_patch_path:
                 lines.append(f"  extracted patch: {manual_patch_path}")
+            conflict_report_path = target.get("conflict_report_path")
+            if conflict_report_path:
+                lines.append(f"  symlink-aware conflict report: {conflict_report_path}")
             resolution_error = target.get("resolution_error")
             if resolution_error:
                 lines.append("  current issue:")
@@ -524,6 +550,9 @@ def pause_message(op_id: str, targets: list[dict[str, Any]]) -> str:
             "If it could not create .rej files, use the printed extracted patch",
             "as the manual source of truth. Remove .rej files when they are no",
             "longer needed, stage all resolved files with git add, and continue.",
+            "For mode conflicts involving symlinks, inspect the symlink-aware",
+            "report or run:",
+            f"  make inspect-import-conflicts OP_ID={op_id}",
             "",
             "Then validate the resolved candidates without moving refs:",
             f"  make import-changes CONTINUE=1 OP_ID={op_id}",
@@ -593,6 +622,7 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
             target["scratch"] = str(clone_scratch(repo, op_dir, target["ref"], verbose))
             progress(f"applying patch to {target['ref']}")
             if not apply_patch_to_target(repo, target, state, patch_path, verbose):
+                attach_conflict_report(op_dir, target)
                 paused.append(target)
             save_state(op_dir, state)
     except Exception:
@@ -882,6 +912,9 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
         manual_patch_path = target.get("manual_patch_path")
         if manual_patch_path:
             lines.append(f"    extracted patch: {manual_patch_path}")
+        conflict_report_path = target.get("conflict_report_path")
+        if conflict_report_path:
+            lines.append(f"    symlink-aware conflict report: {conflict_report_path}")
         detail = (target.get("apply_stderr") or target.get("apply_stdout") or "").strip()
         if detail:
             lines.append("    apply output:")
@@ -896,6 +929,9 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
             "Resolve each printed scratch tree. If .rej files were created, use",
             "them to apply the missing hunks. If Git could not create .rej files,",
             "use the printed extracted patch as the manual source of truth.",
+            "For mode conflicts involving symlinks, inspect the symlink-aware",
+            "report or run:",
+            f"  make inspect-import-conflicts OP_ID={op_id}",
             "Remove .rej files when they are no longer needed. Stage all resolved",
             "files with git add inside that scratch tree, then validate the",
             "resolved candidates:",

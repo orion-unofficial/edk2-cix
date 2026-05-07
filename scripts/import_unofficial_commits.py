@@ -34,6 +34,7 @@ from import_workflow import (
     unmerged_paths,
     write_current_import_receipt,
 )
+from inspect_import_conflicts import write_conflict_report
 from reconstruction_common import (
     ReconstructionError,
     branch_to_ref,
@@ -44,6 +45,7 @@ from reconstruction_common import (
     ref_exists,
     repo_root,
     rev_parse,
+    safe_name,
     truthy,
 )
 from source_policy import enforce_source_tree_policy
@@ -299,6 +301,18 @@ def apply_remaining(repo: Path, target: dict[str, Any], state: dict[str, Any], c
     return True
 
 
+def attach_conflict_report(op_dir: Path, target: dict[str, Any]) -> None:
+    scratch = target.get("scratch")
+    if not scratch:
+        return
+    paths = unmerged_paths(Path(scratch))
+    if paths:
+        target["conflict_paths"] = paths
+    report_path = op_dir / "reports" / f"{safe_name(target['ref'])}.txt"
+    write_conflict_report(Path(scratch), report_path, paths=paths or None)
+    target["conflict_report_path"] = str(report_path)
+
+
 def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> None:
     for target in state["targets"]:
         if target.get("status") != "ready":
@@ -331,14 +345,31 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
 
 
 def pause_message(op_id: str, target: dict[str, Any]) -> str:
-    return (
-        "Import paused due to conflicts.\n\n"
-        f"Resolve conflicts in:\n  {target['scratch']}\n\n"
-        "Then run:\n"
-        f"  make import-unofficial-commits CONTINUE=1 OP_ID={op_id} WRITE=1\n\n"
-        "Or abort:\n"
-        f"  make import-unofficial-commits ABORT=1 OP_ID={op_id}"
+    lines = [
+        "Import paused due to conflicts.",
+        "",
+        "Resolve conflicts in:",
+        f"  {target['scratch']}",
+    ]
+    if target.get("conflict_paths"):
+        lines.append("Conflicting file(s):")
+        lines.extend(f"  - {path}" for path in target["conflict_paths"])
+    if target.get("conflict_report_path"):
+        lines.append(f"Symlink-aware conflict report: {target['conflict_report_path']}")
+    lines.extend(
+        [
+            "",
+            "For mode conflicts involving symlinks, inspect the report or run:",
+            f"  make inspect-import-conflicts OP_ID={op_id} IMPORT_TOOL=import-unofficial",
+            "",
+            "Then run:",
+            f"  make import-unofficial-commits CONTINUE=1 OP_ID={op_id} WRITE=1",
+            "",
+            "Or abort:",
+            f"  make import-unofficial-commits ABORT=1 OP_ID={op_id}",
+        ]
     )
+    return "\n".join(lines)
 
 
 def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> tuple[Path, dict[str, Any], dict[str, Any] | None]:
@@ -406,9 +437,12 @@ def run_replays(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) 
         if target.get("status") == "ready":
             continue
         if target.get("status") == "conflict":
+            attach_conflict_report(op_dir, target)
+            save_state(op_dir, state)
             return target
         progress(f"replaying onto {target['ref']}")
         if not apply_remaining(repo, target, state, commits, verbose):
+            attach_conflict_report(op_dir, target)
             save_state(op_dir, state)
             return target
         save_state(op_dir, state)

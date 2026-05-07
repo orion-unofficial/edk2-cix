@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SCRIPT_FILES = [
     "import_workflow.py",
     "import_unofficial_commits.py",
+    "inspect_import_conflicts.py",
     "reconstruction_common.py",
     "source_lifecycle.py",
     "source_policy.py",

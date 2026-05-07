@@ -409,10 +409,28 @@ git -C /path/to/edk2-cix diff <BASE_REF>..<FROM_REF> -- path/to/file
 
 If Git cannot create `.rej` files either, the output prints the extracted patch
 stored under `.cache/edk2-cix/operations/.../change.patch`; use that patch as
-the manual source of truth. Edit the conflicted or rejected files, remove any
-`.rej` files once they are no longer needed, then stage the resolved files with
-`git add` inside that scratch tree. When all printed scratch trees are resolved
-and staged, validate the candidate commits without moving refs:
+the manual source of truth.
+
+For symlink/file mode conflicts, especially under `custom/overlay/`, Git's
+default conflict view can be misleading because a symlink side is displayed as
+only the symlink target string. The importer writes a symlink-aware conflict
+report for each conflicted scratch tree and prints the report path. You can
+also regenerate the report:
+
+```bash
+make inspect-import-conflicts OP_ID=<operation-id>
+```
+
+The report labels `base`, `ours`, and `theirs`, identifies symlink/file
+conflicts, expands symlink targets where possible, compares expanded symlink
+content with regular-file conflict stages, and writes expanded stage files next
+to the report for manual inspection.
+
+Edit the conflicted or rejected files, remove any `.rej` files once they are no
+longer needed, then stage the resolved files with `git add` inside that scratch
+tree. The importer refuses to finalise while `.rej` files remain, so rejected
+hunks cannot be silently left behind. When all printed scratch trees are
+resolved and staged, validate the candidate commits without moving refs:
 
 ```bash
 make import-changes CONTINUE=1 OP_ID=<operation-id>
