@@ -262,6 +262,14 @@ def test_dry_run_infers_materialised_base_without_moving_refs() -> None:
         require("source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial" in result.stdout, "dry run did not report inferred cache base")
         require("M\tfirmware.txt" in result.stdout, "dry run did not report changed path")
         require("status legend: M=modified." in result.stdout, "dry run did not explain changed-path status codes")
+        require(
+            "status legend: M=modified.\n\n  source lifecycle normalise: exact" in result.stdout,
+            "dry-run summary should have exactly one blank line after the status legend",
+        )
+        require(
+            "status legend: M=modified.\n\n\n  source lifecycle normalise: exact" not in result.stdout,
+            "dry-run summary had more than one blank line after the status legend",
+        )
         require("Dry-run succeeded. To apply this change permanently" in result.stdout, "dry run did not print apply guidance")
         require(f"FROM_REF={topic}" in result.stdout and "WRITE=1" in result.stdout, "dry run did not print write command")
         require("BASE_REF=" not in result.stdout, "dry run printed inferred BASE_REF in write command")

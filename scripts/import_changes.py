@@ -964,7 +964,8 @@ def print_dry_run(state: dict[str, Any]) -> None:
     append_status_legend(legend_lines, state["changes"], indent="  ")
     for line in legend_lines:
         print(line)
-    print()
+    if not legend_lines:
+        print()
     print(f"  source lifecycle normalise: {state.get('source_lifecycle_normalise', 'exact')}")
     if state.get("changed_overlay_paths"):
         print()
