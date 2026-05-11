@@ -17,6 +17,55 @@ export TMP="${TMP:-${TMPDIR}}"
 export TEMP="${TEMP:-${TMPDIR}}"
 mkdir -p "$EDK2_CIX_DOCS_TOOLS_DIR" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" "$CARGO_HOME" "$TMPDIR"
 
+docs_devenv_dir="${docs_root}/.devenv"
+devenv_dotfile_cache="${EDK2_CIX_DOCS_DEVENV_CACHE_DIR:-${docs_cache_root}/devenv-dotfile}"
+devenv_dotfile_linked=0
+
+keep_devenv_dotfile() {
+    case "${EDK2_CIX_DOCS_KEEP_DEVENV_DOTFILE:-0}" in
+        1 | true | TRUE | yes | YES)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+prepare_devenv_dotfile() {
+    if keep_devenv_dotfile; then
+        return 0
+    fi
+
+    # devenv writes .devenv under the project root. Point it at the docs
+    # cache during the build so normal exits leave the source tree clean.
+    mkdir -p "$devenv_dotfile_cache"
+    if [[ -L "$docs_devenv_dir" ]]; then
+        rm -f -- "$docs_devenv_dir"
+    elif [[ -e "$docs_devenv_dir" ]]; then
+        rm -rf -- "$docs_devenv_dir"
+    fi
+    ln -s "$devenv_dotfile_cache" "$docs_devenv_dir"
+    devenv_dotfile_linked=1
+    trap cleanup_devenv_dotfile EXIT
+}
+
+cleanup_devenv_dotfile() {
+    local status=$?
+
+    trap - EXIT
+    if keep_devenv_dotfile; then
+        return "$status"
+    fi
+
+    if [[ "$devenv_dotfile_linked" == 1 && -L "$docs_devenv_dir" ]]; then
+        rm -f -- "$docs_devenv_dir"
+    elif [[ -e "$docs_devenv_dir" || -L "$docs_devenv_dir" ]]; then
+        rm -rf -- "$docs_devenv_dir"
+    fi
+    return "$status"
+}
+
 join_by_comma() {
     local item output=""
 
@@ -116,5 +165,6 @@ case "$mode" in
 esac
 
 "${script_dir}/install_mdbook_toc.sh"
+prepare_devenv_dotfile
 cd "$docs_root"
 devenv shell --option starship.enable:bool false --option devenv.latestVersion:string 2.0.7 make docs-build
