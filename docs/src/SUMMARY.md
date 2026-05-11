@@ -2,6 +2,7 @@
 
 - [Build](build.md)
 - [Build Variables](build-variables.md)
+- [Firmware Features](features.md)
 - [Custom ACPI Overlays](custom-acpi-overlays.md)
 - [Debug](debug.md)
 - [Secure Boot Hardware Validation](secure-boot-hardware-validation.md)

@@ -6,8 +6,36 @@ script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 act_bootstrap="${script_dir}/ensure_act.sh"
 act_cache_home="${EDK2_CIX_ACT_XDG_CACHE_HOME:-${repo_root}/.cache/edk2-cix/act-cache}"
-default_container_arch="${ACT_CONTAINER_ARCH:-${EDK2_CIX_ACT_CONTAINER_ARCH:-linux/amd64}}"
 default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-catthehacker/ubuntu:act-latest}}"
+
+detect_container_arch() {
+    case "$(uname -m)" in
+        arm64|aarch64)
+            printf '%s\n' "linux/arm64"
+            ;;
+        x86_64|amd64)
+            printf '%s\n' "linux/amd64"
+            ;;
+        *)
+            printf '%s\n' "linux/amd64"
+            ;;
+    esac
+}
+
+resolve_container_arch() {
+    local requested="$1"
+
+    case "$requested" in
+        ""|auto)
+            detect_container_arch
+            ;;
+        *)
+            printf '%s\n' "$requested"
+            ;;
+    esac
+}
+
+default_container_arch="$(resolve_container_arch "${ACT_CONTAINER_ARCH:-${EDK2_CIX_ACT_CONTAINER_ARCH:-auto}}")"
 
 usage() {
     cat <<'EOF'
@@ -24,8 +52,8 @@ Environment:
       Optional single matrix filter, for example board:O6.
   ACT_SECRET_FILE=<path>
       Optional act --secret-file path.
-  ACT_CONTAINER_ARCH=<platform>
-      Container architecture. Default: linux/amd64.
+  ACT_CONTAINER_ARCH=auto|<platform>
+      Container architecture. Default: auto-detected from the host.
   ACT_RUNNER_IMAGE=<image>
       Runner image for ubuntu-latest. Default: catthehacker/ubuntu:act-latest.
   ACT_EXTRA_ARGS=<args>
@@ -110,6 +138,7 @@ args+=("$@")
 
 status "Using ${act_bin}"
 status "Cache root: ${XDG_CACHE_HOME}"
+status "Container architecture: ${default_container_arch}"
 
 cd "$repo_root"
 "$act_bin" "${args[@]}"

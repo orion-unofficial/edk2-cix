@@ -54,17 +54,25 @@ jobs:
         run: nix profile add --accept-flake-config nixpkgs#devenv nixpkgs#cargo nixpkgs#rustc
 
       - name: Build documentation
-        run: ./docs/scripts/run_docs_build.sh
+        run: |
+          export DOCS_CACHE_ROOT="${RUNNER_TEMP}/edk2-cix-docs"
+          export EDK2_CIX_DOCS_CACHE_ROOT="${DOCS_CACHE_ROOT}"
+          ./docs/scripts/run_docs_build.sh
+        env:
+          MDBOOK_OUTPUT__HTML__EDIT_URL_TEMPLATE: ${{ github.server_url }}/${{ github.repository }}/edit/${{ github.head_ref || github.ref_name }}/docs/{path}
+          MDBOOK_OUTPUT__HTML__GIT_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}/tree/${{ github.head_ref || github.ref_name }}
         shell: bash
 
-      - name: Setup Pages
+      - if: ${{ env.ACT != 'true' }}
+        name: Setup Pages
         uses: actions/configure-pages@v6
 
       - name: Archive Pages artifact
         run: |
+          docs_cache_root="${RUNNER_TEMP}/edk2-cix-docs"
           tar \
             --dereference --hard-dereference \
-            --directory ./.cache/edk2-cix/docs/book/html \
+            --directory "${docs_cache_root}/book/html" \
             -cvf "${RUNNER_TEMP}/artifact.tar" \
             --exclude=.git \
             --exclude=.github \
@@ -72,7 +80,8 @@ jobs:
             .
         shell: bash
 
-      - name: Upload artifact
+      - if: ${{ env.ACT != 'true' }}
+        name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: github-pages
@@ -80,6 +89,6 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-      - if: github.event_name != 'pull_request'
+      - if: ${{ github.event_name != 'pull_request' && env.ACT != 'true' }}
         name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v5

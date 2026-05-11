@@ -45,7 +45,7 @@ ACT_JOB ?=
 ACT_MATRIX ?=
 ACT_SECRET_FILE ?=
 ACT_EXTRA_ARGS ?=
-ACT_CONTAINER_ARCH ?= linux/amd64
+ACT_CONTAINER_ARCH ?= auto
 ACT_RUNNER_IMAGE ?= catthehacker/ubuntu:act-latest
 DOCS_BUILD_MODE ?= auto
 CONFLICT_PATHS ?=
@@ -261,7 +261,7 @@ help-dev:
 	print_help_variable 'ACT_MATRIX=<name:value>' 'Optional single act matrix filter, for example board:O6.'; \
 	print_help_variable 'ACT_SECRET_FILE=<path>' 'Optional act --secret-file path for local workflow runs.'; \
 	print_help_variable 'ACT_EXTRA_ARGS=<args>' 'Additional raw flags appended to act.'; \
-	print_help_variable 'ACT_CONTAINER_ARCH=<platform>' 'Container architecture used by act.\nDefault: linux/amd64.'; \
+	print_help_variable 'ACT_CONTAINER_ARCH=auto|<platform>' 'Container architecture used by act. auto selects linux/arm64 on arm64 hosts and linux/amd64 on x86_64 hosts.\nDefault: auto.'; \
 	print_help_variable 'ACT_RUNNER_IMAGE=<image>' 'Runner image mapped to ubuntu-latest.\nDefault: catthehacker/ubuntu:act-latest.'; \
 	print_section 'Documentation'; \
 	print_help_line 'make docs-build' 'Build the mdBook product documentation under docs/, using the docs container if host tools are missing.'; \

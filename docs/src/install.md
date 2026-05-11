@@ -14,7 +14,7 @@ over serial.
 
 ## Where to find releases?
 
-You can find all released Debian packages on this repo's GitHub
+You can find all released Debian packages on the upstream Radxa GitHub
 [Releases](https://github.com/radxa-pkg/edk2-cix/releases) page.
 
 Similar to the upstream firmware packaging flow, each release contains the main

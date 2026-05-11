@@ -169,7 +169,8 @@ or to the setup UI.
 
 ### `ENABLE_FIRMWARE_FIXES=true|false`
 
-To apply the opt-in firmware fixes and enhancements described in [`FEATURES.md`](https://github.com/radxa-pkg/edk2-cix/blob/build/FEATURES.md), set this variable.
+To apply the opt-in firmware fixes and enhancements described in
+[`FEATURES.md`](features.md), set this variable.
 
 Example:
 
@@ -190,7 +191,7 @@ ways. This is not just a cosmetic tweak. The current scope includes:
 - SMBIOS and PPTT improvements
 - display metadata cleanup
 
-See [`FEATURES.md`](https://github.com/radxa-pkg/edk2-cix/blob/build/FEATURES.md) for the detailed feature list and rationale.
+See [`FEATURES.md`](features.md) for the detailed feature list and rationale.
 
 This setting is only valid with:
 
