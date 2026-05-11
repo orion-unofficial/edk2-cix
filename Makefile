@@ -2,6 +2,8 @@ SHELL := /bin/sh
 .DEFAULT_GOAL := help
 
 PYTHON ?= python3
+PYTHONPYCACHEPREFIX ?= $(CURDIR)/.cache/edk2-cix/pycache
+export PYTHONPYCACHEPREFIX
 V ?= 0
 DEBUG ?= 0
 RELEASE ?=

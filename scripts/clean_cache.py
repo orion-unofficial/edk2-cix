@@ -24,7 +24,7 @@ HELP = """clean-cache
 
 Modes:
   stale  Remove rendered worktree cache entries that no longer match any
-         current firmware source-target tree ID.
+         current firmware source-target tree ID, plus ephemeral bytecode caches.
   all    Remove all edk2-cix filesystem cache directories.
 
 Variables:
@@ -34,7 +34,8 @@ Variables:
 This command removes only files under .cache/edk2-cix. It never deletes Git refs.
 """
 
-CACHE_SUBDIRS = ("tmp", "reports", "signing-certs", "docs", "firmware", "help")
+EPHEMERAL_CACHE_SUBDIRS = ("pycache", "docs/pycache")
+CACHE_SUBDIRS = ("tmp", "reports", "signing-certs", "docs", "firmware", "help", *EPHEMERAL_CACHE_SUBDIRS)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -92,6 +93,23 @@ def remove_path(repo: Path, path: Path) -> None:
     print(f"removed {path}")
 
 
+def remove_cache_tree(path: Path) -> None:
+    print(f"removing {path}", flush=True)
+    shutil.rmtree(path)
+    print(f"removed {path}")
+
+
+def clean_ephemeral_caches(repo: Path) -> int:
+    root = cache_dir(repo)
+    removed = 0
+    for name in EPHEMERAL_CACHE_SUBDIRS:
+        path = root / name
+        if path.exists():
+            remove_cache_tree(path)
+            removed += 1
+    return removed
+
+
 def clean_stale(repo: Path, verbose: bool) -> None:
     expected = expected_worktree_trees(repo)
     removed = 0
@@ -119,7 +137,12 @@ def clean_stale(repo: Path, verbose: bool) -> None:
     if blocked:
         details = "\n".join(f"  - {item}" for item in blocked)
         raise ReconstructionError(f"stale cache clean refused dirty entries:\n{details}")
-    print(f"stale filesystem cache clean complete: {removed} removed, {retained} retained; Git refs were not touched")
+    ephemeral_removed = clean_ephemeral_caches(repo)
+    print(
+        "stale filesystem cache clean complete: "
+        f"{removed} stale worktree(s) removed, {retained} retained, "
+        f"{ephemeral_removed} ephemeral cache path(s) removed; Git refs were not touched"
+    )
 
 
 def clean_all(repo: Path, force: bool) -> None:

@@ -5,9 +5,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def run(cmd: list[str], *, stdout=None) -> None:
@@ -93,6 +97,8 @@ def test() -> None:
 
 
 def main() -> None:
+    os.environ.setdefault("PYTHONPYCACHEPREFIX", str(REPO_ROOT / ".cache" / "edk2-cix" / "pycache"))
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("test", "lint", "all"))
     args = parser.parse_args()

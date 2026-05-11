@@ -12,10 +12,11 @@ export EDK2_CIX_DOCS_TOOLS_DIR="${EDK2_CIX_DOCS_TOOLS_DIR:-${docs_cache_root}/to
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${docs_cache_root}/xdg-cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-${docs_cache_root}/xdg-state}"
 export CARGO_HOME="${CARGO_HOME:-${docs_cache_root}/cargo-home}"
+export PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-${docs_cache_root}/pycache}"
 export TMPDIR="${TMPDIR:-${docs_cache_root}/tmp}"
 export TMP="${TMP:-${TMPDIR}}"
 export TEMP="${TEMP:-${TMPDIR}}"
-mkdir -p "$EDK2_CIX_DOCS_TOOLS_DIR" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" "$CARGO_HOME" "$TMPDIR"
+mkdir -p "$EDK2_CIX_DOCS_TOOLS_DIR" "$XDG_CACHE_HOME" "$XDG_STATE_HOME" "$CARGO_HOME" "$PYTHONPYCACHEPREFIX" "$TMPDIR"
 
 docs_devenv_dir="${docs_root}/.devenv"
 devenv_dotfile_cache="${EDK2_CIX_DOCS_DEVENV_CACHE_DIR:-${docs_cache_root}/devenv-dotfile}"

@@ -6,6 +6,7 @@ repo="$(git rev-parse --show-toplevel)"
 image="${QUALITY_IMAGE:-edk2-cix-build-quality:latest}"
 verbose="${V:-0}"
 git_common="$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)"
+pycache_prefix="${PYTHONPYCACHEPREFIX:-$repo/.cache/edk2-cix/pycache}"
 
 printf '[quality] Building quality container image: %s\n' "$image" >&2
 
@@ -24,6 +25,7 @@ set -- docker run --rm \
     --env GIT_CONFIG_COUNT=1 \
     --env GIT_CONFIG_KEY_0=safe.directory \
     --env "GIT_CONFIG_VALUE_0=$repo" \
+    --env "PYTHONPYCACHEPREFIX=$pycache_prefix" \
     --volume "$repo:$repo" \
     --workdir "$repo"
 
