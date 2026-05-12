@@ -19,6 +19,10 @@ SOURCE_LIFECYCLE_NORMALISE ?= exact
 INSTALL_ROOT ?= /boot/efi
 INSTALL_SOURCE ?=
 FORCE ?= 0
+WRITE ?= 0
+CHECK ?= 0
+RENDER_GENERATED ?= 0
+UPDATE_RELEASE_TAGS ?= 0
 DELETE ?= 0
 REPACK ?= 1
 KEEP ?= 0
@@ -112,14 +116,17 @@ define PRINT_HELP_SHELL_PROLOGUE
 		}
 endef
 
-.PHONY: help help-vars help-dev help-source-targets build build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
+.PHONY: help help-vars help-dev help-dev-source help-dev-verify help-dev-maintenance help-source-targets build build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
 	propagate-release-branches update-release-tags \
-	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-help-cache check-first-output-latency refresh-help-cache ref-report cleanup-report create-minimised-clone \
+	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-source-metadata check-help-cache check-first-output-latency refresh-source-metadata refresh-help-cache ref-report cleanup-report create-minimised-clone \
 	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
-	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help resolve-conflicts-help verify-release-branch-help verify-build-matrix-help check-vendor-workflow-drift-help check-upstream-versions-help
+	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help resolve-conflicts-help update-release-tags-help \
+	verify-release-branch-help verify-build-matrix-help verify-source-policy-help verify-source-lifecycle-help \
+	check-ref-integrity-help check-identity-integrity-help verify-identity-integrity-help check-vendor-workflow-drift-help check-upstream-versions-help check-source-metadata-help refresh-source-metadata-help \
+	create-minimised-clone-help verify-minimised-clone-help prune-help refresh-help-cache-help check-help-cache-help check-first-output-latency-help ref-report-help cleanup-report-help
 
 help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
@@ -141,7 +148,10 @@ help:
 	print_help_line 'make help' 'Show this help.'; \
 	print_help_line 'make help-vars' 'Show common build variables.'; \
 	print_help_line 'make help-source-targets' 'List configured firmware source targets.'; \
-	print_help_line 'make help-dev' 'Show source-update and developer tooling targets.'
+	print_help_line 'make help-dev' 'Show the developer tooling help index.'; \
+	print_help_line 'make help-dev-source' 'Show source integration and import workflow targets.'; \
+	print_help_line 'make help-dev-verify' 'Show source rendering, verification, and integrity-check targets.'; \
+	print_help_line 'make help-dev-maintenance' 'Show minimised-repo, cache, CI, docs, and quality targets.'
 
 help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
@@ -150,7 +160,7 @@ help-vars:
 	print_help_note 'See make help-source-targets for the available and default source targets.'; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
 	print_help_line 'FIRMWARE_TARGET=RELEASE|DEBUG' 'Select the firmware build target.\nDefault: RELEASE.'; \
-	print_help_line 'FIRMWARE_DISTRO=bookworm|trixie' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected source-target policy default.'; \
+	print_help_line 'FIRMWARE_DISTRO=trixie|bookworm' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected source-target policy default.'; \
 	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds. See README.md, "How do I build the latest firmware?", for the difference.\nDefault: custom.'; \
 	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
 	print_help_line 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
@@ -162,6 +172,46 @@ help-vars:
 	printf '\n%s\n' 'For source-update and maintainer variables, run: make help-dev'
 
 help-dev:
+	@$(PRINT_HELP_SHELL_PROLOGUE); \
+	print_section 'Developer Help'; \
+	print_help_line 'make help-dev-source' 'Show source integration, import, conflict-resolution, and release-tag update targets.'; \
+	print_help_line 'make help-dev-verify' 'Show rendering, source-model verification, metadata refresh, and integrity-check targets.'; \
+	print_help_line 'make help-dev-maintenance' 'Show minimised-repository, cache/reporting, local CI, documentation, and quality targets.'; \
+	print_section 'Common Variables'; \
+	print_help_variable 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
+	print_help_variable 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
+	print_section 'Help Targets'; \
+	print_help_line 'make help-source-targets' 'Show configured firmware source targets.'; \
+	printf '\n'; \
+	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
+	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
+	print_help_line 'make verify-build-matrix-help' 'Show verify-build-matrix arguments.'; \
+	print_help_line 'make verify-source-policy-help' 'Show verify-source-policy arguments.'; \
+	print_help_line 'make verify-source-lifecycle-help' 'Show verify-source-lifecycle arguments.'; \
+	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
+	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
+	print_help_line 'make import-changes-help' 'Show import-changes arguments.'; \
+	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
+	print_help_line 'make inspect-import-conflicts-help' 'Show inspect-import-conflicts arguments.'; \
+	print_help_line 'make resolve-conflicts-help' 'Show resolve-conflicts arguments.'; \
+	print_help_line 'make update-release-tags-help' 'Show update-release-tags arguments.'; \
+	print_help_line 'make check-ref-integrity-help' 'Show check-ref-integrity arguments.'; \
+	print_help_line 'make check-identity-integrity-help' 'Show check-identity-integrity arguments.'; \
+	print_help_line 'make verify-identity-integrity-help' 'Show verify-identity-integrity arguments.'; \
+	print_help_line 'make check-vendor-workflow-drift-help' 'Show check-vendor-workflow-drift arguments.'; \
+	print_help_line 'make check-upstream-versions-help' 'Show check-upstream-versions arguments.'; \
+	print_help_line 'make check-source-metadata-help' 'Show check-source-metadata arguments.'; \
+	print_help_line 'make refresh-source-metadata-help' 'Show refresh-source-metadata arguments.'; \
+	print_help_line 'make create-minimised-clone-help' 'Show create-minimised-clone arguments.'; \
+	print_help_line 'make verify-minimised-clone-help' 'Show verify-minimised-clone arguments.'; \
+	print_help_line 'make prune-help' 'Show prune arguments.'; \
+	print_help_line 'make refresh-help-cache-help' 'Show refresh-help-cache arguments.'; \
+	print_help_line 'make check-help-cache-help' 'Show check-help-cache arguments.'; \
+	print_help_line 'make check-first-output-latency-help' 'Show check-first-output-latency arguments.'; \
+	print_help_line 'make ref-report-help' 'Show ref-report arguments.'; \
+	print_help_line 'make cleanup-report-help' 'Show cleanup-report arguments.'
+
+help-dev-source:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Source Integration'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
@@ -208,6 +258,18 @@ help-dev:
 	print_help_variable 'PRESERVE_SYMLINKS=0|1' 'For resolve-conflicts. If the resolved content exactly matches an expanded conflicted symlink target, restore the symlink rather than materialising a regular file.\nDefault: 1.'; \
 	print_help_variable 'ALLOW_CONFLICT_MARKERS=0|1' 'For resolve-conflicts. Permit conflict-marker text in a resolved file.\nDefault: 0.'; \
 	print_help_variable 'ALLOW_SOURCE_REF_FROM=0|1' 'Maintainer escape hatch allowing FROM_REF=source/unofficial/** with an explicit BASE_REF.\nDefault: 0.'; \
+	print_help_variable 'TARGET_REF=<ref[,ref...]>' 'Optional comma-separated target refs for update-release-tags. Leave unset to check every source/unofficial/edk2-stable* release branch.'; \
+	print_section 'Help Targets'; \
+	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
+	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
+	print_help_line 'make import-changes-help' 'Show import-changes arguments.'; \
+	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
+	print_help_line 'make inspect-import-conflicts-help' 'Show inspect-import-conflicts arguments.'; \
+	print_help_line 'make resolve-conflicts-help' 'Show resolve-conflicts arguments.'; \
+	print_help_line 'make update-release-tags-help' 'Show update-release-tags arguments.'
+
+help-dev-verify:
+	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Rendering and Qualification'; \
 	print_help_line 'make render-release-branch' 'Resolve or create a materialised source/cache/release branch.'; \
 	print_help_line 'make verify-release-branch' 'Validate a materialised firmware source-target branch.'; \
@@ -215,16 +277,53 @@ help-dev:
 	print_help_line 'make verify-manifest-integrity' 'Validate defaults-expanded tree-ID manifest records.'; \
 	print_help_line 'make verify-source-policy' 'Validate shared source-tree policy checks, including overlay symlink rules.'; \
 	print_help_line 'make verify-source-lifecycle' 'Validate deterministic overlay/source lifecycle projection across unofficial release branches.'; \
+	print_section 'Source Metadata and Integrity'; \
+	print_help_line 'make check-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
+	print_help_line 'make check-source-metadata' 'Check source-ref hashes, source-target cache tree IDs, and optionally unofficial release tags for drift.'; \
+	print_help_line 'make refresh-source-metadata' 'Refresh source-ref hashes and source-target cache tree IDs from current refs.'; \
+	print_help_line 'make check-identity-integrity' 'Quickly scan build-branch files for path/identity integrity issues.'; \
+	print_help_line 'make verify-identity-integrity' 'Deep-scan build-branch files, commit metadata, and persistent source refs for path/identity integrity issues.'; \
+	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
+	print_help_line 'make check-upstream-versions' 'Check recorded source refs against external upstream/vendor remotes.'; \
+	print_help_line 'make check-help-cache' 'Check that the runtime help cache can be generated and matches current source refs and help-generation inputs. make test runs this check.'; \
+	print_help_line 'make check-first-output-latency' 'Check safe make/script entry points emit first output within 0.5 seconds. make test runs this check.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'RELEASE=<source-target>' 'Firmware source-target name for render-release-branch and verify-release-branch.'; \
 	print_help_variable 'FROM_REF=<ref>' 'Source ref for verify-source-lifecycle projection.\nDefault: source/unofficial/current.'; \
-	print_help_variable 'TARGET_REF=<ref[,ref...]>' 'Optional comma-separated target refs for verify-source-lifecycle or update-release-tags. Leave unset to check every source/unofficial/edk2-stable* release branch.'; \
+	print_help_variable 'TARGET_REF=<ref[,ref...]>' 'Optional comma-separated target refs for verify-source-lifecycle. Leave unset to check every source/unofficial/edk2-stable* release branch.'; \
+	print_help_variable 'REF=<ref>' 'Optional source ref for verify-source-policy.'; \
 	print_help_variable 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/cache/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a Git cache branch.'; \
 	print_help_variable 'REBUILD=0|1' 'Regenerate a rendered firmware source target from its render plan instead of reusing an existing ref.'; \
 	print_help_variable 'FORCE=0|1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass.'; \
 	print_help_variable 'WORKTREE=<path>' 'Existing rendered worktree to use for verify-release-branch history checks.'; \
-	print_help_variable 'SIGNING_CERT_SOURCE_DIR=<path>' 'Copy exact-replay signing certs into the build worktree.\nDefault: unset.'; \
-	print_help_variable 'INSTALL_SOURCE=<path>' 'Optional staged payload path, or path relative to dist/firmware.\nDefault: latest staged firmware payload.'; \
+	print_help_variable 'SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact' 'For verify-source-lifecycle. Control deterministic overlay/source lifecycle handling when an imported overlay path points at a source file that moved or disappeared in another release branch.\nDefault: exact.'; \
+	print_help_variable 'SCAN_COMMITS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
+	print_help_variable 'SCAN_SOURCE_REFS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
+	print_help_variable 'UPSTREAM_VERSION_MODE=advisory|policy|strict' 'Version-check failure mode. advisory never fails on stale remotes; policy fails checks marked strict; strict fails any stale or unavailable check.\nDefault: policy.'; \
+	print_help_variable 'UPSTREAM_VERSION_ONLY=<id[,id...]>' 'Optional comma-separated source IDs, or source:release/source:commits comparison IDs, for check-upstream-versions.'; \
+	print_help_variable 'UPSTREAM_VERSION_FORMAT=text|github|json' 'Upstream versions output format. github emits workflow annotations.\nDefault: text.'; \
+	print_help_variable 'UPSTREAM_VERSION_SNAPSHOT=<path>' 'Offline git ls-remote snapshot for upstream version tests.\nDefault: unset.'; \
+	print_help_variable 'WRITE=0|1' 'For refresh-source-metadata. Required before config metadata or requested release tags are updated.\nDefault: 0.'; \
+	print_help_variable 'RENDER_GENERATED=0|1' 'For check-source-metadata and refresh-source-metadata. Re-render generated source/cache/release entries whose tree cannot be derived directly from retained source refs. Use 1 for full post-rewrite cache regeneration.\nDefault: 0.'; \
+	print_help_variable 'UPDATE_RELEASE_TAGS=0|1' 'For check-source-metadata and refresh-source-metadata. Include refs/tags/source/unofficial/edk2/stable-* in the check or refresh.\nDefault: 0.'; \
+	print_section 'Help Targets'; \
+	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
+	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
+	print_help_line 'make verify-build-matrix-help' 'Show verify-build-matrix arguments.'; \
+	print_help_line 'make verify-source-policy-help' 'Show verify-source-policy arguments.'; \
+	print_help_line 'make verify-source-lifecycle-help' 'Show verify-source-lifecycle arguments.'; \
+	print_help_line 'make check-ref-integrity-help' 'Show check-ref-integrity arguments.'; \
+	print_help_line 'make check-source-metadata-help' 'Show check-source-metadata arguments.'; \
+	print_help_line 'make refresh-source-metadata-help' 'Show refresh-source-metadata arguments.'; \
+	print_help_line 'make check-identity-integrity-help' 'Show check-identity-integrity arguments.'; \
+	print_help_line 'make verify-identity-integrity-help' 'Show verify-identity-integrity arguments.'; \
+	print_help_line 'make check-vendor-workflow-drift-help' 'Show check-vendor-workflow-drift arguments.'; \
+	print_help_line 'make check-upstream-versions-help' 'Show check-upstream-versions arguments.'; \
+	print_help_line 'make check-help-cache-help' 'Show check-help-cache arguments.'; \
+	print_help_line 'make check-first-output-latency-help' 'Show check-first-output-latency arguments.'
+
+help-dev-maintenance:
+	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Minimised Repository'; \
 	print_help_line 'make create-minimised-clone' 'Create a bare repo containing only build plus required non-cache source refs and tags.'; \
 	print_help_line 'make verify-minimised-clone' 'Create and clone a minimised repository, then verify that it can render the default source target.'; \
@@ -232,25 +331,12 @@ help-dev:
 	print_help_variable 'DIR=<path>' 'Destination directory for create-minimised-clone, or optional workspace directory for verify-minimised-clone.'; \
 	print_help_variable 'KEEP=0|1' 'Keep the temporary verification workspace created by verify-minimised-clone.\nDefault: 0.'; \
 	print_help_variable 'REPACK=0|1' 'Repack the destination produced by create-minimised-clone.\nDefault: 1.'; \
-	print_section 'Repository Maintenance'; \
-	print_help_line 'make check-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
-	print_help_line 'make check-identity-integrity' 'Quickly scan build-branch files for path/identity integrity issues.'; \
-	print_help_line 'make verify-identity-integrity' 'Deep-scan build-branch files, commit metadata, and persistent source refs for path/identity integrity issues.'; \
-	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
-	print_help_line 'make check-upstream-versions' 'Check recorded source refs against external upstream/vendor remotes.'; \
+	print_section 'Cache and Reports'; \
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
 	print_help_line 'make refresh-help-cache' 'Refresh the untracked runtime help cache under .cache/edk2-cix/help/.'; \
-	print_help_line 'make check-help-cache' 'Check that the runtime help cache can be generated and matches current source refs and help-generation inputs. make test runs this check.'; \
-	print_help_line 'make check-first-output-latency' 'Check safe make/script entry points emit first output within 0.5 seconds. make test runs this check.'; \
 	print_subtitle 'Variables:'; \
-	print_help_variable 'SCAN_COMMITS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
-	print_help_variable 'SCAN_SOURCE_REFS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
-	print_help_variable 'UPSTREAM_VERSION_MODE=advisory|policy|strict' 'Version-check failure mode. advisory never fails on stale remotes; policy fails checks marked strict; strict fails any stale or unavailable check.\nDefault: policy.'; \
-	print_help_variable 'UPSTREAM_VERSION_ONLY=<id[,id...]>' 'Optional comma-separated source IDs, or source:release/source:commits comparison IDs, for check-upstream-versions.'; \
-	print_help_variable 'UPSTREAM_VERSION_FORMAT=text|github|json' 'Upstream versions output format. github emits workflow annotations.\nDefault: text.'; \
-	print_help_variable 'UPSTREAM_VERSION_SNAPSHOT=<path>' 'Offline git ls-remote snapshot for upstream version tests.\nDefault: unset.'; \
 	print_help_variable 'DELETE=0|1' 'Allow make prune to delete verified source/cache refs.\nDefault: 0.'; \
 	print_section 'Local GitHub Actions'; \
 	print_help_line 'make gha-act-list' 'List GitHub Actions workflows and jobs through a repo-local act wrapper.'; \
@@ -279,16 +365,12 @@ help-dev:
 	print_help_variable 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
 	print_help_variable 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
 	print_section 'Help Targets'; \
-	print_help_line 'make help-source-targets' 'Show configured firmware source targets.'; \
-	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
-	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
-	print_help_line 'make import-changes-help' 'Show import-changes arguments.'; \
-	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
-	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
-	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
-	print_help_line 'make verify-build-matrix-help' 'Show verify-build-matrix arguments.'; \
-	print_help_line 'make check-vendor-workflow-drift-help' 'Show check-vendor-workflow-drift arguments.'; \
-	print_help_line 'make check-upstream-versions-help' 'Show check-upstream-versions arguments.'
+	print_help_line 'make create-minimised-clone-help' 'Show create-minimised-clone arguments.'; \
+	print_help_line 'make verify-minimised-clone-help' 'Show verify-minimised-clone arguments.'; \
+	print_help_line 'make prune-help' 'Show prune arguments.'; \
+	print_help_line 'make ref-report-help' 'Show ref-report arguments.'; \
+	print_help_line 'make cleanup-report-help' 'Show cleanup-report arguments.'; \
+	print_help_line 'make refresh-help-cache-help' 'Show refresh-help-cache arguments.'
 
 help-source-targets:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-source-targets
@@ -478,6 +560,14 @@ check-upstream-versions:
 	$(call PROGRESS_PROBE,[check] Checking upstream versions)
 	@DEBUG="$(DEBUG)" UPSTREAM_VERSION_MODE="$(UPSTREAM_VERSION_MODE)" UPSTREAM_VERSION_ONLY="$(UPSTREAM_VERSION_ONLY)" UPSTREAM_VERSION_FORMAT="$(UPSTREAM_VERSION_FORMAT)" UPSTREAM_VERSION_SNAPSHOT="$(UPSTREAM_VERSION_SNAPSHOT)" V="$(V)" $(PYTHON) scripts/check_upstream_versions.py --v "$(V)"
 
+check-source-metadata:
+	$(call PROGRESS_PROBE,[check] Checking source metadata refresh state)
+	@DEBUG="$(DEBUG)" CHECK="1" WRITE="0" RENDER_GENERATED="$(RENDER_GENERATED)" UPDATE_RELEASE_TAGS="$(UPDATE_RELEASE_TAGS)" V="$(V)" $(PYTHON) scripts/refresh_source_metadata.py --check 1 --write 0 --render-generated "$(RENDER_GENERATED)" --update-release-tags "$(UPDATE_RELEASE_TAGS)" --v "$(V)"
+
+refresh-source-metadata:
+	$(call PROGRESS_PROBE,[metadata] Refreshing source metadata)
+	@DEBUG="$(DEBUG)" WRITE="$(WRITE)" RENDER_GENERATED="$(RENDER_GENERATED)" UPDATE_RELEASE_TAGS="$(UPDATE_RELEASE_TAGS)" V="$(V)" $(PYTHON) scripts/refresh_source_metadata.py --write "$(WRITE)" --render-generated "$(RENDER_GENERATED)" --update-release-tags "$(UPDATE_RELEASE_TAGS)" --v "$(V)"
+
 check-help-cache:
 	$(call PROGRESS_PROBE,[check] Checking help cache)
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/help_cache.py --verify --v "$(V)"
@@ -529,6 +619,12 @@ verify-release-branch-help:
 verify-build-matrix-help:
 	@$(PYTHON) scripts/verify_build_matrix.py --help
 
+verify-source-policy-help:
+	@$(PYTHON) scripts/verify_source_policy.py --help
+
+verify-source-lifecycle-help:
+	@$(PYTHON) scripts/verify_source_lifecycle.py --help
+
 extract-vendor-delta-help:
 	@$(PYTHON) scripts/extract_vendor_delta.py --help
 
@@ -547,8 +643,50 @@ inspect-import-conflicts-help:
 resolve-conflicts-help:
 	@$(PYTHON) scripts/resolve_import_conflicts.py --help
 
+update-release-tags-help:
+	@$(PYTHON) scripts/update_release_tags.py --help
+
+check-ref-integrity-help:
+	@$(PYTHON) scripts/check_ref_integrity.py --help
+
+check-identity-integrity-help:
+	@$(PYTHON) scripts/check_identity_integrity.py --help
+
+verify-identity-integrity-help:
+	@$(PYTHON) scripts/check_identity_integrity.py --help
+
 check-vendor-workflow-drift-help:
 	@$(PYTHON) scripts/check_vendor_workflow_drift.py --help
 
 check-upstream-versions-help:
 	@$(PYTHON) scripts/check_upstream_versions.py --help
+
+check-source-metadata-help:
+	@$(PYTHON) scripts/refresh_source_metadata.py --help
+
+refresh-source-metadata-help:
+	@$(PYTHON) scripts/refresh_source_metadata.py --help
+
+create-minimised-clone-help:
+	@$(PYTHON) scripts/create_minimised_clone.py --help
+
+verify-minimised-clone-help:
+	@$(PYTHON) scripts/verify_minimised_clone.py --help
+
+prune-help:
+	@$(PYTHON) scripts/prune_cache_refs.py --help
+
+refresh-help-cache-help:
+	@$(PYTHON) scripts/help_cache.py --help
+
+check-help-cache-help:
+	@$(PYTHON) scripts/help_cache.py --help
+
+check-first-output-latency-help:
+	@$(PYTHON) scripts/check_first_output_latency.py --help
+
+ref-report-help:
+	@$(PYTHON) scripts/ref_report.py --help
+
+cleanup-report-help:
+	@$(PYTHON) scripts/ref_report.py --help
