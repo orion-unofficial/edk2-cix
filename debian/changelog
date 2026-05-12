@@ -1,0 +1,40 @@
+edk2-cix (0.2.1-1) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * chore: update edk2-platforms
+  * fix: add gbp for make dch command
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Fri, 17 Jan 2025 02:12:27 +0000
+
+edk2-cix (0.2.0-1) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * docs: update product name in the documentation
+  * docs: add installation guide
+  * docs: add description for 2 development shortcuts
+  * chore: update to Beta 2
+  * fix: use tab for Makefile
+  * chore: update with latest Cix bug fixes
+  * fix: disable build for CIX targets
+  * chore: update devenv.lock
+  * feat: support building in devcontainer
+  * docs: only supporting devcontainer build
+  * chore: update edk2-platforms
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Thu, 16 Jan 2025 17:35:45 +0800
+
+edk2-cix (0.1.1-1) main; urgency=medium
+
+  * First release build
+  * Based on CIX Beta1 EDK2
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Mon, 06 Jan 2025 15:32:58 +0800
+
+edk2-cix (0.1.0-1) UNRELEASED; urgency=medium
+
+  * Add initial Debian packaging support
+  * This version was used on multiple development builds during bring-up.
+    As such, we will skip this version to avoid the confusion between an
+    official 0.1.0-1 and pre-release 0.1.0-1.
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Fri, 30 Aug 2024 19:31:58 +0800
