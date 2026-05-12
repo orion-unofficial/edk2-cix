@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 import tarfile
@@ -82,6 +83,34 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
             self.write_text(repo_root / "VERSION", "9.9.9\n")
 
             self.assertEqual(export_firmware_payload.detect_version(repo_root, None), "9.9.9")
+
+    def test_resolve_genfw_uses_explicit_environment_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir_text:
+            repo_root = Path(tempdir_text)
+            genfw = repo_root / "tools" / "GenFw"
+            self.write_bytes(genfw, b"genfw")
+
+            with mock.patch.dict(os.environ, {"EDK2_CIX_GENFW": str(genfw)}):
+                self.assertEqual(export_firmware_payload.resolve_genfw(repo_root), genfw)
+
+    def test_resolve_genfw_finds_custom_workspace_basetools(self) -> None:
+        with tempfile.TemporaryDirectory() as repo_text, tempfile.TemporaryDirectory() as tmp_text:
+            repo_root = Path(repo_text).resolve()
+            tmp_root = Path(tmp_text)
+            workspace_key = export_firmware_payload.cksum_key(str(repo_root))
+            genfw = (
+                tmp_root
+                / f"edk2-cix-custom-workspace-{workspace_key}"
+                / "BaseTools"
+                / "Source"
+                / "C"
+                / "bin"
+                / "GenFw"
+            )
+            self.write_bytes(genfw, b"genfw")
+
+            with mock.patch.dict(os.environ, {"TMPDIR": str(tmp_root)}, clear=False):
+                self.assertEqual(export_firmware_payload.resolve_genfw(repo_root), genfw)
 
     def test_payload_mapping_flattens_custom_o6_exports(self) -> None:
         mapping = export_firmware_payload.payload_mapping(
