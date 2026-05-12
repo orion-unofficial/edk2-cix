@@ -205,9 +205,6 @@ help-dev:
 	print_help_line 'make create-minimised-clone-help' 'Show create-minimised-clone arguments.'; \
 	print_help_line 'make verify-minimised-clone-help' 'Show verify-minimised-clone arguments.'; \
 	print_help_line 'make prune-help' 'Show prune arguments.'; \
-	print_help_line 'make refresh-help-cache-help' 'Show refresh-help-cache arguments.'; \
-	print_help_line 'make check-help-cache-help' 'Show check-help-cache arguments.'; \
-	print_help_line 'make check-first-output-latency-help' 'Show check-first-output-latency arguments.'; \
 	print_help_line 'make ref-report-help' 'Show ref-report arguments.'; \
 	print_help_line 'make cleanup-report-help' 'Show cleanup-report arguments.'
 
@@ -285,8 +282,6 @@ help-dev-verify:
 	print_help_line 'make verify-identity-integrity' 'Deep-scan build-branch files, commit metadata, and persistent source refs for path/identity integrity issues.'; \
 	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
 	print_help_line 'make check-upstream-versions' 'Check recorded source refs against external upstream/vendor remotes.'; \
-	print_help_line 'make check-help-cache' 'Check that the runtime help cache can be generated and matches current source refs and help-generation inputs. make test runs this check.'; \
-	print_help_line 'make check-first-output-latency' 'Check safe make/script entry points emit first output within 0.5 seconds. make test runs this check.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'RELEASE=<source-target>' 'Firmware source-target name for render-release-branch and verify-release-branch.'; \
 	print_help_variable 'FROM_REF=<ref>' 'Source ref for verify-source-lifecycle projection.\nDefault: source/unofficial/current.'; \
@@ -318,9 +313,7 @@ help-dev-verify:
 	print_help_line 'make check-identity-integrity-help' 'Show check-identity-integrity arguments.'; \
 	print_help_line 'make verify-identity-integrity-help' 'Show verify-identity-integrity arguments.'; \
 	print_help_line 'make check-vendor-workflow-drift-help' 'Show check-vendor-workflow-drift arguments.'; \
-	print_help_line 'make check-upstream-versions-help' 'Show check-upstream-versions arguments.'; \
-	print_help_line 'make check-help-cache-help' 'Show check-help-cache arguments.'; \
-	print_help_line 'make check-first-output-latency-help' 'Show check-first-output-latency arguments.'
+	print_help_line 'make check-upstream-versions-help' 'Show check-upstream-versions arguments.'
 
 help-dev-maintenance:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
@@ -335,7 +328,6 @@ help-dev-maintenance:
 	print_help_line 'make ref-report' 'Report required source refs, generated cache refs, and ref namespace issues.'; \
 	print_help_line 'make cleanup-report' 'Report generated cache refs and cautious clean-up guidance.'; \
 	print_help_line 'make prune' 'Report generated source/cache refs, or delete them with DELETE=1 after safety checks.'; \
-	print_help_line 'make refresh-help-cache' 'Refresh the untracked runtime help cache under .cache/edk2-cix/help/.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'DELETE=0|1' 'Allow make prune to delete verified source/cache refs.\nDefault: 0.'; \
 	print_section 'Local GitHub Actions'; \
@@ -352,8 +344,7 @@ help-dev-maintenance:
 	print_help_variable 'ACT_CONTAINER_ARCH=auto|<platform>' 'Container architecture used by act. auto selects linux/arm64 on arm64 hosts and linux/amd64 on x86_64 hosts.\nDefault: auto.'; \
 	print_help_variable 'ACT_RUNNER_IMAGE=<image>' 'Runner image mapped to ubuntu-latest.\nDefault: catthehacker/ubuntu:act-latest.'; \
 	print_section 'Documentation'; \
-	print_help_line 'make docs-build' 'Build the mdBook product documentation under docs/, using the docs container if host tools are missing.'; \
-	print_help_line 'make docs-workflow-local' 'Run the documentation workflow in its local Docker wrapper.'; \
+	print_help_line 'make docs-build' 'Build product docs. DOCS_BUILD_MODE=auto uses host tools when available and otherwise delegates to the internal docs container workflow.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'DOCS_BUILD_MODE=auto|host|container' 'Documentation build environment. auto uses host tools when available and the docs container otherwise.\nDefault: auto.'; \
 	print_section 'Quality'; \
@@ -369,8 +360,7 @@ help-dev-maintenance:
 	print_help_line 'make verify-minimised-clone-help' 'Show verify-minimised-clone arguments.'; \
 	print_help_line 'make prune-help' 'Show prune arguments.'; \
 	print_help_line 'make ref-report-help' 'Show ref-report arguments.'; \
-	print_help_line 'make cleanup-report-help' 'Show cleanup-report arguments.'; \
-	print_help_line 'make refresh-help-cache-help' 'Show refresh-help-cache arguments.'
+	print_help_line 'make cleanup-report-help' 'Show cleanup-report arguments.'
 
 help-source-targets:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-source-targets
