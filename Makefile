@@ -59,6 +59,8 @@ CONFLICT_EDITOR ?=
 PRESERVE_SYMLINKS ?= 1
 ALLOW_CONFLICT_MARKERS ?= 0
 FIRST_OUTPUT_PROBE ?= 0
+BUILD_DIST_ROOT ?= $(CURDIR)/dist
+FIRMWARE_CACHE_ROOT ?= $(CURDIR)/.cache/edk2-cix/firmware
 
 define PROGRESS_PROBE
 	@printf '%s\n' '$(1)' >&2; if [ "$(FIRST_OUTPUT_PROBE)" = "1" ]; then exit 0; fi
@@ -164,6 +166,9 @@ help-vars:
 	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds. See README.md, "How do I build the latest firmware?", for the difference.\nDefault: custom.'; \
 	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
 	print_help_line 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
+	print_section 'Build Output Locations'; \
+	print_help_line 'BUILD_DIST_ROOT=<path>' 'Directory where build-branch builds mirror rendered worktree archives, staged payloads, and key raw firmware images.\nDefault: ./dist.'; \
+	print_help_line 'FIRMWARE_CACHE_ROOT=<path>' 'Persistent build-branch firmware cache root shared by rendered worktree builds, including ccache, buildbox temporary state, and CIX release caches.\nDefault: ./.cache/edk2-cix/firmware.'; \
 	print_section 'Install Variables'; \
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
 	print_help_line 'FORCE=0|1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \
@@ -379,18 +384,30 @@ define run_release_make
 	$(BUILD_VARIABLE_ENV) $(PYTHON) scripts/validate_build_variables.py --target "$(1)"; \
 	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
-	cache_root="$$wt/.cache/edk2-cix/firmware"; \
+	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
+	container_cache_root="/hosttmp"; \
 	printf '[build] Starting %s: board=%s target=%s release=%s\n' "$(1)" "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
-	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(1) $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox/tmp CCACHE_DIR=$$cache_root/ccache"; fi; \
+	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(1) $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox CCACHE_DIR=$$container_cache_root/ccache"; fi; \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
 	$(MAKE) --no-print-directory -C "$$wt" $(1) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
-		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox/tmp" \
-		CCACHE_DIR="$$cache_root/ccache" \
-		CCACHE_WRAPPER_ROOT="$$cache_root/ccache-toolchain" \
-		CIX_RELEASE_CACHE_ROOT="$$cache_root/cix-release" \
+		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox" \
+		BUILDBOX_CONTAINER_TMPDIR="$$container_cache_root" \
+		CCACHE_DIR="$$container_cache_root/ccache" \
+		CCACHE_WRAPPER_ROOT="$$container_cache_root/ccache-toolchain" \
+		CIX_RELEASE_CACHE_ROOT="$$container_cache_root/cix-release" \
 		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
 		BUILD_LOG_ROOT="$$cache_root/build-logs" \
-		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"
+		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"; \
+	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
+		--repo-root "$(CURDIR)" \
+		--worktree "$$wt" \
+		--dist-root "$(BUILD_DIST_ROOT)" \
+		--release "$$release_label" \
+		--build-target "$(1)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--firmware-target "$(FIRMWARE_TARGET)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
+		--v "$(V)"
 endef
 
 build:
@@ -409,18 +426,30 @@ install:
 	$(BUILD_VARIABLE_ENV) $(PYTHON) scripts/validate_build_variables.py --target "install"; \
 	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
-	cache_root="$$wt/.cache/edk2-cix/firmware"; \
+	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
+	container_cache_root="/hosttmp"; \
 	printf '[build] Starting buildbox-firmware-stage: board=%s target=%s release=%s\n' "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
-	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt buildbox-firmware-stage $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox/tmp CCACHE_DIR=$$cache_root/ccache"; fi; \
+	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt buildbox-firmware-stage $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox CCACHE_DIR=$$container_cache_root/ccache"; fi; \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
 	$(MAKE) --no-print-directory -C "$$wt" buildbox-firmware-stage $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
-		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox/tmp" \
-		CCACHE_DIR="$$cache_root/ccache" \
-		CCACHE_WRAPPER_ROOT="$$cache_root/ccache-toolchain" \
-		CIX_RELEASE_CACHE_ROOT="$$cache_root/cix-release" \
+		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox" \
+		BUILDBOX_CONTAINER_TMPDIR="$$container_cache_root" \
+		CCACHE_DIR="$$container_cache_root/ccache" \
+		CCACHE_WRAPPER_ROOT="$$container_cache_root/ccache-toolchain" \
+		CIX_RELEASE_CACHE_ROOT="$$container_cache_root/cix-release" \
 		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
 		BUILD_LOG_ROOT="$$cache_root/build-logs" \
 		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"; \
+	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
+		--repo-root "$(CURDIR)" \
+		--worktree "$$wt" \
+		--dist-root "$(BUILD_DIST_ROOT)" \
+		--release "$$release_label" \
+		--build-target "buildbox-firmware-stage" \
+		--board "$(FIRMWARE_BOARD)" \
+		--firmware-target "$(FIRMWARE_TARGET)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
+		--v "$(V)"; \
 	force_arg=""; \
 	if [ "$(FORCE)" = "1" ]; then force_arg="--force"; fi; \
 	DEBUG="$(DEBUG)" INSTALL_SOURCE="$(INSTALL_SOURCE)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/install_release_payload.py \
