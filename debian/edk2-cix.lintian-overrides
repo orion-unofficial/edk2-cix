@@ -1,0 +1,2 @@
+# We use shebang to stop user running UEFI Shell script on Linux
+edk2-cix: unusual-interpreter
