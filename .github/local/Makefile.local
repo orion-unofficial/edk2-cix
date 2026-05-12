@@ -732,7 +732,7 @@ firmware-stage:
 	$(Q)$(LOCKED_MAKE) __firmware-stage V="$(V)"
 
 __firmware-stage: __firmware-build-silent-output
-	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" stage \
+	$(Q)EDK2_CIX_GENFW="$(BASETOOLS_C_BIN_DIR)/GenFw" EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" stage \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
@@ -750,7 +750,7 @@ install:
 	$(Q)$(LOCKED_MAKE) __install V="$(V)"
 
 __install: __firmware-stage
-	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" install \
+	$(Q)EDK2_CIX_GENFW="$(BASETOOLS_C_BIN_DIR)/GenFw" EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" install \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
@@ -768,7 +768,7 @@ zip:
 	$(Q)$(LOCKED_MAKE) __zip V="$(V)"
 
 __zip: __firmware-build-silent-output
-	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" zip \
+	$(Q)EDK2_CIX_GENFW="$(BASETOOLS_C_BIN_DIR)/GenFw" EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" zip \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
@@ -786,7 +786,7 @@ targz:
 	$(Q)$(LOCKED_MAKE) __targz V="$(V)"
 
 __targz: __firmware-build-silent-output
-	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" targz \
+	$(Q)EDK2_CIX_GENFW="$(BASETOOLS_C_BIN_DIR)/GenFw" EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" targz \
 		--repo-root "$(REPO_ROOT)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--product "$(FIRMWARE_PRODUCT)" \
@@ -884,6 +884,7 @@ __check-offline-audit-baselines:
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_offline_audit_baselines.py"
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_audit_acpi_regression.py"
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_audit_final_image_manifest.py"
+	$(Q)python3 "$(REPO_ROOT)/scripts/test_export_firmware_payload.py"
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_validate_firmware_outputs.py"
 
 .PHONY: audit-final-image-manifest __audit-final-image-manifest
