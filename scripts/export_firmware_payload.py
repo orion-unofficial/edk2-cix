@@ -20,6 +20,7 @@ REPO_ROOT = SCRIPT_PATH.parent.parent
 BASETOOLS_GENFW = (
     REPO_ROOT / "src" / "edk2" / "BaseTools" / "Source" / "C" / "bin" / "GenFw"
 )
+GENFW_ENV = "EDK2_CIX_GENFW"
 
 
 def parse_args() -> argparse.Namespace:
@@ -84,16 +85,82 @@ def parse_build_options(path: pathlib.Path) -> dict[str, str]:
     return result
 
 
+def cksum_key(value: str) -> str:
+    result = subprocess.run(
+        ["cksum"],
+        input=value,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.split()[0]
+
+
+def resolve_temp_root(repo_root: pathlib.Path) -> pathlib.Path:
+    resolver = repo_root / "scripts" / "resolve_temp_root.sh"
+    if resolver.is_file():
+        result = subprocess.run(
+            [str(resolver)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        resolved = result.stdout.strip()
+        if resolved:
+            return pathlib.Path(resolved)
+
+    for name in ("TMPDIR", "TMP", "TEMP", "TEMPDIR", "XDG_RUNTIME_DIR"):
+        value = os.environ.get(name)
+        if not value:
+            continue
+        candidate = pathlib.Path(value)
+        if candidate.is_dir() and os.access(candidate, os.W_OK | os.X_OK):
+            return candidate
+
+    for candidate in (pathlib.Path("/var/tmp"), pathlib.Path("/tmp")):
+        if candidate.is_dir() and os.access(candidate, os.W_OK | os.X_OK):
+            return candidate
+
+    return pathlib.Path("/tmp")
+
+
+def custom_basetools_genfw(repo_root: pathlib.Path) -> pathlib.Path:
+    workspace_root = os.environ.get("CUSTOM_EDK2_WORKSPACE_ROOT")
+    if workspace_root:
+        return pathlib.Path(workspace_root) / "BaseTools" / "Source" / "C" / "bin" / "GenFw"
+
+    workspace_key = cksum_key(str(repo_root))
+    return (
+        resolve_temp_root(repo_root)
+        / f"edk2-cix-custom-workspace-{workspace_key}"
+        / "BaseTools"
+        / "Source"
+        / "C"
+        / "bin"
+        / "GenFw"
+    )
+
+
 def resolve_genfw(repo_root: pathlib.Path) -> pathlib.Path:
+    explicit_genfw = os.environ.get(GENFW_ENV)
+    if explicit_genfw:
+        explicit_path = pathlib.Path(explicit_genfw)
+        if explicit_path.is_file():
+            return explicit_path
+        raise RuntimeError(f"{GENFW_ENV} points to {explicit_path}, but that file does not exist.")
+
     local_genfw = repo_root / "src" / BASETOOLS_GENFW.relative_to(REPO_ROOT / "src")
     if local_genfw.is_file():
         return local_genfw
+    custom_genfw = custom_basetools_genfw(repo_root)
+    if custom_genfw.is_file():
+        return custom_genfw
     resolved = shutil.which("GenFw")
     if resolved:
         return pathlib.Path(resolved)
     raise RuntimeError(
         "GenFw was not found. Run `make -C src prepare-basetools-c` before staging a "
-        "custom payload."
+        f"custom payload. Checked {local_genfw} and {custom_genfw}."
     )
 
 
