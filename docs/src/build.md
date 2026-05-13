@@ -160,6 +160,58 @@ and keeps its cache under `.cache/edk2-cix/act-cache/`. Set `ACT_WORKFLOW`,
 `ACT_EVENT`, `ACT_JOB`, `ACT_MATRIX`, `ACT_SECRET_FILE`, or `ACT_EXTRA_ARGS`
 when a workflow needs more specific inputs.
 
+GitHub Actions expressions such as `${{ inputs.make_target }}` and
+`${{ matrix.board }}` are not Makefile variables. They are values that the
+GitHub Actions runner normally supplies from the event payload and from the
+workflow matrix. The local `act` wrapper exposes the common controls through
+Makefile variables:
+
+- Use `ACT_JOB=<job-id>` to run one job from the selected workflow. The job IDs
+  are shown by `make gha-act-list`.
+- Use `ACT_MATRIX=<name:value>` for matrix values such as
+  `${{ matrix.board }}`. Without a matrix filter, `act` may run every matrix
+  entry for the selected job.
+- Use `ACT_EXTRA_ARGS='--input name=value ...'` for `workflow_dispatch` inputs
+  such as `${{ inputs.make_target }}` or `${{ inputs.board }}`. The workflows
+  define defaults for their inputs, but passing explicit values makes local
+  runs easier to understand and reproduce.
+- Use `ACT_EXTRA_ARGS='--input-file path'` instead when you prefer to keep
+  several inputs in a file. `act` reads the file in `name=value` format.
+
+For example, `firmware-build.yaml` uses `workflow_dispatch` inputs rather than
+a matrix:
+
+```bash
+make gha-act-dry-run \
+  ACT_WORKFLOW=.github/workflows/firmware-build.yaml \
+  ACT_JOB=firmware \
+  ACT_EXTRA_ARGS='--input make_target=buildbox-firmware-stage --input board=O6 --input firmware_target=RELEASE --input artefact_mode=custom'
+```
+
+The same command can be executed for real by replacing `gha-act-dry-run` with
+`gha-act-run`.
+
+For workflows with board matrices, select one matrix entry with `ACT_MATRIX`.
+For example:
+
+```bash
+make gha-act-dry-run \
+  ACT_WORKFLOW=.github/workflows/secure-boot-audit.yaml \
+  ACT_JOB=secure-boot \
+  ACT_MATRIX=board:O6
+```
+
+Some workflows use both workflow inputs and a matrix. In that case, combine
+`ACT_MATRIX` and `ACT_EXTRA_ARGS`. For example:
+
+```bash
+make gha-act-dry-run \
+  ACT_WORKFLOW=.github/workflows/deterministic-replay.yaml \
+  ACT_JOB=replay \
+  ACT_MATRIX=board:O6 \
+  ACT_EXTRA_ARGS='--input replay_source_target=edk2-202208/radxa-1.2.1/unofficial-1.2.1 --input upstream_repository=radxa-pkg/edk2-cix'
+```
+
 ## Validation
 
 For normal firmware building, the selected build target performs the necessary

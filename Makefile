@@ -348,6 +348,7 @@ help-dev-maintenance:
 	print_help_variable 'ACT_EXTRA_ARGS=<args>' 'Additional raw flags appended to act.'; \
 	print_help_variable 'ACT_CONTAINER_ARCH=auto|<platform>' 'Container architecture used by act. auto selects linux/arm64 on arm64 hosts and linux/amd64 on x86_64 hosts.\nDefault: auto.'; \
 	print_help_variable 'ACT_RUNNER_IMAGE=<image>' 'Runner image mapped to ubuntu-latest.\nDefault: catthehacker/ubuntu:act-latest.'; \
+	print_help_note 'For workflow_dispatch inputs and matrix examples, see docs/src/build.md, "Test GitHub Actions Locally".'; \
 	print_section 'Documentation'; \
 	print_help_line 'make docs-build' 'Build product docs. DOCS_BUILD_MODE=auto uses host tools when available and otherwise delegates to the internal docs container workflow.'; \
 	print_subtitle 'Variables:'; \
