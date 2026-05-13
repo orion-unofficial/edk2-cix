@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Run build-branch tests and lint checks inside the quality container."""
+"""Run build-branch tests and lint checks.
+
+The test mode is the self-contained build-branch quality gate. It intentionally
+does not include remote freshness checks such as check-upstream-versions, docs
+builds, firmware build/replay validation, or every parameterised
+verify-release-branch invocation.
+"""
 
 from __future__ import annotations
 

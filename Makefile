@@ -119,7 +119,7 @@ define PRINT_HELP_SHELL_PROLOGUE
 endef
 
 .PHONY: help help-vars help-dev help-dev-source help-dev-verify help-dev-maintenance help-source-targets build build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
-	test lint \
+	test test-local lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
 	propagate-release-branches update-release-tags \
 	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-source-metadata check-help-cache check-first-output-latency refresh-source-metadata refresh-help-cache ref-report cleanup-report create-minimised-clone \
@@ -355,6 +355,7 @@ help-dev-maintenance:
 	print_help_variable 'DOCS_BUILD_MODE=auto|host|container' 'Documentation build environment. auto uses host tools when available and the docs container otherwise.\nDefault: auto.'; \
 	print_section 'Quality'; \
 	print_help_line 'make test' 'Run build-branch tests in the quality container.'; \
+	print_help_line 'make test-local' 'Run the self-contained build-branch test gate directly on the host.'; \
 	print_help_line 'make lint' 'Run JSON, YAML, Markdown, shell, and Python linting in the quality container.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
@@ -611,6 +612,10 @@ cleanup-report:
 test:
 	$(call PROGRESS_PROBE,[quality] Starting tests)
 	@DEBUG="$(DEBUG)" V="$(V)" QUALITY_IMAGE="$(QUALITY_IMAGE)" scripts/run_quality_container.sh test
+
+test-local:
+	$(call PROGRESS_PROBE,[quality] Starting local tests)
+	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/quality_checks.py test
 
 lint:
 	$(call PROGRESS_PROBE,[quality] Starting lint checks)
