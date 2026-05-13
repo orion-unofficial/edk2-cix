@@ -57,7 +57,7 @@ Optional variables:
   V=0|1
       Show checked remote refs.
 
-Each configured source can report two independent signals:
+Each configured source or tooling pin can report two independent signals:
   release
       Whether a newer release tag or release-labelled commit exists than the
       recorded source branch.
@@ -210,6 +210,50 @@ def local_json_field(repo: Path, local: dict[str, Any]) -> LocalState:
     return LocalState(label=label, version=normalise_version(label), object_id=object_id)
 
 
+def format_label(template: str, version: str, match: re.Match[str]) -> str:
+    values = {key: value for key, value in match.groupdict().items() if value is not None}
+    values.setdefault("version", version)
+    return template.format(**values)
+
+
+def local_file_regex(repo: Path, local: dict[str, Any]) -> LocalState:
+    path = repo / str(local["path"])
+    if not path.is_file():
+        raise ReconstructionError(f"local version source does not exist: {path.relative_to(repo)}")
+    text = path.read_text(encoding="utf-8")
+    pattern = re.compile(str(local["pattern"]), re.MULTILINE)
+    match = pattern.search(text)
+    if match is None:
+        raise ReconstructionError(f"could not match local version pattern in {path.relative_to(repo)}")
+    version_group = str(local.get("version_group", "version"))
+    version = match.group(version_group)
+    label = format_label(str(local.get("label_template", "{version}")), version, match)
+    return LocalState(label=label, version=normalise_version(version))
+
+
+def local_workflow_action_ref(repo: Path, local: dict[str, Any]) -> LocalState:
+    action = str(local["action"])
+    workflow_root = repo / str(local.get("workflow_root", ".github/workflows"))
+    if not workflow_root.is_dir():
+        raise ReconstructionError(f"workflow directory does not exist: {workflow_root.relative_to(repo)}")
+
+    pattern = re.compile(r"^\s*-?\s*uses:\s+['\"]?" + re.escape(action) + r"@(?P<ref>[^'\"\s#]+)", re.MULTILINE)
+    refs: dict[str, list[str]] = {}
+    for path in sorted(workflow_root.glob("*.y*ml")):
+        text = path.read_text(encoding="utf-8")
+        for match in pattern.finditer(text):
+            refs.setdefault(match.group("ref"), []).append(str(path.relative_to(repo)))
+
+    if not refs:
+        raise ReconstructionError(f"no workflow action reference found for {action}")
+    if len(refs) > 1:
+        detail = ", ".join(f"{ref} in {', '.join(paths)}" for ref, paths in sorted(refs.items()))
+        raise ReconstructionError(f"workflow action {action} has inconsistent refs: {detail}")
+
+    ref = next(iter(refs))
+    return LocalState(label=ref, version=normalise_version(ref))
+
+
 def local_state(repo: Path, check: dict[str, Any]) -> LocalState:
     local = check.get("local", {})
     if not isinstance(local, dict):
@@ -229,6 +273,10 @@ def local_state(repo: Path, check: dict[str, Any]) -> LocalState:
         state = local_cix_component(repo, str(local["component"]))
     elif local_type == "json-field":
         state = local_json_field(repo, local)
+    elif local_type == "file-regex":
+        state = local_file_regex(repo, local)
+    elif local_type == "workflow-action-ref":
+        state = local_workflow_action_ref(repo, local)
     else:
         raise ReconstructionError(f"unsupported version-check local type: {local_type}")
 

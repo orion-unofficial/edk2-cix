@@ -5,28 +5,32 @@ on:
     branches:
       - build
     paths:
-      - '.github/workflows/upstream-versions.yaml'
+      - '.github/workflows/*.yaml'
       - 'Makefile'
       - 'config/refs-*.json'
       - 'config/remotes.json'
       - 'config/upstream-versions.json'
       - 'scripts/check_upstream_versions.py'
+      - 'scripts/ensure_act.sh'
       - 'scripts/reconstruction_common.py'
       - 'scripts/test_check_upstream_versions.py'
       - 'scripts/test_support.py'
+      - 'docs/scripts/docs-workflow.Dockerfile'
   pull_request:
     branches:
       - build
     paths:
-      - '.github/workflows/upstream-versions.yaml'
+      - '.github/workflows/*.yaml'
       - 'Makefile'
       - 'config/refs-*.json'
       - 'config/remotes.json'
       - 'config/upstream-versions.json'
       - 'scripts/check_upstream_versions.py'
+      - 'scripts/ensure_act.sh'
       - 'scripts/reconstruction_common.py'
       - 'scripts/test_check_upstream_versions.py'
       - 'scripts/test_support.py'
+      - 'docs/scripts/docs-workflow.Dockerfile'
   schedule:
     - cron: '23 2 * * 0'
   workflow_dispatch:

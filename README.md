@@ -874,11 +874,16 @@ Each source reports release freshness separately from branch-head commit drift.
 Most sources use tags for releases; CIX sources that publish release-labelled
 commits instead are matched by commit subject. Release drift is the important
 signal for most sources. Branch-head drift is usually advisory because
-unreleased commits may be noisy or transient. The scheduled GitHub Actions
-workflow runs in `policy` mode and publishes a summary table. In that mode,
-stale checks marked `strict` in `config/upstream-versions.json` fail the
-workflow, while advisory checks report warnings without failing. Use
-`UPSTREAM_VERSION_MODE=strict` when you want any stale source to fail.
+unreleased commits may be noisy or transient.
+
+The same checker also reports advisory freshness for local build infrastructure
+pins such as the repo-managed `act` version, pinned GitHub Actions major
+versions, and the documentation workflow's Nix base image. The scheduled
+GitHub Actions workflow runs in `policy` mode and publishes a summary table.
+In that mode, stale checks marked `strict` in `config/upstream-versions.json`
+fail the workflow, while advisory checks report warnings without failing. Use
+`UPSTREAM_VERSION_MODE=strict` when you want any stale source or tooling pin to
+fail.
 
 To try GitHub Actions locally with `act`:
 

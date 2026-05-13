@@ -4,7 +4,7 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
-act_version="${EDK2_CIX_ACT_VERSION:-0.2.86}"
+act_version="${EDK2_CIX_ACT_VERSION:-0.2.88}"
 tool_root="${EDK2_CIX_ACT_TOOL_ROOT:-${repo_root}/.cache/edk2-cix/tools/act}"
 temp_root="${repo_root}/.cache/edk2-cix/tmp"
 

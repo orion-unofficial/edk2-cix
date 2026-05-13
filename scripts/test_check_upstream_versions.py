@@ -15,6 +15,8 @@ from check_upstream_versions import (
     comparison_items,
     latest_remote_subject_from_snapshot,
     latest_remote_tag,
+    local_file_regex,
+    local_workflow_action_ref,
     write_github_summary,
 )
 from test_support import load_function_tests, require
@@ -132,6 +134,40 @@ def test_github_summary_table() -> None:
     require("P1 GA 2026Q2 [COMMUNITY] RELEASE" in summary, "expected release subject in summary")
 
 
+def test_local_file_regex() -> None:
+    with tempfile.TemporaryDirectory(prefix="check-upstream-versions-test-") as tmp:
+        root = Path(tmp)
+        path = root / "scripts"
+        path.mkdir()
+        (path / "ensure_act.sh").write_text('act_version="${EDK2_CIX_ACT_VERSION:-0.2.88}"\n', encoding="utf-8")
+        state = local_file_regex(
+            root,
+            {
+                "path": "scripts/ensure_act.sh",
+                "pattern": r'act_version="\$\{EDK2_CIX_ACT_VERSION:-(?P<version>\d+\.\d+\.\d+)\}"',
+                "label_template": "v{version}",
+            },
+        )
+    require(state.label == "v0.2.88", "expected formatted local label")
+    require(state.version == "0.2.88", "expected normalized local version")
+
+
+def test_local_workflow_action_ref() -> None:
+    with tempfile.TemporaryDirectory(prefix="check-upstream-versions-test-") as tmp:
+        root = Path(tmp)
+        workflow_root = root / ".github" / "workflows"
+        workflow_root.mkdir(parents=True)
+        (workflow_root / "ci.yaml").write_text(
+            "steps:\n"
+            "  - uses: actions/checkout@v6\n"
+            "  - uses: actions/upload-artifact@v7\n",
+            encoding="utf-8",
+        )
+        state = local_workflow_action_ref(root, {"action": "actions/checkout", "type": "workflow-action-ref"})
+    require(state.label == "v6", "expected workflow action ref label")
+    require(state.version == "6", "expected normalized workflow action version")
+
+
 def main() -> None:
     test_latest_remote_tag_prefers_peeled_commit()
     test_compare_tag_statuses()
@@ -140,6 +176,8 @@ def main() -> None:
     test_grouped_release_subject_comparison_items()
     test_latest_remote_subject_snapshot()
     test_github_summary_table()
+    test_local_file_regex()
+    test_local_workflow_action_ref()
     print("check_upstream_versions tests passed")
 
 

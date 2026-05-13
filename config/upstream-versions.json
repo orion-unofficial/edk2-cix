@@ -138,6 +138,135 @@
         "mode": "advisory",
         "ref": "refs/heads/main"
       }
+    },
+    {
+      "description": "Local act runner tool",
+      "id": "nektos-act",
+      "local": {
+        "label_template": "v{version}",
+        "path": "scripts/ensure_act.sh",
+        "pattern": "^act_version=\"\\$\\{EDK2_CIX_ACT_VERSION:-(?P<version>\\d+\\.\\d+\\.\\d+)\\}\"$",
+        "type": "file-regex"
+      },
+      "remote": "nektos-act",
+      "release": {
+        "description": "Latest act release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/v(?P<version>\\d+\\.\\d+\\.\\d+)$"
+      }
+    },
+    {
+      "description": "GitHub Actions checkout action",
+      "id": "github-actions-checkout",
+      "local": {
+        "action": "actions/checkout",
+        "type": "workflow-action-ref"
+      },
+      "remote": "github-actions-checkout",
+      "release": {
+        "description": "Latest actions/checkout major release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/v(?P<version>\\d+)$"
+      }
+    },
+    {
+      "description": "GitHub Actions upload-artifact action",
+      "id": "github-actions-upload-artifact",
+      "local": {
+        "action": "actions/upload-artifact",
+        "type": "workflow-action-ref"
+      },
+      "remote": "github-actions-upload-artifact",
+      "release": {
+        "description": "Latest actions/upload-artifact major release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/v(?P<version>\\d+)$"
+      }
+    },
+    {
+      "description": "GitHub Actions configure-pages action",
+      "id": "github-actions-configure-pages",
+      "local": {
+        "action": "actions/configure-pages",
+        "type": "workflow-action-ref"
+      },
+      "remote": "github-actions-configure-pages",
+      "release": {
+        "description": "Latest actions/configure-pages major release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/v(?P<version>\\d+)$"
+      }
+    },
+    {
+      "description": "GitHub Actions deploy-pages action",
+      "id": "github-actions-deploy-pages",
+      "local": {
+        "action": "actions/deploy-pages",
+        "type": "workflow-action-ref"
+      },
+      "remote": "github-actions-deploy-pages",
+      "release": {
+        "description": "Latest actions/deploy-pages major release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/v(?P<version>\\d+)$"
+      }
+    },
+    {
+      "description": "Cachix install-nix-action",
+      "id": "cachix-install-nix-action",
+      "local": {
+        "action": "cachix/install-nix-action",
+        "type": "workflow-action-ref"
+      },
+      "remote": "cachix-install-nix-action",
+      "release": {
+        "description": "Latest cachix/install-nix-action major release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/v(?P<version>\\d+)$"
+      }
+    },
+    {
+      "description": "Cachix cachix-action",
+      "id": "cachix-cachix-action",
+      "local": {
+        "action": "cachix/cachix-action",
+        "type": "workflow-action-ref"
+      },
+      "remote": "cachix-cachix-action",
+      "release": {
+        "description": "Latest cachix/cachix-action major release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/v(?P<version>\\d+)$"
+      }
+    },
+    {
+      "description": "Docker setup-qemu-action",
+      "id": "github-docker-setup-qemu-action",
+      "local": {
+        "action": "docker/setup-qemu-action",
+        "type": "workflow-action-ref"
+      },
+      "remote": "github-docker-setup-qemu-action",
+      "release": {
+        "description": "Latest docker/setup-qemu-action major release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/v(?P<version>\\d+)$"
+      }
+    },
+    {
+      "description": "Docs workflow Nix base image",
+      "id": "nixos-nix",
+      "local": {
+        "path": "docs/scripts/docs-workflow.Dockerfile",
+        "pattern": "^FROM nixos/nix:(?P<version>\\d+\\.\\d+\\.\\d+)$",
+        "type": "file-regex"
+      },
+      "remote": "nixos-nix",
+      "release": {
+        "description": "Latest Nix source release tag",
+        "mode": "advisory",
+        "tag_pattern": "^refs/tags/(?P<version>\\d+\\.\\d+(?:\\.\\d+)?)$"
+      }
     }
   ],
   "defaults": {

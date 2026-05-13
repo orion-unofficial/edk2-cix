@@ -10,6 +10,16 @@
       "type": "upstream",
       "url": "https://github.com/ARM-software/arm-trusted-firmware.git"
     },
+    "cachix-cachix-action": {
+      "component": "cachix-action",
+      "type": "github-action",
+      "url": "https://github.com/cachix/cachix-action.git"
+    },
+    "cachix-install-nix-action": {
+      "component": "install-nix-action",
+      "type": "github-action",
+      "url": "https://github.com/cachix/install-nix-action.git"
+    },
     "cix-bios": {
       "type": "vendor-bundle",
       "url": "https://github.com/cixtech/bios.git",
@@ -51,9 +61,44 @@
       "type": "upstream",
       "url": "https://github.com/tianocore/edk2-platforms.git"
     },
+    "github-actions-checkout": {
+      "component": "checkout",
+      "type": "github-action",
+      "url": "https://github.com/actions/checkout.git"
+    },
+    "github-actions-configure-pages": {
+      "component": "configure-pages",
+      "type": "github-action",
+      "url": "https://github.com/actions/configure-pages.git"
+    },
+    "github-actions-deploy-pages": {
+      "component": "deploy-pages",
+      "type": "github-action",
+      "url": "https://github.com/actions/deploy-pages.git"
+    },
+    "github-actions-upload-artifact": {
+      "component": "upload-artifact",
+      "type": "github-action",
+      "url": "https://github.com/actions/upload-artifact.git"
+    },
+    "github-docker-setup-qemu-action": {
+      "component": "setup-qemu-action",
+      "type": "github-action",
+      "url": "https://github.com/docker/setup-qemu-action.git"
+    },
     "microsoft-secureboot": {
       "type": "security-payload",
       "url": "https://github.com/microsoft/secureboot_objects.git"
+    },
+    "nektos-act": {
+      "component": "act",
+      "type": "host-tool",
+      "url": "https://github.com/nektos/act.git"
+    },
+    "nixos-nix": {
+      "component": "nix",
+      "type": "container-base",
+      "url": "https://github.com/NixOS/nix.git"
     },
     "radxa-edk2-cix": {
       "type": "vendor-superproject",
