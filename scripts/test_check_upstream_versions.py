@@ -141,7 +141,7 @@ def test_local_file_regex() -> None:
         path = root / "scripts"
         path.mkdir()
         (path / "ensure_act.sh").write_text(
-            'default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-catthehacker/ubuntu:act-24.04-20260508}}"\n'
+            'default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:act-24.04-20260508}}"\n'
             'act_version="${EDK2_CIX_ACT_VERSION:-0.2.88}"\n',
             encoding="utf-8",
         )
@@ -157,13 +157,13 @@ def test_local_file_regex() -> None:
             root,
             {
                 "path": "scripts/ensure_act.sh",
-                "pattern": r"(?P<repository>catthehacker/ubuntu):(?P<version>act-24\.04-\d{8})",
+                "pattern": r"(?P<repository>ghcr\.io/catthehacker/ubuntu):(?P<version>act-24\.04-\d{8})",
                 "label_template": "{repository}:{version}",
             },
         )
     require(state.label == "v0.2.88", "expected formatted local label")
     require(state.version == "0.2.88", "expected normalized local version")
-    require(docker_state.label == "catthehacker/ubuntu:act-24.04-20260508", "expected image label")
+    require(docker_state.label == "ghcr.io/catthehacker/ubuntu:act-24.04-20260508", "expected image label")
     require(docker_state.version == "act-24.04-20260508", "expected image tag version")
 
 

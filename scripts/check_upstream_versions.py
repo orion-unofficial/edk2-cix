@@ -399,10 +399,32 @@ def latest_docker_tag_from_snapshot(refs: list[RemoteRef], tag_pattern: str) -> 
     return latest_docker_tag_from_names(tags, tag_pattern)
 
 
-def fetch_docker_tags(registry: str, repository: str, name_filter: str = "") -> list[str]:
-    if registry not in {"registry-1.docker.io", "docker.io", "index.docker.io"}:
-        raise ReconstructionError(f"{repository}: docker_latest_tag currently supports Docker Hub remotes only")
+def parse_www_authenticate(value: str) -> dict[str, str]:
+    if not value.startswith("Bearer "):
+        return {}
+    params: dict[str, str] = {}
+    for match in re.finditer(r'([A-Za-z_][A-Za-z0-9_-]*)="([^"]*)"', value[len("Bearer ") :]):
+        params[match.group(1)] = match.group(2)
+    return params
 
+
+def registry_bearer_token(challenge: str, repository: str, registry: str) -> str | None:
+    params = parse_www_authenticate(challenge)
+    realm = params.get("realm")
+    if not realm:
+        return None
+    query = {
+        "service": params.get("service", registry),
+        "scope": params.get("scope", f"repository:{repository}:pull"),
+    }
+    url = f"{realm}?{urllib.parse.urlencode(query)}"
+    with urllib.request.urlopen(url, timeout=30) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    token = payload.get("token") or payload.get("access_token")
+    return str(token) if token else None
+
+
+def fetch_docker_tags(registry: str, repository: str, name_filter: str = "") -> list[str]:
     query = {"page_size": "100"}
     if name_filter:
         query["name"] = name_filter
@@ -420,6 +442,60 @@ def fetch_docker_tags(registry: str, repository: str, name_filter: str = "") -> 
         next_url = payload.get("next")
         url = str(next_url) if next_url else None
     return tags
+
+
+def parse_link_next(value: str | None) -> str | None:
+    if not value:
+        return None
+    for part in value.split(","):
+        url_part, sep, rel_part = part.partition(";")
+        if sep and 'rel="next"' in rel_part and url_part.strip().startswith("<") and url_part.strip().endswith(">"):
+            return url_part.strip()[1:-1]
+    return None
+
+
+def registry_request_json(url: str, registry: str, repository: str) -> tuple[dict[str, Any], str | None]:
+    headers = {"Accept": "application/json", "User-Agent": "edk2-cix-upstream-version-check"}
+
+    def request(extra_headers: dict[str, str] | None = None) -> urllib.response.addinfourl:
+        merged = dict(headers)
+        if extra_headers:
+            merged.update(extra_headers)
+        return urllib.request.urlopen(urllib.request.Request(url, headers=merged), timeout=30)
+
+    try:
+        response = request()
+    except urllib.error.HTTPError as exc:
+        if exc.code != 401:
+            raise ReconstructionError(f"container tag list unavailable for {repository}: {exc}") from exc
+        token = registry_bearer_token(exc.headers.get("WWW-Authenticate", ""), repository, registry)
+        if not token:
+            raise ReconstructionError(f"container registry authentication failed for {repository}") from exc
+        response = request({"Authorization": f"Bearer {token}"})
+    except urllib.error.URLError as exc:
+        raise ReconstructionError(f"container tag list unavailable for {repository}: {exc}") from exc
+
+    with response:
+        payload = json.loads(response.read().decode("utf-8"))
+        return payload, response.headers.get("Link")
+
+
+def fetch_oci_registry_tags(registry: str, repository: str) -> list[str]:
+    tags: list[str] = []
+    url: str | None = f"https://{registry}/v2/{repository}/tags/list?{urllib.parse.urlencode({'n': '1000'})}"
+    while url:
+        if url.startswith("/"):
+            url = f"https://{registry}{url}"
+        payload, link = registry_request_json(url, registry, repository)
+        tags.extend(str(tag) for tag in payload.get("tags", []) if tag)
+        url = parse_link_next(link)
+    return tags
+
+
+def fetch_container_tags(registry: str, repository: str, name_filter: str = "") -> list[str]:
+    if registry in {"registry-1.docker.io", "docker.io", "index.docker.io"}:
+        return fetch_docker_tags(registry, repository, name_filter)
+    return fetch_oci_registry_tags(registry, repository)
 
 
 def remote_docker_latest_tag(
@@ -441,9 +517,10 @@ def remote_docker_latest_tag(
     repository = str(entry.get("repository", ""))
     if not repository:
         raise ReconstructionError(f"{remote_key}: container-image remote requires a repository")
-    latest = latest_docker_tag_from_names(fetch_docker_tags(registry, repository, name_filter), tag_pattern)
+    latest = latest_docker_tag_from_names(fetch_container_tags(registry, repository, name_filter), tag_pattern)
     if latest is not None:
-        latest.label = f"{repository}:{latest.label}"
+        display_repository = repository if registry in {"registry-1.docker.io", "docker.io", "index.docker.io"} else f"{registry}/{repository}"
+        latest.label = f"{display_repository}:{latest.label}"
         if verbose:
             print(f"[upstream-version] {remote_key}: docker://{latest.version}")
     return latest

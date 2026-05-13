@@ -255,16 +255,16 @@
     },
     {
       "description": "Local act runner container image",
-      "id": "docker-catthehacker-ubuntu",
+      "id": "ghcr-catthehacker-ubuntu",
       "local": {
         "label_template": "{repository}:{version}",
         "path": "scripts/run_github_actions_with_act.sh",
-        "pattern": "default_runner_image=\"\\$\\{ACT_RUNNER_IMAGE:-\\$\\{EDK2_CIX_ACT_RUNNER_IMAGE:-(?P<repository>catthehacker/ubuntu):(?P<version>act-24\\.04-\\d{8})\\}\\}\"",
+        "pattern": "default_runner_image=\"\\$\\{ACT_RUNNER_IMAGE:-\\$\\{EDK2_CIX_ACT_RUNNER_IMAGE:-(?P<repository>ghcr\\.io/catthehacker/ubuntu):(?P<version>act-24\\.04-\\d{8})\\}\\}\"",
         "type": "file-regex"
       },
-      "remote": "docker-catthehacker-ubuntu",
+      "remote": "ghcr-catthehacker-ubuntu",
       "release": {
-        "description": "Latest catthehacker/ubuntu act 24.04 image tag",
+        "description": "Latest ghcr.io/catthehacker/ubuntu act 24.04 image tag",
         "kind": "docker_latest_tag",
         "mode": "advisory",
         "tag_name_filter": "act-24.04-",
