@@ -6,7 +6,7 @@ script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 act_bootstrap="${script_dir}/ensure_act.sh"
 act_cache_home="${EDK2_CIX_ACT_XDG_CACHE_HOME:-${repo_root}/.cache/edk2-cix/act-cache}"
-default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-catthehacker/ubuntu:act-latest@sha256:5aae110fc7ae93fb2b4b1a07d8acde4574ffc7235325f7acc13197f66f334c68}}"
+default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-catthehacker/ubuntu:act-24.04-20260508}}"
 
 detect_container_arch() {
     case "$(uname -m)" in
@@ -55,7 +55,7 @@ Environment:
   ACT_CONTAINER_ARCH=auto|<platform>
       Container architecture. Default: auto-detected from the host.
   ACT_RUNNER_IMAGE=<image>
-      Runner image for ubuntu-latest. Default: catthehacker/ubuntu:act-latest@sha256:5aae110fc7ae93fb2b4b1a07d8acde4574ffc7235325f7acc13197f66f334c68.
+      Runner image for ubuntu-latest. Default: catthehacker/ubuntu:act-24.04-20260508.
   ACT_EXTRA_ARGS=<args>
       Additional raw flags appended to act.
 EOF
