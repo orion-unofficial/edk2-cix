@@ -9,6 +9,9 @@ import os
 import re
 import tempfile
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -228,7 +231,9 @@ def local_file_regex(repo: Path, local: dict[str, Any]) -> LocalState:
     version_group = str(local.get("version_group", "version"))
     version = match.group(version_group)
     label = format_label(str(local.get("label_template", "{version}")), version, match)
-    return LocalState(label=label, version=normalise_version(version))
+    object_group = local.get("object_group")
+    object_id = match.group(str(object_group)) if object_group else None
+    return LocalState(label=label, version=normalise_version(version), object_id=object_id)
 
 
 def local_workflow_action_ref(repo: Path, local: dict[str, Any]) -> LocalState:
@@ -372,6 +377,99 @@ def latest_remote_subject(
     return None
 
 
+def docker_manifest_digest_from_snapshot(refs: list[RemoteRef], tag: str) -> LocalState | None:
+    ref = f"docker://{tag}"
+    for item in refs:
+        if item.ref == ref:
+            return LocalState(label=ref, version=tag, object_id=item.oid)
+    return None
+
+
+def parse_www_authenticate(value: str) -> dict[str, str]:
+    if not value.startswith("Bearer "):
+        return {}
+    params: dict[str, str] = {}
+    for match in re.finditer(r'([A-Za-z_][A-Za-z0-9_-]*)="([^"]*)"', value[len("Bearer ") :]):
+        params[match.group(1)] = match.group(2)
+    return params
+
+
+def docker_bearer_token(challenge: str, repository: str) -> str | None:
+    params = parse_www_authenticate(challenge)
+    realm = params.get("realm")
+    if not realm:
+        return None
+    query = {
+        "service": params.get("service", "registry.docker.io"),
+        "scope": params.get("scope", f"repository:{repository}:pull"),
+    }
+    url = f"{realm}?{urllib.parse.urlencode(query)}"
+    with urllib.request.urlopen(url, timeout=30) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    token = payload.get("token") or payload.get("access_token")
+    return str(token) if token else None
+
+
+def fetch_docker_manifest_digest(registry: str, repository: str, tag: str) -> str:
+    encoded_tag = urllib.parse.quote(tag, safe="")
+    url = f"https://{registry}/v2/{repository}/manifests/{encoded_tag}"
+    accept = ", ".join(
+        [
+            "application/vnd.oci.image.index.v1+json",
+            "application/vnd.docker.distribution.manifest.list.v2+json",
+            "application/vnd.oci.image.manifest.v1+json",
+            "application/vnd.docker.distribution.manifest.v2+json",
+        ]
+    )
+    headers = {"Accept": accept, "User-Agent": "edk2-cix-upstream-version-check"}
+
+    def request(extra_headers: dict[str, str] | None = None) -> urllib.response.addinfourl:
+        merged = dict(headers)
+        if extra_headers:
+            merged.update(extra_headers)
+        return urllib.request.urlopen(urllib.request.Request(url, headers=merged), timeout=30)
+
+    try:
+        response = request()
+    except urllib.error.HTTPError as exc:
+        if exc.code != 401:
+            raise ReconstructionError(f"container registry unavailable for {repository}:{tag}: {exc}") from exc
+        token = docker_bearer_token(exc.headers.get("WWW-Authenticate", ""), repository)
+        if not token:
+            raise ReconstructionError(f"container registry authentication failed for {repository}:{tag}") from exc
+        response = request({"Authorization": f"Bearer {token}"})
+
+    with response:
+        digest = response.headers.get("Docker-Content-Digest")
+        if not digest:
+            raise ReconstructionError(f"container registry did not return a manifest digest for {repository}:{tag}")
+        return digest
+
+
+def remote_docker_manifest_digest(
+    repo: Path,
+    remote_key: str,
+    tag: str,
+    snapshot: dict[str, list[RemoteRef]],
+    verbose: bool,
+) -> LocalState | None:
+    if remote_key in snapshot:
+        return docker_manifest_digest_from_snapshot(snapshot[remote_key], tag)
+
+    remotes = load_json(repo, "config/remotes.json").get("remotes", {})
+    entry = remotes.get(remote_key)
+    if not isinstance(entry, dict):
+        raise ReconstructionError(f"unknown remote key: {remote_key}")
+    registry = str(entry.get("registry", "registry-1.docker.io"))
+    repository = str(entry.get("repository", ""))
+    if not repository:
+        raise ReconstructionError(f"{remote_key}: container-image remote requires a repository")
+    digest = fetch_docker_manifest_digest(registry, repository, tag)
+    if verbose:
+        print(f"[upstream-version] {remote_key}: {digest} docker://{tag}")
+    return LocalState(label=f"{repository}:{tag}", version=tag, object_id=digest)
+
+
 def compare_tag(local: LocalState, remote: LocalState) -> tuple[str, str]:
     if local.version is None or remote.version is None:
         raise ReconstructionError("tag version comparison requires local and remote versions")
@@ -406,7 +504,7 @@ def comparison_items(check: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
     """Return release/commit comparisons for one configured source."""
 
     if "kind" in check:
-        label = "release" if check.get("kind") in {"latest_tag", "release_subject"} else "commits"
+        label = "release" if check.get("kind") in {"latest_tag", "release_subject", "docker_manifest_digest"} else "commits"
         merged = dict(check)
         merged.setdefault("comparison_id", str(check.get("id", "")))
         return [(label, merged)]
@@ -445,7 +543,7 @@ def evaluate_comparison(
     local = local_state(repo, comparison)
     remote_key = str(comparison["remote"])
     kind = comparison.get("kind")
-    if kind not in {"latest_tag", "branch_head", "release_subject"}:
+    if kind not in {"latest_tag", "branch_head", "release_subject", "docker_manifest_digest"}:
         raise ReconstructionError(f"{comparison_id}: unsupported version-check kind: {kind}")
     try:
         if kind == "latest_tag":
@@ -503,6 +601,27 @@ def evaluate_comparison(
                     "remote has no matching release subject",
                 )
             status, detail = compare_object(local, remote, "release commit")
+        elif kind == "docker_manifest_digest":
+            remote = remote_docker_manifest_digest(
+                repo,
+                remote_key,
+                str(comparison["tag"]),
+                snapshot,
+                verbose,
+            )
+            if remote is None:
+                return UpstreamVersionResult(
+                    check_id,
+                    comparison_id,
+                    kind_label,
+                    description,
+                    mode,
+                    "unavailable",
+                    local.label,
+                    f"docker://{comparison['tag']}",
+                    "remote has no matching container image digest",
+                )
+            status, detail = compare_object(local, remote, "remote image digest")
     except ReconstructionError as exc:
         return UpstreamVersionResult(
             check_id,

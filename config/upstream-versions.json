@@ -254,6 +254,24 @@
       }
     },
     {
+      "description": "Local act runner container image",
+      "id": "docker-catthehacker-ubuntu",
+      "local": {
+        "label_template": "{repository}:{version}@{object}",
+        "object_group": "object",
+        "path": "scripts/run_github_actions_with_act.sh",
+        "pattern": "default_runner_image=\"\\$\\{ACT_RUNNER_IMAGE:-\\$\\{EDK2_CIX_ACT_RUNNER_IMAGE:-(?P<repository>catthehacker/ubuntu):(?P<version>act-latest)@(?P<object>sha256:[0-9a-f]{64})\\}\\}\"",
+        "type": "file-regex"
+      },
+      "remote": "docker-catthehacker-ubuntu",
+      "release": {
+        "description": "Current catthehacker/ubuntu act-latest manifest digest",
+        "kind": "docker_manifest_digest",
+        "mode": "advisory",
+        "tag": "act-latest"
+      }
+    },
+    {
       "description": "Docs workflow Nix base image",
       "id": "nixos-nix",
       "local": {

@@ -878,10 +878,11 @@ unreleased commits may be noisy or transient.
 
 The same checker also reports advisory freshness for local build infrastructure
 pins such as the repo-managed `act` version, pinned GitHub Actions major
-versions, and the documentation workflow's Nix base image. The scheduled
-GitHub Actions workflow runs in `policy` mode and publishes a summary table.
-In that mode, stale checks marked `strict` in `config/upstream-versions.json`
-fail the workflow, while advisory checks report warnings without failing. Use
+versions, the digest-pinned local `act` runner container image, and the
+documentation workflow's Nix base image. The scheduled GitHub Actions workflow
+runs in `policy` mode and publishes a summary table. In that mode, stale
+checks marked `strict` in `config/upstream-versions.json` fail the workflow,
+while advisory checks report warnings without failing. Use
 `UPSTREAM_VERSION_MODE=strict` when you want any stale source or tooling pin to
 fail.
 

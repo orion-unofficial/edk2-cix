@@ -44,6 +44,13 @@
       "url": "https://github.com/cixtech/cix_opensource__arm-trusted-firmware.git",
       "vendor": "cix"
     },
+    "docker-catthehacker-ubuntu": {
+      "component": "ubuntu",
+      "registry": "registry-1.docker.io",
+      "repository": "catthehacker/ubuntu",
+      "type": "container-image",
+      "url": "https://hub.docker.com/r/catthehacker/ubuntu"
+    },
     "edk2": {
       "component": "edk2",
       "type": "upstream",

@@ -13,6 +13,7 @@ from check_upstream_versions import (
     compare_head,
     compare_tag,
     comparison_items,
+    docker_manifest_digest_from_snapshot,
     latest_remote_subject_from_snapshot,
     latest_remote_tag,
     local_file_regex,
@@ -139,7 +140,11 @@ def test_local_file_regex() -> None:
         root = Path(tmp)
         path = root / "scripts"
         path.mkdir()
-        (path / "ensure_act.sh").write_text('act_version="${EDK2_CIX_ACT_VERSION:-0.2.88}"\n', encoding="utf-8")
+        (path / "ensure_act.sh").write_text(
+            'default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-catthehacker/ubuntu:act-latest@sha256:abc123}}"\n'
+            'act_version="${EDK2_CIX_ACT_VERSION:-0.2.88}"\n',
+            encoding="utf-8",
+        )
         state = local_file_regex(
             root,
             {
@@ -148,8 +153,19 @@ def test_local_file_regex() -> None:
                 "label_template": "v{version}",
             },
         )
+        docker_state = local_file_regex(
+            root,
+            {
+                "path": "scripts/ensure_act.sh",
+                "pattern": r"(?P<repository>catthehacker/ubuntu):(?P<version>act-latest)@(?P<object>sha256:[0-9a-z]+)",
+                "label_template": "{repository}:{version}@{object}",
+                "object_group": "object",
+            },
+        )
     require(state.label == "v0.2.88", "expected formatted local label")
     require(state.version == "0.2.88", "expected normalized local version")
+    require(docker_state.label == "catthehacker/ubuntu:act-latest@sha256:abc123", "expected image label")
+    require(docker_state.object_id == "sha256:abc123", "expected image digest object")
 
 
 def test_local_workflow_action_ref() -> None:
@@ -168,6 +184,19 @@ def test_local_workflow_action_ref() -> None:
     require(state.version == "6", "expected normalized workflow action version")
 
 
+def test_docker_manifest_digest_snapshot() -> None:
+    latest = docker_manifest_digest_from_snapshot(
+        [
+            RemoteRef("sha256:old", "docker://act-22.04"),
+            RemoteRef("sha256:current", "docker://act-latest"),
+        ],
+        "act-latest",
+    )
+    require(latest is not None, "expected a docker snapshot digest")
+    require(latest.object_id == "sha256:current", "expected matching docker digest")
+    require(latest.label == "docker://act-latest", "expected docker snapshot label")
+
+
 def main() -> None:
     test_latest_remote_tag_prefers_peeled_commit()
     test_compare_tag_statuses()
@@ -178,6 +207,7 @@ def main() -> None:
     test_github_summary_table()
     test_local_file_regex()
     test_local_workflow_action_ref()
+    test_docker_manifest_digest_snapshot()
     print("check_upstream_versions tests passed")
 
 
