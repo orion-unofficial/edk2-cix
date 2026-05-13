@@ -15,6 +15,12 @@
       "url": "https://github.com/cixtech/bios.git",
       "vendor": "cix"
     },
+    "cix-edk2-non-osi-release": {
+      "component": "edk2-non-osi",
+      "type": "vendor-payload",
+      "url": "https://github.com/cixtech/cix_opensource__release__edk2-non-osi.git",
+      "vendor": "cix"
+    },
     "cix-op-tee": {
       "component": "op-tee",
       "type": "vendor-component",

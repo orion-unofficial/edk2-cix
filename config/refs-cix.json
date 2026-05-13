@@ -13,6 +13,15 @@
       "upstream_ref": "90f39f4469d39b3cd135ca8c5ae6400aca75b292"
     },
     {
+      "component": "bootloader1",
+      "file": "Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img",
+      "object_id": "3140811e6fd4f08fa064858168309f098381335b",
+      "ref": "source/component/cix/1.2/bootloader1",
+      "tree_id": "b093920d34dace37b6eed628bdb67e4363717df9",
+      "type": "vendor-payload",
+      "upstream_ref": "3140811e6fd4f08fa064858168309f098381335b"
+    },
+    {
       "component": "op-tee",
       "object_id": "cc66640f3815da4defc50f72b66ae3bac97cd48a",
       "ref": "source/component/cix/1.2/op-tee",

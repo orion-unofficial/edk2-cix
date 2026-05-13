@@ -3,7 +3,20 @@
 
 from __future__ import annotations
 
-from check_upstream_versions import LocalState, RemoteRef, compare_head, compare_tag, comparison_items, latest_remote_tag
+import tempfile
+from pathlib import Path
+
+from check_upstream_versions import (
+    LocalState,
+    RemoteRef,
+    UpstreamVersionResult,
+    compare_head,
+    compare_tag,
+    comparison_items,
+    latest_remote_subject_from_snapshot,
+    latest_remote_tag,
+    write_github_summary,
+)
 from test_support import require
 
 
@@ -71,11 +84,62 @@ def test_grouped_comparison_items() -> None:
     require(items[1][1]["local"] == {"type": "edk2-release"}, "grouped comparison should inherit local state")
 
 
+def test_grouped_release_subject_comparison_items() -> None:
+    check = {
+        "id": "cix-bios",
+        "local": {"component": "bios", "type": "cix-component-ref"},
+        "release": {
+            "kind": "release_subject",
+            "ref": "refs/heads/cix_p1_community_dev",
+            "subject_pattern": "release-regex",
+        },
+    }
+    items = comparison_items(check)
+    require([label for label, _item in items] == ["release"], "release_subject should still be a release check")
+    require(items[0][1]["kind"] == "release_subject", "release_subject kind should be preserved")
+
+
+def test_latest_remote_subject_snapshot() -> None:
+    refs = [
+        RemoteRef("daily", "refs/heads/cix_p1_dev", "daily development"),
+        RemoteRef("release-2", "refs/heads/cix_p1_dev~1", "P1 GA 2026Q2 [COMMUNITY] RELEASE"),
+        RemoteRef("release-1", "refs/heads/cix_p1_dev~2", "P1 GA 2026Q1 [COMMUNITY] RELEASE"),
+    ]
+    latest = latest_remote_subject_from_snapshot(refs, "refs/heads/cix_p1_dev", r"^P1 GA .* \[COMMUNITY\] RELEASE$")
+    require(latest is not None, "expected a matching release subject")
+    require(latest.object_id == "release-2", "expected the newest matching release subject")
+    require(latest.label == "P1 GA 2026Q2 [COMMUNITY] RELEASE", "expected release subject label")
+
+
+def test_github_summary_table() -> None:
+    result = UpstreamVersionResult(
+        source_id="cix-bootloader1",
+        check_id="cix-bootloader1:release",
+        kind="release",
+        description="Latest CIX bootloader1 release commit",
+        mode="advisory",
+        status="current",
+        local="cix-1.2/bootloader1",
+        remote="P1 GA 2026Q2 [COMMUNITY] RELEASE",
+        detail="local record matches release commit",
+    )
+    with tempfile.TemporaryDirectory(prefix="check-upstream-versions-test-") as tmp:
+        path = Path(tmp) / "summary.md"
+        write_github_summary([result], path)
+        summary = path.read_text(encoding="utf-8")
+    require("| Source | Check | Status | Policy | Local | Remote | Detail |" in summary, "expected summary table header")
+    require("cix-bootloader1" in summary, "expected source ID in summary")
+    require("P1 GA 2026Q2 [COMMUNITY] RELEASE" in summary, "expected release subject in summary")
+
+
 def main() -> None:
     test_latest_remote_tag_prefers_peeled_commit()
     test_compare_tag_statuses()
     test_compare_head_statuses()
     test_grouped_comparison_items()
+    test_grouped_release_subject_comparison_items()
+    test_latest_remote_subject_snapshot()
+    test_github_summary_table()
     print("check_upstream_versions tests passed")
 
 

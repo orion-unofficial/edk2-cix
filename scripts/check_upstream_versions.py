@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -48,19 +49,21 @@ Optional variables:
       Limit checks to the named source IDs, or to source:release/source:commits
       comparison IDs.
   UPSTREAM_VERSION_FORMAT=text|github|json
-      Output format. github emits workflow annotations.
+      Output format. github emits workflow annotations and, when available,
+      writes a GitHub job summary table.
       Default: text
   UPSTREAM_VERSION_SNAPSHOT=<path>
-      Offline ls-remote snapshot for tests.
+      Offline remote-ref snapshot for tests.
   V=0|1
       Show checked remote refs.
 
 Each configured source can report two independent signals:
   release
-      Whether a newer release tag exists than the recorded source branch.
+      Whether a newer release tag or release-labelled commit exists than the
+      recorded source branch.
   commits
       Whether the tracked upstream branch head differs from the recorded source
-      source branch. This is usually advisory because unreleased commits are less
+      branch. This is usually advisory because unreleased commits are less
       significant than tagged releases.
 """
 
@@ -69,6 +72,7 @@ Each configured source can report two independent signals:
 class RemoteRef:
     oid: str
     ref: str
+    subject: str = ""
 
 
 @dataclass
@@ -111,7 +115,7 @@ def load_snapshot(path: str) -> dict[str, list[RemoteRef]]:
         refs: list[RemoteRef] = []
         for entry in entries:
             if isinstance(entry, dict):
-                refs.append(RemoteRef(str(entry["oid"]), str(entry["ref"])))
+                refs.append(RemoteRef(str(entry["oid"]), str(entry["ref"]), str(entry.get("subject", ""))))
             else:
                 oid, ref = entry
                 refs.append(RemoteRef(str(oid), str(ref)))
@@ -260,6 +264,66 @@ def remote_branch_head(refs: list[RemoteRef], ref: str) -> LocalState | None:
     return None
 
 
+def latest_remote_subject_from_snapshot(refs: list[RemoteRef], ref: str, pattern: str) -> LocalState | None:
+    regex = re.compile(pattern)
+    historical_prefix = f"{ref}~"
+    for item in refs:
+        if item.ref != ref and not item.ref.startswith(historical_prefix):
+            continue
+        if not item.subject:
+            continue
+        if regex.match(item.subject):
+            return LocalState(label=item.subject, object_id=item.oid)
+    return None
+
+
+def latest_remote_subject(
+    repo: Path,
+    remote_key: str,
+    ref: str,
+    pattern: str,
+    scan_depth: int,
+    snapshot: dict[str, list[RemoteRef]],
+    verbose: bool,
+) -> LocalState | None:
+    if remote_key in snapshot:
+        return latest_remote_subject_from_snapshot(snapshot[remote_key], ref, pattern)
+
+    if scan_depth <= 0:
+        raise ReconstructionError(f"{remote_key}: release_subject scan_depth must be greater than zero")
+
+    regex = re.compile(pattern)
+    url = configured_remote_url(repo, remote_key=remote_key)
+    with tempfile.TemporaryDirectory(prefix=f"upstream-version-{remote_key}-") as tmp:
+        work = Path(tmp)
+        run(["git", "init", "--quiet", str(work)])
+        result = run(["git", "-C", str(work), "fetch", "--quiet", "--depth", str(scan_depth), url, ref], check=False)
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            raise ReconstructionError(f"remote unavailable for {remote_key}: {detail or url}")
+        log = run(
+            [
+                "git",
+                "-C",
+                str(work),
+                "log",
+                "--format=%H%x00%s",
+                f"-n{scan_depth}",
+                "FETCH_HEAD",
+            ]
+        )
+
+    for line in log.stdout.splitlines():
+        if "\x00" not in line:
+            continue
+        oid, subject = line.split("\x00", 1)
+        if verbose:
+            print(f"[upstream-version] {remote_key}: {oid} {ref} {subject}")
+        if regex.match(subject):
+            return LocalState(label=subject, object_id=oid)
+    return None
+
+
 def compare_tag(local: LocalState, remote: LocalState) -> tuple[str, str]:
     if local.version is None or remote.version is None:
         raise ReconstructionError("tag version comparison requires local and remote versions")
@@ -282,11 +346,19 @@ def compare_head(local: LocalState, remote: LocalState) -> tuple[str, str]:
     return "current", "local record matches remote branch head"
 
 
+def compare_object(local: LocalState, remote: LocalState, remote_label: str) -> tuple[str, str]:
+    if not local.object_id:
+        return "unknown", f"local {local.label} has no recorded upstream object"
+    if remote.object_id != local.object_id:
+        return "stale", f"{remote_label} is {remote.object_id}, local records {local.object_id}"
+    return "current", f"local record matches {remote_label}"
+
+
 def comparison_items(check: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
     """Return release/commit comparisons for one configured source."""
 
     if "kind" in check:
-        label = "release" if check.get("kind") == "latest_tag" else "commits"
+        label = "release" if check.get("kind") in {"latest_tag", "release_subject"} else "commits"
         merged = dict(check)
         merged.setdefault("comparison_id", str(check.get("id", "")))
         return [(label, merged)]
@@ -324,8 +396,65 @@ def evaluate_comparison(
     mode = str(comparison.get("mode", check.get("mode", "advisory")))
     local = local_state(repo, comparison)
     remote_key = str(comparison["remote"])
+    kind = comparison.get("kind")
+    if kind not in {"latest_tag", "branch_head", "release_subject"}:
+        raise ReconstructionError(f"{comparison_id}: unsupported version-check kind: {kind}")
     try:
-        refs = ls_remote(repo, remote_key, snapshot, verbose)
+        if kind == "latest_tag":
+            refs = ls_remote(repo, remote_key, snapshot, verbose)
+            remote = latest_remote_tag(refs, str(comparison["tag_pattern"]))
+            if remote is None:
+                return UpstreamVersionResult(
+                    check_id,
+                    comparison_id,
+                    kind_label,
+                    description,
+                    mode,
+                    "unavailable",
+                    local.label,
+                    "<no matching tag>",
+                    "remote has no matching tags",
+                )
+            status, detail = compare_tag(local, remote)
+        elif kind == "branch_head":
+            refs = ls_remote(repo, remote_key, snapshot, verbose)
+            remote = remote_branch_head(refs, str(comparison["ref"]))
+            if remote is None:
+                return UpstreamVersionResult(
+                    check_id,
+                    comparison_id,
+                    kind_label,
+                    description,
+                    mode,
+                    "unavailable",
+                    local.label,
+                    str(comparison["ref"]),
+                    "remote has no matching branch",
+                )
+            status, detail = compare_head(local, remote)
+        elif kind == "release_subject":
+            remote = latest_remote_subject(
+                repo,
+                remote_key,
+                str(comparison["ref"]),
+                str(comparison["subject_pattern"]),
+                int(comparison.get("scan_depth", 64)),
+                snapshot,
+                verbose,
+            )
+            if remote is None:
+                return UpstreamVersionResult(
+                    check_id,
+                    comparison_id,
+                    kind_label,
+                    description,
+                    mode,
+                    "unavailable",
+                    local.label,
+                    "<no matching release subject>",
+                    "remote has no matching release subject",
+                )
+            status, detail = compare_object(local, remote, "release commit")
     except ReconstructionError as exc:
         return UpstreamVersionResult(
             check_id,
@@ -338,40 +467,6 @@ def evaluate_comparison(
             "<unavailable>",
             str(exc),
         )
-
-    kind = comparison.get("kind")
-    if kind == "latest_tag":
-        remote = latest_remote_tag(refs, str(comparison["tag_pattern"]))
-        if remote is None:
-            return UpstreamVersionResult(
-                check_id,
-                comparison_id,
-                kind_label,
-                description,
-                mode,
-                "unavailable",
-                local.label,
-                "<no matching tag>",
-                "remote has no matching tags",
-            )
-        status, detail = compare_tag(local, remote)
-    elif kind == "branch_head":
-        remote = remote_branch_head(refs, str(comparison["ref"]))
-        if remote is None:
-            return UpstreamVersionResult(
-                check_id,
-                comparison_id,
-                kind_label,
-                description,
-                mode,
-                "unavailable",
-                local.label,
-                str(comparison["ref"]),
-                "remote has no matching branch",
-            )
-        status, detail = compare_head(local, remote)
-    else:
-        raise ReconstructionError(f"{comparison_id}: unsupported version-check kind: {kind}")
 
     return UpstreamVersionResult(
         check_id,
@@ -400,6 +495,43 @@ def github_escape(value: str) -> str:
     return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A").replace(":", "%3A").replace(",", "%2C")
 
 
+def markdown_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("|", "\\|").replace("\r\n", "\n").replace("\n", "<br>")
+
+
+def write_github_summary(results: list[UpstreamVersionResult], path: str | Path) -> None:
+    lines = ["## Upstream Version Check", ""]
+    if not results:
+        lines.append("No upstream version checks were selected.")
+    else:
+        lines.extend(
+            [
+                "| Source | Check | Status | Policy | Local | Remote | Detail |",
+                "| --- | --- | --- | --- | --- | --- | --- |",
+            ]
+        )
+        for result in results:
+            lines.append(
+                "| "
+                + " | ".join(
+                    markdown_escape(value)
+                    for value in (
+                        result.source_id,
+                        result.kind,
+                        result.status,
+                        result.mode,
+                        result.local,
+                        result.remote,
+                        result.detail,
+                    )
+                )
+                + " |"
+            )
+    with Path(path).open("a", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+        f.write("\n")
+
+
 def print_text(results: list[UpstreamVersionResult]) -> None:
     print("Upstream Versions")
     current_source = ""
@@ -415,6 +547,9 @@ def print_text(results: list[UpstreamVersionResult]) -> None:
 
 def print_github(results: list[UpstreamVersionResult]) -> None:
     print_text(results)
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary_path:
+        write_github_summary(results, summary_path)
     for result in results:
         if result.status in {"current", "ahead"}:
             continue

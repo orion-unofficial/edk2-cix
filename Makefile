@@ -301,8 +301,8 @@ help-dev-verify:
 	print_help_variable 'SCAN_SOURCE_REFS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
 	print_help_variable 'UPSTREAM_VERSION_MODE=advisory|policy|strict' 'Version-check failure mode. advisory never fails on stale remotes; policy fails checks marked strict; strict fails any stale or unavailable check.\nDefault: policy.'; \
 	print_help_variable 'UPSTREAM_VERSION_ONLY=<id[,id...]>' 'Optional comma-separated source IDs, or source:release/source:commits comparison IDs, for check-upstream-versions.'; \
-	print_help_variable 'UPSTREAM_VERSION_FORMAT=text|github|json' 'Upstream versions output format. github emits workflow annotations.\nDefault: text.'; \
-	print_help_variable 'UPSTREAM_VERSION_SNAPSHOT=<path>' 'Offline git ls-remote snapshot for upstream version tests.\nDefault: unset.'; \
+	print_help_variable 'UPSTREAM_VERSION_FORMAT=text|github|json' 'Upstream versions output format. github emits workflow annotations and a job summary table when available.\nDefault: text.'; \
+	print_help_variable 'UPSTREAM_VERSION_SNAPSHOT=<path>' 'Offline remote-ref snapshot for upstream version tests.\nDefault: unset.'; \
 	print_help_variable 'WRITE=0|1' 'For refresh-source-metadata. Required before config metadata or requested release tags are updated.\nDefault: 0.'; \
 	print_help_variable 'RENDER_GENERATED=0|1' 'For check-source-metadata and refresh-source-metadata. Re-render generated source/cache/release entries whose tree cannot be derived directly from retained source refs. Use 1 for full post-rewrite cache regeneration.\nDefault: 0.'; \
 	print_help_variable 'UPDATE_RELEASE_TAGS=0|1' 'For check-source-metadata and refresh-source-metadata. Include refs/tags/source/unofficial/edk2/stable-* in the check or refresh.\nDefault: 0.'; \

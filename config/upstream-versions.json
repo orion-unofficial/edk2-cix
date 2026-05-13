@@ -49,14 +49,34 @@
       },
       "remote": "cix-bios",
       "release": {
-        "description": "Latest CIX bios release tag",
+        "description": "Latest CIX bios community release commit",
+        "kind": "release_subject",
         "mode": "advisory",
-        "tag_pattern": "^refs/tags/v(?P<version>\\d+\\.\\d+(?:\\.\\d+)?)$"
+        "ref": "refs/heads/cix_p1_community_dev",
+        "scan_depth": 64,
+        "subject_pattern": "^CIX P1 BIOS Community V(?P<version>\\d+(?:\\.\\d+)*) base on O6 Ecosystem Board$"
       },
       "commits": {
         "description": "CIX bios development branch head",
         "mode": "strict",
         "ref": "refs/heads/cix_p1_community_dev"
+      }
+    },
+    {
+      "description": "CIX bootloader1 release payload",
+      "id": "cix-bootloader1",
+      "local": {
+        "component": "bootloader1",
+        "type": "cix-component-ref"
+      },
+      "remote": "cix-edk2-non-osi-release",
+      "release": {
+        "description": "Latest CIX bootloader1 release commit",
+        "kind": "release_subject",
+        "mode": "advisory",
+        "ref": "refs/heads/cix_p1_dev",
+        "scan_depth": 128,
+        "subject_pattern": "^(?:CIX )?P1 GA .*(?: \\[COMMUNITY\\])? RELEASE$"
       }
     },
     {

@@ -870,12 +870,14 @@ make check-upstream-versions UPSTREAM_VERSION_ONLY=edk2,radxa
 make check-upstream-versions UPSTREAM_VERSION_ONLY=edk2:release
 ```
 
-Each source reports release-tag freshness separately from branch-head commit
-drift. Tagged release drift is the important signal for most sources.
-Branch-head drift is usually advisory because unreleased commits may be noisy
-or transient. The scheduled GitHub Actions workflow runs in `policy` mode. In
-that mode, stale checks marked `strict` in `config/upstream-versions.json` fail
-the workflow, while advisory checks report warnings without failing. Use
+Each source reports release freshness separately from branch-head commit drift.
+Most sources use tags for releases; CIX sources that publish release-labelled
+commits instead are matched by commit subject. Release drift is the important
+signal for most sources. Branch-head drift is usually advisory because
+unreleased commits may be noisy or transient. The scheduled GitHub Actions
+workflow runs in `policy` mode and publishes a summary table. In that mode,
+stale checks marked `strict` in `config/upstream-versions.json` fail the
+workflow, while advisory checks report warnings without failing. Use
 `UPSTREAM_VERSION_MODE=strict` when you want any stale source to fail.
 
 To try GitHub Actions locally with `act`:
