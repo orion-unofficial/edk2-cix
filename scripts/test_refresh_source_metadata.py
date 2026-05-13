@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from test_support import commit_all, git, load_json, require, rev_parse, run, switch_orphan, write_file
+from test_support import commit_all, git, load_function_tests, load_json, require, rev_parse, run, switch_orphan, write_file
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -210,6 +210,10 @@ def main() -> None:
     test_full_render_does_not_trust_existing_generated_cache_ref()
     test_refresh_repairs_hashes_cache_trees_and_tags()
     print("refresh_source_metadata tests passed")
+
+
+def load_tests(loader, tests, pattern):
+    return load_function_tests(globals())
 
 
 if __name__ == "__main__":

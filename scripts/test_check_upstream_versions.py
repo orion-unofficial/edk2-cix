@@ -17,7 +17,7 @@ from check_upstream_versions import (
     latest_remote_tag,
     write_github_summary,
 )
-from test_support import require
+from test_support import load_function_tests, require
 
 
 def test_latest_remote_tag_prefers_peeled_commit() -> None:
@@ -141,6 +141,10 @@ def main() -> None:
     test_latest_remote_subject_snapshot()
     test_github_summary_table()
     print("check_upstream_versions tests passed")
+
+
+def load_tests(loader, tests, pattern):
+    return load_function_tests(globals())
 
 
 if __name__ == "__main__":

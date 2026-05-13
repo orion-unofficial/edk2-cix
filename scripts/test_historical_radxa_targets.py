@@ -8,7 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from test_support import commit_all, git, require, switch_orphan, write_file
+from test_support import commit_all, git, load_function_tests, require, switch_orphan, write_file
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -191,6 +191,10 @@ def main() -> None:
     test_historical_upstream_target_overlays_build_infrastructure_only()
     test_integrate_source_release_make_target_preserves_materialise_default()
     print("historical Radxa target tests passed")
+
+
+def load_tests(loader, tests, pattern):
+    return load_function_tests(globals())
 
 
 if __name__ == "__main__":

@@ -7,6 +7,8 @@ import json
 import subprocess
 from pathlib import Path
 
+from test_support import load_function_tests
+
 
 def repo_root() -> Path:
     result = subprocess.run(
@@ -51,6 +53,10 @@ def main() -> None:
         raise SystemExit("warm help-cache lookup unexpectedly refreshed cache")
     if second.stdout != first.stdout:
         raise SystemExit("warm help-cache lookup changed default source target")
+
+
+def load_tests(loader, tests, pattern):
+    return load_function_tests(globals())
 
 
 if __name__ == "__main__":

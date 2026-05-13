@@ -15,7 +15,7 @@ from source_lifecycle import (
     normalise_overlay_lifecycle,
     project_overlay_tree,
 )
-from test_support import commit_all, git, require, switch_orphan, write_file
+from test_support import commit_all, git, load_function_tests, require, switch_orphan, write_file
 
 
 def make_repo() -> Path:
@@ -300,6 +300,10 @@ def main() -> None:
     test_normalise_exact_regular_overlay_rename()
     test_normalisation_blockers_respect_modes()
     print("source_lifecycle tests passed")
+
+
+def load_tests(loader, tests, pattern):
+    return load_function_tests(globals())
 
 
 if __name__ == "__main__":

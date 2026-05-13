@@ -13,6 +13,7 @@ from test_support import (
     commit_all,
     conflicted_scratch,
     git,
+    load_function_tests,
     require,
     rev_parse,
     run,
@@ -539,6 +540,10 @@ def main() -> None:
     test_abort_removes_paused_operation_without_moving_refs()
     test_concurrent_ref_movement_aborts_finalise()
     print("import_unofficial_commits tests passed")
+
+
+def load_tests(loader, tests, pattern):
+    return load_function_tests(globals())
 
 
 if __name__ == "__main__":

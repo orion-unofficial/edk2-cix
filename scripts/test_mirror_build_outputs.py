@@ -7,6 +7,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from test_support import load_function_tests
+
 
 def repo_root() -> Path:
     result = subprocess.run(
@@ -108,6 +110,10 @@ def main() -> None:
         run_mirror(repo, worktree, dist)
         if (raw_root / "stale.txt").exists():
             raise SystemExit("raw mirror destination retained a stale file")
+
+
+def load_tests(loader, tests, pattern):
+    return load_function_tests(globals())
 
 
 if __name__ == "__main__":

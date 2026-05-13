@@ -75,15 +75,7 @@ def lint() -> None:
 
 def test() -> None:
     run(["python3", "-m", "py_compile", *git_files("scripts/*.py")])
-    run(["python3", "scripts/test_check_upstream_versions.py"])
-    run(["python3", "scripts/test_help_cache.py"])
-    run(["python3", "scripts/test_historical_radxa_targets.py"])
-    run(["python3", "scripts/test_mirror_build_outputs.py"])
-    run(["python3", "scripts/test_import_changes.py"])
-    run(["python3", "scripts/test_import_unofficial_commits.py"])
-    run(["python3", "scripts/test_refresh_source_metadata.py"])
-    run(["python3", "scripts/test_source_lifecycle.py"])
-    run(["python3", "scripts/test_source_policy.py"])
+    run(["python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py"])
     run(["make", "verify-build-matrix", "--no-print-directory"])
     run(["make", "verify-manifest-integrity", "--no-print-directory"])
     run(["make", "verify-source-policy", "--no-print-directory"])

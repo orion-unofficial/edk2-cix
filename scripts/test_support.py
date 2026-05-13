@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import subprocess
+import unittest
 from pathlib import Path
 from typing import Any
 
@@ -82,3 +83,31 @@ def conflicted_scratch(op_dir: Path) -> Path:
 
 def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_function_tests(module_globals: dict[str, Any]) -> unittest.TestSuite:
+    """Expose script-style tests to unittest discovery.
+
+    Build-branch tests predate unittest discovery and are also useful as direct
+    scripts. This keeps the direct script entry points intact while letting
+    `python3 -m unittest discover -s scripts -p 'test_*.py'` find the same
+    checks.
+    """
+
+    suite = unittest.TestSuite()
+    module_name = module_globals.get("__name__")
+    discovered = False
+
+    for name, value in module_globals.items():
+        if not name.startswith("test_") or not callable(value):
+            continue
+        if getattr(value, "__module__", None) != module_name:
+            continue
+        suite.addTest(unittest.FunctionTestCase(value, description=name))
+        discovered = True
+
+    main = module_globals.get("main")
+    if not discovered and callable(main):
+        suite.addTest(unittest.FunctionTestCase(main, description="main"))
+
+    return suite

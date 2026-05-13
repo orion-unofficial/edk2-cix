@@ -10,7 +10,7 @@ from pathlib import Path
 
 from reconstruction_common import ReconstructionError
 from source_policy import enforce_source_tree_policy
-from test_support import git, require, write_file
+from test_support import git, load_function_tests, require, write_file
 
 
 def make_repo() -> Path:
@@ -100,6 +100,10 @@ def main() -> None:
     test_matching_overlay_symlink_is_allowed()
     test_bad_overlay_symlink_target_is_rejected()
     print("source_policy tests passed")
+
+
+def load_tests(loader, tests, pattern):
+    return load_function_tests(globals())
 
 
 if __name__ == "__main__":

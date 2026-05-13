@@ -13,6 +13,7 @@ from test_support import (
     commit_all,
     conflicted_scratch,
     git,
+    load_function_tests,
     require,
     rev_parse,
     run,
@@ -1093,6 +1094,10 @@ def main() -> None:
     test_numeric_op_id_prefix_must_be_unique()
     test_current_import_can_be_propagated_later_without_base_ref()
     print("import_changes tests passed")
+
+
+def load_tests(loader, tests, pattern):
+    return load_function_tests(globals())
 
 
 if __name__ == "__main__":
