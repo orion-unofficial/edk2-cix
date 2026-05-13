@@ -15,6 +15,7 @@ from reconstruction_common import (
     ReconstructionError,
     alias_target_for,
     clear_metadata_caches,
+    entry_can_use_source_ref_directly,
     format_duration,
     format_manifest_value,
     git,
@@ -195,7 +196,7 @@ def computed_source_target_tree(
 ) -> tuple[str | None, str]:
     parts = release_branch_parts(ref)
     stage = parts["stage"]
-    if stage in {"custom", "upstream"}:
+    if stage in {"custom", "upstream"} and entry_can_use_source_ref_directly(entry):
         direct = source_ref_tree(repo, entry)
         if direct:
             return direct, "source-ref"

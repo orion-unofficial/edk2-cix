@@ -57,7 +57,21 @@ def make_repo() -> Path:
     create_branch(repo, "source/component/cix/1.2/op-tee", {"op-tee.txt": "new op-tee\n"}, "cix op-tee")
     create_branch(repo, "source/component/cix/1.2/bios", {"bios.txt": "bios\n"}, "cix bios")
     current = create_branch(repo, "source/unofficial/current", {"src/current.txt": "current\n"}, "current unofficial")
-    release = create_branch(repo, "source/unofficial/edk2-stable202208", {"src/current.txt": "release\n"}, "release unofficial")
+    release = create_branch(repo, "source/unofficial/edk2-stable202208", {
+        "scripts/ensure_build_deps.sh": (
+            "common_packages=(\n"
+            "    python3\n"
+            "    python3-cryptography\n"
+            ")\n"
+        ),
+        "src/Makefile": (
+            "PATCHED_EDK2_SOURCE_INPUTS := \\\n"
+            "\t$(abspath missing-custom-source.c)\n"
+            "\t\t\tupstream) \\\n"
+            "\t\t\t\t;; \\\n"
+        ),
+        "src/current.txt": "release\n",
+    }, "release unofficial")
     git(repo, "tag", "source/unofficial/edk2/stable-202208", current)
 
     git(repo, "switch", "build")

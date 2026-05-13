@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -20,6 +21,7 @@ from reconstruction_common import (
     main_wrapper,
     read_delta_artefact_metadata,
     default_release,
+    entry_can_use_source_ref_directly,
     refresh_release_tree,
     ref_exists,
     release_entries,
@@ -158,6 +160,106 @@ def replace_component_path(repo: Path, worktree: Path, path: str, ref: str, verb
     git(worktree, "read-tree", f"--prefix={clean_path}/", "-u", resolved_ref, capture=not verbose)
 
 
+def overlay_paths_from_ref(repo: Path, worktree: Path, ref: str, paths: list[str], missing: str, verbose: bool) -> None:
+    resolved_ref = resolve_ref(repo, ref)
+    for path in paths:
+        clean_path = path.strip("/")
+        if not clean_path:
+            raise ReconstructionError("overlay path must not be empty")
+        if git(repo, "cat-file", "-e", f"{resolved_ref}:{clean_path}", check=False).returncode != 0:
+            if missing == "ignore":
+                continue
+            raise ReconstructionError(f"overlay path is missing from {ref}: {clean_path}")
+        if verbose:
+            print(f"Overlaying {clean_path} from {ref}", file=sys.stderr)
+        git(worktree, "rm", "-r", "--ignore-unmatch", "--", clean_path, capture=not verbose)
+        git(worktree, "checkout", resolved_ref, "--", clean_path, capture=not verbose)
+
+
+def make_prereqs_optional(worktree: Path, path: str, variable: str, verbose: bool) -> None:
+    clean_path = path.strip("/")
+    if not clean_path:
+        raise ReconstructionError("make prerequisite path must not be empty")
+    makefile = worktree / clean_path
+    if not makefile.exists():
+        raise ReconstructionError(f"make prerequisite file does not exist: {clean_path}")
+    lines = makefile.read_text(encoding="utf-8").splitlines(keepends=True)
+    in_variable = False
+    changed = False
+    rewritten: list[str] = []
+    pattern = re.compile(r"^(\s*)\$\((abspath\s+[^)]+)\)(\s*\\?\s*)$")
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith(f"{variable} :="):
+            in_variable = True
+            rewritten.append(line)
+            continue
+        if in_variable:
+            match = pattern.match(line.rstrip("\n"))
+            if match and "$(wildcard " not in line:
+                newline = "\n" if line.endswith("\n") else ""
+                rewritten.append(f"{match.group(1)}$(wildcard $({match.group(2)})){match.group(3)}{newline}")
+                changed = True
+            else:
+                rewritten.append(line)
+            if not line.rstrip().endswith("\\"):
+                in_variable = False
+            continue
+        rewritten.append(line)
+    if changed:
+        if verbose:
+            print(f"Relaxing missing {variable} prerequisites in {clean_path}", file=sys.stderr)
+        makefile.write_text("".join(rewritten), encoding="utf-8")
+        git(worktree, "add", "--", clean_path, capture=not verbose)
+
+
+def add_dependency_package(worktree: Path, path: str, after: str, package: str, verbose: bool) -> None:
+    clean_path = path.strip("/")
+    if not clean_path:
+        raise ReconstructionError("dependency compatibility path must not be empty")
+    script = worktree / clean_path
+    if not script.exists():
+        raise ReconstructionError(f"dependency compatibility file does not exist: {clean_path}")
+    text = script.read_text(encoding="utf-8")
+    if re.search(rf"^\s*{re.escape(package)}\s*$", text, flags=re.MULTILINE):
+        return
+    marker = f"    {after}\n"
+    if marker not in text:
+        raise ReconstructionError(f"could not locate dependency insertion point {after!r} in {clean_path}")
+    if verbose:
+        print(f"Adding dependency compatibility package {package} to {clean_path}", file=sys.stderr)
+    script.write_text(text.replace(marker, f"{marker}    {package}\n", 1), encoding="utf-8")
+    git(worktree, "add", "--", clean_path, capture=not verbose)
+
+
+def add_vendor_asl_compat(worktree: Path, path: str, messages: list[str], verbose: bool) -> None:
+    clean_path = path.strip("/")
+    if not clean_path:
+        raise ReconstructionError("ASL compatibility path must not be empty")
+    makefile = worktree / clean_path
+    if not makefile.exists():
+        raise ReconstructionError(f"ASL compatibility file does not exist: {clean_path}")
+    flags = " ".join(f"-vw {message}" for message in messages)
+    text = makefile.read_text(encoding="utf-8")
+    if flags in text:
+        return
+    old = "\t\t\tupstream) \\\n\t\t\t\t;; \\\n"
+    new = (
+        "\t\t\tupstream) \\\n"
+        "\t\t\t\ttool_def_overrides+=( \\\n"
+        f"\t\t\t\t\t'  DEBUG_GCC5_AARCH64_ASL_FLAGS   = {flags}' \\\n"
+        f"\t\t\t\t\t'RELEASE_GCC5_AARCH64_ASL_FLAGS   = {flags}' \\\n"
+        "\t\t\t\t); \\\n"
+        "\t\t\t\t;; \\\n"
+    )
+    if old not in text:
+        raise ReconstructionError(f"could not locate upstream ASL flag block in {clean_path}")
+    if verbose:
+        print(f"Adding historical vendor ASL compatibility flags to {clean_path}", file=sys.stderr)
+    makefile.write_text(text.replace(old, new, 1), encoding="utf-8")
+    git(worktree, "add", "--", clean_path, capture=not verbose)
+
+
 def gitlinks(worktree: Path) -> list[dict[str, str]]:
     entries: list[dict[str, str]] = []
     for line in git(worktree, "ls-files", "-s").stdout.splitlines():
@@ -267,6 +369,22 @@ def commit_rendered_worktree(repo: Path, worktree: Path, branch: str, entry: dic
             elif "component" in step:
                 component = step["component"]
                 trailers.append(f"Source-Component: {component['path']}={component['ref']}")
+            elif "overlay_paths" in step:
+                overlay = step["overlay_paths"]
+                trailers.append(f"Source-Overlay: {','.join(overlay.get('paths', []))}={overlay.get('ref', '')}")
+            elif "make_optional_prereqs" in step:
+                prereqs = step["make_optional_prereqs"]
+                trailers.append(f"Source-Build-Compat: optional {prereqs.get('variable', '')} in {prereqs.get('path', '')}")
+            elif "vendor_dependency_compat" in step:
+                compat = step["vendor_dependency_compat"]
+                trailers.append(
+                    f"Source-Build-Compat: dependency {compat.get('package', '')} in {compat.get('path', '')}"
+                )
+            elif "vendor_asl_compat" in step:
+                compat = step["vendor_asl_compat"]
+                trailers.append(
+                    f"Source-Build-Compat: historical ASL messages {','.join(compat.get('messages', []))} in {compat.get('path', '')}"
+                )
     else:
         for delta_ref in render.get("deltas", []):
             trailers.append(f"Source-Delta: {delta_ref}")
@@ -297,6 +415,41 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_
                     elif "component" in step:
                         component = step["component"]
                         replace_component_path(repo, worktree, component["path"], component["ref"], verbose)
+                    elif "overlay_paths" in step:
+                        overlay = step["overlay_paths"]
+                        overlay_paths_from_ref(
+                            repo,
+                            worktree,
+                            overlay["ref"],
+                            overlay.get("paths", []),
+                            overlay.get("missing", "error"),
+                            verbose,
+                        )
+                    elif "make_optional_prereqs" in step:
+                        prereqs = step["make_optional_prereqs"]
+                        make_prereqs_optional(
+                            worktree,
+                            prereqs["path"],
+                            prereqs["variable"],
+                            verbose,
+                        )
+                    elif "vendor_dependency_compat" in step:
+                        compat = step["vendor_dependency_compat"]
+                        add_dependency_package(
+                            worktree,
+                            compat["path"],
+                            compat["after"],
+                            compat["package"],
+                            verbose,
+                        )
+                    elif "vendor_asl_compat" in step:
+                        compat = step["vendor_asl_compat"]
+                        add_vendor_asl_compat(
+                            worktree,
+                            compat["path"],
+                            compat.get("messages", []),
+                            verbose,
+                        )
                     elif step.get("materialise_submodules"):
                         materialise_submodules(repo, worktree, branch, verbose)
                     else:
@@ -348,7 +501,13 @@ def main() -> None:
     target_ref = None if rebuild or not ref_exists(repo, branch) else branch
     source_ref = entry.get("source_ref")
 
-    if target_ref is None and not rebuild and source_ref and ref_exists(repo, source_ref):
+    if (
+        target_ref is None
+        and not rebuild
+        and source_ref
+        and ref_exists(repo, source_ref)
+        and entry_can_use_source_ref_directly(entry)
+    ):
         target_ref = source_ref
 
     if target_ref is None and entry.get("render"):

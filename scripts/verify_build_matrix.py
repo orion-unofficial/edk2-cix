@@ -27,7 +27,7 @@ from reconstruction_common import (
     matrix_release_branches,
     matrix_release_values,
     ref_exists,
-    radxa_releases_by_edk2,
+    available_radxa_releases,
     release_entry_required_refs,
     source_target_ref_records,
     release_entries,
@@ -305,13 +305,13 @@ def require_non_cix_unofficial_source_targets(
     problems: list[str] = []
     unofficial_edk2 = unofficial_release_edk2_refs(repo)
     supported_edk2 = {edk2_ref_for_release(release) for release in releases}
-    radxa_by_edk2 = radxa_releases_by_edk2(repo, supported_edk2)
+    custom_radxa_releases = available_radxa_releases(repo, supported_edk2)
 
     for release in releases:
         edk2_ref = edk2_ref_for_release(release)
         if edk2_ref not in unofficial_edk2:
             continue
-        for radxa in radxa_by_edk2.get(edk2_ref, []):
+        for radxa in custom_radxa_releases:
             source_target = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
             alias = f"{source_target}-{radxa}"
             missing = [ref for ref in (source_target, alias) if ref not in expected_releases]

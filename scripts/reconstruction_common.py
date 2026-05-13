@@ -22,12 +22,16 @@ class ReconstructionError(RuntimeError):
 _REF_MANIFEST_RECORD_CACHE: dict[tuple[str, str], list[dict[str, Any]]] = {}
 _RENDERED_REF_RECORD_CACHE: dict[str, dict[str, dict[str, Any]]] = {}
 _BASE_TREE_RECORD_CACHE: dict[str, dict[str, dict[str, Any]]] = {}
+_RESOLVE_REF_CACHE: dict[tuple[str, str], str | None] = {}
+_TREE_ID_CACHE: dict[tuple[str, str], str] = {}
 
 
 def clear_metadata_caches() -> None:
     _REF_MANIFEST_RECORD_CACHE.clear()
     _RENDERED_REF_RECORD_CACHE.clear()
     _BASE_TREE_RECORD_CACHE.clear()
+    _RESOLVE_REF_CACHE.clear()
+    _TREE_ID_CACHE.clear()
 
 
 def run(cmd: list[str], cwd: Path | str | None = None, check: bool = True, capture: bool = True) -> subprocess.CompletedProcess[str]:
@@ -307,6 +311,33 @@ SOURCE_TARGET_CACHE_MANIFEST = "refs-source-target-cache.json"
 CACHE_REF_PREFIX = "source/cache/"
 CACHE_RELEASE_PREFIX = "source/cache/release/"
 CACHE_BASE_EDK2_PREFIX = "source/cache/base/edk2/"
+BUILD_INFRA_OVERLAY_PATHS = (
+    ".codespellrc",
+    ".devcontainer",
+    ".envrc",
+    ".github",
+    ".gitignore",
+    "Makefile",
+    "README.md",
+    "VERSION",
+    "book.toml",
+    "containers",
+    "debian",
+    "devenv.local.nix.example",
+    "devenv.lock",
+    "devenv.nix",
+    "devenv.yaml",
+    "docs",
+    "nix",
+    "pkg.conf.template",
+    "scripts",
+    "src/.gitignore",
+    "src/Makefile",
+    "src/scripts",
+    "src/tools",
+    "theme",
+    "validation",
+)
 
 
 def version_key(value: str) -> tuple[Any, ...]:
@@ -343,6 +374,12 @@ def source_ref_candidates(ref: str) -> list[str]:
 def resolve_ref(repo: Path, ref: str, check: bool = True) -> str | None:
     """Resolve a ref, accepting origin/source/** when local source heads are absent."""
 
+    key = (str(repo.resolve()), ref)
+    if key in _RESOLVE_REF_CACHE:
+        resolved = _RESOLVE_REF_CACHE[key]
+        if resolved or not check:
+            return resolved
+        raise ReconstructionError(f"ref is unavailable locally: {ref}")
     for candidate in source_ref_candidates(ref):
         result = git(
             repo,
@@ -353,7 +390,9 @@ def resolve_ref(repo: Path, ref: str, check: bool = True) -> str | None:
             check=False,
         )
         if result.returncode == 0:
+            _RESOLVE_REF_CACHE[key] = candidate
             return candidate
+    _RESOLVE_REF_CACHE[key] = None
     if check:
         raise ReconstructionError(f"ref is unavailable locally: {ref}")
     return None
@@ -427,10 +466,69 @@ def release_entry_required_refs(entry: dict[str, Any]) -> set[str]:
         component = step.get("component", {})
         if component.get("ref"):
             refs.add(component["ref"])
+        overlay = step.get("overlay_paths", {})
+        if overlay.get("ref"):
+            refs.add(overlay["ref"])
     source_ref = entry.get("source_ref")
     if source_ref and source_ref.startswith("source/unofficial/"):
         refs.add(source_ref)
     return refs
+
+
+def entry_can_use_source_ref_directly(entry: dict[str, Any]) -> bool:
+    """Return true when source_ref already represents the complete source target."""
+
+    render = entry.get("render", {})
+    return not any(
+        render.get(key)
+        for key in ("steps", "deltas", "component_replacements")
+    )
+
+
+def build_infra_overlay_step(edk2_ref: str) -> dict[str, Any]:
+    """Overlay build-system files without taking firmware source changes."""
+
+    return {
+        "overlay_paths": {
+            "ref": f"source/unofficial/{edk2_ref}",
+            "paths": list(BUILD_INFRA_OVERLAY_PATHS),
+            "missing": "ignore",
+        }
+    }
+
+
+def vendor_build_compat_step() -> dict[str, Any]:
+    """Relax custom-only build prerequisites for vendor-code render targets."""
+
+    return {
+        "make_optional_prereqs": {
+            "path": "src/Makefile",
+            "variable": "PATCHED_EDK2_SOURCE_INPUTS",
+        }
+    }
+
+
+def vendor_dependency_compat_step() -> dict[str, Any]:
+    """Keep vendor-code buildboxes compatible with historical build scripts."""
+
+    return {
+        "vendor_dependency_compat": {
+            "path": "scripts/ensure_build_deps.sh",
+            "after": "python3",
+            "package": "python-is-python3",
+        }
+    }
+
+
+def vendor_asl_compat_step() -> dict[str, Any]:
+    """Keep historical vendor ASL sources buildable with modern IASL."""
+
+    return {
+        "vendor_asl_compat": {
+            "path": "src/Makefile",
+            "messages": ["6084", "6161", "6033", "6049", "6050"],
+        }
+    }
 
 
 EDK2_BASE_REF_RE = re.compile(
@@ -593,6 +691,7 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
     all_releases = matrix_release_values(repo)
     supported_edk2 = {edk2_ref_for_release(release) for release in all_releases}
     radxa_by_edk2 = radxa_releases_by_edk2(repo, supported_edk2)
+    custom_radxa_releases = available_radxa_releases(repo, supported_edk2)
     cix_releases = available_cix_releases(repo)
     unofficial_edk2 = unofficial_release_edk2_refs(repo)
     branches: set[str] = set()
@@ -604,16 +703,17 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
             upstream = f"{CACHE_RELEASE_PREFIX}upstream/edk2-{release}/radxa-{radxa}"
             branches.add(upstream)
 
-            if edk2_ref in unofficial_edk2:
+            for cix in cix_releases:
+                vendor = f"{CACHE_RELEASE_PREFIX}vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"
+                branches.add(vendor)
+        if edk2_ref in unofficial_edk2:
+            for radxa in custom_radxa_releases:
                 unofficial = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
                 alias = f"{unofficial}-{radxa}"
                 branches.update({unofficial, alias})
                 aliases[alias] = unofficial
 
-            for cix in cix_releases:
-                vendor = f"{CACHE_RELEASE_PREFIX}vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"
-                branches.add(vendor)
-                if edk2_ref in unofficial_edk2:
+                for cix in cix_releases:
                     unofficial = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/cix-{cix}/radxa-{radxa}/unofficial"
                     alias = f"{unofficial}-{radxa}"
                     branches.update({unofficial, alias})
@@ -642,23 +742,6 @@ def source_target_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
         if ref_exists(repo, unofficial_ref):
             record["tree_id"] = tree_id(repo, unofficial_ref)
             record["derived_from"] = unofficial_ref
-    for ref in radxa_source_refs(repo):
-        match = RADXA_SOURCE_RE.match(ref)
-        if not match:
-            continue
-        release = release_for_edk2_ref(match.group("edk2"))
-        radxa = match.group("radxa")
-        branch = f"{CACHE_RELEASE_PREFIX}upstream/edk2-{release}/radxa-{radxa}"
-        by_ref.setdefault(
-            branch,
-            {
-                "ref": branch,
-                "immutable": True,
-                "type": "rendered-upstream-radxa-release",
-                "tree_id": tree_id(repo, ref),
-                "derived_from": ref,
-            },
-        )
     for ref, record in list(by_ref.items()):
         try:
             parts = release_branch_parts(ref)
@@ -791,15 +874,26 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
         entry["cix_release"] = cix
 
     render = entry["render"]
-    radxa_ref = radxa_source_ref(repo, radxa, edk2_ref)
     if stage == "upstream":
+        radxa_ref = radxa_source_ref(repo, radxa, edk2_ref)
         render["base"] = {"ref": radxa_ref}
         render["commit_message"] = f"render: EDK2 {release} with Radxa {radxa} source"
+        render["steps"] = [
+            build_infra_overlay_step(edk2_ref),
+            vendor_build_compat_step(),
+            vendor_dependency_compat_step(),
+            vendor_asl_compat_step(),
+        ]
         entry["source_ref"] = radxa_ref
     elif stage == "vendor":
+        radxa_ref = radxa_source_ref(repo, radxa, edk2_ref)
         render["base"] = {"ref": radxa_ref}
         render["commit_message"] = f"render: EDK2 {release} with Radxa {radxa} and CIX {cix} components"
         render["steps"] = [
+            build_infra_overlay_step(edk2_ref),
+            vendor_build_compat_step(),
+            vendor_dependency_compat_step(),
+            vendor_asl_compat_step(),
             {"component": {"path": f"src/cix-v{cix}/tf-a", "ref": f"source/component/cix/{cix}/tf-a"}},
             {"component": {"path": f"src/cix-v{cix}/tee", "ref": f"source/component/cix/{cix}/op-tee"}},
         ]
@@ -882,8 +976,13 @@ def rev_parse(repo: Path, ref: str) -> str:
 
 
 def tree_id(repo: Path, ref: str) -> str:
+    key = (str(repo.resolve()), ref)
+    if key in _TREE_ID_CACHE:
+        return _TREE_ID_CACHE[key]
     resolved = resolve_ref(repo, ref)
-    return git(repo, "rev-parse", f"{resolved}^{{tree}}").stdout.strip()
+    value = git(repo, "rev-parse", f"{resolved}^{{tree}}").stdout.strip()
+    _TREE_ID_CACHE[key] = value
+    return value
 
 
 def ref_type(repo: Path, ref: str) -> str | None:

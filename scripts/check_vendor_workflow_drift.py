@@ -31,7 +31,7 @@ Optional variables:
   V=0|1  Print every checked vendor workflow snapshot.
 
 This check compares .github/workflows content in recorded vendor source refs
-against the audited baseline in config/vendor-workflow-baseline.json. It does
+against the audited baselines in config/vendor-workflow-baseline.json. It does
 not run or port vendor workflows. A mismatch means a vendor source update has
 changed workflow content and the build branch CI should be reviewed before the
 baseline is refreshed.
@@ -77,6 +77,22 @@ def vendor_refs(repo: Path, vendor: str) -> list[str]:
     )
 
 
+def check_refs(repo: Path, entry: dict[str, Any], vendor: str) -> list[str]:
+    configured_refs = entry.get("refs")
+    if configured_refs is None:
+        return vendor_refs(repo, vendor)
+    if not isinstance(configured_refs, list) or not all(isinstance(ref, str) for ref in configured_refs):
+        raise ReconstructionError("config/vendor-workflow-baseline.json: refs must be a list of strings")
+    refs = sorted(set(configured_refs), key=version_key)
+    missing = [ref for ref in refs if not resolve_ref(repo, ref, check=False)]
+    if missing:
+        raise ReconstructionError(
+            "config/vendor-workflow-baseline.json references unavailable vendor refs: "
+            + ", ".join(missing)
+        )
+    return refs
+
+
 def diff_paths(expected: dict[str, str], actual: dict[str, str]) -> list[str]:
     problems: list[str] = []
     for path in sorted(set(expected) - set(actual)):
@@ -89,16 +105,17 @@ def diff_paths(expected: dict[str, str], actual: dict[str, str]) -> list[str]:
     return problems
 
 
-def check_entry(repo: Path, entry: dict[str, Any], verbose: bool) -> list[str]:
+def check_entry(repo: Path, entry: dict[str, Any], verbose: bool) -> tuple[str, list[str], list[str]]:
     vendor = str(entry.get("vendor", ""))
+    baseline_ref = str(entry.get("baseline_ref", ""))
     workflow_dir = str(entry.get("workflow_dir", ".github/workflows"))
     expected_tree = entry.get("workflow_tree_id")
     expected_paths = entry.get("paths", {})
     if not isinstance(expected_paths, dict):
         raise ReconstructionError("config/vendor-workflow-baseline.json: paths must be an object")
-    refs = vendor_refs(repo, vendor)
+    refs = check_refs(repo, entry, vendor)
     if not refs:
-        return [f"{vendor}: no vendor refs found for workflow drift check"]
+        return vendor, refs, [f"{vendor}: no vendor refs found for workflow drift check"]
 
     problems: list[str] = []
     for ref in refs:
@@ -106,12 +123,14 @@ def check_entry(repo: Path, entry: dict[str, Any], verbose: bool) -> list[str]:
         path_diffs = diff_paths(expected_paths, blobs)
         if tree != expected_tree or path_diffs:
             detail = [f"{ref}: vendor workflow content differs from audited baseline"]
+            if baseline_ref:
+                detail.append(f"baseline ref: {baseline_ref}")
             detail.append(f"workflow tree: {tree or '<missing>'} != {expected_tree}")
             detail.extend(f"  {item}" for item in path_diffs)
             problems.append("\n".join(detail))
         elif verbose:
             print(f"vendor workflow baseline ok: {ref} ({tree})")
-    return problems
+    return vendor, refs, problems
 
 
 def main() -> None:
@@ -124,10 +143,20 @@ def main() -> None:
     if not isinstance(entries, list) or not entries:
         raise ReconstructionError("config/vendor-workflow-baseline.json has no checks")
     problems: list[str] = []
+    covered_refs: dict[str, set[str]] = {}
     for entry in entries:
         if not isinstance(entry, dict):
             raise ReconstructionError("config/vendor-workflow-baseline.json checks must be objects")
-        problems.extend(check_entry(repo, entry, verbose))
+        vendor, refs, entry_problems = check_entry(repo, entry, verbose)
+        covered_refs.setdefault(vendor, set()).update(refs)
+        problems.extend(entry_problems)
+    for vendor, refs in sorted(covered_refs.items()):
+        missing = sorted(set(vendor_refs(repo, vendor)) - refs, key=version_key)
+        if missing:
+            problems.append(
+                f"{vendor}: vendor workflow baseline does not cover recorded refs: "
+                + ", ".join(missing)
+            )
     if problems:
         details = "\n\n".join(problems)
         raise ReconstructionError(

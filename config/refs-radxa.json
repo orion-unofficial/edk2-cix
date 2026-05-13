@@ -6,12 +6,6 @@
   },
   "refs": [
     {
-      "object_id": "d050e288c40822e28c11103fb8b3b51efc31d758",
-      "ref": "source/vendor/radxa/1.2.1/edk2-stable202208",
-      "tree_id": "a820c88bb5f8f1808bd5288420fb0a19bb60e2c2",
-      "upstream_ref": "922def4bd663f92505e091e15920773dbd08779d"
-    },
-    {
       "object_id": "89010cb349fe6b34a23b9aa290a69db1a5415f8c",
       "ref": "source/port/radxa/1.2.1/edk2-stable202211",
       "tree_id": "7df1456ef08b0f3c61ca6dbd74874461b74c1973"
@@ -85,6 +79,92 @@
       "object_id": "ddf064b0ddf33611f46777ca15ec829d1b6f8143",
       "ref": "source/port/radxa/1.2.1/edk2-stable202602",
       "tree_id": "6c90699337b73fd06fc4ca2c307968ca214d3a7a"
+    },
+    {
+      "object_id": "37faf8c8456fbe91278ec9dd40838a7cbd249b7c",
+      "ref": "source/vendor/radxa/0.2.0-1/edk2-stable202208",
+      "tree_id": "c479bb42d8dcd77e296c6d04bfd7df142ad7d249"
+    },
+    {
+      "object_id": "f41c67cfb7835df98ef25586cee49fa6aa5ffd32",
+      "ref": "source/vendor/radxa/0.2.1-1/edk2-stable202208",
+      "tree_id": "b815c3da88c59757d5d3dcce8093fdb1946da2e0"
+    },
+    {
+      "object_id": "2bd2d7367521589b1ec799b87bc59a821b5ef3e4",
+      "ref": "source/vendor/radxa/0.2.2-1/edk2-stable202208",
+      "tree_id": "b0cc40dab70775dca929f4f50a889013c38b3392"
+    },
+    {
+      "object_id": "488b8ddcf59217a98ac5df2ae604ec3a673955da",
+      "ref": "source/vendor/radxa/0.3.0-1/edk2-stable202208",
+      "tree_id": "5105773b27fa404c98d0a6325b58322d26b761f5"
+    },
+    {
+      "object_id": "8fd4c6542fc4eff51c0b2e4ac3d213fcabaca1bf",
+      "ref": "source/vendor/radxa/0.3.1-1/edk2-stable202208",
+      "tree_id": "b06c2ed5719b10323da99ce125c5f3fd7791a8ac"
+    },
+    {
+      "object_id": "d8aeb28825df9d4e79d8f06365734917028b9ae8",
+      "ref": "source/vendor/radxa/1.0.0-1/edk2-stable202208",
+      "tree_id": "b9a61f3627ae75ff134ed9fd26bac4e29714a0f1"
+    },
+    {
+      "object_id": "36e452816631bbf8a069c2bd31aa4b2090a7d09b",
+      "ref": "source/vendor/radxa/1.0.0-2/edk2-stable202208",
+      "tree_id": "5e84ebfc1459ed8e9ad4993bb0b1a0729fb078c2"
+    },
+    {
+      "object_id": "e7ed930bf0bddfe3c78f03283005c3e46f0708d1",
+      "ref": "source/vendor/radxa/1.0.0-3/edk2-stable202208",
+      "tree_id": "de195deb0467f9136858eb33018d2496984f3d29"
+    },
+    {
+      "object_id": "de8df41570feccaed6c2332af9358da2dadc188d",
+      "ref": "source/vendor/radxa/1.0.0-4/edk2-stable202208",
+      "tree_id": "37c8c68ad70266aa7458e60446cdc8bbf388552d"
+    },
+    {
+      "object_id": "91edc2b4f8fb50138dbe072499c6de07bada0581",
+      "ref": "source/vendor/radxa/1.0.0-5/edk2-stable202208",
+      "tree_id": "240dcc603997c1ca0a53112feded80e27721ba48"
+    },
+    {
+      "object_id": "d443d43003e0a3912b9ff6f288e322cfa4e09f82",
+      "ref": "source/vendor/radxa/1.0.0-6/edk2-stable202208",
+      "tree_id": "14f93df5115d77d2e175fb707a76290bcd75ba98"
+    },
+    {
+      "object_id": "79dd682da7ff08d90ac83a52549397d668ec74f0",
+      "ref": "source/vendor/radxa/1.0.0-7/edk2-stable202208",
+      "tree_id": "37dcdbc438f8cef7f8f265aa01733d87ea5fd004"
+    },
+    {
+      "object_id": "382c851762614c2f902d629644517994873e7e24",
+      "ref": "source/vendor/radxa/1.0.0-8/edk2-stable202208",
+      "tree_id": "ee5537bf46a67154348920a8b5948943f50e5618"
+    },
+    {
+      "object_id": "de5ac9128b3243777912f7efe1b08036b9a69fe4",
+      "ref": "source/vendor/radxa/1.1.0-1/edk2-stable202208",
+      "tree_id": "df59092a17ef489949fb8c2ba4e527dd944cb02c"
+    },
+    {
+      "object_id": "c6148d19940c39c86b1869c1394b20a22883110b",
+      "ref": "source/vendor/radxa/1.1.0-2/edk2-stable202208",
+      "tree_id": "9a0deaf89fcebc2d7b32f4efdda9936a62bf48c6"
+    },
+    {
+      "object_id": "21e65953abebfb7ae0729a93f2efb9a908c534ce",
+      "ref": "source/vendor/radxa/1.2.0-1/edk2-stable202208",
+      "tree_id": "5b4a129286480787e0ffad566b4e0d44281bbb28"
+    },
+    {
+      "object_id": "d050e288c40822e28c11103fb8b3b51efc31d758",
+      "ref": "source/vendor/radxa/1.2.1/edk2-stable202208",
+      "tree_id": "a820c88bb5f8f1808bd5288420fb0a19bb60e2c2",
+      "upstream_ref": "922def4bd663f92505e091e15920773dbd08779d"
     }
   ]
 }
