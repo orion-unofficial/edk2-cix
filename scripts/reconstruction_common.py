@@ -930,8 +930,87 @@ def release_entries(repo: Path) -> dict[str, dict[str, Any]]:
     return {branch: synthesise_release_entry(repo, branch) for branch in sorted(branches)}
 
 
+def unofficial_source_policy(repo: Path) -> dict[str, Any]:
+    path = repo / "config" / "policies.json"
+    if not path.exists():
+        return {}
+    policy = load_json(repo, "config/policies.json").get("unofficial_source_policy", {})
+    if policy is None:
+        return {}
+    if not isinstance(policy, dict):
+        raise ReconstructionError("config/policies.json unofficial_source_policy must be an object")
+    return policy
+
+
+def _policy_string(policy: dict[str, Any], field: str) -> str:
+    value = policy.get(field)
+    return str(value).strip() if value is not None else ""
+
+
+def preferred_unofficial_source_target(repo: Path, branches: set[str] | None = None) -> str | None:
+    policy = unofficial_source_policy(repo)
+    if not policy:
+        return None
+
+    missing = [
+        field
+        for field in ("current_ref", "current_edk2_release", "current_radxa_release")
+        if not _policy_string(policy, field)
+    ]
+    if missing:
+        raise ReconstructionError(
+            "config/policies.json unofficial_source_policy is missing required field(s): "
+            + ", ".join(missing)
+        )
+
+    current_ref = _policy_string(policy, "current_ref")
+    if not ref_exists(repo, current_ref):
+        raise ReconstructionError(
+            f"config/policies.json unofficial_source_policy current_ref is unavailable locally: {current_ref}"
+        )
+
+    release = _policy_string(policy, "current_edk2_release")
+    if release.startswith("edk2-stable"):
+        release = release_for_edk2_ref(release)
+    edk2_ref = edk2_ref_for_release(release)
+    unofficial_ref = f"source/unofficial/{edk2_ref}"
+    if not ref_exists(repo, unofficial_ref):
+        raise ReconstructionError(
+            "config/policies.json unofficial_source_policy selects an unavailable "
+            f"unofficial release branch: {unofficial_ref}"
+        )
+
+    radxa = _policy_string(policy, "current_radxa_release")
+    cix = _policy_string(policy, "current_cix_release")
+    if branches is None:
+        branches, _aliases = matrix_release_branches(repo)
+
+    if cix:
+        canonical = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/cix-{cix}/radxa-{radxa}/unofficial"
+    else:
+        canonical = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
+    alias = f"{canonical}-{radxa}"
+
+    prefer_alias = True
+    if "prefer_versioned_default_alias" in policy:
+        prefer_alias = truthy(policy.get("prefer_versioned_default_alias"))
+    candidates = [alias, canonical] if prefer_alias else [canonical, alias]
+    for candidate in candidates:
+        if candidate in branches:
+            return candidate
+
+    raise ReconstructionError(
+        "config/policies.json unofficial_source_policy selects an unavailable source target: "
+        + " or ".join(candidates)
+    )
+
+
 def default_release(repo: Path) -> str:
     branches, _aliases = matrix_release_branches(repo)
+    preferred = preferred_unofficial_source_target(repo, branches)
+    if preferred:
+        return source_target_name(preferred)
+
     custom = [
         branch
         for branch in branches

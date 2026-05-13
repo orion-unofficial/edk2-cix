@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 import sys
 import tempfile
@@ -16,6 +17,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from reconstruction_common import (  # noqa: E402
     CACHE_RELEASE_PREFIX,
+    default_release,
     matrix_release_branches,
     release_entry,
 )
@@ -27,6 +29,27 @@ def create_branch(repo: Path, ref: str, files: dict[str, str], message: str) -> 
     for path, content in files.items():
         write_file(repo, path, content)
     commit_all(repo, message)
+
+
+def write_unofficial_source_policy(repo: Path, *, radxa: str = "1.2.1") -> None:
+    write_file(
+        repo,
+        "config/policies.json",
+        json.dumps(
+            {
+                "unofficial_source_policy": {
+                    "current_ref": "source/unofficial/current",
+                    "current_edk2_release": "202602",
+                    "current_cix_release": "1.2",
+                    "current_radxa_release": radxa,
+                    "prefer_versioned_default_alias": True,
+                }
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+    )
 
 
 def make_repo() -> Path:
@@ -103,6 +126,16 @@ def make_repo() -> Path:
         },
         "unofficial 202602",
     )
+    create_branch(
+        repo,
+        "source/unofficial/current",
+        {
+            ".github/local/Makefile.local": "buildbox-firmware-build:\n\t@true\n",
+            "Makefile": "modern build entry\n",
+            "src.txt": "current unofficial source\n",
+        },
+        "current unofficial",
+    )
     git(repo, "switch", "build")
     return repo
 
@@ -122,6 +155,24 @@ def test_custom_targets_allow_historical_radxa_releases_on_later_edk2() -> None:
         require(
             entry.get("source_ref") == "source/unofficial/edk2-stable202602",
             "custom historical target should use the selected unofficial EDK2 tree",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_default_source_target_follows_unofficial_source_policy() -> None:
+    repo = make_repo()
+    try:
+        create_branch(repo, "source/port/radxa/1.2.2/edk2-stable202602", {"radxa.txt": "1.2.2\n"}, "radxa 1.2.2")
+        git(repo, "switch", "build")
+        write_unofficial_source_policy(repo, radxa="1.2.1")
+
+        branches, _aliases = matrix_release_branches(repo)
+        new_vendor_target = f"{CACHE_RELEASE_PREFIX}custom/edk2-202602/cix-1.2/radxa-1.2.2/unofficial-1.2.2"
+        require(new_vendor_target in branches, "newer Radxa release should still be available as an explicit target")
+        require(
+            default_release(repo) == "edk2-202602/cix-1.2/radxa-1.2.1/unofficial-1.2.1",
+            "default source target should not silently advance to a newer Radxa release",
         )
     finally:
         shutil.rmtree(repo)
@@ -188,6 +239,7 @@ def test_integrate_source_release_make_target_preserves_materialise_default() ->
 
 def main() -> None:
     test_custom_targets_allow_historical_radxa_releases_on_later_edk2()
+    test_default_source_target_follows_unofficial_source_policy()
     test_historical_upstream_target_overlays_build_infrastructure_only()
     test_integrate_source_release_make_target_preserves_materialise_default()
     print("historical Radxa target tests passed")

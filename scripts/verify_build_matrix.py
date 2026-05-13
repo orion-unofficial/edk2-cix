@@ -28,8 +28,11 @@ from reconstruction_common import (
     matrix_release_values,
     ref_exists,
     available_radxa_releases,
+    default_release,
     release_entry_required_refs,
+    preferred_unofficial_source_target,
     source_target_ref_records,
+    source_target_name,
     release_entries,
     repo_root,
     rev_parse,
@@ -37,6 +40,7 @@ from reconstruction_common import (
     resolve_ref,
     tree_id,
     truthy,
+    unofficial_source_policy,
 )
 
 
@@ -337,6 +341,27 @@ def require_build_policy(releases: list[str]) -> list[str]:
     return problems
 
 
+def require_unofficial_source_policy(repo: Path, expected_releases: set[str]) -> list[str]:
+    problems: list[str] = []
+    try:
+        policy = unofficial_source_policy(repo)
+        if not policy:
+            return ["config/policies.json is missing unofficial_source_policy"]
+        preferred = preferred_unofficial_source_target(repo, expected_releases)
+        if not preferred:
+            return ["config/policies.json unofficial_source_policy did not select a default source target"]
+        expected_default = source_target_name(preferred)
+        actual_default = default_release(repo)
+        if actual_default != expected_default:
+            problems.append(
+                "default source target does not match config/policies.json unofficial_source_policy "
+                f"({actual_default} != {expected_default})"
+            )
+    except ReconstructionError as exc:
+        problems.append(str(exc))
+    return problems
+
+
 def main() -> None:
     started = time.monotonic()
     args = parser().parse_args()
@@ -351,6 +376,7 @@ def main() -> None:
     problems.extend(require_alias_trees(repo, aliases))
     problems.extend(require_non_cix_unofficial_source_targets(repo, releases, expected_releases))
     problems.extend(require_build_policy(releases))
+    problems.extend(require_unofficial_source_policy(repo, expected_releases))
 
     if problems:
         raise ReconstructionError("derived build matrix verification failed:\n" + "\n\n".join(problems))
