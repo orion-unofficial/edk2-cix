@@ -164,6 +164,16 @@ help-vars:
 	print_help_line 'FIRMWARE_TARGET=RELEASE|DEBUG' 'Select the firmware build target.\nDefault: RELEASE.'; \
 	print_help_line 'FIRMWARE_DISTRO=trixie|bookworm' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected source-target policy default.'; \
 	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds. See README.md, "How do I build the latest firmware?", for the difference.\nDefault: custom.'; \
+	print_section 'Custom Build Gates'; \
+	print_help_line 'CIX_RELEASE=v1.2' 'Use public CIX BIOS V1.2 bootloader1 payload with TF-A and OP-TEE sources for bootloader2 when the selected rendered source target supports it.\nDefault: unset.'; \
+	print_help_line 'ENABLE_FIRMWARE_FIXES=true|false' 'Enable opt-in custom firmware fixes for O6/O6N. This changes firmware metadata and setup behavior; see FIXES.md in the rendered source target for details.\nDefault: false.'; \
+	print_help_line 'ENABLE_CORE_ORDER=cix|conventional|performance' 'Choose how custom firmware numbers CPUs exposed to the OS. cix keeps vendor order; conventional puts A520 cores before A720 cores; performance puts A720 cores first.\nDefault: unset, which behaves like cix.\nRequires ENABLE_FIRMWARE_FIXES=true for conventional and performance.'; \
+	print_help_line 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Enable the experimental Radxa settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
+	print_help_line 'UART3_ENABLE=true|false' 'Expose UART3 to ACPI and mux its header pins as UART instead of GPIO. This consumes header GPIO105/GPIO106 while enabled.\nDefault: false.'; \
+	print_help_line 'DEBUG_ON_UART3=true|false' 'Route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
+	print_help_line 'DEBUG_VERBOSE=true|false' 'On RELEASE builds, re-enable DEBUG() logging without switching the whole firmware image to DEBUG. If DEBUG_PRINT_ERROR_LEVEL is unset, the rendered source build uses its verbose debug mask default.\nDefault: false.'; \
+	print_help_line 'DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Override the firmware debug message mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; rendered source builds use their normal default, or their verbose default when DEBUG_VERBOSE=true.'; \
+	print_section 'Generic Build Controls'; \
 	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
 	print_help_line 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
 	print_section 'Build Output Locations'; \
