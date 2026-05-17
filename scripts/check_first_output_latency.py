@@ -127,6 +127,7 @@ def cases(repo: Path) -> list[Case]:
         make_help_case(repo, "help-source-targets"),
         make_case(repo, "build", release),
         make_case(repo, "build-all", release),
+        make_case(repo, "deterministic-replay"),
         make_case(repo, "install", release),
         make_case(repo, "zip", release),
         make_case(repo, "targz", release),

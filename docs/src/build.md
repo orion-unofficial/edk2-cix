@@ -81,6 +81,45 @@ release, but it rejects custom-only feature variables.
 For the fuller variable reference, see
 [`build-variables.md`](build-variables.md).
 
+## Replay A Published Vendor Release
+
+Use the build-branch wrapper when you want one command to render the
+replay-capable source target and run the byte-identical vendor replay build:
+
+```bash
+make deterministic-replay FIRMWARE_BOARD=O6
+make deterministic-replay FIRMWARE_BOARD=O6N
+```
+
+By default, the target renders
+`edk2-202208/radxa-1.2.1/unofficial-1.2.1`, resolves the latest release
+package from `radxa-pkg/edk2-cix`, downloads it under
+`.cache/edk2-cix/firmware/replay/downloads/`, and delegates to the rendered
+firmware tree's `deterministic-replay` target. The rendered target extracts
+the vendor timestamps and signing certificate inputs, rebuilds
+`ARTEFACT_MODE=upstream`, compares the rebuilt payload against the release
+payload when available, and runs the strict checked-in hash validation profile.
+
+To replay a package you already downloaded, pass it explicitly:
+
+```bash
+make deterministic-replay \
+  FIRMWARE_BOARD=O6 \
+  REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
+```
+
+`REPLAY_INPUT` may also point at an extracted release directory or directly at
+`cix_flash_all.bin`. For a raw `cix_flash_all.bin`, also provide
+`REPLAY_BUILD_OPTIONS=/path/to/BuildOptions` when available, or
+`REPLAY_BUILD_DATE=<iso8601>` when it is not. Set `REPLAY_DOWNLOAD=0` with no
+`REPLAY_INPUT` when you intentionally want the rendered firmware target to
+reuse an existing `.cache` replay input directory.
+
+This target deliberately uses the EDK2 202208 replay source target even when
+the default build target has moved on. Post-202208 source targets can still use
+`ARTEFACT_MODE=upstream` for closest-to-upstream diagnostics, but they are not
+byte-identical replays of the original published vendor images.
+
 ## Materialise A Source Tree
 
 Most build targets render or reuse a detached cache automatically. If you want

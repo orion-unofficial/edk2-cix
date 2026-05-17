@@ -82,6 +82,75 @@ environment used by the wrapper targets.
 
 Default: `bookworm` for upstream and deterministic replay; `trixie` for custom
 
+## Replay Variables
+
+These variables are used by the build-branch `make deterministic-replay`
+wrapper. The wrapper renders the replay-capable EDK2 202208 source target and
+then delegates to the rendered firmware tree's strict replay target.
+
+### `REPLAY_INPUT=<path>`
+
+Select the vendor release input to replay.
+
+Accepted inputs are:
+
+- a published `edk2-cix_*.deb`
+- an extracted release directory containing `cix_flash_all.bin`
+- a raw `cix_flash_all.bin`
+
+When unset, `make deterministic-replay` downloads the latest release package
+from `REPLAY_UPSTREAM_REPOSITORY`, unless `REPLAY_DOWNLOAD=0` is set.
+
+Default: unset
+
+### `REPLAY_SOURCE_TARGET=<source-target>`
+
+Select the source target to render before replay. Leave this at the default for
+byte-identical vendor release replay.
+
+Default: `edk2-202208/radxa-1.2.1/unofficial-1.2.1`
+
+### `REPLAY_UPSTREAM_REPOSITORY=<owner/name>`
+
+Select the GitHub repository used to resolve and download the release package
+when `REPLAY_INPUT` is unset.
+
+Default: `radxa-pkg/edk2-cix`
+
+### `REPLAY_DOWNLOAD=0|1`
+
+Control automatic release-package downloads when `REPLAY_INPUT` is unset.
+
+- `1`
+   - resolve and download the latest release package before replay
+- `0`
+   - do not download; delegate with no replay input so the rendered firmware
+     target can reuse an existing replay cache
+
+Default: `1`
+
+### `REPLAY_VERSION=<version>`
+
+Select the version component used for the rendered firmware validation profile.
+When `REPLAY_INPUT` is unset and the wrapper downloads a release package, the
+resolved release tag overrides this value for that run.
+
+Default: `1.2.1`
+
+### `REPLAY_BUILD_OPTIONS=<path>`
+
+Provide the `BuildOptions` file when `REPLAY_INPUT` points directly at a raw
+`cix_flash_all.bin`.
+
+Default: unset
+
+### `REPLAY_BUILD_DATE=<iso8601>`
+
+Provide a fallback firmware build timestamp when replay inputs do not include
+`BuildOptions`.
+
+Default: unset
+
 ## Build Cache Variables
 
 These variables affect build speed, not firmware features.
@@ -421,7 +490,14 @@ The most important compatibility rules are:
 
 ## Common Recipes
 
-### Closest-to-upstream replay build
+### Byte-identical vendor release replay
+
+```bash
+make deterministic-replay FIRMWARE_BOARD=O6
+make deterministic-replay FIRMWARE_BOARD=O6N
+```
+
+### Closest-to-upstream vendor-path build
 
 ```bash
 make buildbox-firmware-build \

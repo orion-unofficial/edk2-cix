@@ -53,6 +53,13 @@ ACT_SECRET_FILE ?=
 ACT_EXTRA_ARGS ?=
 ACT_CONTAINER_ARCH ?= auto
 ACT_RUNNER_IMAGE ?=
+REPLAY_SOURCE_TARGET ?= edk2-202208/radxa-1.2.1/unofficial-1.2.1
+REPLAY_UPSTREAM_REPOSITORY ?= radxa-pkg/edk2-cix
+REPLAY_DOWNLOAD ?= 1
+REPLAY_INPUT ?=
+REPLAY_BUILD_OPTIONS ?=
+REPLAY_BUILD_DATE ?=
+REPLAY_VERSION ?= 1.2.1
 DOCS_BUILD_MODE ?= auto
 CONFLICT_PATHS ?=
 CONFLICT_EDITOR ?=
@@ -118,7 +125,7 @@ define PRINT_HELP_SHELL_PROLOGUE
 		}
 endef
 
-.PHONY: help help-vars help-dev help-dev-source help-dev-verify help-dev-maintenance help-source-targets build build-all install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
+.PHONY: help help-vars help-dev help-dev-source help-dev-verify help-dev-maintenance help-source-targets build build-all deterministic-replay install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test test-local lint \
 	extract-vendor-delta render-release-branch integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
 	propagate-release-branches update-release-tags \
@@ -135,6 +142,7 @@ help:
 	printf '%s\n' 'edk2-cix firmware build targets'; \
 	print_section 'Build Targets'; \
 	print_help_line 'make build' 'Build one firmware image in buildbox for the selected board and source target.'; \
+	print_help_line 'make deterministic-replay' 'Render the replay-capable vendor source target and run byte-identical replay for the selected board.'; \
 	print_help_line 'make install' 'Build one firmware payload in buildbox, safety-check it on the local host, then install it for the selected board and source target.'; \
 	print_help_line 'make build-all' 'Build a distributable archive in buildbox containing all supported firmware build variants for the selected board and source target.'; \
 	print_help_note 'See make help-source-targets for the available and default source targets.'; \
@@ -179,6 +187,14 @@ help-vars:
 	print_section 'Build Output Locations'; \
 	print_help_line 'BUILD_DIST_ROOT=<path>' 'Directory where build-branch builds mirror rendered worktree archives, staged payloads, and key raw firmware images.\nDefault: ./dist.'; \
 	print_help_line 'FIRMWARE_CACHE_ROOT=<path>' 'Persistent build-branch firmware cache root shared by rendered worktree builds, including ccache, buildbox temporary state, and CIX release caches.\nDefault: ./.cache/edk2-cix/firmware.'; \
+	print_section 'Replay Variables'; \
+	print_help_line 'REPLAY_INPUT=<path>' 'Published edk2-cix .deb, extracted release directory, or cix_flash_all.bin to replay. If unset, make deterministic-replay downloads the latest release from REPLAY_UPSTREAM_REPOSITORY unless REPLAY_DOWNLOAD=0.\nDefault: unset.'; \
+	print_help_line 'REPLAY_SOURCE_TARGET=<target>' 'Replay-capable source target rendered before delegating to the firmware tree deterministic-replay target.\nDefault: edk2-202208/radxa-1.2.1/unofficial-1.2.1.'; \
+	print_help_line 'REPLAY_UPSTREAM_REPOSITORY=<owner/name>' 'GitHub repository used to resolve and download the release package when REPLAY_INPUT is unset.\nDefault: radxa-pkg/edk2-cix.'; \
+	print_help_line 'REPLAY_DOWNLOAD=0|1' 'When REPLAY_INPUT is unset, download the latest release package before replay. Set to 0 to reuse an existing rendered replay cache instead.\nDefault: 1.'; \
+	print_help_line 'REPLAY_BUILD_OPTIONS=<path>' 'BuildOptions file used when REPLAY_INPUT points directly at cix_flash_all.bin.\nDefault: unset.'; \
+	print_help_line 'REPLAY_BUILD_DATE=<iso8601>' 'Fallback build timestamp when replay inputs do not include BuildOptions.\nDefault: unset.'; \
+	print_help_line 'REPLAY_VERSION=<version>' 'Replay validation profile version passed to the rendered firmware tree. Automatically set from the downloaded release tag when REPLAY_INPUT is unset.\nDefault: 1.2.1.'; \
 	print_section 'Install Variables'; \
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
 	print_help_line 'FORCE=0|1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \
@@ -427,6 +443,67 @@ build:
 
 build-all:
 	$(call run_release_make,build-all)
+
+deterministic-replay:
+	@set -eu; \
+	printf '[replay] Preparing replay-capable source target: %s\n' "$(REPLAY_SOURCE_TARGET)" >&2; \
+	if [ "$(FIRST_OUTPUT_PROBE)" = "1" ]; then exit 0; fi; \
+	cache_root="$(abspath $(FIRMWARE_CACHE_ROOT))"; \
+	replay_input="$(REPLAY_INPUT)"; \
+	replay_build_options="$(REPLAY_BUILD_OPTIONS)"; \
+	replay_build_date="$(REPLAY_BUILD_DATE)"; \
+	replay_version="$(REPLAY_VERSION)"; \
+	mkdir -p "$$cache_root/buildbox" "$$cache_root/replay/downloads"; \
+	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(REPLAY_SOURCE_TARGET)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
+	if [ -n "$$replay_input" ]; then \
+		replay_input="$$( $(PYTHON) -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).expanduser().resolve())' "$$replay_input" )"; \
+	elif [ "$(REPLAY_DOWNLOAD)" != "0" ]; then \
+		release_json="$$cache_root/replay/latest-release.json"; \
+		printf '[replay] Resolving latest release from %s\n' "$(REPLAY_UPSTREAM_REPOSITORY)" >&2; \
+		$(PYTHON) "$$wt/scripts/resolve_latest_release_asset.py" \
+			--repo-root "$$wt" \
+			--github-repository "$(REPLAY_UPSTREAM_REPOSITORY)" \
+			>"$$release_json"; \
+		replay_version="$$( $(PYTHON) -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))[sys.argv[2]])' "$$release_json" tag )"; \
+		asset_name="$$( $(PYTHON) -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))[sys.argv[2]])' "$$release_json" asset_name )"; \
+		asset_url="$$( $(PYTHON) -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))[sys.argv[2]])' "$$release_json" asset_download_url )"; \
+		if [ -z "$$asset_url" ] || [ "$$asset_url" = "None" ]; then \
+			printf '[replay] Resolved release %s did not include a download URL\n' "$$replay_version" >&2; \
+			exit 2; \
+		fi; \
+		replay_input="$$cache_root/replay/downloads/$$asset_name"; \
+		if [ ! -f "$$replay_input" ]; then \
+			printf '[replay] Downloading %s\n' "$$asset_name" >&2; \
+			curl --fail --location --retry 5 --retry-delay 2 "$$asset_url" --output "$$replay_input"; \
+		else \
+			printf '[replay] Reusing downloaded release package: %s\n' "$$replay_input" >&2; \
+		fi; \
+	else \
+		printf '[replay] REPLAY_DOWNLOAD=0 and REPLAY_INPUT is unset; rendered target will reuse cached replay inputs if present.\n' >&2; \
+	fi; \
+	if [ -n "$$replay_build_options" ]; then \
+		replay_build_options="$$( $(PYTHON) -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).expanduser().resolve())' "$$replay_build_options" )"; \
+	fi; \
+	replay_key="$(FIRMWARE_BOARD)-$${replay_version:-manual}"; \
+	printf '[replay] Running deterministic replay in %s\n' "$$wt" >&2; \
+	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
+	$(MAKE) --no-print-directory -C "$$wt" deterministic-replay V="$(V)" \
+		FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_DISTRO="$(if $(strip $(FIRMWARE_DISTRO)),$(FIRMWARE_DISTRO),bookworm)" \
+		BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
+		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox/tmp" \
+		CCACHE_DIR="/hosttmp/ccache" \
+		CCACHE_WRAPPER_ROOT="/hosttmp/ccache-toolchain" \
+		CIX_RELEASE_CACHE_ROOT="/hosttmp/cix-release" \
+		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation" \
+		DETERMINISTIC_REPLAY_ROOT="$$cache_root/buildbox/replay/$$replay_key" \
+		DETERMINISTIC_REPLAY_MOUNT_ROOT="$$cache_root/buildbox" \
+		REPLAY_VERSION="$$replay_version" \
+		REPLAY_INPUT="$$replay_input" \
+		REPLAY_BUILD_OPTIONS="$$replay_build_options" \
+		REPLAY_BUILD_DATE="$$replay_build_date"
 
 install:
 	@set -e; \

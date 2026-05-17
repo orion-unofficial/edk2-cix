@@ -91,9 +91,21 @@ it chooses that build-output set itself.
 make build-all FIRMWARE_BOARD=O6
 ```
 
-Exact-replay comparisons can provide `SIGNING_CERT_SOURCE_DIR=<path>`. This is
-a maintainer-oriented option documented by `make help-dev`; normal firmware
-builds do not need it.
+To verify that the replay-capable vendor source has not drifted away from a
+published Radxa release, run the deterministic replay wrapper from this branch:
+
+```bash
+make deterministic-replay FIRMWARE_BOARD=O6
+make deterministic-replay FIRMWARE_BOARD=O6N
+```
+
+By default, this renders the `edk2-202208/radxa-1.2.1/unofficial-1.2.1`
+source target, downloads the latest release package from
+`radxa-pkg/edk2-cix`, and delegates to the rendered firmware tree's strict
+byte-identical replay target. To replay a package you already have, pass
+`REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb`; for a raw
+`cix_flash_all.bin`, also pass `REPLAY_BUILD_OPTIONS=/path/to/BuildOptions`
+when available.
 
 ## How do I choose EDK2/CIX/Radxa source versions?
 
