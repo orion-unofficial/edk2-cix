@@ -356,7 +356,7 @@ endef
 
 FAIL_EDK2_REBASED_DETERMINISTIC = "$(EDK2_REBASED_DETERMINISTIC_GUARD)"
 
-.PHONY: help help-vars help-dev help-internal help-debug
+.PHONY: help help-vars help-dev help-internal help-debug source-uplift-help
 help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	printf '%s\n\n' 'edk2-cix common targets'; \
@@ -417,6 +417,7 @@ help-dev:
 	print_help_line '  gha-act-run-clean' 'Execute a selected workflow or job through act from a scratch checkout'; \
 	print_help_line '  docs-build' 'Build the mdBook site into book/html/'; \
 	print_help_line '  serve' 'Serve the mdBook site locally with mdbook serve'; \
+	print_help_line '  source-uplift-help' 'Explain where EDK2 source-model uplift targets live'; \
 	print_help_line '  dch' 'Generate and commit a Debian changelog release entry'; \
 	print_help_line '  release' 'Trigger the retained GitHub release workflow for the current branch'; \
 	print_section 'Cleanup'; \
@@ -455,6 +456,15 @@ help-internal:
 
 help-debug:
 	@$(MAKE) -C src --no-print-directory help-debug
+
+source-uplift-help:
+	@printf '%s\n' 'This is a rendered firmware source branch.'; \
+	printf '%s\n' 'EDK2 source-model uplifts are run from the build branch, which carries the source refs, manifests, and uplift scripts.'; \
+	printf '\n%s\n' 'Typical maintainer flow:'; \
+	printf '%s\n' '  git switch build'; \
+	printf '%s\n' '  make uplift-edk2-release EDK2_BASE=edk2-stableYYYYMM FROM_EDK2_BASE=edk2-stableYYYYMM'; \
+	printf '%s\n' '  make uplift-edk2-release EDK2_BASE=edk2-stableYYYYMM FROM_EDK2_BASE=edk2-stableYYYYMM WRITE=1'; \
+	printf '\n%s\n' 'If a source-port conflict is reported, resolve and commit the preserved worktree, then rerun the build-branch target with RADXA_REF=<commit> or UNOFFICIAL_REF=<commit> as directed by the build README.'
 
 .PHONY: preflight-wrapper-common preflight-wrapper-firmware-build preflight-wrapper-validation preflight-wrapper-buildbox preflight-wrapper-build-all preflight-wrapper-replay
 preflight-wrapper-common:

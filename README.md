@@ -34,6 +34,22 @@ To see the common end-user targets first, run:
 make help
 ```
 
+This is a rendered firmware source branch. Maintainer source-model work, such
+as carrying `source/unofficial/current` forward to a newer upstream EDK2 stable
+release, is driven from the repository's `build` branch rather than from this
+firmware tree:
+
+```bash
+git switch build
+make uplift-edk2-release \
+  EDK2_BASE=edk2-stableYYYYMM \
+  FROM_EDK2_BASE=edk2-stableYYYYMM
+```
+
+Run `make source-uplift-help` on this branch for the short pointer, or
+`make uplift-edk2-release-help` on `build` for the full set of resume and
+override variables.
+
 For the build-variable reference, including which switches are custom-only,
 which ones can be combined, and what they change on the board, see
 [`docs/build-variables.md`](docs/build-variables.md).
