@@ -20,6 +20,8 @@ from reconstruction_common import (
     git,
     load_json,
     edk2_ref_for_release,
+    latest_value,
+    release_for_edk2_ref,
     unofficial_release_branch_for_tag,
     unofficial_release_edk2_refs,
     unofficial_release_tag_for_branch,
@@ -41,6 +43,7 @@ from reconstruction_common import (
     tree_id,
     truthy,
     unofficial_source_policy,
+    version_key,
 )
 
 
@@ -356,6 +359,18 @@ def require_unofficial_source_policy(repo: Path, expected_releases: set[str]) ->
             problems.append(
                 "default source target does not match config/policies.json unofficial_source_policy "
                 f"({actual_default} != {expected_default})"
+            )
+        configured_release = str(policy.get("current_edk2_release", "")).strip()
+        if configured_release.startswith("edk2-stable"):
+            configured_release = release_for_edk2_ref(configured_release)
+        latest_unofficial = latest_value(
+            [release_for_edk2_ref(ref) for ref in unofficial_release_edk2_refs(repo)],
+            "unofficial EDK2",
+        )
+        if version_key(configured_release) < version_key(latest_unofficial):
+            problems.append(
+                "config/policies.json unofficial_source_policy current_edk2_release "
+                f"selects {configured_release}, but the latest source/unofficial release branch is {latest_unofficial}"
             )
     except ReconstructionError as exc:
         problems.append(str(exc))

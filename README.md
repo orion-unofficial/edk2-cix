@@ -712,29 +712,127 @@ intent to `.github/workflows/` on this branch before updating
 without inheriting vendor workflows that assume the old submodule-based `main`
 branch layout.
 
-After adding source refs for a new supported EDK2 release:
+For a new upstream EDK2 stable release, prefer the orchestrated target:
 
-1. Integrate the required source refs with `make integrate-source-release`.
+```bash
+make uplift-edk2-release \
+  EDK2_BASE=edk2-stable202608 \
+  FROM_EDK2_BASE=edk2-stable202605
+```
 
-   At minimum this means the upstream `edk2` base ref and the selected
-   companion `edk2-platforms` and `edk2-non-osi` refs. Once
-   `source/base/edk2/<edk2-release>` exists, the release is discoverable; there
-   is no separate release-list file to update.
+Run it once without `WRITE=1` first. The dry run validates the selected
+release, shows which stages are already complete, and delegates dry runs for
+stages whose prerequisites already exist. Later stages that depend on newly
+recorded refs are reported as pending until the real run creates those refs.
+When the plan is correct, run:
 
-2. Generate the source target once and refresh its recorded tree ID:
+```bash
+make uplift-edk2-release \
+  EDK2_BASE=edk2-stable202608 \
+  FROM_EDK2_BASE=edk2-stable202605 \
+  WRITE=1
+```
 
-   ```bash
-   make render-release-branch \
-     RELEASE=edk2-202605/cix-1.2/radxa-1.2.1/unofficial \
-     PERSIST=1 REBUILD=1 FORCE=1
-   ```
+`FROM_EDK2_BASE` defaults to
+`config/policies.json` `unofficial_source_policy.current_edk2_release`, so it
+can be omitted for a first run before policy has moved. Passing it explicitly
+is safer in notes, scripts, and reruns.
 
-3. Run `make verify-build-matrix` to confirm the derived matrix, source-target
-   manifest, refs, aliases, and tree IDs agree.
-4. Run the normal build/audit qualification for the new source target before
-   publishing it.
+The target performs the mechanical stages in order:
 
-The persistent `source/cache/release/**` branch created in step 2 is a cache.
+1. records `source/base/edk2/<EDK2_BASE>`
+2. records `source/base/edk2-platforms/<EDK2_BASE>`
+3. records `source/base/edk2-non-osi/<EDK2_BASE>`
+4. ports the current Radxa source release to `source/port/radxa/**/<EDK2_BASE>`
+5. promotes `source/unofficial/current` to `source/unofficial/<EDK2_BASE>`
+6. moves `source/unofficial/current`, updates the matching
+   `source/unofficial/edk2/stable-*` tag, and updates
+   `config/policies.json`
+7. refreshes the rendered `source/cache/release/custom/.../unofficial`
+   branch for the new default source target
+8. runs `make verify-build-matrix`
+
+By default the Radxa release and CIX release are taken from
+`config/policies.json`. Override them when carrying forward a different vendor
+input:
+
+```bash
+make uplift-edk2-release \
+  EDK2_BASE=edk2-stable202608 \
+  FROM_EDK2_BASE=edk2-stable202605 \
+  RADXA_RELEASE=1.2.1 \
+  CIX_RELEASE=1.2 \
+  WRITE=1
+```
+
+For `edk2-platforms` and `edk2-non-osi`, omit explicit refs for normal stable
+EDK2 releases. The integration helper selects the latest upstream `master`
+commit at or before the matching EDK2 stable tag timestamp and records that
+timestamp in `config/refs-edk2.json`. If a future release needs a different
+selection, pass `EDK2_PLATFORMS_REF=<ref>` or `EDK2_NON_OSI_REF=<ref>` and
+record the reason in the commit message.
+
+If a source port stops with a conflict, that is a real engineering decision
+rather than a script special case. The script prints the preserved worktree
+path, writes a `README.md` beside it, and stops before moving the target ref.
+Resolve the conflict markers, commit the resolved tree in that worktree, then
+rerun the orchestrated target with the appropriate resolved ref:
+
+```bash
+# If the Radxa stage stopped:
+make uplift-edk2-release \
+  EDK2_BASE=edk2-stable202608 \
+  FROM_EDK2_BASE=edk2-stable202605 \
+  RADXA_REF=<resolved-radxa-commit> \
+  WRITE=1
+
+# If the unofficial stage stopped:
+make uplift-edk2-release \
+  EDK2_BASE=edk2-stable202608 \
+  FROM_EDK2_BASE=edk2-stable202605 \
+  UNOFFICIAL_REF=<resolved-unofficial-commit> \
+  WRITE=1
+```
+
+Completed stages are skipped on rerun. If policy already moved before a rerun,
+keep passing the previous base explicitly with `FROM_EDK2_BASE=...`. Use
+`ALLOW_REPLACE=1` only when deliberately replacing a ref that was already
+recorded.
+
+The primitive targets remain supported and are what the orchestrated target
+uses internally:
+
+- `make integrate-source-release` records upstream, vendor, and CIX component
+  refs. It is still the right tool for individual source refs and non-EDK2
+  component experiments.
+- `make promote-unofficial-release` promotes one unofficial source tree to one
+  new EDK2 base. Use it directly when you need to inspect or test that stage in
+  isolation.
+- `make render-release-branch` materialises one configured source target and
+  refreshes the generated tree-ID manifest.
+- `make extract-vendor-delta` remains a read-only inspection/reporting helper.
+- `make import-changes`, `make import-unofficial-commits`,
+  `make propagate-release-branches`, `make inspect-import-conflicts`, and
+  `make resolve-conflicts` remain for project-source changes across existing
+  unofficial release branches. They are not the preferred path for a new EDK2
+  base uplift.
+
+After the orchestrated uplift has completed, qualify the result before
+publishing:
+
+```bash
+make test-local
+make deterministic-replay \
+  REPLAY_SOURCE_TARGET=edk2-202208/radxa-1.2.1/unofficial-1.2.1
+```
+
+`make test-local` includes matrix, metadata, lifecycle, minimised-clone, help,
+workflow-drift, and identity checks. The deterministic replay intentionally
+uses the pinned `edk2-202208` vendor source target; it proves the enhanced
+uplift tooling did not drift the byte-identical upstream replay path while the
+new current target moved forward.
+
+The persistent `source/cache/release/**` branch created by the render stage is a cache.
 Once the tree ID has been recorded and validation passes, it may be deleted
 without losing the ability to regenerate the source target.
 

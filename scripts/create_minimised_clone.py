@@ -43,8 +43,17 @@ def ref_list(repo: Path, namespace: str) -> list[str]:
     return sorted(line for line in result.stdout.splitlines() if line)
 
 
+def build_refspec(repo: Path) -> tuple[str, str]:
+    head = git(repo, "rev-parse", "--verify", "HEAD").stdout.strip()
+    build = git(repo, "rev-parse", "--verify", "refs/heads/build", check=False)
+    if build.returncode == 0 and build.stdout.strip() == head:
+        return ("refs/heads/build", "refs/heads/build")
+    return ("HEAD", "refs/heads/build")
+
+
 def required_refspecs(repo: Path) -> list[tuple[str, str]]:
-    refspecs: dict[str, str] = {"refs/heads/build": "refs/heads/build"}
+    build_source, build_target = build_refspec(repo)
+    refspecs: dict[str, str] = {build_target: build_source}
     for ref in ref_list(repo, "refs/heads/source"):
         if not ref.startswith("refs/heads/source/cache/"):
             refspecs.setdefault(ref, ref)

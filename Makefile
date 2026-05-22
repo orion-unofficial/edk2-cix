@@ -127,12 +127,12 @@ endef
 
 .PHONY: help help-vars help-dev help-dev-source help-dev-verify help-dev-maintenance help-source-targets build build-all deterministic-replay install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test test-local lint \
-	extract-vendor-delta render-release-branch integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
-	propagate-release-branches update-release-tags \
+	extract-vendor-delta render-release-branch uplift-edk2-release integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
+	propagate-release-branches promote-unofficial-release update-release-tags \
 	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-source-metadata check-help-cache check-first-output-latency refresh-source-metadata refresh-help-cache ref-report cleanup-report create-minimised-clone \
 	gha-act-list gha-act-dry-run gha-act-run \
-	extract-vendor-delta-help render-release-branch-help integrate-source-release-help \
-	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help resolve-conflicts-help update-release-tags-help \
+	extract-vendor-delta-help render-release-branch-help uplift-edk2-release-help integrate-source-release-help \
+	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help resolve-conflicts-help promote-unofficial-release-help update-release-tags-help \
 	verify-release-branch-help verify-build-matrix-help verify-source-policy-help verify-source-lifecycle-help \
 	check-ref-integrity-help check-identity-integrity-help verify-identity-integrity-help check-vendor-workflow-drift-help check-upstream-versions-help check-source-metadata-help refresh-source-metadata-help \
 	create-minimised-clone-help verify-minimised-clone-help prune-help refresh-help-cache-help check-help-cache-help check-first-output-latency-help ref-report-help cleanup-report-help
@@ -220,11 +220,13 @@ help-dev:
 	print_help_line 'make verify-source-policy-help' 'Show verify-source-policy arguments.'; \
 	print_help_line 'make verify-source-lifecycle-help' 'Show verify-source-lifecycle arguments.'; \
 	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
+	print_help_line 'make uplift-edk2-release-help' 'Show uplift-edk2-release arguments.'; \
 	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
 	print_help_line 'make import-changes-help' 'Show import-changes arguments.'; \
 	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
 	print_help_line 'make inspect-import-conflicts-help' 'Show inspect-import-conflicts arguments.'; \
 	print_help_line 'make resolve-conflicts-help' 'Show resolve-conflicts arguments.'; \
+	print_help_line 'make promote-unofficial-release-help' 'Show promote-unofficial-release arguments.'; \
 	print_help_line 'make update-release-tags-help' 'Show update-release-tags arguments.'; \
 	print_help_line 'make check-ref-integrity-help' 'Show check-ref-integrity arguments.'; \
 	print_help_line 'make check-identity-integrity-help' 'Show check-identity-integrity arguments.'; \
@@ -243,12 +245,14 @@ help-dev-source:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Source Integration'; \
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
+	print_help_line 'make uplift-edk2-release' 'Run the mechanical stages for a new upstream EDK2 stable release.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-changes' 'Extract a patch from a materialised, legacy, or broader source tree into source/unofficial refs.'; \
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source branch from an already unofficial-based topic branch.'; \
 	print_help_line 'make inspect-import-conflicts' 'Inspect a paused import operation with symlink-aware conflict reporting.'; \
 	print_help_line 'make resolve-conflicts' 'Batch-resolve paused import conflicts in scratch trees with symlink-aware vimdiff panes.'; \
 	print_help_line 'make propagate-release-branches' 'Replay source/unofficial/current changes onto every release-specific source/unofficial branch.'; \
+	print_help_line 'make promote-unofficial-release' 'Port source/unofficial/current onto a newer EDK2 base and record the matching release branch.'; \
 	print_help_line 'make update-release-tags' 'Move source/unofficial/edk2/stable-* tags to matching release-branch heads after validation.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa source refs or CIX-carried source layers.'; \
@@ -256,11 +260,19 @@ help-dev-source:
 	print_help_variable 'VENDOR=radxa|cix' 'For TYPE=vendor. Radxa records vendor-published or ported EDK2 source trees; CIX updates the TF-A/OP-TEE release bundle.'; \
 	print_help_variable 'RELEASE=<name>' 'For source integration: release, tag, or source version name.'; \
 	print_help_variable 'REF=<ref>' 'Input ref/object for source integration, or source ref for verify-source-policy.'; \
+	print_help_variable 'EDK2_REF=<ref>' 'For uplift-edk2-release. Explicit EDK2 upstream object to record instead of the matching release tag.'; \
+	print_help_variable 'EDK2_PLATFORMS_REF=<ref>' 'For uplift-edk2-release. Explicit edk2-platforms companion object to record.'; \
+	print_help_variable 'EDK2_NON_OSI_REF=<ref>' 'For uplift-edk2-release. Explicit edk2-non-osi companion object to record.'; \
 	print_help_variable 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
+	print_help_variable 'FROM_EDK2_BASE=<release>' 'Previous EDK2 base used when porting a Radxa or unofficial source tree to a newer EDK2 base.'; \
 	print_help_variable 'ARM_BASE=<release>' 'Arm upstream base used when recording a CIX TF-A or OP-TEE component uplift.'; \
+	print_help_variable 'RADXA_RELEASE=<release>' 'For uplift-edk2-release. Radxa release to carry forward.\nDefault: config/policies.json current_radxa_release.'; \
+	print_help_variable 'CIX_RELEASE=<release>' 'For uplift-edk2-release. CIX release to use in the rendered source target.\nDefault: config/policies.json current_cix_release.'; \
 	print_help_variable 'RADXA_SOURCE=auto|vendor|port' 'Select whether a Radxa integration is a vendor-published source tree or this project'\''s port to an EDK2 base.\nDefault: auto.'; \
-	print_help_variable 'WRITE=0|1' 'Permit ref creation/advancement in integrate-source-release, import-changes, import-unofficial-commits, propagate-release-branches, and update-release-tags.'; \
-	print_help_variable 'ALLOW_REPLACE=0|1' 'Allow integrate-source-release to replace an existing manifested source ref deliberately.'; \
+	print_help_variable 'RADXA_REF=<ref>' 'For uplift-edk2-release. Resolved Radxa source-port commit from a conflict handoff.'; \
+	print_help_variable 'UNOFFICIAL_REF=<ref>' 'For uplift-edk2-release. Resolved unofficial source-port commit from a conflict handoff.'; \
+	print_help_variable 'WRITE=0|1' 'Permit ref creation/advancement in uplift-edk2-release, integrate-source-release, import-changes, import-unofficial-commits, propagate-release-branches, and update-release-tags.'; \
+	print_help_variable 'ALLOW_REPLACE=0|1' 'Allow uplift-edk2-release or integrate-source-release to replace an existing manifested source ref deliberately.'; \
 	print_help_variable 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before recording source/vendor or source/port refs.\nDefault: 1.'; \
 	print_help_variable 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta, or explicit override for import-changes/import-unofficial-commits when automatic inference is ambiguous.'; \
 	print_help_variable 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
@@ -286,14 +298,20 @@ help-dev-source:
 	print_help_variable 'PRESERVE_SYMLINKS=0|1' 'For resolve-conflicts. If the resolved content exactly matches an expanded conflicted symlink target, restore the symlink rather than materialising a regular file.\nDefault: 1.'; \
 	print_help_variable 'ALLOW_CONFLICT_MARKERS=0|1' 'For resolve-conflicts. Permit conflict-marker text in a resolved file.\nDefault: 0.'; \
 	print_help_variable 'ALLOW_SOURCE_REF_FROM=0|1' 'Maintainer escape hatch allowing FROM_REF=source/unofficial/** with an explicit BASE_REF.\nDefault: 0.'; \
+	print_help_variable 'UPDATE_CURRENT=0|1' 'For promote-unofficial-release. Move source/unofficial/current to the promoted source tree.\nDefault: 1.'; \
+	print_help_variable 'UPDATE_POLICY=0|1' 'For promote-unofficial-release. Update config/policies.json current_edk2_release.\nDefault: 1.'; \
+	print_help_variable 'SKIP_RENDER=0|1' 'For uplift-edk2-release. Skip the rendered source-target refresh.\nDefault: 0.'; \
+	print_help_variable 'VERIFY=0|1' 'For uplift-edk2-release. Run verify-build-matrix after rendering.\nDefault: 1.'; \
 	print_help_variable 'TARGET_REF=<ref[,ref...]>' 'Optional comma-separated target refs for update-release-tags. Leave unset to check every source/unofficial/edk2-stable* release branch.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
+	print_help_line 'make uplift-edk2-release-help' 'Show uplift-edk2-release arguments.'; \
 	print_help_line 'make integrate-source-release-help' 'Show integrate-source-release arguments.'; \
 	print_help_line 'make import-changes-help' 'Show import-changes arguments.'; \
 	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
 	print_help_line 'make inspect-import-conflicts-help' 'Show inspect-import-conflicts arguments.'; \
 	print_help_line 'make resolve-conflicts-help' 'Show resolve-conflicts arguments.'; \
+	print_help_line 'make promote-unofficial-release-help' 'Show promote-unofficial-release arguments.'; \
 	print_help_line 'make update-release-tags-help' 'Show update-release-tags arguments.'
 
 help-dev-verify:
@@ -622,9 +640,14 @@ extract-vendor-delta:
 	$(call PROGRESS_PROBE,[delta] Extracting vendor delta)
 	@DEBUG="$(DEBUG)" VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"
 
+uplift-edk2-release:
+	@if [ -z "$(EDK2_BASE)" ]; then $(MAKE) --no-print-directory uplift-edk2-release-help; printf '%s\n' 'missing required variable: EDK2_BASE' >&2; exit 2; fi
+	$(call PROGRESS_PROBE,[uplift] Starting EDK2 release uplift)
+	@DEBUG="$(DEBUG)" EDK2_BASE="$(EDK2_BASE)" FROM_EDK2_BASE="$(FROM_EDK2_BASE)" RADXA_RELEASE="$(RADXA_RELEASE)" CIX_RELEASE="$(CIX_RELEASE)" EDK2_REF="$(EDK2_REF)" EDK2_PLATFORMS_REF="$(EDK2_PLATFORMS_REF)" EDK2_NON_OSI_REF="$(EDK2_NON_OSI_REF)" RADXA_REF="$(RADXA_REF)" UNOFFICIAL_REF="$(UNOFFICIAL_REF)" FROM_REF="$(FROM_REF)" RELEASE="$(RELEASE)" SKIP_RENDER="$(SKIP_RENDER)" VERIFY="$(VERIFY)" WRITE="$(WRITE)" FORCE="$(or $(FORCE),1)" ALLOW_REPLACE="$(ALLOW_REPLACE)" V="$(V)" $(PYTHON) scripts/uplift_edk2_release.py --v "$(V)"
+
 integrate-source-release:
 	$(call PROGRESS_PROBE,[integrate] Starting source integration)
-	@DEBUG="$(DEBUG)" TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" REF="$(REF)" RADXA_SOURCE="$(RADXA_SOURCE)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(or $(MATERIALISE),1)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
+	@DEBUG="$(DEBUG)" TYPE="$(TYPE)" COMPONENT="$(COMPONENT)" VENDOR="$(VENDOR)" RELEASE="$(RELEASE)" EDK2_BASE="$(EDK2_BASE)" FROM_EDK2_BASE="$(FROM_EDK2_BASE)" REF="$(REF)" RADXA_SOURCE="$(RADXA_SOURCE)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" MATERIALISE="$(or $(MATERIALISE),1)" V="$(V)" $(PYTHON) scripts/integrate_source_release.py --v "$(V)"
 
 import-unofficial-commits:
 	$(call PROGRESS_PROBE,[import-unofficial] Starting unofficial import)
@@ -647,6 +670,11 @@ resolve-conflicts:
 propagate-release-branches:
 	$(call PROGRESS_PROBE,[propagate] Propagating source/unofficial/current to release branches)
 	@DEBUG="$(DEBUG)" FROM_REF="$(or $(FROM_REF),source/unofficial/current)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="source/unofficial/current" PROPAGATE_RELEASE_BRANCHES="all" UPDATE_RELEASE_TAGS="0" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" ALLOW_SOURCE_REF_FROM="1" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
+
+promote-unofficial-release:
+	@if [ -z "$(EDK2_BASE)" ] || [ -z "$(FROM_EDK2_BASE)" ]; then $(MAKE) --no-print-directory promote-unofficial-release-help; printf '%s\n' 'missing required variable(s): EDK2_BASE FROM_EDK2_BASE' >&2; exit 2; fi
+	$(call PROGRESS_PROBE,[promote] Promoting unofficial source to $(EDK2_BASE))
+	@DEBUG="$(DEBUG)" EDK2_BASE="$(EDK2_BASE)" FROM_EDK2_BASE="$(FROM_EDK2_BASE)" FROM_REF="$(or $(FROM_REF),source/unofficial/current)" RESOLVED_REF="$(or $(RESOLVED_REF),$(REF))" UPDATE_CURRENT="$(or $(UPDATE_CURRENT),1)" UPDATE_RELEASE_TAGS="$(if $(filter file,$(origin UPDATE_RELEASE_TAGS)),1,$(UPDATE_RELEASE_TAGS))" UPDATE_POLICY="$(or $(UPDATE_POLICY),1)" ALLOW_REPLACE="$(ALLOW_REPLACE)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/promote_unofficial_release.py --v "$(V)"
 
 update-release-tags:
 	$(call PROGRESS_PROBE,[tags] Checking unofficial release tags)
@@ -740,6 +768,9 @@ verify-source-lifecycle-help:
 extract-vendor-delta-help:
 	@$(PYTHON) scripts/extract_vendor_delta.py --help
 
+uplift-edk2-release-help:
+	@$(PYTHON) scripts/uplift_edk2_release.py --help
+
 integrate-source-release-help:
 	@$(PYTHON) scripts/integrate_source_release.py --help
 
@@ -754,6 +785,9 @@ inspect-import-conflicts-help:
 
 resolve-conflicts-help:
 	@$(PYTHON) scripts/resolve_import_conflicts.py --help
+
+promote-unofficial-release-help:
+	@$(PYTHON) scripts/promote_unofficial_release.py --help
 
 update-release-tags-help:
 	@$(PYTHON) scripts/update_release_tags.py --help

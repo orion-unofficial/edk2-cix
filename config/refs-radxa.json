@@ -81,6 +81,11 @@
       "tree_id": "6c90699337b73fd06fc4ca2c307968ca214d3a7a"
     },
     {
+      "object_id": "fedb9b09d4a60e60005aec0013b48539b072c448",
+      "ref": "source/port/radxa/1.2.1/edk2-stable202605",
+      "tree_id": "6f8889d0883f926e8c5a965007f80f5e86fa9125"
+    },
+    {
       "object_id": "37faf8c8456fbe91278ec9dd40838a7cbd249b7c",
       "ref": "source/vendor/radxa/0.2.0-1/edk2-stable202208",
       "tree_id": "c479bb42d8dcd77e296c6d04bfd7df142ad7d249"

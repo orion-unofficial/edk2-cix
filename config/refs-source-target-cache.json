@@ -72,6 +72,10 @@
       "tree_id": "d71eade72f0b29e9172bc10d1e0bdf5d67da8ca9"
     },
     {
+      "ref": "source/cache/release/custom/edk2-202605/cix-1.2/radxa-1.2.1/unofficial",
+      "tree_id": "74c6b8dc3bb1d67fcf40dd428f25de9f93fc95ac"
+    },
+    {
       "ref": "source/cache/release/vendor/edk2-202208/cix-1.2/radxa-1.2.1",
       "tree_id": "94bb3bbe3db63703cfd77ff1426b89c06b180215",
       "type": "rendered-vendor-release"

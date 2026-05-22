@@ -1125,9 +1125,24 @@ def cache_dir(repo: Path, *parts: str) -> Path:
     return path
 
 
+def temp_root(repo: Path) -> Path:
+    configured = os.environ.get("EDK2_CIX_TMP_ROOT", "").strip()
+    if configured:
+        root = Path(configured)
+        if not root.is_absolute():
+            root = repo / root
+    else:
+        root = cache_dir(repo, "tmp")
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
 def temp_dir(repo: Path, prefix: str) -> tempfile.TemporaryDirectory[str]:
-    root = cache_dir(repo, "tmp")
-    return tempfile.TemporaryDirectory(prefix=prefix, dir=root)
+    return tempfile.TemporaryDirectory(prefix=prefix, dir=temp_root(repo))
+
+
+def temp_path(repo: Path, prefix: str) -> Path:
+    return Path(tempfile.mkdtemp(prefix=prefix, dir=temp_root(repo)))
 
 
 def commit_tree_with_files(repo: Path, files: dict[str, bytes], message: str, parents: list[str] | None = None) -> str:

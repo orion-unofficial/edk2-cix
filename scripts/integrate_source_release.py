@@ -18,7 +18,9 @@ from reconstruction_common import (
     RADXA_REFS_MANIFEST,
     ReconstructionError,
     check_immutable_refs,
+    clear_metadata_caches,
     configured_remote_url,
+    for_each_ref,
     git,
     load_json,
     main_wrapper,
@@ -33,6 +35,7 @@ from reconstruction_common import (
     version_key,
 )
 from render_release_branch import gitlinks, materialise_submodules
+from source_porting import apply_source_delta_to_base
 
 
 HELP = """integrate-source-release
@@ -54,6 +57,8 @@ Required variables:
 Optional variables:
   RELEASE=<release-or-ref>  Release tag/version to integrate.
   EDK2_BASE=<release>       EDK2 base marker for Radxa source refs.
+  FROM_EDK2_BASE=<release>  Previous EDK2 base used to port a Radxa source
+                            tree when REF is omitted.
   ARM_BASE=<release>        Arm base marker for CIX component uplift refs.
   REF=<object-id-or-ref>    Explicit object to use instead of a configured remote tag.
   RADXA_SOURCE=auto|vendor|port
@@ -78,9 +83,15 @@ is recorded.
 CIX TF-A/OP-TEE uplift experiments should use COMPONENT=tf-a|op-tee,
 ARM_BASE=<arm-release>, and REF=<ported-ref>. This records the finished
 component ref under source/component/cix/<cix-release>/<component>/<arm-base>.
+For edk2-platforms and edk2-non-osi stable-release integration, REF may be
+omitted; the script selects the latest upstream master commit at or before the
+matching EDK2 stable tag committer timestamp.
+For Radxa ports to a newer EDK2 base, omit REF and provide FROM_EDK2_BASE to
+replay the previous Radxa source delta onto the new EDK2 base.
 """
 
 UPSTREAM_COMPONENTS = {"edk2", "edk2-platforms", "edk2-non-osi", "tf-a", "op-tee"}
+EDK2_COMPANION_COMPONENTS = {"edk2-platforms", "edk2-non-osi"}
 VENDORS = {"radxa", "cix"}
 
 
@@ -91,6 +102,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--vendor", default=os.environ.get("VENDOR", ""))
     p.add_argument("--release", default=os.environ.get("RELEASE", ""))
     p.add_argument("--edk2-base", default=os.environ.get("EDK2_BASE", ""))
+    p.add_argument("--from-edk2-base", default=os.environ.get("FROM_EDK2_BASE", ""))
     p.add_argument("--arm-base", default=os.environ.get("ARM_BASE", ""))
     p.add_argument("--ref", default=os.environ.get("REF", ""))
     p.add_argument("--radxa-source", default=os.environ.get("RADXA_SOURCE", "auto"))
@@ -107,6 +119,76 @@ def upstream_target(component: str, release: str) -> str:
     if component in {"edk2-platforms", "edk2-non-osi"}:
         return f"source/base/{component}/{release}"
     return f"source/base/arm/{component}/{release}"
+
+
+def normalise_edk2_base(value: str) -> str:
+    value = value.strip()
+    if not value:
+        return value
+    if value.startswith("edk2-stable"):
+        return value
+    if value.startswith("edk2-"):
+        return "edk2-stable" + value.removeprefix("edk2-")
+    return "edk2-stable" + value
+
+
+def cache_base_ref(edk2_base: str) -> str:
+    return f"{CACHE_BASE_EDK2_PREFIX}{normalise_edk2_base(edk2_base)}"
+
+
+def commit_timestamp(repo: Path, ref: str) -> str:
+    return git(repo, "show", "-s", "--format=%cI", ref).stdout.strip()
+
+
+def edk2_release_timestamp(repo: Path, release: str, verbose: bool) -> str:
+    base_ref = f"source/base/edk2/{release}"
+    if ref_exists(repo, base_ref):
+        return commit_timestamp(repo, resolve_ref(repo, base_ref))
+    tag_ref = f"refs/tags/{release}"
+    if ref_exists(repo, tag_ref):
+        return commit_timestamp(repo, resolve_ref(repo, tag_ref))
+    remote = configured_remote_url(repo, component="edk2", remote_type="upstream")
+    if verbose:
+        print(f"fetch {remote} {tag_ref} for companion timestamp")
+    git(repo, "fetch", "--no-tags", remote, tag_ref, capture=not verbose)
+    return commit_timestamp(repo, "FETCH_HEAD")
+
+
+def selected_master_commit(repo: Path, remote: str, timestamp: str, verbose: bool) -> str:
+    if verbose:
+        print(f"fetch {remote} refs/heads/master for timestamp selection")
+    git(repo, "fetch", "--no-tags", remote, "refs/heads/master", capture=not verbose)
+    commit = git(repo, "rev-list", "-n", "1", f"--before={timestamp}", "FETCH_HEAD").stdout.strip()
+    if not commit:
+        raise ReconstructionError(f"no upstream master commit found at or before {timestamp}")
+    return commit
+
+
+def upstream_operation(
+    repo: Path,
+    component: str,
+    release: str,
+    explicit_ref: str,
+    verbose: bool,
+) -> tuple[str, str, str, dict[str, str]]:
+    target = upstream_target(component, release)
+    remote = configured_remote_url(repo, component=component, remote_type="upstream")
+    if component in EDK2_COMPANION_COMPONENTS and not explicit_ref:
+        timestamp = edk2_release_timestamp(repo, release, verbose)
+        source = selected_master_commit(repo, remote, timestamp, verbose)
+        return (
+            remote,
+            source,
+            target,
+            {
+                "type": "base",
+                "component": component,
+                "upstream_ref": "refs/heads/master",
+                "selected_at_or_before": timestamp,
+            },
+        )
+    source = explicit_ref or f"refs/tags/{release}"
+    return (remote, source, target, {"type": "base", "component": component, "upstream_ref": source})
 
 
 def cix_component_records(repo: Path, release: str) -> list[dict[str, str]]:
@@ -176,10 +258,26 @@ def manifest_path_for(target: str) -> str:
 
 
 def radxa_vendor_refs(repo: Path, release: str) -> list[str]:
-    result = git(repo, "for-each-ref", "--format=%(refname:short)", f"refs/heads/source/vendor/radxa/{release}", check=False)
-    if result.returncode != 0:
-        return []
-    return [line for line in result.stdout.splitlines() if line]
+    return [
+        ref
+        for ref in for_each_ref(repo, f"source/vendor/radxa/{release}")
+        if ref.startswith(f"source/vendor/radxa/{release}/")
+    ]
+
+
+def radxa_source_ref_for_base(repo: Path, release: str, edk2_base: str) -> str:
+    edk2_base = normalise_edk2_base(edk2_base)
+    candidates = [
+        f"source/vendor/radxa/{release}/{edk2_base}",
+        f"source/port/radxa/{release}/{edk2_base}",
+    ]
+    for ref in candidates:
+        if ref_exists(repo, ref):
+            return ref
+    raise ReconstructionError(
+        f"no Radxa source ref recorded for Radxa {release} on {edk2_base}; "
+        f"expected one of: {', '.join(candidates)}"
+    )
 
 
 def radxa_target_ref(repo: Path, release: str, edk2_base: str, source: str) -> tuple[str, str]:
@@ -343,6 +441,34 @@ def commit_radxa_source_snapshot(
     return git(repo, "commit-tree", source_tree, "-m", message).stdout.strip()
 
 
+def ported_radxa_source_snapshot(
+    repo: Path,
+    source_ref: str,
+    release: str,
+    from_edk2_base: str,
+    to_edk2_base: str,
+    verbose: bool,
+) -> str:
+    old_base_ref = cache_base_ref(from_edk2_base)
+    new_base_ref = cache_base_ref(to_edk2_base)
+    message = (
+        f"source: record Radxa {release} ported vendor source for {normalise_edk2_base(to_edk2_base)}\n\n"
+        f"Source-Base: {new_base_ref}\n"
+        f"Source-Ported-From: {old_base_ref}\n"
+        f"Source-Ported-Input: {source_ref}\n"
+        "Source-Model: materialised Radxa ported vendor source tree\n"
+    )
+    return apply_source_delta_to_base(
+        repo,
+        old_base_ref=old_base_ref,
+        source_ref=source_ref,
+        new_base_ref=new_base_ref,
+        message=message,
+        label=f"radxa-{release}-{normalise_edk2_base(to_edk2_base)}",
+        verbose=verbose,
+    )
+
+
 def validate(args: argparse.Namespace) -> list[str]:
     missing: list[str] = []
     if args.type_ not in {"upstream", "vendor"}:
@@ -385,10 +511,7 @@ def main() -> None:
     operations: list[tuple[str, str, str, dict[str, str]]] = []
     if args.type_ == "upstream":
         release = args.release or args.ref
-        target = upstream_target(args.component, release)
-        source = args.ref or f"refs/tags/{release}"
-        remote = configured_remote_url(repo, component=args.component, remote_type="upstream")
-        operations.append((remote, source, target, {"type": "base", "component": args.component, "upstream_ref": source}))
+        operations.append(upstream_operation(repo, args.component, release, args.ref, verbose))
     elif args.vendor == "cix" and args.component:
         cix_release = args.release.removeprefix("v")
         target = f"source/component/cix/{cix_release}/{args.component}/{args.arm_base}"
@@ -432,9 +555,15 @@ def main() -> None:
                 },
             ))
     else:
-        target, record_type = radxa_target_ref(repo, args.release, args.edk2_base, args.radxa_source)
-        source = args.ref or "<materialised-vendor-ref>"
-        base_ref = f"{CACHE_BASE_EDK2_PREFIX}{args.edk2_base}"
+        edk2_base = normalise_edk2_base(args.edk2_base)
+        target, record_type = radxa_target_ref(repo, args.release, edk2_base, args.radxa_source)
+        if args.ref:
+            source = args.ref
+        elif record_type == "ported-vendor-source" and args.from_edk2_base:
+            source = radxa_source_ref_for_base(repo, args.release, args.from_edk2_base)
+        else:
+            source = "<materialised-vendor-ref>"
+        base_ref = cache_base_ref(edk2_base)
         operations.append((
             "local",
             source,
@@ -443,19 +572,24 @@ def main() -> None:
                 "type": record_type,
                 "vendor": "radxa",
                 "radxa_release": args.release,
-                "edk2_base": args.edk2_base,
+                "edk2_base": edk2_base,
                 "base_ref": base_ref,
                 "format": "materialised source tree",
+                "_from_edk2_base": normalise_edk2_base(args.from_edk2_base) if args.from_edk2_base else "",
+                "_from_base_ref": cache_base_ref(args.from_edk2_base) if args.from_edk2_base else "",
             },
         ))
 
     if not write:
         print("dry run; set WRITE=1 to create refs")
-        for remote, source, target, _meta in operations:
+        for remote, source, target, meta in operations:
+            if meta.get("_from_base_ref"):
+                print(f"  port delta from {source} using {meta['_from_base_ref']} -> {meta['base_ref']}")
             print(f"  {remote} {source} -> {target}")
         return
 
     for remote, source, target, meta in operations:
+        record_meta = {key: value for key, value in meta.items() if not key.startswith("_")}
         if remote == "local":
             if source.startswith("<"):
                 raise ReconstructionError("Radxa vendor/port integration requires REF=<vendor-ref-or-object> in WRITE mode")
@@ -464,8 +598,19 @@ def main() -> None:
                 resolve_ref_or_generated_cache(repo, base_ref)
                 if not ref_exists(repo, source):
                     raise ReconstructionError(f"Radxa source ref is unavailable locally: {source}")
-                materialised_source = source
-                if truthy(args.materialise):
+                generated_port = meta.get("type") == "ported-vendor-source" and meta.get("_from_edk2_base") and not args.ref
+                if generated_port:
+                    materialised_source = ported_radxa_source_snapshot(
+                        repo,
+                        source,
+                        args.release,
+                        str(meta["_from_edk2_base"]),
+                        str(meta["edk2_base"]),
+                        verbose,
+                    )
+                else:
+                    materialised_source = source
+                if truthy(args.materialise) and not generated_port:
                     materialised_source = materialise_vendor_ref(repo, source, args.release, verbose)
                 if ref_exists(repo, target) and not allow_replace:
                     raise ReconstructionError(f"target immutable ref already exists: {target}")
@@ -473,7 +618,7 @@ def main() -> None:
                     repo,
                     materialised_source,
                     args.release,
-                    args.edk2_base,
+                    str(meta["edk2_base"]),
                     str(meta["type"]),
                 )
                 if allow_replace and ref_exists(repo, target):
@@ -492,7 +637,8 @@ def main() -> None:
                     git(repo, "branch", target, source, capture=not verbose)
         else:
             fetch_to_ref(repo, remote, source, target, verbose, allow_replace)
-        upsert_manifest(repo, target, manifest_record(repo, target, **meta))
+        clear_metadata_caches()
+        upsert_manifest(repo, target, manifest_record(repo, target, **record_meta))
     print("integration refs and config metadata updated")
 
 

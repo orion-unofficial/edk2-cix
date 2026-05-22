@@ -309,6 +309,24 @@
       },
       "edk2_ref": "edk2-stable202602",
       "selected_at_or_before": "2026-02-13T11:55:46Z"
+    },
+    {
+      "components": {
+        "edk2": {
+          "object_id": "b03a21a63e3bd001f52c527e5a57feddb53a690b",
+          "tree_id": "5b0211318daa1c6e802bfc519039ab3e15aa6fd1"
+        },
+        "edk2-non-osi": {
+          "object_id": "7ac12d81e02b323bffdf1ef3c188ea33c2185c91",
+          "tree_id": "2f853934d0f98a07a08d4cd2a89f6ea0b59d9f96"
+        },
+        "edk2-platforms": {
+          "object_id": "b5e92aa284c59a22e7e38f79125a20f774ab7027",
+          "tree_id": "ea89773bf6dc26a9a2bced0e563368377bc04dd4"
+        }
+      },
+      "edk2_ref": "edk2-stable202605",
+      "selected_at_or_before": "2026-05-08T02:42:59Z"
     }
   ]
 }

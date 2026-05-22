@@ -15,6 +15,7 @@ from reconstruction_common import (
     ReconstructionError,
     cache_dir,
     check_immutable_refs,
+    clear_metadata_caches,
     commit_component_skeleton,
     format_duration,
     git,
@@ -273,7 +274,12 @@ def gitlinks(worktree: Path) -> list[dict[str, str]]:
 
 def parse_gitmodules(worktree: Path) -> dict[str, dict[str, str]]:
     mappings: dict[str, dict[str, str]] = {}
-    for gitmodules in sorted(worktree.rglob(".gitmodules")):
+    result = git(worktree, "ls-files", "-z", "--", ".gitmodules", ":(glob)**/.gitmodules", check=False)
+    if result.returncode != 0:
+        return mappings
+    gitmodules_paths = sorted(path for path in result.stdout.split("\0") if path)
+    for relative in gitmodules_paths:
+        gitmodules = worktree / relative
         result = git(
             worktree,
             "config",
@@ -465,8 +471,11 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_
                 materialise_submodules(repo, worktree, branch, verbose)
             enforce_source_tree_policy(worktree, index=True, label=branch)
             status = git(worktree, "status", "--porcelain").stdout.strip()
+            has_staged_changes = git(worktree, "diff", "--cached", "--quiet", check=False).returncode != 0
             if not status:
                 git(worktree, "commit", "--allow-empty", "-m", f"render: {short_release(branch)}", capture=not verbose)
+                commit = rev_parse(worktree, "HEAD")
+            elif not has_staged_changes:
                 commit = rev_parse(worktree, "HEAD")
             else:
                 commit = commit_rendered_worktree(repo, worktree, branch, entry, verbose)
@@ -539,6 +548,7 @@ def main() -> None:
                 )
             if existing != target and truthy(args.force):
                 update_ref(repo, branch, target, old=existing)
+                clear_metadata_caches()
                 target_ref = branch
             elif existing != target:
                 target_ref = branch
@@ -546,6 +556,7 @@ def main() -> None:
             if verbose:
                 print(f"Creating persistent branch {branch} from {target_ref}", file=sys.stderr)
             git(repo, "branch", branch, target_ref, capture=not verbose)
+            clear_metadata_caches()
             target_ref = branch
         if allow_manifest_refresh:
             refresh_release_tree(repo, branch)

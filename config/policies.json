@@ -13,7 +13,7 @@
   },
   "unofficial_source_policy": {
     "current_ref": "source/unofficial/current",
-    "current_edk2_release": "202602",
+    "current_edk2_release": "202605",
     "current_cix_release": "1.2",
     "current_radxa_release": "1.2.1",
     "prefer_versioned_default_alias": true
