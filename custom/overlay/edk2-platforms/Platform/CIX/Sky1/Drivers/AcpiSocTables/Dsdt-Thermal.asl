@@ -26,7 +26,7 @@ Method(C2DK, 1, Serialized) {
 // Thermal Zone for CPU-B0
 ThermalZone(TZB0) {
   Method(_PSV) { Return(3582) }       // Passive trip point: 85°C
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TC1) { Return(4) }          // Thermal Constant1
   Method(_TC2) { Return(3) }          // Thermal Constant2
   Method(_TSP) { Return(1) }          // Sampling Period: 100ms
@@ -62,7 +62,7 @@ ThermalZone(TZB0) {
 // Thermal Zone for CPU-B1
 ThermalZone(TZB1) {
   Method(_PSV) { Return(3582) }       // Passive trip point: 85°C
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TC1) { Return(4) }          // Thermal Constant1
   Method(_TC2) { Return(3) }          // Thermal Constant2
   Method(_TSP) { Return(1) }          // Sampling Period: 100ms
@@ -98,7 +98,7 @@ ThermalZone(TZB1) {
 // Thermal Zone for CPU-M0
 ThermalZone(TZM0) {
   Method(_PSV) { Return(3582) }       // Passive trip point: 85°C
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TC1) { Return(4) }          // Thermal Constant1
   Method(_TC2) { Return(3) }          // Thermal Constant2
   Method(_TSP) { Return(1) }          // Sampling Period: 100ms
@@ -134,7 +134,7 @@ ThermalZone(TZM0) {
 // Thermal Zone for CPU-M1
 ThermalZone(TZM1) {
   Method(_PSV) { Return(3582) }       // Passive trip point: 85°C
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TC1) { Return(4) }          // Thermal Constant1
   Method(_TC2) { Return(3) }          // Thermal Constant2
   Method(_TSP) { Return(1) }          // Sampling Period: 100ms
@@ -260,7 +260,7 @@ ThermalZone(TZGT) {
 #ifdef ENABLE_FIRMWARE_FIXES
 // Additional DTB/MemoryMap-backed SoC thermal monitor zones.
 ThermalZone(TZVP) {
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TMP, 0, Serialized) {
     Store(\_SB.PMMX.SENG(VPU_TEMP_SENSOR_ID, 0), Local0)
     CreateDWordField(Local0, 0x00, STAT)
@@ -277,7 +277,7 @@ ThermalZone(TZVP) {
 }
 
 ThermalZone(TZGB) {
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Name(_TZD, Package (){ \_SB.GPU })
   Method(_TMP, 0, Serialized) {
     Store(\_SB.PMMX.SENG(GPU_BOTTOM_TEMP_SENSOR_ID, 0), Local0)
@@ -295,7 +295,7 @@ ThermalZone(TZGB) {
 }
 
 ThermalZone(TZGP) {
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Name(_TZD, Package (){ \_SB.GPU })
   Method(_TMP, 0, Serialized) {
     Store(\_SB.PMMX.SENG(GPU_TOP_TEMP_SENSOR_ID, 0), Local0)
@@ -313,7 +313,7 @@ ThermalZone(TZGP) {
 }
 
 ThermalZone(TZBR) {
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TMP, 0, Serialized) {
     Store(\_SB.PMMX.SENG(SOC_BRC_TEMP_SENSOR_ID, 0), Local0)
     CreateDWordField(Local0, 0x00, STAT)
@@ -330,7 +330,7 @@ ThermalZone(TZBR) {
 }
 
 ThermalZone(TZD0) {
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TMP, 0, Serialized) {
     Store(\_SB.PMMX.SENG(DDR_BOTTOM4_TEMP_SENSOR_ID, 0), Local0)
     CreateDWordField(Local0, 0x00, STAT)
@@ -347,7 +347,7 @@ ThermalZone(TZD0) {
 }
 
 ThermalZone(TZD1) {
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TMP, 0, Serialized) {
     Store(\_SB.PMMX.SENG(DDR_TOP_TEMP_SENSOR_ID, 0), Local0)
     CreateDWordField(Local0, 0x00, STAT)
@@ -364,7 +364,7 @@ ThermalZone(TZD1) {
 }
 
 ThermalZone(TZCI) {
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TMP, 0, Serialized) {
     Store(\_SB.PMMX.SENG(CI700_TEMP_SENSOR_ID, 0), Local0)
     CreateDWordField(Local0, 0x00, STAT)
@@ -381,7 +381,7 @@ ThermalZone(TZCI) {
 }
 
 ThermalZone(TZNP) {
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TMP, 0, Serialized) {
     Store(\_SB.PMMX.SENG(NPU_TEMP_SENSOR_ID, 0), Local0)
     CreateDWordField(Local0, 0x00, STAT)
@@ -398,7 +398,7 @@ ThermalZone(TZNP) {
 }
 
 ThermalZone(TZTR) {
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TMP, 0, Serialized) {
     Store(\_SB.PMMX.SENG(SOC_TRC_TEMP_SENSOR_ID, 0), Local0)
     CreateDWordField(Local0, 0x00, STAT)
@@ -415,7 +415,7 @@ ThermalZone(TZTR) {
 }
 
 ThermalZone(TZN0) {
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TMP, 0, Serialized) {
     Store(\_SB.PMMX.SENG(NTC0_TEMP_SENSOR_ID, 0), Local0)
     CreateDWordField(Local0, 0x00, STAT)
@@ -432,7 +432,7 @@ ThermalZone(TZN0) {
 }
 
 ThermalZone(TZN1) {
-  Method(_CRT) { Return(3712) }       // Critical trip point: 98°C
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
   Method(_TMP, 0, Serialized) {
     Store(\_SB.PMMX.SENG(NTC1_TEMP_SENSOR_ID, 0), Local0)
     CreateDWordField(Local0, 0x00, STAT)
