@@ -1,0 +1,74 @@
+/**
+  Copyright 2024 Cix Technology Group Co., Ltd. All Rights Reserved.
+  Copyright 2025 Radxa Computer (Shenzhen) Co., Ltd. All Rights Reserved.
+
+  SPDX-License-Identifier: BSD-2-Clause-Patent
+
+**/
+
+form formid = COMPLIANCE_CONFIG_FORM_ID,
+  title  = STRING_TOKEN(STR_COMPLIANCE_FORM_SET_TITLE);
+  subtitle text = STRING_TOKEN(STR_EMPTY_STRING);
+
+suppressif ideqval DtAcpiPref.Pref == DT_ACPI_SELECT_DT;
+  oneof varid   = ConsolePref.Console,
+    prompt      = STRING_TOKEN(STR_COMPLIANCE_CONSOLE_PREF),
+    help        = STRING_TOKEN(STR_COMPLIANCE_CONSOLE_PREF_HELP),
+    flags       = NUMERIC_SIZE_1 | RESET_REQUIRED,
+    default     = CONSOLE_PREF_SERIAL,
+    option text = STRING_TOKEN(STR_COMPLIANCE_CONSOLE_PREF_SERIAL),    value = CONSOLE_PREF_SERIAL,    flags = RESET_REQUIRED;
+    option text = STRING_TOKEN(STR_COMPLIANCE_CONSOLE_PREF_GRAPHICAL), value = CONSOLE_PREF_GRAPHICAL, flags = RESET_REQUIRED;
+  endoneof;
+endif;
+
+#if (EXPERIMENTAL_UEFI_SETTINGS_UI_ENABLE == TRUE)
+  oneof varid   = ExperimentalConsoleModeSetupVar.SetupTextMode,
+    prompt      = STRING_TOKEN(STR_COMPLIANCE_CONSOLE_SIZE),
+    help        = STRING_TOKEN(STR_COMPLIANCE_CONSOLE_SIZE_HELP),
+    flags       = NUMERIC_SIZE_1 | RESET_REQUIRED,
+    default     = EXPERIMENTAL_CONSOLE_TEXT_MODE_80X25,
+    option text = STRING_TOKEN(STR_COMPLIANCE_CONSOLE_SIZE_80X25),   value = EXPERIMENTAL_CONSOLE_TEXT_MODE_80X25,  flags = RESET_REQUIRED;
+    option text = STRING_TOKEN(STR_COMPLIANCE_CONSOLE_SIZE_80X50),   value = EXPERIMENTAL_CONSOLE_TEXT_MODE_80X50,  flags = RESET_REQUIRED;
+    option text = STRING_TOKEN(STR_COMPLIANCE_CONSOLE_SIZE_100X31),  value = EXPERIMENTAL_CONSOLE_TEXT_MODE_100X31, flags = RESET_REQUIRED;
+  endoneof;
+#endif
+
+  checkbox varid = ComplianceVar.EnableLPI0,
+    questionid = KEY_ENABLE_ACPI_LPI0,
+    prompt = STRING_TOKEN(STR_COMPLIANCE_ACPI_LPI0),
+    help   = STRING_TOKEN(STR_COMPLIANCE_ACPI_LPI0_HELP),
+    flags  = INTERACTIVE | RESET_REQUIRED,
+  endcheckbox;
+
+  checkbox varid = ComplianceVar.DisableCPPC,
+    questionid = KEY_DISABLE_ACPI_CPPC,
+    prompt = STRING_TOKEN(STR_COMPLIANCE_ACPI_CPPC),
+    help   = STRING_TOKEN(STR_COMPLIANCE_ACPI_CPPC_HELP),
+    flags  = INTERACTIVE | RESET_REQUIRED,
+  endcheckbox;
+
+  checkbox varid = ComplianceVar.DisableSmallCores,
+    questionid = KEY_DISABLE_SMALL_CORE,
+    prompt = STRING_TOKEN(STR_COMPLIANCE_DISABLE_SMALL_CORE),
+    help   = STRING_TOKEN(STR_COMPLIANCE_DISABLE_SMALL_CORE_HELP),
+    flags  = INTERACTIVE | RESET_REQUIRED,
+  endcheckbox;
+
+  checkbox varid = RadxaSetupVar.EnableAcpiScmi,
+    prompt = STRING_TOKEN(STR_COMPLIANCE_ACPI_SCMI),
+    help   = STRING_TOKEN(STR_COMPLIANCE_ACPI_SCMI_HELP),
+    flags  = RESET_REQUIRED,
+  endcheckbox;
+
+  subtitle text = STRING_TOKEN(STR_EMPTY_STRING);
+  subtitle text = STRING_TOKEN(STR_COMPLIANCE_VENTOY_WARNING);
+suppressif ideqval DtAcpiPref.Pref == DT_ACPI_SELECT_ACPI;
+    text
+      help  = STRING_TOKEN(STR_ACPI_FEATURE_HELP),
+      text  = STRING_TOKEN(STR_ACPI_FEATURE_STRING);
+endif;
+
+  subtitle text = STRING_TOKEN(STR_EMPTY_STRING);
+  subtitle text = STRING_TOKEN(STR_EMPTY_STRING);
+  subtitle text = STRING_TOKEN(STR_EXIT_STRING);
+endform;

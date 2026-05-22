@@ -1,0 +1,6 @@
+execute_before_dh_auto_build:
+	@python3 scripts/firmware_layout.py validate-debian-version --repo-root "$(CURDIR)"
+
+override_dh_auto_install:
+	@mkdir -p debian/tmp
+	@printf '%s\n' 'Skipping top-level make install during Debian packaging; dh_install stages files from the build tree.'
