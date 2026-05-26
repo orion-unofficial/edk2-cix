@@ -33,20 +33,15 @@ Device (HDA) {
   })
 
 #ifdef ENABLE_FIRMWARE_FIXES
-  Name (_DMA, ResourceTemplate () {
-    QWordMemory (
-      ResourceProducer,
-      PosDecode,
-      MinFixed,
-      MaxFixed,
-      NonCacheable,
-      ReadWrite,
-      0x0,
-      0x0,
-      0x7fffffff,
-      0x90000000,
-      0x80000000
-      )
+  Name (_DMA, ResourceTemplate ()
+  {
+    QWordMemory (ResourceProducer, PosDecode, MinFixed, MaxFixed, NonCacheable, ReadWrite,
+      0x0000000000000000, // Granularity
+      0x0000000000000000, // Range Minimum
+      0x000000007FFFFFFF, // Range Maximum
+      0x0000000090000000, // Translation Offset
+      0x0000000080000000, // Length
+      ,, , AddressRangeMemory, TypeStatic)
   })
 #endif
 

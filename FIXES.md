@@ -31,10 +31,9 @@ Stock ACPI also split the audio DMA/HDA area into two `7 MiB` windows that do
 not match the vendor Device Tree shared-dma-pool layout.
 
 With `ENABLE_FIRMWARE_FIXES=true`, PEI reserves the DSP, DMA1, and HDA audio
-buffers so that the runtime memory map matches the ACPI metadata Linux already
-uses. The DMA1/HDA reserved-memory lookup entries are also aligned with the
-vendor Device Tree layout: `12 MiB` for DMA1 at `0xd0000000`, followed by
-`2 MiB` for HDA at `0xd0c00000`.
+buffers so that the runtime memory map matches the vendor Device Tree
+carveouts. The DMA1 reserved-memory lookup entry is also aligned with the
+vendor Device Tree layout: `12 MiB` for DMA1 at `0xd0000000`.
 
 The audio DMA350 clock lookup is also corrected so the DMA1 controller consumes
 the audio DMAC AXI clock directly instead of pointing its tree-clock lookup at
@@ -43,9 +42,9 @@ the unrelated FCH DMA controller.
 Custom firmware also publishes the HDA controller's standard ACPI `_DMA`
 translation. This describes the full HDA DMA aperture, where device DMA
 addresses `0x00000000`-`0x7fffffff` translate to CPU physical
-`0x90000000`-`0x10fffffff`. The smaller `2 MiB` HDA reserved-memory entry is
-kept for compatibility, but fixed firmware no longer requires Linux to use it
-as a private coherent DMA pool.
+`0x90000000`-`0x10fffffff`. Fixed firmware no longer publishes the HDA `RSVL`
+lookup entry, so Linux should use the standard ACPI DMA range instead of a
+private coherent DMA pool.
 
 ### PCIe Capability Handoff (`_OSC`)
 
