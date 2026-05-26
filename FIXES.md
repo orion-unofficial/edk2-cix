@@ -40,6 +40,13 @@ The audio DMA350 clock lookup is also corrected so the DMA1 controller consumes
 the audio DMAC AXI clock directly instead of pointing its tree-clock lookup at
 the unrelated FCH DMA controller.
 
+Custom firmware also publishes the HDA controller's standard ACPI `_DMA`
+translation. This describes the full HDA DMA aperture, where device DMA
+addresses `0x00000000`-`0x7fffffff` translate to CPU physical
+`0x90000000`-`0x10fffffff`. The smaller `2 MiB` HDA reserved-memory entry is
+kept for compatibility, but fixed firmware no longer requires Linux to use it
+as a private coherent DMA pool.
+
 ### PCIe Capability Handoff (`_OSC`)
 
 `_OSC` is the ACPI “Operating System Capabilities” handshake for PCIe. It tells
