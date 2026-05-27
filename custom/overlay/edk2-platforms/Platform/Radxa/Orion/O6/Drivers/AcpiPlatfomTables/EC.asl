@@ -579,9 +579,6 @@ Device(ECFP)
 
 ThermalZone(ECTZ) {
   Name (_TZD, Package () { \_SB} ) //Thermal Zone Devices
-#ifdef ENABLE_FIRMWARE_FIXES
-  Method(_CRT, 0, NotSerialized) { Return(0x0EC6) } // Critical trip point: 105°C
-#endif
 
   Method(_TMP, 0, Serialized) {
     Local2 = Buffer(9){0xDA,0x03,0xB3,0x3E,0x0C,0x00,0x00,0x00,0x00}
