@@ -156,6 +156,7 @@ def cases(repo: Path) -> list[Case]:
         make_case(repo, "check-identity-integrity"),
         make_case(repo, "verify-identity-integrity"),
         make_case(repo, "check-vendor-workflow-drift"),
+        make_case(repo, "refresh-vendor-workflow-baseline"),
         make_case(repo, "check-upstream-versions"),
         make_case(repo, "check-source-metadata"),
         make_case(repo, "refresh-source-metadata"),

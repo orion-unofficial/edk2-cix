@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
+import json
 import os
 import time
 from pathlib import Path
@@ -28,6 +30,9 @@ HELP = """check-vendor-workflow-drift
 No variables are required.
 
 Optional variables:
+  REVIEWED=0|1  With --refresh, confirm vendor workflow changes were reviewed
+                and relevant changes were ported to the build branch.
+  WRITE=0|1     With --refresh, update the audited baseline. Default: 0.
   V=0|1  Print every checked vendor workflow snapshot.
 
 This check compares .github/workflows content in recorded vendor source refs
@@ -35,11 +40,20 @@ against the audited baselines in config/vendor-workflow-baseline.json. It does
 not run or port vendor workflows. A mismatch means a vendor source update has
 changed workflow content and the build branch CI should be reviewed before the
 baseline is refreshed.
+
+Use --refresh to preview the missing refs and their workflow snapshot groups.
+After reviewing the changes and porting anything relevant, rerun with
+REVIEWED=1 WRITE=1. Existing audited entries are never changed silently:
+missing refs with identical workflow content join the matching entry, while a
+new workflow snapshot gets a new baseline entry.
 """
 
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
+    p.add_argument("--refresh", default=os.environ.get("REFRESH", "0"))
+    p.add_argument("--reviewed", default=os.environ.get("REVIEWED", "0"))
+    p.add_argument("--write", default=os.environ.get("WRITE", "0"))
     p.add_argument("--v", default=os.environ.get("V", "0"), help="verbosity flag propagated from make")
     return p
 
@@ -133,12 +147,106 @@ def check_entry(repo: Path, entry: dict[str, Any], verbose: bool) -> tuple[str, 
     return vendor, refs, problems
 
 
+def refresh_missing_refs(repo: Path, data: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    updated = deepcopy(data)
+    entries = updated.get("checks", [])
+    if not isinstance(entries, list) or not entries:
+        raise ReconstructionError("config/vendor-workflow-baseline.json has no checks")
+
+    additions: list[dict[str, Any]] = []
+    vendors = sorted({str(entry.get("vendor", "")) for entry in entries if isinstance(entry, dict)})
+    for vendor in vendors:
+        vendor_entries = [
+            entry
+            for entry in entries
+            if isinstance(entry, dict) and str(entry.get("vendor", "")) == vendor
+        ]
+        covered = {
+            ref
+            for entry in vendor_entries
+            for ref in entry.get("refs", [])
+            if isinstance(ref, str)
+        }
+        for ref in sorted(set(vendor_refs(repo, vendor)) - covered, key=version_key):
+            workflow_dir = ".github/workflows"
+            tree, paths = workflow_snapshot(repo, ref, workflow_dir)
+            matching_entry = next(
+                (
+                    entry
+                    for entry in vendor_entries
+                    if entry.get("workflow_dir", ".github/workflows") == workflow_dir
+                    and entry.get("workflow_tree_id") == tree
+                    and entry.get("paths", {}) == paths
+                ),
+                None,
+            )
+            new_snapshot = matching_entry is None
+            if matching_entry is None:
+                matching_entry = {
+                    "baseline_ref": ref,
+                    "paths": paths,
+                    "refs": [],
+                    "vendor": vendor,
+                    "workflow_dir": workflow_dir,
+                    "workflow_tree_id": tree,
+                }
+                entries.append(matching_entry)
+                vendor_entries.append(matching_entry)
+            refs = matching_entry.setdefault("refs", [])
+            refs.append(ref)
+            refs[:] = sorted(set(refs), key=version_key)
+            additions.append(
+                {
+                    "baseline_ref": matching_entry["baseline_ref"],
+                    "new_snapshot": new_snapshot,
+                    "ref": ref,
+                    "tree": tree,
+                }
+            )
+
+    entries.sort(
+        key=lambda entry: (
+            str(entry.get("vendor", "")),
+            version_key(str(entry.get("baseline_ref", ""))),
+        )
+    )
+    return updated, additions
+
+
+def print_refresh_preview(additions: list[dict[str, Any]]) -> None:
+    if not additions:
+        print("vendor workflow baseline already covers every recorded ref")
+        return
+    print("vendor workflow baseline refresh preview:")
+    for addition in additions:
+        relation = "new workflow snapshot" if addition["new_snapshot"] else f"matches {addition['baseline_ref']}"
+        print(f"  - {addition['ref']}: {relation} ({addition['tree'] or '<missing>'})")
+
+
 def main() -> None:
     started = time.monotonic()
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
     data = load_json(repo, "config/vendor-workflow-baseline.json")
+    if truthy(args.refresh):
+        updated, additions = refresh_missing_refs(repo, data)
+        print_refresh_preview(additions)
+        if not additions:
+            return
+        if truthy(args.write) and not truthy(args.reviewed):
+            raise ReconstructionError(
+                "refusing to refresh vendor workflow baselines without REVIEWED=1; "
+                "review the vendor workflow diff and port relevant build-branch CI changes first"
+            )
+        if not truthy(args.write):
+            print("dry run; after review, rerun with REVIEWED=1 WRITE=1")
+            return
+        path = repo / "config" / "vendor-workflow-baseline.json"
+        path.write_text(json.dumps(updated, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        data = updated
+        print(f"updated vendor workflow baseline for {len(additions)} ref(s)")
+
     entries = data.get("checks", [])
     if not isinstance(entries, list) or not entries:
         raise ReconstructionError("config/vendor-workflow-baseline.json has no checks")

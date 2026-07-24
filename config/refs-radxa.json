@@ -170,6 +170,36 @@
       "ref": "source/vendor/radxa/1.2.1/edk2-stable202208",
       "tree_id": "a820c88bb5f8f1808bd5288420fb0a19bb60e2c2",
       "upstream_ref": "dadc5b14b141b9132017cda23abfe6ea82ebaeaa"
+    },
+    {
+      "object_id": "5f3399bfc7cda9c7cf416fdc25171cf269de0ce0",
+      "ref": "source/vendor/radxa/1.2.2/edk2-stable202208",
+      "tree_id": "db5330ed0780bf4326e43bfd52b438c185c150f6",
+      "upstream_ref": "2e70744d095f7146602f0a8c112e8758f78fe675"
+    },
+    {
+      "object_id": "d5c38641afc165c2d91651c3ac4404352fe11777",
+      "ref": "source/vendor/radxa/1.2.3/edk2-stable202208",
+      "tree_id": "532639ba4426b7354d7b725efdc2f9af7a46255f",
+      "upstream_ref": "3b60488dc1bb1b3f83c47ec0462f90d3f0e35ad2"
+    },
+    {
+      "object_id": "c904508fad2174e438fa37f084c8135c91c06f21",
+      "ref": "source/vendor/radxa/1.2.4/edk2-stable202208",
+      "tree_id": "47278187fa7bb4288aebb5e7bc876b4c505cc778",
+      "upstream_ref": "e4e8f1cbe08f708ba6babed1de02ca553473c981"
+    },
+    {
+      "object_id": "469eee92adb8e31ac0e75f7b212576a0f144e8fb",
+      "ref": "source/vendor/radxa/1.3.0/edk2-stable202208",
+      "tree_id": "b7c15143f93fbbc9ae674de8377b544b0ff980e9",
+      "upstream_ref": "39bc6f94a9f503a0b8a92426a5b0f756fadb9917"
+    },
+    {
+      "object_id": "47cb1aa3c2a649c848be0bd685c173cb63bc1937",
+      "ref": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "tree_id": "bbba65f524ebadf5f3f0750447521d4ffd5d4495",
+      "upstream_ref": "d70d68cce58b53907ce6d43c1ff3fb77a5986a6c"
     }
   ]
 }

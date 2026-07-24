@@ -46,7 +46,7 @@ Optional variables:
   UPSTREAM_VERSION_MODE=advisory|policy|strict
       advisory: report stale sources but exit successfully
       policy: fail only checks marked strict in config/upstream-versions.json
-      strict: fail any stale or unavailable check
+      strict: fail any stale or unavailable non-advisory check
       Default: policy
   UPSTREAM_VERSION_ONLY=<id[,id...]>
       Limit checks to the named source IDs, or to source:release/source:commits
@@ -548,6 +548,20 @@ def compare_head(local: LocalState, remote: LocalState) -> tuple[str, str]:
     return "current", "local record matches remote branch head"
 
 
+def advisory_branch_head_detail(comparison_id: str, local: LocalState, remote: LocalState) -> str:
+    if comparison_id == "radxa:commits":
+        return (
+            f"upstream {remote.label} has commits beyond the latest recorded Radxa "
+            f"release {local.label}; remote head is {remote.object_id}, "
+            f"local release tag records {local.object_id}"
+        )
+    return (
+        f"upstream {remote.label} has unreleased commits beyond the recorded local "
+        f"source {local.label}; remote head is {remote.object_id}, "
+        f"local records {local.object_id}"
+    )
+
+
 def compare_object(local: LocalState, remote: LocalState, remote_label: str) -> tuple[str, str]:
     if not local.object_id:
         return "unknown", f"local {local.label} has no recorded upstream object"
@@ -634,6 +648,9 @@ def evaluate_comparison(
                     "remote has no matching branch",
                 )
             status, detail = compare_head(local, remote)
+            if status == "stale" and mode == "advisory":
+                status = "unreleased"
+                detail = advisory_branch_head_detail(comparison_id, local, remote)
         elif kind == "release_subject":
             remote = latest_remote_subject(
                 repo,
@@ -706,9 +723,9 @@ def evaluate_comparison(
 
 
 def should_fail(result: UpstreamVersionResult, mode: str) -> bool:
-    if result.status in {"current", "ahead"}:
+    if result.status in {"current", "ahead", "unreleased"}:
         return False
-    if mode == "advisory":
+    if mode == "advisory" or result.mode == "advisory":
         return False
     if mode == "strict":
         return True

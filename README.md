@@ -620,7 +620,8 @@ but ordinary development should not need this escape hatch.
 ## How do I update upstream EDK2, Arm TF-A, OP-TEE, CIX, or Radxa sources?
 
 Use `make integrate-source-release`. Without `WRITE=1`, it validates arguments
-and prints the refs it would create.
+and prints the refs it would create or reports that the requested immutable ref
+is already integrated.
 
 Examples:
 
@@ -635,6 +636,12 @@ make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=e
 When the dry run is correct, add `WRITE=1`. The same change updates
 `config/refs-*.json` with the new object IDs and tree IDs before being
 committed.
+
+Published `source/**` branches may be present in a clone only as
+`origin/source/**` remote-tracking refs. Plain `git branch` lists local branches
+only; use `git branch -r` or `git branch -a` to inspect those refs. Repeating an
+integration whose target and recorded upstream provenance already match is an
+idempotent no-op in both dry-run and `WRITE=1` modes.
 
 `TYPE=upstream` is for base components: `edk2`, `edk2-platforms`,
 `edk2-non-osi`, `tf-a`, or `op-tee`. `TYPE=vendor` is for a vendor integration
@@ -708,9 +715,23 @@ make check-vendor-workflow-drift
 
 If it fails, inspect the changed vendor workflow files and port any relevant
 intent to `.github/workflows/` on this branch before updating
-`config/vendor-workflow-baseline.json`. This keeps vendor CI changes visible
-without inheriting vendor workflows that assume the old submodule-based `main`
-branch layout.
+`config/vendor-workflow-baseline.json`. Preview the mechanical metadata update
+with:
+
+```bash
+make refresh-vendor-workflow-baseline
+```
+
+After the review and any required CI port, record that decision with:
+
+```bash
+make refresh-vendor-workflow-baseline REVIEWED=1 WRITE=1
+```
+
+The refresh groups releases carrying byte-identical workflow snapshots and
+creates a new baseline only when workflow content changed. This keeps vendor CI
+changes visible without inheriting vendor workflows that assume the old
+submodule-based `main` branch layout.
 
 For a new upstream EDK2 stable release, prefer the orchestrated target:
 
@@ -993,8 +1014,9 @@ workflow's Nix base image. The scheduled GitHub Actions workflow
 runs in `policy` mode and publishes a summary table. In that mode, stale
 checks marked `strict` in `config/upstream-versions.json` fail the workflow,
 while advisory checks report warnings without failing. Use
-`UPSTREAM_VERSION_MODE=strict` when you want any stale source or tooling pin to
-fail.
+`UPSTREAM_VERSION_MODE=strict` when you want stale non-advisory source or
+tooling pins to fail while advisory branch-head drift, such as unreleased
+commits on an upstream `main` branch, still reports without failing.
 
 To try GitHub Actions locally with `act`:
 

@@ -23,6 +23,7 @@ from reconstruction_common import (
     for_each_ref,
     git,
     load_json,
+    load_ref_records,
     main_wrapper,
     ref_exists,
     repo_root,
@@ -74,6 +75,10 @@ Optional variables:
 
 Without WRITE=1 this command validates inputs and prints the operation it would perform.
 Only this command is allowed to create or advance immutable source refs.
+If an immutable target is already recorded locally or as an origin
+remote-tracking ref, rerunning the same integration is a no-op. The command
+reports where the existing ref was found; git branch alone lists only local
+branches.
 If the requested object is already present locally, WRITE=1 uses it without
 contacting the external upstream/vendor remote.
 Radxa non-release updates should use a descriptive RELEASE such as
@@ -257,6 +262,107 @@ def manifest_path_for(target: str) -> str:
     return "config/refs-integrated.json"
 
 
+def exact_commit_id(repo: Path, ref: str) -> str | None:
+    result = git(repo, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False)
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def target_ref_copies(repo: Path, target: str) -> list[tuple[str, str]]:
+    copies = []
+    for ref in (f"refs/heads/{target}", f"refs/remotes/origin/{target}"):
+        object_id = exact_commit_id(repo, ref)
+        if object_id:
+            copies.append((ref, object_id))
+    return copies
+
+
+def manifest_record_for_target(repo: Path, target: str) -> dict | None:
+    for record in load_ref_records(repo):
+        if record.get("ref") == target:
+            return record
+    return None
+
+
+def available_commit_id(repo: Path, ref: str) -> str | None:
+    resolved = resolve_ref(repo, ref, check=False)
+    if resolved:
+        return exact_commit_id(repo, resolved)
+    value = ref.lower()
+    if len(value) in {40, 64} and all(character in "0123456789abcdef" for character in value):
+        return value
+    return None
+
+
+def existing_immutable_target(
+    repo: Path,
+    target: str,
+    source: str,
+    meta: dict[str, str],
+) -> dict | None:
+    copies = target_ref_copies(repo, target)
+    if not copies:
+        return None
+
+    object_ids = {object_id for _ref, object_id in copies}
+    copy_details = ", ".join(f"{ref} -> {object_id}" for ref, object_id in copies)
+    if len(object_ids) != 1:
+        raise ReconstructionError(
+            f"immutable target has inconsistent local and remote-tracking copies: {copy_details}"
+        )
+    object_id = next(iter(object_ids))
+
+    record = manifest_record_for_target(repo, target)
+    if record is None:
+        raise ReconstructionError(
+            f"immutable target already exists as {copy_details}, but it is not recorded in config/refs-*.json"
+        )
+    expected_object_id = str(record.get("object_id", ""))
+    expected_tree_id = str(record.get("tree_id", ""))
+    actual_tree_id = tree_id(repo, object_id)
+    if expected_object_id != object_id or expected_tree_id != actual_tree_id:
+        raise ReconstructionError(
+            f"immutable target metadata does not match {copy_details}; "
+            f"manifest records object {expected_object_id or '<missing>'} "
+            f"and tree {expected_tree_id or '<missing>'}"
+        )
+
+    recorded_upstream = str(record.get("upstream_ref", ""))
+    if meta.get("type") == "vendor-source" and recorded_upstream and not source.startswith("<"):
+        source_object_id = available_commit_id(repo, source)
+        recorded_object_id = available_commit_id(repo, recorded_upstream)
+        if not source_object_id:
+            raise ReconstructionError(
+                f"{target} is already integrated from upstream_ref {recorded_upstream}, "
+                f"but requested REF={source} is unavailable locally"
+            )
+        if recorded_object_id and source_object_id != recorded_object_id:
+            raise ReconstructionError(
+                f"{target} is already integrated from upstream_ref {recorded_upstream} "
+                f"({recorded_object_id}), but requested REF={source} resolves to {source_object_id}; "
+                "fetch the matching release tag or use a different RELEASE"
+            )
+
+    return {
+        "target": target,
+        "object_id": object_id,
+        "copies": copies,
+        "has_local_head": any(ref.startswith("refs/heads/") for ref, _object_id in copies),
+    }
+
+
+def print_existing_target(state: dict, *, dry_run: bool) -> None:
+    target = str(state["target"])
+    object_id = str(state["object_id"])
+    locations = ", ".join(ref for ref, _object_id in state["copies"])
+    prefix = "no change" if dry_run else "unchanged"
+    print(f"  {prefix}: {target} is already integrated at {object_id}")
+    print(f"    available as {locations}")
+    if not state["has_local_head"]:
+        print("    git branch lists only local branches; use git branch -r or git branch -a to see this ref")
+
+
 def radxa_vendor_refs(repo: Path, release: str) -> list[str]:
     return [
         ref
@@ -390,6 +496,13 @@ def manifest_record(repo: Path, target: str, **extra: str) -> dict:
     }
     record.update({k: v for k, v in extra.items() if v})
     return record
+
+
+def operation_manifest_metadata(repo: Path, source: str, meta: dict[str, str]) -> dict[str, str]:
+    record_meta = {key: value for key, value in meta.items() if not key.startswith("_")}
+    if meta.get("type") == "vendor-source" and source and not source.startswith("<"):
+        record_meta.setdefault("upstream_ref", rev_parse(repo, source))
+    return record_meta
 
 
 def materialise_vendor_ref(repo: Path, source_ref: str, release: str, verbose: bool) -> str:
@@ -580,16 +693,32 @@ def main() -> None:
             },
         ))
 
+    existing_targets: dict[str, dict] = {}
+    if not allow_replace:
+        for _remote, source, target, meta in operations:
+            state = existing_immutable_target(repo, target, source, meta)
+            if state:
+                existing_targets[target] = state
+
     if not write:
-        print("dry run; set WRITE=1 to create refs")
+        print("dry run; set WRITE=1 to apply changes")
         for remote, source, target, meta in operations:
             if meta.get("_from_base_ref"):
                 print(f"  port delta from {source} using {meta['_from_base_ref']} -> {meta['base_ref']}")
-            print(f"  {remote} {source} -> {target}")
+            if target in existing_targets:
+                print_existing_target(existing_targets[target], dry_run=True)
+            else:
+                print(f"  {remote} {source} -> {target}")
         return
 
+    changed = 0
+    unchanged = 0
     for remote, source, target, meta in operations:
-        record_meta = {key: value for key, value in meta.items() if not key.startswith("_")}
+        if target in existing_targets:
+            print_existing_target(existing_targets[target], dry_run=False)
+            unchanged += 1
+            continue
+        record_meta = operation_manifest_metadata(repo, source, meta)
         if remote == "local":
             if source.startswith("<"):
                 raise ReconstructionError("Radxa vendor/port integration requires REF=<vendor-ref-or-object> in WRITE mode")
@@ -639,7 +768,11 @@ def main() -> None:
             fetch_to_ref(repo, remote, source, target, verbose, allow_replace)
         clear_metadata_caches()
         upsert_manifest(repo, target, manifest_record(repo, target, **record_meta))
-    print("integration refs and config metadata updated")
+        changed += 1
+    if changed:
+        print("integration refs and config metadata updated")
+    if unchanged:
+        print(f"requested integration refs already present and unchanged: {unchanged}")
 
 
 if __name__ == "__main__":

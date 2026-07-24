@@ -106,6 +106,43 @@
       "vendor": "radxa",
       "workflow_dir": ".github/workflows",
       "workflow_tree_id": "44ac4a62f2d22555192a6be4f2a68641b6c77505"
+    },
+    {
+      "baseline_ref": "source/vendor/radxa/1.2.2/edk2-stable202208",
+      "paths": {
+        ".github/workflows/check_linked_issue.yaml": "edda01c1335ccc6bee8888c4d5239e1490c05fc4",
+        ".github/workflows/dependabot.yaml": "16d072f6036b2d63ce4b00de1ac5e81753b523fa",
+        ".github/workflows/dependabot_rebase.yaml": "0a1663cb95c575002a11c873acbed14cf09060b5",
+        ".github/workflows/docs.yaml": "7256b8f19538424047fdb5630522b6c9a101cd24",
+        ".github/workflows/new_version.yaml": "d77a9d8bbbfb5148d95e96641d2f8dd5316cc2e5",
+        ".github/workflows/release.yaml": "79a1ef9ed471b8eb3e81b7471ccffc48884cd133"
+      },
+      "refs": [
+        "source/vendor/radxa/1.2.2/edk2-stable202208",
+        "source/vendor/radxa/1.2.3/edk2-stable202208",
+        "source/vendor/radxa/1.2.4/edk2-stable202208"
+      ],
+      "vendor": "radxa",
+      "workflow_dir": ".github/workflows",
+      "workflow_tree_id": "cd4a46ad9d5bb1b1aab4f588acb736487c0c9a24"
+    },
+    {
+      "baseline_ref": "source/vendor/radxa/1.3.0/edk2-stable202208",
+      "paths": {
+        ".github/workflows/check_linked_issue.yaml": "edda01c1335ccc6bee8888c4d5239e1490c05fc4",
+        ".github/workflows/dependabot.yaml": "16d072f6036b2d63ce4b00de1ac5e81753b523fa",
+        ".github/workflows/dependabot_rebase.yaml": "0a1663cb95c575002a11c873acbed14cf09060b5",
+        ".github/workflows/docs.yaml": "c7bfad7e96fd4bc83127092456fdde566099261e",
+        ".github/workflows/new_version.yaml": "c1b5d932334db2e2e73a85376ec1364903e37534",
+        ".github/workflows/release.yaml": "6f8e595717dc5b12a14c97757b88950b5c5efeb7"
+      },
+      "refs": [
+        "source/vendor/radxa/1.3.0/edk2-stable202208",
+        "source/vendor/radxa/1.3.1/edk2-stable202208"
+      ],
+      "vendor": "radxa",
+      "workflow_dir": ".github/workflows",
+      "workflow_tree_id": "f5fd70f217a4db86887a9661dd1f9dc013dd59be"
     }
   ],
   "description": "Audited vendor workflow baselines. Historical vendor releases may carry older upstream workflow snapshots; if future vendor refs change .github/workflows, review whether the build branch CI needs corresponding updates before refreshing this file."

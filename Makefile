@@ -129,7 +129,7 @@ endef
 	test test-local lint \
 	extract-vendor-delta render-release-branch uplift-edk2-release integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
 	propagate-release-branches promote-unofficial-release update-release-tags \
-	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift check-upstream-versions check-source-metadata check-help-cache check-first-output-latency refresh-source-metadata refresh-help-cache ref-report cleanup-report create-minimised-clone \
+	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift refresh-vendor-workflow-baseline check-upstream-versions check-source-metadata check-help-cache check-first-output-latency refresh-source-metadata refresh-help-cache ref-report cleanup-report create-minimised-clone \
 	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help uplift-edk2-release-help integrate-source-release-help \
 	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help resolve-conflicts-help promote-unofficial-release-help update-release-tags-help \
@@ -330,6 +330,7 @@ help-dev-verify:
 	print_help_line 'make check-identity-integrity' 'Quickly scan build-branch files for path/identity integrity issues.'; \
 	print_help_line 'make verify-identity-integrity' 'Deep-scan build-branch files, commit metadata, and persistent source refs for path/identity integrity issues.'; \
 	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
+	print_help_line 'make refresh-vendor-workflow-baseline' 'Record reviewed vendor workflow snapshots after relevant CI changes are ported.'; \
 	print_help_line 'make check-upstream-versions' 'Check recorded source refs and tooling pins against external upstream/vendor remotes.'; \
 	print_subtitle 'Variables:'; \
 	print_help_variable 'RELEASE=<source-target>' 'Firmware source-target name for render-release-branch and verify-release-branch.'; \
@@ -343,7 +344,8 @@ help-dev-verify:
 	print_help_variable 'SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact' 'For verify-source-lifecycle. Control deterministic overlay/source lifecycle handling when an imported overlay path points at a source file that moved or disappeared in another release branch.\nDefault: exact.'; \
 	print_help_variable 'SCAN_COMMITS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
 	print_help_variable 'SCAN_SOURCE_REFS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
-	print_help_variable 'UPSTREAM_VERSION_MODE=advisory|policy|strict' 'Version-check failure mode. advisory never fails on stale remotes; policy fails checks marked strict; strict fails any stale or unavailable check.\nDefault: policy.'; \
+	print_help_variable 'REVIEWED=0|1' 'For refresh-vendor-workflow-baseline. Confirm vendor workflow changes were reviewed and relevant build-branch CI updates were ported.'; \
+	print_help_variable 'UPSTREAM_VERSION_MODE=advisory|policy|strict' 'Version-check failure mode. advisory never fails on stale remotes; policy fails checks marked strict; strict fails stale or unavailable non-advisory checks while still reporting advisory drift.\nDefault: policy.'; \
 	print_help_variable 'UPSTREAM_VERSION_ONLY=<id[,id...]>' 'Optional comma-separated source IDs, or source:release/source:commits comparison IDs, for check-upstream-versions.'; \
 	print_help_variable 'UPSTREAM_VERSION_FORMAT=text|github|json' 'Upstream versions output format. github emits workflow annotations and a job summary table when available.\nDefault: text.'; \
 	print_help_variable 'UPSTREAM_VERSION_SNAPSHOT=<path>' 'Offline remote-ref snapshot for upstream version tests.\nDefault: unset.'; \
@@ -691,6 +693,10 @@ verify-identity-integrity:
 check-vendor-workflow-drift:
 	$(call PROGRESS_PROBE,[check] Checking vendor workflow drift)
 	@DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/check_vendor_workflow_drift.py --v "$(V)"
+
+refresh-vendor-workflow-baseline:
+	$(call PROGRESS_PROBE,[metadata] Refreshing reviewed vendor workflow baseline)
+	@DEBUG="$(DEBUG)" REVIEWED="$(REVIEWED)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/check_vendor_workflow_drift.py --refresh 1 --reviewed "$(REVIEWED)" --write "$(WRITE)" --v "$(V)"
 
 check-upstream-versions:
 	$(call PROGRESS_PROBE,[check] Checking upstream versions)

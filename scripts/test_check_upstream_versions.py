@@ -10,6 +10,7 @@ from check_upstream_versions import (
     LocalState,
     RemoteRef,
     UpstreamVersionResult,
+    advisory_branch_head_detail,
     compare_head,
     compare_tag,
     comparison_items,
@@ -18,6 +19,7 @@ from check_upstream_versions import (
     latest_remote_tag,
     local_file_regex,
     local_workflow_action_ref,
+    should_fail,
     write_github_summary,
 )
 from test_support import load_function_tests, require
@@ -71,6 +73,44 @@ def test_compare_head_statuses() -> None:
         LocalState(label="refs/heads/main", object_id="def"),
     )
     require(stale[0] == "stale", "different branch head should be stale")
+
+
+def test_advisory_branch_head_drift_is_non_fatal_in_strict_mode() -> None:
+    result = UpstreamVersionResult(
+        source_id="radxa",
+        check_id="radxa:commits",
+        kind="commits",
+        description="Radxa main branch head",
+        mode="advisory",
+        status="unreleased",
+        local="1.2.4",
+        remote="refs/heads/main",
+        detail="upstream main has unreleased commits",
+    )
+    require(not should_fail(result, "strict"), "advisory branch-head drift should not fail strict mode")
+
+    strict_result = UpstreamVersionResult(
+        source_id="cix-bios",
+        check_id="cix-bios:commits",
+        kind="commits",
+        description="CIX bios branch head",
+        mode="strict",
+        status="stale",
+        local="cix-1.2/bios",
+        remote="refs/heads/cix_p1_community_dev",
+        detail="remote branch moved",
+    )
+    require(should_fail(strict_result, "strict"), "strict branch-head drift should still fail strict mode")
+
+
+def test_radxa_branch_head_detail_names_unreleased_commits() -> None:
+    detail = advisory_branch_head_detail(
+        "radxa:commits",
+        LocalState(label="1.2.4", object_id="tag-commit"),
+        LocalState(label="refs/heads/main", object_id="main-commit"),
+    )
+    require("commits beyond the latest recorded Radxa release 1.2.4" in detail, "expected unreleased Radxa wording")
+    require("main-commit" in detail and "tag-commit" in detail, "expected both remote and local objects in detail")
 
 
 def test_grouped_comparison_items() -> None:
@@ -201,6 +241,8 @@ def main() -> None:
     test_latest_remote_tag_prefers_peeled_commit()
     test_compare_tag_statuses()
     test_compare_head_statuses()
+    test_advisory_branch_head_drift_is_non_fatal_in_strict_mode()
+    test_radxa_branch_head_detail_names_unreleased_commits()
     test_grouped_comparison_items()
     test_grouped_release_subject_comparison_items()
     test_latest_remote_subject_snapshot()

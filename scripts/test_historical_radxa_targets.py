@@ -18,10 +18,12 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from reconstruction_common import (  # noqa: E402
     CACHE_RELEASE_PREFIX,
+    ReconstructionError,
     default_release,
     matrix_release_branches,
     release_entry,
 )
+from integrate_source_release import existing_immutable_target, operation_manifest_metadata  # noqa: E402
 from source_porting import apply_source_delta_to_base  # noqa: E402
 from render_release_branch import render_from_plan  # noqa: E402
 from verify_build_matrix import require_unofficial_source_policy  # noqa: E402
@@ -437,6 +439,103 @@ def test_integrate_source_release_make_target_preserves_materialise_default() ->
     )
 
 
+def test_radxa_vendor_integration_records_raw_upstream_ref() -> None:
+    repo = make_repo()
+    try:
+        source = "source/vendor/radxa/0.2.0-1/edk2-stable202208"
+        raw_source = git(repo, "rev-parse", f"{source}^{{commit}}").stdout.strip()
+        metadata = operation_manifest_metadata(
+            repo,
+            source,
+            {
+                "type": "vendor-source",
+                "vendor": "radxa",
+                "radxa_release": "0.2.0-1",
+                "_internal": "ignored",
+            },
+        )
+        require(metadata["upstream_ref"] == raw_source, "Radxa vendor records should store the raw source commit")
+        require("_internal" not in metadata, "internal operation metadata should not be written to manifests")
+
+        port_metadata = operation_manifest_metadata(
+            repo,
+            source,
+            {
+                "type": "ported-vendor-source",
+                "vendor": "radxa",
+                "radxa_release": "0.2.0-1",
+            },
+        )
+        require("upstream_ref" not in port_metadata, "Radxa port records should not invent vendor upstream refs")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_integrate_source_release_recognises_remote_tracking_target() -> None:
+    repo = make_repo()
+    try:
+        target = "source/vendor/radxa/0.2.0-1/edk2-stable202208"
+        object_id = git(repo, "rev-parse", f"{target}^{{commit}}").stdout.strip()
+        tree_id = git(repo, "rev-parse", f"{target}^{{tree}}").stdout.strip()
+        write_file(
+            repo,
+            "config/refs-radxa.json",
+            json.dumps(
+                {
+                    "defaults": {
+                        "immutable": True,
+                        "type": "vendor-source",
+                        "vendor": "radxa",
+                    },
+                    "refs": [
+                        {
+                            "object_id": object_id,
+                            "ref": target,
+                            "tree_id": tree_id,
+                            "upstream_ref": object_id,
+                        }
+                    ],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+        )
+        git(repo, "update-ref", f"refs/remotes/origin/{target}", object_id)
+        git(repo, "branch", "-D", target)
+
+        state = existing_immutable_target(
+            repo,
+            target,
+            object_id,
+            {"type": "vendor-source"},
+        )
+        require(state is not None, "remote-tracking immutable target was not detected")
+        require(not state["has_local_head"], "remote-only target was reported as a local branch")
+        require(
+            state["copies"] == [(f"refs/remotes/origin/{target}", object_id)],
+            "remote-tracking target location was not reported exactly",
+        )
+
+        wrong_source = "source/base/edk2/edk2-stable202602"
+        try:
+            existing_immutable_target(
+                repo,
+                target,
+                wrong_source,
+                {"type": "vendor-source"},
+            )
+        except ReconstructionError as exc:
+            require(
+                "already integrated from upstream_ref" in str(exc),
+                "mismatched requested provenance did not explain the existing integration",
+            )
+        else:
+            raise AssertionError("mismatched requested provenance was accepted")
+    finally:
+        shutil.rmtree(repo)
+
+
 def main() -> None:
     test_custom_targets_allow_historical_radxa_releases_on_later_edk2()
     test_default_source_target_follows_unofficial_source_policy()
@@ -446,6 +545,8 @@ def main() -> None:
     test_source_delta_porting_preserves_conflict_worktree_for_manual_resume()
     test_historical_upstream_target_overlays_build_infrastructure_only()
     test_integrate_source_release_make_target_preserves_materialise_default()
+    test_radxa_vendor_integration_records_raw_upstream_ref()
+    test_integrate_source_release_recognises_remote_tracking_target()
     print("historical Radxa target tests passed")
 
 
