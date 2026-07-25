@@ -1,0 +1,1 @@
+../../../../../../../../../src/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/RadxaO6Iomux.asl
