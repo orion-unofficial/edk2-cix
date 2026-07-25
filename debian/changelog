@@ -1,0 +1,182 @@
+edk2-cix (1.2.1) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * fix: switch back to native Debian format
+  * feat: improve support for CIX build process
+  * fix: match pushd with popd
+  * feat: support self-generated cert
+  * fix: fail build if a command returns non-zero
+  * fix: delete existing firmware before building custom firmware
+
+  [ github-actions[bot] ]
+  * chore: update submodules
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Thu, 19 Mar 2026 10:26:52 +0000
+
+edk2-cix (1.2.0-1) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * fix: limit package release to related SoC repo
+  * fix: CIX 25Q4 SDK calls python
+  * chore: update to CIX 25Q4 SDK
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Thu, 05 Mar 2026 11:41:43 +0000
+
+edk2-cix (1.1.0-2) main; urgency=medium
+
+  [ github-actions[bot] ]
+  * chore: update submodules
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Wed, 07 Jan 2026 06:02:18 +0000
+
+edk2-cix (1.1.0-1) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * chore: update submodule
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Thu, 25 Dec 2025 02:36:01 +0000
+
+edk2-cix (1.0.0-8) main; urgency=medium
+
+  [ github-actions[bot] ]
+  * chore: update submodules
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Wed, 17 Dec 2025 11:16:44 +0000
+
+edk2-cix (1.0.0-7) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * fix: pad full BIOS image to 8M
+
+  [ github-actions[bot] ]
+  * chore: update submodules
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Mon, 15 Dec 2025 09:47:02 +0000
+
+edk2-cix (1.0.0-6) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * fix: make BIOS update less easy
+  * feat: add edk2-radxa-orion-cix-p1
+
+  [ github-actions[bot] ]
+  * chore: update submodules
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Sun, 30 Nov 2025 12:20:43 +0000
+
+edk2-cix (1.0.0-5) main; urgency=medium
+
+  [ github-actions[bot] ]
+  * chore: update submodules
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Thu, 27 Nov 2025 08:33:18 +0000
+
+edk2-cix (1.0.0-4) main; urgency=medium
+
+  [ github-actions[bot] ]
+  * chore: update submodules
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Wed, 26 Nov 2025 07:14:23 +0000
+
+edk2-cix (1.0.0-3) main; urgency=medium
+
+  [ github-actions[bot] ]
+  * chore: update submodules
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Tue, 11 Nov 2025 04:08:58 +0000
+
+edk2-cix (1.0.0-2) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * feat: allow board firmware to override default firmware
+  * fix: clean before making mem_config
+  * feat: update EC UART Baud
+  * feat: support aarch64 native build
+  * fix: handle firmware-less EC-less platform
+  * docs: add update submodule instruction
+  * fix: clarify that external code are subject to their own licenses
+  * feat: add Orion O6N
+  * chore: remove acpica
+
+  [ github-actions[bot] ]
+  * chore: update submodules
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Thu, 06 Nov 2025 09:30:53 +0000
+
+edk2-cix (1.0.0-1) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * docs: add upgrade recording for boot entry method
+  * fix: add power cycle warning before flashing
+  * chore: bump to CIX 2025.04 release
+  * fix: solve dos2unix permission issue in docker
+  * feat: add more development helpers
+  * chore: update submodules for Radxa changes
+  * fix: various build issues
+
+  [ Michal Schulz ]
+  * Update README.md to mention x86_64 host requirement
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Thu, 17 Jul 2025 09:09:53 +0000
+
+edk2-cix (0.3.0-1) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * fix: adjust line ending for patch to apply
+  * chore: update edk2-non-osi
+  * fix: add example variable configuration for gbp dch
+  * chore: update to the latest SDK release
+  * docs: update product name
+  * feat: support custom memory frequency
+  * fix: restore configurations from template update
+  * chore: bump EDK2 release to 2025.03
+  * fix: rename installation script to startup.nsh
+  * feat: add help message for EFI Shell power management
+  * chore: update devenv.lock
+  * feat: install EDK2 installer to ESP
+  * chore: update devenv.lock
+  * chore: update edk2-platforms
+  * docs: add new systemd-boot update method
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Mon, 28 Apr 2025 11:28:21 +0800
+
+edk2-cix (0.2.1-1) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * chore: update edk2-platforms
+  * fix: add gbp for make dch command
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Fri, 17 Jan 2025 02:12:27 +0000
+
+edk2-cix (0.2.0-1) main; urgency=medium
+
+  [ ZHANG Yuntian ]
+  * docs: update product name in the documentation
+  * docs: add installation guide
+  * docs: add description for 2 development shortcuts
+  * chore: update to Beta 2
+  * fix: use tab for Makefile
+  * chore: update with latest Cix bug fixes
+  * fix: disable build for CIX targets
+  * chore: update devenv.lock
+  * feat: support building in devcontainer
+  * docs: only supporting devcontainer build
+  * chore: update edk2-platforms
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Thu, 16 Jan 2025 17:35:45 +0800
+
+edk2-cix (0.1.1-1) main; urgency=medium
+
+  * First release build
+  * Based on CIX Beta1 EDK2
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Mon, 06 Jan 2025 15:32:58 +0800
+
+edk2-cix (0.1.0-1) UNRELEASED; urgency=medium
+
+  * Add initial Debian packaging support
+  * This version was used on multiple development builds during bring-up.
+    As such, we will skip this version to avoid the confusion between an
+    official 0.1.0-1 and pre-release 0.1.0-1.
+
+ -- "Radxa Computer Co., Ltd" <dev@radxa.com>  Fri, 30 Aug 2024 19:31:58 +0800
