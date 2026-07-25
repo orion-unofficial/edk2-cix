@@ -1,0 +1,39 @@
+#/** @file
+# Reset System lib using PSCI hypervisor or secure monitor calls
+#  Copyright 2024 Cix Technology Group Co., Ltd. All Rights Reserved
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#**/
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = CixResetSystemLib
+  FILE_GUID                      = 4AB01D33-FDF9-4C6E-8B09-15547823BFC6
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = ResetSystemLib
+
+[Sources]
+  ResetSystemLib.c
+
+[Packages]
+  ArmPkg/ArmPkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  MdePkg/MdePkg.dec
+  EmbeddedPkg/EmbeddedPkg.dec
+  Platform/CIX/Sky1/Sky1.dec
+  Silicon/CIX/Sky1/CixPkg.dec
+
+[LibraryClasses]
+  DebugLib
+  BaseLib
+  ArmSmcLib
+  EcLib
+  GpioLib
+
+[Pcd]
+  gCixTokenSpaceGuid.PcdPcieRootPort0PeResetPin
+  gCixTokenSpaceGuid.PcdPcieRootPort1PeResetPin
+  gCixTokenSpaceGuid.PcdPcieRootPort2PeResetPin
+  gCixTokenSpaceGuid.PcdPcieRootPort3PeResetPin
+  gCixTokenSpaceGuid.PcdPcieRootPort4PeResetPin
