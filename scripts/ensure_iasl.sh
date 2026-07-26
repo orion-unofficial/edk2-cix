@@ -106,7 +106,7 @@ EOF
     fi
 
     mkdir -p "${cache_root}/${acpica_release}"
-    for attempt in {1..120}; do
+    for (( attempt = 0; attempt < 120; attempt++ )); do
         if mkdir "$lock_dir" 2>/dev/null; then
             acquired_lock=1
             break
