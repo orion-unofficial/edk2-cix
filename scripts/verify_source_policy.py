@@ -9,7 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-from import_workflow import CURRENT_REF, release_branch_targets
+from import_workflow import current_unofficial_ref, release_branch_targets
 from reconstruction_common import ReconstructionError, format_duration, main_wrapper, ref_exists, repo_root
 from source_policy import enforce_source_tree_policy
 
@@ -33,7 +33,7 @@ def main() -> None:
     started = time.monotonic()
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
-    refs = [args.ref] if args.ref else [CURRENT_REF, *release_branch_targets(repo)]
+    refs = [args.ref] if args.ref else [current_unofficial_ref(repo), *release_branch_targets(repo)]
     checked = 0
     for ref in refs:
         if not ref_exists(repo, ref):

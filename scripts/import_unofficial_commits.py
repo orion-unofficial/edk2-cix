@@ -10,11 +10,11 @@ from pathlib import Path
 from typing import Any
 
 from import_workflow import (
-    CURRENT_REF,
     ZERO_OID,
     abort_operation,
     cherry_pick_head,
     clone_scratch,
+    current_unofficial_ref,
     ensure_target_not_checked_out_dirty,
     fetch_candidate_objects,
     full_tag_ref,
@@ -36,6 +36,7 @@ from import_workflow import (
 )
 from inspect_import_conflicts import write_conflict_report
 from reconstruction_common import (
+    UNOFFICIAL_LINE_CURRENT_RE,
     ReconstructionError,
     branch_to_ref,
     for_each_ref,
@@ -66,8 +67,9 @@ Required variables:
                         source/unofficial/** branch.
 
 Optional variables:
-  SOURCE_UNOFFICIAL_REF=source/unofficial/current
-                        Unofficial source branch to update for direct imports.
+  SOURCE_UNOFFICIAL_REF=<source/unofficial/<line>/current>
+                        Mutable Unofficial line branch to update. Default: the
+                        default line selected by config/policies.json.
   PROPAGATE_RELEASE_BRANCHES=none|all
                         Replay FROM_REF changes onto every
                         source/unofficial/edk2-stable* release branch. The
@@ -77,7 +79,7 @@ Optional variables:
                         source/unofficial/edk2/stable-* tags after all replays
                         succeed. The safer staged workflow is to run
                         make update-release-tags separately after validation.
-  BASE_REF=<ref>        Replay base. Usually inferred from source/unofficial/current.
+  BASE_REF=<ref>        Replay base. Usually inferred from the selected line tip.
   SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact
                         How to handle overlay paths whose corresponding src/
                         files moved or disappeared between source release branches.
@@ -108,7 +110,7 @@ def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
     p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
     p.add_argument("--base-ref", default=os.environ.get("BASE_REF", ""))
-    p.add_argument("--source-unofficial-ref", default=os.environ.get("SOURCE_UNOFFICIAL_REF", CURRENT_REF))
+    p.add_argument("--source-unofficial-ref", default=os.environ.get("SOURCE_UNOFFICIAL_REF", ""))
     p.add_argument("--propagate-release-branches", dest="propagate_release_branches", default=os.environ.get("PROPAGATE_RELEASE_BRANCHES", "none"))
     p.add_argument("--propagate-checkpoints", dest="propagate_checkpoints", default=os.environ.get("PROPAGATE_CHECKPOINTS", ""))
     p.add_argument("--update-release-tags", dest="update_release_tags", default=os.environ.get("UPDATE_RELEASE_TAGS", "0"))
@@ -137,12 +139,17 @@ def source_cache_ref(ref: str) -> bool:
     return short_source_ref(ref).startswith("source/cache/")
 
 
-def cache_ancestor_refs(repo: Path, from_ref: str) -> list[str]:
+def cache_ancestor_refs(repo: Path, from_ref: str, target_ref: str) -> list[str]:
     from_oid = rev_parse(repo, from_ref)
+    target_oid = rev_parse(repo, target_ref)
     ancestors: list[str] = []
     for ref in for_each_ref(repo, "source/cache"):
         oid = rev_parse(repo, ref)
-        if oid != from_oid and is_ancestor(repo, oid, from_oid):
+        if (
+            oid != from_oid
+            and is_ancestor(repo, oid, from_oid)
+            and not is_ancestor(repo, oid, target_oid)
+        ):
             ancestors.append(ref)
     return ancestors
 
@@ -154,13 +161,13 @@ def require_valid_import_source(repo: Path, from_ref: str, target_ref: str, allo
         raise ReconstructionError(
             "FROM_REF is a generated source/cache/** ref. Use make import-changes to extract changes from materialised or broader source trees."
         )
-    cache_ancestors = cache_ancestor_refs(repo, from_ref)
+    cache_ancestors = cache_ancestor_refs(repo, from_ref, target_ref)
     if cache_ancestors:
         refs = "\n".join(f"  - {ref}" for ref in cache_ancestors[:10])
         extra = "" if len(cache_ancestors) <= 10 else f"\n  ... and {len(cache_ancestors) - 10} more"
         raise ReconstructionError(
             "FROM_REF appears to be based on generated source/cache/** content, which is not a valid input for import-unofficial-commits.\n"
-            "Use make import-changes to extract the intended diff onto source/unofficial/current.\n"
+            f"Use make import-changes to extract the intended diff onto {target_ref}.\n"
             f"Detected cache ancestor(s):\n{refs}{extra}"
         )
     if not is_ancestor(repo, rev_parse(repo, target_ref), rev_parse(repo, from_ref)):
@@ -170,7 +177,13 @@ def require_valid_import_source(repo: Path, from_ref: str, target_ref: str, allo
         )
 
 
-def infer_base(repo: Path, from_ref: str, explicit_base: str, old_current: str) -> str:
+def infer_base(
+    repo: Path,
+    from_ref: str,
+    explicit_base: str,
+    old_current: str,
+    current_ref: str,
+) -> str:
     from_oid = rev_parse(repo, from_ref)
     if explicit_base:
         base_oid = rev_parse(repo, explicit_base)
@@ -178,36 +191,36 @@ def infer_base(repo: Path, from_ref: str, explicit_base: str, old_current: str) 
             raise ReconstructionError(f"BASE_REF is not an ancestor of FROM_REF: {explicit_base}")
         return base_oid
 
-    if short_source_ref(from_ref) == CURRENT_REF and from_oid == old_current:
-        receipt = read_current_import_receipt(repo)
+    if short_source_ref(from_ref) == current_ref and from_oid == old_current:
+        receipt = read_current_import_receipt(repo, current_ref)
         if receipt and receipt.get("new_oid") == from_oid:
             old_oid = str(receipt.get("old_oid", ""))
             if old_oid and old_oid != from_oid and is_ancestor(repo, old_oid, from_oid):
                 return old_oid
 
-        reflog = git(repo, "rev-parse", "--verify", "--quiet", f"{CURRENT_REF}@{{1}}^{{commit}}", check=False)
+        reflog = git(repo, "rev-parse", "--verify", "--quiet", f"{current_ref}@{{1}}^{{commit}}", check=False)
         if reflog.returncode == 0 and reflog.stdout.strip():
             old_oid = reflog.stdout.strip()
             if old_oid != from_oid and is_ancestor(repo, old_oid, from_oid):
                 return old_oid
 
         raise ReconstructionError(
-            "could not infer the previous source/unofficial/current commit. "
+            f"could not infer the previous {current_ref} commit. "
             "Run this immediately after make import-changes/import-unofficial-commits, "
-            "or re-run with BASE_REF=<previous source/unofficial/current commit>."
+            "or re-run with BASE_REF=<previous line-tip commit>."
         )
 
     candidates: list[tuple[str, str]] = []
     if is_ancestor(repo, old_current, from_oid):
-        candidates.append((old_current, "source/unofficial/current before import"))
+        candidates.append((old_current, f"{current_ref} before import"))
 
-    fork_point = git(repo, "merge-base", "--fork-point", CURRENT_REF, from_ref, check=False)
+    fork_point = git(repo, "merge-base", "--fork-point", current_ref, from_ref, check=False)
     if fork_point.returncode == 0 and fork_point.stdout.strip():
-        candidates.append((fork_point.stdout.strip(), "fork-point(source/unofficial/current, FROM_REF)"))
+        candidates.append((fork_point.stdout.strip(), f"fork-point({current_ref}, FROM_REF)"))
 
-    plain_base = merge_base(repo, CURRENT_REF, from_ref)
+    plain_base = merge_base(repo, current_ref, from_ref)
     if plain_base:
-        candidates.append((plain_base, "merge-base(source/unofficial/current, FROM_REF)"))
+        candidates.append((plain_base, f"merge-base({current_ref}, FROM_REF)"))
 
     unique: dict[str, str] = {}
     for oid, label in candidates:
@@ -218,7 +231,7 @@ def infer_base(repo: Path, from_ref: str, explicit_base: str, old_current: str) 
         return next(iter(unique))
     if not unique:
         raise ReconstructionError(
-            "could not infer BASE_REF for replay; re-run with BASE_REF=<old source/unofficial/current commit>"
+            f"could not infer BASE_REF for replay; re-run with BASE_REF=<old {current_ref} commit>"
         )
 
     lines = ["could not infer BASE_REF unambiguously; candidates:"]
@@ -339,6 +352,7 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
             base_oid=str(state.get("base_oid", "")),
             old_oid=str(current.get("old_oid", "")),
             new_oid=str(current.get("candidate_oid", "")),
+            target_ref=str(current.get("ref", "")),
         )
     print("updated unofficial refs:")
     for full_ref, new_oid, _old_oid in updates:
@@ -376,19 +390,18 @@ def pause_message(op_id: str, target: dict[str, Any]) -> str:
 
 def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> tuple[Path, dict[str, Any], dict[str, Any] | None]:
     progress("preparing propagation import")
-    if args.source_unofficial_ref != CURRENT_REF:
-        raise ReconstructionError("PROPAGATE_RELEASE_BRANCHES=all updates source/unofficial/current and all release branches; do not set SOURCE_UNOFFICIAL_REF")
-    require_valid_import_source(repo, args.from_ref, CURRENT_REF, truthy(args.allow_source_ref_from))
-    old_current = rev_parse(repo, CURRENT_REF)
+    current_ref = args.source_unofficial_ref
+    require_valid_import_source(repo, args.from_ref, current_ref, truthy(args.allow_source_ref_from))
+    old_current = rev_parse(repo, current_ref)
     from_oid = rev_parse(repo, args.from_ref)
     enforce_source_tree_policy(repo, ref=args.from_ref, label=args.from_ref)
     progress("inferring replay base")
-    base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
+    base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current, current_ref)
     commits = replay_commits(repo, base_oid, args.from_ref)
     progress(f"replaying {len(commits)} commit(s)")
     lifecycle_mode = normalise_mode(args.source_lifecycle_normalise)
     targets = release_branch_targets(repo)
-    for ref in [CURRENT_REF, *targets]:
+    for ref in [current_ref, *targets]:
         ensure_target_not_checked_out_dirty(repo, ref)
 
     op_id = args.op_id or make_op_id(args.from_ref)
@@ -407,7 +420,7 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
         "source_lifecycle_normalise": lifecycle_mode,
         "update_release_tags": truthy(args.update_release_tags),
         "current_update": {
-            "ref": CURRENT_REF,
+            "ref": current_ref,
             "old_oid": old_current,
             "candidate_oid": from_oid,
         },
@@ -485,9 +498,9 @@ def direct_import(repo: Path, args: argparse.Namespace, verbose: bool) -> None:
     ref = args.source_unofficial_ref
     progress(f"checking direct import into {ref}")
     require_unofficial_target(ref)
-    if truthy(args.update_release_tags) and ref == CURRENT_REF:
+    if truthy(args.update_release_tags) and UNOFFICIAL_LINE_CURRENT_RE.match(ref):
         raise ReconstructionError(
-            "UPDATE_RELEASE_TAGS=1 cannot update source/unofficial/current because the matching tags belong "
+            f"UPDATE_RELEASE_TAGS=1 cannot update {ref} because the matching tags belong "
             "to release-specific source/unofficial/edk2-stable* branches. Omit UPDATE_RELEASE_TAGS, test the "
             "import, then run make propagate-release-branches and make update-release-tags."
         )
@@ -505,7 +518,7 @@ def direct_import(repo: Path, args: argparse.Namespace, verbose: bool) -> None:
         tag = unofficial_release_tag_for_branch(ref)
         updates.append((full_tag_ref(tag), from_oid, ref_oid(repo, tag, tag=True) or ZERO_OID))
     transaction_update_refs(repo, updates)
-    if ref == CURRENT_REF and from_oid != old_oid:
+    if UNOFFICIAL_LINE_CURRENT_RE.match(ref) and from_oid != old_oid:
         write_current_import_receipt(
             repo,
             tool="import-unofficial-commits",
@@ -514,6 +527,7 @@ def direct_import(repo: Path, args: argparse.Namespace, verbose: bool) -> None:
             base_oid=old_oid,
             old_oid=old_oid,
             new_oid=from_oid,
+            target_ref=ref,
         )
     print(f"updated {ref}")
 
@@ -521,6 +535,7 @@ def direct_import(repo: Path, args: argparse.Namespace, verbose: bool) -> None:
 def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
+    args.source_unofficial_ref = current_unofficial_ref(repo, args.source_unofficial_ref)
     verbose = truthy(args.v)
 
     if truthy(args.abort):
@@ -549,10 +564,11 @@ def main() -> None:
         raise ReconstructionError("PROPAGATE_RELEASE_BRANCHES must be none or all")
 
     if propagate == "all":
-        require_valid_import_source(repo, args.from_ref, CURRENT_REF, truthy(args.allow_source_ref_from))
+        current_ref = args.source_unofficial_ref
+        require_valid_import_source(repo, args.from_ref, current_ref, truthy(args.allow_source_ref_from))
         enforce_source_tree_policy(repo, ref=args.from_ref, label=args.from_ref)
-        old_current = rev_parse(repo, CURRENT_REF)
-        base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current)
+        old_current = rev_parse(repo, current_ref)
+        base_oid = infer_base(repo, args.from_ref, args.base_ref, old_current, current_ref)
         commits = replay_commits(repo, base_oid, args.from_ref)
         targets = release_branch_targets(repo)
         lifecycle_mode = normalise_mode(args.source_lifecycle_normalise)
@@ -566,7 +582,7 @@ def main() -> None:
                 print("  changed overlay paths:")
                 for path in overlay_paths:
                     print(f"    {path}")
-            print(f"  update: {CURRENT_REF}")
+            print(f"  update: {current_ref}")
             for target in targets:
                 line = f"  replay: {target}"
                 if truthy(args.update_release_tags):

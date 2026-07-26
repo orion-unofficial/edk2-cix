@@ -12,13 +12,16 @@ from pathlib import Path
 
 from reconstruction_common import (
     ReconstructionError,
+    clear_metadata_caches,
     format_duration,
-    load_json,
     main_wrapper,
     ref_exists,
     release_for_edk2_ref,
     repo_root,
+    selected_unofficial_current_ref,
+    selected_unofficial_line_policy,
     truthy,
+    unofficial_source_policy,
 )
 
 
@@ -30,9 +33,11 @@ Runs the mechanical stages for a new upstream EDK2 stable release:
   2. record source/base/edk2-platforms/<EDK2_BASE>
   3. record source/base/edk2-non-osi/<EDK2_BASE>
   4. port the selected Radxa release to the new EDK2 base
-  5. promote source/unofficial/current to source/unofficial/<EDK2_BASE>
-  6. render the default custom source target for the new release
-  7. run verify-build-matrix
+  5. promote the selected Unofficial line onto the new Radxa port
+  6. record source/unofficial/<RADXA_RELEASE>/<EDK2_BASE>
+  7. move source/unofficial/<LINE>/current
+  8. render the default custom source target for the new release
+  9. run verify-build-matrix
 
 Required variables:
   EDK2_BASE=<edk2-stableYYYYMM>
@@ -45,6 +50,8 @@ Optional variables:
   RADXA_RELEASE=<release>
       Radxa source release to carry forward.
       Default: config/policies.json unofficial_source_policy current_radxa_release.
+  LINE=<major.minor>
+      Unofficial development line to rebase. Default: the policy-selected line.
   CIX_RELEASE=<release>
       CIX release component set used by the rendered source target.
       Default: config/policies.json unofficial_source_policy current_cix_release.
@@ -60,7 +67,7 @@ Optional variables:
       Resolved unofficial source-port commit from a conflict handoff.
   FROM_REF=<ref>
       Source tree to promote for the unofficial stage.
-      Default: source/unofficial/current.
+      Default: the policy-selected source/unofficial/<LINE>/current ref.
   RELEASE=<source-target>
       Rendered source target to refresh. Default is derived from EDK2_BASE,
       CIX_RELEASE, and RADXA_RELEASE.
@@ -95,13 +102,14 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--edk2-base", default=os.environ.get("EDK2_BASE", ""))
     p.add_argument("--from-edk2-base", default=os.environ.get("FROM_EDK2_BASE", ""))
     p.add_argument("--radxa-release", default=os.environ.get("RADXA_RELEASE", ""))
+    p.add_argument("--line", default=os.environ.get("LINE", ""))
     p.add_argument("--cix-release", default=os.environ.get("CIX_RELEASE", ""))
     p.add_argument("--edk2-ref", default=os.environ.get("EDK2_REF", ""))
     p.add_argument("--edk2-platforms-ref", default=os.environ.get("EDK2_PLATFORMS_REF", ""))
     p.add_argument("--edk2-non-osi-ref", default=os.environ.get("EDK2_NON_OSI_REF", ""))
     p.add_argument("--radxa-ref", default=os.environ.get("RADXA_REF", ""))
     p.add_argument("--unofficial-ref", default=os.environ.get("UNOFFICIAL_REF", ""))
-    p.add_argument("--from-ref", default=os.environ.get("FROM_REF", "source/unofficial/current"))
+    p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
     p.add_argument("--release", default=os.environ.get("RELEASE", ""))
     p.add_argument("--skip-render", default=os.environ.get("SKIP_RENDER", "0"))
     p.add_argument("--verify", default=os.environ.get("VERIFY", "1"))
@@ -124,10 +132,15 @@ def normalise_edk2_base(value: str) -> str:
 
 
 def policy_defaults(repo: Path) -> dict[str, str]:
-    policy = load_json(repo, "config/policies.json").get("unofficial_source_policy", {})
-    if not isinstance(policy, dict):
-        raise ReconstructionError("config/policies.json unofficial_source_policy must be an object")
-    return {key: str(value).strip() for key, value in policy.items() if value is not None}
+    policy = unofficial_source_policy(repo)
+    line, selected = selected_unofficial_line_policy(policy)
+    defaults = {
+        key: str(value).strip()
+        for key, value in selected.items()
+        if value is not None
+    }
+    defaults["line"] = line
+    return defaults
 
 
 def source_target(edk2_base: str, cix_release: str, radxa_release: str) -> str:
@@ -148,6 +161,7 @@ def run_script(repo: Path, script: str, env_updates: dict[str, str], *, verbose:
     result = subprocess.run(cmd, cwd=repo, env=env, check=False)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
+    clear_metadata_caches()
 
 
 def run_make(repo: Path, target: str, env_updates: dict[str, str], *, verbose: bool) -> None:
@@ -239,13 +253,16 @@ def maybe_promote_unofficial(
     *,
     edk2_base: str,
     from_edk2_base: str,
+    radxa_release: str,
+    line: str,
+    cix_release: str,
     from_ref: str,
     unofficial_ref: str,
     write: str,
     allow_replace: str,
     verbose: bool,
 ) -> None:
-    target = f"source/unofficial/{edk2_base}"
+    target = f"source/unofficial/{radxa_release}/{edk2_base}"
     if ref_exists(repo, target) and not truthy(allow_replace):
         print(f"[uplift] {target} already exists; skipping")
         return
@@ -259,12 +276,14 @@ def maybe_promote_unofficial(
         {
             "EDK2_BASE": edk2_base,
             "FROM_EDK2_BASE": from_edk2_base,
+            "RADXA_RELEASE": radxa_release,
+            "LINE": line,
+            "CIX_RELEASE": cix_release,
             "FROM_REF": from_ref,
             "RESOLVED_REF": unofficial_ref,
             "WRITE": write,
             "ALLOW_REPLACE": allow_replace,
             "UPDATE_CURRENT": "1",
-            "UPDATE_RELEASE_TAGS": "1",
             "UPDATE_POLICY": "1",
             "V": "1" if verbose else "0",
         },
@@ -303,11 +322,16 @@ def main() -> None:
     if not radxa_release:
         raise ReconstructionError("RADXA_RELEASE is required when config/policies.json has no current Radxa release")
     cix_release = args.cix_release or defaults.get("current_cix_release", "")
+    line = args.line or defaults.get("line", "")
+    if not line:
+        raise ReconstructionError("LINE is required when config/policies.json has no selected Unofficial line")
+    args.from_ref = args.from_ref or selected_unofficial_current_ref(repo)
     render_target = args.release or source_target(edk2_base, cix_release, radxa_release)
 
     print(f"[uplift] EDK2 base: {edk2_base}")
     print(f"[uplift] Previous EDK2 base: {from_edk2_base}")
     print(f"[uplift] Radxa release: {radxa_release}")
+    print(f"[uplift] Unofficial line: {line}")
     if cix_release:
         print(f"[uplift] CIX release: {cix_release}")
     print(f"[uplift] Render target: {render_target}")
@@ -353,6 +377,9 @@ def main() -> None:
         repo,
         edk2_base=edk2_base,
         from_edk2_base=from_edk2_base,
+        radxa_release=radxa_release,
+        line=line,
+        cix_release=cix_release,
         from_ref=args.from_ref,
         unofficial_ref=args.unofficial_ref,
         write=write,

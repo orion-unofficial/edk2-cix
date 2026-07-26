@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
+from typing import Iterable
 
 from reconstruction_common import (
     ReconstructionError,
@@ -84,6 +86,7 @@ def preserve_conflict_worktree(
     merge_output: str,
     source_ref: str,
     new_base_ref: str,
+    resume_variable: str,
     verbose: bool,
 ) -> Path:
     scratch = temp_path(repo, f"port-{safe_name(label)}-conflict-")
@@ -97,14 +100,18 @@ def preserve_conflict_worktree(
         f"Source-Port-New-Base: {new_base_ref}\n",
     )
     git(repo, "worktree", "add", "--detach", str(worktree), conflict_commit, capture=not verbose)
+    resume_lines = [
+        f"    {resume_variable}=$(git -C {worktree} rev-parse HEAD)",
+    ]
+    if resume_variable == "REF":
+        resume_lines.append("    MATERIALISE=0")
     notes = [
         f"# Source Port Conflict: {label}",
         "",
         "Git could not merge the old source tree onto the new base automatically.",
         "Resolve the conflict markers in the worktree, commit the result, then rerun the original integration command with:",
         "",
-        f"    REF=$(git -C {worktree} rev-parse HEAD)",
-        "    MATERIALISE=0",
+        *resume_lines,
         "",
         "Conflicted paths:",
         *[f"  - {path}" for path in paths],
@@ -120,6 +127,54 @@ def preserve_conflict_worktree(
     return worktree
 
 
+def path_is_under(path: str, roots: Iterable[str]) -> bool:
+    return any(path == root or path.startswith(root.rstrip("/") + "/") for root in roots)
+
+
+def overlay_paths_from_source(
+    repo: Path,
+    *,
+    tree: str,
+    source_ref: str,
+    paths: Iterable[str],
+    label: str,
+    verbose: bool,
+) -> str:
+    """Replace policy-owned paths in tree with their exact source_ref state."""
+
+    selected = tuple(dict.fromkeys(path.strip("/") for path in paths if path.strip("/")))
+    if not selected:
+        return tree
+    source = resolve_ref(repo, source_ref)
+    overlay_commit = commit_tree(
+        repo,
+        tree,
+        f"source-port: prepare policy overlay for {label}\n",
+    )
+    with temp_dir(repo, f"overlay-{safe_name(label)}-") as tmp:
+        worktree = Path(tmp) / "worktree"
+        git(repo, "worktree", "add", "--detach", str(worktree), overlay_commit, capture=not verbose)
+        try:
+            for path in selected:
+                git(
+                    worktree,
+                    "rm",
+                    "-r",
+                    "-f",
+                    "--ignore-unmatch",
+                    "--",
+                    path,
+                    check=False,
+                    capture=not verbose,
+                )
+                exists = git(repo, "cat-file", "-e", f"{source}:{path}", check=False)
+                if exists.returncode == 0:
+                    git(worktree, "checkout", source, "--", path, capture=not verbose)
+            return git(worktree, "write-tree").stdout.strip()
+        finally:
+            git(repo, "worktree", "remove", "--force", str(worktree), check=False, capture=True)
+
+
 def merge_source_tree(
     repo: Path,
     old_base: str,
@@ -128,6 +183,8 @@ def merge_source_tree(
     *,
     label: str,
     new_base_ref: str,
+    source_owned_paths: Iterable[str],
+    resume_variable: str,
     verbose: bool,
 ) -> str:
     result = subprocess.run(
@@ -146,36 +203,56 @@ def merge_source_tree(
         text=True,
         check=False,
     )
+    conflicts = conflicted_paths(result.stdout)
     if result.returncode != 0:
         tree = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
         worktree_note = ""
         if tree and git(repo, "cat-file", "-t", tree, check=False).stdout.strip() == "tree":
-            if not conflicted_paths(result.stdout):
+            if conflicts and all(path_is_under(path, source_owned_paths) for path in conflicts):
+                if verbose:
+                    print(
+                        f"Resolving {len(conflicts)} policy-owned conflict(s) from {source_ref}",
+                        file=sys.stderr,
+                    )
+            elif conflicts:
+                worktree = preserve_conflict_worktree(
+                    repo,
+                    tree=tree,
+                    label=label,
+                    merge_output=result.stdout,
+                    source_ref=source_ref,
+                    new_base_ref=new_base_ref,
+                    resume_variable=resume_variable,
+                    verbose=verbose,
+                )
+                suffix = " MATERIALISE=0" if resume_variable == "REF" else ""
+                worktree_note = (
+                    f"\n\nsource-port conflict worktree preserved at: {worktree}\n"
+                    "Resolve conflicts there, commit the result, and rerun with "
+                    f"{resume_variable}=<resolved-commit>{suffix}."
+                )
+            else:
                 return tree
-            worktree = preserve_conflict_worktree(
-                repo,
-                tree=tree,
-                label=label,
-                merge_output=result.stdout,
-                source_ref=source_ref,
-                new_base_ref=new_base_ref,
-                verbose=verbose,
+        if not tree or worktree_note:
+            detail = compact_apply_detail((result.stderr or result.stdout or "unknown merge failure").strip())
+            raise ReconstructionError(
+                f"could not three-way merge source delta from {source_ref} onto {new_base}: {detail}{worktree_note}"
             )
-            worktree_note = (
-                f"\n\nsource-port conflict worktree preserved at: {worktree}\n"
-                "Resolve conflicts there, commit the result, and rerun with REF=<resolved-commit> MATERIALISE=0."
-            )
-        detail = compact_apply_detail((result.stderr or result.stdout or "unknown merge failure").strip())
-        raise ReconstructionError(
-            f"could not three-way merge source delta from {source_ref} onto {new_base}: {detail}{worktree_note}"
-        )
-    tree = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
+    else:
+        tree = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
     if not tree:
         raise ReconstructionError(f"git merge-tree produced no tree for source delta from {source_ref}")
     kind = git(repo, "cat-file", "-t", tree).stdout.strip()
     if kind != "tree":
         raise ReconstructionError(f"git merge-tree produced a {kind}, not a tree, for source delta from {source_ref}")
-    return tree
+    return overlay_paths_from_source(
+        repo,
+        tree=tree,
+        source_ref=source_ref,
+        paths=source_owned_paths,
+        label=label,
+        verbose=verbose,
+    )
 
 
 def apply_source_delta_to_base(
@@ -186,6 +263,8 @@ def apply_source_delta_to_base(
     new_base_ref: str,
     message: str,
     label: str,
+    source_owned_paths: Iterable[str] = (),
+    resume_variable: str = "REF",
     verbose: bool,
 ) -> str:
     """Replay the source_ref delta from old_base_ref onto new_base_ref."""
@@ -199,6 +278,8 @@ def apply_source_delta_to_base(
         source_ref,
         label=label,
         new_base_ref=new_base_ref,
+        source_owned_paths=source_owned_paths,
+        resume_variable=resume_variable,
         verbose=verbose,
     )
     if tree == tree_id(repo, new_base):

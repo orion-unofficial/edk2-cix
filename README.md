@@ -26,7 +26,8 @@ The default source target is derived from the latest available supported EDK2
 release, CIX release, Radxa release, and unofficial source branch. The
 supported source-target set is generated from source refs such as
 `source/base/edk2/**`, `source/vendor/radxa/**`, `source/port/radxa/**`,
-`source/component/cix/**`, and the source/ref manifests under `config/`. If you
+`source/vendor/cix/**`, `source/port/cix/**`, and the source/ref manifests
+under `config/`. If you
 do not set `RELEASE=...`, the build targets use that derived default source
 target. User-facing build and packaging targets use the buildbox by default, so
 the host does not need an AArch64 firmware toolchain installed.
@@ -171,7 +172,7 @@ source inputs are recorded locally. At a high level, this means:
 - the selected EDK2, `edk2-platforms`, and `edk2-non-osi` base refs are present
 - the Radxa vendor changes are available for that EDK2 release
 - any selected CIX component refs are present under
-  `source/component/cix/<cix-release>/`
+  `source/vendor/cix/<cix-release>/`
 - the unofficial project source branch for the selected EDK2 release is present
 - `source/base/edk2/edk2-stable*` refs declare the supported EDK2 release set
   from `202208` onward
@@ -221,9 +222,11 @@ not required source data when `config/refs-edk2.json` and the referenced
 component refs are present. The base-cache tree IDs are derived from that EDK2
 ref metadata rather than stored in a separate manifest.
 
-`source/component/cix/**` branches contain CIX-provided components. CIX
-publishes OP-TEE under a `tee` directory, but this source model records that
-component as `op-tee`.
+`source/vendor/cix/**` branches contain source and payload trees published by
+CIX. CIX publishes OP-TEE under a `tee` directory, but this source model
+records that component as `op-tee`. `source/port/cix/**` branches are reserved
+for this project's reviewed ports of those components to a newer Arm upstream
+base.
 
 `source/vendor/radxa/**` branches contain source trees actually published by
 Radxa for a recorded EDK2 base. `source/port/radxa/**` branches contain this
@@ -289,9 +292,9 @@ make render-release-branch \
 git switch -c my-change source/cache/release/custom/edk2-202602/cix-1.2/radxa-1.2.1/unofficial
 ```
 
-The supported workflows guard `source/base/**`, `source/vendor/**`,
-`source/port/**`, and `source/component/cix/**` refs by comparing them against
-the expected object IDs and tree IDs in `config/refs-*.json`. Git itself does
+The supported workflows guard `source/base/**`, `source/vendor/**`, and
+`source/port/**` refs by comparing them against the expected object IDs and
+tree IDs in `config/refs-*.json`. Git itself does
 not make those branch names immutable, so do not edit or move them by hand. If
 a guarded ref moved unexpectedly, or is checked out in a dirty worktree, the
 scripts abort before using it. Only `make integrate-source-release` should
@@ -673,7 +676,7 @@ uplift of one CIX component to a newer Arm upstream:
      REF=<ported-tf-a-ref> WRITE=1
    ```
 
-   The recorded ref is `source/component/cix/1.2/tf-a/v2.12`. Use
+   The recorded ref is `source/port/cix/1.2/tf-a/v2.12`. Use
    `COMPONENT=op-tee ARM_BASE=4.4.0` for OP-TEE.
 
 4. Record any additional source refs or metadata needed for the derived
@@ -683,7 +686,7 @@ uplift of one CIX component to a newer Arm upstream:
 
 The component port itself is intentionally a source-level engineering step
 rather than an automatic patch replay. The deterministic part starts once the
-reviewed component ref is recorded in `source/component/cix/**` and
+reviewed component ref is recorded in `source/port/cix/**` and
 `config/refs-cix.json`.
 
 Radxa non-release updates use the same vendor integration path. First update or
@@ -902,8 +905,8 @@ make verify-release-branch \
 ```
 
 Materialised refs are generated mechanically from `source/base/**`,
-`source/vendor/**`, `source/port/**`, `source/component/**`, and
-`source/unofficial/**` release branches. They may be stored as
+`source/vendor/**`, `source/port/**`, and `source/unofficial/**` release
+branches. They may be stored as
 `source/cache/release/**` branches for convenience, but ordinary build and
 validation targets regenerate them when those branches are absent.
 

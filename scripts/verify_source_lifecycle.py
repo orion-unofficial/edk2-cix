@@ -16,6 +16,7 @@ from reconstruction_common import (
     main_wrapper,
     ref_exists,
     repo_root,
+    selected_unofficial_current_ref,
     truthy,
 )
 from source_lifecycle import (
@@ -33,7 +34,7 @@ HELP = """verify-source-lifecycle
 Optional variables:
   FROM_REF=<ref>
       Source ref whose overlay paths should be projected.
-      Default: source/unofficial/current.
+      Default: the policy-selected source/unofficial/<line>/current ref.
   TARGET_REF=<ref[,ref...]>
       Specific target refs to validate. If omitted, every
       source/unofficial/edk2-stable* release branch is used.
@@ -50,7 +51,7 @@ fails rather than guessing when a source path maps to multiple exact candidates.
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
-    p.add_argument("--from-ref", default=os.environ.get("FROM_REF", "source/unofficial/current"))
+    p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
     p.add_argument("--target-ref", default=os.environ.get("TARGET_REF", ""))
     p.add_argument("--normalise-mode", default=os.environ.get("SOURCE_LIFECYCLE_NORMALISE", "exact"))
     p.add_argument("--v", default=os.environ.get("V", "0"))
@@ -71,6 +72,7 @@ def require_ref(repo: Path, ref: str, label: str) -> None:
 def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
+    args.from_ref = args.from_ref or selected_unofficial_current_ref(repo)
     verbose = truthy(args.v)
     started = time.monotonic()
 

@@ -365,6 +365,34 @@ def test_cache_based_from_ref_is_rejected() -> None:
         shutil.rmtree(repo)
 
 
+def test_target_cache_history_does_not_reject_direct_topic() -> None:
+    repo = make_repo()
+    try:
+        cache_ref = "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial"
+        target_ref = "source/unofficial/1.2/current"
+        git(repo, "switch", "-c", target_ref, cache_ref)
+        write_file(repo, "release.txt", "unofficial 1.2 current\n")
+        commit_all(repo, "promote rendered release")
+        git(repo, "switch", "-c", "line-topic", target_ref)
+        write_file(repo, "firmware.txt", "line topic\n")
+        commit_all(repo, "line topic change")
+        git(repo, "switch", "build")
+
+        result = run_import(
+            repo,
+            FROM_REF="line-topic",
+            SOURCE_UNOFFICIAL_REF=target_ref,
+            WRITE="1",
+        )
+        require(result.returncode == 0, result.stderr + result.stdout)
+        require(
+            show(repo, target_ref, "firmware.txt") == "line topic\n",
+            "direct topic was not imported onto a target with cache history",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_unrelated_from_ref_is_rejected() -> None:
     repo = make_repo()
     try:

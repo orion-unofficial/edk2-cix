@@ -32,6 +32,7 @@ from reconstruction_common import (
     ref_manifest_records,
     repo_root,
     run,
+    selected_unofficial_current_ref,
     show_file,
     truthy,
     version_key,
@@ -196,7 +197,12 @@ def local_radxa_release(repo: Path) -> LocalState:
 
 
 def local_cix_component(repo: Path, component: str) -> LocalState:
-    records = [record for record in ref_manifest_records(repo, CIX_REFS_MANIFEST) if record.get("component") == component]
+    records = [
+        record
+        for record in ref_manifest_records(repo, CIX_REFS_MANIFEST)
+        if record.get("component") == component
+        and str(record.get("ref", "")).startswith("source/vendor/cix/")
+    ]
     record = latest_record(records, f"CIX {component}")
     ref = str(record["ref"])
     release = ref.split("/")[3]
@@ -204,7 +210,11 @@ def local_cix_component(repo: Path, component: str) -> LocalState:
 
 
 def local_json_field(repo: Path, local: dict[str, Any]) -> LocalState:
-    ref = str(local["ref"])
+    ref = (
+        selected_unofficial_current_ref(repo)
+        if local.get("ref") == "unofficial-default-current"
+        else str(local["ref"])
+    )
     path = str(local["manifest_path"])
     payload = json.loads(show_file(repo, ref, path).decode("utf-8"))
     label = str(payload[str(local["field"])])

@@ -1,0 +1,52 @@
+{
+  "refs": [
+    {
+      "edk2_base": "edk2-stable202605",
+      "immutable": true,
+      "line": "1.2",
+      "object_id": "2da65971a87be7e7b8964f95ca120274d9e28da1",
+      "previous_unofficial_ref": "source/unofficial/current",
+      "radxa_release": "1.2.1",
+      "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202605",
+      "ref": "source/unofficial/1.2.1/edk2-stable202605",
+      "tree_id": "3d5956a80329d4742ddbbb0335beb17912ff6395",
+      "type": "unofficial-release-checkpoint"
+    },
+    {
+      "edk2_base": "edk2-stable202605",
+      "immutable": true,
+      "line": "1.2",
+      "object_id": "060ebe0b7b0e1ead5c19eba20dd79467c97ac1db",
+      "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202605",
+      "radxa_release": "1.2.2",
+      "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202605",
+      "ref": "source/unofficial/1.2.2/edk2-stable202605",
+      "tree_id": "6abf1cdc9bbed7f14a803b3f6ad87829331148bf",
+      "type": "unofficial-release-checkpoint"
+    },
+    {
+      "edk2_base": "edk2-stable202605",
+      "immutable": true,
+      "line": "1.2",
+      "object_id": "dafa0147b8b4996179a148688a11c495d27b960e",
+      "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202605",
+      "radxa_release": "1.2.3",
+      "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202605",
+      "ref": "source/unofficial/1.2.3/edk2-stable202605",
+      "tree_id": "6833ceecbe2d054a5359c47835a7b575e68f6672",
+      "type": "unofficial-release-checkpoint"
+    },
+    {
+      "edk2_base": "edk2-stable202605",
+      "immutable": true,
+      "line": "1.2",
+      "object_id": "da8ec515b56e5edbbfb337fd9ccb96ec8142af63",
+      "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202605",
+      "radxa_release": "1.2.4",
+      "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202605",
+      "ref": "source/unofficial/1.2.4/edk2-stable202605",
+      "tree_id": "9cbf35ab8cb714a9f98659a288ed61c5f3c776b0",
+      "type": "unofficial-release-checkpoint"
+    }
+  ]
+}

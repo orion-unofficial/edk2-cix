@@ -87,7 +87,7 @@ as main; with MATERIALISE=1, the source is flattened before the Radxa source ref
 is recorded.
 CIX TF-A/OP-TEE uplift experiments should use COMPONENT=tf-a|op-tee,
 ARM_BASE=<arm-release>, and REF=<ported-ref>. This records the finished
-component ref under source/component/cix/<cix-release>/<component>/<arm-base>.
+component ref under source/port/cix/<cix-release>/<component>/<arm-base>.
 For edk2-platforms and edk2-non-osi stable-release integration, REF may be
 omitted; the script selects the latest upstream master commit at or before the
 matching EDK2 stable tag committer timestamp.
@@ -201,15 +201,18 @@ def cix_component_records(repo: Path, release: str) -> list[dict[str, str]]:
     records = []
     for record in load_json(repo, f"config/{CIX_REFS_MANIFEST}").get("refs", []):
         ref = str(record.get("ref", ""))
-        if not ref.startswith(f"source/component/cix/{release}/"):
+        if not ref.startswith(f"source/vendor/cix/{release}/"):
             continue
-        if record.get("type") not in {"vendor-bundle", "vendor-component"}:
+        if record.get("type") not in {"vendor-bundle", "vendor-component", "vendor-payload"}:
             continue
         records.append(record)
     return sorted(records, key=lambda item: str(item.get("ref", "")))
 
 
 def cix_record_remote(repo: Path, record: dict[str, str]) -> str:
+    remote_key = str(record.get("remote", ""))
+    if remote_key:
+        return configured_remote_url(repo, remote_key=remote_key)
     record_type = str(record.get("type", ""))
     if record_type == "vendor-bundle":
         return configured_remote_url(repo, vendor="cix", remote_type="vendor-bundle")
@@ -255,7 +258,7 @@ def manifest_path_for(target: str) -> str:
         return f"config/{EDK2_REFS_MANIFEST}"
     if target.startswith("source/base/arm/"):
         return f"config/{ARM_REFS_MANIFEST}"
-    if target.startswith("source/component/cix/"):
+    if target.startswith(("source/vendor/cix/", "source/port/cix/")):
         return f"config/{CIX_REFS_MANIFEST}"
     if target.startswith(("source/vendor/radxa/", "source/port/radxa/")):
         return f"config/{RADXA_REFS_MANIFEST}"
@@ -360,7 +363,25 @@ def print_existing_target(state: dict, *, dry_run: bool) -> None:
     print(f"  {prefix}: {target} is already integrated at {object_id}")
     print(f"    available as {locations}")
     if not state["has_local_head"]:
-        print("    git branch lists only local branches; use git branch -r or git branch -a to see this ref")
+        if dry_run:
+            print(f"    WRITE=1 will create the missing local branch {target}")
+        else:
+            print("    git branch lists only local branches; use git branch -r or git branch -a to see this ref")
+
+
+def materialise_existing_target_local_head(repo: Path, state: dict, *, verbose: bool) -> bool:
+    """Create a local immutable branch from its verified remote-tracking copy."""
+
+    if state["has_local_head"]:
+        return False
+    target = str(state["target"])
+    object_id = str(state["object_id"])
+    git(repo, "branch", target, object_id, capture=not verbose)
+    clear_metadata_caches()
+    state["copies"] = [(f"refs/heads/{target}", object_id), *state["copies"]]
+    state["has_local_head"] = True
+    print(f"  created local branch: {target} -> {object_id}")
+    return True
 
 
 def radxa_vendor_refs(repo: Path, release: str) -> list[str]:
@@ -627,14 +648,14 @@ def main() -> None:
         operations.append(upstream_operation(repo, args.component, release, args.ref, verbose))
     elif args.vendor == "cix" and args.component:
         cix_release = args.release.removeprefix("v")
-        target = f"source/component/cix/{cix_release}/{args.component}/{args.arm_base}"
+        target = f"source/port/cix/{cix_release}/{args.component}/{args.arm_base}"
         base_ref = f"source/base/arm/{args.component}/{args.arm_base}"
         operations.append((
             "local",
             args.ref,
             target,
             {
-                "type": "vendor-component-uplift",
+                "type": "ported-vendor-component",
                 "vendor": "cix",
                 "component": args.component,
                 "cix_release": cix_release,
@@ -663,6 +684,8 @@ def main() -> None:
                     "type": str(item.get("type", "vendor-component")),
                     "vendor": "cix",
                     "component": str(item.get("component", "")),
+                    "file": str(item.get("file", "")),
+                    "remote": str(item.get("remote", "")),
                     "vendor_path": str(item.get("vendor_path", "")),
                     "upstream_ref": source,
                 },
@@ -711,12 +734,17 @@ def main() -> None:
                 print(f"  {remote} {source} -> {target}")
         return
 
-    changed = 0
+    integrated = 0
+    localised = 0
     unchanged = 0
     for remote, source, target, meta in operations:
         if target in existing_targets:
-            print_existing_target(existing_targets[target], dry_run=False)
-            unchanged += 1
+            state = existing_targets[target]
+            if materialise_existing_target_local_head(repo, state, verbose=verbose):
+                localised += 1
+            else:
+                print_existing_target(state, dry_run=False)
+                unchanged += 1
             continue
         record_meta = operation_manifest_metadata(repo, source, meta)
         if remote == "local":
@@ -768,9 +796,11 @@ def main() -> None:
             fetch_to_ref(repo, remote, source, target, verbose, allow_replace)
         clear_metadata_caches()
         upsert_manifest(repo, target, manifest_record(repo, target, **record_meta))
-        changed += 1
-    if changed:
+        integrated += 1
+    if integrated:
         print("integration refs and config metadata updated")
+    if localised:
+        print(f"verified local immutable branches created: {localised}")
     if unchanged:
         print(f"requested integration refs already present and unchanged: {unchanged}")
 

@@ -13,6 +13,7 @@ from reconstruction_common import (
     CACHE_RELEASE_PREFIX,
     EDK2_REFS_MANIFEST,
     SOURCE_TARGET_CACHE_MANIFEST,
+    UNOFFICIAL_LINE_CURRENT_RE,
     ReconstructionError,
     base_tree_records,
     format_duration,
@@ -22,9 +23,12 @@ from reconstruction_common import (
     edk2_ref_for_release,
     latest_value,
     release_for_edk2_ref,
+    unofficial_release_branches,
     unofficial_release_branch_for_tag,
     unofficial_release_edk2_refs,
+    unofficial_checkpoints_by_edk2,
     unofficial_release_tag_for_branch,
+    unofficial_line_policies,
     main_wrapper,
     matrix_release_branches,
     matrix_release_values,
@@ -185,16 +189,11 @@ def require_source_refs(
         for ref in expected_required_refs
         if ref.startswith(("source/vendor/radxa/", "source/port/radxa/"))
     }
+    expected_local_branches = set(unofficial_release_branches(repo))
     expected_local_tags = {
         unofficial_release_tag_for_branch(ref)
-        for ref in expected_required_refs
-        if ref.startswith("source/unofficial/")
+        for ref in expected_local_branches
     }
-    expected_local_branches = {
-        unofficial_release_branch_for_tag(tag)
-        for tag in expected_local_tags
-    }
-    expected_local_branches.add("source/unofficial/current")
 
     required = set(expected_required_refs)
     required.update(expected_base_rendered)
@@ -311,14 +310,19 @@ def require_non_cix_unofficial_source_targets(
 ) -> list[str]:
     problems: list[str] = []
     unofficial_edk2 = unofficial_release_edk2_refs(repo)
+    unofficial_checkpoints = unofficial_checkpoints_by_edk2(repo)
     supported_edk2 = {edk2_ref_for_release(release) for release in releases}
     custom_radxa_releases = available_radxa_releases(repo, supported_edk2)
 
     for release in releases:
         edk2_ref = edk2_ref_for_release(release)
-        if edk2_ref not in unofficial_edk2:
+        checkpoint_radxa = sorted(
+            unofficial_checkpoints.get(edk2_ref, {}),
+            key=version_key,
+        )
+        if not checkpoint_radxa and edk2_ref not in unofficial_edk2:
             continue
-        for radxa in custom_radxa_releases:
+        for radxa in checkpoint_radxa or custom_radxa_releases:
             source_target = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
             alias = f"{source_target}-{radxa}"
             missing = [ref for ref in (source_target, alias) if ref not in expected_releases]
@@ -360,6 +364,60 @@ def require_unofficial_source_policy(repo: Path, expected_releases: set[str]) ->
                 "default source target does not match config/policies.json unofficial_source_policy "
                 f"({actual_default} != {expected_default})"
             )
+        default_line, lines = unofficial_line_policies(policy)
+        if isinstance(policy.get("lines"), dict):
+            for line, record in sorted(lines.items(), key=lambda item: version_key(item[0])):
+                current_ref = str(record.get("current_ref", "")).strip()
+                edk2 = str(record.get("current_edk2_release", "")).strip()
+                radxa = str(record.get("current_radxa_release", "")).strip()
+                cix = str(record.get("current_cix_release", "")).strip()
+                missing = [
+                    field
+                    for field, value in (
+                        ("current_ref", current_ref),
+                        ("current_edk2_release", edk2),
+                        ("current_radxa_release", radxa),
+                        ("current_cix_release", cix),
+                    )
+                    if not value
+                ]
+                if missing:
+                    problems.append(
+                        f"unofficial line {line} is missing policy field(s): "
+                        + ", ".join(missing)
+                    )
+                    continue
+                match = UNOFFICIAL_LINE_CURRENT_RE.match(current_ref)
+                if not match or match.group("line") != line:
+                    problems.append(
+                        f"unofficial line {line} current_ref must be "
+                        f"source/unofficial/{line}/current, found {current_ref}"
+                    )
+                    continue
+                if ".".join(radxa.split(".")[:2]) != line:
+                    problems.append(
+                        f"unofficial line {line} selects Radxa release {radxa} from another line"
+                    )
+                if edk2.startswith("edk2-stable"):
+                    edk2 = release_for_edk2_ref(edk2)
+                checkpoint = f"source/unofficial/{radxa}/edk2-stable{edk2}"
+                if not ref_exists(repo, current_ref):
+                    problems.append(f"unofficial line {line} current ref is missing: {current_ref}")
+                if not ref_exists(repo, checkpoint):
+                    problems.append(f"unofficial line {line} checkpoint is missing: {checkpoint}")
+                target = (
+                    f"{CACHE_RELEASE_PREFIX}custom/edk2-{edk2}/cix-{cix}/"
+                    f"radxa-{radxa}/unofficial"
+                )
+                if target not in expected_releases:
+                    problems.append(
+                        f"unofficial line {line} selects unavailable source target {target}"
+                    )
+            if default_line not in lines:
+                problems.append(
+                    f"unofficial_source_policy default_line {default_line!r} is unavailable"
+                )
+            return problems
         configured_release = str(policy.get("current_edk2_release", "")).strip()
         if configured_release.startswith("edk2-stable"):
             configured_release = release_for_edk2_ref(configured_release)

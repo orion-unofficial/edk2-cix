@@ -17,10 +17,10 @@ from typing import Any
 from check_identity_integrity import scan_commit_message_for_legacy_branch
 from inspect_import_conflicts import write_conflict_report
 from import_workflow import (
-    CURRENT_REF,
     ZERO_OID,
     abort_operation,
     clone_scratch,
+    current_unofficial_ref,
     create_scratch_shortcuts,
     ensure_target_not_checked_out_dirty,
     fetch_candidate_objects,
@@ -42,6 +42,7 @@ from import_workflow import (
     write_current_import_receipt,
 )
 from reconstruction_common import (
+    UNOFFICIAL_LINE_CURRENT_RE,
     ReconstructionError,
     branch_to_ref,
     for_each_ref,
@@ -72,11 +73,11 @@ Required variables:
 Optional variables:
   BASE_REF=<ref>        Source tree before the intended change. If omitted, the
                         importer can infer a unique source/cache/** ancestor,
-                        source/unofficial/current ancestor, or retained branch
+                        selected source/unofficial/<line>/current ancestor, or retained branch
                         fork point.
-  SOURCE_UNOFFICIAL_REF=source/unofficial/current
-                        Unofficial source branch to update. Release-branch
-                        propagation requires the default current branch.
+  SOURCE_UNOFFICIAL_REF=<source/unofficial/<line>/current>
+                        Mutable Unofficial line branch to update. Default: the
+                        default line selected by config/policies.json.
   PROPAGATE_RELEASE_BRANCHES=none|all
                         Apply the extracted change to every
                         source/unofficial/edk2-stable* release branch. The
@@ -109,7 +110,8 @@ Optional variables:
 
 This target is for changes developed on materialised source/cache/** branches,
 legacy source branches, or other broader trees. Use import-unofficial-commits
-instead when FROM_REF is already a topic branch based on source/unofficial/current.
+instead when FROM_REF is already a topic branch based on the selected
+source/unofficial/<line>/current ref.
 
 Dry-run mode still applies the extracted patch in scratch trees for every
 target and never moves refs or tags. If the dry run succeeds, those scratch
@@ -203,7 +205,7 @@ def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
     p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
     p.add_argument("--base-ref", default=os.environ.get("BASE_REF", ""))
-    p.add_argument("--source-unofficial-ref", default=os.environ.get("SOURCE_UNOFFICIAL_REF", CURRENT_REF))
+    p.add_argument("--source-unofficial-ref", default=os.environ.get("SOURCE_UNOFFICIAL_REF", ""))
     p.add_argument("--propagate-release-branches", dest="propagate_release_branches", default=os.environ.get("PROPAGATE_RELEASE_BRANCHES", "none"))
     p.add_argument("--propagate-checkpoints", dest="propagate_checkpoints", default=os.environ.get("PROPAGATE_CHECKPOINTS", ""))
     p.add_argument("--update-release-tags", dest="update_release_tags", default=os.environ.get("UPDATE_RELEASE_TAGS", "0"))
@@ -278,7 +280,7 @@ def reject_already_integrated_source(repo: Path, from_ref: str) -> None:
         "inference will not fall back to an unrelated legacy branch and create a large aggregate diff:\n"
         f"{shown}{extra}\n\n"
         "If this is intentional, re-run with an explicit BASE_REF naming the source tree immediately "
-        "before the focused change. If you are propagating source/unofficial/current itself, use "
+        "before the focused change. If you are propagating an Unofficial line tip itself, use "
         "make propagate-release-branches or pass BASE_REF explicitly."
     )
 
@@ -635,9 +637,11 @@ def build_targets(repo: Path, args: argparse.Namespace) -> list[dict[str, Any]]:
     propagate = args.propagate_release_branches.strip().lower() or "none"
     if propagate not in {"none", "0", "false", "all"}:
         raise ReconstructionError("PROPAGATE_RELEASE_BRANCHES must be none or all")
-    if propagate == "all" and args.source_unofficial_ref != CURRENT_REF:
-        raise ReconstructionError("PROPAGATE_RELEASE_BRANCHES=all updates source/unofficial/current and all release branches; do not set SOURCE_UNOFFICIAL_REF")
-    if propagate != "all" and truthy(args.update_release_tags) and args.source_unofficial_ref == CURRENT_REF:
+    if (
+        propagate != "all"
+        and truthy(args.update_release_tags)
+        and UNOFFICIAL_LINE_CURRENT_RE.match(args.source_unofficial_ref)
+    ):
         raise ReconstructionError(
             "UPDATE_RELEASE_TAGS=1 requires PROPAGATE_RELEASE_BRANCHES=all so tags only move after every "
             "requested release-branch import succeeds. For the safer staged workflow, omit "
@@ -769,6 +773,7 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
         "changes": changes,
         "changed_overlay_paths": changed_overlay_paths_from_name_status(changes),
         "source_lifecycle_normalise": lifecycle_mode,
+        "current_ref": args.source_unofficial_ref,
         "message": commit_message["message"],
         "message_parts": commit_message["message_parts"],
         "message_source": commit_message["message_source"],
@@ -827,7 +832,7 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
     progress("updating refs")
     transaction_update_refs(repo, updates)
     for target in state["targets"]:
-        if target["ref"] == CURRENT_REF and target.get("candidate_oid") != target.get("old_oid"):
+        if target["ref"] == state.get("current_ref") and target.get("candidate_oid") != target.get("old_oid"):
             write_current_import_receipt(
                 repo,
                 tool="import-changes",
@@ -836,6 +841,7 @@ def finalise(repo: Path, op_dir: Path, state: dict[str, Any], verbose: bool) -> 
                 base_oid=str(state.get("base_oid", "")),
                 old_oid=str(target.get("old_oid", "")),
                 new_oid=str(target.get("candidate_oid", "")),
+                target_ref=str(target.get("ref", "")),
             )
     print("updated unofficial refs:")
     for full_ref, new_oid, _old_oid in updates:
@@ -887,8 +893,6 @@ def finalise_or_report_ready(repo: Path, op_dir: Path, state: dict[str, Any], ve
 
 
 def normalised_requested_option(name: str, value: str) -> str:
-    if name == "source_unofficial_ref":
-        return value or CURRENT_REF
     if name == "propagate_release_branches":
         return (value or "none").lower()
     if name in {"signoff", "update_release_tags"}:
@@ -1014,9 +1018,10 @@ def print_dry_run_success(state: dict[str, Any]) -> None:
     print()
     print("After the ref update succeeds, run at least:")
     print("  make test")
-    if [target.get("ref") for target in state.get("targets", [])] == [CURRENT_REF]:
+    current_ref = str(state.get("current_ref", ""))
+    if [target.get("ref") for target in state.get("targets", [])] == [current_ref]:
         print()
-        print("Then test the updated source/unofficial/current source target.")
+        print(f"Then test the updated {current_ref} source target.")
         print("If the change should apply to every supported EDK2 release, run:")
         print("  make propagate-release-branches")
         print("When that dry run is clean, move the release branches:")
@@ -1040,8 +1045,8 @@ def write_command(state: dict[str, Any]) -> list[str]:
     if base_ref:
         command.append(make_arg("BASE_REF", base_ref))
 
-    source_ref = str(requested.get("source_unofficial_ref") or CURRENT_REF)
-    if source_ref != CURRENT_REF:
+    source_ref = str(requested.get("source_unofficial_ref") or state.get("current_ref") or "")
+    if source_ref:
         command.append(make_arg("SOURCE_UNOFFICIAL_REF", source_ref))
 
     propagate = str(requested.get("propagate_release_branches") or "none")
@@ -1172,6 +1177,7 @@ def dry_run_conflict_message(state: dict[str, Any], paused: list[dict[str, Any]]
 def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
+    args.source_unofficial_ref = current_unofficial_ref(repo, args.source_unofficial_ref)
     verbose = truthy(args.v)
 
     if truthy(args.abort):

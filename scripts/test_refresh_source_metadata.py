@@ -53,9 +53,9 @@ def make_repo() -> Path:
         "src/cix-v1.2/tf-a/original.txt": "old tf-a\n",
         "src/cix-v1.2/tee/original.txt": "old tee\n",
     }, "radxa source")
-    create_branch(repo, "source/component/cix/1.2/tf-a", {"tf-a.txt": "new tf-a\n"}, "cix tf-a")
-    create_branch(repo, "source/component/cix/1.2/op-tee", {"op-tee.txt": "new op-tee\n"}, "cix op-tee")
-    create_branch(repo, "source/component/cix/1.2/bios", {"bios.txt": "bios\n"}, "cix bios")
+    create_branch(repo, "source/vendor/cix/1.2/tf-a", {"tf-a.txt": "new tf-a\n"}, "cix tf-a")
+    create_branch(repo, "source/vendor/cix/1.2/op-tee", {"op-tee.txt": "new op-tee\n"}, "cix op-tee")
+    create_branch(repo, "source/vendor/cix/1.2/bios", {"bios.txt": "bios\n"}, "cix bios")
     current = create_branch(repo, "source/unofficial/current", {"src/current.txt": "current\n"}, "current unofficial")
     release = create_branch(repo, "source/unofficial/edk2-stable202208", {
         "scripts/ensure_build_deps.sh": (
@@ -101,9 +101,9 @@ def write_config(repo: Path) -> None:
     write_json(repo / "config/refs-cix.json", {
         "defaults": {"immutable": True, "vendor": "cix"},
         "refs": [
-            {"ref": "source/component/cix/1.2/bios", "component": "bios", "object_id": ZERO, "tree_id": ZERO},
-            {"ref": "source/component/cix/1.2/op-tee", "component": "op-tee", "object_id": ZERO, "tree_id": ZERO},
-            {"ref": "source/component/cix/1.2/tf-a", "component": "tf-a", "object_id": ZERO, "tree_id": ZERO},
+            {"ref": "source/vendor/cix/1.2/bios", "component": "bios", "object_id": ZERO, "tree_id": ZERO},
+            {"ref": "source/vendor/cix/1.2/op-tee", "component": "op-tee", "object_id": ZERO, "tree_id": ZERO},
+            {"ref": "source/vendor/cix/1.2/tf-a", "component": "tf-a", "object_id": ZERO, "tree_id": ZERO},
         ],
     })
     write_json(repo / "config/refs-radxa.json", {

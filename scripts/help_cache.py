@@ -35,12 +35,10 @@ REF_PREFIXES = (
     "refs/heads/source/base",
     "refs/heads/source/vendor",
     "refs/heads/source/port",
-    "refs/heads/source/component",
     "refs/heads/source/unofficial",
     "refs/remotes/origin/source/base",
     "refs/remotes/origin/source/vendor",
     "refs/remotes/origin/source/port",
-    "refs/remotes/origin/source/component",
     "refs/remotes/origin/source/unofficial",
     "refs/tags/source/unofficial",
 )

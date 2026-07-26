@@ -135,7 +135,7 @@ def print_help(repo: Path) -> None:
     paragraph(
         "The default source target follows config/policies.json unofficial_source_policy "
         "so new vendor releases do not silently become the recommended target before "
-        "source/unofficial/current has intentionally migrated."
+        "the selected source/unofficial/<line>/current ref has intentionally migrated."
     )
     print()
     print("Name components:")

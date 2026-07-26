@@ -124,7 +124,7 @@
         "field": "source_tag",
         "manifest_path": "custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft/manifest.lock.json",
         "object_field": "source_commit",
-        "ref": "source/unofficial/current",
+        "ref": "unofficial-default-current",
         "type": "json-field"
       },
       "remote": "microsoft-secureboot",

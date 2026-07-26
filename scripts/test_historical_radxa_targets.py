@@ -23,7 +23,14 @@ from reconstruction_common import (  # noqa: E402
     matrix_release_branches,
     release_entry,
 )
-from integrate_source_release import existing_immutable_target, operation_manifest_metadata  # noqa: E402
+from integrate_source_release import (  # noqa: E402
+    cix_component_records,
+    cix_record_remote,
+    existing_immutable_target,
+    manifest_path_for,
+    materialise_existing_target_local_head,
+    operation_manifest_metadata,
+)
 from source_porting import apply_source_delta_to_base  # noqa: E402
 from render_release_branch import render_from_plan  # noqa: E402
 from verify_build_matrix import require_unofficial_source_policy  # noqa: E402
@@ -78,8 +85,8 @@ def make_repo() -> Path:
         "radxa 0.2",
     )
     create_branch(repo, "source/port/radxa/1.2.1/edk2-stable202602", {"radxa.txt": "1.2.1\n"}, "radxa 1.2")
-    create_branch(repo, "source/component/cix/1.2/tf-a", {"tf-a.txt": "tf-a\n"}, "cix tf-a")
-    create_branch(repo, "source/component/cix/1.2/op-tee", {"op-tee.txt": "op-tee\n"}, "cix op-tee")
+    create_branch(repo, "source/vendor/cix/1.2/tf-a", {"tf-a.txt": "tf-a\n"}, "cix tf-a")
+    create_branch(repo, "source/vendor/cix/1.2/op-tee", {"op-tee.txt": "op-tee\n"}, "cix op-tee")
     create_branch(
         repo,
         "source/unofficial/edk2-stable202208",
@@ -320,6 +327,7 @@ def test_source_delta_porting_preserves_conflict_worktree_for_manual_resume() ->
                 new_base_ref="new-base",
                 message="port source tree",
                 label="source-port-conflict-test",
+                resume_variable="UNOFFICIAL_REF",
                 verbose=False,
             )
         except Exception as exc:
@@ -333,12 +341,77 @@ def test_source_delta_porting_preserves_conflict_worktree_for_manual_resume() ->
         require(worktree.exists(), "reported conflict worktree does not exist")
         conflict_text = (worktree / "src" / "conflict.txt").read_text(encoding="utf-8")
         require("<<<<<<<" in conflict_text, "conflict worktree did not contain conflict markers")
-        require((worktree.parent / "README.md").exists(), "conflict handoff README was not written")
+        handoff = (worktree.parent / "README.md").read_text(encoding="utf-8")
+        require("UNOFFICIAL_REF=$(git -C" in handoff, "conflict handoff used the wrong resume variable")
     finally:
         if old_tmp_root is None:
             os.environ.pop("EDK2_CIX_TMP_ROOT", None)
         else:
             os.environ["EDK2_CIX_TMP_ROOT"] = old_tmp_root
+        shutil.rmtree(repo)
+
+
+def test_source_delta_porting_resolves_policy_owned_paths_from_source() -> None:
+    repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-policy-test."))
+    try:
+        git(repo, "init", "-b", "build")
+        git(repo, "config", "user.name", "Source Port Policy Test")
+        git(repo, "config", "user.email", "source-port-policy-test")
+        write_file(repo, "README.md", "build branch\n")
+        commit_all(repo, "build root")
+        create_branch(
+            repo,
+            "old-base",
+            {
+                ".github/workflow.yml": "old vendor workflow\n",
+                "src/firmware.c": "old firmware\n",
+            },
+            "old base",
+        )
+        create_branch(
+            repo,
+            "new-base",
+            {
+                ".github/workflow.yml": "new vendor workflow\n",
+                "src/firmware.c": "new firmware\n",
+            },
+            "new base",
+        )
+        create_branch(
+            repo,
+            "source-tree",
+            {
+                ".github/workflow.yml": "unofficial workflow\n",
+                "custom/project.txt": "project change\n",
+                "src/firmware.c": "old firmware\n",
+            },
+            "source tree",
+        )
+        git(repo, "switch", "build")
+
+        commit = apply_source_delta_to_base(
+            repo,
+            old_base_ref="old-base",
+            source_ref="source-tree",
+            new_base_ref="new-base",
+            message="port source tree",
+            label="source-port-policy-test",
+            source_owned_paths=(".github",),
+            verbose=False,
+        )
+        require(
+            git(repo, "show", f"{commit}:.github/workflow.yml").stdout == "unofficial workflow\n",
+            "policy-owned path did not preserve the unofficial source",
+        )
+        require(
+            git(repo, "show", f"{commit}:src/firmware.c").stdout == "new firmware\n",
+            "vendor firmware change was overwritten by the policy overlay",
+        )
+        require(
+            git(repo, "show", f"{commit}:custom/project.txt").stdout == "project change\n",
+            "unofficial source delta was not carried",
+        )
+    finally:
         shutil.rmtree(repo)
 
 
@@ -471,6 +544,71 @@ def test_radxa_vendor_integration_records_raw_upstream_ref() -> None:
         shutil.rmtree(repo)
 
 
+def test_cix_vendor_payload_and_port_namespaces() -> None:
+    repo = Path(tempfile.mkdtemp(prefix="edk2-cix-cix-namespace-test."))
+    try:
+        write_file(
+            repo,
+            "config/refs-cix.json",
+            json.dumps(
+                {
+                    "refs": [
+                        {
+                            "component": "bios",
+                            "ref": "source/vendor/cix/1.2/bios",
+                            "remote": "cix-bios",
+                            "type": "vendor-bundle",
+                        },
+                        {
+                            "component": "bootloader1",
+                            "ref": "source/vendor/cix/1.2/bootloader1",
+                            "remote": "cix-edk2-non-osi-release",
+                            "type": "vendor-payload",
+                        },
+                        {
+                            "component": "tf-a",
+                            "ref": "source/port/cix/1.2/tf-a/v2.12",
+                            "type": "ported-vendor-component",
+                        },
+                    ]
+                }
+            )
+            + "\n",
+        )
+        write_file(
+            repo,
+            "config/remotes.json",
+            json.dumps(
+                {
+                    "remotes": {
+                        "cix-bios": {"url": "https://example.invalid/cix-bios.git"},
+                        "cix-edk2-non-osi-release": {
+                            "url": "https://example.invalid/cix-edk2-non-osi.git"
+                        },
+                    }
+                }
+            )
+            + "\n",
+        )
+
+        records = cix_component_records(repo, "1.2")
+        require(
+            [record["component"] for record in records] == ["bios", "bootloader1"],
+            "CIX release integration should include raw vendor payloads and exclude ports",
+        )
+        require(
+            cix_record_remote(repo, records[1]) == "https://example.invalid/cix-edk2-non-osi.git",
+            "CIX vendor payload did not use its recorded provenance remote",
+        )
+        require(
+            manifest_path_for("source/vendor/cix/1.2/tf-a") == "config/refs-cix.json"
+            and manifest_path_for("source/port/cix/1.2/tf-a/v2.12") == "config/refs-cix.json",
+            "CIX vendor and port refs should share the CIX manifest",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_integrate_source_release_recognises_remote_tracking_target() -> None:
     repo = make_repo()
     try:
@@ -516,6 +654,18 @@ def test_integrate_source_release_recognises_remote_tracking_target() -> None:
             state["copies"] == [(f"refs/remotes/origin/{target}", object_id)],
             "remote-tracking target location was not reported exactly",
         )
+        require(
+            materialise_existing_target_local_head(repo, state, verbose=False),
+            "remote-only immutable target was not materialised locally",
+        )
+        require(
+            git(repo, "rev-parse", f"refs/heads/{target}^{{commit}}").stdout.strip() == object_id,
+            "local immutable branch did not preserve the recorded commit",
+        )
+        require(
+            not materialise_existing_target_local_head(repo, state, verbose=False),
+            "materialising an existing local immutable branch was not idempotent",
+        )
 
         wrong_source = "source/base/edk2/edk2-stable202602"
         try:
@@ -543,9 +693,11 @@ def main() -> None:
     test_source_delta_porting_replays_only_project_delta()
     test_source_delta_porting_ignores_deletes_already_absent_upstream()
     test_source_delta_porting_preserves_conflict_worktree_for_manual_resume()
+    test_source_delta_porting_resolves_policy_owned_paths_from_source()
     test_historical_upstream_target_overlays_build_infrastructure_only()
     test_integrate_source_release_make_target_preserves_materialise_default()
     test_radxa_vendor_integration_records_raw_upstream_ref()
+    test_cix_vendor_payload_and_port_namespaces()
     test_integrate_source_release_recognises_remote_tracking_target()
     print("historical Radxa target tests passed")
 

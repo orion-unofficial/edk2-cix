@@ -535,7 +535,10 @@ def main() -> None:
             f"resolved tree for {branch} does not match manifest: {tree_id(repo, target_ref)} != {expected_tree}"
         )
 
-    check_immutable_refs(repo)
+    check_immutable_refs(
+        repo,
+        allow_generated_refresh=allow_manifest_refresh,
+    )
 
     if truthy(args.persist):
         if ref_exists(repo, branch):

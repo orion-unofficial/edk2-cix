@@ -18,7 +18,8 @@ before removing the old refs:
 - `refs/heads/source/base/edk2-platforms/**`
 - `refs/heads/source/base/edk2-non-osi/**`
 - `refs/heads/source/base/arm/**`
-- `refs/heads/source/component/cix/**`
+- `refs/heads/source/vendor/cix/**`
+- `refs/heads/source/port/cix/**`
 - `refs/heads/source/vendor/radxa/**`
 - `refs/heads/source/port/radxa/**`
 - `refs/heads/source/unofficial/**`

@@ -307,6 +307,7 @@ ARM_REFS_MANIFEST = "refs-arm.json"
 CIX_REFS_MANIFEST = "refs-cix.json"
 EDK2_REFS_MANIFEST = "refs-edk2.json"
 RADXA_REFS_MANIFEST = "refs-radxa.json"
+UNOFFICIAL_REFS_MANIFEST = "refs-unofficial.json"
 SOURCE_TARGET_CACHE_MANIFEST = "refs-source-target-cache.json"
 CACHE_REF_PREFIX = "source/cache/"
 CACHE_RELEASE_PREFIX = "source/cache/release/"
@@ -580,9 +581,18 @@ def matrix_source_target_releases(source_target: dict[str, Any], all_releases: l
 
 
 RADXA_SOURCE_RE = re.compile(r"^source/(?P<source>vendor|port)/radxa/(?P<radxa>[^/]+)/(?P<edk2>edk2-stable[^/]+)$")
-CIX_COMPONENT_RE = re.compile(r"^source/component/cix/(?P<release>[^/]+)/(?P<component>[^/]+)$")
+CIX_VENDOR_RE = re.compile(r"^source/vendor/cix/(?P<release>[^/]+)/(?P<component>[^/]+)$")
+CIX_PORT_RE = re.compile(
+    r"^source/port/cix/(?P<release>[^/]+)/(?P<component>[^/]+)/(?P<arm_base>[^/]+)$"
+)
 UNOFFICIAL_RELEASE_RE = re.compile(r"^source/unofficial/(?P<edk2>edk2-stable[^/]+)$")
 UNOFFICIAL_RELEASE_TAG_RE = re.compile(r"^source/unofficial/edk2/stable-(?P<release>\d{6}(?:\.\d+)?)$")
+UNOFFICIAL_CHECKPOINT_RE = re.compile(
+    r"^source/unofficial/(?P<radxa>[^/]+)/(?P<edk2>edk2-stable[^/]+)$"
+)
+UNOFFICIAL_LINE_CURRENT_RE = re.compile(
+    r"^source/unofficial/(?P<line>\d+\.\d+)/current$"
+)
 
 
 def radxa_source_namespaces() -> tuple[str, ...]:
@@ -638,8 +648,8 @@ def available_radxa_releases(repo: Path, supported_edk2_refs: Iterable[str] | No
 
 def cix_release_components(repo: Path) -> dict[str, set[str]]:
     releases: dict[str, set[str]] = {}
-    for ref in for_each_ref(repo, "source/component/cix"):
-        match = CIX_COMPONENT_RE.match(ref)
+    for ref in for_each_ref(repo, "source/vendor/cix"):
+        match = CIX_VENDOR_RE.match(ref)
         if not match:
             continue
         releases.setdefault(match.group("release"), set()).add(match.group("component"))
@@ -672,6 +682,71 @@ def unofficial_release_edk2_refs(repo: Path) -> set[str]:
     return refs
 
 
+def unofficial_checkpoint_refs(repo: Path) -> list[str]:
+    refs = [
+        ref
+        for ref in for_each_ref(repo, "source/unofficial")
+        if UNOFFICIAL_CHECKPOINT_RE.match(ref)
+    ]
+    return sorted(refs, key=version_key)
+
+
+def unofficial_checkpoints_by_edk2(repo: Path) -> dict[str, dict[str, str]]:
+    checkpoints: dict[str, dict[str, str]] = {}
+    for ref in unofficial_checkpoint_refs(repo):
+        match = UNOFFICIAL_CHECKPOINT_RE.match(ref)
+        if not match:
+            continue
+        checkpoints.setdefault(match.group("edk2"), {})[match.group("radxa")] = ref
+    return checkpoints
+
+
+def unofficial_source_ref(repo: Path, radxa: str, edk2_ref: str) -> str:
+    """Return the exact unofficial checkpoint for a source-target tuple."""
+
+    checkpoint = f"source/unofficial/{radxa}/{edk2_ref}"
+    if ref_exists(repo, checkpoint):
+        return checkpoint
+    legacy = f"source/unofficial/{edk2_ref}"
+    if ref_exists(repo, legacy) and edk2_ref not in unofficial_checkpoints_by_edk2(repo):
+        return legacy
+    raise ReconstructionError(
+        f"no unofficial source checkpoint recorded for Radxa {radxa} on {edk2_ref}; "
+        f"expected {checkpoint}"
+    )
+
+
+def active_unofficial_source_ref(repo: Path, radxa: str, edk2_ref: str) -> str | None:
+    """Return a line tip when policy selects this exact Radxa/EDK2 tuple."""
+
+    policy = unofficial_source_policy(repo)
+    if not isinstance(policy.get("lines"), dict):
+        return None
+    _default_line, lines = unofficial_line_policies(policy)
+    wanted_release = release_for_edk2_ref(edk2_ref)
+    for record in lines.values():
+        configured_edk2 = _policy_string(record, "current_edk2_release")
+        if configured_edk2.startswith("edk2-stable"):
+            configured_edk2 = release_for_edk2_ref(configured_edk2)
+        if (
+            _policy_string(record, "current_radxa_release") == radxa
+            and configured_edk2 == wanted_release
+        ):
+            ref = _policy_string(record, "current_ref")
+            if ref and ref_exists(repo, ref):
+                return ref
+    return None
+
+
+def selected_unofficial_current_ref(repo: Path) -> str:
+    """Return the configured default mutable Unofficial line ref."""
+
+    policy = unofficial_source_policy(repo)
+    _line, selected = selected_unofficial_line_policy(policy)
+    ref = _policy_string(selected, "current_ref")
+    return ref or "source/unofficial/current"
+
+
 def unofficial_release_tag_for_branch(branch: str) -> str:
     match = UNOFFICIAL_RELEASE_RE.match(branch)
     if not match:
@@ -694,6 +769,7 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
     custom_radxa_releases = available_radxa_releases(repo, supported_edk2)
     cix_releases = available_cix_releases(repo)
     unofficial_edk2 = unofficial_release_edk2_refs(repo)
+    unofficial_checkpoints = unofficial_checkpoints_by_edk2(repo)
     branches: set[str] = set()
     aliases: dict[str, str] = {}
 
@@ -706,8 +782,10 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
             for cix in cix_releases:
                 vendor = f"{CACHE_RELEASE_PREFIX}vendor/edk2-{release}/cix-{cix}/radxa-{radxa}"
                 branches.add(vendor)
-        if edk2_ref in unofficial_edk2:
-            for radxa in custom_radxa_releases:
+        checkpoint_radxa = sorted(unofficial_checkpoints.get(edk2_ref, {}), key=version_key)
+        if checkpoint_radxa or edk2_ref in unofficial_edk2:
+            selected_radxa = checkpoint_radxa or custom_radxa_releases
+            for radxa in selected_radxa:
                 unofficial = f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
                 alias = f"{unofficial}-{radxa}"
                 branches.update({unofficial, alias})
@@ -738,10 +816,16 @@ def source_target_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
             continue
         if parts.get("stage") != "custom" or parts.get("unofficial") != "unofficial":
             continue
-        unofficial_ref = f"source/unofficial/{edk2_ref_for_release(parts['release'])}"
-        if ref_exists(repo, unofficial_ref):
-            record["tree_id"] = tree_id(repo, unofficial_ref)
-            record["derived_from"] = unofficial_ref
+        edk2_ref = edk2_ref_for_release(parts["release"])
+        try:
+            source_ref = (
+                active_unofficial_source_ref(repo, parts["radxa"], edk2_ref)
+                or unofficial_source_ref(repo, parts["radxa"], edk2_ref)
+            )
+        except ReconstructionError:
+            continue
+        record["tree_id"] = tree_id(repo, source_ref)
+        record["derived_from"] = source_ref
     for ref, record in list(by_ref.items()):
         try:
             parts = release_branch_parts(ref)
@@ -894,12 +978,15 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
             vendor_build_compat_step(),
             vendor_dependency_compat_step(),
             vendor_asl_compat_step(),
-            {"component": {"path": f"src/cix-v{cix}/tf-a", "ref": f"source/component/cix/{cix}/tf-a"}},
-            {"component": {"path": f"src/cix-v{cix}/tee", "ref": f"source/component/cix/{cix}/op-tee"}},
+            {"component": {"path": f"src/cix-v{cix}/tf-a", "ref": f"source/vendor/cix/{cix}/tf-a"}},
+            {"component": {"path": f"src/cix-v{cix}/tee", "ref": f"source/vendor/cix/{cix}/op-tee"}},
         ]
         entry["source_ref"] = radxa_ref
     else:
-        unofficial_ref = f"source/unofficial/{edk2_ref}"
+        unofficial_ref = (
+            active_unofficial_source_ref(repo, radxa, edk2_ref)
+            or unofficial_source_ref(repo, radxa, edk2_ref)
+        )
         render["base"] = {"ref": unofficial_ref}
         if cix:
             render["commit_message"] = (
@@ -947,15 +1034,77 @@ def _policy_string(policy: dict[str, Any], field: str) -> str:
     return str(value).strip() if value is not None else ""
 
 
+def unofficial_line_policies(policy: dict[str, Any]) -> tuple[str, dict[str, dict[str, Any]]]:
+    """Return the selected default line and line records, with legacy compatibility."""
+
+    raw_lines = policy.get("lines")
+    if isinstance(raw_lines, dict):
+        lines = {
+            str(line).strip(): value
+            for line, value in raw_lines.items()
+            if str(line).strip() and isinstance(value, dict)
+        }
+        default_line = _policy_string(policy, "default_line")
+        if not default_line:
+            raise ReconstructionError(
+                "config/policies.json unofficial_source_policy is missing required field: default_line"
+            )
+        if default_line not in lines:
+            raise ReconstructionError(
+                "config/policies.json unofficial_source_policy default_line "
+                f"{default_line!r} is absent from lines"
+            )
+        return default_line, lines
+
+    legacy_fields = (
+        "current_ref",
+        "current_edk2_release",
+        "current_radxa_release",
+    )
+    if any(_policy_string(policy, field) for field in legacy_fields):
+        radxa = _policy_string(policy, "current_radxa_release")
+        line = ".".join(radxa.split(".")[:2]) if radxa else "legacy"
+        return line, {line: policy}
+    return "", {}
+
+
+def selected_unofficial_line_policy(policy: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    default_line, lines = unofficial_line_policies(policy)
+    if not default_line:
+        return "", {}
+    return default_line, lines[default_line]
+
+
+def normalise_unofficial_immutability_policy(data: dict[str, Any]) -> None:
+    """Describe mutable line tips without retaining the ambiguous legacy ref."""
+
+    immutability = data.get("immutability")
+    if not isinstance(immutability, dict):
+        return
+    immutability.pop("mutable_unofficial_ref", None)
+    immutability["mutable_unofficial_patterns"] = ["source/unofficial/*/current"]
+    raw_rules = immutability.get("rules")
+    if not isinstance(raw_rules, list):
+        return
+    immutability["rules"] = [
+        str(rule).replace(
+            "source/unofficial/current or release-specific source/unofficial branches",
+            "mutable source/unofficial/<line>/current refs or immutable Unofficial release checkpoints",
+        )
+        for rule in raw_rules
+    ]
+
+
 def preferred_unofficial_source_target(repo: Path, branches: set[str] | None = None) -> str | None:
     policy = unofficial_source_policy(repo)
     if not policy:
         return None
 
+    line, selected = selected_unofficial_line_policy(policy)
     missing = [
         field
         for field in ("current_ref", "current_edk2_release", "current_radxa_release")
-        if not _policy_string(policy, field)
+        if not _policy_string(selected, field)
     ]
     if missing:
         raise ReconstructionError(
@@ -963,25 +1112,29 @@ def preferred_unofficial_source_target(repo: Path, branches: set[str] | None = N
             + ", ".join(missing)
         )
 
-    current_ref = _policy_string(policy, "current_ref")
+    current_ref = _policy_string(selected, "current_ref")
     if not ref_exists(repo, current_ref):
         raise ReconstructionError(
             f"config/policies.json unofficial_source_policy current_ref is unavailable locally: {current_ref}"
         )
 
-    release = _policy_string(policy, "current_edk2_release")
+    release = _policy_string(selected, "current_edk2_release")
     if release.startswith("edk2-stable"):
         release = release_for_edk2_ref(release)
     edk2_ref = edk2_ref_for_release(release)
-    unofficial_ref = f"source/unofficial/{edk2_ref}"
+    radxa = _policy_string(selected, "current_radxa_release")
+    line_policy = isinstance(policy.get("lines"), dict)
+    unofficial_ref = (
+        f"source/unofficial/{radxa}/{edk2_ref}"
+        if line_policy
+        else unofficial_source_ref(repo, radxa, edk2_ref)
+    )
     if not ref_exists(repo, unofficial_ref):
         raise ReconstructionError(
             "config/policies.json unofficial_source_policy selects an unavailable "
-            f"unofficial release branch: {unofficial_ref}"
+            f"unofficial checkpoint: {unofficial_ref}"
         )
-
-    radxa = _policy_string(policy, "current_radxa_release")
-    cix = _policy_string(policy, "current_cix_release")
+    cix = _policy_string(selected, "current_cix_release")
     if branches is None:
         branches, _aliases = matrix_release_branches(repo)
 
@@ -1480,9 +1633,9 @@ def is_immutable_namespace(ref: str) -> bool:
         return True
     if ref.startswith("source/port/"):
         return True
-    if ref.startswith("source/component/cix/"):
-        return True
     if ref.startswith("source/delta/"):
+        return True
+    if UNOFFICIAL_CHECKPOINT_RE.match(ref):
         return True
     return False
 
@@ -1494,7 +1647,13 @@ def immutable_namespace_refs(repo: Path) -> list[str]:
     return sorted(ref for ref in result.stdout.splitlines() if is_immutable_namespace(ref))
 
 
-def check_immutable_refs(repo: Path, allow_manifest_update: bool = False, refs: Iterable[str] | None = None) -> None:
+def check_immutable_refs(
+    repo: Path,
+    allow_manifest_update: bool = False,
+    refs: Iterable[str] | None = None,
+    *,
+    allow_generated_refresh: bool = False,
+) -> None:
     wanted = set(refs or [])
     problems: list[str] = []
     records = immutable_records(repo)
@@ -1523,7 +1682,12 @@ def check_immutable_refs(repo: Path, allow_manifest_update: bool = False, refs: 
         is_generated = generated_ref_record(record)
         if expected_oid and actual_oid != expected_oid and not allow_manifest_update and not is_generated:
             problems.append(f"{ref}: object moved from {expected_oid} to {actual_oid}")
-        if expected_tree and actual_tree != expected_tree and not allow_manifest_update:
+        if (
+            expected_tree
+            and actual_tree != expected_tree
+            and not allow_manifest_update
+            and not (allow_generated_refresh and is_generated)
+        ):
             problems.append(f"{ref}: tree moved from {expected_tree} to {actual_tree}")
         wt = checked_out_worktree(repo, ref)
         if wt and is_dirty_worktree(wt):

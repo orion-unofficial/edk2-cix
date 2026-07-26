@@ -11,21 +11,15 @@
       "notes": "Post-202208 builds are deterministic source materialisations, but not byte-identical replays of the original vendor firmware."
     }
   },
-  "unofficial_source_policy": {
-    "current_ref": "source/unofficial/current",
-    "current_edk2_release": "202605",
-    "current_cix_release": "1.2",
-    "current_radxa_release": "1.2.1",
-    "prefer_versioned_default_alias": true
-  },
   "immutability": {
     "immutable_patterns": [
       "source/base/**",
       "source/vendor/**",
-      "source/port/**",
-      "source/component/cix/**"
+      "source/port/**"
     ],
-    "mutable_unofficial_ref": "source/unofficial/current",
+    "mutable_unofficial_patterns": [
+      "source/unofficial/*/current"
+    ],
     "rules": [
       "config/refs-*.json records expected object IDs and tree IDs where those values are not derived",
       "scripts compare immutable refs against manifests before use",
@@ -34,7 +28,7 @@
       "if an immutable ref is checked out in a dirty worktree, abort",
       "only integrate-source-release may create or advance immutable refs",
       "integration updates the relevant manifest in the same operation",
-      "ordinary build targets never rewrite source/unofficial/current or release-specific source/unofficial branches"
+      "ordinary build targets never rewrite mutable source/unofficial/<line>/current refs or immutable Unofficial release checkpoints"
     ]
   },
   "rendered_base_policy": {
@@ -50,7 +44,7 @@
     "manifest": "config/refs-source-target-cache.json",
     "requirements": [
       "source/cache/release/** refs are generated firmware artefacts, not irreducible source inputs.",
-      "A pruned clone may omit source/cache/release/** branches when the source/base, source/vendor or source/port, source/component, and source/unofficial refs needed to regenerate them are present.",
+      "A pruned clone may omit source/cache/release/** branches when the source/base, source/vendor or source/port, and source/unofficial refs needed to regenerate them are present.",
       "Generated release commits are validated by tree ID rather than object ID because commit metadata may differ after regeneration.",
       "Rendered branches must adhere to conventional Git UX over exact retention of stale .gitmodules files.",
       "Rendered branches must contain no gitlinks or active root .gitmodules files.",
@@ -89,5 +83,17 @@
       "tag names must not exactly duplicate branch names",
       "base, CIX, and Radxa source versions are recorded as branches plus config refs metadata; duplicating them as tags is optional and not required by the build model"
     ]
+  },
+  "unofficial_source_policy": {
+    "default_line": "1.2",
+    "lines": {
+      "1.2": {
+        "current_cix_release": "1.2",
+        "current_edk2_release": "202605",
+        "current_radxa_release": "1.2.4",
+        "current_ref": "source/unofficial/1.2/current"
+      }
+    },
+    "prefer_versioned_default_alias": true
   }
 }

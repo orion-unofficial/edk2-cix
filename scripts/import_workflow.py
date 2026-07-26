@@ -16,8 +16,10 @@ from reconstruction_common import (
     branch_to_ref,
     cache_dir,
     checked_out_worktree,
+    clear_metadata_caches,
     git,
     is_dirty_worktree,
+    selected_unofficial_current_ref,
     unofficial_release_branches,
     rev_parse,
     safe_name,
@@ -26,7 +28,6 @@ from reconstruction_common import (
 
 
 ZERO_OID = "0" * 40
-CURRENT_REF = "source/unofficial/current"
 
 
 def full_tag_ref(tag: str) -> str:
@@ -44,6 +45,12 @@ def ref_oid(repo: Path, ref: str, *, tag: bool = False) -> str | None:
 def require_unofficial_target(ref: str) -> None:
     if not ref.startswith("source/unofficial/"):
         raise ReconstructionError("SOURCE_UNOFFICIAL_REF must be under source/unofficial/")
+
+
+def current_unofficial_ref(repo: Path, requested: str = "") -> str:
+    ref = requested.strip() or selected_unofficial_current_ref(repo)
+    require_unofficial_target(ref)
+    return ref
 
 
 def is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
@@ -177,7 +184,7 @@ def create_scratch_shortcuts(repo: Path, op_id: str, targets: list[dict[str, Any
     scratch_targets = [target for target in targets if target.get("scratch")]
     if not scratch_targets:
         return
-    primary = next((target for target in scratch_targets if target.get("ref") == CURRENT_REF), None)
+    primary = scratch_targets[0]
     if len(scratch_targets) == 1:
         primary = scratch_targets[0]
 
@@ -273,6 +280,7 @@ def transaction_update_refs(repo: Path, updates: list[tuple[str, str, str]]) -> 
     )
     if proc.returncode != 0:
         raise ReconstructionError(proc.stderr.strip() or proc.stdout.strip() or "git update-ref transaction failed")
+    clear_metadata_caches()
 
 
 def abort_operation(op_dir: Path, label: str) -> None:
@@ -286,8 +294,8 @@ def remove_operation_state(op_dir: Path, *, ignore_errors: bool = False) -> None
     shutil.rmtree(op_dir, ignore_errors=ignore_errors)
 
 
-def import_receipt_path(repo: Path) -> Path:
-    return cache_dir(repo, "operations", "import-receipts") / "last-unofficial-current.json"
+def import_receipt_path(repo: Path, target_ref: str) -> Path:
+    return cache_dir(repo, "operations", "import-receipts") / f"last-{safe_name(target_ref)}.json"
 
 
 def write_current_import_receipt(
@@ -299,14 +307,16 @@ def write_current_import_receipt(
     base_oid: str,
     old_oid: str,
     new_oid: str,
+    target_ref: str,
 ) -> None:
-    path = import_receipt_path(repo)
+    path = import_receipt_path(repo, target_ref)
     payload = {
         "base_oid": base_oid,
         "base_ref": base_ref,
         "from_ref": from_ref,
         "new_oid": new_oid,
         "old_oid": old_oid,
+        "target_ref": target_ref,
         "tool": tool,
     }
     with path.open("w", encoding="utf-8") as f:
@@ -314,8 +324,8 @@ def write_current_import_receipt(
         f.write("\n")
 
 
-def read_current_import_receipt(repo: Path) -> dict[str, Any] | None:
-    path = import_receipt_path(repo)
+def read_current_import_receipt(repo: Path, target_ref: str) -> dict[str, Any] | None:
+    path = import_receipt_path(repo, target_ref)
     if not path.exists():
         return None
     with path.open("r", encoding="utf-8") as f:
