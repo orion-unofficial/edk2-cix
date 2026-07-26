@@ -1,6 +1,6 @@
-acpica-tools=20200925-8
 bison=2:3.8.2+dfsg-1+b1
 build-essential=12.9
+ca-certificates=20230311+deb12u1
 crossbuild-essential-arm64=12.9
 flex=2.6.4-8.2
 git=1:2.39.5-0+deb12u3

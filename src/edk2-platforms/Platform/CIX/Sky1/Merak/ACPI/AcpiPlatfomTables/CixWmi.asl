@@ -35,12 +35,14 @@ Device(WMIP){
     }
 
     Method(CI01,1) {
-        UDBG(Printf("CI01 %o", Arg0))
+        UDBG("CI01")
+        UDBG(Arg0)
         return (Zero)
     }
 
     Method(CI02,1) {
-        UDBG(Printf("CI02 %o", Arg0))
+        UDBG("CI02")
+        UDBG(Arg0)
         return (Zero)
     }
 

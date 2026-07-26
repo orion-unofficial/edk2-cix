@@ -158,6 +158,22 @@ The firmware-oriented `buildbox-*` targets install the slimmer firmware
 dependency profile inside the reusable container; `buildbox-deb` switches that
 same container to the fuller packaging profile when needed.
 
+Builds and ACPI audits require the repository-pinned ACPICA `20260408` `iasl`.
+Linux buildboxes provision that exact source release into
+`build-cache/acpica/` after checking its SHA-256 digest. A direct host build may
+set `IASL=/path/to/iasl`, but any other compiler version is rejected. This
+historical EDK2 `202208` replay source retains the `GCC5` toolchain tag because
+that release predates upstream EDK2's native `GCC` tag; current and future EDK2
+sources use `GCC` directly.
+
+Exact replay also separates source qualification from byte-identical packaging.
+The historical source is always rebuilt with the pinned ACPICA 20260408
+compiler. Because changing the ASL compiler necessarily changes the signed
+BL33 bytes, exact upstream replay packages the published BL33 extracted by
+`replay_o6_release.py`, while retaining the newly compiled BL33 for ACPI and
+semantic audits. This replay-only input is rejected outside
+`ARTEFACT_MODE=upstream` with a complete published certificate bundle.
+
 For non-buildbox workflows, the base OS is whichever environment you are
 already building in. Host-native builds therefore use the host distro, and the
 checked-in devcontainer remains pinned by

@@ -18,6 +18,7 @@ SCRIPT_PATH = pathlib.Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parent.parent
 DEFAULT_BASELINE_FILE = REPO_ROOT / "validation" / "acpi-audit-baselines.json"
 DEFAULT_PROFILE = "upstream-1.2.1-bookworm"
+IASL_RESOLVER = REPO_ROOT / "scripts" / "ensure_iasl.sh"
 
 IASL_DIAGNOSTIC_RE = re.compile(
     r"^(?P<source>.+?)\((?P<line>\d+)\)\s*:\s*"
@@ -48,6 +49,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--report-json", type=pathlib.Path)
     parser.add_argument("--emit-baseline", type=pathlib.Path)
     parser.add_argument("--emit-profile-name")
+    parser.add_argument("--iasl", type=pathlib.Path)
+    parser.add_argument(
+        "--semantic-only",
+        action="store_true",
+        help=(
+            "Require the baseline table/source set and successful IASL compilation, "
+            "but allow byte and diagnostic-count changes caused by a compiler upgrade."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -155,11 +165,23 @@ def discover_acpi_tables(build_dir: pathlib.Path, board: str) -> dict[str, dict[
     return tables
 
 
-def run_iasl(source_path: pathlib.Path) -> dict[str, Any]:
+def resolve_iasl(explicit_path: pathlib.Path | None = None) -> pathlib.Path:
+    command = [str(IASL_RESOLVER)]
+    if explicit_path is not None:
+        command.extend(["--verify", str(explicit_path)])
+    result = subprocess.run(command, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            result.stderr.strip() or "unable to resolve the pinned iasl compiler"
+        )
+    return pathlib.Path(result.stdout.strip())
+
+
+def run_iasl(source_path: pathlib.Path, iasl_path: pathlib.Path) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="edk2-cix-acpi-audit-") as tempdir_text:
         prefix = pathlib.Path(tempdir_text) / source_path.stem
         result = subprocess.run(
-            ["iasl", "-vi", "-p", str(prefix), str(source_path)],
+            [str(iasl_path), "-vi", "-p", str(prefix), str(source_path)],
             check=False,
             capture_output=True,
             text=True,
@@ -226,7 +248,11 @@ def run_iasl(source_path: pathlib.Path) -> dict[str, Any]:
     }
 
 
-def discover_iasl_sources(build_dir: pathlib.Path, board: str) -> dict[str, dict[str, Any]]:
+def discover_iasl_sources(
+    build_dir: pathlib.Path,
+    board: str,
+    iasl_path: pathlib.Path,
+) -> dict[str, dict[str, Any]]:
     sources = {
         "platform_ssdt": build_dir
         / "AARCH64"
@@ -254,7 +280,7 @@ def discover_iasl_sources(build_dir: pathlib.Path, board: str) -> dict[str, dict
     audits: dict[str, dict[str, Any]] = {}
     for key, source_path in sources.items():
         if source_path.is_file():
-            audits[key] = run_iasl(source_path)
+            audits[key] = run_iasl(source_path, iasl_path)
             audits[key]["path"] = source_path.relative_to(build_dir).as_posix()
         else:
             audits[key] = {
@@ -264,12 +290,17 @@ def discover_iasl_sources(build_dir: pathlib.Path, board: str) -> dict[str, dict
     return audits
 
 
-def gather_acpi_audit(build_dir: pathlib.Path, board: str, target: str) -> dict[str, Any]:
+def gather_acpi_audit(
+    build_dir: pathlib.Path,
+    board: str,
+    target: str,
+    iasl_path: pathlib.Path,
+) -> dict[str, Any]:
     return {
         "board": board,
         "target": target,
         "tables": discover_acpi_tables(build_dir, board),
-        "iasl": discover_iasl_sources(build_dir, board),
+        "iasl": discover_iasl_sources(build_dir, board, iasl_path),
     }
 
 
@@ -337,6 +368,40 @@ def compare_audits(expected: dict[str, Any], actual: dict[str, Any]) -> list[str
     return mismatches
 
 
+def compare_semantic_audits(
+    expected: dict[str, Any], actual: dict[str, Any]
+) -> list[str]:
+    mismatches: list[str] = []
+    expected_tables = set(expected.get("tables", {}))
+    actual_tables = set(actual.get("tables", {}))
+    missing_tables = sorted(expected_tables - actual_tables)
+    unexpected_tables = sorted(actual_tables - expected_tables)
+    if missing_tables:
+        mismatches.append(f"Missing ACPI tables: {', '.join(missing_tables)}")
+    if unexpected_tables:
+        mismatches.append(f"Unexpected ACPI tables: {', '.join(unexpected_tables)}")
+
+    expected_iasl = set(expected.get("iasl", {}))
+    actual_iasl = set(actual.get("iasl", {}))
+    missing_iasl = sorted(expected_iasl - actual_iasl)
+    unexpected_iasl = sorted(actual_iasl - expected_iasl)
+    if missing_iasl:
+        mismatches.append(f"Missing IASL audits: {', '.join(missing_iasl)}")
+    if unexpected_iasl:
+        mismatches.append(f"Unexpected IASL audits: {', '.join(unexpected_iasl)}")
+
+    failed_iasl = sorted(
+        name
+        for name in expected_iasl & actual_iasl
+        if actual["iasl"][name].get("status") != "match"
+        or actual["iasl"][name].get("summary", {}).get("errors", 0) != 0
+        or actual["iasl"][name].get("error_codes")
+    )
+    if failed_iasl:
+        mismatches.append(f"Failed IASL audits: {', '.join(failed_iasl)}")
+    return mismatches
+
+
 def emit_baseline(
     path: pathlib.Path,
     profile_name: str,
@@ -368,7 +433,12 @@ def emit_baseline(
 def main() -> int:
     args = parse_args()
     build_dir = resolve_build_dir(args)
-    audit = gather_acpi_audit(build_dir, args.board, args.target)
+    try:
+        iasl_path = resolve_iasl(args.iasl)
+    except RuntimeError as exc:
+        print(f"Unable to run ACPI audit: {exc}", file=sys.stderr)
+        return 2
+    audit = gather_acpi_audit(build_dir, args.board, args.target, iasl_path)
 
     if args.emit_baseline:
         profile_name = args.emit_profile_name or args.profile
@@ -397,7 +467,11 @@ def main() -> int:
         )
         return 2
 
-    mismatches = compare_audits(expected_audit, audit)
+    mismatches = (
+        compare_semantic_audits(expected_audit, audit)
+        if args.semantic_only
+        else compare_audits(expected_audit, audit)
+    )
     report = {
         "profile": args.profile,
         "description": profile_meta.get("description"),
@@ -405,6 +479,7 @@ def main() -> int:
         "target": args.target,
         "build_dir": str(build_dir),
         "status": "match" if not mismatches else "mismatch",
+        "comparison": "semantic" if args.semantic_only else "exact",
         "mismatches": mismatches,
         "acpi": audit,
     }

@@ -1011,6 +1011,7 @@ __deterministic-replay:
 	set -a; . "$$replay_dir/replay.env"; set +a; \
 	replay_mount_root="$(DETERMINISTIC_REPLAY_MOUNT_ROOT)"; \
 	replay_cert_dir_host="$$SIGNING_CERT_SOURCE_DIR"; \
+	replay_nt_fw_host="$${EXACT_REPLAY_NT_FW_SOURCE:-}"; \
 	case "$$replay_cert_dir_host" in \
 		"$$replay_mount_root"/*) \
 			replay_cert_dir_container="/hosttmp/$${replay_cert_dir_host#$$replay_mount_root/}"; \
@@ -1018,6 +1019,16 @@ __deterministic-replay:
 		*) \
 			echo "[replay] Cached cert bundle $$replay_cert_dir_host is outside $$replay_mount_root and cannot be mounted into the buildbox." >&2; \
 			echo "[replay] Move the replay cache under $$replay_mount_root or override DETERMINISTIC_REPLAY_MOUNT_ROOT accordingly." >&2; \
+			exit 2; \
+			;; \
+	esac; \
+	case "$$replay_nt_fw_host" in \
+		"$$replay_mount_root"/*) \
+			replay_nt_fw_container="/hosttmp/$${replay_nt_fw_host#$$replay_mount_root/}"; \
+			;; \
+		*) \
+			echo "[replay] Exact replay BL33 $$replay_nt_fw_host is outside $$replay_mount_root and cannot be mounted into the buildbox." >&2; \
+			echo "[replay] Re-extract the replay cache with the current replay helper." >&2; \
 			exit 2; \
 			;; \
 	esac; \
@@ -1042,10 +1053,20 @@ __deterministic-replay:
 		SOURCE_DATE_EPOCH="$$SOURCE_DATE_EPOCH" \
 		PM_CONFIG_SOURCE_DATE_EPOCH="$$PM_CONFIG_SOURCE_DATE_EPOCH" \
 		SIGNING_CERT_SOURCE_DIR="$$replay_cert_dir_container" \
+		EXACT_REPLAY_NT_FW_SOURCE="$$replay_nt_fw_container" \
 		SOURCE_COMMIT_HASH="$${SOURCE_COMMIT_HASH:-}" \
 		EDK2_COMMIT_HASH="$${EDK2_COMMIT_HASH:-}" \
 		EDK2_NON_OSI_COMMIT_HASH="$${EDK2_NON_OSI_COMMIT_HASH:-}" \
 		EDK2_PLATFORMS_COMMIT_HASH="$${EDK2_PLATFORMS_COMMIT_HASH:-}"; \
+	printf '[replay] Auditing independently rebuilt ACPI output with the pinned compiler\n'; \
+	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" \
+		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+		python3 scripts/audit_acpi_regression.py \
+		--board "$(FIRMWARE_BOARD)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
+		--profile "$(DETERMINISTIC_REPLAY_PROFILE)" \
+		--semantic-only \
+		--report-json "build-validation/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(DETERMINISTIC_REPLAY_PROFILE)-rebuilt-acpi.json"; \
 	reference_dir="$$replay_dir/reference"; \
 	if [ -d "$$reference_dir" ]; then \
 		printf '[replay] Comparing built outputs against upstream release payload in %s\n' "$$reference_dir"; \

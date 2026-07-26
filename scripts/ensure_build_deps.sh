@@ -225,6 +225,7 @@ if [[ "$dep_profile" == "replay" ]]; then
     done <"$replay_manifest"
 
     if (( ${#replay_missing_specs[@]} == 0 )) && (( ${#replay_wrong_specs[@]} == 0 )); then
+        "${script_dir}/ensure_iasl.sh" --print-path >/dev/null
         status "Build dependencies already installed for profile: ${dep_profile}."
         exit 0
     fi
@@ -277,7 +278,6 @@ common_packages=(
     "${emulation_packages[@]}"
     dpkg-dev
     dos2unix
-    acpica-tools
     uuid-dev
     nasm
     bison
@@ -311,6 +311,7 @@ for package in "${required_packages[@]}"; do
 done
 
 if (( need_arm64_arch == 0 )) && (( ${#missing_packages[@]} == 0 )); then
+    "${script_dir}/ensure_iasl.sh" --print-path >/dev/null
     status "Build dependencies already installed for profile: ${dep_profile}."
     exit 0
 fi
@@ -357,4 +358,5 @@ if (( ${#remaining_packages[@]} > 0 )); then
     apt_get install -y --no-install-recommends "${remaining_packages[@]}"
 fi
 
+"${script_dir}/ensure_iasl.sh" --print-path >/dev/null
 status "Build dependencies ready for profile: ${dep_profile}."

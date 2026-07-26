@@ -299,6 +299,15 @@ def copy_cert_bundle(flash_dir: pathlib.Path, output_dir: pathlib.Path) -> pathl
     return cert_dir
 
 
+def copy_exact_replay_firmware(
+    flash_dir: pathlib.Path, output_dir: pathlib.Path
+) -> pathlib.Path:
+    firmware_dir = ensure_clean_dir(output_dir / "firmware")
+    nt_fw = firmware_dir / "nt-fw.bin"
+    shutil.copy2(require_file(flash_dir / "nt-fw.bin"), nt_fw)
+    return nt_fw
+
+
 def copy_reference_files(
     reference_files: dict[str, pathlib.Path],
     output_dir: pathlib.Path,
@@ -331,6 +340,7 @@ def write_rebuild_wrapper(
         f"SOURCE_DATE_EPOCH={shlex.quote(env_values['SOURCE_DATE_EPOCH'])}",
         f"PM_CONFIG_SOURCE_DATE_EPOCH={shlex.quote(env_values['PM_CONFIG_SOURCE_DATE_EPOCH'])}",
         f"SIGNING_CERT_SOURCE_DIR={shlex.quote(env_values['SIGNING_CERT_SOURCE_DIR'])}",
+        f"EXACT_REPLAY_NT_FW_SOURCE={shlex.quote(env_values['EXACT_REPLAY_NT_FW_SOURCE'])}",
     ]
     for key in (
         "SOURCE_COMMIT_HASH",
@@ -360,6 +370,10 @@ def write_docker_rebuild_wrapper(
     host_tmp_root = cert_dir.parent
     container_tmp_root = DEFAULT_CONTAINER_TMPDIR
     cert_dir_hosttmp = to_container_tmp_path(cert_dir, host_tmp_root, container_tmp_root)
+    nt_fw_source = pathlib.Path(env_values["EXACT_REPLAY_NT_FW_SOURCE"]).resolve()
+    nt_fw_source_hosttmp = to_container_tmp_path(
+        nt_fw_source, host_tmp_root, container_tmp_root
+    )
     quoted_targets = " ".join(shlex.quote(target) for target in build_targets)
     make_vars = [
         f"BUILD_DATE={shlex.quote(env_values['BUILD_DATE'])}",
@@ -367,6 +381,7 @@ def write_docker_rebuild_wrapper(
         f"SOURCE_DATE_EPOCH={shlex.quote(env_values['SOURCE_DATE_EPOCH'])}",
         f"PM_CONFIG_SOURCE_DATE_EPOCH={shlex.quote(env_values['PM_CONFIG_SOURCE_DATE_EPOCH'])}",
         f"SIGNING_CERT_SOURCE_DIR={shlex.quote(cert_dir_hosttmp)}",
+        f"EXACT_REPLAY_NT_FW_SOURCE={shlex.quote(nt_fw_source_hosttmp)}",
     ]
     for key in (
         "SOURCE_COMMIT_HASH",
@@ -491,6 +506,7 @@ def main() -> int:
     if extracted_pm_config.is_file():
         reference_files.setdefault("Firmwares/csu_pm_config.bin", extracted_pm_config)
     cert_dir = copy_cert_bundle(flash_dir, output_dir)
+    exact_replay_nt_fw = copy_exact_replay_firmware(flash_dir, output_dir)
     reference_dir = copy_reference_files(reference_files, output_dir)
 
     env_values = {
@@ -498,6 +514,7 @@ def main() -> int:
         "SOURCE_DATE_EPOCH": str(source_date_epoch),
         "PM_CONFIG_SOURCE_DATE_EPOCH": str(pm_config_source_date_epoch),
         "SIGNING_CERT_SOURCE_DIR": str(cert_dir),
+        "EXACT_REPLAY_NT_FW_SOURCE": str(exact_replay_nt_fw),
     }
     if build_date is not None:
         env_values["BUILD_DATE"] = build_date
@@ -549,6 +566,7 @@ def main() -> int:
         "source_date_epoch": source_date_epoch,
         "pm_config_source_date_epoch": pm_config_source_date_epoch,
         "signing_cert_source_dir": str(cert_dir),
+        "exact_replay_nt_fw_source": str(exact_replay_nt_fw),
         "reference_dir": str(reference_dir) if reference_dir is not None else None,
         "build_defines": build_defines,
         "reference_files": (

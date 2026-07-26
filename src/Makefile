@@ -21,6 +21,7 @@ BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
 FIRMWARE_LAYOUT_SCRIPT := $(abspath ../scripts/firmware_layout.py)
 EDK2_BUILD_OUTPUT_FILTER := scripts/filter_edk2_build_output.py
 MAKE_INPUT_VALIDATOR := $(abspath ../scripts/validate_make_inputs.py)
+IASL_RESOLVER := $(abspath ../scripts/ensure_iasl.sh)
 CUSTOM_OVERLAY_SHADOW_CHECK := $(abspath ../scripts/check_custom_overlay_shadowing.py)
 CUSTOM_OVERLAY_INF_SYNC_CHECK := $(abspath ../scripts/check_custom_overlay_inf_sync.py)
 OFFLINE_AUDIT_BASELINE_CHECK := $(abspath ../scripts/test_offline_audit_baselines.py)
@@ -355,6 +356,7 @@ EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))),$(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES))
 PATCHED_EDK2_SOURCE_INPUTS := \
+	$(IASL_RESOLVER) \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.hfr) \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.uni) \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Library/Acpi/CIX/AcpiPpttLibCIX/PpttGenerator.c) \
@@ -371,6 +373,7 @@ CIX_PACKAGE_TOOL_BIN := $(HOST_TOOLS_DIR)/cix_package_tool
 CIX_PACKAGE_TOOL_SOURCE_INPUTS := $(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py
 SIGNING_CERT_SOURCE_DIR ?=
 REQUIRE_SIGNING_CERT_SOURCE ?= $(if $(and $(filter upstream,$(ARTEFACT_MODE)),$(strip $(SIGNING_CERT_SOURCE_DIR))),1,0)
+EXACT_REPLAY_NT_FW_SOURCE ?=
 IMPORTED_BASETOOLS_DIR := $(abspath edk2/BaseTools)
 CUSTOM_BASETOOLS_DIR := $(CUSTOM_EDK2_WORKSPACE_ROOT)/BaseTools
 ACTIVE_BASETOOLS_DIR := $(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_BASETOOLS_DIR),$(IMPORTED_BASETOOLS_DIR))
@@ -463,6 +466,7 @@ define PRINT_SRC_LOCAL_VARIABLES
 	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory where raw-build audit and validation reports are written.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
 	print_help_line '  GCC5_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
 	print_help_line '  SIGNING_CERT_SOURCE_DIR=<dir>' 'Path to extracted or built cert blobs for exact replay.\nDefault: unset.'; \
+	print_help_line '  EXACT_REPLAY_NT_FW_SOURCE=<file>' 'Published BL33 payload to package only during exact upstream replay; the source BL33 is still rebuilt independently.\nDefault: unset.'; \
 	print_help_line '  SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the compiler-facing reproducible timestamp.\nDefault: resolved from mapped upstream source metadata.'; \
 	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the PM-config timestamp.\nDefault: SOURCE_DATE_EPOCH.'
 endef
@@ -788,12 +792,18 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
-	for required_cmd in bash find grep head realpath tr dd python3 iasl openssl; do \
+	for required_cmd in bash find grep head realpath tr dd python3 openssl; do \
 		if ! command -v "$$required_cmd" >/dev/null 2>&1; then \
 			echo "[preflight] Missing required host tool: $$required_cmd" >&2; \
 			missing=1; \
 		fi; \
 	done; \
+	if ! iasl_path="$$("$(IASL_RESOLVER)" --print-path)"; then \
+		echo "[preflight] The required ACPICA iasl compiler could not be resolved" >&2; \
+		missing=1; \
+	else \
+		echo "[preflight] ACPICA compiler: $$iasl_path"; \
+	fi; \
 	for required_cmd in make cc perl; do \
 		if ! command -v "$$required_cmd" >/dev/null 2>&1; then \
 			echo "[preflight] Missing required host tool: $$required_cmd" >&2; \
@@ -867,6 +877,7 @@ $(call BUILD_CONFIG_STAMP,%): FORCE
 		'O6_SMBIOS_CHASSIS_ASSET_TAG=$(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE)' \
 		'SIGNING_CERT_SOURCE_DIR=$(SIGNING_CERT_SOURCE_DIR)' \
 		'REQUIRE_SIGNING_CERT_SOURCE=$(REQUIRE_SIGNING_CERT_SOURCE)' \
+		'EXACT_REPLAY_NT_FW_SOURCE=$(EXACT_REPLAY_NT_FW_SOURCE)' \
 		'GCC5_AARCH64_PREFIX=$(GCC5_AARCH64_PREFIX)')"; \
 	existing_text="$$(cat "$$stamp_path" 2>/dev/null || true)"; \
 	if [[ "$$existing_text" != "$$config_text" ]]; then \
@@ -1084,6 +1095,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 	export SOURCE_CERT_TOOL_BIN="$(abspath $(CERT_UEFI_CREATE_RSA_BIN))" && \
 	export SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" && \
 	export REQUIRE_SIGNING_CERT_SOURCE="$(REQUIRE_SIGNING_CERT_SOURCE)" && \
+	export EXACT_REPLAY_NT_FW_SOURCE="$(EXACT_REPLAY_NT_FW_SOURCE)" && \
 	run_success_only() { \
 		if [[ "$(V)" == "1" ]]; then \
 			"$$@"; \
@@ -1111,6 +1123,20 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 	reused_trusted_key_cert=0; \
 	reused_nt_fw_certs=0; \
 	validator_extra_args=(); \
+	nt_fw_input="$(shell realpath "$<")"; \
+	if [[ -n "$$EXACT_REPLAY_NT_FW_SOURCE" ]]; then \
+		if [[ "$(ARTEFACT_MODE)" != "upstream" || "$$REQUIRE_SIGNING_CERT_SOURCE" != "1" ]]; then \
+			echo "EXACT_REPLAY_NT_FW_SOURCE is only valid for exact upstream replay with a required signing-certificate bundle." >&2; \
+			exit 1; \
+		fi; \
+		if [[ ! -f "$$EXACT_REPLAY_NT_FW_SOURCE" ]]; then \
+			echo "Exact replay BL33 payload does not exist: $$EXACT_REPLAY_NT_FW_SOURCE" >&2; \
+			exit 1; \
+		fi; \
+		nt_fw_input="$$(realpath "$$EXACT_REPLAY_NT_FW_SOURCE")"; \
+		echo "Packaging published exact-replay BL33 from $$nt_fw_input"; \
+		echo "The independently rebuilt source BL33 remains at $(shell realpath "$<") for semantic audit."; \
+	fi; \
 	stage_dir="$(call BUILD_STAGE_DIR,$*)" && \
 	mkdir -p "$$stage_dir/Keys" && \
 	cp -a $(PACKAGE_TOOL)/Keys/. "$$stage_dir/Keys/" && \
@@ -1173,7 +1199,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 			--nt-fw-key-cert "$$stage_dir/certs/nt_fw_key.crt" \
 			--nt-fw-key "$$stage_dir/Keys/oem_privatekey.pem" \
 			--non-trusted-world-key "$$stage_dir/Keys/oem_privatekey.pem" \
-			--nt-fw "$(shell realpath "$<")"; \
+			--nt-fw "$$nt_fw_input"; \
 	fi && \
 	run_success_only python3 "$(CERT_VALIDATOR)" \
 		--trusted-key-cert "$$stage_dir/certs/trusted_key_no.crt" \
@@ -1183,7 +1209,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 		--trusted-sign-key "$$stage_dir/Keys/oem_privatekey.pem" \
 		--nt-fw-key "$$stage_dir/Keys/oem_privatekey.pem" \
 		--non-trusted-world-key "$$stage_dir/Keys/oem_privatekey.pem" \
-		--nt-fw "$(shell realpath "$<")" \
+		--nt-fw "$$nt_fw_input" \
 		--ntfw-nvctr 223 \
 		--fiptool "$(FIPTOOL_BIN)" \
 		"$${validator_extra_args[@]}" && \
@@ -1191,7 +1217,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 		--trusted-key-cert "$$stage_dir/certs/trusted_key_no.crt" \
 		--nt-fw-key-cert "$$stage_dir/certs/nt_fw_key.crt" \
 		--nt-fw-cert "$$stage_dir/certs/nt_fw_cert.crt" \
-		--nt-fw "$(shell realpath "$<")" \
+		--nt-fw "$$nt_fw_input" \
 		$@ && \
 	if [[ ! -s "$@" ]]; then \
 		echo "[build/$*] Expected bootloader image $@ was not created" >&2; \
@@ -1345,9 +1371,9 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 	else \
 		export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_REAL_PREFIX)"; \
 	fi; \
-	if command -v iasl >/dev/null 2>&1; then \
-		export IASL_PREFIX="$$(dirname "$$(command -v iasl)")/"; \
-	fi; \
+	iasl_path="$$("$(IASL_RESOLVER)" --print-path)"; \
+	export IASL="$$iasl_path"; \
+	export IASL_PREFIX="$$(dirname "$$iasl_path")/"; \
 	run_edksetup() { \
 		local had_nounset=0; \
 		case "$$-" in \

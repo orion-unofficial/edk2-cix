@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import pathlib
+import re
 import unittest
 
 
@@ -12,6 +13,28 @@ def read_repo_text(relative_path: str) -> str:
 
 
 class CustomTogglePcdsTest(unittest.TestCase):
+    def test_cix_asl_avoids_retired_printf_compiler_extension(self) -> None:
+        roots = (
+            REPO_ROOT / "src/edk2-platforms/Platform/CIX",
+            REPO_ROOT / "custom/overlay/edk2-platforms/Platform/CIX",
+            REPO_ROOT
+            / "custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX",
+        )
+        printf_call = re.compile(r"\bf?printf\s*\(", re.IGNORECASE)
+        failures: list[str] = []
+
+        for root in roots:
+            for path in root.rglob("*.asl"):
+                content = path.read_text(encoding="utf-8", errors="replace")
+                if printf_call.search(content):
+                    failures.append(path.relative_to(REPO_ROOT).as_posix())
+
+        self.assertEqual(
+            failures,
+            [],
+            "ACPICA 20260408 no longer supports the printf/fprintf ASL extension",
+        )
+
     def test_dbg2_uses_uart3_pcd(self) -> None:
         content = read_repo_text(
             "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/Dbg2.aslc"
