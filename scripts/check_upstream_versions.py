@@ -210,10 +210,16 @@ def local_cix_component(repo: Path, component: str) -> LocalState:
 
 
 def local_json_field(repo: Path, local: dict[str, Any]) -> LocalState:
+    configured_ref = str(local["ref"])
+    if configured_ref == "source/unofficial/current":
+        raise ReconstructionError(
+            "ambiguous source/unofficial/current is not supported; "
+            "use unofficial-default-current or an explicit source/unofficial/<line>/current ref"
+        )
     ref = (
         selected_unofficial_current_ref(repo)
-        if local.get("ref") == "unofficial-default-current"
-        else str(local["ref"])
+        if configured_ref == "unofficial-default-current"
+        else configured_ref
     )
     path = str(local["manifest_path"])
     payload = json.loads(show_file(repo, ref, path).decode("utf-8"))

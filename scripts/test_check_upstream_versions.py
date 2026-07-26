@@ -18,10 +18,12 @@ from check_upstream_versions import (
     latest_remote_subject_from_snapshot,
     latest_remote_tag,
     local_file_regex,
+    local_json_field,
     local_workflow_action_ref,
     should_fail,
     write_github_summary,
 )
+from reconstruction_common import ReconstructionError
 from test_support import load_function_tests, require
 
 
@@ -207,6 +209,23 @@ def test_local_file_regex() -> None:
     require(docker_state.version == "act-24.04-20260508", "expected image tag version")
 
 
+def test_local_json_field_rejects_ambiguous_current_ref() -> None:
+    try:
+        local_json_field(
+            Path("."),
+            {
+                "field": "source_tag",
+                "manifest_path": "manifest.lock.json",
+                "ref": "source/unofficial/current",
+                "type": "json-field",
+            },
+        )
+    except ReconstructionError as error:
+        require("unofficial-default-current" in str(error), "expected line-aware remediation")
+    else:
+        raise AssertionError("ambiguous unofficial current ref should be rejected")
+
+
 def test_local_workflow_action_ref() -> None:
     with tempfile.TemporaryDirectory(prefix="check-upstream-versions-test-") as tmp:
         root = Path(tmp)
@@ -248,6 +267,7 @@ def main() -> None:
     test_latest_remote_subject_snapshot()
     test_github_summary_table()
     test_local_file_regex()
+    test_local_json_field_rejects_ambiguous_current_ref()
     test_local_workflow_action_ref()
     test_docker_latest_tag_snapshot()
     print("check_upstream_versions tests passed")
