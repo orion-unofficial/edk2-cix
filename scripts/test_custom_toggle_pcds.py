@@ -135,17 +135,58 @@ class CustomTogglePcdsTest(unittest.TestCase):
             "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/SmbiosMiscLib/SmbiosMiscLib.c",
             "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocDxe/UpdateDsdt.c",
             "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiPlatformDxe/UpdateDsdt.c",
-            "custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/PlatformSmbios/PlatformSmbios.c",
         ):
             with self.subTest(path=relative_path):
                 content = read_repo_text(relative_path)
                 self.assertIn("PcdCustomFirmwareFixesEnable", content)
                 self.assertNotIn("ENABLE_FIRMWARE_FIXES", content)
 
-        platform_smbios_header = read_repo_text(
-            "custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/PlatformSmbios/PlatformSmbios.h"
+    def test_custom_smbios_overlay_collapses_when_vendor_absorbs_the_fix(self) -> None:
+        source_header_path = (
+            "src/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/"
+            "PlatformSmbios/PlatformSmbios.h"
         )
-        self.assertNotIn("ENABLE_FIRMWARE_FIXES", platform_smbios_header)
+        overlay_root = (
+            "custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/"
+            "PlatformSmbios"
+        )
+        source_header = read_repo_text(source_header_path)
+        vendor_absorbed_fix = (
+            "AddSmbiosType4" not in source_header
+            and "AddSmbiosType7" not in source_header
+        )
+
+        for name in ("PlatformSmbios.c", "PlatformSmbios.h"):
+            overlay_path = REPO_ROOT / overlay_root / name
+            with self.subTest(path=str(overlay_path.relative_to(REPO_ROOT))):
+                self.assertEqual(overlay_path.is_symlink(), vendor_absorbed_fix)
+
+        overlay_source = read_repo_text(f"{overlay_root}/PlatformSmbios.c")
+        overlay_header = read_repo_text(f"{overlay_root}/PlatformSmbios.h")
+        if vendor_absorbed_fix:
+            self.assertNotIn("AddSmbiosType4", overlay_header)
+            self.assertNotIn("AddSmbiosType7", overlay_header)
+            self.assertNotIn("PcdCustomFirmwareFixesEnable", overlay_source)
+        else:
+            self.assertIn("PcdCustomFirmwareFixesEnable", overlay_source)
+        self.assertNotIn("ENABLE_FIRMWARE_FIXES", overlay_header)
+
+    def test_complete_overlays_carry_forward_vendor_source_changes(self) -> None:
+        source = read_repo_text(
+            "src/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/"
+            "Dsdt-CdnsPcie.asl"
+        )
+        overlay = read_repo_text(
+            "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/"
+            "AcpiSocTables/Dsdt-CdnsPcie.asl"
+        )
+        source_ranges = [
+            line.strip() for line in source.splitlines() if '"bus-range"' in line
+        ]
+        overlay_ranges = [
+            line.strip() for line in overlay.splitlines() if '"bus-range"' in line
+        ]
+        self.assertEqual(overlay_ranges, source_ranges)
 
     def test_custom_cppc_reference_performance_is_runtime_repaired(self) -> None:
         for relative_path in (
@@ -262,8 +303,6 @@ class CustomTogglePcdsTest(unittest.TestCase):
             ("custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiPlatformDxe/AcpiPlatformDxe.h", True),
             ("custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiPlatformDxe/AcpiPlatformDxe.inf", False),
             ("custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiPlatformDxe/UpdateDsdt.c", False),
-            ("custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/PlatformSmbios/PlatformSmbios.c", False),
-            ("custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/PlatformSmbios/PlatformSmbios.h", False),
             ("custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/PlatformSmbios/SmbiosType0.c", False),
             ("custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/PlatformSmbios/SmbiosType0.c", False),
             ("custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionDxe.c", False),
