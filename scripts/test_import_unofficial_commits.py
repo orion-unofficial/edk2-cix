@@ -389,7 +389,8 @@ def test_target_cache_history_does_not_reject_direct_topic() -> None:
     try:
         cache_ref = "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial"
         target_ref = "source/unofficial/1.2/current"
-        git(repo, "switch", "-c", target_ref, cache_ref)
+        git(repo, "branch", "-f", target_ref, cache_ref)
+        git(repo, "switch", target_ref)
         write_file(repo, "release.txt", "unofficial 1.2 current\n")
         commit_all(repo, "promote rendered release")
         git(repo, "switch", "-c", "line-topic", target_ref)
