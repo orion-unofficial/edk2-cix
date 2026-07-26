@@ -88,7 +88,7 @@ FIRMWARE_BOARD ?= O6
 FIRMWARE_PRODUCT ?= orion-o6
 DEFAULT_FIRMWARE_TARGET := RELEASE
 FIRMWARE_TARGET ?= $(DEFAULT_FIRMWARE_TARGET)
-RAW_FIRMWARE_TARGET := $(FIRMWARE_TARGET)_GCC5
+RAW_FIRMWARE_TARGET := $(FIRMWARE_TARGET)_GCC
 FIRMWARE_VERSION ?= $(strip $(shell python3 "$(FIRMWARE_LAYOUT_SCRIPT)" version --repo-root "$(REPO_ROOT)" 2>/dev/null || true))
 FIRMWARE_LAYOUT_QUERY_ARGS = \
 	--artefact-mode "$(ARTEFACT_MODE)" \
@@ -612,7 +612,7 @@ preflight-wrapper-build-all:
 		validate_cmd+=(--debug-print-error-level "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))"); \
 	fi; \
 	if [ -n "$(strip $(FIRMWARE_VALIDATION_PROFILE))" ] && [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
-		validate_cmd+=(--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" --validation-board "$(FIRMWARE_BOARD)" --validation-target RELEASE_GCC5); \
+		validate_cmd+=(--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" --validation-board "$(FIRMWARE_BOARD)" --validation-target RELEASE_GCC); \
 	fi; \
 	if [ -n "$(strip $(BUILDBOX_PLATFORM))" ]; then \
 		validate_cmd+=(--buildbox-platform "$(strip $(BUILDBOX_PLATFORM))"); \

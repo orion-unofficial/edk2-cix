@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--payload-dir", type=pathlib.Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--manifest", type=pathlib.Path, default=DEFAULT_MANIFEST_PATH)
     parser.add_argument("--board", default="O6")
-    parser.add_argument("--target", default="RELEASE_GCC5")
+    parser.add_argument("--target", default="RELEASE_GCC")
     parser.add_argument("--arch", default="aarch64")
     return parser.parse_args()
 

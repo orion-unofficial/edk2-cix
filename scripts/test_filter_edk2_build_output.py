@@ -33,8 +33,8 @@ class FilterEdk2BuildOutputTests(unittest.TestCase):
             "\n".join(
                 [
                     "Building edk2/MdeModulePkg/Universal/CapsuleRuntimeDxe/CapsuleRuntimeDxe.inf [AARCH64]",
-                    "--add-gnu-debuglink=/tmp/Build/O6/DEBUG_GCC5/AARCH64/Module/DEBUG/Module.debug /tmp/Build/O6/DEBUG_GCC5/AARCH64/Module/DEBUG/Module.dll",
-                    '"echo" --add-gnu-debuglink=/tmp/Build/O6/DEBUG_GCC5/AARCH64/Module/DEBUG/Module.debug /tmp/Build/O6/DEBUG_GCC5/AARCH64/Module/DEBUG/Module.dll',
+                    "--add-gnu-debuglink=/tmp/Build/O6/DEBUG_GCC/AARCH64/Module/DEBUG/Module.debug /tmp/Build/O6/DEBUG_GCC/AARCH64/Module/DEBUG/Module.dll",
+                    '"echo" --add-gnu-debuglink=/tmp/Build/O6/DEBUG_GCC/AARCH64/Module/DEBUG/Module.debug /tmp/Build/O6/DEBUG_GCC/AARCH64/Module/DEBUG/Module.dll',
                     "error: real build failure",
                     "",
                 ]
@@ -49,9 +49,9 @@ class FilterEdk2BuildOutputTests(unittest.TestCase):
         text = "\n".join(
             [
                 "Building edk2/MdeModulePkg/Core/Dxe/DxeMain.inf [AARCH64]",
-                "cp: cannot stat '/var/tmp/workspace/Build/O6/RELEASE_GCC5/AARCH64/MdeModulePkg/Core/Dxe/DxeMain/DEBUG/*.pdb': No such file or directory",
-                "cp: cannot stat '/var/tmp/workspace/Build/O6/RELEASE_GCC5/AARCH64/MdeModulePkg/Application/HelloWorld/HelloWorld/OUTPUT/HelloWorldhii.res': No such file or directory",
-                "cp: cannot stat '/var/tmp/workspace/Build/O6/RELEASE_GCC5/AARCH64/required.bin': No such file or directory",
+                "cp: cannot stat '/var/tmp/workspace/Build/O6/RELEASE_GCC/AARCH64/MdeModulePkg/Core/Dxe/DxeMain/DEBUG/*.pdb': No such file or directory",
+                "cp: cannot stat '/var/tmp/workspace/Build/O6/RELEASE_GCC/AARCH64/MdeModulePkg/Application/HelloWorld/HelloWorld/OUTPUT/HelloWorldhii.res': No such file or directory",
+                "cp: cannot stat '/var/tmp/workspace/Build/O6/RELEASE_GCC/AARCH64/required.bin': No such file or directory",
                 "error: real build failure",
                 "",
             ]
@@ -67,7 +67,7 @@ class FilterEdk2BuildOutputTests(unittest.TestCase):
     def test_preserves_optional_copy_misses_in_verbose_mode(self) -> None:
         text = "\n".join(
             [
-                "cp: cannot stat '/var/tmp/workspace/Build/O6/RELEASE_GCC5/AARCH64/MdeModulePkg/Core/Dxe/DxeMain/DEBUG/*.pdb': No such file or directory",
+                "cp: cannot stat '/var/tmp/workspace/Build/O6/RELEASE_GCC/AARCH64/MdeModulePkg/Core/Dxe/DxeMain/DEBUG/*.pdb': No such file or directory",
                 "",
             ]
         )

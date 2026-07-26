@@ -18,6 +18,7 @@ SCRIPT_PATH = pathlib.Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parent.parent
 DEFAULT_BASELINE_FILE = REPO_ROOT / "validation" / "acpi-audit-baselines.json"
 DEFAULT_PROFILE = "upstream-1.2.1-bookworm"
+IASL_RESOLVER = REPO_ROOT / "scripts" / "ensure_iasl.sh"
 
 IASL_DIAGNOSTIC_RE = re.compile(
     r"^(?P<source>.+?)\((?P<line>\d+)\)\s*:\s*"
@@ -42,12 +43,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repo-root", type=pathlib.Path, default=REPO_ROOT)
     parser.add_argument("--build-dir", type=pathlib.Path)
     parser.add_argument("--board", default="O6")
-    parser.add_argument("--target", default="RELEASE_GCC5")
+    parser.add_argument("--target", default="RELEASE_GCC")
     parser.add_argument("--profile", default=DEFAULT_PROFILE)
     parser.add_argument("--baseline-file", type=pathlib.Path, default=DEFAULT_BASELINE_FILE)
     parser.add_argument("--report-json", type=pathlib.Path)
     parser.add_argument("--emit-baseline", type=pathlib.Path)
     parser.add_argument("--emit-profile-name")
+    parser.add_argument("--iasl", type=pathlib.Path)
     return parser.parse_args()
 
 
@@ -155,11 +157,21 @@ def discover_acpi_tables(build_dir: pathlib.Path, board: str) -> dict[str, dict[
     return tables
 
 
-def run_iasl(source_path: pathlib.Path) -> dict[str, Any]:
+def resolve_iasl(explicit_path: pathlib.Path | None = None) -> pathlib.Path:
+    command = [str(IASL_RESOLVER)]
+    if explicit_path is not None:
+        command.extend(["--verify", str(explicit_path)])
+    result = subprocess.run(command, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "unable to resolve the pinned iasl compiler")
+    return pathlib.Path(result.stdout.strip())
+
+
+def run_iasl(source_path: pathlib.Path, iasl_path: pathlib.Path) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="edk2-cix-acpi-audit-") as tempdir_text:
         prefix = pathlib.Path(tempdir_text) / source_path.stem
         result = subprocess.run(
-            ["iasl", "-vi", "-p", str(prefix), str(source_path)],
+            [str(iasl_path), "-vi", "-p", str(prefix), str(source_path)],
             check=False,
             capture_output=True,
             text=True,
@@ -226,7 +238,11 @@ def run_iasl(source_path: pathlib.Path) -> dict[str, Any]:
     }
 
 
-def discover_iasl_sources(build_dir: pathlib.Path, board: str) -> dict[str, dict[str, Any]]:
+def discover_iasl_sources(
+    build_dir: pathlib.Path,
+    board: str,
+    iasl_path: pathlib.Path,
+) -> dict[str, dict[str, Any]]:
     sources = {
         "platform_ssdt": build_dir
         / "AARCH64"
@@ -254,7 +270,7 @@ def discover_iasl_sources(build_dir: pathlib.Path, board: str) -> dict[str, dict
     audits: dict[str, dict[str, Any]] = {}
     for key, source_path in sources.items():
         if source_path.is_file():
-            audits[key] = run_iasl(source_path)
+            audits[key] = run_iasl(source_path, iasl_path)
             audits[key]["path"] = source_path.relative_to(build_dir).as_posix()
         else:
             audits[key] = {
@@ -264,12 +280,17 @@ def discover_iasl_sources(build_dir: pathlib.Path, board: str) -> dict[str, dict
     return audits
 
 
-def gather_acpi_audit(build_dir: pathlib.Path, board: str, target: str) -> dict[str, Any]:
+def gather_acpi_audit(
+    build_dir: pathlib.Path,
+    board: str,
+    target: str,
+    iasl_path: pathlib.Path,
+) -> dict[str, Any]:
     return {
         "board": board,
         "target": target,
         "tables": discover_acpi_tables(build_dir, board),
-        "iasl": discover_iasl_sources(build_dir, board),
+        "iasl": discover_iasl_sources(build_dir, board, iasl_path),
     }
 
 
@@ -368,7 +389,12 @@ def emit_baseline(
 def main() -> int:
     args = parse_args()
     build_dir = resolve_build_dir(args)
-    audit = gather_acpi_audit(build_dir, args.board, args.target)
+    try:
+        iasl_path = resolve_iasl(args.iasl)
+    except RuntimeError as exc:
+        print(f"Unable to run ACPI audit: {exc}", file=sys.stderr)
+        return 2
+    audit = gather_acpi_audit(build_dir, args.board, args.target, iasl_path)
 
     if args.emit_baseline:
         profile_name = args.emit_profile_name or args.profile

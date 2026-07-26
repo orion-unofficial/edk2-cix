@@ -4,7 +4,7 @@
       "description": "Qualification profile for reproducing the published 1.2.1 upstream release builds in the Bookworm buildboxes when reusing the extracted release cert bundle.",
       "boards": {
         "O6": {
-          "target": "RELEASE_GCC5",
+          "target": "RELEASE_GCC",
           "artefacts": {
             "BuildOptions": {
               "path": "BuildOptions",
@@ -97,7 +97,7 @@
           }
         },
         "O6N": {
-          "target": "RELEASE_GCC5",
+          "target": "RELEASE_GCC",
           "artefacts": {
             "BuildOptions": {
               "path": "BuildOptions",
@@ -198,7 +198,7 @@
       "description": "Reproducibility profile from an amd64 Trixie build of upstream main, used to confirm matching amd64 and arm64 Trixie builds on source/unofficial/edk2-stable202208 when they reuse the same cert bundle and injected timestamps.",
       "boards": {
         "O6": {
-          "target": "RELEASE_GCC5",
+          "target": "RELEASE_GCC",
           "artefacts": {
             "BuildOptions": {
               "path": "BuildOptions",

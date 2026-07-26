@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import pathlib
+import re
 import unittest
 
 
@@ -12,6 +13,35 @@ def read_repo_text(relative_path: str) -> str:
 
 
 class CustomTogglePcdsTest(unittest.TestCase):
+    def test_cix_asl_avoids_retired_printf_compiler_extension(self) -> None:
+        roots = (
+            REPO_ROOT / "src/edk2-platforms/Platform/CIX",
+            REPO_ROOT / "custom/overlay/edk2-platforms/Platform/CIX",
+            REPO_ROOT
+            / "custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/CIX",
+        )
+        printf_call = re.compile(r"\bf?printf\s*\(", re.IGNORECASE)
+        failures: list[str] = []
+
+        for root in roots:
+            for pattern in ("*.asl", "*.aslc"):
+                for path in root.rglob(pattern):
+                    for line_number, line in enumerate(
+                        path.read_text(encoding="utf-8").splitlines(),
+                        start=1,
+                    ):
+                        if printf_call.search(line):
+                            failures.append(
+                                f"{path.relative_to(REPO_ROOT)}:{line_number}: {line.strip()}"
+                            )
+
+        self.assertEqual(
+            failures,
+            [],
+            "ACPICA 20260408 no longer emits AML for Printf/Fprintf:\n"
+            + "\n".join(failures),
+        )
+
     def test_dbg2_uses_uart3_pcd(self) -> None:
         content = read_repo_text(
             "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/Dbg2.aslc"

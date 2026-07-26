@@ -51,7 +51,7 @@ class FirmwareMetadataAuditTests(unittest.TestCase):
     def test_var_tmp_path_is_detected(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir_text:
             payload = Path(tempdir_text) / "BuildOptions"
-            payload.write_bytes(b"/var/tmp/edk2-cix-custom-workspace/Build/O6/RELEASE_GCC5")
+            payload.write_bytes(b"/var/tmp/edk2-cix-custom-workspace/Build/O6/RELEASE_GCC")
             findings = audit_targets([(payload.name, payload)])
 
         self.assertEqual(len(findings), 1)

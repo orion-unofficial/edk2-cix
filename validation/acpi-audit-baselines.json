@@ -729,9 +729,9 @@
                 "size": 16120
               }
             },
-            "target": "RELEASE_GCC5"
+            "target": "RELEASE_GCC"
           },
-          "target": "RELEASE_GCC5"
+          "target": "RELEASE_GCC"
         },
         "O6N": {
           "acpi": {
@@ -1427,9 +1427,9 @@
                 "size": 12680
               }
             },
-            "target": "RELEASE_GCC5"
+            "target": "RELEASE_GCC"
           },
-          "target": "RELEASE_GCC5"
+          "target": "RELEASE_GCC"
         }
       },
       "description": "Generated from deterministic upstream replay outputs for ACPI regression checks."

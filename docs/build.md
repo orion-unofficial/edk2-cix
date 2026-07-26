@@ -152,6 +152,13 @@ The firmware-oriented `buildbox-*` targets install the slimmer firmware
 dependency profile inside the reusable container; `buildbox-deb` switches that
 same container to the fuller packaging profile when needed.
 
+All current firmware builds and ACPI audits require the repository-pinned
+ACPICA `20260408` `iasl`. Linux buildboxes provision that exact source release
+into `build-cache/acpica/` after checking its SHA-256 digest. A direct host
+build may set `IASL=/path/to/iasl`, but the compiler is rejected unless its
+reported version is exactly `20260408`; in particular, the older macOS
+Homebrew `20200925` compiler is not used.
+
 For non-buildbox workflows, the base OS is whichever environment you are
 already building in. Host-native builds therefore use the host distro, and the
 checked-in devcontainer remains pinned by
@@ -180,7 +187,7 @@ missing.
 
 Set `FIRMWARE_TARGET=DEBUG` on the `make -C src ...` command line to build
 debug artefacts instead of the default release output tree under
-`Build/.../RELEASE_GCC5/`.
+`Build/.../RELEASE_GCC/`.
 
 For the detailed explanation of how `ARTEFACT_MODE`,
 `ENABLE_FIRMWARE_FIXES`, `ENABLE_EXPERIMENTAL_UEFI_SETTINGS`,

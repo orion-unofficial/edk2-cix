@@ -80,7 +80,7 @@ class AuditFinalImageManifestTests(unittest.TestCase):
     def test_compare_manifests_ignores_unstable_path_metadata(self) -> None:
         expected = {
             "board": "O6",
-            "target": "RELEASE_GCC5",
+            "target": "RELEASE_GCC",
             "fd": {
                 "path": "FV/SKY1_BL33_UEFI.fd",
                 "size": 16,
@@ -98,7 +98,7 @@ class AuditFinalImageManifestTests(unittest.TestCase):
                         {
                             "guid": GUID,
                             "offset": "0x00000000",
-                            "module": "/workspaces/edk2-cix-offline-audits/src/Build/O6/RELEASE_GCC5/FV/FVMAIN.Fv",
+                            "module": "/workspaces/edk2-cix-offline-audits/src/Build/O6/RELEASE_GCC/FV/FVMAIN.Fv",
                         }
                     ],
                 }
@@ -126,7 +126,7 @@ class AuditFinalImageManifestTests(unittest.TestCase):
         }
         actual = {
             "board": "O6",
-            "target": "RELEASE_GCC5",
+            "target": "RELEASE_GCC",
             "fd": {
                 "path": "FV/SKY1_BL33_UEFI.fd",
                 "size": 16,
@@ -144,7 +144,7 @@ class AuditFinalImageManifestTests(unittest.TestCase):
                         {
                             "guid": GUID,
                             "offset": "0x00000000",
-                            "module": "/workspaces/edk2-cix/src/Build/O6/RELEASE_GCC5/FV/FVMAIN.Fv",
+                            "module": "/workspaces/edk2-cix/src/Build/O6/RELEASE_GCC/FV/FVMAIN.Fv",
                         }
                     ],
                 }
@@ -177,7 +177,7 @@ class AuditFinalImageManifestTests(unittest.TestCase):
     def test_compare_manifests_still_flags_real_offset_changes(self) -> None:
         expected = {
             "board": "O6",
-            "target": "RELEASE_GCC5",
+            "target": "RELEASE_GCC",
             "fd": {"path": "FV/SKY1_BL33_UEFI.fd", "size": 16, "sha256": "fd"},
             "fvs": {
                 "FVMAIN": {
@@ -227,7 +227,7 @@ class AuditFinalImageManifestTests(unittest.TestCase):
     def test_parse_ffs_manifest_reads_section_sidecars_from_module_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir_text:
             repo_root = Path(tempdir_text)
-            module_dir = repo_root / "src" / "Build" / "O6N" / "RELEASE_GCC5" / "FV" / "Ffs" / f"{GUID}ExampleDxe"
+            module_dir = repo_root / "src" / "Build" / "O6N" / "RELEASE_GCC" / "FV" / "Ffs" / f"{GUID}ExampleDxe"
             module_dir.mkdir(parents=True)
 
             ffs_path = module_dir / f"{GUID}ExampleDxe.ffs"
@@ -237,7 +237,7 @@ class AuditFinalImageManifestTests(unittest.TestCase):
             pe32_path = module_dir / pe32_name
             pe32_path.write_bytes(b"pe32")
             (module_dir / f"{pe32_name}.txt").write_text(
-                'GenSec -s EFI_SECTION_PE32 -o "ignored.pe32" "src/Build/O6N/RELEASE_GCC5/AARCH64/ExampleDxe.efi"\n',
+                'GenSec -s EFI_SECTION_PE32 -o "ignored.pe32" "src/Build/O6N/RELEASE_GCC/AARCH64/ExampleDxe.efi"\n',
                 encoding="utf-8",
             )
 
@@ -251,7 +251,7 @@ class AuditFinalImageManifestTests(unittest.TestCase):
                         "-g",
                         GUID,
                         "-i",
-                        f"/workspaces/edk2-cix/src/Build/O6N/RELEASE_GCC5/FV/Ffs/{module_dir.name}/{pe32_name}",
+                        f"/workspaces/edk2-cix/src/Build/O6N/RELEASE_GCC/FV/Ffs/{module_dir.name}/{pe32_name}",
                     )
                 )
                 + "\n",
@@ -269,7 +269,7 @@ class AuditFinalImageManifestTests(unittest.TestCase):
         self.assertEqual(manifest["sections"][0]["type"], "EFI_SECTION_PE32")
         self.assertEqual(
             manifest["sections"][0]["source"],
-            "Build/O6N/RELEASE_GCC5/AARCH64/ExampleDxe.efi",
+            "Build/O6N/RELEASE_GCC/AARCH64/ExampleDxe.efi",
         )
 
 

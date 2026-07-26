@@ -38,7 +38,7 @@ Build from the repo root with the supported top-level `make` targets instead.
     make firmware-build
     ```
 
-    This produces the raw build artefacts under `src/Build/O6/RELEASE_GCC5/`,
+    This produces the raw build artefacts under `src/Build/O6/RELEASE_GCC/`,
     including `cix_flash_all.bin` and `FV/SKY1_BL33_UEFI.fd`.
 
   4. If you want the deployable payload layout used by the package, stage it.
@@ -56,7 +56,7 @@ Build from the repo root with the supported top-level `make` targets instead.
 
     ```bash
     make firmware-build \
-      GCC5_AARCH64_PREFIX=/path/to/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf/bin/aarch64-none-elf-
+      GCC_AARCH64_PREFIX=/path/to/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf/bin/aarch64-none-elf-
     ```
 
 # How to Flash Firmware

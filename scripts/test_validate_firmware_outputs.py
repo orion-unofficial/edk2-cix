@@ -24,10 +24,10 @@ class ValidateFirmwareOutputsTests(unittest.TestCase):
 
     def test_normalize_recorded_path_strips_workspace_root_from_build_paths(self) -> None:
         repo_root = Path("/Users/example/src/edk2-cix")
-        value = "/workspaces/edk2-cix/src/Build/O6N/RELEASE_GCC5/FV/SKY1_BL33_UEFI.fd"
+        value = "/workspaces/edk2-cix/src/Build/O6N/RELEASE_GCC/FV/SKY1_BL33_UEFI.fd"
         self.assertEqual(
             normalize_recorded_path(value, repo_root),
-            "Build/O6N/RELEASE_GCC5/FV/SKY1_BL33_UEFI.fd",
+            "Build/O6N/RELEASE_GCC/FV/SKY1_BL33_UEFI.fd",
         )
 
     def test_normalize_recorded_path_preserves_external_absolute_paths(self) -> None:

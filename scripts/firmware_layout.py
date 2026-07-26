@@ -63,8 +63,8 @@ def _leaf_token(name: str) -> str:
 
 def _normalize_target(value: str) -> str:
     normalized = value.strip().upper()
-    if normalized.endswith("_GCC5"):
-        normalized = normalized[: -len("_GCC5")]
+    if normalized.endswith("_GCC"):
+        normalized = normalized[: -len("_GCC")]
     if normalized not in VALID_FIRMWARE_TARGETS:
         raise ValueError(f"Unsupported firmware target: {value}")
     return normalized

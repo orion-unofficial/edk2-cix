@@ -43,7 +43,7 @@
         Local0--                            \
     }                                       \
     if(Local0 == 0){                        \
-        printf("ASL Debug: SCMI Timeout\n") \
+        Debug = "ASL Debug: SCMI Timeout"  \
         Release(MBXM)                       \
         Return(Buffer(4){ACPI_SCMI_TIMEOUT})\
     }                                       \
@@ -85,7 +85,7 @@
         Local0--                            \
     }                                       \
     if(Local0 == 0){                        \
-        printf("ASL Debug: SCMI Timeout\n") \
+        Debug = "ASL Debug: SCMI Timeout"  \
         Release(MBXM)                       \
         Return(Buffer(4){ACPI_SCMI_TIMEOUT})\
     }                                       \
