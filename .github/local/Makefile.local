@@ -1,0 +1,1483 @@
+LOCAL_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
+REPO_ROOT ?= $(patsubst %/,%,$(abspath $(dir $(LOCAL_MAKEFILE))/../..))
+REPO_NAME ?= $(notdir $(REPO_ROOT))
+SHELL := /bin/bash
+V ?= 0
+ifeq ($(V),1)
+Q :=
+else
+Q := @
+endif
+WITH_REPO_LOCK := "$(REPO_ROOT)/scripts/with_repo_lock.sh"
+LOCKED_MAKE = $(if $(filter 1,$(EDK2_CIX_REPO_LOCK_HELD)),$(MAKE) --no-print-directory,$(WITH_REPO_LOCK) $(MAKE) --no-print-directory)
+MAKE_INPUT_VALIDATOR := $(REPO_ROOT)/scripts/validate_make_inputs.py
+FIRMWARE_LAYOUT_SCRIPT := $(REPO_ROOT)/scripts/firmware_layout.py
+EDK2_REBASED_DETERMINISTIC_GUARD := $(REPO_ROOT)/scripts/fail_rebased_edk2_deterministic.sh
+VALIDATION_PROFILE_FILE := $(REPO_ROOT)/validation/expected-hashes.json
+MAX_DEBUG_PRINT_ERROR_LEVEL := $(shell python3 "$(MAKE_INPUT_VALIDATOR)" max-debug-print-error-level 2>/dev/null || printf '%s' 0x807B55FF)
+BUILDBOX_WORKSPACE_PARENT ?= /workspaces
+BUILDBOX_WORKSPACE_ROOT ?= $(BUILDBOX_WORKSPACE_PARENT)/$(PROJECT)
+BUILDBOX_HOST_TMPDIR ?= $(REPO_ROOT)/.buildbox/tmp
+BUILDBOX_CONTAINER_TMPDIR ?= /hosttmp
+ARTEFACT_MODE ?= custom
+FIRMWARE_DISTRO ?=
+FIRMWARE_DISTRO_EFFECTIVE := $(if $(strip $(FIRMWARE_DISTRO)),$(FIRMWARE_DISTRO),trixie)
+REPLAY_FIRMWARE_DISTRO_EFFECTIVE := $(if $(strip $(FIRMWARE_DISTRO)),$(FIRMWARE_DISTRO),trixie)
+BUILDBOX_IMAGE ?=
+BUILDBOX_PLATFORM ?=
+BUILDBOX_IMAGE_DEFAULT := mcr.microsoft.com/devcontainers/base:$(FIRMWARE_DISTRO_EFFECTIVE)
+BUILDBOX_IMAGE_EFFECTIVE := $(if $(strip $(BUILDBOX_IMAGE)),$(BUILDBOX_IMAGE),$(BUILDBOX_IMAGE_DEFAULT))
+REPLAY_BUILDBOX_IMAGE ?= edk2-cix-replay-bookworm:20260406
+REPLAY_BUILDBOX_DEP_PROFILE ?= replay
+VALIDATION_BUILDBOX_IMAGE ?= $(BUILDBOX_IMAGE_EFFECTIVE)
+VALIDATION_BUILDBOX_DEP_PROFILE ?= firmware
+BUILDBOX_DEB_RESULT_ROOT ?= $(DEB_RESULT_ROOT)
+BUILDBOX_DEB_RESULT_ROOT_IN_CONTAINER ?= $(BUILDBOX_WORKSPACE_ROOT)/dist/deb
+BUILD_LOG_ROOT ?= $(REPO_ROOT)/build-logs
+BUILDBOX_ENV = \
+	EDK2_CIX_WORKSPACE_ROOT="$(BUILDBOX_WORKSPACE_ROOT)" \
+	EDK2_CIX_HOST_TMPDIR="$(BUILDBOX_HOST_TMPDIR)" \
+	EDK2_CIX_CONTAINER_TMPDIR="$(BUILDBOX_CONTAINER_TMPDIR)" \
+	EDK2_CIX_VERBOSE="$(V)" \
+	EDK2_CIX_BUILDBOX_IMAGE="$(BUILDBOX_IMAGE_EFFECTIVE)" \
+	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)"
+VALIDATION_BUILDBOX_ENV = \
+	$(BUILDBOX_ENV) \
+	EDK2_CIX_BUILDBOX_IMAGE="$(VALIDATION_BUILDBOX_IMAGE)" \
+	EDK2_CIX_DEP_PROFILE="$(VALIDATION_BUILDBOX_DEP_PROFILE)"
+
+PROJECT ?= edk2-cix
+SIGNING_CERT_SOURCE_DIR_ABS := $(if $(strip $(SIGNING_CERT_SOURCE_DIR)),$(abspath $(SIGNING_CERT_SOURCE_DIR)),)
+SIGNING_CERT_SOURCE_DIR_IN_CONTAINER := $(strip \
+	$(if $(filter $(REPO_ROOT)%,$(SIGNING_CERT_SOURCE_DIR_ABS)),\
+		$(patsubst $(REPO_ROOT)%,$(BUILDBOX_WORKSPACE_ROOT)%,$(SIGNING_CERT_SOURCE_DIR_ABS)),\
+		$(SIGNING_CERT_SOURCE_DIR)))
+ENABLE_FIRMWARE_FIXES ?=
+ENABLE_CORE_ORDER ?=
+CIX_RELEASE ?=
+ENABLE_TF_A_FIXES ?=
+ENABLE_EXPERIMENTAL_UEFI_SETTINGS ?=
+DEBUG_ON_UART3 ?=
+UART3_ENABLE ?=
+DEBUG_VERBOSE ?=
+DEBUG_PRINT_ERROR_LEVEL ?=
+EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE ?=
+CCACHE_BIN ?=
+CCACHE_DIR ?= $(REPO_ROOT)/build-cache/ccache
+CCACHE_WRAPPER_ROOT ?= $(REPO_ROOT)/build-cache/ccache-toolchain
+CCACHE_STATS_FORMAT ?= human
+CCACHE_DISABLE_ORIGIN := $(origin CCACHE_DISABLE)
+CCACHE_DIR_ABS := $(abspath $(CCACHE_DIR))
+CCACHE_WRAPPER_ROOT_ABS := $(abspath $(CCACHE_WRAPPER_ROOT))
+CCACHE_DIR_IN_CONTAINER := $(strip $(if $(filter $(REPO_ROOT)%,$(CCACHE_DIR_ABS)),$(patsubst $(REPO_ROOT)%,$(BUILDBOX_WORKSPACE_ROOT)%,$(CCACHE_DIR_ABS)),$(CCACHE_DIR)))
+CCACHE_WRAPPER_ROOT_IN_CONTAINER := $(strip $(if $(filter $(REPO_ROOT)%,$(CCACHE_WRAPPER_ROOT_ABS)),$(patsubst $(REPO_ROOT)%,$(BUILDBOX_WORKSPACE_ROOT)%,$(CCACHE_WRAPPER_ROOT_ABS)),$(CCACHE_WRAPPER_ROOT)))
+BUILD_ALL_IGNORED_ARTEFACT_MODE_ORIGIN := $(origin ARTEFACT_MODE)
+BUILD_ALL_IGNORED_FIRMWARE_TARGET_ORIGIN := $(origin FIRMWARE_TARGET)
+BUILD_ALL_IGNORED_FIRMWARE_DISTRO_ORIGIN := $(origin FIRMWARE_DISTRO)
+BUILD_ALL_IGNORED_FIRMWARE_STAGE_ROOT_ORIGIN := $(origin FIRMWARE_STAGE_ROOT)
+BUILD_ALL_IGNORED_FIRMWARE_ARCHIVE_BASENAME_ORIGIN := $(origin FIRMWARE_ARCHIVE_BASENAME)
+BUILD_ALL_IGNORED_ENABLE_FIRMWARE_FIXES_ORIGIN := $(origin ENABLE_FIRMWARE_FIXES)
+BUILD_ALL_IGNORED_ENABLE_CORE_ORDER_ORIGIN := $(origin ENABLE_CORE_ORDER)
+BUILD_ALL_IGNORED_CIX_RELEASE_ORIGIN := $(origin CIX_RELEASE)
+BUILD_ALL_IGNORED_ENABLE_TF_A_FIXES_ORIGIN := $(origin ENABLE_TF_A_FIXES)
+BUILD_ALL_IGNORED_ENABLE_EXPERIMENTAL_UEFI_SETTINGS_ORIGIN := $(origin ENABLE_EXPERIMENTAL_UEFI_SETTINGS)
+BUILD_ALL_IGNORED_DEBUG_ON_UART3_ORIGIN := $(origin DEBUG_ON_UART3)
+BUILD_ALL_IGNORED_UART3_ENABLE_ORIGIN := $(origin UART3_ENABLE)
+BUILD_ALL_IGNORED_DEBUG_VERBOSE_ORIGIN := $(origin DEBUG_VERBOSE)
+FIRMWARE_BOARD ?= O6
+FIRMWARE_PRODUCT ?= orion-o6
+DEFAULT_FIRMWARE_TARGET := RELEASE
+FIRMWARE_TARGET ?= $(DEFAULT_FIRMWARE_TARGET)
+RAW_FIRMWARE_TARGET := $(FIRMWARE_TARGET)_GCC
+FIRMWARE_VERSION ?= $(strip $(shell python3 "$(FIRMWARE_LAYOUT_SCRIPT)" version --repo-root "$(REPO_ROOT)" 2>/dev/null || true))
+FIRMWARE_LAYOUT_QUERY_ARGS = \
+	--artefact-mode "$(ARTEFACT_MODE)" \
+	--firmware-target "$(FIRMWARE_TARGET)" \
+	$(if $(filter TRUE,$(ENABLE_FIRMWARE_FIXES_NORMALIZED)),--enable-firmware-fixes TRUE) \
+	$(if $(strip $(ENABLE_CORE_ORDER_NORMALIZED)),--enable-core-order "$(ENABLE_CORE_ORDER_NORMALIZED)") \
+	$(if $(strip $(CIX_RELEASE_NORMALIZED)),--cix-release "$(CIX_RELEASE_NORMALIZED)") \
+	$(if $(filter TRUE,$(ENABLE_TF_A_FIXES_NORMALIZED)),--enable-tf-a-fixes TRUE) \
+	$(if $(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)),--enable-experimental-uefi-settings TRUE) \
+	$(if $(filter TRUE,$(DEBUG_ON_UART3_NORMALIZED)),--debug-on-uart3 TRUE) \
+	$(if $(filter TRUE,$(UART3_ENABLE_NORMALIZED)),--uart3-enable TRUE) \
+	$(if $(filter TRUE,$(DEBUG_VERBOSE_NORMALIZED)),--debug-verbose TRUE) \
+	$(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),--debug-print-error-level "$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)")
+FIRMWARE_LAYOUT_RELATIVE_LEAF = $(strip $(shell python3 "$(FIRMWARE_LAYOUT_SCRIPT)" leaf-path $(FIRMWARE_LAYOUT_QUERY_ARGS) 2>/dev/null || true))
+FIRMWARE_PAYLOAD_ROOT ?= $(REPO_ROOT)/dist/firmware/edk2/radxa/$(FIRMWARE_PRODUCT)/$(FIRMWARE_VERSION)
+FIRMWARE_STAGE_ROOT ?= $(if $(strip $(FIRMWARE_LAYOUT_RELATIVE_LEAF)),$(FIRMWARE_PAYLOAD_ROOT)/$(FIRMWARE_LAYOUT_RELATIVE_LEAF),$(FIRMWARE_PAYLOAD_ROOT))
+FIRMWARE_STAGE_ROOT_IN_CONTAINER := $(strip $(if $(filter $(REPO_ROOT)%,$(abspath $(FIRMWARE_STAGE_ROOT))),$(patsubst $(REPO_ROOT)%,$(BUILDBOX_WORKSPACE_ROOT)%,$(abspath $(FIRMWARE_STAGE_ROOT))),$(FIRMWARE_STAGE_ROOT)))
+FIRMWARE_INSTALL_ROOT ?= /boot/efi/edk2/radxa/$(FIRMWARE_PRODUCT)
+FIRMWARE_ARCHIVE_ROOT ?= $(REPO_ROOT)/dist
+FIRMWARE_ARCHIVE_ROOT_IN_CONTAINER := $(strip $(if $(filter $(REPO_ROOT)%,$(abspath $(FIRMWARE_ARCHIVE_ROOT))),$(patsubst $(REPO_ROOT)%,$(BUILDBOX_WORKSPACE_ROOT)%,$(abspath $(FIRMWARE_ARCHIVE_ROOT))),$(FIRMWARE_ARCHIVE_ROOT)))
+FIRMWARE_ARCHIVE_SUFFIX = $(strip $(shell python3 "$(FIRMWARE_LAYOUT_SCRIPT)" archive-suffix $(FIRMWARE_LAYOUT_QUERY_ARGS) 2>/dev/null || true))
+FIRMWARE_VARIANT_PATH_LABEL = $(if $(strip $(FIRMWARE_LAYOUT_RELATIVE_LEAF)),$(FIRMWARE_LAYOUT_RELATIVE_LEAF),vendor)
+FIRMWARE_VARIANT_OPTIONS_LABEL = $(if $(strip $(FIRMWARE_ARCHIVE_SUFFIX)),$(FIRMWARE_ARCHIVE_SUFFIX),vendor)
+FIRMWARE_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)$(if $(strip $(FIRMWARE_ARCHIVE_SUFFIX)),-$(FIRMWARE_ARCHIVE_SUFFIX))
+FIRMWARE_INSTALL_DESTINATION ?= $(FIRMWARE_INSTALL_ROOT)/$(FIRMWARE_VERSION)$(if $(strip $(FIRMWARE_LAYOUT_RELATIVE_LEAF)),/$(FIRMWARE_LAYOUT_RELATIVE_LEAF))
+FIRMWARE_VARIANTS_ARCHIVE_BASENAME ?= edk2-cix-$(FIRMWARE_PRODUCT)-$(FIRMWARE_VERSION)-all
+FIPTOOL_BUILD_DIR ?= $(REPO_ROOT)/src/tools/arm-trusted-firmware-fiptool/build
+FIPTOOL_DISTRO_STAMP ?= $(REPO_ROOT)/.buildbox/fiptool/.buildbox-distro
+FIRMWARE_VALIDATION_PROFILE ?= upstream-1.2.1-bookworm
+FIRMWARE_VALIDATION_REPORT_ROOT ?= $(REPO_ROOT)/build-validation
+MONOREPO_META_ROOT ?=
+FIRMWARE_VALIDATE_ON_BUILD ?= 0
+DEBUG_ON_UART3_NORMALIZED_RAW := $(if $(strip $(DEBUG_ON_UART3)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_ON_UART3)" 2>/dev/null || printf '%s' __INVALID__),)
+DEBUG_ON_UART3_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_ON_UART3_NORMALIZED_RAW)),,$(DEBUG_ON_UART3_NORMALIZED_RAW))
+UART3_ENABLE_NORMALIZED_RAW := $(if $(strip $(UART3_ENABLE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(UART3_ENABLE)" 2>/dev/null || printf '%s' __INVALID__),)
+UART3_ENABLE_NORMALIZED := $(if $(filter __INVALID__,$(UART3_ENABLE_NORMALIZED_RAW)),,$(UART3_ENABLE_NORMALIZED_RAW))
+UART3_ENABLE_EFFECTIVE := $(if $(filter TRUE,$(DEBUG_ON_UART3_NORMALIZED)),TRUE,$(UART3_ENABLE_NORMALIZED))
+DEBUG_VERBOSE_NORMALIZED_RAW := $(if $(strip $(DEBUG_VERBOSE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(DEBUG_VERBOSE)" 2>/dev/null || printf '%s' __INVALID__),)
+DEBUG_VERBOSE_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_VERBOSE_NORMALIZED_RAW)),,$(DEBUG_VERBOSE_NORMALIZED_RAW))
+DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-u32 --value "$(DEBUG_PRINT_ERROR_LEVEL)" 2>/dev/null || printf '%s' __INVALID__),)
+DEBUG_PRINT_ERROR_LEVEL_NORMALIZED := $(if $(filter __INVALID__,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW)),,$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED_RAW))
+DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT := $(if $(filter TRUE,$(DEBUG_VERBOSE_NORMALIZED)),$(MAX_DEBUG_PRINT_ERROR_LEVEL),)
+DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE := $(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED),$(DEBUG_PRINT_ERROR_LEVEL_VERBOSE_DEFAULT))
+ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW := $(if $(strip $(ENABLE_FIRMWARE_FIXES)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_FIRMWARE_FIXES)" 2>/dev/null || printf '%s' __INVALID__),)
+ENABLE_FIRMWARE_FIXES_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW)),,$(ENABLE_FIRMWARE_FIXES_NORMALIZED_RAW))
+ENABLE_CORE_ORDER_NORMALIZED := $(if $(strip $(ENABLE_CORE_ORDER)),$(shell printf '%s' '$(ENABLE_CORE_ORDER)' | tr '[:upper:]' '[:lower:]'),)
+CIX_RELEASE_VALIDATION_VALUE := $(if $(strip $(CIX_RELEASE)),$(shell printf '%s' '$(CIX_RELEASE)' | tr '[:upper:]' '[:lower:]'),)
+CIX_RELEASE_NORMALIZED_RAW := $(if $(strip $(CIX_RELEASE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-cix-release --value "$(CIX_RELEASE)" 2>/dev/null || printf '%s' __INVALID__),)
+CIX_RELEASE_NORMALIZED := $(if $(filter __INVALID__,$(CIX_RELEASE_NORMALIZED_RAW)),,$(CIX_RELEASE_NORMALIZED_RAW))
+ENABLE_TF_A_FIXES_NORMALIZED_RAW := $(if $(strip $(ENABLE_TF_A_FIXES)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_TF_A_FIXES)" 2>/dev/null || printf '%s' __INVALID__),)
+ENABLE_TF_A_FIXES_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_TF_A_FIXES_NORMALIZED_RAW)),,$(ENABLE_TF_A_FIXES_NORMALIZED_RAW))
+ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW := $(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" 2>/dev/null || printf '%s' __INVALID__),)
+ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW)),,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW))
+FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW := $(if $(strip $(FIRMWARE_VALIDATE_ON_BUILD)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(FIRMWARE_VALIDATE_ON_BUILD)" 2>/dev/null || printf '%s' __INVALID__),)
+FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED := $(if $(filter __INVALID__,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW)),,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED_RAW))
+FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE := $(if $(filter TRUE,$(FIRMWARE_VALIDATE_ON_BUILD_NORMALIZED)),1,0)
+FIRMWARE_BOARD_LOWER = $(shell printf '%s' '$(FIRMWARE_BOARD)' | tr '[:upper:]' '[:lower:]')
+REPLAY_VERSION ?= $(FIRMWARE_VERSION)
+REPLAY_PRODUCT ?= orion-$(FIRMWARE_BOARD_LOWER)
+DETERMINISTIC_REPLAY_PROFILE ?= upstream-$(REPLAY_VERSION)-$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)
+DETERMINISTIC_REPLAY_CACHE_KEY ?= $(DETERMINISTIC_REPLAY_PROFILE)-$(FIRMWARE_BOARD_LOWER)
+DETERMINISTIC_REPLAY_ROOT ?= $(REPO_ROOT)/.buildbox/replay/$(DETERMINISTIC_REPLAY_CACHE_KEY)
+DETERMINISTIC_REPLAY_IMAGE ?= $(if $(filter bookworm,$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)),$(REPLAY_BUILDBOX_IMAGE),$(BUILDBOX_IMAGE_EFFECTIVE))
+DETERMINISTIC_REPLAY_DEP_PROFILE ?= $(if $(filter bookworm,$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)),$(REPLAY_BUILDBOX_DEP_PROFILE),firmware)
+DETERMINISTIC_REPLAY_MOUNT_ROOT ?= $(REPO_ROOT)/.buildbox
+REPLAY_INPUT ?=
+REPLAY_BUILD_OPTIONS ?=
+REPLAY_BUILD_DATE ?=
+ACT_WORKFLOW ?=
+ACT_EVENT ?= workflow_dispatch
+ACT_JOB ?=
+ACT_MATRIX ?=
+ACT_SECRET_FILE ?=
+ACT_EXTRA_ARGS ?=
+ACT_CLEAN_KEEP ?=
+SRC_COMMON_ARGS = \
+	ARTEFACT_MODE="$(ARTEFACT_MODE)" \
+	CCACHE_DIR="$(CCACHE_DIR)" \
+	CCACHE_WRAPPER_ROOT="$(CCACHE_WRAPPER_ROOT)" \
+	$(if $(strip $(CCACHE_BIN)),CCACHE_BIN="$(CCACHE_BIN)") \
+	$(if $(filter-out undefined,$(CCACHE_DISABLE_ORIGIN)),CCACHE_DISABLE="$(CCACHE_DISABLE)") \
+	$(if $(strip $(EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE)),EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE="$(EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE)") \
+	$(if $(strip $(EDK2_CIX_SUPPRESS_BUILD_BANNER)),EDK2_CIX_SUPPRESS_BUILD_BANNER="$(EDK2_CIX_SUPPRESS_BUILD_BANNER)") \
+	$(if $(strip $(CIX_RELEASE_CACHE_ROOT)),CIX_RELEASE_CACHE_ROOT="$(CIX_RELEASE_CACHE_ROOT)") \
+	$(if $(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED)),ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES_NORMALIZED)") \
+	$(if $(strip $(ENABLE_CORE_ORDER_NORMALIZED)),ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER_NORMALIZED)") \
+	$(if $(strip $(CIX_RELEASE_NORMALIZED)),CIX_RELEASE="$(CIX_RELEASE_NORMALIZED)") \
+	$(if $(strip $(ENABLE_TF_A_FIXES_NORMALIZED)),ENABLE_TF_A_FIXES="$(ENABLE_TF_A_FIXES_NORMALIZED)") \
+	$(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)),ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)") \
+	$(if $(strip $(DEBUG_ON_UART3_NORMALIZED)),DEBUG_ON_UART3="$(DEBUG_ON_UART3_NORMALIZED)") \
+	$(if $(strip $(UART3_ENABLE_EFFECTIVE)),UART3_ENABLE="$(UART3_ENABLE_EFFECTIVE)") \
+	$(if $(strip $(DEBUG_VERBOSE_NORMALIZED)),DEBUG_VERBOSE="$(DEBUG_VERBOSE_NORMALIZED)") \
+	$(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)")
+FIRMWARE_SRC_BUILD_TARGETS = \
+	Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)/cix_flash_all.bin \
+	Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)/cix_flash_ota.bin
+BUILDBOX_FIRMWARE_ARGS = \
+	$(SRC_COMMON_ARGS) \
+	CCACHE_DIR="$(CCACHE_DIR_IN_CONTAINER)" \
+	CCACHE_WRAPPER_ROOT="$(CCACHE_WRAPPER_ROOT_IN_CONTAINER)" \
+	FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
+	FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" \
+	FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+	FIRMWARE_VERSION="$(FIRMWARE_VERSION)" \
+	FIRMWARE_DISTRO="$(FIRMWARE_DISTRO_EFFECTIVE)" \
+	FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" \
+	FIRMWARE_STAGE_ROOT="$(FIRMWARE_STAGE_ROOT_IN_CONTAINER)" \
+	FIRMWARE_ARCHIVE_ROOT="$(FIRMWARE_ARCHIVE_ROOT_IN_CONTAINER)" \
+	FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
+	FIRMWARE_VALIDATION_REPORT_ROOT="$(BUILDBOX_WORKSPACE_ROOT)/build-validation" \
+	$(if $(strip $(SIGNING_CERT_SOURCE_DIR_IN_CONTAINER)),SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR_IN_CONTAINER)") \
+	$(if $(strip $(BUILD_DATE)),BUILD_DATE="$(BUILD_DATE)") \
+	$(if $(strip $(SOURCE_DATE_EPOCH)),SOURCE_DATE_EPOCH="$(SOURCE_DATE_EPOCH)") \
+	$(if $(strip $(PM_CONFIG_SOURCE_DATE_EPOCH)),PM_CONFIG_SOURCE_DATE_EPOCH="$(PM_CONFIG_SOURCE_DATE_EPOCH)") \
+	$(if $(strip $(SOURCE_COMMIT)),SOURCE_COMMIT="$(SOURCE_COMMIT)") \
+	$(if $(strip $(SOURCE_COMMIT_HASH_LENGTH)),SOURCE_COMMIT_HASH_LENGTH="$(SOURCE_COMMIT_HASH_LENGTH)") \
+	$(if $(strip $(EDK2_SOURCE_COMMIT)),EDK2_SOURCE_COMMIT="$(EDK2_SOURCE_COMMIT)") \
+	$(if $(strip $(EDK2_COMMIT_HASH_LENGTH)),EDK2_COMMIT_HASH_LENGTH="$(EDK2_COMMIT_HASH_LENGTH)") \
+	$(if $(strip $(EDK2_NON_OSI_SOURCE_COMMIT)),EDK2_NON_OSI_SOURCE_COMMIT="$(EDK2_NON_OSI_SOURCE_COMMIT)") \
+	$(if $(strip $(EDK2_NON_OSI_COMMIT_HASH_LENGTH)),EDK2_NON_OSI_COMMIT_HASH_LENGTH="$(EDK2_NON_OSI_COMMIT_HASH_LENGTH)") \
+	$(if $(strip $(EDK2_PLATFORMS_SOURCE_COMMIT)),EDK2_PLATFORMS_SOURCE_COMMIT="$(EDK2_PLATFORMS_SOURCE_COMMIT)") \
+	$(if $(strip $(EDK2_PLATFORMS_COMMIT_HASH_LENGTH)),EDK2_PLATFORMS_COMMIT_HASH_LENGTH="$(EDK2_PLATFORMS_COMMIT_HASH_LENGTH)")
+
+src/tools/gcc/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf.tar.xz:
+	$(Q)mkdir -p src/tools/gcc
+	$(Q)wget -O $@ \
+	"https://developer.arm.com/-/media/files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf.tar.xz"
+
+src/tools/gcc/%: src/tools/gcc/%.tar.xz
+	$(Q)tar xvf $< -C src/tools/gcc/
+
+build: build-edk2
+
+define PRINT_HELP_SHELL_PROLOGUE
+	set -eu; \
+	help_pad=31; \
+	help_gap=2; \
+	help_width=80; \
+	desc_width=$$((help_width - help_pad - help_gap)); \
+	desc_indent=$$(printf '%*s' "$$((help_pad + help_gap))" ''); \
+	print_help_line() { \
+		label="$$1"; \
+		desc="$$2"; \
+		if [ "$${#label}" -le "$$help_pad" ]; then \
+			first_indent=$$(printf '%-*s%*s' "$$help_pad" "$$label" "$$help_gap" ''); \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v first="$$first_indent" -v cont="$$desc_indent" \
+					'NR == 1 { print first $$0; next } { sub(/^ +/, "", $$0); print cont $$0 }'; \
+		else \
+			printf '%s\n' "$$label"; \
+			printf '%b\n' "$$desc" | fold -s -w "$$desc_width" | \
+				awk -v cont="$$desc_indent" \
+					'{ sub(/^ +/, "", $$0); print cont $$0 }'; \
+		fi; \
+	}; \
+	print_section() { \
+		printf '\n%s\n\n' "$$1"; \
+	}
+endef
+
+define PRINT_TOP_LEVEL_COMMON_USER_VARIABLES
+	print_help_line '  FIRMWARE_BOARD=O6|O6N' 'Select the firmware board; replay follows the same board.\nDefault: O6.'; \
+	print_help_line '  FIRMWARE_TARGET=RELEASE|DEBUG' 'Select RELEASE or DEBUG firmware build.\nDefault: RELEASE.'; \
+	print_help_line '  ARTEFACT_MODE=custom|upstream' 'Choose between the upstream-derived path and the local custom path. On source/unofficial/current, '\''upstream'\'' is for closest-to-upstream diagnostics; byte-accurate vendor replay belongs to source/unofficial/edk2-stable202208.\nDefault: custom.'
+endef
+
+define PRINT_TOP_LEVEL_CACHE_USER_VARIABLES
+	print_help_line '  CCACHE_DISABLE=1' 'Standard ccache environment variable. Set it to disable compiler-cache use; leave it unset to use ccache opportunistically when it is available.\nDefault: unset.'; \
+	print_help_line '  CCACHE_BIN=<path>' 'Optional compiler-cache executable name or path.\nDefault: ccache.'; \
+	print_help_line '  CCACHE_DIR=<path>' 'Directory used for compiler-cache data.\nDefault: '\''$$(REPO_ROOT)/build-cache/ccache'\'''; \
+	print_help_line '  CCACHE_WRAPPER_ROOT=<path>' 'Directory used for generated compiler-wrapper symlinks.\nDefault: '\''$$(REPO_ROOT)/build-cache/ccache-toolchain'\'''
+endef
+
+define PRINT_TOP_LEVEL_CUSTOM_USER_VARIABLES
+	print_help_line '  CIX_RELEASE=v1.2' 'Use public CIX BIOS V1.2 bootloader1 payload with TF-A and OP-TEE sources for bootloader2.\nDefault: unset.'; \
+	print_help_line '  ENABLE_TF_A_FIXES=true|false' 'Enable custom TF-A fixes when CIX_RELEASE=v1.2 source-builds bootloader2. Without CIX_RELEASE set this emits a warning and has no effect.\nDefault: false.'; \
+	print_help_line '  ENABLE_FIRMWARE_FIXES=true|false' 'Enable the opt-in firmware fixes for O6/O6N. This changes firmware metadata and setup behavior; see FIXES.md for the details.\nDefault: false.'; \
+	print_help_line '  ENABLE_CORE_ORDER=cix|conventional|performance' 'Choose how the firmware numbers CPUs it exposes to the OS. '\''cix'\'' keeps the vendor order; '\''conventional'\'' puts the A520 cores before the A720 cores; '\''performance'\'' puts the A720 cores first, starting with the highest-performance pair.\nDefault: unset, which behaves like '\''cix'\''.\nRequires ENABLE_FIRMWARE_FIXES=true for '\''conventional'\'' and '\''performance'\''.'; \
+	print_help_line '  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Enable the experimental Radxa settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
+	print_help_line '  UART3_ENABLE=true|false' 'Expose UART3 to ACPI and mux its header pins as UART instead of GPIO. This consumes header GPIO105/GPIO106 while enabled.\nDefault: false.'; \
+	print_help_line '  DEBUG_ON_UART3=true|false' 'Route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
+	print_help_line '  DEBUG_VERBOSE=true|false' 'On RELEASE builds, re-enable DEBUG() logging without switching the whole image to a DEBUG build, and default to the full DEBUG_* mask unless DEBUG_PRINT_ERROR_LEVEL is set.\nDefault: false.'; \
+	print_help_line '  DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Override the firmware debug message mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; builds use 0x80000040 by default or $(MAX_DEBUG_PRINT_ERROR_LEVEL) when DEBUG_VERBOSE=true.\nSee '\''make help-debug'\''.'
+endef
+
+define PRINT_TOP_LEVEL_DEV_VARIABLES_EXECUTION
+	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
+	print_help_line '  CIX_RELEASE_CACHE_ROOT=<path>' 'Directory used for cached curated CIX BL31, OP-TEE, and cert_create intermediates.\nDefault: '\''$$(REPO_ROOT)/build-cache/cix-release'\'''
+endef
+
+define PRINT_TOP_LEVEL_DEV_VARIABLES_BUILDBOX
+	print_help_line '  BUILDBOX_PLATFORM=linux/amd64|linux/arm64' 'Select the container platform for buildbox runs.\nDefault: host-matched runtime platform.'; \
+	print_help_line '  FIRMWARE_DISTRO=bookworm|trixie' 'Override the buildbox distro family.\nDefault: trixie for edk2-rebased builds. Bookworm remains supported but emits a warning on this branch.'; \
+	print_help_line '  BUILDBOX_IMAGE=<image>' 'Override the selected buildbox container image directly.\nDefault image: mcr.microsoft.com/devcontainers/base:<effective-distro>.\nEffective distro: trixie unless FIRMWARE_DISTRO is explicitly set.'
+endef
+
+define PRINT_TOP_LEVEL_DEV_VARIABLES_VALIDATION
+	print_help_line '  FIRMWARE_VALIDATE_ON_BUILD=0|1' 'Enable or skip automatic output validation after firmware-build.\nDefault: 0; enable explicitly for qualification or diagnostic runs.'; \
+	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile from validation/expected-hashes.json, e.g. '\''upstream-1.2.1-bookworm'\'' or '\''upstream-1.2.1-trixie'\''\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
+	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory for validation and audit JSON reports.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
+	print_help_line '  MONOREPO_META_ROOT=<path>' 'Optional build checkout used by audit-bundle for the metadata-consistency check.\nDefault: unset.'
+endef
+
+define PRINT_TOP_LEVEL_DEV_VARIABLES_REPLAY
+	print_help_line '  REPLAY_INPUT=<path>' 'Seed replay inputs from a .deb, an extracted release dir, or cix_flash_all.bin.\nDefault: unset; reuse cached replay inputs if present.'; \
+	print_help_line '  REPLAY_BUILD_OPTIONS=<path>' 'BuildOptions file used when replaying from cix_flash_all.bin.\nDefault: unset.'; \
+	print_help_line '  REPLAY_BUILD_DATE=<iso8601>' 'Fallback build timestamp when replay inputs do not include BuildOptions.\nDefault: unset.'
+endef
+
+define PRINT_TOP_LEVEL_DEV_VARIABLES_ACT
+	print_help_line '  ACT_WORKFLOW=.github/workflows/<file>.yaml' 'Workflow file to list, dry-run, or execute through the local act wrapper.\nDefault: unset; gha-act-list shows every workflow when this stays empty.'; \
+	print_help_line '  ACT_EVENT=workflow_dispatch|push|pull_request' 'Event name passed to act for gha-act-dry-run and gha-act-run.\nDefault: '\''workflow_dispatch'\'''; \
+	print_help_line '  ACT_JOB=<job-id>' 'Optional job to target inside the selected workflow.\nDefault: unset.'; \
+	print_help_line '  ACT_MATRIX=<name:value>' 'Optional single act matrix filter, for example '\''board:O6'\''\nDefault: unset.'; \
+	print_help_line '  ACT_SECRET_FILE=<path>' 'Optional act --secret-file path for local workflow runs.\nDefault: unset.'; \
+	print_help_line '  ACT_EXTRA_ARGS=<args>' 'Additional raw flags appended to act, for example '\''--pull=false'\''\nDefault: unset.'; \
+	print_help_line '  ACT_CLEAN_KEEP=0|1' 'Preserve the temporary clean checkout used by gha-act-run-clean for debugging.\nDefault: unset.'
+endef
+
+define PRINT_TOP_LEVEL_INTERNAL_VARIABLES_BUILDBOX
+	print_help_line '  BUILDBOX_WORKSPACE_PARENT=<path>' 'Override the parent path used for the in-container workspace mount.\nDefault: '\''/workspaces'\'''; \
+	print_help_line '  BUILDBOX_WORKSPACE_ROOT=<path>' 'Override the exact in-container workspace path used by buildbox wrappers.\nDefault: '\''$$(BUILDBOX_WORKSPACE_PARENT)/$$(PROJECT)'\''' ; \
+	print_help_line '  BUILDBOX_HOST_TMPDIR=<path>' 'Host temporary directory mounted into buildbox runs.\nDefault: '\''$$(REPO_ROOT)/.buildbox/tmp'\'''; \
+	print_help_line '  BUILDBOX_CONTAINER_TMPDIR=<path>' 'In-container path corresponding to BUILDBOX_HOST_TMPDIR.\nDefault: '\''/hosttmp'\'''; \
+	print_help_line '  EDK2_CIX_CONTAINER_RUNTIME=<runtime>' 'Force a specific container runtime, usually '\''docker'\'' or '\''podman'\'''; \
+	print_help_line '  EDK2_CIX_BUILDBOX_NAME=<name>' 'Pin the buildbox container name instead of using the stored per-worktree default.'; \
+	print_help_line '  EDK2_CIX_BUILDBOX_NAME_FILE=<path>' 'Alternate path for the persisted buildbox container-name file.'
+endef
+
+define PRINT_TOP_LEVEL_INTERNAL_VARIABLES_VALIDATION_IMAGES
+	print_help_line '  REPLAY_BUILDBOX_IMAGE=<image>' 'Pinned Debian image used for Bookworm deterministic replay and validation wrappers.\nDefault: '\''edk2-cix-replay-bookworm:20260406'\'''; \
+	print_help_line '  REPLAY_BUILDBOX_DEP_PROFILE=<name>' 'Dependency profile expected inside the pinned replay image.\nDefault: '\''replay'\'''; \
+	print_help_line '  VALIDATION_BUILDBOX_IMAGE=<image>' 'Container image used by Bookworm buildbox validation and audit wrappers.\nDefault: the pinned replay image for Bookworm, otherwise BUILDBOX_IMAGE_EFFECTIVE.'; \
+	print_help_line '  VALIDATION_BUILDBOX_DEP_PROFILE=<name>' 'Dependency profile used by buildbox validation and audit wrappers.\nDefault: '\''replay'\'' on Bookworm, otherwise '\''firmware'\''.'
+endef
+
+define PRINT_TOP_LEVEL_INTERNAL_VARIABLES_REPLAY
+	print_help_line '  DETERMINISTIC_REPLAY_PROFILE=<name>' 'Override the resolved replay validation profile name.\nDefault: upstream-<version>-<distro>.'; \
+	print_help_line '  DETERMINISTIC_REPLAY_CACHE_KEY=<name>' 'Override the replay cache directory key.\nDefault: $(DETERMINISTIC_REPLAY_PROFILE)-<board>.'; \
+	print_help_line '  DETERMINISTIC_REPLAY_ROOT=<path>' 'Exact replay cache directory used by deterministic-replay.\nDefault: '\''$$(REPO_ROOT)/.buildbox/replay/<cache-key>'\'''; \
+	print_help_line '  DETERMINISTIC_REPLAY_IMAGE=<image>' 'Container image override used only by deterministic-replay.\nDefault: the effective buildbox image.'; \
+	print_help_line '  DETERMINISTIC_REPLAY_DEP_PROFILE=<name>' 'Dependency profile used by deterministic-replay.\nDefault: '\''replay'\'' on Bookworm, otherwise '\''firmware'\''.'; \
+	print_help_line '  DETERMINISTIC_REPLAY_MOUNT_ROOT=<path>' 'Host root that deterministic-replay may translate into the buildbox.\nDefault: '\''$$(REPO_ROOT)/.buildbox'\'''
+endef
+
+define PRINT_TOP_LEVEL_INTERNAL_VARIABLES_WRAPPER_FLAGS
+	print_help_line '  EDK2_CIX_SUPPRESS_FINAL_OUTPUT=0|1' 'Suppress the final top-level wrapper status lines.'; \
+	print_help_line '  EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=0|1' 'Suppress export_firmware_payload.py status lines during wrapper chaining.'; \
+	print_help_line '  EDK2_CIX_SUPPRESS_BUILD_BANNER=0|1' 'Suppress the normalized firmware-variant banner printed before single-build firmware wrappers invoke the source build.'; \
+	print_help_line '  EDK2_CIX_ACT_CLEAN_KEEP=0|1' 'Internal handoff used by gha-act-run-clean to preserve the scratch checkout.'; \
+	print_help_line '  EDK2_CIX_REPO_LOCK_HELD=0|1' 'Internal recursion guard for the repo-lock wrapper.'
+endef
+
+define BUILD_ALL_WARN_IF_IGNORED
+		if [ -n "$(filter command line environment environment override,$(BUILD_ALL_IGNORED_$(1)_ORIGIN))" ]; then \
+			printf '[build-all] warning: %s is ineffective for build-all*; %s\n' "$(1)" "$(2)" >&2; \
+		fi;
+endef
+
+define WARN_EDK2_REBASED_BOOKWORM
+	if [ "$(FIRMWARE_DISTRO_EFFECTIVE)" = "bookworm" ]; then \
+		printf '%s\n' '[buildbox] warning: FIRMWARE_DISTRO=bookworm requested; trixie is the default for edk2-rebased builds on source/unofficial/current.' >&2; \
+	fi
+endef
+
+FAIL_EDK2_REBASED_DETERMINISTIC = "$(EDK2_REBASED_DETERMINISTIC_GUARD)"
+
+.PHONY: help help-vars help-dev help-internal help-debug source-uplift-help
+help:
+	@$(PRINT_HELP_SHELL_PROLOGUE); \
+	printf '%s\n\n' 'edk2-cix common targets'; \
+	print_help_line '  firmware_build_dep' 'Install only the direct firmware-build host dependencies'; \
+	print_help_line '  devcontainer_setup' 'Install host build dependencies'; \
+	print_help_line '  firmware-build' 'Build the firmware artefacts for the selected board'; \
+	print_help_line '  firmware-stage' 'Stage deployable firmware files under dist/firmware/'; \
+	print_help_line '  install' 'Copy the staged payload under /boot/efi/edk2/radxa/<product>/<version>/'; \
+	print_help_line '  zip' 'Create a .zip firmware archive'; \
+	print_help_line '  targz' 'Create a .tar.gz firmware archive'; \
+	print_help_line '  deb' 'Build the Debian package and copy it under dist/deb/'; \
+	print_help_line '  clean' 'Remove build output, packaging by-products, and buildbox state'; \
+	printf '\n%s\n\n' 'buildbox targets'; \
+	print_help_line '  buildbox-firmware-build' 'Build firmware inside the buildbox'; \
+	print_help_line '  buildbox-firmware-stage' 'Stage deployable firmware on the host under dist/firmware/'; \
+	print_help_line '  buildbox-zip' 'Create a .zip archive inside the buildbox'; \
+	print_help_line '  buildbox-targz' 'Create a .tar.gz archive inside the buildbox'; \
+	print_help_line '  buildbox-deb' 'Build the Debian package inside the buildbox under dist/deb/'; \
+	print_help_line '  build-all' 'Alias for build-all-targz; build all supported firmware variants for the selected board using the Trixie buildbox.'; \
+	print_help_line '  build-all-zip' 'Create one .zip containing all supported firmware variants for the selected board through the buildbox wrappers.'; \
+	print_help_line '  build-all-targz' 'Create one .tar.gz containing all supported firmware variants for the selected board through the buildbox wrappers.'; \
+	printf '\n%s\n\n' 'More Help'; \
+	print_help_line '  help-vars' 'Show common top-level build variables'; \
+	print_help_line '  help-dev' 'Show maintainer and developer targets plus advanced control variables'; \
+	print_help_line '  help-internal' 'Show internal wrapper targets and unstable implementation knobs'; \
+	printf '\n%s\n' 'For lower-level firmware targets, run: make -C src help'
+
+help-vars:
+	@$(PRINT_HELP_SHELL_PROLOGUE); \
+	printf '%s\n\n' 'Common Build Variables'; \
+	$(PRINT_TOP_LEVEL_COMMON_USER_VARIABLES); \
+	print_section 'Build Cache Variables'; \
+	$(PRINT_TOP_LEVEL_CACHE_USER_VARIABLES); \
+	print_section 'Custom Build Variables'; \
+	printf '%s\n' 'The following options apply only when ARTEFACT_MODE=custom. Use them to select optional firmware variants, curated CIX inputs, and custom-path debug behaviour.' | fold -s -w 78 | sed 's/^/  /'; \
+	printf '\n'; \
+	$(PRINT_TOP_LEVEL_CUSTOM_USER_VARIABLES); \
+	printf '\n%s\n' 'For the fuller user-facing explanation of the build variables, see: docs/build-variables.md'; \
+	printf '\n%s\n' 'For maintainer and developer targets plus advanced variables, run: make help-dev'; \
+	printf '%s\n' 'For internal wrapper targets and unstable implementation knobs, run: make help-internal'
+
+help-dev:
+	@$(PRINT_HELP_SHELL_PROLOGUE); \
+	printf '%s\n\n' 'Maintainer and Developer Targets'; \
+	print_section 'Build Preparation'; \
+	print_help_line '  arm64_crossbuild_dep' 'Install Debian arm64 cross-build dependencies'; \
+	print_help_line '  buildbox-up' 'Start or reuse the persistent build container'; \
+	print_section 'Build and Inspect'; \
+	print_help_line '  build-edk2' 'Run the raw src/ firmware build directly'; \
+	print_help_line '  buildbox-metadata' 'Print resolved build metadata inside the buildbox'; \
+	print_help_line '  buildbox-firmware-log' 'Capture a full logged buildbox firmware build for the selected board'; \
+	print_section 'Semantic Validation'; \
+	print_help_line '  buildbox-validate-secure-boot-defaults' 'Validate embedded Secure Boot payloads inside the buildbox'; \
+	print_section 'Automation, Docs, and Release'; \
+	print_help_line '  gha-act-list' 'List workflows and jobs through the repo-local act wrapper'; \
+	print_help_line '  gha-act-dry-run' 'Dry-run a selected workflow or job through act'; \
+	print_help_line '  gha-act-run' 'Execute a selected workflow or job through act'; \
+	print_help_line '  gha-act-run-clean' 'Execute a selected workflow or job through act from a scratch checkout'; \
+	print_help_line '  docs-build' 'Build the mdBook site into book/html/'; \
+	print_help_line '  serve' 'Serve the mdBook site locally with mdbook serve'; \
+	print_help_line '  source-uplift-help' 'Explain where EDK2 source-model uplift targets live'; \
+	print_help_line '  dch' 'Generate and commit a Debian changelog release entry'; \
+	print_help_line '  release' 'Trigger the retained GitHub release workflow for the current branch'; \
+	print_section 'Cleanup'; \
+	print_help_line '  clean-edk2' 'Remove only src/Build output and generated raw firmware artefacts'; \
+	print_help_line '  clean-ccache' 'Remove the managed compiler-cache data and generated compiler wrappers'; \
+	print_help_line '  clean-cix-cache' 'Remove the cached curated CIX BL31, OP-TEE, and cert_create intermediates'; \
+	print_help_line '  clean-buildbox' 'Remove only the local buildbox state and persistent container'; \
+	print_help_line '  buildbox-down' 'Remove the persistent build container if it exists'; \
+	print_section 'More Help'; \
+	print_help_line '  help-debug' 'Explain the DEBUG_PRINT_ERROR_LEVEL bit values derived from DebugLib.h'; \
+	printf '\n\n%s\n\n' 'Maintainer and Developer Variables'; \
+	print_section 'Execution Controls'; \
+	$(PRINT_TOP_LEVEL_DEV_VARIABLES_EXECUTION); \
+	print_section 'Buildbox Selection'; \
+	$(PRINT_TOP_LEVEL_DEV_VARIABLES_BUILDBOX); \
+	print_section 'Act Wrapper Variables'; \
+	$(PRINT_TOP_LEVEL_DEV_VARIABLES_ACT); \
+	printf '\n%s\n' 'For regular firmware build usage, run: make help'; \
+	printf '%s\n' 'For internal wrapper targets and unstable implementation knobs, run: make help-internal'
+
+help-internal:
+	@$(PRINT_HELP_SHELL_PROLOGUE); \
+	printf '%s\n\n' 'Internal Wrapper Targets'; \
+	print_section 'Internal Preflight Targets'; \
+	print_help_line '  preflight-wrapper-common' 'Shared top-level input validation used by most public wrapper targets.'; \
+	print_help_line '  preflight-wrapper-buildbox' 'Additional validation for buildbox lifecycle and image selection wrappers.'; \
+	print_help_line '  preflight-wrapper-firmware-build' 'Additional validation for public firmware build and staging wrappers.'; \
+	print_help_line '  preflight-wrapper-build-all' 'Build-all-specific validation plus warnings for ineffective variant-selection variables.'; \
+	print_section 'Internal Variables'; \
+	print_section 'Buildbox Workspace and Runtime'; \
+	$(PRINT_TOP_LEVEL_INTERNAL_VARIABLES_BUILDBOX); \
+	print_section 'Wrapper Handoff Flags'; \
+	$(PRINT_TOP_LEVEL_INTERNAL_VARIABLES_WRAPPER_FLAGS); \
+	printf '\n%s\n' 'Internal targets and variables are unstable and may change without compatibility guarantees.'; \
+	printf '%s\n' 'For regular usage, run: make help'
+
+help-debug:
+	@$(MAKE) -C src --no-print-directory help-debug
+
+source-uplift-help:
+	@printf '%s\n' 'This is a rendered firmware source branch.'; \
+	printf '%s\n' 'EDK2 source-model uplifts are run from the build branch, which carries the source refs, manifests, and uplift scripts.'; \
+	printf '\n%s\n' 'Typical maintainer flow:'; \
+	printf '%s\n' '  git switch build'; \
+	printf '%s\n' '  make uplift-edk2-release EDK2_BASE=edk2-stableYYYYMM FROM_EDK2_BASE=edk2-stableYYYYMM'; \
+	printf '%s\n' '  make uplift-edk2-release EDK2_BASE=edk2-stableYYYYMM FROM_EDK2_BASE=edk2-stableYYYYMM WRITE=1'; \
+	printf '\n%s\n' 'If a source-port conflict is reported, resolve and commit the preserved worktree, then rerun the build-branch target with RADXA_REF=<commit> or UNOFFICIAL_REF=<commit> as directed by the build README.'
+
+.PHONY: preflight-wrapper-common preflight-wrapper-firmware-build preflight-wrapper-validation preflight-wrapper-buildbox preflight-wrapper-build-all preflight-wrapper-replay
+preflight-wrapper-common:
+	@set -euo pipefail; \
+		validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+			--repo-root "$(REPO_ROOT)" \
+			--profile-file "$(VALIDATION_PROFILE_FILE)" \
+			--v "$(V)" \
+			--artefact-mode "$(ARTEFACT_MODE)"); \
+	if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-firmware-fixes "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-core-order "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(CIX_RELEASE_VALIDATION_VALUE))" ]; then \
+		validate_cmd+=(--cix-release "$(strip $(CIX_RELEASE_VALIDATION_VALUE))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_TF_A_FIXES_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-tf-a-fixes "$(strip $(ENABLE_TF_A_FIXES_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
+	fi; \
+		if [ -n "$(strip $(FIRMWARE_TARGET))" ]; then \
+			validate_cmd+=(--firmware-target "$(strip $(FIRMWARE_TARGET))"); \
+		fi; \
+	if [ -n "$(strip $(DEBUG_ON_UART3))" ]; then \
+		validate_cmd+=(--debug-on-uart3 "$(strip $(DEBUG_ON_UART3))"); \
+	fi; \
+	if [ -n "$(strip $(UART3_ENABLE_EFFECTIVE))" ]; then \
+		validate_cmd+=(--uart3-enable "$(strip $(UART3_ENABLE_EFFECTIVE))"); \
+	fi; \
+	if [ -n "$(strip $(DEBUG_VERBOSE_NORMALIZED))" ]; then \
+		validate_cmd+=(--debug-verbose "$(strip $(DEBUG_VERBOSE_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))" ]; then \
+		validate_cmd+=(--debug-print-error-level "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))"); \
+	fi; \
+	"$${validate_cmd[@]}"
+
+preflight-wrapper-firmware-build: preflight-wrapper-common
+	@set -euo pipefail; \
+	if [ -n "$(strip $(DEB_VERSION))" ]; then \
+		echo "[preflight] DEB_VERSION is packaging-only; omit it for firmware-oriented targets." >&2; \
+		exit 1; \
+	fi; \
+	if [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
+		$(FAIL_EDK2_REBASED_DETERMINISTIC); \
+	fi; \
+		validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+			--repo-root "$(REPO_ROOT)" \
+			--profile-file "$(VALIDATION_PROFILE_FILE)" \
+			--v "$(V)" \
+			--artefact-mode "$(ARTEFACT_MODE)" \
+			--firmware-target "$(FIRMWARE_TARGET)" \
+			--firmware-board "$(FIRMWARE_BOARD)" \
+			--firmware-validate-on-build "$(FIRMWARE_VALIDATE_ON_BUILD)"); \
+	if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-firmware-fixes "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-core-order "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(CIX_RELEASE_VALIDATION_VALUE))" ]; then \
+		validate_cmd+=(--cix-release "$(strip $(CIX_RELEASE_VALIDATION_VALUE))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_TF_A_FIXES_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-tf-a-fixes "$(strip $(ENABLE_TF_A_FIXES_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
+	fi; \
+		if [ -n "$(strip $(FIRMWARE_VALIDATION_PROFILE))" ] && [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
+			validate_cmd+=(--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" --validation-board "$(FIRMWARE_BOARD)" --validation-target "$(RAW_FIRMWARE_TARGET)"); \
+		fi; \
+	"$${validate_cmd[@]}"
+
+preflight-wrapper-validation: preflight-wrapper-common
+	@set -euo pipefail; \
+	$(FAIL_EDK2_REBASED_DETERMINISTIC); \
+		validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+			--repo-root "$(REPO_ROOT)" \
+			--profile-file "$(VALIDATION_PROFILE_FILE)" \
+			--v "$(V)" \
+			--artefact-mode "$(ARTEFACT_MODE)" \
+			--firmware-target "$(FIRMWARE_TARGET)" \
+			--firmware-board "$(FIRMWARE_BOARD)" \
+			--firmware-validate-on-build "$(FIRMWARE_VALIDATE_ON_BUILD)" \
+			--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+			--validation-board "$(FIRMWARE_BOARD)" \
+			--validation-target "$(RAW_FIRMWARE_TARGET)"); \
+	if [ -n "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-firmware-fixes "$(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-core-order "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(CIX_RELEASE_VALIDATION_VALUE))" ]; then \
+		validate_cmd+=(--cix-release "$(strip $(CIX_RELEASE_VALIDATION_VALUE))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_TF_A_FIXES_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-tf-a-fixes "$(strip $(ENABLE_TF_A_FIXES_NORMALIZED))"); \
+	fi; \
+	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
+	fi; \
+		"$${validate_cmd[@]}"
+
+preflight-wrapper-buildbox:
+	@set -euo pipefail; \
+	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+		--repo-root "$(REPO_ROOT)" \
+		--profile-file "$(VALIDATION_PROFILE_FILE)" \
+		--v "$(V)"); \
+	if [ -n "$(strip $(FIRMWARE_DISTRO))" ]; then \
+		validate_cmd+=(--firmware-distro "$(strip $(FIRMWARE_DISTRO))"); \
+	else \
+		validate_cmd+=(--firmware-distro "$(strip $(FIRMWARE_DISTRO_EFFECTIVE))"); \
+	fi; \
+	if [ -n "$(strip $(BUILDBOX_PLATFORM))" ]; then \
+		validate_cmd+=(--buildbox-platform "$(strip $(BUILDBOX_PLATFORM))"); \
+	fi; \
+	if [ -n "$(strip $(BUILDBOX_IMAGE))" ]; then \
+		validate_cmd+=(--buildbox-image "$(strip $(BUILDBOX_IMAGE))" --check-buildbox-image); \
+	fi; \
+	"$${validate_cmd[@]}"; \
+	$(WARN_EDK2_REBASED_BOOKWORM)
+
+preflight-wrapper-build-all:
+	@set -euo pipefail; \
+	if [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
+		$(FAIL_EDK2_REBASED_DETERMINISTIC); \
+	fi; \
+	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+		--repo-root "$(REPO_ROOT)" \
+		--profile-file "$(VALIDATION_PROFILE_FILE)" \
+		--v "$(V)" \
+		--artefact-mode custom \
+		--firmware-target RELEASE \
+		--firmware-board "$(FIRMWARE_BOARD)" \
+		--firmware-validate-on-build "$(FIRMWARE_VALIDATE_ON_BUILD)" \
+		--firmware-distro trixie); \
+	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))" ]; then \
+		validate_cmd+=(--debug-print-error-level "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))"); \
+	fi; \
+	if [ -n "$(strip $(FIRMWARE_VALIDATION_PROFILE))" ] && [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
+		validate_cmd+=(--validation-profile "$(FIRMWARE_VALIDATION_PROFILE)" --validation-board "$(FIRMWARE_BOARD)" --validation-target RELEASE_GCC); \
+	fi; \
+	if [ -n "$(strip $(BUILDBOX_PLATFORM))" ]; then \
+		validate_cmd+=(--buildbox-platform "$(strip $(BUILDBOX_PLATFORM))"); \
+	fi; \
+	if [ -n "$(strip $(BUILDBOX_IMAGE))" ]; then \
+		validate_cmd+=(--buildbox-image "$(strip $(BUILDBOX_IMAGE))" --check-buildbox-image); \
+	fi; \
+	"$${validate_cmd[@]}"; \
+	$(call BUILD_ALL_WARN_IF_IGNORED,ARTEFACT_MODE,build-all* selects upstream and custom variants itself.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_TARGET,build-all* includes the supported RELEASE and DEBUG variants itself.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_DISTRO,build-all* always uses Trixie on source/unofficial/current.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_STAGE_ROOT,build-all* stages variants in a temporary per-run tree before archiving.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,FIRMWARE_ARCHIVE_BASENAME,build-all* always writes the fixed all-variants archive name.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,ENABLE_FIRMWARE_FIXES,build-all* selects its supported firmware variants itself.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,ENABLE_CORE_ORDER,build-all* selects its supported firmware variants itself.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,CIX_RELEASE,build-all* selects its supported firmware variants itself.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,ENABLE_TF_A_FIXES,build-all* selects its supported firmware variants itself.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,ENABLE_EXPERIMENTAL_UEFI_SETTINGS,build-all* selects its supported firmware variants itself.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,DEBUG_ON_UART3,build-all* selects its supported firmware variants itself.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,UART3_ENABLE,build-all* selects its supported firmware variants itself.) \
+	$(call BUILD_ALL_WARN_IF_IGNORED,DEBUG_VERBOSE,build-all* selects its supported firmware variants itself.) \
+	true
+
+preflight-wrapper-replay: preflight-wrapper-buildbox
+	@set -euo pipefail; \
+	$(FAIL_EDK2_REBASED_DETERMINISTIC); \
+	validate_cmd=(python3 "$(MAKE_INPUT_VALIDATOR)" validate \
+		--repo-root "$(REPO_ROOT)" \
+		--profile-file "$(VALIDATION_PROFILE_FILE)" \
+		--v "$(V)" \
+		--firmware-target "$(FIRMWARE_TARGET)" \
+		--firmware-board "$(FIRMWARE_BOARD)" \
+		--validation-profile "$(DETERMINISTIC_REPLAY_PROFILE)" \
+		--validation-board "$(FIRMWARE_BOARD)" \
+		--validation-target "$(RAW_FIRMWARE_TARGET)"); \
+	if [ -n "$(strip $(REPLAY_INPUT))" ]; then \
+		validate_cmd+=(--replay-input "$(strip $(REPLAY_INPUT))"); \
+	fi; \
+	if [ -n "$(strip $(REPLAY_BUILD_OPTIONS))" ]; then \
+		validate_cmd+=(--replay-build-options "$(strip $(REPLAY_BUILD_OPTIONS))"); \
+	fi; \
+	if [ -n "$(strip $(REPLAY_BUILD_DATE))" ]; then \
+		validate_cmd+=(--replay-build-date "$(strip $(REPLAY_BUILD_DATE))"); \
+	fi; \
+	"$${validate_cmd[@]}"
+
+.PHONY: prepare-replay-buildbox-image __prepare-replay-buildbox-image
+prepare-replay-buildbox-image:
+	$(Q)$(LOCKED_MAKE) __fail-edk2-rebased-deterministic V="$(V)"
+
+.PHONY: __fail-edk2-rebased-deterministic
+__fail-edk2-rebased-deterministic:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+
+__prepare-replay-buildbox-image:
+	@if [ "$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)" != "bookworm" ]; then \
+		exit 0; \
+	fi
+	$(Q)EDK2_CIX_VERBOSE="$(V)" \
+		EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
+		EDK2_CIX_REPLAY_IMAGE_NAME="$(REPLAY_BUILDBOX_IMAGE)" \
+		"$(REPO_ROOT)/scripts/ensure_replay_buildbox_image.sh"
+
+.PHONY: build-edk2 firmware-build firmware-stage install zip targz build-all build-all-zip build-all-targz validate-firmware validate-firmware-strict check-offline-audit-baselines audit-final-image-manifest audit-acpi-regression refresh-offline-audit-baselines audit-bundle capture-validation-profile deterministic-replay prepare-replay-buildbox-image gha-act-list gha-act-dry-run gha-act-run gha-act-run-clean buildbox-up buildbox-deb buildbox-firmware-build buildbox-firmware-log buildbox-firmware-stage buildbox-zip buildbox-targz buildbox-validate-firmware buildbox-validate-secure-boot-defaults buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile buildbox-metadata buildbox-ccache-stats prepare-buildbox-fiptool record-buildbox-fiptool-distro
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: ARTEFACT_MODE := custom
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: FIRMWARE_TARGET := RELEASE
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: FIRMWARE_DISTRO :=
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: FIRMWARE_STAGE_ROOT :=
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: FIRMWARE_ARCHIVE_BASENAME :=
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: ENABLE_FIRMWARE_FIXES :=
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: ENABLE_CORE_ORDER :=
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: CIX_RELEASE :=
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: ENABLE_TF_A_FIXES :=
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: ENABLE_EXPERIMENTAL_UEFI_SETTINGS :=
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: DEBUG_ON_UART3 :=
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: UART3_ENABLE :=
+build-all build-all-zip build-all-targz preflight-wrapper-build-all: DEBUG_VERBOSE :=
+build-edk2: preflight-wrapper-common
+firmware-build firmware-stage install zip targz: preflight-wrapper-firmware-build
+build-all build-all-zip build-all-targz: preflight-wrapper-build-all
+validate-firmware validate-firmware-strict refresh-offline-audit-baselines audit-final-image-manifest audit-acpi-regression audit-bundle capture-validation-profile: preflight-wrapper-validation
+deterministic-replay: preflight-wrapper-replay
+buildbox-up: preflight-wrapper-buildbox
+buildbox-deb: preflight-wrapper-buildbox prepare-buildbox-fiptool
+buildbox-metadata: preflight-wrapper-common preflight-wrapper-buildbox
+buildbox-ccache-stats: preflight-wrapper-buildbox
+buildbox-firmware-build buildbox-firmware-log buildbox-firmware-stage buildbox-zip buildbox-targz: preflight-wrapper-firmware-build preflight-wrapper-buildbox prepare-buildbox-fiptool
+buildbox-validate-firmware buildbox-validate-firmware-strict buildbox-audit-final-image-manifest buildbox-audit-acpi-regression buildbox-audit-bundle buildbox-capture-validation-profile: preflight-wrapper-validation preflight-wrapper-buildbox
+buildbox-validate-secure-boot-defaults: preflight-wrapper-firmware-build preflight-wrapper-buildbox prepare-buildbox-fiptool
+
+prepare-buildbox-fiptool:
+	@set -euo pipefail; \
+	clean_reason="$$(python3 "$(REPO_ROOT)/scripts/buildbox_fiptool_state.py" \
+		--prepare \
+		--build-dir "$(FIPTOOL_BUILD_DIR)" \
+		--stamp-path "$(FIPTOOL_DISTRO_STAMP)" \
+		--requested-distro "$(FIRMWARE_DISTRO_EFFECTIVE)")"; \
+	if [ -n "$$clean_reason" ]; then \
+		printf '[buildbox] Removing stale fiptool build (%s) before %s run\n' "$$clean_reason" "$(FIRMWARE_DISTRO_EFFECTIVE)"; \
+	fi
+
+record-buildbox-fiptool-distro:
+	@mkdir -p "$(dir $(FIPTOOL_DISTRO_STAMP))"
+	@printf '%s\n' "$(FIRMWARE_DISTRO_EFFECTIVE)" >"$(FIPTOOL_DISTRO_STAMP)"
+
+.PHONY: build-edk2 __build-edk2
+build-edk2:
+	$(Q)$(LOCKED_MAKE) __build-edk2 V="$(V)"
+
+__build-edk2:
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
+		$(SRC_COMMON_ARGS) \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VERSION="$(FIRMWARE_VERSION)"
+
+.PHONY: firmware-build __firmware-build
+firmware-build:
+	$(Q)$(LOCKED_MAKE) __firmware-build V="$(V)"
+
+__firmware-build:
+	@if [ "$(EDK2_CIX_SUPPRESS_BUILD_BANNER)" != "1" ]; then \
+		printf '[build] Building firmware: %s (%s, %s)\n' "$(FIRMWARE_VARIANT_PATH_LABEL)" "$(FIRMWARE_DISTRO_EFFECTIVE)" "$(FIRMWARE_VARIANT_OPTIONS_LABEL)"; \
+	fi
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
+		$(SRC_COMMON_ARGS) \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VERSION="$(FIRMWARE_VERSION)" $(FIRMWARE_SRC_BUILD_TARGETS)
+	@if [ "$(FIRMWARE_VALIDATE_ON_BUILD_EFFECTIVE)" = "1" ]; then \
+		printf '\n[validate] Checking artefacts against %s\n' "$(FIRMWARE_VALIDATION_PROFILE)"; \
+		mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"; \
+		python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
+			--repo-root "$(REPO_ROOT)" \
+			--board "$(FIRMWARE_BOARD)" \
+			--target "$(RAW_FIRMWARE_TARGET)" \
+			--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"; \
+	fi
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)"; \
+	fi
+
+.PHONY: __firmware-build-silent-output
+__firmware-build-silent-output:
+	$(Q)$(MAKE) --no-print-directory __firmware-build V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1
+
+.PHONY: firmware-stage __firmware-stage
+firmware-stage:
+	$(Q)$(LOCKED_MAKE) __firmware-stage V="$(V)"
+
+__firmware-stage: __firmware-build-silent-output
+	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" stage \
+		--repo-root "$(REPO_ROOT)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--product "$(FIRMWARE_PRODUCT)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
+		--version "$(FIRMWARE_VERSION)" \
+		$(if $(strip $(FIRMWARE_LAYOUT_RELATIVE_LEAF)),--relative-leaf "$(FIRMWARE_LAYOUT_RELATIVE_LEAF)") \
+		--output-dir "$(FIRMWARE_STAGE_ROOT)"
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Staged firmware payload available under %s\n' "$(FIRMWARE_STAGE_ROOT)"; \
+	fi
+
+.PHONY: install __install
+install:
+	$(Q)$(LOCKED_MAKE) __install V="$(V)"
+
+__install: __firmware-stage
+	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" install \
+		--repo-root "$(REPO_ROOT)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--product "$(FIRMWARE_PRODUCT)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
+		--version "$(FIRMWARE_VERSION)" \
+		$(if $(strip $(FIRMWARE_LAYOUT_RELATIVE_LEAF)),--relative-leaf "$(FIRMWARE_LAYOUT_RELATIVE_LEAF)") \
+		--install-root "$(FIRMWARE_INSTALL_ROOT)"
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Installed firmware payload available under %s\n' "$(FIRMWARE_INSTALL_DESTINATION)"; \
+	fi
+
+.PHONY: zip __zip
+zip:
+	$(Q)$(LOCKED_MAKE) __zip V="$(V)"
+
+__zip: __firmware-build-silent-output
+	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" zip \
+		--repo-root "$(REPO_ROOT)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--product "$(FIRMWARE_PRODUCT)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
+		--version "$(FIRMWARE_VERSION)" \
+		$(if $(strip $(FIRMWARE_LAYOUT_RELATIVE_LEAF)),--relative-leaf "$(FIRMWARE_LAYOUT_RELATIVE_LEAF)") \
+		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"; \
+	fi
+
+.PHONY: targz __targz
+targz:
+	$(Q)$(LOCKED_MAKE) __targz V="$(V)"
+
+__targz: __firmware-build-silent-output
+	$(Q)EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=1 python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" targz \
+		--repo-root "$(REPO_ROOT)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--product "$(FIRMWARE_PRODUCT)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
+		--artefact-mode "$(ARTEFACT_MODE)" \
+		--version "$(FIRMWARE_VERSION)" \
+		$(if $(strip $(FIRMWARE_LAYOUT_RELATIVE_LEAF)),--relative-leaf "$(FIRMWARE_LAYOUT_RELATIVE_LEAF)") \
+		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"; \
+	fi
+
+.PHONY: build-all build-all-zip build-all-targz __build-all-zip __build-all-targz
+build-all: build-all-targz
+
+build-all-zip:
+	$(Q)$(LOCKED_MAKE) __build-all-zip V="$(V)"
+
+build-all-targz:
+	$(Q)$(LOCKED_MAKE) __build-all-targz V="$(V)"
+
+__build-all-zip:
+	$(Q)python3 "$(REPO_ROOT)/scripts/build_firmware_variants.py" \
+		--repo-root "$(REPO_ROOT)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--product "$(FIRMWARE_PRODUCT)" \
+		--version "$(FIRMWARE_VERSION)" \
+		--make "$(MAKE)" \
+		--archive-format zip \
+		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_VARIANTS_ARCHIVE_BASENAME).zip" \
+		--ccache-dir "$(CCACHE_DIR)" \
+		--ccache-wrapper-root "$(CCACHE_WRAPPER_ROOT)" \
+		$(if $(strip $(CCACHE_BIN)),--ccache-bin "$(CCACHE_BIN)") \
+		$(if $(filter-out undefined,$(CCACHE_DISABLE_ORIGIN)),--ccache-disable "$(CCACHE_DISABLE)") \
+		$(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),--debug-print-error-level "$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)") \
+		--v "$(V)"
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Firmware variants archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_VARIANTS_ARCHIVE_BASENAME).zip"; \
+	fi
+
+__build-all-targz:
+	$(Q)python3 "$(REPO_ROOT)/scripts/build_firmware_variants.py" \
+		--repo-root "$(REPO_ROOT)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--product "$(FIRMWARE_PRODUCT)" \
+		--version "$(FIRMWARE_VERSION)" \
+		--make "$(MAKE)" \
+		--archive-format targz \
+		--output "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_VARIANTS_ARCHIVE_BASENAME).tar.gz" \
+		--ccache-dir "$(CCACHE_DIR)" \
+		--ccache-wrapper-root "$(CCACHE_WRAPPER_ROOT)" \
+		$(if $(strip $(CCACHE_BIN)),--ccache-bin "$(CCACHE_BIN)") \
+		$(if $(filter-out undefined,$(CCACHE_DISABLE_ORIGIN)),--ccache-disable "$(CCACHE_DISABLE)") \
+		$(if $(strip $(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)),--debug-print-error-level "$(DEBUG_PRINT_ERROR_LEVEL_NORMALIZED)") \
+		--v "$(V)"
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Firmware variants archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_VARIANTS_ARCHIVE_BASENAME).tar.gz"; \
+	fi
+
+.PHONY: validate-firmware __validate-firmware
+validate-firmware:
+	$(Q)$(LOCKED_MAKE) __validate-firmware V="$(V)"
+
+__validate-firmware:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
+		--repo-root "$(REPO_ROOT)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
+		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
+
+.PHONY: validate-firmware-strict __validate-firmware-strict
+validate-firmware-strict:
+	$(Q)$(LOCKED_MAKE) __validate-firmware-strict V="$(V)"
+
+__validate-firmware-strict:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
+		--repo-root "$(REPO_ROOT)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
+		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+		--strict \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json"
+
+.PHONY: check-offline-audit-baselines __check-offline-audit-baselines
+check-offline-audit-baselines:
+	$(Q)$(LOCKED_MAKE) __check-offline-audit-baselines V="$(V)"
+
+__check-offline-audit-baselines:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	$(Q)python3 "$(REPO_ROOT)/scripts/test_offline_audit_baselines.py"
+	$(Q)python3 "$(REPO_ROOT)/scripts/test_audit_acpi_regression.py"
+	$(Q)python3 "$(REPO_ROOT)/scripts/test_audit_final_image_manifest.py"
+	$(Q)python3 "$(REPO_ROOT)/scripts/test_export_firmware_payload.py"
+	$(Q)python3 "$(REPO_ROOT)/scripts/test_validate_firmware_outputs.py"
+
+.PHONY: audit-final-image-manifest __audit-final-image-manifest
+audit-final-image-manifest:
+	$(Q)$(LOCKED_MAKE) __audit-final-image-manifest V="$(V)"
+
+__audit-final-image-manifest:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
+		$(SRC_COMMON_ARGS) \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="$(FIRMWARE_VALIDATION_REPORT_ROOT)" \
+		audit-final-image-manifest-$(FIRMWARE_BOARD)
+
+.PHONY: audit-acpi-regression __audit-acpi-regression
+audit-acpi-regression:
+	$(Q)$(LOCKED_MAKE) __audit-acpi-regression V="$(V)"
+
+__audit-acpi-regression:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
+		$(SRC_COMMON_ARGS) \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="$(FIRMWARE_VALIDATION_REPORT_ROOT)" \
+		audit-acpi-regression-$(FIRMWARE_BOARD)
+
+.PHONY: refresh-offline-audit-baselines __refresh-offline-audit-baselines
+refresh-offline-audit-baselines:
+	$(Q)$(LOCKED_MAKE) __refresh-offline-audit-baselines V="$(V)"
+
+__refresh-offline-audit-baselines:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" \
+		$(SRC_COMMON_ARGS) \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VALIDATION_PROFILE="$(FIRMWARE_VALIDATION_PROFILE)" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="$(FIRMWARE_VALIDATION_REPORT_ROOT)" \
+		refresh-offline-audit-baselines-$(FIRMWARE_BOARD)
+	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
+
+.PHONY: audit-bundle __audit-bundle
+audit-bundle:
+	$(Q)$(LOCKED_MAKE) __audit-bundle V="$(V)"
+
+__audit-bundle:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	$(Q)$(MAKE) --no-print-directory check-offline-audit-baselines V="$(V)"
+	$(Q)$(MAKE) --no-print-directory firmware-build V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1
+	$(Q)$(MAKE) --no-print-directory validate-firmware-strict V="$(V)"
+	$(Q)$(MAKE) --no-print-directory audit-final-image-manifest V="$(V)"
+	$(Q)$(MAKE) --no-print-directory audit-acpi-regression V="$(V)"
+	$(Q)python3 "$(REPO_ROOT)/scripts/test_firmware_metadata_audit.py"
+	@if [ -n "$(strip $(MONOREPO_META_ROOT))" ]; then \
+		python3 "$(MONOREPO_META_ROOT)/scripts/monorepo/check_metadata_consistency.py" \
+			--metadata-root "$(MONOREPO_META_ROOT)" \
+			--source-repo "$(REPO_ROOT)"; \
+	fi
+
+.PHONY: capture-validation-profile __capture-validation-profile
+capture-validation-profile:
+	$(Q)$(LOCKED_MAKE) __capture-validation-profile V="$(V)"
+
+__capture-validation-profile:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
+	$(Q)python3 "$(REPO_ROOT)/scripts/validate_firmware_outputs.py" \
+		--repo-root "$(REPO_ROOT)" \
+		--board "$(FIRMWARE_BOARD)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
+		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(FIRMWARE_VALIDATION_PROFILE).json" \
+		--emit-profile "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-profile.json" \
+		--emit-profile-name "$(FIRMWARE_VALIDATION_PROFILE)"
+
+.PHONY: deterministic-replay __deterministic-replay
+deterministic-replay:
+	$(Q)$(LOCKED_MAKE) __deterministic-replay V="$(V)"
+
+__deterministic-replay:
+	@set -euo pipefail; \
+	$(FAIL_EDK2_REBASED_DETERMINISTIC); \
+	replay_board="$(FIRMWARE_BOARD)"; \
+	replay_dir="$(DETERMINISTIC_REPLAY_ROOT)"; \
+	replay_input='$(strip $(REPLAY_INPUT))'; \
+	replay_build_options='$(strip $(REPLAY_BUILD_OPTIONS))'; \
+	replay_build_date='$(strip $(REPLAY_BUILD_DATE))'; \
+	validation_file="$(REPO_ROOT)/validation/expected-hashes.json"; \
+	if [ ! -f "$$validation_file" ]; then \
+		echo "[replay] No checked-in exact replay validation data exists for board $$replay_board." >&2; \
+		echo "[replay] Expected: $$validation_file" >&2; \
+		exit 2; \
+	fi; \
+	if [ -n "$$replay_input" ]; then \
+		printf '[replay] Extracting exact replay inputs into %s\n' "$$replay_dir"; \
+		rm -rf "$$replay_dir"; \
+		mkdir -p "$$replay_dir"; \
+		replay_cmd=(env \
+			EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" \
+			EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
+			EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" \
+			python3 "$(REPO_ROOT)/src/scripts/replay_o6_release.py" "$$replay_input" --board "$$replay_board" --output-dir "$$replay_dir"); \
+		if [ -n "$$replay_build_options" ]; then \
+			replay_cmd+=(--build-options "$$replay_build_options"); \
+		fi; \
+		if [ -n "$$replay_build_date" ]; then \
+			replay_cmd+=(--build-date "$$replay_build_date"); \
+		fi; \
+		"$${replay_cmd[@]}"; \
+	elif [ ! -f "$$replay_dir/replay.env" ]; then \
+		echo "[replay] No cached replay inputs found at $$replay_dir/replay.env" >&2; \
+		echo "[replay] Re-run with REPLAY_INPUT=/path/to/edk2-cix_*.deb" >&2; \
+		echo "[replay] or REPLAY_INPUT=/path/to/cix_flash_all.bin plus REPLAY_BUILD_OPTIONS=/path/to/BuildOptions." >&2; \
+		exit 2; \
+	else \
+		printf '[replay] Reusing cached replay inputs from %s\n' "$$replay_dir"; \
+	fi; \
+	if [ ! -f "$$replay_dir/replay.env" ]; then \
+		echo "[replay] Expected $$replay_dir/replay.env after preparing replay inputs." >&2; \
+		exit 2; \
+	fi; \
+	set -a; . "$$replay_dir/replay.env"; set +a; \
+	replay_mount_root="$(DETERMINISTIC_REPLAY_MOUNT_ROOT)"; \
+	replay_cert_dir_host="$$SIGNING_CERT_SOURCE_DIR"; \
+	case "$$replay_cert_dir_host" in \
+		"$$replay_mount_root"/*) \
+			replay_cert_dir_container="/hosttmp/$${replay_cert_dir_host#$$replay_mount_root/}"; \
+			;; \
+		*) \
+			echo "[replay] Cached cert bundle $$replay_cert_dir_host is outside $$replay_mount_root and cannot be mounted into the buildbox." >&2; \
+			echo "[replay] Move the replay cache under $$replay_mount_root or override DETERMINISTIC_REPLAY_MOUNT_ROOT accordingly." >&2; \
+			exit 2; \
+			;; \
+	esac; \
+	printf '[replay] Running %s in %s using %s\n' "$(DETERMINISTIC_REPLAY_PROFILE)" "$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)" "$(DETERMINISTIC_REPLAY_IMAGE)"; \
+	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" \
+		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+		make --no-print-directory -C src clean V="$(V)"; \
+	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" \
+		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+		make --no-print-directory firmware-build V="$(V)" \
+		ARTEFACT_MODE="upstream" \
+		CCACHE_DIR="$(CCACHE_DIR_IN_CONTAINER)" \
+		CCACHE_WRAPPER_ROOT="$(CCACHE_WRAPPER_ROOT_IN_CONTAINER)" \
+		$(if $(strip $(CCACHE_BIN)),CCACHE_BIN="$(CCACHE_BIN)") \
+		$(if $(filter-out undefined,$(CCACHE_DISABLE_ORIGIN)),CCACHE_DISABLE="$(CCACHE_DISABLE)") \
+		FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
+		FIRMWARE_PRODUCT="$(REPLAY_PRODUCT)" \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VERSION="$(REPLAY_VERSION)" \
+		FIRMWARE_VALIDATION_PROFILE="$(DETERMINISTIC_REPLAY_PROFILE)" \
+		BUILD_DATE="$$BUILD_DATE" \
+		SOURCE_DATE_EPOCH="$$SOURCE_DATE_EPOCH" \
+		PM_CONFIG_SOURCE_DATE_EPOCH="$$PM_CONFIG_SOURCE_DATE_EPOCH" \
+		SIGNING_CERT_SOURCE_DIR="$$replay_cert_dir_container" \
+		SOURCE_COMMIT="$${SOURCE_COMMIT:-}" \
+		SOURCE_COMMIT_HASH_LENGTH="$${SOURCE_COMMIT_HASH_LENGTH:-}" \
+		EDK2_SOURCE_COMMIT="$${EDK2_SOURCE_COMMIT:-}" \
+		EDK2_COMMIT_HASH_LENGTH="$${EDK2_COMMIT_HASH_LENGTH:-}" \
+		EDK2_NON_OSI_SOURCE_COMMIT="$${EDK2_NON_OSI_SOURCE_COMMIT:-}" \
+		EDK2_NON_OSI_COMMIT_HASH_LENGTH="$${EDK2_NON_OSI_COMMIT_HASH_LENGTH:-}" \
+		EDK2_PLATFORMS_SOURCE_COMMIT="$${EDK2_PLATFORMS_SOURCE_COMMIT:-}" \
+		EDK2_PLATFORMS_COMMIT_HASH_LENGTH="$${EDK2_PLATFORMS_COMMIT_HASH_LENGTH:-}"; \
+	reference_dir="$$replay_dir/reference"; \
+	if [ -d "$$reference_dir" ]; then \
+		printf '[replay] Comparing built outputs against upstream release payload in %s\n' "$$reference_dir"; \
+		mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"; \
+		python3 "$(REPO_ROOT)/scripts/compare_release_payloads.py" \
+			--build-dir "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)" \
+			--reference-dir "$$reference_dir" \
+			--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(DETERMINISTIC_REPLAY_PROFILE)-release-compare.json" \
+			--strict; \
+	else \
+		printf '[replay] No preserved upstream release payload found at %s; skipping direct release comparison\n' "$$reference_dir"; \
+	fi; \
+	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" \
+		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+		make --no-print-directory validate-firmware-strict V="$(V)" \
+		FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
+		FIRMWARE_PRODUCT="$(REPLAY_PRODUCT)" \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VERSION="$(REPLAY_VERSION)" \
+		FIRMWARE_VALIDATION_PROFILE="$(DETERMINISTIC_REPLAY_PROFILE)"
+
+.PHONY: gha-act-list __gha-act-list
+gha-act-list:
+	$(Q)$(LOCKED_MAKE) __gha-act-list V="$(V)"
+
+__gha-act-list:
+	@set -euo pipefail; \
+	args=(); \
+	if [ -n "$(strip $(ACT_WORKFLOW))" ]; then \
+		args+=(-W "$(strip $(ACT_WORKFLOW))"); \
+	fi; \
+	"$(REPO_ROOT)/scripts/run_github_actions_with_act.sh" "$${args[@]}" -l
+
+.PHONY: gha-act-dry-run __gha-act-dry-run
+gha-act-dry-run:
+	$(Q)$(LOCKED_MAKE) __gha-act-dry-run V="$(V)"
+
+__gha-act-dry-run:
+	@set -euo pipefail; \
+	workflow="$(strip $(ACT_WORKFLOW))"; \
+	if [ -z "$$workflow" ]; then \
+		echo "[act] Set ACT_WORKFLOW=.github/workflows/<file>.yaml for gha-act-dry-run." >&2; \
+		exit 2; \
+	fi; \
+	args=("$(ACT_EVENT)" -W "$$workflow" -n); \
+	if [ -n "$(strip $(ACT_JOB))" ]; then \
+		args+=(-j "$(strip $(ACT_JOB))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_MATRIX))" ]; then \
+		args+=(--matrix "$(strip $(ACT_MATRIX))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_SECRET_FILE))" ]; then \
+		args+=(--secret-file "$(strip $(ACT_SECRET_FILE))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_EXTRA_ARGS))" ]; then \
+		extra_args=( $(ACT_EXTRA_ARGS) ); \
+		args+=("$${extra_args[@]}"); \
+	fi; \
+	"$(REPO_ROOT)/scripts/run_github_actions_with_act.sh" "$${args[@]}"
+
+.PHONY: gha-act-run __gha-act-run
+gha-act-run:
+	$(Q)$(LOCKED_MAKE) __gha-act-run V="$(V)"
+
+__gha-act-run:
+	@set -euo pipefail; \
+	workflow="$(strip $(ACT_WORKFLOW))"; \
+	if [ -z "$$workflow" ]; then \
+		echo "[act] Set ACT_WORKFLOW=.github/workflows/<file>.yaml for gha-act-run." >&2; \
+		exit 2; \
+	fi; \
+	args=("$(ACT_EVENT)" -W "$$workflow"); \
+	if [ -n "$(strip $(ACT_JOB))" ]; then \
+		args+=(-j "$(strip $(ACT_JOB))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_MATRIX))" ]; then \
+		args+=(--matrix "$(strip $(ACT_MATRIX))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_SECRET_FILE))" ]; then \
+		args+=(--secret-file "$(strip $(ACT_SECRET_FILE))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_EXTRA_ARGS))" ]; then \
+		extra_args=( $(ACT_EXTRA_ARGS) ); \
+		args+=("$${extra_args[@]}"); \
+	fi; \
+	"$(REPO_ROOT)/scripts/run_github_actions_with_act.sh" "$${args[@]}"
+
+.PHONY: gha-act-run-clean __gha-act-run-clean
+gha-act-run-clean:
+	$(Q)$(LOCKED_MAKE) __gha-act-run-clean V="$(V)"
+
+__gha-act-run-clean:
+	@set -euo pipefail; \
+	workflow="$(strip $(ACT_WORKFLOW))"; \
+	if [ -z "$$workflow" ]; then \
+		echo "[act] Set ACT_WORKFLOW=.github/workflows/<file>.yaml for gha-act-run-clean." >&2; \
+		exit 2; \
+	fi; \
+	args=("$(ACT_EVENT)" -W "$$workflow"); \
+	if [ -n "$(strip $(ACT_JOB))" ]; then \
+		args+=(-j "$(strip $(ACT_JOB))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_MATRIX))" ]; then \
+		args+=(--matrix "$(strip $(ACT_MATRIX))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_SECRET_FILE))" ]; then \
+		args+=(--secret-file "$(strip $(ACT_SECRET_FILE))"); \
+	fi; \
+	if [ -n "$(strip $(ACT_EXTRA_ARGS))" ]; then \
+		extra_args=( $(ACT_EXTRA_ARGS) ); \
+		args+=("$${extra_args[@]}"); \
+	fi; \
+	EDK2_CIX_ACT_CLEAN_KEEP="$(strip $(ACT_CLEAN_KEEP))" \
+		"$(REPO_ROOT)/scripts/run_github_actions_with_act_clean_checkout.sh" "$${args[@]}"
+
+.PHONY: clean __clean clean-ccache __clean-ccache clean-cix-cache __clean-cix-cache
+clean:
+	$(Q)$(LOCKED_MAKE) __clean V="$(V)"
+
+__clean: __clean-edk2 __clean-buildbox
+
+.PHONY: clean-edk2 __clean-edk2
+clean-edk2:
+	$(Q)$(LOCKED_MAKE) __clean-edk2 V="$(V)"
+
+__clean-edk2:
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" clean
+
+.PHONY: clean-ccache __clean-ccache
+clean-ccache:
+	$(Q)$(LOCKED_MAKE) __clean-ccache V="$(V)"
+
+__clean-ccache:
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" clean-ccache
+
+.PHONY: clean-cix-cache __clean-cix-cache
+clean-cix-cache:
+	$(Q)$(LOCKED_MAKE) __clean-cix-cache V="$(V)"
+
+__clean-cix-cache:
+	$(Q)$(MAKE) --no-print-directory -C "$(REPO_ROOT)/src" V="$(V)" clean-cix-cache
+
+.PHONY: buildbox-down __buildbox-down
+buildbox-down:
+	$(Q)$(LOCKED_MAKE) __buildbox-down V="$(V)"
+
+__buildbox-down:
+	@buildbox_name_file="$(REPO_ROOT)/.buildbox/buildbox-name"; \
+	container_names=(); \
+	requested_runtime="$${EDK2_CIX_CONTAINER_RUNTIME:-}"; \
+	default_runtime_helper="$(REPO_ROOT)/scripts/default_container_runtimes.sh"; \
+	runtimes=(); \
+	removed=0; \
+	found_runtime=0; \
+	add_runtime() { \
+		local candidate="$$1"; \
+		local existing; \
+		[ -n "$$candidate" ] || return 0; \
+		for existing in "$${runtimes[@]}"; do \
+			if [ "$$existing" = "$$candidate" ]; then \
+				return 0; \
+			fi; \
+		done; \
+		runtimes+=("$$candidate"); \
+	}; \
+	add_container_name() { \
+		local candidate="$$1"; \
+		local existing; \
+		[ -n "$$candidate" ] || return 0; \
+		for existing in "$${container_names[@]}"; do \
+			if [ "$$existing" = "$$candidate" ]; then \
+				return 0; \
+			fi; \
+		done; \
+		container_names+=("$$candidate"); \
+	}; \
+	if [ -n "$${EDK2_CIX_BUILDBOX_NAME:-}" ]; then \
+		add_container_name "$${EDK2_CIX_BUILDBOX_NAME}"; \
+	fi; \
+	if [ -f "$$buildbox_name_file" ]; then \
+		IFS= read -r stored_name <"$$buildbox_name_file" || true; \
+		add_container_name "$$stored_name"; \
+	fi; \
+	add_container_name edk2-cix-buildbox; \
+	if [ -n "$$requested_runtime" ]; then \
+		add_runtime "$$requested_runtime"; \
+	fi; \
+	while IFS= read -r runtime; do \
+		add_runtime "$$runtime"; \
+	done < <(bash "$$default_runtime_helper"); \
+	if [ "$${#runtimes[@]}" -eq 0 ]; then \
+		add_runtime podman; \
+		add_runtime docker; \
+	fi; \
+	for runtime in "$${runtimes[@]}"; do \
+		command -v "$$runtime" >/dev/null 2>&1 || continue; \
+		found_runtime=1; \
+		for container_name in "$${container_names[@]}"; do \
+			if "$$runtime" container inspect "$$container_name" >/dev/null 2>&1; then \
+				printf '[clean] Removing buildbox container %s via %s\n' "$$container_name" "$$runtime"; \
+				"$$runtime" rm -f "$$container_name" >/dev/null; \
+				removed=1; \
+			fi; \
+		done; \
+	done; \
+	if [ "$$removed" -eq 0 ]; then \
+		if [ "$$found_runtime" -eq 0 ]; then \
+			printf '%s\n' '[clean] No container runtime available; skipping buildbox cleanup'; \
+		else \
+			printf '%s\n' '[clean] No buildbox container to remove'; \
+		fi; \
+	fi
+
+.PHONY: clean-buildbox __clean-buildbox
+clean-buildbox:
+	$(Q)$(LOCKED_MAKE) __clean-buildbox V="$(V)"
+
+__clean-buildbox: __buildbox-down
+	@if [ -d "$(BUILDBOX_HOST_TMPDIR)" ]; then \
+		printf '[clean] Removing buildbox scratch %s\n' "$(BUILDBOX_HOST_TMPDIR)"; \
+		rm -rf "$(BUILDBOX_HOST_TMPDIR)"; \
+	fi
+	@if [ -f "$(REPO_ROOT)/.buildbox/buildbox-name" ]; then \
+		printf '[clean] Removing buildbox name file %s\n' "$(REPO_ROOT)/.buildbox/buildbox-name"; \
+		rm -f "$(REPO_ROOT)/.buildbox/buildbox-name"; \
+	fi
+
+.PHONY: buildbox-up __buildbox-up
+buildbox-up:
+	$(Q)$(LOCKED_MAKE) __buildbox-up V="$(V)"
+
+__buildbox-up:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" true
+
+.PHONY: buildbox-deb __buildbox-deb
+buildbox-deb:
+	$(Q)$(LOCKED_MAKE) __buildbox-deb V="$(V)"
+
+__buildbox-deb:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" --dep-profile packaging \
+		make --no-print-directory deb V="$(V)"
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Debian packages available under %s\n' "$(BUILDBOX_DEB_RESULT_ROOT)"; \
+	fi
+
+.PHONY: buildbox-firmware-build __buildbox-firmware-build
+buildbox-firmware-build:
+	$(Q)$(LOCKED_MAKE) __buildbox-firmware-build V="$(V)"
+
+__buildbox-firmware-build:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-build V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
+		$(BUILDBOX_FIRMWARE_ARGS)
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Raw firmware images available under %s\n' "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)"; \
+	fi
+
+.PHONY: buildbox-firmware-log __buildbox-firmware-log
+buildbox-firmware-log:
+	$(Q)$(LOCKED_MAKE) __buildbox-firmware-log V="$(V)"
+
+__buildbox-firmware-log:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/capture_build_log.sh" "$(BUILD_LOG_ROOT)" \
+		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+		make --no-print-directory firmware-build V="$(V)" $(BUILDBOX_FIRMWARE_ARGS)
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
+
+.PHONY: buildbox-firmware-stage __buildbox-firmware-stage
+buildbox-firmware-stage:
+	$(Q)$(LOCKED_MAKE) __buildbox-firmware-stage V="$(V)"
+
+__buildbox-firmware-stage:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory firmware-stage V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
+		$(BUILDBOX_FIRMWARE_ARGS)
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Staged firmware payload available under %s\n' "$(FIRMWARE_STAGE_ROOT)"; \
+	fi
+
+.PHONY: buildbox-zip __buildbox-zip
+buildbox-zip:
+	$(Q)$(LOCKED_MAKE) __buildbox-zip V="$(V)"
+
+__buildbox-zip:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory zip V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
+		$(BUILDBOX_FIRMWARE_ARGS)
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).zip"; \
+	fi
+
+.PHONY: buildbox-targz __buildbox-targz
+buildbox-targz:
+	$(Q)$(LOCKED_MAKE) __buildbox-targz V="$(V)"
+
+__buildbox-targz:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory targz V="$(V)" EDK2_CIX_SUPPRESS_FINAL_OUTPUT=1 \
+		$(BUILDBOX_FIRMWARE_ARGS)
+	$(Q)$(MAKE) --no-print-directory record-buildbox-fiptool-distro
+	@if [ "$(EDK2_CIX_SUPPRESS_FINAL_OUTPUT)" != "1" ]; then \
+		printf '[output] Firmware archive available at %s\n' "$(FIRMWARE_ARCHIVE_ROOT)/$(FIRMWARE_ARCHIVE_BASENAME).tar.gz"; \
+	fi
+
+.PHONY: buildbox-validate-firmware __buildbox-validate-firmware
+buildbox-validate-firmware:
+	$(Q)$(LOCKED_MAKE) __buildbox-validate-firmware V="$(V)"
+
+__buildbox-validate-firmware:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware V="$(V)" \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-validate-secure-boot-defaults __buildbox-validate-secure-boot-defaults
+buildbox-validate-secure-boot-defaults:
+	$(Q)$(LOCKED_MAKE) __buildbox-validate-secure-boot-defaults V="$(V)"
+
+__buildbox-validate-secure-boot-defaults:
+	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory -C src validate-secure-boot-defaults-$(FIRMWARE_BOARD) V="$(V)" \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-validate-firmware-strict __buildbox-validate-firmware-strict
+buildbox-validate-firmware-strict:
+	$(Q)$(LOCKED_MAKE) __buildbox-validate-firmware-strict V="$(V)"
+
+__buildbox-validate-firmware-strict:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory validate-firmware-strict V="$(V)" \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-audit-final-image-manifest __buildbox-audit-final-image-manifest
+buildbox-audit-final-image-manifest:
+	$(Q)$(LOCKED_MAKE) __buildbox-audit-final-image-manifest V="$(V)"
+
+__buildbox-audit-final-image-manifest:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory audit-final-image-manifest V="$(V)" \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-audit-acpi-regression __buildbox-audit-acpi-regression
+buildbox-audit-acpi-regression:
+	$(Q)$(LOCKED_MAKE) __buildbox-audit-acpi-regression V="$(V)"
+
+__buildbox-audit-acpi-regression:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory audit-acpi-regression V="$(V)" \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-audit-bundle __buildbox-audit-bundle
+buildbox-audit-bundle:
+	$(Q)$(LOCKED_MAKE) __buildbox-audit-bundle V="$(V)"
+
+__buildbox-audit-bundle:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory audit-bundle V="$(V)" \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-capture-validation-profile __buildbox-capture-validation-profile
+buildbox-capture-validation-profile:
+	$(Q)$(LOCKED_MAKE) __buildbox-capture-validation-profile V="$(V)"
+
+__buildbox-capture-validation-profile:
+	@$(FAIL_EDK2_REBASED_DETERMINISTIC)
+	$(Q)$(VALIDATION_BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory capture-validation-profile V="$(V)" \
+		$(BUILDBOX_FIRMWARE_ARGS)
+
+.PHONY: buildbox-metadata __buildbox-metadata
+buildbox-metadata:
+	$(Q)$(LOCKED_MAKE) __buildbox-metadata V="$(V)"
+
+__buildbox-metadata:
+	$(Q)$(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" make --no-print-directory -C src print-build-metadata V="$(V)" \
+		$(SRC_COMMON_ARGS) \
+		CCACHE_DIR="$(CCACHE_DIR_IN_CONTAINER)" \
+		CCACHE_WRAPPER_ROOT="$(CCACHE_WRAPPER_ROOT_IN_CONTAINER)" \
+		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
+		FIRMWARE_VERSION="$(FIRMWARE_VERSION)"
+
+.PHONY: buildbox-ccache-stats __buildbox-ccache-stats
+buildbox-ccache-stats:
+	$(Q)$(LOCKED_MAKE) __buildbox-ccache-stats V="$(V)"
+
+__buildbox-ccache-stats:
+	@set -euo pipefail; \
+	stats_log="$$(mktemp "$(REPO_ROOT)/.buildbox/tmp/ccache-stats.XXXXXX")"; \
+	if ! $(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+		python3 "$(BUILDBOX_WORKSPACE_ROOT)/scripts/ccache_stats.py" \
+			--cache-dir "$(CCACHE_DIR_IN_CONTAINER)" \
+			$(if $(strip $(CCACHE_BIN)),--ccache-bin "$(CCACHE_BIN)") >"$$stats_log" 2>&1; then \
+		cat "$$stats_log" >&2; \
+		rm -f "$$stats_log"; \
+		exit 1; \
+	fi; \
+	python3 "$(REPO_ROOT)/scripts/format_ccache_stats.py" --format "$(CCACHE_STATS_FORMAT)" "$$stats_log"; \
+	rm -f "$$stats_log"
