@@ -114,6 +114,14 @@ def write_config(repo: Path) -> None:
             "tree_id": ZERO,
         }],
     })
+    write_json(repo / "config/refs-unofficial.json", {
+        "refs": [{
+            "ref": "source/unofficial/edk2-stable202208",
+            "object_id": ZERO,
+            "tree_id": ZERO,
+            "type": "unofficial-release-checkpoint",
+        }],
+    })
     write_json(repo / "config/refs-source-target-cache.json", {
         "defaults": {"immutable": True, "type": "rendered-release"},
         "refs": [
@@ -196,6 +204,9 @@ def test_refresh_repairs_hashes_cache_trees_and_tags() -> None:
 
         edk2 = load_json(repo / "config/refs-edk2.json")
         require(edk2["releases"][0]["components"]["edk2"]["object_id"] == rev_parse(repo, "source/base/edk2/edk2-stable202208"), "edk2 object_id was not refreshed")
+        unofficial = load_json(repo / "config/refs-unofficial.json")
+        require(unofficial["refs"][0]["object_id"] == rev_parse(repo, "source/unofficial/edk2-stable202208"), "unofficial object_id was not refreshed")
+        require(unofficial["refs"][0]["tree_id"] == git(repo, "rev-parse", "source/unofficial/edk2-stable202208^{tree}").stdout.strip(), "unofficial tree_id was not refreshed")
         cache = load_json(repo / "config/refs-source-target-cache.json")
         custom_tree = cache["refs"][0]["tree_id"]
         require(custom_tree == git(repo, "rev-parse", "source/unofficial/edk2-stable202208^{tree}").stdout.strip(), "custom cache tree was not derived from source/unofficial")

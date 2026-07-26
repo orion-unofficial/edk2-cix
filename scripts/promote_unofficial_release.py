@@ -41,7 +41,7 @@ from reconstruction_common import (
     version_key,
     write_json,
 )
-from source_porting import apply_source_delta_to_base
+from source_porting import apply_source_delta_to_base, normalise_source_tree
 
 
 HELP = """promote-unofficial-release
@@ -246,7 +246,19 @@ def main() -> None:
     )
     if args.resolved_ref:
         resolved = rev_parse(repo, args.resolved_ref)
-        candidate = git(repo, "commit-tree", f"{resolved}^{{tree}}", "-m", message).stdout.strip()
+        changed = [
+            line
+            for line in git(repo, "diff", "--name-only", new_port_ref, resolved).stdout.splitlines()
+            if line
+        ]
+        tree, _result = normalise_source_tree(
+            repo,
+            tree=tree_id(repo, resolved),
+            label=f"unofficial-{line}-{radxa_release}-{edk2_base}",
+            verbose=verbose,
+            paths=changed,
+        )
+        candidate = git(repo, "commit-tree", tree, "-m", message).stdout.strip()
     else:
         candidate = apply_source_delta_to_base(
             repo,
@@ -256,6 +268,7 @@ def main() -> None:
             message=message,
             label=f"unofficial-{line}-{radxa_release}-{edk2_base}",
             source_owned_paths=BUILD_INFRA_OVERLAY_PATHS,
+            normalise_source=True,
             resume_variable="RESOLVED_REF",
             verbose=verbose,
         )

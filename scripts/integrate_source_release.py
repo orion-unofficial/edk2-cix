@@ -36,7 +36,7 @@ from reconstruction_common import (
     version_key,
 )
 from render_release_branch import gitlinks, materialise_submodules
-from source_porting import apply_source_delta_to_base
+from source_porting import apply_source_delta_to_base, normalise_source_tree
 
 
 HELP = """integrate-source-release
@@ -567,6 +567,20 @@ def commit_radxa_source_snapshot(
 
     source_tree = tree_id(repo, source_ref)
     kind = "vendor source" if record_type == "vendor-source" else "ported vendor source"
+    if record_type == "ported-vendor-source":
+        base_ref = resolve_ref_or_generated_cache(repo, cache_base_ref(edk2_base))
+        source_delta_paths = [
+            line
+            for line in git(repo, "diff", "--name-only", base_ref, source_ref).stdout.splitlines()
+            if line
+        ]
+        source_tree, _result = normalise_source_tree(
+            repo,
+            tree=source_tree,
+            label=f"radxa-{release}-{edk2_base}",
+            verbose=False,
+            paths=source_delta_paths,
+        )
     message = (
         f"source: record Radxa {release} {kind} for {edk2_base}\n\n"
         f"Source-Base: {CACHE_BASE_EDK2_PREFIX}{edk2_base}\n"
@@ -599,6 +613,7 @@ def ported_radxa_source_snapshot(
         new_base_ref=new_base_ref,
         message=message,
         label=f"radxa-{release}-{normalise_edk2_base(to_edk2_base)}",
+        normalise_source=True,
         verbose=verbose,
     )
 

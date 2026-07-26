@@ -16,7 +16,9 @@ from reconstruction_common import (
     check_immutable_refs,
     ref_exists,
     selected_unofficial_current_ref,
+    tree_id,
 )
+from source_porting import normalise_overlay_tree
 from uplift_radxa_release import (
     ensure_checkpoint_record,
     release_line,
@@ -180,6 +182,84 @@ def test_resolved_unofficial_tree_gets_canonical_provenance_commit() -> None:
         require(
             f"Source-Port-To: {new_port}" in message,
             "canonical checkpoint provenance did not record the actual new port",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_final_unofficial_candidate_is_promoted_without_rewriting() -> None:
+    repo = make_repo()
+    try:
+        create_branch(
+            repo,
+            "source/port/radxa/1.2.1/edk2-stable202605",
+            {"src/firmware.c": "old\n"},
+            "old port",
+        )
+        new_port = create_branch(
+            repo,
+            "new-port",
+            {"src/firmware.c": "new\n"},
+            "new port",
+        )
+        final = create_branch(
+            repo,
+            "tested-final",
+            {"src/firmware.c": "tested\n"},
+            "tested final",
+        )
+        git(repo, "switch", "build")
+
+        candidate = unofficial_candidate(
+            repo,
+            from_release="1.2.1",
+            to_release="1.2.2",
+            edk2_base="edk2-stable202605",
+            from_unofficial_ref="source/port/radxa/1.2.1/edk2-stable202605",
+            new_port_ref=new_port,
+            resolved_ref=final,
+            resolved_stage="final",
+            verbose=False,
+        )
+        require(candidate == final, "tested final candidate was rewritten during promotion")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_source_stage_resume_flags_changed_overlay_when_vendor_source_is_unchanged() -> None:
+    repo = make_repo()
+    try:
+        unofficial = create_branch(
+            repo,
+            "unofficial",
+            {
+                "src/component/file.c": "vendor\n",
+                "custom/overlay/component/file.c": "custom policy\n",
+            },
+            "unofficial",
+        )
+        switch_orphan(repo, "resolved")
+        write_file(repo, "src/component/file.c", "vendor\n")
+        lost_overlay = repo / "custom/overlay/component/file.c"
+        lost_overlay.parent.mkdir(parents=True, exist_ok=True)
+        lost_overlay.symlink_to("../../../src/component/file.c")
+        resolved = commit_all(repo, "resolved source conflicts with lost overlay")
+        git(repo, "switch", "build")
+
+        _tree, conflicts, detail = normalise_overlay_tree(
+            repo,
+            tree=tree_id(repo, resolved),
+            source_ref=unofficial,
+            label="unchanged-source-overlay-state",
+            verbose=False,
+        )
+        require(
+            conflicts == {"custom/overlay/component/file.c"},
+            "changed overlay state over unchanged source was not flagged for review",
+        )
+        require(
+            "intentionally absorbed by related source changes" in detail,
+            "overlay-state conflict did not explain the cross-file decision",
         )
     finally:
         shutil.rmtree(repo)
@@ -597,6 +677,8 @@ def main() -> None:
     test_overlap_report_separates_policy_owned_paths()
     test_update_policy_migrates_legacy_current_to_line_records()
     test_resolved_unofficial_tree_gets_canonical_provenance_commit()
+    test_final_unofficial_candidate_is_promoted_without_rewriting()
+    test_source_stage_resume_flags_changed_overlay_when_vendor_source_is_unchanged()
     test_resolved_unofficial_stage_detects_overlay_handoff()
     test_active_line_tip_can_advance_beyond_immutable_checkpoint()
     test_release_line_validation()

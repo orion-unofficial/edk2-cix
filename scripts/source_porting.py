@@ -28,6 +28,12 @@ from source_lifecycle import (
     write_mirror_symlink,
 )
 from source_policy import NORMAL_FILE_MODES, overlay_source_path
+from source_normalisation import (
+    NormalisationResult,
+    attribute_inconsistent_paths,
+    modified_tracked_paths,
+    normalise_worktree,
+)
 
 
 def commit_index(repo: Path, worktree: Path, message: str) -> str:
@@ -85,6 +91,28 @@ def conflicted_paths(merge_output: str) -> set[str]:
         if len(parts) == 3 and parts[0] in {"100644", "100755", "120000"} and parts[2] in {"1", "2", "3"}:
             paths.add(path)
     return paths
+
+
+def unchanged_ours_conflicts(merge_output: str) -> set[str]:
+    """Find false rename conflicts whose base and ours entries are identical."""
+
+    entries: dict[str, dict[str, tuple[str, str]]] = {}
+    for line in merge_output.splitlines():
+        if "\t" not in line:
+            continue
+        meta, path = line.split("\t", 1)
+        parts = meta.split()
+        if (
+            len(parts) == 3
+            and parts[0] in {"100644", "100755", "120000"}
+            and parts[2] in {"1", "2", "3"}
+        ):
+            entries.setdefault(path, {})[parts[2]] = (parts[0], parts[1])
+    return {
+        path
+        for path, stages in entries.items()
+        if set(stages) == {"1", "2"} and stages["1"] == stages["2"]
+    }
 
 
 def preserve_conflict_worktree(
@@ -255,29 +283,47 @@ def normalise_overlay_tree(
                     or new_source is None
                     or previous_source.mode not in NORMAL_FILE_MODES
                     or new_source.mode not in NORMAL_FILE_MODES
-                    or previous_source.object_id == new_source.object_id
                 ):
                     continue
 
                 overlay_blob = git_blob_bytes(repo, entry.object_id)
                 new_source_blob = git_blob_bytes(repo, new_source.object_id)
+                if previous_source.object_id == new_source.object_id:
+                    current = git(
+                        worktree,
+                        "ls-files",
+                        "-s",
+                        "--",
+                        projection.target_overlay_path,
+                    ).stdout.strip()
+                    expected = f"{entry.mode} {entry.object_id} 0\t{projection.target_overlay_path}"
+                    if current != expected:
+                        conflicts.add(projection.target_overlay_path)
+                        details.append(
+                            "CONFLICT (overlay state): "
+                            f"{projection.target_overlay_path} changed even though "
+                            f"{projection.source_path} did not; review whether the "
+                            "overlay was intentionally absorbed by related source changes"
+                        )
+                    continue
                 if overlay_blob == new_source_blob:
                     write_mirror_symlink(worktree, projection.target_overlay_path)
                     continue
                 previous_source_blob = git_blob_bytes(repo, previous_source.object_id)
-                overlay_text = normalise_merge_text(overlay_blob)
-                previous_text = normalise_merge_text(previous_source_blob)
-                new_text = normalise_merge_text(new_source_blob)
-                if overlay_text is None or previous_text is None or new_text is None:
+                overlay_normalised = normalise_merge_text(overlay_blob)
+                previous_normalised = normalise_merge_text(previous_source_blob)
+                new_normalised = normalise_merge_text(new_source_blob)
+                if (
+                    overlay_normalised is None
+                    or previous_normalised is None
+                    or new_normalised is None
+                ):
                     conflicts.add(projection.target_overlay_path)
                     details.append(
                         "CONFLICT (overlay content): "
                         f"{projection.target_overlay_path} contains binary data and requires review"
                     )
                     continue
-                overlay_normalised, overlay_eol = overlay_text
-                previous_normalised, _previous_eol = previous_text
-                new_normalised, _new_eol = new_text
                 if overlay_normalised == new_normalised:
                     write_mirror_symlink(worktree, projection.target_overlay_path)
                     continue
@@ -312,7 +358,7 @@ def normalise_overlay_tree(
                     if merge.stdout == new_normalised:
                         write_mirror_symlink(worktree, projection.target_overlay_path)
                         continue
-                    target_path.write_bytes(restore_line_endings(merge.stdout, overlay_eol))
+                    target_path.write_bytes(merge.stdout)
                     target_path.chmod(0o755 if entry.mode == "100755" else 0o644)
                     git(worktree, "add", "--", projection.target_overlay_path)
                     if merge.returncode > 0:
@@ -406,19 +452,54 @@ def mirror_complete_overlay_additions(
             write_mirror_symlink(worktree, overlay_path)
 
 
-def normalise_merge_text(data: bytes) -> tuple[bytes, bytes] | None:
+def normalise_merge_text(data: bytes) -> bytes | None:
     if b"\0" in data:
         return None
-    crlf_count = data.count(b"\r\n")
-    lf_count = data.count(b"\n")
-    eol = b"\r\n" if crlf_count and crlf_count == lf_count else b"\n"
-    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n"), eol
+    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
 
 
-def restore_line_endings(data: bytes, eol: bytes) -> bytes:
-    if eol == b"\r\n":
-        return data.replace(b"\n", b"\r\n")
-    return data
+def normalise_source_tree(
+    repo: Path,
+    *,
+    tree: str,
+    label: str,
+    verbose: bool,
+    paths: Iterable[str] = (),
+) -> tuple[str, NormalisationResult]:
+    """Canonicalise selected editable-source paths without changing raw vendor refs."""
+
+    candidate = commit_tree(
+        repo,
+        tree,
+        f"source-port: prepare source normalisation for {label}\n",
+    )
+    with temp_dir(repo, f"normalise-{safe_name(label)}-") as tmp:
+        worktree = Path(tmp) / "worktree"
+        git(repo, "worktree", "add", "--detach", str(worktree), candidate, capture=not verbose)
+        try:
+            selected_paths = list(
+                dict.fromkeys(
+                    [
+                        *paths,
+                        *modified_tracked_paths(worktree),
+                        *attribute_inconsistent_paths(worktree),
+                    ]
+                )
+            )
+            result = normalise_worktree(worktree, paths=selected_paths)
+            if verbose and result.changed:
+                print(
+                    "Normalised source tree: "
+                    f"{result.line_endings} line-ending file(s), "
+                    f"{result.trailing_whitespace} trailing-whitespace file(s), "
+                    f"{result.file_modes} file mode(s)",
+                    file=sys.stderr,
+                )
+            if not result.changed:
+                return tree, result
+            return git(worktree, "write-tree").stdout.strip(), result
+        finally:
+            git(repo, "worktree", "remove", "--force", str(worktree), check=False, capture=True)
 
 
 def merge_source_tree(
@@ -477,6 +558,16 @@ def merge_source_tree(
                     file=sys.stderr,
                 )
             conflicts -= policy_conflicts
+        unchanged_ours = unchanged_ours_conflicts(result.stdout)
+        if unchanged_ours:
+            conflicts -= unchanged_ours
+            if verbose:
+                print(
+                    "Ignored "
+                    f"{len(unchanged_ours)} false rename conflict(s) whose "
+                    "base and new-base entries are identical",
+                    file=sys.stderr,
+                )
         if conflicts:
             worktree = preserve_conflict_worktree(
                 repo,
@@ -551,6 +642,7 @@ def apply_source_delta_to_base(
     message: str,
     label: str,
     source_owned_paths: Iterable[str] = (),
+    normalise_source: bool = False,
     resume_variable: str = "REF",
     verbose: bool,
 ) -> str:
@@ -558,6 +650,11 @@ def apply_source_delta_to_base(
 
     old_base = materialised_base_commit(repo, old_base_ref, label=f"{label}-old-base", verbose=verbose)
     new_base = materialised_base_commit(repo, new_base_ref, label=f"{label}-new-base", verbose=verbose)
+    source_delta_paths = [
+        line
+        for line in git(repo, "diff", "--name-only", old_base, source_ref).stdout.splitlines()
+        if line
+    ]
     tree = merge_source_tree(
         repo,
         old_base,
@@ -569,6 +666,14 @@ def apply_source_delta_to_base(
         resume_variable=resume_variable,
         verbose=verbose,
     )
+    if normalise_source:
+        tree, _result = normalise_source_tree(
+            repo,
+            tree=tree,
+            label=label,
+            verbose=verbose,
+            paths=source_delta_paths,
+        )
     if tree == tree_id(repo, new_base):
         return new_base
     return commit_tree(repo, tree, message)

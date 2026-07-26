@@ -56,6 +56,7 @@ from reconstruction_common import (
     truthy,
 )
 from source_policy import enforce_source_tree_policy
+from source_normalisation import normalise_worktree
 from source_lifecycle import (
     changed_overlay_paths_from_name_status,
     normalise_mode,
@@ -551,6 +552,17 @@ def normalise_target(repo: Path, target: dict[str, Any], state: dict[str, Any], 
         mode=state.get("source_lifecycle_normalise", "exact"),
         verbose=verbose,
     )
+    result = normalise_worktree(
+        Path(target["scratch"]),
+        paths=changed_paths(state.get("changes", [])),
+    )
+    if verbose and result.changed:
+        progress(
+            "normalised imported source: "
+            f"{result.line_endings} line-ending file(s), "
+            f"{result.trailing_whitespace} trailing-whitespace file(s), "
+            f"{result.file_modes} file mode(s)"
+        )
 
 
 def apply_patch_to_target(repo: Path, target: dict[str, Any], state: dict[str, Any], patch_path: Path, verbose: bool) -> bool:

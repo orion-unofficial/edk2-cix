@@ -67,6 +67,7 @@ SOURCE_REF_MANIFESTS = (
     "refs-cix.json",
     "refs-edk2.json",
     "refs-radxa.json",
+    "refs-unofficial.json",
 )
 
 

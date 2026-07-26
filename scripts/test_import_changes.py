@@ -34,6 +34,7 @@ SCRIPT_FILES = [
     "reconstruction_common.py",
     "resolve_import_conflicts.py",
     "source_lifecycle.py",
+    "source_normalisation.py",
     "source_policy.py",
 ]
 
@@ -380,7 +381,10 @@ def test_import_preserves_crlf_patch_context() -> None:
             stderr=subprocess.PIPE,
             check=False,
         )
-        require(raw.stdout == b"one\r\ntwo\r\ninserted\r\nthree\r\n", "CRLF line endings were not preserved")
+        require(
+            raw.stdout == b"one\ntwo\ninserted\nthree\n",
+            "imported source was not normalised to LF",
+        )
     finally:
         shutil.rmtree(repo)
 

@@ -52,6 +52,7 @@ from source_policy import enforce_source_tree_policy
 from source_porting import (
     apply_source_delta_to_base,
     normalise_overlay_tree,
+    normalise_source_tree,
     preserve_conflict_worktree,
 )
 
@@ -257,14 +258,23 @@ def port_candidate(
     resolved_ref: str,
     verbose: bool,
 ) -> str:
+    old_port = radxa_source_ref(repo, from_release, edk2_base)
     if resolved_ref:
         if not ref_exists(repo, resolved_ref):
             raise ReconstructionError(f"PORT_REF is unavailable locally: {resolved_ref}")
-        return rev_parse(repo, resolved_ref)
+        resolved = rev_parse(repo, resolved_ref)
+        tree, _result = normalise_source_tree(
+            repo,
+            tree=tree_id(repo, resolved),
+            label=f"radxa-{from_release}-to-{to_release}-{edk2_base}",
+            verbose=verbose,
+            paths=changed_paths(repo, old_port, resolved),
+        )
+        message = git(repo, "show", "-s", "--format=%B", resolved).stdout
+        return git(repo, "commit-tree", tree, "-m", message).stdout.strip()
 
     old_vendor = radxa_source_ref(repo, from_release, "edk2-stable202208")
     new_vendor = radxa_source_ref(repo, to_release, "edk2-stable202208")
-    old_port = radxa_source_ref(repo, from_release, edk2_base)
     message = (
         f"source: port Radxa {to_release} vendor delta to {edk2_base}\n\n"
         f"Source-Vendor-From: {old_vendor}\n"
@@ -278,6 +288,7 @@ def port_candidate(
         new_base_ref=old_port,
         message=message,
         label=f"radxa-{from_release}-to-{to_release}-{edk2_base}",
+        normalise_source=True,
         resume_variable="PORT_REF",
         verbose=verbose,
     )
@@ -307,6 +318,8 @@ def unofficial_candidate(
         resolved = rev_parse(repo, resolved_ref)
         label = f"unofficial-{from_release}-to-{to_release}-{edk2_base}"
         stage = resolved_unofficial_stage(repo, resolved, resolved_stage)
+        if stage == "final":
+            return resolved
         tree = tree_id(repo, resolved)
         if stage == "source":
             tree, conflicts, merge_detail = normalise_overlay_tree(
@@ -335,6 +348,13 @@ def unofficial_candidate(
                     "Resolve conflicts there, commit the result, and rerun with "
                     "UNOFFICIAL_REF=<resolved-commit>."
                 )
+        tree, _result = normalise_source_tree(
+            repo,
+            tree=tree,
+            label=label,
+            verbose=verbose,
+            paths=changed_paths(repo, new_port_ref, resolved),
+        )
         return git(repo, "commit-tree", tree, "-m", message).stdout.strip()
 
     old_port = radxa_source_ref(repo, from_release, edk2_base)
@@ -346,6 +366,7 @@ def unofficial_candidate(
         message=message,
         label=f"unofficial-{from_release}-to-{to_release}-{edk2_base}",
         source_owned_paths=BUILD_INFRA_OVERLAY_PATHS,
+        normalise_source=True,
         resume_variable="UNOFFICIAL_REF",
         verbose=verbose,
     )

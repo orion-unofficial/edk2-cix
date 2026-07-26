@@ -235,6 +235,17 @@ example, Radxa `1.2.1` was published on `edk2-stable202208`, while
 `source/port/radxa/1.2.1/edk2-stable202605` records the same vendor intent
 ported forward to EDK2 `202605`.
 
+Raw `source/vendor/**` refs preserve the vendor's materialised content and Git
+file modes exactly; they are the byte-level provenance record. In editable
+`source/port/**` and `source/unofficial/**` trees, files introduced or changed
+by the supported integration, uplift, and import commands are canonicalised:
+text uses LF line endings with no trailing horizontal whitespace, text files
+without a shebang are non-executable, scripts with a shebang keep their
+executable bit, and binary files are left byte-for-byte and mode-for-mode
+unchanged. Untouched upstream-base files are not mass-rewritten. The split
+between exact vendor refs and canonical changed files in workable refs makes a
+second parallel "normalised vendor" branch namespace unnecessary.
+
 `source/unofficial/**` branches contain this project's branded Unofficial
 firmware changes as normal source trees. Mutable development tips are explicit
 per release line, such as `source/unofficial/1.2/current` and

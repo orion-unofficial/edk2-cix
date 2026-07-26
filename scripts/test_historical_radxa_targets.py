@@ -32,7 +32,7 @@ from integrate_source_release import (  # noqa: E402
     materialise_existing_target_local_head,
     operation_manifest_metadata,
 )
-from source_porting import apply_source_delta_to_base  # noqa: E402
+from source_porting import apply_source_delta_to_base, unchanged_ours_conflicts  # noqa: E402
 from render_release_branch import render_from_plan  # noqa: E402
 from verify_build_matrix import require_unofficial_source_policy  # noqa: E402
 
@@ -393,6 +393,23 @@ def test_source_delta_porting_does_not_infer_cross_path_binary_renames() -> None
         )
     finally:
         shutil.rmtree(repo)
+
+
+def test_only_identical_base_and_ours_stages_are_safe_false_renames() -> None:
+    identical = "9d037dcbe232329f7ad1d10095262b47c52907d7"
+    changed = "7f3114f519be1d64246d97a65252303cca31c59d"
+    output = (
+        f"100644 {identical} 1\tunrelated/testdata.bin\n"
+        f"100644 {identical} 2\tunrelated/testdata.bin\n"
+        f"100644 {identical} 1\tstill-conflicted.bin\n"
+        f"100644 {changed} 2\tstill-conflicted.bin\n"
+        f"100644 {identical} 3\tstill-conflicted.bin\n"
+    )
+
+    require(
+        unchanged_ours_conflicts(output) == {"unrelated/testdata.bin"},
+        "false-rename filter accepted a genuine three-way conflict",
+    )
 
 
 def test_source_delta_porting_preserves_conflict_worktree_for_manual_resume() -> None:

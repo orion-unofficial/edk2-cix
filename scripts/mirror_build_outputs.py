@@ -62,14 +62,43 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
-def firmware_build_leaf(target: str) -> str:
+def firmware_target_prefix(target: str) -> str:
     value = target.strip()
     if not value:
         raise ReconstructionError("firmware target must not be empty")
-    upper = value.upper()
-    if upper.endswith("_GCC5"):
-        return upper
-    return f"{upper}_GCC5"
+    return value.upper()
+
+
+def find_firmware_build_root(
+    worktree: Path,
+    board: str,
+    target: str,
+) -> tuple[Path, str] | None:
+    build_root = worktree / "src" / "Build" / board
+    if not build_root.is_dir():
+        return None
+
+    prefix = firmware_target_prefix(target)
+    if "_" in prefix:
+        candidate = build_root / prefix
+        return (candidate, prefix) if candidate.is_dir() else None
+
+    candidates = [
+        path
+        for path in sorted(build_root.glob(f"{prefix}_*"))
+        if path.is_dir()
+        and re.fullmatch(rf"{re.escape(prefix)}_[A-Z0-9]+", path.name)
+        and any((path / relative_name).is_file() for relative_name in RAW_OUTPUTS)
+    ]
+    if not candidates:
+        return None
+    if len(candidates) > 1:
+        leaves = ", ".join(path.name for path in candidates)
+        raise ReconstructionError(
+            f"multiple {prefix} firmware output trees exist for {board}: {leaves}; "
+            "clean the rendered source worktree before rebuilding"
+        )
+    return candidates[0], candidates[0].name
 
 
 def safe_path_components(value: str) -> list[str]:
@@ -136,11 +165,11 @@ def mirror_raw_outputs(
     board: str,
     firmware_target: str,
 ) -> list[Path]:
-    leaf = firmware_build_leaf(firmware_target)
-    source_root = worktree / "src" / "Build" / board / leaf
     copied: list[Path] = []
-    if not source_root.is_dir():
+    resolved = find_firmware_build_root(worktree, board, firmware_target)
+    if resolved is None:
         return copied
+    source_root, leaf = resolved
 
     destination_root = dist_root / "build"
     for component in safe_path_components(release):
