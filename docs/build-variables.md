@@ -206,6 +206,7 @@ ways. This is not just a cosmetic tweak. The current scope includes:
 - ACPI and reserved-memory fixes
 - PCIe `_OSC` cleanup
 - PCIe resource-window and ECAM-reservation repairs
+- PCIe SMMUv3/IORT restoration on the 1.3 firmware line
 - the PCIe device-model selector
 - the USB device-model selector
 - GPU cache-coherency metadata correction

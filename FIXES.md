@@ -272,6 +272,11 @@ With `ENABLE_FIRMWARE_FIXES=true`, the firmware advertises HTTU (Hardware
 Translation Table Updates) override support in the IORT SMMUv3 entries, so
 Linux no longer has to fall back to a more limited default capability view.
 
+Radxa 1.3 inherited CIX's disabled PCIe SMMU table definition. Fixed builds
+restore the PCIe SMMUv3 node and the root-complex mappings to it. Builds
+without `ENABLE_FIRMWARE_FIXES=true` retain the imported 1.3 behavior and do
+not advertise that PCIe IOMMU path.
+
 ### `ramoops` Reserved-Memory Alignment
 
 The ACPI tables already describe a reserved memory range for the `ramoops`

@@ -166,6 +166,49 @@ class CustomTogglePcdsTest(unittest.TestCase):
                 content = read_repo_text(relative_path)
                 self.assertIn("ArmGenericTimerCounterLib", content)
 
+    def test_pcie_smmu_is_enabled_only_with_firmware_fixes(self) -> None:
+        common_defines = read_repo_text(
+            "src/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/CommonDefines.h"
+        )
+        self.assertIn("#ifdef ENABLE_FIRMWARE_FIXES", common_defines)
+        self.assertIn("#define PCIE_SMMU_ENABLE        1", common_defines)
+        self.assertIn("#define PCIE_SMMU_ENABLE        0", common_defines)
+
+        makefile = read_repo_text("src/Makefile")
+        self.assertIn(
+            "DEBUG_GCC_AARCH64_ASLCC_FLAGS   = "
+            "DEF(GCC_ASLCC_FLAGS) -DENABLE_FIRMWARE_FIXES=1",
+            makefile,
+        )
+        self.assertIn(
+            "RELEASE_GCC_AARCH64_ASLCC_FLAGS   = "
+            "DEF(GCC_ASLCC_FLAGS) -DENABLE_FIRMWARE_FIXES=1",
+            makefile,
+        )
+
+    def test_cpu_performance_order_and_static_cppc_classes_match_sky1(self) -> None:
+        configuration_manager = read_repo_text(
+            "src/edk2-platforms/Platform/CIX/Sky1/Drivers/"
+            "ConfigurationManagerDxe/ConfigurationManager.c"
+        )
+        self.assertIn(
+            "8,  9, 10, 11, 4, 5, 6, 7, 2, 3, 0, 1",
+            configuration_manager,
+        )
+
+        dsdt = read_repo_text(
+            "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/"
+            "AcpiSocTables/Dsdt-CPU.asl"
+        )
+        cppc_lines = [
+            line.strip()
+            for line in dsdt.splitlines()
+            if "CPPC_PACKAGE_INIT" in line and "CIX_A" in line
+        ]
+        self.assertEqual(len(cppc_lines), 12)
+        self.assertTrue(all("CIX_A520_REF_PERF" in line for line in cppc_lines[:4]))
+        self.assertTrue(all("CIX_A720_REF_PERF" in line for line in cppc_lines[4:]))
+
     def test_custom_version_reporting_is_overlay_only(self) -> None:
         custom_fw_version = read_repo_text(
             "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionDxe.c"

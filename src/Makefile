@@ -26,6 +26,7 @@ EDK2_BUILD_OUTPUT_FILTER := scripts/filter_edk2_build_output.py
 MAKE_INPUT_VALIDATOR := $(abspath ../scripts/validate_make_inputs.py)
 IASL_RESOLVER := $(abspath ../scripts/ensure_iasl.sh)
 MPAM_BUILD_VALIDATOR := $(abspath ../scripts/validate_mpam_build.py)
+PCIE_SMMU_IORT_VALIDATOR := $(abspath ../scripts/validate_pcie_smmu_iort.py)
 EDK2_REBASED_DETERMINISTIC_GUARD := $(abspath ../scripts/fail_rebased_edk2_deterministic.sh)
 CUSTOM_OVERLAY_SHADOW_CHECK := $(abspath ../scripts/check_custom_overlay_shadowing.py)
 CUSTOM_OVERLAY_INF_SYNC_CHECK := $(abspath ../scripts/check_custom_overlay_inf_sync.py)
@@ -407,6 +408,7 @@ ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 PATCHED_EDK2_SOURCE_INPUTS := \
 	$(IASL_RESOLVER) \
 	$(MPAM_BUILD_VALIDATOR) \
+	$(PCIE_SMMU_IORT_VALIDATOR) \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.hfr) \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.uni) \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Library/Acpi/CIX/AcpiPpttLibCIX/PpttGenerator.c) \
@@ -1507,6 +1509,8 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 			tool_def_overrides+=( \
 				'  DEBUG_GCC_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
 				'RELEASE_GCC_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
+				'  DEBUG_GCC_AARCH64_ASLCC_FLAGS   = DEF(GCC_ASLCC_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
+				'RELEASE_GCC_AARCH64_ASLCC_FLAGS   = DEF(GCC_ASLCC_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
 				'  DEBUG_GCC_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1 -DENABLE_FIRMWARE_FIXES=1' \
 				'RELEASE_GCC_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1 -DENABLE_FIRMWARE_FIXES=1' \
 			); \
@@ -1585,6 +1589,9 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 		python3 "$(MPAM_BUILD_VALIDATOR)" \
 			--build-dir "Build/$*/$(UEFI_TARGET)_GCC" \
 			--expect "$(if $(filter TRUE,$(ENABLE_FIRMWARE_FIXES_NORMALIZED)),present,absent)"; \
+		python3 "$(PCIE_SMMU_IORT_VALIDATOR)" \
+			--build-dir "Build/$*/$(UEFI_TARGET)_GCC" \
+			--expect "$(if $(filter TRUE,$(ENABLE_FIRMWARE_FIXES_NORMALIZED)),enabled,disabled)"; \
 	fi; \
 	if [[ ! -s "$@" ]]; then \
 		echo "[build/$*] Expected firmware image $@ was not produced" >&2; \
