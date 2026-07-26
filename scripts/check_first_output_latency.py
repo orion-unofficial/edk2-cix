@@ -79,7 +79,7 @@ def fixture_import_changes_case(repo: Path) -> Case:
 def fixture_import_unofficial_case(repo: Path) -> Case:
     fixture = make_repo()
     copy_makefile(repo, fixture)
-    git(fixture, "switch", "-c", "unofficial-topic", "source/unofficial/current")
+    git(fixture, "switch", "-c", "unofficial-topic", "source/unofficial/1.2/current")
     write_file(fixture, "firmware.txt", "updated by topic\n")
     commit_all(fixture, "topic change")
     git(fixture, "switch", "build")

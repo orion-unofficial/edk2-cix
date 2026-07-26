@@ -42,12 +42,12 @@ from source_porting import apply_source_delta_to_base
 HELP = """integrate-source-release
 
 Supported forms:
-  make integrate-source-release TYPE=upstream COMPONENT=edk2 RELEASE=edk2-stable202602 WRITE=1
+  make integrate-source-release TYPE=upstream COMPONENT=edk2 RELEASE=edk2-stable202605 WRITE=1
   make integrate-source-release TYPE=upstream COMPONENT=tf-a RELEASE=v2.7 WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=cix RELEASE=1.2 WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=cix RELEASE=1.2 COMPONENT=tf-a ARM_BASE=v2.7 REF=<ported-ref> WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202208 REF=<vendor-ref> WRITE=1
-  make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202602 REF=<ported-ref> RADXA_SOURCE=port WRITE=1
+  make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202605 REF=<ported-ref> RADXA_SOURCE=port WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1+<commit> EDK2_BASE=edk2-stable202208 REF=main WRITE=1
 
 Required variables:

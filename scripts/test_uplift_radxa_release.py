@@ -20,6 +20,8 @@ from reconstruction_common import (
 from uplift_radxa_release import (
     ensure_checkpoint_record,
     release_line,
+    resolved_unofficial_stage,
+    resolve_from_unofficial_ref,
     run_script,
     unofficial_candidate,
     update_policy,
@@ -183,6 +185,53 @@ def test_resolved_unofficial_tree_gets_canonical_provenance_commit() -> None:
         shutil.rmtree(repo)
 
 
+def test_resolved_unofficial_stage_detects_overlay_handoff() -> None:
+    repo = make_repo()
+    try:
+        create_branch(
+            repo,
+            "overlay-conflict",
+            {
+                "custom/overlay/component/file.c": (
+                    "<<<<<<< unofficial overlay\ncustom\n=======\nnew\n>>>>>>> new source\n"
+                ),
+                "src/component/file.c": "new\n",
+            },
+            "source-port: conflict tree\n\nSource-Port-Conflict-Stage: overlay",
+        )
+        git(repo, "switch", "-c", "overlay-resolved")
+        write_file(repo, "custom/overlay/component/file.c", "resolved\n")
+        overlay_resolved = commit_all(repo, "resolve overlay")
+        require(
+            resolved_unofficial_stage(repo, overlay_resolved, "auto") == "overlay",
+            "overlay handoff stage was not detected from its parent metadata",
+        )
+        require(
+            resolved_unofficial_stage(repo, overlay_resolved, "final") == "final",
+            "explicit final-stage override was ignored",
+        )
+
+        create_branch(
+            repo,
+            "legacy-source-conflict",
+            {
+                "src/component/file.c": (
+                    "<<<<<<< new source\nnew\n=======\ncustom\n>>>>>>> unofficial\n"
+                )
+            },
+            "legacy source conflict",
+        )
+        git(repo, "switch", "-c", "legacy-source-resolved")
+        write_file(repo, "src/component/file.c", "resolved\n")
+        source_resolved = commit_all(repo, "resolve source")
+        require(
+            resolved_unofficial_stage(repo, source_resolved, "auto") == "source",
+            "legacy source handoff stage was not inferred from marker paths",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_active_line_tip_can_advance_beyond_immutable_checkpoint() -> None:
     repo = make_repo()
     try:
@@ -241,6 +290,31 @@ def test_release_line_validation() -> None:
         require("cannot derive" in str(exc), "invalid release did not explain line derivation")
     else:
         raise AssertionError("invalid release unexpectedly produced a line")
+
+
+def test_explicit_unofficial_source_overrides_exact_checkpoint() -> None:
+    repo = make_repo()
+    try:
+        exact = "source/unofficial/1.2.4/edk2-stable202605"
+        explicit = "source/unofficial/1.2/current"
+        create_branch(repo, exact, {"firmware.txt": "checkpoint\n"}, "checkpoint")
+        create_branch(repo, explicit, {"firmware.txt": "active line\n"}, "active line")
+        git(repo, "switch", "build")
+
+        selected = resolve_from_unofficial_ref(
+            repo,
+            from_release="1.2.4",
+            edk2_base="edk2-stable202605",
+            line="1.3",
+            explicit_ref=explicit,
+            policy={},
+        )
+        require(
+            selected == explicit,
+            "explicit cross-line source did not override the exact checkpoint",
+        )
+    finally:
+        shutil.rmtree(repo)
 
 
 def test_delegated_ref_creation_invalidates_parent_metadata_cache() -> None:
@@ -359,6 +433,12 @@ def test_checkpoint_record_preserves_valid_provenance_and_repairs_self_reference
         current_ref = "source/unofficial/1.2.2/edk2-stable202605"
         previous = create_branch(repo, previous_ref, {"firmware.txt": "old\n"}, "old")
         current = create_branch(repo, current_ref, {"firmware.txt": "new\n"}, "new")
+        replacement = create_branch(
+            repo,
+            "replacement",
+            {"firmware.txt": "repaired\n"},
+            "replacement",
+        )
         git(repo, "switch", "build")
         write_file(
             repo,
@@ -420,6 +500,17 @@ def test_checkpoint_record_preserves_valid_provenance_and_repairs_self_reference
             radxa_ref="new-port",
             preferred_previous_ref=current_ref,
         )
+        git(repo, "update-ref", f"refs/heads/{current_ref}", replacement, current)
+        ensure_checkpoint_record(
+            repo,
+            ref=current_ref,
+            source_oid=replacement,
+            line="1.2",
+            radxa_release="1.2.2",
+            edk2_base="edk2-stable202605",
+            radxa_ref="new-port",
+            preferred_previous_ref=current_ref,
+        )
         records = json.loads(
             (repo / "config/refs-unofficial.json").read_text(encoding="utf-8")
         )["refs"]
@@ -431,6 +522,15 @@ def test_checkpoint_record_preserves_valid_provenance_and_repairs_self_reference
         require(
             by_ref[current_ref]["previous_unofficial_ref"] == previous_ref,
             "self-referential checkpoint provenance was not repaired from history",
+        )
+        require(
+            by_ref[current_ref]["object_id"] == replacement,
+            "checkpoint metadata did not follow an explicit recovered ref replacement",
+        )
+        require(
+            by_ref[current_ref]["tree_id"]
+            == git(repo, "rev-parse", f"{replacement}^{{tree}}").stdout.strip(),
+            "checkpoint tree metadata was stale after an explicit recovered ref replacement",
         )
     finally:
         shutil.rmtree(repo)
@@ -497,8 +597,10 @@ def main() -> None:
     test_overlap_report_separates_policy_owned_paths()
     test_update_policy_migrates_legacy_current_to_line_records()
     test_resolved_unofficial_tree_gets_canonical_provenance_commit()
+    test_resolved_unofficial_stage_detects_overlay_handoff()
     test_active_line_tip_can_advance_beyond_immutable_checkpoint()
     test_release_line_validation()
+    test_explicit_unofficial_source_overrides_exact_checkpoint()
     test_delegated_ref_creation_invalidates_parent_metadata_cache()
     test_atomic_ref_creation_invalidates_parent_metadata_cache()
     test_generated_cache_refresh_does_not_relax_source_immutability()

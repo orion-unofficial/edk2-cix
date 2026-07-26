@@ -48,7 +48,12 @@ from reconstruction_common import (
     version_key,
     write_json,
 )
-from source_porting import apply_source_delta_to_base
+from source_policy import enforce_source_tree_policy
+from source_porting import (
+    apply_source_delta_to_base,
+    normalise_overlay_tree,
+    preserve_conflict_worktree,
+)
 
 
 HELP = """uplift-radxa-release
@@ -76,12 +81,16 @@ Optional variables:
   CIX_RELEASE=<release>
       CIX component set for the rendered source target. Default: line policy.
   FROM_UNOFFICIAL_REF=<ref>
-      Previous unofficial source. Required only when starting a line whose
-      exact FROM_RELEASE checkpoint and current policy do not yet exist.
+      Previous unofficial source. When supplied, this deliberately overrides
+      an exact FROM_RELEASE checkpoint; use it to seed a new line from a
+      reviewed mutable line tip or when no checkpoint/current policy exists.
   PORT_REF=<ref>
       Manually resolved new Radxa port from a conflict handoff.
   UNOFFICIAL_REF=<ref>
       Manually resolved unofficial tree from a conflict handoff.
+  UNOFFICIAL_REF_STAGE=auto|source|overlay|final
+      Override resume-stage detection for a reviewed unofficial commit.
+      Default: auto.
   MAKE_DEFAULT=0|1
       Select LINE as the default build line. Existing default is preserved
       unless this is 1 or no default has been configured.
@@ -117,6 +126,10 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--from-unofficial-ref", default=os.environ.get("FROM_UNOFFICIAL_REF", ""))
     p.add_argument("--port-ref", default=os.environ.get("PORT_REF", ""))
     p.add_argument("--unofficial-ref", default=os.environ.get("UNOFFICIAL_REF", ""))
+    p.add_argument(
+        "--unofficial-ref-stage",
+        default=os.environ.get("UNOFFICIAL_REF_STAGE", "auto"),
+    )
     p.add_argument("--make-default", default=os.environ.get("MAKE_DEFAULT", "0"))
     p.add_argument("--skip-render", default=os.environ.get("SKIP_RENDER", "0"))
     p.add_argument("--verify", default=os.environ.get("VERIFY", "1"))
@@ -167,12 +180,12 @@ def resolve_from_unofficial_ref(
     policy: dict[str, Any],
 ) -> str:
     exact = f"source/unofficial/{from_release}/{edk2_base}"
-    if ref_exists(repo, exact):
-        return exact
     if explicit_ref:
         if not ref_exists(repo, explicit_ref):
             raise ReconstructionError(f"FROM_UNOFFICIAL_REF is unavailable locally: {explicit_ref}")
         return explicit_ref
+    if ref_exists(repo, exact):
+        return exact
 
     _default_line, lines = unofficial_line_policies(policy)
     selected = lines.get(line, {})
@@ -280,6 +293,7 @@ def unofficial_candidate(
     new_port_ref: str,
     resolved_ref: str,
     verbose: bool,
+    resolved_stage: str = "auto",
 ) -> str:
     message = (
         f"source: carry unofficial firmware from Radxa {from_release} to {to_release}\n\n"
@@ -290,7 +304,38 @@ def unofficial_candidate(
     if resolved_ref:
         if not ref_exists(repo, resolved_ref):
             raise ReconstructionError(f"UNOFFICIAL_REF is unavailable locally: {resolved_ref}")
-        return git(repo, "commit-tree", f"{rev_parse(repo, resolved_ref)}^{{tree}}", "-m", message).stdout.strip()
+        resolved = rev_parse(repo, resolved_ref)
+        label = f"unofficial-{from_release}-to-{to_release}-{edk2_base}"
+        stage = resolved_unofficial_stage(repo, resolved, resolved_stage)
+        tree = tree_id(repo, resolved)
+        if stage == "source":
+            tree, conflicts, merge_detail = normalise_overlay_tree(
+                repo,
+                tree=tree,
+                source_ref=from_unofficial_ref,
+                label=label,
+                verbose=verbose,
+            )
+            if conflicts:
+                worktree = preserve_conflict_worktree(
+                    repo,
+                    tree=tree,
+                    label=label,
+                    merge_output=merge_detail,
+                    source_ref=from_unofficial_ref,
+                    new_base_ref=new_port_ref,
+                    resume_variable="UNOFFICIAL_REF",
+                    conflict_paths=conflicts,
+                    conflict_stage="overlay",
+                    verbose=verbose,
+                )
+                raise ReconstructionError(
+                    "could not rebase custom overlays onto the new source tree"
+                    f"\n\nsource-port conflict worktree preserved at: {worktree}\n"
+                    "Resolve conflicts there, commit the result, and rerun with "
+                    "UNOFFICIAL_REF=<resolved-commit>."
+                )
+        return git(repo, "commit-tree", tree, "-m", message).stdout.strip()
 
     old_port = radxa_source_ref(repo, from_release, edk2_base)
     return apply_source_delta_to_base(
@@ -304,6 +349,49 @@ def unofficial_candidate(
         resume_variable="UNOFFICIAL_REF",
         verbose=verbose,
     )
+
+
+def resolved_unofficial_stage(repo: Path, resolved: str, requested: str) -> str:
+    stage = requested.strip().lower() or "auto"
+    allowed = {"auto", "source", "overlay", "final"}
+    if stage not in allowed:
+        raise ReconstructionError(
+            "UNOFFICIAL_REF_STAGE must be one of: " + ", ".join(sorted(allowed))
+        )
+    if stage != "auto":
+        return stage
+
+    parent = git(repo, "rev-parse", f"{resolved}^", check=False)
+    if parent.returncode != 0:
+        return "source"
+    parent_oid = parent.stdout.strip()
+    message = git(repo, "show", "-s", "--format=%B", parent_oid).stdout
+    prefix = "Source-Port-Conflict-Stage:"
+    for line in message.splitlines():
+        if line.startswith(prefix):
+            recorded = line[len(prefix) :].strip().lower()
+            if recorded in {"source", "overlay"}:
+                return recorded
+
+    markers = git(
+        repo,
+        "grep",
+        "-I",
+        "-l",
+        "-e",
+        "^<<<<<<< ",
+        parent_oid,
+        "--",
+        check=False,
+    )
+    marker_paths = [
+        line.split(":", 1)[1]
+        for line in markers.stdout.splitlines()
+        if ":" in line
+    ]
+    if marker_paths and all(path.startswith("custom/overlay/") for path in marker_paths):
+        return "overlay"
+    return "source"
 
 
 def changed_paths(repo: Path, old_ref: str, new_ref: str) -> list[str]:
@@ -425,12 +513,6 @@ def checkpoint_predecessor(
     if preferred_ref != ref:
         return preferred_ref
 
-    legacy_ref = "source/unofficial/current"
-    if (
-        ref_exists(repo, legacy_ref)
-        and rev_parse(repo, legacy_ref) == rev_parse(repo, ref)
-    ):
-        return legacy_ref
     raise ReconstructionError(
         f"cannot determine predecessor provenance for {ref}; "
         "pass FROM_UNOFFICIAL_REF=<reviewed-source-ref>"
@@ -454,15 +536,21 @@ def ensure_checkpoint_record(
         and record.get("previous_unofficial_ref") != ref
         and record.get("line") == line
     ):
-        return
-    previous_ref = checkpoint_predecessor(
-        repo,
-        ref=ref,
-        line=line,
-        radxa_release=radxa_release,
-        edk2_base=edk2_base,
-        preferred_ref=preferred_previous_ref,
-    )
+        if (
+            record.get("object_id") == source_oid
+            and record.get("tree_id") == tree_id(repo, source_oid)
+        ):
+            return
+        previous_ref = str(record["previous_unofficial_ref"])
+    else:
+        previous_ref = checkpoint_predecessor(
+            repo,
+            ref=ref,
+            line=line,
+            radxa_release=radxa_release,
+            edk2_base=edk2_base,
+            preferred_ref=preferred_previous_ref,
+        )
     checkpoint_record(
         repo,
         ref=ref,
@@ -646,11 +734,17 @@ def main() -> None:
             new_port_ref=target_port if write else new_port,
             resolved_ref=args.unofficial_ref,
             verbose=verbose,
+            resolved_stage=args.unofficial_ref_stage,
         )
         print(
             f"[radxa-uplift] unofficial candidate: {candidate} "
             f"(tree {tree_id(repo, candidate)})"
         )
+    enforce_source_tree_policy(
+        repo,
+        ref=candidate,
+        label=f"unofficial candidate for Radxa {args.to_release}",
+    )
 
     updates: list[tuple[str, str, str]] = []
     create_from_checkpoint = not ref_exists(repo, from_checkpoint)

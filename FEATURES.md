@@ -1,7 +1,10 @@
 # Firmware Features
 
 This document lists the firmware-visible fixes and enhancements available in
-unofficial firmware builds from `source/unofficial/current`.
+branded Unofficial firmware builds from the maintained
+`source/unofficial/<line>/current` branches. The default line is selected in
+`config/policies.json`; use `make help-source-targets` to inspect the exact
+source combinations currently available.
 
 The table focuses on changes that affect the firmware image or the behaviour it
 exposes to the operating system, setup UI, or shipped payload. The commit

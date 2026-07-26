@@ -742,9 +742,14 @@ def selected_unofficial_current_ref(repo: Path) -> str:
     """Return the configured default mutable Unofficial line ref."""
 
     policy = unofficial_source_policy(repo)
-    _line, selected = selected_unofficial_line_policy(policy)
+    line, selected = selected_unofficial_line_policy(policy)
     ref = _policy_string(selected, "current_ref")
-    return ref or "source/unofficial/current"
+    if not line or not ref:
+        raise ReconstructionError(
+            "config/policies.json does not select a mutable "
+            "source/unofficial/<line>/current ref"
+        )
+    return ref
 
 
 def unofficial_release_tag_for_branch(branch: str) -> str:

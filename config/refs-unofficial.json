@@ -47,6 +47,30 @@
       "ref": "source/unofficial/1.2.4/edk2-stable202605",
       "tree_id": "9cbf35ab8cb714a9f98659a288ed61c5f3c776b0",
       "type": "unofficial-release-checkpoint"
+    },
+    {
+      "edk2_base": "edk2-stable202605",
+      "immutable": true,
+      "line": "1.3",
+      "object_id": "98cc528539fec007c27c159eeb6184995990bd5b",
+      "previous_unofficial_ref": "source/unofficial/1.2.4/edk2-stable202605",
+      "radxa_release": "1.3.0",
+      "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202605",
+      "ref": "source/unofficial/1.3.0/edk2-stable202605",
+      "tree_id": "23c793f0e9c84a6b7fde39cb4f3739cc8fcaba0f",
+      "type": "unofficial-release-checkpoint"
+    },
+    {
+      "edk2_base": "edk2-stable202605",
+      "immutable": true,
+      "line": "1.3",
+      "object_id": "1c7edad979ed8a06dea774f1b6d6d35ce87630bc",
+      "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202605",
+      "radxa_release": "1.3.1",
+      "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202605",
+      "ref": "source/unofficial/1.3.1/edk2-stable202605",
+      "tree_id": "e09124cbb4c53a812c913a4cd92a705c119436f5",
+      "type": "unofficial-release-checkpoint"
     }
   ]
 }

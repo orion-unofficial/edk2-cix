@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import stat
 import sys
 import time
 from pathlib import Path
@@ -60,7 +61,7 @@ Optional variables:
 
 Example:
   make render-release-branch \\
-    RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/unofficial-1.2.1 \\
+    RELEASE=edk2-202605/cix-1.2/radxa-1.3.1/unofficial-1.3.1 \\
     PERSIST=1
 """
 
@@ -76,6 +77,42 @@ def ignore_worktree_cache(worktree: Path) -> None:
         if exclude_text and not exclude_text.endswith("\n"):
             fh.write("\n")
         fh.write(".cache/\n")
+
+
+def raw_file_matches_index(worktree: Path, relative: str) -> bool:
+    stage = git(worktree, "ls-files", "--stage", "--", relative).stdout.strip()
+    if not stage or "\t" not in stage:
+        return False
+    metadata, indexed_path = stage.split("\t", 1)
+    mode, object_id, index_stage = metadata.split()
+    if indexed_path != relative or index_stage != "0" or mode not in {"100644", "100755"}:
+        return False
+
+    path = worktree / relative
+    if not path.is_file() or path.is_symlink():
+        return False
+    executable = bool(path.stat().st_mode & stat.S_IXUSR)
+    if executable != (mode == "100755"):
+        return False
+
+    raw_id = git(worktree, "hash-object", "--no-filters", "--", relative).stdout.strip()
+    return raw_id == object_id
+
+
+def cached_worktree_is_dirty(worktree: Path) -> bool:
+    if git(worktree, "diff", "--cached", "--quiet", "--", check=False).returncode:
+        return True
+    if git(worktree, "ls-files", "--deleted", "-z").stdout:
+        return True
+    if git(worktree, "ls-files", "--others", "--exclude-standard", "-z").stdout:
+        return True
+
+    modified = [
+        path
+        for path in git(worktree, "ls-files", "--modified", "-z").stdout.split("\0")
+        if path
+    ]
+    return any(not raw_file_matches_index(worktree, path) for path in modified)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -99,8 +136,7 @@ def ensure_worktree(repo: Path, branch: str, target_ref: str, verbose: bool) -> 
     path = root / f"{safe_name(branch)}-{commit[:12]}"
     if path.exists():
         ignore_worktree_cache(path)
-        status = git(path, "status", "--porcelain").stdout.strip()
-        if status:
+        if cached_worktree_is_dirty(path):
             raise ReconstructionError(f"cached worktree is dirty: {path}")
         return path
     if verbose:

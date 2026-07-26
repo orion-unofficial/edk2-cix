@@ -56,7 +56,7 @@ def make_repo() -> Path:
     create_branch(repo, "source/vendor/cix/1.2/tf-a", {"tf-a.txt": "new tf-a\n"}, "cix tf-a")
     create_branch(repo, "source/vendor/cix/1.2/op-tee", {"op-tee.txt": "new op-tee\n"}, "cix op-tee")
     create_branch(repo, "source/vendor/cix/1.2/bios", {"bios.txt": "bios\n"}, "cix bios")
-    current = create_branch(repo, "source/unofficial/current", {"src/current.txt": "current\n"}, "current unofficial")
+    current = create_branch(repo, "source/unofficial/1.2/current", {"src/current.txt": "current\n"}, "current unofficial")
     release = create_branch(repo, "source/unofficial/edk2-stable202208", {
         "scripts/ensure_build_deps.sh": (
             "common_packages=(\n"

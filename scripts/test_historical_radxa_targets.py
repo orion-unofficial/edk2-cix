@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from reconstruction_common import (  # noqa: E402
     CACHE_RELEASE_PREFIX,
     ReconstructionError,
+    clear_metadata_caches,
     default_release,
     matrix_release_branches,
     release_entry,
@@ -50,10 +51,15 @@ def write_unofficial_source_policy(repo: Path, *, edk2: str = "202602", radxa: s
         json.dumps(
             {
                 "unofficial_source_policy": {
-                    "current_ref": "source/unofficial/current",
-                    "current_edk2_release": edk2,
-                    "current_cix_release": "1.2",
-                    "current_radxa_release": radxa,
+                    "default_line": "1.2",
+                    "lines": {
+                        "1.2": {
+                            "current_ref": "source/unofficial/1.2/current",
+                            "current_edk2_release": edk2,
+                            "current_cix_release": "1.2",
+                            "current_radxa_release": radxa,
+                        }
+                    },
                     "prefer_versioned_default_alias": True,
                 }
             },
@@ -140,7 +146,7 @@ def make_repo() -> Path:
     )
     create_branch(
         repo,
-        "source/unofficial/current",
+        "source/unofficial/1.2/current",
         {
             ".github/local/Makefile.local": "buildbox-firmware-build:\n\t@true\n",
             "Makefile": "modern build entry\n",
@@ -176,6 +182,18 @@ def test_default_source_target_follows_unofficial_source_policy() -> None:
     repo = make_repo()
     try:
         create_branch(repo, "source/port/radxa/1.2.2/edk2-stable202602", {"radxa.txt": "1.2.2\n"}, "radxa 1.2.2")
+        create_branch(
+            repo,
+            "source/unofficial/1.2.1/edk2-stable202602",
+            {"src.txt": "unofficial checkpoint 1.2.1\n"},
+            "unofficial checkpoint 1.2.1",
+        )
+        create_branch(
+            repo,
+            "source/unofficial/1.2.2/edk2-stable202602",
+            {"src.txt": "unofficial checkpoint 1.2.2\n"},
+            "unofficial checkpoint 1.2.2",
+        )
         git(repo, "switch", "build")
         write_unofficial_source_policy(repo, radxa="1.2.1")
 
@@ -190,23 +208,31 @@ def test_default_source_target_follows_unofficial_source_policy() -> None:
         shutil.rmtree(repo)
 
 
-def test_unofficial_source_policy_tracks_latest_unofficial_release_branch() -> None:
+def test_unofficial_source_policy_requires_selected_exact_checkpoint() -> None:
     repo = make_repo()
     try:
         create_branch(repo, "source/base/edk2/edk2-stable202605", {"base.txt": "202605\n"}, "edk2 202605")
         create_branch(repo, "source/port/radxa/1.2.1/edk2-stable202605", {"radxa.txt": "1.2.1\n"}, "radxa 1.2 202605")
-        create_branch(repo, "source/unofficial/edk2-stable202605", {"src.txt": "unofficial 202605\n"}, "unofficial 202605")
         git(repo, "switch", "build")
 
-        write_unofficial_source_policy(repo, edk2="202602")
+        write_unofficial_source_policy(repo, edk2="202605")
         branches, _aliases = matrix_release_branches(repo)
         stale = require_unofficial_source_policy(repo, branches)
         require(
-            any("latest source/unofficial release branch is 202605" in problem for problem in stale),
-            "stale unofficial source policy was not reported",
+            any("unavailable unofficial checkpoint" in problem for problem in stale),
+            "missing exact checkpoint was not reported",
         )
 
+        create_branch(
+            repo,
+            "source/unofficial/1.2.1/edk2-stable202605",
+            {"src.txt": "unofficial checkpoint 1.2.1 202605\n"},
+            "unofficial checkpoint 1.2.1 202605",
+        )
+        git(repo, "switch", "build")
+        clear_metadata_caches()
         write_unofficial_source_policy(repo, edk2="202605")
+        branches, _aliases = matrix_release_branches(repo)
         fresh = require_unofficial_source_policy(repo, branches)
         require(not fresh, "fresh unofficial source policy was reported stale: " + "\n".join(fresh))
     finally:
@@ -299,6 +325,71 @@ def test_source_delta_porting_ignores_deletes_already_absent_upstream() -> None:
         require(
             git(repo, "show", f"{commit}:custom/project.txt").stdout == "project delta\n",
             "project delta was not replayed",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_source_delta_porting_does_not_infer_cross_path_binary_renames() -> None:
+    repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-rename-test."))
+    try:
+        git(repo, "init", "-b", "build")
+        git(repo, "config", "user.name", "Source Port Test")
+        git(repo, "config", "user.email", "source-port-test")
+        write_file(repo, "README.md", "build branch\n")
+        commit_all(repo, "build root")
+        create_branch(
+            repo,
+            "old-base",
+            {
+                "obsolete/vendor.bin": "same binary payload\n",
+                "src/shared.c": "old shared\n",
+            },
+            "old base",
+        )
+        create_branch(
+            repo,
+            "new-base",
+            {
+                "unrelated/testdata.bin": "same binary payload\n",
+                "src/shared.c": "new shared\n",
+            },
+            "new base",
+        )
+        create_branch(
+            repo,
+            "source-tree",
+            {
+                "src/shared.c": "old shared\n",
+                "vendor/release.txt": "new vendor release\n",
+            },
+            "source tree",
+        )
+        git(repo, "switch", "build")
+
+        commit = apply_source_delta_to_base(
+            repo,
+            old_base_ref="old-base",
+            source_ref="source-tree",
+            new_base_ref="new-base",
+            message="port source tree",
+            label="source-port-rename-test",
+            verbose=False,
+        )
+        require(
+            git(repo, "show", f"{commit}:unrelated/testdata.bin").stdout
+            == "same binary payload\n",
+            "unrelated equal-content file was consumed as a false rename",
+        )
+        require(
+            git(repo, "cat-file", "-e", f"{commit}:obsolete/vendor.bin", check=False).returncode
+            != 0,
+            "obsolete vendor file was retained",
+        )
+        require(
+            git(repo, "show", f"{commit}:vendor/release.txt").stdout
+            == "new vendor release\n",
+            "vendor delta was not replayed",
         )
     finally:
         shutil.rmtree(repo)
@@ -412,6 +503,268 @@ def test_source_delta_porting_resolves_policy_owned_paths_from_source() -> None:
             "unofficial source delta was not carried",
         )
     finally:
+        shutil.rmtree(repo)
+
+
+def test_source_delta_porting_drops_mirror_for_deleted_source_path() -> None:
+    repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-deleted-mirror-test."))
+    try:
+        git(repo, "init", "-b", "build")
+        git(repo, "config", "user.name", "Source Port Lifecycle Test")
+        git(repo, "config", "user.email", "source-port-lifecycle-test")
+        write_file(repo, "README.md", "build branch\n")
+        commit_all(repo, "build root")
+        create_branch(
+            repo,
+            "old-base",
+            {"src/component/obsolete.c": "old source\n"},
+            "old base",
+        )
+        create_branch(
+            repo,
+            "new-base",
+            {"src/component/current.c": "new source\n"},
+            "new base",
+        )
+
+        switch_orphan(repo, "source-tree")
+        write_file(repo, "src/component/obsolete.c", "old source\n")
+        overlay = repo / "custom/overlay/component/obsolete.c"
+        overlay.parent.mkdir(parents=True, exist_ok=True)
+        os.symlink("../../../src/component/obsolete.c", overlay)
+        commit_all(repo, "source tree with mirror")
+        git(repo, "switch", "build")
+
+        commit = apply_source_delta_to_base(
+            repo,
+            old_base_ref="old-base",
+            source_ref="source-tree",
+            new_base_ref="new-base",
+            message="port source tree",
+            label="source-port-deleted-mirror-test",
+            verbose=False,
+        )
+        require(
+            git(
+                repo,
+                "cat-file",
+                "-e",
+                f"{commit}:custom/overlay/component/obsolete.c",
+                check=False,
+            ).returncode
+            != 0,
+            "mirror symlink for a proven-deleted source path was retained",
+        )
+        require(
+            git(repo, "show", f"{commit}:src/component/current.c").stdout == "new source\n",
+            "new source tree was not preserved while dropping the stale mirror",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_source_delta_porting_rebases_regular_overlay_content() -> None:
+    repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-overlay-rebase-test."))
+    try:
+        git(repo, "init", "-b", "build")
+        git(repo, "config", "user.name", "Source Port Overlay Test")
+        git(repo, "config", "user.email", "source-port-overlay-test")
+        write_file(repo, "README.md", "build branch\n")
+        commit_all(repo, "build root")
+        old_source = "header\r\nvendor old\r\nmiddle\r\ncustom old\r\ntail\r\n"
+        create_branch(
+            repo,
+            "old-base",
+            {"src/component/module.inf": old_source},
+            "old base",
+        )
+        create_branch(
+            repo,
+            "new-base",
+            {
+                "src/component/module.inf": (
+                    "header\r\nvendor new\r\nmiddle\r\ncustom old\r\ntail\r\n"
+                )
+            },
+            "new base",
+        )
+        create_branch(
+            repo,
+            "source-tree",
+            {
+                "src/component/module.inf": old_source,
+                "custom/overlay/component/module.inf": (
+                    "header\nvendor old\nmiddle\ncustom unofficial\ntail\n"
+                ),
+            },
+            "source tree",
+        )
+        git(repo, "switch", "build")
+
+        commit = apply_source_delta_to_base(
+            repo,
+            old_base_ref="old-base",
+            source_ref="source-tree",
+            new_base_ref="new-base",
+            message="port source tree",
+            label="source-port-overlay-rebase-test",
+            verbose=False,
+        )
+        merged = git(
+            repo,
+            "show",
+            f"{commit}:custom/overlay/component/module.inf",
+        ).stdout
+        require(
+            merged == "header\nvendor new\nmiddle\ncustom unofficial\ntail\n",
+            "regular overlay did not combine new source and unofficial changes",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_source_delta_porting_mirrors_new_file_in_complete_overlay() -> None:
+    repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-complete-overlay-test."))
+    try:
+        git(repo, "init", "-b", "build")
+        git(repo, "config", "user.name", "Source Port Complete Overlay Test")
+        git(repo, "config", "user.email", "source-port-complete-overlay-test")
+        write_file(repo, "README.md", "build branch\n")
+        commit_all(repo, "build root")
+        create_branch(
+            repo,
+            "old-base",
+            {"src/component/module/a.c": "source a\n"},
+            "old base",
+        )
+        create_branch(
+            repo,
+            "new-base",
+            {
+                "src/component/module/a.c": "source a\n",
+                "src/component/module/b.c": "source b\n",
+            },
+            "new base",
+        )
+        create_branch(
+            repo,
+            "source-tree",
+            {
+                "src/component/module/a.c": "source a\n",
+                "custom/overlay/component/module/a.c": "custom a\n",
+            },
+            "source tree",
+        )
+        git(repo, "switch", "build")
+
+        commit = apply_source_delta_to_base(
+            repo,
+            old_base_ref="old-base",
+            source_ref="source-tree",
+            new_base_ref="new-base",
+            message="port source tree",
+            label="source-port-complete-overlay-test",
+            verbose=False,
+        )
+        mirror = "custom/overlay/component/module/b.c"
+        require(
+            git(repo, "show", f"{commit}:{mirror}").stdout
+            == "../../../../src/component/module/b.c",
+            "new source file in a complete overlay directory was not mirrored",
+        )
+        require(
+            git(repo, "ls-tree", commit, "--", mirror).stdout.startswith("120000 "),
+            "new complete-overlay mirror was not recorded as a symlink",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_source_delta_porting_resolves_policy_paths_before_mixed_handoff() -> None:
+    repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-mixed-policy-test."))
+    old_tmp_root = os.environ.get("EDK2_CIX_TMP_ROOT")
+    os.environ["EDK2_CIX_TMP_ROOT"] = str(repo / ".cache" / "test-tmp")
+    try:
+        git(repo, "init", "-b", "build")
+        git(repo, "config", "user.name", "Source Port Policy Test")
+        git(repo, "config", "user.email", "source-port-policy-test")
+        write_file(repo, "README.md", "build branch\n")
+        commit_all(repo, "build root")
+        create_branch(
+            repo,
+            "old-base",
+            {
+                ".github/workflow.yml": "old vendor workflow\n",
+                "src/conflict.c": "old firmware\n",
+            },
+            "old base",
+        )
+        create_branch(
+            repo,
+            "new-base",
+            {
+                ".github/workflow.yml": "new vendor workflow\n",
+                "src/conflict.c": "new vendor firmware\n",
+            },
+            "new base",
+        )
+        create_branch(
+            repo,
+            "source-tree",
+            {
+                ".github/workflow.yml": "unofficial workflow\n",
+                "src/conflict.c": "unofficial firmware\n",
+            },
+            "source tree",
+        )
+        git(repo, "switch", "build")
+
+        try:
+            apply_source_delta_to_base(
+                repo,
+                old_base_ref="old-base",
+                source_ref="source-tree",
+                new_base_ref="new-base",
+                message="port source tree",
+                label="source-port-mixed-policy-test",
+                source_owned_paths=(".github",),
+                resume_variable="UNOFFICIAL_REF",
+                verbose=False,
+            )
+        except Exception as exc:
+            message = str(exc)
+        else:
+            raise AssertionError("mixed source port conflict unexpectedly resolved automatically")
+
+        worktree_line = [
+            line
+            for line in message.splitlines()
+            if "source-port conflict worktree preserved at:" in line
+        ][0]
+        worktree = Path(worktree_line.split(":", 1)[1].strip())
+        require(
+            (worktree / ".github" / "workflow.yml").read_text(encoding="utf-8")
+            == "unofficial workflow\n",
+            "policy-owned path retained conflict markers in mixed handoff",
+        )
+        require(
+            "<<<<<<<" in (worktree / "src" / "conflict.c").read_text(encoding="utf-8"),
+            "genuine firmware conflict was not preserved",
+        )
+        handoff = (worktree.parent / "README.md").read_text(encoding="utf-8")
+        require(
+            "  - src/conflict.c" in handoff,
+            "genuine firmware conflict was omitted from handoff",
+        )
+        require(
+            "  - .github/workflow.yml" not in handoff,
+            "resolved policy conflict remained in handoff conflict list",
+        )
+    finally:
+        if old_tmp_root is None:
+            os.environ.pop("EDK2_CIX_TMP_ROOT", None)
+        else:
+            os.environ["EDK2_CIX_TMP_ROOT"] = old_tmp_root
         shutil.rmtree(repo)
 
 
@@ -689,11 +1042,15 @@ def test_integrate_source_release_recognises_remote_tracking_target() -> None:
 def main() -> None:
     test_custom_targets_allow_historical_radxa_releases_on_later_edk2()
     test_default_source_target_follows_unofficial_source_policy()
-    test_unofficial_source_policy_tracks_latest_unofficial_release_branch()
+    test_unofficial_source_policy_requires_selected_exact_checkpoint()
     test_source_delta_porting_replays_only_project_delta()
     test_source_delta_porting_ignores_deletes_already_absent_upstream()
     test_source_delta_porting_preserves_conflict_worktree_for_manual_resume()
     test_source_delta_porting_resolves_policy_owned_paths_from_source()
+    test_source_delta_porting_drops_mirror_for_deleted_source_path()
+    test_source_delta_porting_rebases_regular_overlay_content()
+    test_source_delta_porting_mirrors_new_file_in_complete_overlay()
+    test_source_delta_porting_resolves_policy_paths_before_mixed_handoff()
     test_historical_upstream_target_overlays_build_infrastructure_only()
     test_integrate_source_release_make_target_preserves_materialise_default()
     test_radxa_vendor_integration_records_raw_upstream_ref()

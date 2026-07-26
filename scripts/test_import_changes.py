@@ -47,15 +47,34 @@ def make_repo() -> Path:
     scripts.mkdir()
     for name in SCRIPT_FILES:
         shutil.copy2(ROOT / "scripts" / name, scripts / name)
+    write_file(
+        tmp,
+        "config/policies.json",
+        """{
+  "unofficial_source_policy": {
+    "default_line": "1.2",
+    "lines": {
+      "1.2": {
+        "current_cix_release": "1.2",
+        "current_edk2_release": "202602",
+        "current_radxa_release": "1.2.1",
+        "current_ref": "source/unofficial/1.2/current"
+      }
+    },
+    "prefer_versioned_default_alias": true
+  }
+}
+""",
+    )
     commit_all(tmp, "build scripts")
 
-    switch_orphan(tmp, "source/unofficial/current")
+    switch_orphan(tmp, "source/unofficial/1.2/current")
     write_file(tmp, "firmware.txt", "base\n")
     write_file(tmp, "release.txt", "current\n")
     commit_all(tmp, "current base")
 
     for release in ("202208", "202602"):
-        git(tmp, "switch", "-c", f"source/unofficial/edk2-stable{release}", "source/unofficial/current")
+        git(tmp, "switch", "-c", f"source/unofficial/edk2-stable{release}", "source/unofficial/1.2/current")
         write_file(tmp, "release.txt", f"edk2-stable{release}\n")
         commit_all(tmp, f"release branch {release}")
         git(tmp, "tag", f"source/unofficial/edk2/stable-{release}")
@@ -139,7 +158,7 @@ def test_git_apply_trailing_whitespace_output_quotes_line_content() -> None:
 
 
 def add_materialised_overlay_rename_fixture(repo: Path) -> None:
-    git(repo, "switch", "source/unofficial/current")
+    git(repo, "switch", "source/unofficial/1.2/current")
     write_file(repo, "src/component/new.c", "renamed source\n")
     commit_all(repo, "current renamed source")
 
@@ -169,7 +188,7 @@ def make_materialised_overlay_topic(repo: Path) -> str:
 
 def add_materialised_drop_fixture(repo: Path) -> None:
     for ref in (
-        "source/unofficial/current",
+        "source/unofficial/1.2/current",
         "source/unofficial/edk2-stable202602",
         "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial",
     ):
@@ -189,7 +208,7 @@ def make_materialised_drop_topic(repo: Path) -> str:
 
 def add_materialised_typechange_fixture(repo: Path) -> None:
     for ref in (
-        "source/unofficial/current",
+        "source/unofficial/1.2/current",
         "source/unofficial/edk2-stable202602",
         "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial",
     ):
@@ -218,7 +237,7 @@ def make_materialised_typechange_topic(repo: Path) -> str:
 
 def add_symlink_file_conflict_fixture(repo: Path) -> None:
     for ref in (
-        "source/unofficial/current",
+        "source/unofficial/1.2/current",
         "source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial",
     ):
         git(repo, "switch", ref)
@@ -230,7 +249,7 @@ def add_symlink_file_conflict_fixture(repo: Path) -> None:
         symlink(repo, "../../../src/component/a.h", "custom/overlay/component/mode.h")
         commit_all(repo, f"{ref} symlink-file conflict base")
 
-    git(repo, "switch", "source/unofficial/current")
+    git(repo, "switch", "source/unofficial/1.2/current")
     overlay = repo / "custom/overlay/component/mode.h"
     overlay.unlink()
     symlink(repo, "../../../src/component/b.h", "custom/overlay/component/mode.h")
@@ -257,7 +276,7 @@ def test_dry_run_infers_materialised_base_without_moving_refs() -> None:
     repo = make_repo()
     try:
         topic = make_materialised_topic(repo)
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
         result = run_import_changes(repo, FROM_REF=topic)
         require(result.returncode == 0, result.stderr + result.stdout)
         require("source/cache/release/custom/edk2-202602/radxa-1.2.1/unofficial" in result.stdout, "dry run did not report inferred cache base")
@@ -278,7 +297,7 @@ def test_dry_run_infers_materialised_base_without_moving_refs() -> None:
         require("materialised topic change" in result.stdout, "dry run did not print inherited commit message")
         require("make test" in result.stdout, "dry run did not print qualification guidance")
         require("firmware qualification" not in result.stdout, "dry run printed overly broad qualification guidance")
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "dry run moved source/unofficial/current")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "dry run moved source/unofficial/1.2/current")
         operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
         require(not operations.exists() or not any(operations.iterdir()), "dry run left operation state")
     finally:
@@ -291,7 +310,7 @@ def test_import_inherits_multiline_from_ref_commit_message() -> None:
         topic = make_materialised_topic_with_message(repo, "message-topic", ["-m", "topic subject", "-m", "topic body"])
         result = run_import_changes(repo, FROM_REF=topic, WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)
-        message = git(repo, "log", "-1", "--format=%B", "source/unofficial/current").stdout.rstrip("\n")
+        message = git(repo, "log", "-1", "--format=%B", "source/unofficial/1.2/current").stdout.rstrip("\n")
         require(message == "topic subject\n\ntopic body", f"unexpected inherited message: {message!r}")
     finally:
         shutil.rmtree(repo)
@@ -303,7 +322,7 @@ def test_import_commit_message_literal_newlines_use_m_parameters() -> None:
         topic = make_materialised_topic(repo, name="literal-message-topic")
         result = run_import_changes(repo, FROM_REF=topic, COMMIT_MESSAGE=r"explicit subject\nexplicit body", WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)
-        message = git(repo, "log", "-1", "--format=%B", "source/unofficial/current").stdout.rstrip("\n")
+        message = git(repo, "log", "-1", "--format=%B", "source/unofficial/1.2/current").stdout.rstrip("\n")
         require(message == "explicit subject\n\nexplicit body", f"unexpected explicit message: {message!r}")
     finally:
         shutil.rmtree(repo)
@@ -317,7 +336,7 @@ def test_import_commit_message_file_and_signoff() -> None:
         message_file.write_text("file subject\n\nfile body line 1\nfile body line 2\n", encoding="utf-8")
         result = run_import_changes(repo, FROM_REF=topic, COMMIT_MESSAGE_FILE="message.txt", SIGNOFF="1", WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)
-        message = git(repo, "log", "-1", "--format=%B", "source/unofficial/current").stdout.rstrip("\n")
+        message = git(repo, "log", "-1", "--format=%B", "source/unofficial/1.2/current").stdout.rstrip("\n")
         require(message.startswith("file subject\n\nfile body line 1\nfile body line 2"), f"unexpected file message: {message!r}")
         require("Signed-off-by: Import Test <import-test>" in message, f"missing signoff: {message!r}")
     finally:
@@ -328,13 +347,13 @@ def test_import_from_materialised_topic_creates_commit_on_current() -> None:
     repo = make_repo()
     try:
         topic = make_materialised_topic(repo)
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
         result = run_import_changes(repo, FROM_REF=topic, COMMIT_MESSAGE="import materialised change", WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)
-        require(show(repo, "source/unofficial/current", "firmware.txt") == "from materialised\n", "current did not receive extracted patch")
-        require(git(repo, "show", "-s", "--format=%P", "source/unofficial/current").stdout.strip() == old_current, "import did not create a direct child of current")
-        require(git(repo, "show", "-s", "--format=%s", "source/unofficial/current").stdout.strip() == "import materialised change", "commit message not used")
-        missing = git(repo, "show", "source/unofficial/current:render-only.txt", check=False)
+        require(show(repo, "source/unofficial/1.2/current", "firmware.txt") == "from materialised\n", "current did not receive extracted patch")
+        require(git(repo, "show", "-s", "--format=%P", "source/unofficial/1.2/current").stdout.strip() == old_current, "import did not create a direct child of current")
+        require(git(repo, "show", "-s", "--format=%s", "source/unofficial/1.2/current").stdout.strip() == "import materialised change", "commit message not used")
+        missing = git(repo, "show", "source/unofficial/1.2/current:render-only.txt", check=False)
         require(missing.returncode != 0, "materialised-only base file leaked into current")
     finally:
         shutil.rmtree(repo)
@@ -343,7 +362,7 @@ def test_import_from_materialised_topic_creates_commit_on_current() -> None:
 def test_import_preserves_crlf_patch_context() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "source/unofficial/current")
+        git(repo, "switch", "source/unofficial/1.2/current")
         (repo / "crlf-source.c").write_bytes(b"one\r\ntwo\r\nthree\r\n")
         commit_all(repo, "add crlf source")
         git(repo, "switch", "-c", "crlf-topic")
@@ -353,10 +372,10 @@ def test_import_preserves_crlf_patch_context() -> None:
 
         result = run_import_changes(repo, FROM_REF="crlf-topic", WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)
-        content = git(repo, "cat-file", "-p", "source/unofficial/current:crlf-source.c").stdout
+        content = git(repo, "cat-file", "-p", "source/unofficial/1.2/current:crlf-source.c").stdout
         require(content == "one\ntwo\ninserted\nthree\n", "CRLF import content not visible through text helper")
         raw = subprocess.run(
-            ["git", "-C", str(repo), "cat-file", "-p", "source/unofficial/current:crlf-source.c"],
+            ["git", "-C", str(repo), "cat-file", "-p", "source/unofficial/1.2/current:crlf-source.c"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             check=False,
@@ -380,7 +399,7 @@ def test_import_changes_normalises_overlay_lifecycle_when_propagating() -> None:
         )
         require(result.returncode == 0, result.stderr + result.stdout)
         require(
-            show(repo, "source/unofficial/current", "custom/overlay/component/new.c") == "../../../src/component/new.c",
+            show(repo, "source/unofficial/1.2/current", "custom/overlay/component/new.c") == "../../../src/component/new.c",
             "current did not receive materialised overlay change",
         )
         require(
@@ -397,23 +416,23 @@ def test_import_changes_can_propagate_after_current_already_applied() -> None:
     repo = make_repo()
     try:
         topic = make_materialised_topic(repo)
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
 
         current_only = run_import_changes(repo, FROM_REF=topic, WRITE="1")
         require(current_only.returncode == 0, current_only.stderr + current_only.stdout)
-        updated_current = rev_parse(repo, "source/unofficial/current")
+        updated_current = rev_parse(repo, "source/unofficial/1.2/current")
         require(updated_current != old_current, "current-only import did not move current")
 
         propagated = run_import_changes(
             repo,
-            FROM_REF="source/unofficial/current",
+            FROM_REF="source/unofficial/1.2/current",
             BASE_REF=old_current,
             PROPAGATE_RELEASE_BRANCHES="all",
             UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
         require(propagated.returncode == 0, propagated.stderr + propagated.stdout)
-        require(rev_parse(repo, "source/unofficial/current") == updated_current, "already-applied current target moved")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == updated_current, "already-applied current target moved")
         for release in ("202208", "202602"):
             branch = f"source/unofficial/edk2-stable{release}"
             tag = f"source/unofficial/edk2/stable-{release}"
@@ -458,7 +477,7 @@ def test_import_changes_accepts_clean_reject_fallback_typechange() -> None:
         )
         require(result.returncode == 0, result.stderr + result.stdout)
         for ref in (
-            "source/unofficial/current",
+            "source/unofficial/1.2/current",
             "source/unofficial/edk2-stable202208",
             "source/unofficial/edk2-stable202602",
         ):
@@ -488,7 +507,7 @@ def test_import_with_explicit_legacy_base() -> None:
 
         result = run_import_changes(repo, FROM_REF="legacy-topic", BASE_REF="legacy-base", WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)
-        require(show(repo, "source/unofficial/current", "overlay/new-driver.txt") == "new broader-source file\n", "explicit-base import failed")
+        require(show(repo, "source/unofficial/1.2/current", "overlay/new-driver.txt") == "new broader-source file\n", "explicit-base import failed")
     finally:
         shutil.rmtree(repo)
 
@@ -508,8 +527,8 @@ def test_import_infers_retained_legacy_branch_base() -> None:
 
         result = run_import_changes(repo, FROM_REF="legacy-topic", WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)
-        require(show(repo, "source/unofficial/current", "overlay/new-driver.txt") == "new broader-source file\n", "inferred legacy import failed")
-        require(show(repo, "source/unofficial/current", "firmware.txt") == "base\n", "legacy base contents leaked into current")
+        require(show(repo, "source/unofficial/1.2/current", "overlay/new-driver.txt") == "new broader-source file\n", "inferred legacy import failed")
+        require(show(repo, "source/unofficial/1.2/current", "firmware.txt") == "base\n", "legacy base contents leaked into current")
     finally:
         shutil.rmtree(repo)
 
@@ -532,8 +551,8 @@ def test_import_infers_retained_legacy_fork_point_after_base_moves() -> None:
 
         result = run_import_changes(repo, FROM_REF="legacy-topic", WRITE="1")
         require(result.returncode == 0, result.stderr + result.stdout)
-        require(show(repo, "source/unofficial/current", "overlay/forked-driver.txt") == "forked broader-source file\n", "fork-point import failed")
-        missing = git(repo, "show", "source/unofficial/current:retained-only.txt", check=False)
+        require(show(repo, "source/unofficial/1.2/current", "overlay/forked-driver.txt") == "forked broader-source file\n", "fork-point import failed")
+        missing = git(repo, "show", "source/unofficial/1.2/current:retained-only.txt", check=False)
         require(missing.returncode != 0, "post-fork retained-source changes leaked into current")
     finally:
         shutil.rmtree(repo)
@@ -615,17 +634,17 @@ def test_already_integrated_source_ref_does_not_infer_legacy_base() -> None:
 def test_conflict_pauses_without_moving_refs_then_continue_finalises() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "source/unofficial/current")
+        git(repo, "switch", "source/unofficial/1.2/current")
         write_file(repo, "firmware.txt", "current conflict\n")
         commit_all(repo, "current conflict")
         git(repo, "switch", "build")
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
 
         topic = make_materialised_topic(repo, text="topic conflict\n")
         result = run_import_changes(repo, FROM_REF=topic, WRITE="1")
         require(result.returncode != 0, "conflicting import should pause")
         require("Import paused due to conflicts" in result.stderr, result.stderr)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite conflict")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "current moved despite conflict")
 
         op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
         scratch = conflicted_scratch(op_dir)
@@ -633,7 +652,7 @@ def test_conflict_pauses_without_moving_refs_then_continue_finalises() -> None:
         git(scratch, "add", "firmware.txt")
         continued = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name, WRITE="1")
         require(continued.returncode == 0, continued.stderr + continued.stdout)
-        require(show(repo, "source/unofficial/current", "firmware.txt") == "resolved\n", "conflict resolution was not finalised")
+        require(show(repo, "source/unofficial/1.2/current", "firmware.txt") == "resolved\n", "conflict resolution was not finalised")
     finally:
         shutil.rmtree(repo)
 
@@ -641,11 +660,11 @@ def test_conflict_pauses_without_moving_refs_then_continue_finalises() -> None:
 def test_dry_run_conflict_reports_paths_without_moving_refs() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "source/unofficial/current")
+        git(repo, "switch", "source/unofficial/1.2/current")
         write_file(repo, "firmware.txt", "current conflict\n")
         commit_all(repo, "current conflict")
         git(repo, "switch", "build")
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
 
         topic = make_materialised_topic(repo, text="topic conflict\n")
         result = run_import_changes(repo, FROM_REF=topic)
@@ -668,7 +687,7 @@ def test_dry_run_conflict_reports_paths_without_moving_refs() -> None:
         require("conflicting file(s):" in result.stderr, result.stderr)
         require("firmware.txt" in result.stderr, result.stderr)
         require("CONTINUE=1 OP_ID=" in result.stderr, result.stderr)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "dry-run conflict moved current")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "dry-run conflict moved current")
         operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
         op_dir = next(operations.iterdir())
         short_op_id = op_dir.name.split("-", 1)[0]
@@ -685,11 +704,11 @@ def test_dry_run_conflict_reports_paths_without_moving_refs() -> None:
         prepared = run_import_changes(repo, CONTINUE="1", OP_ID=short_op_id)
         require(prepared.returncode == 0, prepared.stderr + prepared.stdout)
         require("import candidates are ready" in prepared.stdout, prepared.stdout)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "continue without WRITE moved current")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "continue without WRITE moved current")
 
         finalised = run_import_changes(repo, CONTINUE="1", OP_ID=short_op_id, WRITE="1")
         require(finalised.returncode == 0, finalised.stderr + finalised.stdout)
-        require(show(repo, "source/unofficial/current", "firmware.txt") == "resolved from dry-run\n", "dry-run resolution was not finalised")
+        require(show(repo, "source/unofficial/1.2/current", "firmware.txt") == "resolved from dry-run\n", "dry-run resolution was not finalised")
         require(not shortcut.exists() and not shortcut.is_symlink(), "scratch shortcut was not removed after finalising")
     finally:
         shutil.rmtree(repo)
@@ -698,7 +717,7 @@ def test_dry_run_conflict_reports_paths_without_moving_refs() -> None:
 def test_symlink_file_conflict_reports_expanded_context() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "-c", "symlink-conflict-base", "source/unofficial/current")
+        git(repo, "switch", "-c", "symlink-conflict-base", "source/unofficial/1.2/current")
         write_file(repo, "src/component/a.h", "source A\n")
         write_file(repo, "src/component/b.h", "source B\n")
         symlink(repo, "../../../src/component/a.h", "custom/overlay/component/mode.h")
@@ -738,11 +757,11 @@ def test_symlink_file_conflict_reports_expanded_context() -> None:
 def test_resolve_conflicts_edits_scratch_only_then_continue_finalises() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "source/unofficial/current")
+        git(repo, "switch", "source/unofficial/1.2/current")
         write_file(repo, "firmware.txt", "current conflict\n")
         commit_all(repo, "current conflict")
         git(repo, "switch", "build")
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
 
         topic = make_materialised_topic(repo, text="topic conflict\n")
         result = run_import_changes(repo, FROM_REF=topic)
@@ -760,15 +779,15 @@ def test_resolve_conflicts_edits_scratch_only_then_continue_finalises() -> None:
         resolved = run_resolve_conflicts(repo, OP_ID=op_dir.name, CONFLICT_EDITOR=str(script))
         require(resolved.returncode == 0, resolved.stderr + resolved.stdout)
         require("No source refs or tags were moved." in resolved.stdout, resolved.stdout)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "resolver moved current ref")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "resolver moved current ref")
 
         prepared = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name)
         require(prepared.returncode == 0, prepared.stderr + prepared.stdout)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "continue without WRITE moved current")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "continue without WRITE moved current")
 
         finalised = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name, WRITE="1")
         require(finalised.returncode == 0, finalised.stderr + finalised.stdout)
-        require(show(repo, "source/unofficial/current", "firmware.txt") == "resolved by helper\n", "helper resolution was not finalised")
+        require(show(repo, "source/unofficial/1.2/current", "firmware.txt") == "resolved by helper\n", "helper resolution was not finalised")
         require(script.exists(), "editor fixture should remain unrelated to import state")
     finally:
         shutil.rmtree(repo)
@@ -777,7 +796,7 @@ def test_resolve_conflicts_edits_scratch_only_then_continue_finalises() -> None:
 def test_resolve_conflicts_preserves_matching_symlink_resolution() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "-c", "symlink-conflict-base", "source/unofficial/current")
+        git(repo, "switch", "-c", "symlink-conflict-base", "source/unofficial/1.2/current")
         write_file(repo, "src/component/a.h", "source A\n")
         write_file(repo, "src/component/b.h", "source B\n")
         symlink(repo, "../../../src/component/a.h", "custom/overlay/component/mode.h")
@@ -811,11 +830,11 @@ def test_resolve_conflicts_preserves_matching_symlink_resolution() -> None:
 def test_continue_rejects_changed_operation_options() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "source/unofficial/current")
+        git(repo, "switch", "source/unofficial/1.2/current")
         write_file(repo, "firmware.txt", "current conflict\n")
         commit_all(repo, "current conflict")
         git(repo, "switch", "build")
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
 
         topic = make_materialised_topic(repo, text="topic conflict\n")
         result = run_import_changes(repo, FROM_REF=topic)
@@ -833,7 +852,7 @@ def test_continue_rejects_changed_operation_options() -> None:
         require("would be ignored" in changed_continue.stderr, changed_continue.stderr)
         require("PROPAGATE_RELEASE_BRANCHES='all'" in changed_continue.stderr, changed_continue.stderr)
         require("UPDATE_RELEASE_TAGS='1'" in changed_continue.stderr, changed_continue.stderr)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "changed continue moved current")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "changed continue moved current")
     finally:
         shutil.rmtree(repo)
 
@@ -848,12 +867,12 @@ def test_failed_apply_without_conflict_markers_pauses_for_manual_resolution() ->
         write_file(repo, "legacy-only.txt", "legacy topic\n")
         commit_all(repo, "modify legacy-only file")
         git(repo, "switch", "build")
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
 
         result = run_import_changes(repo, FROM_REF="legacy-topic", WRITE="1")
         require(result.returncode != 0, "failed apply should pause for manual resolution")
         require("Import paused due to conflicts" in result.stderr, result.stderr)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite failed apply")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "current moved despite failed apply")
 
         op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
         scratch = conflicted_scratch(op_dir)
@@ -862,7 +881,7 @@ def test_failed_apply_without_conflict_markers_pauses_for_manual_resolution() ->
         git(scratch, "add", "legacy-only.txt")
         continued = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name, WRITE="1")
         require(continued.returncode == 0, continued.stderr + continued.stdout)
-        require(show(repo, "source/unofficial/current", "legacy-only.txt") == "legacy topic\n", "manual resolution was not finalised")
+        require(show(repo, "source/unofficial/1.2/current", "legacy-only.txt") == "legacy topic\n", "manual resolution was not finalised")
     finally:
         shutil.rmtree(repo)
 
@@ -877,7 +896,7 @@ def test_dry_run_failed_apply_without_conflict_markers_keeps_rejects() -> None:
         write_file(repo, "legacy-only.txt", "legacy topic\n")
         commit_all(repo, "modify legacy-only file")
         git(repo, "switch", "build")
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
 
         result = run_import_changes(repo, FROM_REF="legacy-topic")
         require(result.returncode != 0, "failed dry-run apply should pause")
@@ -888,7 +907,7 @@ def test_dry_run_failed_apply_without_conflict_markers_keeps_rejects() -> None:
         require("reject apply output" in result.stderr, result.stderr)
         require("\n\n    symlink-aware conflict report:" in result.stderr, "conflict report should be visually separated")
         require("For mode conflicts involving symlinks" not in result.stderr, "reject output used Git jargon")
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "dry-run moved current")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "dry-run moved current")
 
         op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
         scratch = conflicted_scratch(op_dir)
@@ -906,11 +925,11 @@ def test_dry_run_failed_apply_without_conflict_markers_keeps_rejects() -> None:
         prepared = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name)
         require(prepared.returncode == 0, prepared.stderr + prepared.stdout)
         require("import candidates are ready" in prepared.stdout, prepared.stdout)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "continue without WRITE moved current")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "continue without WRITE moved current")
 
         finalised = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name, WRITE="1")
         require(finalised.returncode == 0, finalised.stderr + finalised.stdout)
-        require(show(repo, "source/unofficial/current", "legacy-only.txt") == "legacy topic\n", "manual reject resolution was not finalised")
+        require(show(repo, "source/unofficial/1.2/current", "legacy-only.txt") == "legacy topic\n", "manual reject resolution was not finalised")
     finally:
         shutil.rmtree(repo)
 
@@ -923,7 +942,7 @@ def test_import_rejects_identical_overlay_copy() -> None:
         write_file(repo, "custom/overlay/component/file.c", "same\n")
         commit_all(repo, "add bad overlay copy")
         git(repo, "switch", "build")
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
 
         result = run_import_changes(repo, FROM_REF="materialised-overlay-topic", WRITE="1")
         require(result.returncode != 0, "identical overlay copy should be rejected")
@@ -931,7 +950,7 @@ def test_import_rejects_identical_overlay_copy() -> None:
             "source-tree policy failed" in result.stderr or "source lifecycle projection failed" in result.stderr,
             result.stderr,
         )
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite source policy failure")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "current moved despite source policy failure")
         operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
         require(not operations.exists() or not any(operations.iterdir()), "policy failure left operation state")
     finally:
@@ -947,12 +966,12 @@ def test_import_rejects_legacy_branch_names_in_commit_message_on_write() -> None
             "legacy-message-topic",
             ["-m", "legacy source message", "-m", f"mentions {legacy_branch}"],
         )
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
         result = run_import_changes(repo, FROM_REF=topic, WRITE="1")
         require(result.returncode != 0, "legacy branch name in commit message should fail")
         require("identity integrity check" in result.stderr, result.stderr)
         require(legacy_branch in result.stderr, result.stderr)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "invalid-message import moved current")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "invalid-message import moved current")
     finally:
         shutil.rmtree(repo)
 
@@ -970,7 +989,7 @@ def test_propagation_updates_release_branches_and_tags() -> None:
         )
         require(result.returncode == 0, result.stderr + result.stdout)
         for ref in (
-            "source/unofficial/current",
+            "source/unofficial/1.2/current",
             "source/unofficial/edk2-stable202208",
             "source/unofficial/edk2-stable202602",
         ):
@@ -986,11 +1005,11 @@ def test_propagation_updates_release_branches_and_tags() -> None:
 def test_abort_all_removes_all_paused_import_changes_operations() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "source/unofficial/current")
+        git(repo, "switch", "source/unofficial/1.2/current")
         write_file(repo, "firmware.txt", "current conflict\n")
         commit_all(repo, "current conflict")
         git(repo, "switch", "build")
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
         topic = make_materialised_topic(repo, text="topic conflict\n")
 
         for op_id in ("first-paused-import", "second-paused-import"):
@@ -1004,7 +1023,7 @@ def test_abort_all_removes_all_paused_import_changes_operations() -> None:
         require("aborted import-changes operation first-paused-import" in aborted.stdout, aborted.stdout)
         require("aborted import-changes operation second-paused-import" in aborted.stdout, aborted.stdout)
         require(not any(operations.iterdir()), "abort-all left paused operations")
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "abort-all moved refs")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "abort-all moved refs")
     finally:
         shutil.rmtree(repo)
 
@@ -1032,7 +1051,7 @@ def test_current_import_can_be_propagated_later_without_base_ref() -> None:
 
         dry_run = run_import_unofficial(
             repo,
-            FROM_REF="source/unofficial/current",
+            FROM_REF="source/unofficial/1.2/current",
             PROPAGATE_RELEASE_BRANCHES="all",
             ALLOW_SOURCE_REF_FROM="1",
         )
@@ -1042,7 +1061,7 @@ def test_current_import_can_be_propagated_later_without_base_ref() -> None:
 
         write_result = run_import_unofficial(
             repo,
-            FROM_REF="source/unofficial/current",
+            FROM_REF="source/unofficial/1.2/current",
             PROPAGATE_RELEASE_BRANCHES="all",
             ALLOW_SOURCE_REF_FROM="1",
             WRITE="1",

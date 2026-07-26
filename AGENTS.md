@@ -53,11 +53,13 @@ the referenced EDK2 component refs are present.
 
 ## Source Change Propagation
 
-Changes to `source/unofficial/current` are not automatically known-good for
-every EDK2 release branch. When importing a source change that should
-apply across supported releases, use the explicit import workflow with
-`PROPAGATE_RELEASE_BRANCHES=all` and validate every release branch before
-moving refs.
+Changes to a mutable `source/unofficial/<line>/current` ref are not
+automatically known-good for another firmware line or for every retained EDK2
+release branch. Select the destination explicitly with
+`SOURCE_UNOFFICIAL_REF=source/unofficial/<line>/current`. When a focused source
+change should also apply across the retained historical EDK2 release branches,
+use the explicit import workflow with `PROPAGATE_RELEASE_BRANCHES=all` and
+validate every release branch before moving refs.
 
 Do not use a broad historical replay as a substitute for review. If a change
 appears to exist in one release branch but not another, first audit with Git's

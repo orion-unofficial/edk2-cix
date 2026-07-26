@@ -21,6 +21,7 @@ INSTALL_SOURCE ?=
 FORCE ?= 0
 WRITE ?= 0
 CHECK ?= 0
+VERIFY ?= 1
 RENDER_GENERATED ?= 0
 UPDATE_RELEASE_TAGS ?= 0
 DELETE ?= 0
@@ -127,11 +128,11 @@ endef
 
 .PHONY: help help-vars help-dev help-dev-source help-dev-verify help-dev-maintenance help-source-targets build build-all deterministic-replay install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test test-local lint \
-	extract-vendor-delta render-release-branch uplift-edk2-release uplift-radxa-release integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
+	extract-vendor-delta render-release-branch uplift-edk2-release uplift-radxa-release select-unofficial-line integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
 	propagate-release-branches promote-unofficial-release update-release-tags \
 	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift refresh-vendor-workflow-baseline check-upstream-versions check-source-metadata check-help-cache check-first-output-latency refresh-source-metadata refresh-help-cache ref-report cleanup-report create-minimised-clone \
 	gha-act-list gha-act-dry-run gha-act-run \
-	extract-vendor-delta-help render-release-branch-help uplift-edk2-release-help uplift-radxa-release-help integrate-source-release-help \
+	extract-vendor-delta-help render-release-branch-help uplift-edk2-release-help uplift-radxa-release-help select-unofficial-line-help integrate-source-release-help \
 	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help resolve-conflicts-help promote-unofficial-release-help update-release-tags-help \
 	verify-release-branch-help verify-build-matrix-help verify-source-policy-help verify-source-lifecycle-help \
 	check-ref-integrity-help check-identity-integrity-help verify-identity-integrity-help check-vendor-workflow-drift-help check-upstream-versions-help check-source-metadata-help refresh-source-metadata-help \
@@ -248,6 +249,7 @@ help-dev-source:
 	print_help_line 'make extract-vendor-delta' 'Produce a read-only vendor/source comparison report or diff.'; \
 	print_help_line 'make uplift-edk2-release' 'Run the mechanical stages for a new upstream EDK2 stable release.'; \
 	print_help_line 'make uplift-radxa-release' 'Carry one unofficial firmware line onto the next Radxa release.'; \
+	print_help_line 'make select-unofficial-line' 'Select a validated Unofficial line as the default source target.'; \
 	print_help_line 'make integrate-source-release' 'Integrate new upstream/vendor source refs.'; \
 	print_help_line 'make import-changes' 'Extract a patch from a materialised, legacy, or broader source tree into source/unofficial refs.'; \
 	print_help_line 'make import-unofficial-commits' 'Update a source/unofficial source branch from an already unofficial-based topic branch.'; \
@@ -271,16 +273,18 @@ help-dev-source:
 	print_help_variable 'RADXA_RELEASE=<release>' 'For uplift-edk2-release. Radxa release to carry forward.\nDefault: config/policies.json current_radxa_release.'; \
 	print_help_variable 'FROM_RELEASE=<release>' 'For uplift-radxa-release. Previous Radxa release for the adjacent vendor delta.'; \
 	print_help_variable 'TO_RELEASE=<release>' 'For uplift-radxa-release. New Radxa release to integrate.'; \
-	print_help_variable 'LINE=<major.minor>' 'For uplift-radxa-release. Unofficial development line to advance.\nDefault: TO_RELEASE major.minor.'; \
-	print_help_variable 'FROM_UNOFFICIAL_REF=<ref>' 'For uplift-radxa-release. Reviewed source used to initialise a line when its previous exact checkpoint does not exist.'; \
+	print_help_variable 'LINE=<major.minor>' 'For uplift-radxa-release, the Unofficial development line to advance; for select-unofficial-line, the validated line to make the default.\nDefault for uplift: TO_RELEASE major.minor.'; \
+	print_help_variable 'FROM_UNOFFICIAL_REF=<ref>' 'For uplift-radxa-release. Reviewed source that deliberately overrides the previous exact checkpoint, normally to initialise a new line.'; \
 	print_help_variable 'PORT_REF=<ref>' 'For uplift-radxa-release. Resolved Radxa port commit from a conflict handoff.'; \
+	print_help_variable 'UNOFFICIAL_REF_STAGE=auto|source|overlay|final' 'For uplift-radxa-release. Resume stage represented by UNOFFICIAL_REF; auto reads the conflict-stage trailer when available.\nDefault: auto.'; \
 	print_help_variable 'MAKE_DEFAULT=0|1' 'For uplift-radxa-release. Select the updated line as the default source target.'; \
+	print_help_note 'After validating an existing line, use make select-unofficial-line LINE=<major.minor> [WRITE=1] to promote it without replaying the uplift.'; \
 	print_help_variable 'CIX_RELEASE=<release>' 'For uplift-edk2-release. CIX release to use in the rendered source target.\nDefault: config/policies.json current_cix_release.'; \
 	print_help_variable 'RADXA_SOURCE=auto|vendor|port' 'Select whether a Radxa integration is a vendor-published source tree or this project'\''s port to an EDK2 base.\nDefault: auto.'; \
 	print_help_variable 'RADXA_REF=<ref>' 'For uplift-edk2-release. Resolved Radxa source-port commit from a conflict handoff.'; \
-	print_help_variable 'UNOFFICIAL_REF=<ref>' 'For uplift-edk2-release. Resolved unofficial source-port commit from a conflict handoff.'; \
-	print_help_variable 'WRITE=0|1' 'Permit ref creation/advancement in uplift-edk2-release, integrate-source-release, import-changes, import-unofficial-commits, propagate-release-branches, and update-release-tags.'; \
-	print_help_variable 'ALLOW_REPLACE=0|1' 'Allow uplift-edk2-release or integrate-source-release to replace an existing manifested source ref deliberately.'; \
+	print_help_variable 'UNOFFICIAL_REF=<ref>' 'For EDK2 or Radxa uplift. Resolved Unofficial source-port commit from a conflict handoff.'; \
+	print_help_variable 'WRITE=0|1' 'Permit ref, tag, or policy updates in uplift-edk2-release, uplift-radxa-release, select-unofficial-line, integrate-source-release, import targets, propagation, and tag updates.'; \
+	print_help_variable 'ALLOW_REPLACE=0|1' 'Allow an EDK2/Radxa uplift or source integration to replace an existing manifested source ref deliberately.'; \
 	print_help_variable 'MATERIALISE=0|1' 'Flatten Radxa vendor refs before recording source/vendor or source/port refs.\nDefault: 1.'; \
 	print_help_variable 'BASE_REF=<ref>' 'Base ref for extract-vendor-delta, or explicit override for import-changes/import-unofficial-commits when automatic inference is ambiguous.'; \
 	print_help_variable 'VENDOR_REF=<ref>' 'Vendor ref for extract-vendor-delta.'; \
@@ -308,8 +312,8 @@ help-dev-source:
 	print_help_variable 'ALLOW_SOURCE_REF_FROM=0|1' 'Maintainer escape hatch allowing FROM_REF=source/unofficial/** with an explicit BASE_REF.\nDefault: 0.'; \
 	print_help_variable 'UPDATE_CURRENT=0|1' 'For promote-unofficial-release. Move the selected source/unofficial/<line>/current ref to the promoted source tree.\nDefault: 1.'; \
 	print_help_variable 'UPDATE_POLICY=0|1' 'For promote-unofficial-release. Update config/policies.json current_edk2_release.\nDefault: 1.'; \
-	print_help_variable 'SKIP_RENDER=0|1' 'For uplift-edk2-release. Skip the rendered source-target refresh.\nDefault: 0.'; \
-	print_help_variable 'VERIFY=0|1' 'For uplift-edk2-release. Run verify-build-matrix after rendering.\nDefault: 1.'; \
+	print_help_variable 'SKIP_RENDER=0|1' 'For EDK2 or Radxa uplift. Skip the rendered source-target refresh.\nDefault: 0.'; \
+	print_help_variable 'VERIFY=0|1' 'For EDK2 or Radxa uplift. Run verify-build-matrix after rendering.\nDefault: 1.'; \
 	print_help_variable 'TARGET_REF=<ref[,ref...]>' 'Optional comma-separated target refs for update-release-tags. Leave unset to check every source/unofficial/edk2-stable* release branch.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make extract-vendor-delta-help' 'Show extract-vendor-delta arguments.'; \
@@ -658,7 +662,12 @@ uplift-edk2-release:
 uplift-radxa-release:
 	@if [ -z "$(FROM_RELEASE)" ] || [ -z "$(TO_RELEASE)" ]; then $(MAKE) --no-print-directory uplift-radxa-release-help; printf '%s\n' 'missing required variable(s): FROM_RELEASE TO_RELEASE' >&2; exit 2; fi
 	$(call PROGRESS_PROBE,[uplift] Starting Radxa release uplift)
-	@DEBUG="$(DEBUG)" FROM_RELEASE="$(FROM_RELEASE)" TO_RELEASE="$(TO_RELEASE)" LINE="$(LINE)" EDK2_BASE="$(EDK2_BASE)" CIX_RELEASE="$(CIX_RELEASE)" FROM_UNOFFICIAL_REF="$(FROM_UNOFFICIAL_REF)" PORT_REF="$(PORT_REF)" UNOFFICIAL_REF="$(UNOFFICIAL_REF)" MAKE_DEFAULT="$(MAKE_DEFAULT)" SKIP_RENDER="$(SKIP_RENDER)" VERIFY="$(VERIFY)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" V="$(V)" $(PYTHON) scripts/uplift_radxa_release.py --v "$(V)"
+	@DEBUG="$(DEBUG)" FROM_RELEASE="$(FROM_RELEASE)" TO_RELEASE="$(TO_RELEASE)" LINE="$(LINE)" EDK2_BASE="$(EDK2_BASE)" CIX_RELEASE="$(CIX_RELEASE)" FROM_UNOFFICIAL_REF="$(FROM_UNOFFICIAL_REF)" PORT_REF="$(PORT_REF)" UNOFFICIAL_REF="$(UNOFFICIAL_REF)" UNOFFICIAL_REF_STAGE="$(UNOFFICIAL_REF_STAGE)" MAKE_DEFAULT="$(MAKE_DEFAULT)" SKIP_RENDER="$(SKIP_RENDER)" VERIFY="$(VERIFY)" WRITE="$(WRITE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" V="$(V)" $(PYTHON) scripts/uplift_radxa_release.py --v "$(V)"
+
+select-unofficial-line:
+	@if [ -z "$(LINE)" ]; then $(MAKE) --no-print-directory select-unofficial-line-help; printf '%s\n' 'missing required variable: LINE' >&2; exit 2; fi
+	$(call PROGRESS_PROBE,[select] Selecting unofficial default line)
+	@DEBUG="$(DEBUG)" LINE="$(LINE)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/select_unofficial_line.py --v "$(V)"
 
 integrate-source-release:
 	$(call PROGRESS_PROBE,[integrate] Starting source integration)
@@ -792,6 +801,9 @@ uplift-edk2-release-help:
 
 uplift-radxa-release-help:
 	@$(PYTHON) scripts/uplift_radxa_release.py --help
+
+select-unofficial-line-help:
+	@$(PYTHON) scripts/select_unofficial_line.py --help
 
 integrate-source-release-help:
 	@$(PYTHON) scripts/integrate_source_release.py --help

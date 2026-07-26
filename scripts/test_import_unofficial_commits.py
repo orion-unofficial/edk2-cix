@@ -45,15 +45,34 @@ def make_repo() -> Path:
     scripts.mkdir()
     for name in SCRIPT_FILES:
         shutil.copy2(ROOT / "scripts" / name, scripts / name)
+    write_file(
+        tmp,
+        "config/policies.json",
+        """{
+  "unofficial_source_policy": {
+    "default_line": "1.2",
+    "lines": {
+      "1.2": {
+        "current_cix_release": "1.2",
+        "current_edk2_release": "202602",
+        "current_radxa_release": "1.2.1",
+        "current_ref": "source/unofficial/1.2/current"
+      }
+    },
+    "prefer_versioned_default_alias": true
+  }
+}
+""",
+    )
     commit_all(tmp, "build scripts")
 
-    switch_orphan(tmp, "source/unofficial/current")
+    switch_orphan(tmp, "source/unofficial/1.2/current")
     write_file(tmp, "firmware.txt", "base\n")
     write_file(tmp, "release.txt", "current\n")
     commit_all(tmp, "current base")
 
     for release in ("202208", "202602"):
-        git(tmp, "switch", "-c", f"source/unofficial/edk2-stable{release}", "source/unofficial/current")
+        git(tmp, "switch", "-c", f"source/unofficial/edk2-stable{release}", "source/unofficial/1.2/current")
         write_file(tmp, "release.txt", f"edk2-stable{release}\n")
         commit_all(tmp, f"release branch {release}")
         git(tmp, "tag", f"source/unofficial/edk2/stable-{release}")
@@ -82,8 +101,8 @@ def symlink(repo: Path, target: str, link: str) -> None:
 
 
 def make_topic(repo: Path, name: str = "topic", text: str = "topic change\n") -> tuple[str, str]:
-    base = rev_parse(repo, "source/unofficial/current")
-    git(repo, "switch", "-c", name, "source/unofficial/current")
+    base = rev_parse(repo, "source/unofficial/1.2/current")
+    git(repo, "switch", "-c", name, "source/unofficial/1.2/current")
     write_file(repo, "firmware.txt", text)
     commit_all(repo, f"{name} change")
     git(repo, "switch", "build")
@@ -91,7 +110,7 @@ def make_topic(repo: Path, name: str = "topic", text: str = "topic change\n") ->
 
 
 def add_current_source_and_release_branch_rename(repo: Path) -> None:
-    git(repo, "switch", "source/unofficial/current")
+    git(repo, "switch", "source/unofficial/1.2/current")
     write_file(repo, "src/component/new.c", "renamed source\n")
     commit_all(repo, "current renamed source")
 
@@ -108,8 +127,8 @@ def add_current_source_and_release_branch_rename(repo: Path) -> None:
 
 
 def make_overlay_symlink_topic(repo: Path, path: str = "new.c", name: str = "overlay-symlink-topic") -> tuple[str, str]:
-    base = rev_parse(repo, "source/unofficial/current")
-    git(repo, "switch", "-c", name, "source/unofficial/current")
+    base = rev_parse(repo, "source/unofficial/1.2/current")
+    git(repo, "switch", "-c", name, "source/unofficial/1.2/current")
     symlink(repo, f"../../../src/component/{path}", f"custom/overlay/component/{path}")
     commit_all(repo, f"{name} change")
     git(repo, "switch", "build")
@@ -120,10 +139,10 @@ def test_direct_import_dry_run_does_not_move_ref() -> None:
     repo = make_repo()
     try:
         _base, topic = make_topic(repo)
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
         result = run_import(repo, FROM_REF=topic)
         require(result.returncode == 0, result.stderr)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "dry run moved source/unofficial/current")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "dry run moved source/unofficial/1.2/current")
         require("dry run" in result.stdout, "dry run output should explain no write occurred")
     finally:
         shutil.rmtree(repo)
@@ -158,7 +177,7 @@ def test_propagate_all_updates_current_release_branches_and_tags() -> None:
         )
         require(result.returncode == 0, result.stderr + result.stdout)
         for ref in (
-            "source/unofficial/current",
+            "source/unofficial/1.2/current",
             "source/unofficial/edk2-stable202208",
             "source/unofficial/edk2-stable202602",
         ):
@@ -185,7 +204,7 @@ def test_propagation_normalises_exact_mirror_rename() -> None:
         )
         require(result.returncode == 0, result.stderr + result.stdout)
         require(
-            show(repo, "source/unofficial/current", "custom/overlay/component/new.c") == "../../../src/component/new.c",
+            show(repo, "source/unofficial/1.2/current", "custom/overlay/component/new.c") == "../../../src/component/new.c",
             "current did not keep the new mirror path",
         )
         require(
@@ -203,7 +222,7 @@ def test_propagation_validate_mode_reports_required_normalisation() -> None:
     try:
         add_current_source_and_release_branch_rename(repo)
         _base, topic = make_overlay_symlink_topic(repo)
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
         old_release_branch = rev_parse(repo, "source/unofficial/edk2-stable202208")
         result = run_import(
             repo,
@@ -215,7 +234,7 @@ def test_propagation_validate_mode_reports_required_normalisation() -> None:
         )
         require(result.returncode != 0, "validate mode should reject required lifecycle rewrites")
         require("source lifecycle normalisation is required" in result.stderr, result.stderr)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite validation failure")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "current moved despite validation failure")
         require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_release_branch, "release branch moved despite validation failure")
     finally:
         shutil.rmtree(repo)
@@ -224,7 +243,7 @@ def test_propagation_validate_mode_reports_required_normalisation() -> None:
 def test_propagation_drops_mirror_for_source_missing_in_release_branch() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "source/unofficial/current")
+        git(repo, "switch", "source/unofficial/1.2/current")
         write_file(repo, "src/component/later-only.c", "later source\n")
         commit_all(repo, "current-only source")
         git(repo, "switch", "source/unofficial/edk2-stable202602")
@@ -300,12 +319,12 @@ def test_update_release_tags_moves_tags_after_branch_validation() -> None:
 def test_direct_import_rejects_identical_overlay_copy() -> None:
     repo = make_repo()
     try:
-        git(repo, "switch", "-c", "topic", "source/unofficial/current")
+        git(repo, "switch", "-c", "topic", "source/unofficial/1.2/current")
         write_file(repo, "src/component/file.c", "same\n")
         write_file(repo, "custom/overlay/component/file.c", "same\n")
         commit_all(repo, "add bad overlay copy")
         git(repo, "switch", "build")
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
 
         result = run_import(repo, FROM_REF="topic")
         require(result.returncode != 0, "identical overlay copy should be rejected during dry run")
@@ -314,7 +333,7 @@ def test_direct_import_rejects_identical_overlay_copy() -> None:
         result = run_import(repo, FROM_REF="topic", WRITE="1")
         require(result.returncode != 0, "identical overlay copy should be rejected")
         require("source-tree policy failed" in result.stderr, result.stderr)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite source policy failure")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "current moved despite source policy failure")
     finally:
         shutil.rmtree(repo)
 
@@ -324,12 +343,12 @@ def test_source_unofficial_from_ref_is_rejected_for_propagation() -> None:
     try:
         result = run_import(
             repo,
-            FROM_REF="source/unofficial/current",
+            FROM_REF="source/unofficial/1.2/current",
             PROPAGATE_RELEASE_BRANCHES="all",
             UPDATE_RELEASE_TAGS="1",
             WRITE="1",
         )
-        require(result.returncode != 0, "source/unofficial/current should not be accepted as FROM_REF by default")
+        require(result.returncode != 0, "source/unofficial/1.2/current should not be accepted as FROM_REF by default")
         require("ALLOW_SOURCE_REF_FROM=1" in result.stderr, result.stderr)
     finally:
         shutil.rmtree(repo)
@@ -414,7 +433,7 @@ def test_propagation_dry_run_does_not_move_refs_or_tags() -> None:
         old_values = {
             ref: rev_parse(repo, ref)
             for ref in (
-                "source/unofficial/current",
+                "source/unofficial/1.2/current",
                 "source/unofficial/edk2-stable202208",
                 "source/unofficial/edk2-stable202602",
                 "source/unofficial/edk2/stable-202208",
@@ -439,10 +458,10 @@ def test_propagation_dry_run_does_not_move_refs_or_tags() -> None:
 def test_empty_replay_range_is_rejected() -> None:
     repo = make_repo()
     try:
-        base = rev_parse(repo, "source/unofficial/current")
+        base = rev_parse(repo, "source/unofficial/1.2/current")
         result = run_import(
             repo,
-            FROM_REF="source/unofficial/current",
+            FROM_REF="source/unofficial/1.2/current",
             BASE_REF=base,
             ALLOW_SOURCE_REF_FROM="1",
             PROPAGATE_RELEASE_BRANCHES="all",
@@ -464,7 +483,7 @@ def test_conflict_leaves_permanent_refs_unchanged_then_continue_finalises() -> N
         git(repo, "tag", "-f", "source/unofficial/edk2/stable-202208")
         git(repo, "switch", "build")
 
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
         old_release_branch = rev_parse(repo, "source/unofficial/edk2-stable202208")
         result = run_import(
             repo,
@@ -476,7 +495,7 @@ def test_conflict_leaves_permanent_refs_unchanged_then_continue_finalises() -> N
         )
         require(result.returncode != 0, "conflicting replay should pause")
         require("Import paused due to conflicts" in result.stderr, result.stderr)
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "current moved despite conflict")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "current moved despite conflict")
         require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_release_branch, "release branch moved despite conflict")
 
         op_dirs = sorted((repo / ".cache" / "edk2-cix" / "operations" / "import-unofficial").iterdir())
@@ -488,7 +507,7 @@ def test_conflict_leaves_permanent_refs_unchanged_then_continue_finalises() -> N
 
         continued = run_import(repo, CONTINUE="1", OP_ID=op_id, WRITE="1")
         require(continued.returncode == 0, continued.stderr + continued.stdout)
-        require(show(repo, "source/unofficial/current", "firmware.txt") == "topic\n", "current did not receive topic after continue")
+        require(show(repo, "source/unofficial/1.2/current", "firmware.txt") == "topic\n", "current did not receive topic after continue")
         require(show(repo, "source/unofficial/edk2-stable202208", "firmware.txt") == "resolved\n", "release branch resolution was not finalised")
         require(
             rev_parse(repo, "source/unofficial/edk2/stable-202208") == rev_parse(repo, "source/unofficial/edk2-stable202208"),
@@ -506,7 +525,7 @@ def test_abort_removes_paused_operation_without_moving_refs() -> None:
         write_file(repo, "firmware.txt", "release-branch conflict\n")
         commit_all(repo, "make release-branch conflict")
         git(repo, "switch", "build")
-        old_current = rev_parse(repo, "source/unofficial/current")
+        old_current = rev_parse(repo, "source/unofficial/1.2/current")
 
         result = run_import(repo, FROM_REF=topic, BASE_REF=base, PROPAGATE_RELEASE_BRANCHES="all", WRITE="1")
         require(result.returncode != 0, "conflicting replay should pause")
@@ -514,7 +533,7 @@ def test_abort_removes_paused_operation_without_moving_refs() -> None:
         aborted = run_import(repo, ABORT="1", OP_ID=op_id)
         require(aborted.returncode == 0, aborted.stderr)
         require(not (repo / ".cache" / "edk2-cix" / "operations" / "import-unofficial" / op_id).exists(), "abort left operation state")
-        require(rev_parse(repo, "source/unofficial/current") == old_current, "abort moved current")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "abort moved current")
     finally:
         shutil.rmtree(repo)
 
@@ -534,16 +553,16 @@ def test_concurrent_ref_movement_aborts_finalise() -> None:
         write_file(scratch, "firmware.txt", "resolved\n")
         git(scratch, "add", "firmware.txt")
 
-        git(repo, "switch", "source/unofficial/current")
+        git(repo, "switch", "source/unofficial/1.2/current")
         write_file(repo, "unrelated.txt", "movement\n")
         commit_all(repo, "move current concurrently")
         git(repo, "switch", "build")
-        moved_current = rev_parse(repo, "source/unofficial/current")
+        moved_current = rev_parse(repo, "source/unofficial/1.2/current")
 
         continued = run_import(repo, CONTINUE="1", OP_ID=op_id, WRITE="1")
         require(continued.returncode != 0, "concurrent movement should abort finalise")
         require("changed during import" in continued.stderr, continued.stderr)
-        require(rev_parse(repo, "source/unofficial/current") == moved_current, "concurrent current movement was overwritten")
+        require(rev_parse(repo, "source/unofficial/1.2/current") == moved_current, "concurrent current movement was overwritten")
     finally:
         shutil.rmtree(repo)
 
