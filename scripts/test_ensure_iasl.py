@@ -11,6 +11,10 @@ import unittest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "ensure_iasl.sh"
+REPLAY_PACKAGE_LISTS = (
+    REPO_ROOT / "containers" / "replay-bookworm" / "packages.bookworm-amd64.txt",
+    REPO_ROOT / "containers" / "replay-bookworm" / "packages.bookworm-arm64.txt",
+)
 
 
 def write_fake_iasl(path: pathlib.Path, version: str) -> None:
@@ -50,6 +54,13 @@ class EnsureIaslTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("ACPICA 20200925", result.stderr)
             self.assertIn("requires 20260408", result.stderr)
+
+    def test_replay_image_builds_the_pinned_compiler_from_source(self) -> None:
+        for package_list in REPLAY_PACKAGE_LISTS:
+            with self.subTest(package_list=package_list.name):
+                packages = package_list.read_text(encoding="utf-8")
+                self.assertIn("ca-certificates=20230311+deb12u1", packages)
+                self.assertNotIn("acpica-tools=", packages)
 
 
 if __name__ == "__main__":
