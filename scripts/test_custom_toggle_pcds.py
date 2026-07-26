@@ -232,8 +232,29 @@ class CustomTogglePcdsTest(unittest.TestCase):
             "src/edk2-platforms/Platform/CIX/Sky1/Drivers/"
             "ConfigurationManagerDxe/ConfigurationManager.c"
         )
+        performance_map_match = re.search(
+            r"mPerformanceCoreOrderUidMap\[PLAT_CPU_COUNT\]\s*=\s*\{"
+            r"(?P<values>[^}]+)\}",
+            configuration_manager,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(performance_map_match)
+        performance_map = [
+            int(value)
+            for value in re.findall(r"\d+", performance_map_match.group("values"))
+        ]
+        self.assertEqual(
+            performance_map,
+            [8, 9, 10, 11, 4, 5, 6, 7, 2, 3, 0, 1],
+        )
+        self.assertEqual(performance_map[10:12], [0, 1])
+        self.assertEqual(performance_map[0:4], [8, 9, 10, 11])
         self.assertIn(
-            "8,  9, 10, 11, 4, 5, 6, 7, 2, 3, 0, 1",
+            "CpuCpcInfo[CpuCore->Coreid]",
+            configuration_manager,
+        )
+        self.assertIn(
+            "CpuUidtoCoreNumberMap[UidIndex] = CpuCore->Coreid",
             configuration_manager,
         )
 
