@@ -623,6 +623,72 @@ def test_source_delta_porting_rebases_regular_overlay_content() -> None:
         shutil.rmtree(repo)
 
 
+def test_source_delta_porting_retires_overlay_absorbed_by_vendor() -> None:
+    repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-absorbed-overlay-test."))
+    try:
+        git(repo, "init", "-b", "build")
+        git(repo, "config", "user.name", "Source Port Overlay Test")
+        git(repo, "config", "user.email", "source-port-overlay-test")
+        write_file(repo, "README.md", "build branch\n")
+        commit_all(repo, "build root")
+        old_source = "header\nvendor old\nmiddle\ncustom old\ntail\n"
+        create_branch(
+            repo,
+            "old-base",
+            {"src/component/module.inf": old_source},
+            "old base",
+        )
+        create_branch(
+            repo,
+            "new-base",
+            {
+                "src/component/module.inf": (
+                    "header\nvendor new\nmiddle\ncustom unofficial\ntail\n"
+                )
+            },
+            "new base",
+        )
+        create_branch(
+            repo,
+            "source-tree",
+            {
+                "src/component/module.inf": old_source,
+                "custom/overlay/component/module.inf": (
+                    "header\nvendor old\nmiddle\ncustom unofficial\ntail\n"
+                ),
+            },
+            "source tree",
+        )
+        git(repo, "switch", "build")
+
+        commit = apply_source_delta_to_base(
+            repo,
+            old_base_ref="old-base",
+            source_ref="source-tree",
+            new_base_ref="new-base",
+            message="port source tree",
+            label="source-port-absorbed-overlay-test",
+            verbose=False,
+        )
+        mirror = "custom/overlay/component/module.inf"
+        require(
+            git(repo, "ls-tree", commit, "--", mirror).stdout.startswith("120000 "),
+            "overlay absorbed by the vendor source was not retired to a mirror",
+        )
+        require(
+            git(repo, "show", f"{commit}:{mirror}").stdout
+            == "../../../src/component/module.inf",
+            "retired overlay does not mirror the updated vendor source",
+        )
+        require(
+            git(repo, "show", f"{commit}:src/component/module.inf").stdout
+            == "header\nvendor new\nmiddle\ncustom unofficial\ntail\n",
+            "vendor source did not retain its additional update",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_source_delta_porting_mirrors_new_file_in_complete_overlay() -> None:
     repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-complete-overlay-test."))
     try:
@@ -1049,6 +1115,7 @@ def main() -> None:
     test_source_delta_porting_resolves_policy_owned_paths_from_source()
     test_source_delta_porting_drops_mirror_for_deleted_source_path()
     test_source_delta_porting_rebases_regular_overlay_content()
+    test_source_delta_porting_retires_overlay_absorbed_by_vendor()
     test_source_delta_porting_mirrors_new_file_in_complete_overlay()
     test_source_delta_porting_resolves_policy_paths_before_mixed_handoff()
     test_historical_upstream_target_overlays_build_infrastructure_only()

@@ -133,7 +133,7 @@ make render-release-branch \
 
 This creates a generated branch under `source/cache/release/**`. Cache branches
 are disposable: the same source can be regenerated later from the retained
-`source/base/**`, `source/vendor/**`, `source/port/**`, `source/component/**`,
+`source/base/**`, `source/vendor/**`, `source/port/**`,
 and `source/unofficial/**` refs.
 
 Inside a rendered firmware tree, lower-level firmware targets such as
