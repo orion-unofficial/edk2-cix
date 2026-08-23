@@ -110,6 +110,11 @@
       "vendor_delta_to": "source/vendor/radxa/1.2.4/edk2-stable202208"
     },
     {
+      "object_id": "75f833d78dc90ebe4a8324efc38498fac07f7ce5",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202608",
+      "tree_id": "3098e157ece8f8da8343e9247cfa62eb7ef9009f"
+    },
+    {
       "object_id": "6bfb6c323c9a3774206baf20f71bf15c19c009e7",
       "ported_from": "source/port/radxa/1.2.4/edk2-stable202605",
       "ref": "source/port/radxa/1.3.0/edk2-stable202605",
@@ -124,6 +129,11 @@
       "tree_id": "bb2a32bf42f1af018fc088580ad9a5b9113552d1",
       "vendor_delta_from": "source/vendor/radxa/1.3.0/edk2-stable202208",
       "vendor_delta_to": "source/vendor/radxa/1.3.1/edk2-stable202208"
+    },
+    {
+      "object_id": "924f9af1cbf051a6602c2a21b3a3d4e2f2972274",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202608",
+      "tree_id": "1fd3b6f9e5e94f191d92cf9fff2f75f2c8036c28"
     },
     {
       "object_id": "37faf8c8456fbe91278ec9dd40838a7cbd249b7c",
