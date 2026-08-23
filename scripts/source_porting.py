@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import posixpath
 import re
 import subprocess
@@ -196,59 +197,88 @@ def overlay_paths_from_source(
     if not selected:
         return tree
     source = resolve_ref(repo, source_ref)
-    overlay_commit = commit_tree(
-        repo,
-        tree,
-        f"source-port: prepare policy overlay for {label}\n",
-    )
     with temp_dir(repo, f"overlay-{safe_name(label)}-") as tmp:
-        worktree = Path(tmp) / "worktree"
-        git(repo, "worktree", "add", "--detach", str(worktree), overlay_commit, capture=not verbose)
-        try:
-            source_paths: list[str] = []
-            for batch in path_batches(selected):
-                literal_batch = [f":(literal){path}" for path in batch]
-                git(
-                    worktree,
-                    "rm",
-                    "-r",
-                    "-f",
-                    "--ignore-unmatch",
-                    "--",
-                    *literal_batch,
-                    check=False,
-                    capture=not verbose,
-                )
-                result = git(
-                    repo,
-                    "ls-tree",
-                    "-z",
-                    source,
-                    "--",
-                    *literal_batch,
-                    check=False,
-                )
-                if result.returncode != 0:
-                    raise ReconstructionError(
-                        f"cannot enumerate policy-overlay paths in {source_ref}"
-                    )
-                for record in result.stdout.split("\0"):
-                    if not record:
-                        continue
-                    _metadata, path = record.split("\t", 1)
-                    source_paths.append(path)
-            for batch in path_batches(source_paths):
-                git(
-                    worktree,
-                    "checkout",
-                    source,
-                    "--",
-                    *[f":(literal){path}" for path in batch],
-                    capture=not verbose,
-                )
-            return git(worktree, "write-tree").stdout.strip()
-        finally:
-            git(repo, "worktree", "remove", "--force", str(worktree), check=False, capture=True)
+        index = Path(tmp) / "index"
+        env = os.environ.copy()
+        env["GIT_INDEX_FILE"] = str(index)
+        read_tree = subprocess.run(
+            ["git", "-C", str(repo), "read-tree", tree],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            check=False,
+        )
+        if read_tree.returncode != 0:
+            detail = read_tree.stderr.decode("utf-8", errors="replace").strip()
+            raise ReconstructionError(f"cannot prepare policy-overlay index: {detail}")
+
+        candidate_entries = tree_entries_for_paths(repo, tree, selected)
+        source_entries = tree_entries_for_paths(repo, source, selected)
+        updates = bytearray()
+        for path in sorted(candidate_entries):
+            updates.extend(f"0 {'0' * 40}\t{path}\0".encode("utf-8"))
+        for path, entry in sorted(source_entries.items()):
+            updates.extend(
+                f"{entry.mode} {entry.object_id}\t{path}\0".encode("utf-8")
+            )
+        if updates:
+            update_index = subprocess.run(
+                ["git", "-C", str(repo), "update-index", "-z", "--index-info"],
+                input=bytes(updates),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                check=False,
+            )
+            if update_index.returncode != 0:
+                detail = update_index.stderr.decode("utf-8", errors="replace").strip()
+                raise ReconstructionError(f"cannot apply policy-overlay index: {detail}")
+        result = subprocess.run(
+            ["git", "-C", str(repo), "write-tree"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = result.stderr.decode("utf-8", errors="replace").strip()
+            raise ReconstructionError(f"cannot write policy-overlay tree: {detail}")
+        return result.stdout.decode("ascii").strip()
+
+
+def tree_entries_for_paths(
+    repo: Path,
+    tree: str,
+    paths: Iterable[str],
+) -> dict[str, TreeEntry]:
+    """Return recursive entries beneath literal paths without a checkout."""
+
+    selected = tuple(dict.fromkeys(path for path in paths if path))
+    entries: dict[str, TreeEntry] = {}
+    for batch in path_batches(selected):
+        literal_batch = [f":(literal){path}" for path in batch]
+        result = git(
+            repo,
+            "ls-tree",
+            "-rz",
+            "-r",
+            tree,
+            "--",
+            *literal_batch,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise ReconstructionError(f"cannot enumerate selected paths in {tree}")
+        for record in result.stdout.split("\0"):
+            if not record:
+                continue
+            metadata, path = record.split("\t", 1)
+            fields = metadata.split()
+            if len(fields) != 3:
+                raise ReconstructionError(f"cannot parse tree entry: {record}")
+            mode, _kind, object_id = fields
+            entries[path] = TreeEntry(mode=mode, object_id=object_id, path=path)
+    return entries
 
 
 def worktree_index_entries(
