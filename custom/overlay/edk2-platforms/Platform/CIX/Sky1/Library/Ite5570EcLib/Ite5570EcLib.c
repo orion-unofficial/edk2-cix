@@ -1,0 +1,1 @@
+../../../../../../../../src/edk2-platforms/Platform/CIX/Sky1/Library/Ite5570EcLib/Ite5570EcLib.c

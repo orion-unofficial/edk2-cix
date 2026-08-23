@@ -1,0 +1,1438 @@
+{
+  "profiles": {
+    "upstream-1.2.1-bookworm": {
+      "boards": {
+        "O6": {
+          "acpi": {
+            "board": "O6",
+            "iasl": {
+              "platform_ssdt": {
+                "diagnostics": [
+                  {
+                    "code": "3115",
+                    "kind": "warning",
+                    "line": 724,
+                    "message": "Not all control paths return a value (\\_SB.EC0.SFPW)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 755,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 2599,
+                    "message": "Method Local is set but never used (Local0)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 2614,
+                    "message": "Method Local is set but never used (Local0)"
+                  }
+                ],
+                "error_codes": {},
+                "error_messages": {},
+                "path": "AARCH64/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.iiii",
+                "remark_codes": {},
+                "remark_messages": {},
+                "source": "Ssdt.iiii",
+                "status": "match",
+                "summary": {
+                  "constants_folded": 23,
+                  "errors": 0,
+                  "optimizations": 301,
+                  "remarks": 0,
+                  "warnings": 4
+                },
+                "warning_codes": {
+                  "3115": 1,
+                  "3124": 1,
+                  "3144": 2
+                },
+                "warning_messages": {
+                  "3115": "Not all control paths return a value (\\_SB.EC0.SFPW)",
+                  "3124": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer",
+                  "3144": "Method Local is set but never used (Local0)"
+                }
+              },
+              "soc_dsdt": {
+                "diagnostics": [
+                  {
+                    "code": "3175",
+                    "kind": "warning",
+                    "line": 47,
+                    "message": "Static OperationRegion should be declared outside control method"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 47,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.UDBG)"
+                  },
+                  {
+                    "code": "2158",
+                    "kind": "remark",
+                    "line": 49,
+                    "message": "Unnecessary/redundant use of Offset operator"
+                  },
+                  {
+                    "code": "2158",
+                    "kind": "remark",
+                    "line": 561,
+                    "message": "Unnecessary/redundant use of Offset operator"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 1148,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 1202,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 1208,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 1213,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2158",
+                    "kind": "remark",
+                    "line": 1575,
+                    "message": "Unnecessary/redundant use of Offset operator"
+                  },
+                  {
+                    "code": "2158",
+                    "kind": "remark",
+                    "line": 1834,
+                    "message": "Unnecessary/redundant use of Offset operator"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1869,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.PRSS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1883,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.PRSG)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1898,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.PEFG)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1914,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.CLKG)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1933,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.CLKS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1950,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.CLKD)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1968,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.CLKC)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1993,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.SENG)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 2008,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.SFMD)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 2115,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 3437,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PCI0._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 3514,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PCI1._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 3590,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PCI2._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 3668,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PCI3._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 3746,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PCI4._CRS)"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 3858,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 3862,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 3882,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 3902,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4110,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4114,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4156,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4160,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4177,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4197,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4392,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4396,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4436,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4440,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4454,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4474,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4653,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4657,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4677,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4863,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4867,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4887,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 5127,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 5131,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 5802,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 5874,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6024,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6096,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3134",
+                    "kind": "warning",
+                    "line": 6143,
+                    "message": "Statement is unreachable"
+                  },
+                  {
+                    "code": "3134",
+                    "kind": "warning",
+                    "line": 6163,
+                    "message": "Statement is unreachable"
+                  },
+                  {
+                    "code": "3134",
+                    "kind": "warning",
+                    "line": 6183,
+                    "message": "Statement is unreachable"
+                  },
+                  {
+                    "code": "3134",
+                    "kind": "warning",
+                    "line": 6203,
+                    "message": "Statement is unreachable"
+                  },
+                  {
+                    "code": "3134",
+                    "kind": "warning",
+                    "line": 6223,
+                    "message": "Statement is unreachable"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6536,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6582,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6628,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6674,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7191,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC0._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7215,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC1._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7239,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC2._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7263,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC3._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7288,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC4._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7312,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC5._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7336,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.USB0._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7360,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.USB1._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7384,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.USB2._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7408,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.USB3._CRS)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 8968,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9573,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.GETV)"
+                  },
+                  {
+                    "code": "3175",
+                    "kind": "warning",
+                    "line": 9587,
+                    "message": "Static OperationRegion should be declared outside control method"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9587,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.MVCK)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9609,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.DMRP)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9667,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.TGSP)"
+                  },
+                  {
+                    "code": "3115",
+                    "kind": "warning",
+                    "line": 9694,
+                    "message": "Not all control paths return a value (\\_SB.RLSP)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9701,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.RLSP)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 9774,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 9813,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2120",
+                    "kind": "remark",
+                    "line": 9921,
+                    "message": "Control Method should be made Serialized due to creation of named objects within (\\_SB.DTPM._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9922,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.DTPM._CRS)"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 9941,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3115",
+                    "kind": "warning",
+                    "line": 9941,
+                    "message": "Not all control paths return a value (\\_SB.DTPM._DSM)"
+                  },
+                  {
+                    "code": "3107",
+                    "kind": "warning",
+                    "line": 9941,
+                    "message": "Reserved method must return a value (Integer/String/Buffer/Package/Reference required for _DSM)"
+                  },
+                  {
+                    "code": "2120",
+                    "kind": "remark",
+                    "line": 10046,
+                    "message": "Control Method should be made Serialized due to creation of named objects within (\\_SB.TREE._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 10047,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.TREE._CRS)"
+                  },
+                  {
+                    "code": "3150",
+                    "kind": "warning",
+                    "line": 10048,
+                    "message": "Empty Resource Template (END_TAG only)"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 10065,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 10067,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 10079,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 10081,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 10098,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  }
+                ],
+                "error_codes": {},
+                "error_messages": {},
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.iiii",
+                "remark_codes": {
+                  "2095": 8,
+                  "2119": 10,
+                  "2120": 2,
+                  "2158": 4,
+                  "2173": 32
+                },
+                "remark_messages": {
+                  "2095": "Effective AML package length is zero",
+                  "2119": "Control Method marked Serialized (Due to use of Switch operator)",
+                  "2120": "Control Method should be made Serialized due to creation of named objects within (\\_SB.DTPM._CRS)",
+                  "2158": "Unnecessary/redundant use of Offset operator",
+                  "2173": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.UDBG)"
+                },
+                "source": "Dsdt.iiii",
+                "status": "match",
+                "summary": {
+                  "constants_folded": 156,
+                  "errors": 0,
+                  "optimizations": 2649,
+                  "remarks": 56,
+                  "warnings": 39
+                },
+                "warning_codes": {
+                  "3107": 1,
+                  "3115": 2,
+                  "3124": 18,
+                  "3134": 5,
+                  "3144": 10,
+                  "3150": 1,
+                  "3175": 2
+                },
+                "warning_messages": {
+                  "3107": "Reserved method must return a value (Integer/String/Buffer/Package/Reference required for _DSM)",
+                  "3115": "Not all control paths return a value (\\_SB.RLSP)",
+                  "3124": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer",
+                  "3134": "Statement is unreachable",
+                  "3144": "Method Local is set but never used (Local1)",
+                  "3150": "Empty Resource Template (END_TAG only)",
+                  "3175": "Static OperationRegion should be declared outside control method"
+                }
+              }
+            },
+            "tables": {
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Csrt.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Csrt.acpi",
+                "sha256": "38187596313f386d1ea4b8080c3346fe9fe89654335184bf70b4677ec3ba3744",
+                "size": 320
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dbg2.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dbg2.acpi",
+                "sha256": "fae9e6202adad2927e81ac7f67607103bd67d5457aa5eda5df5b8b9535d3bf65",
+                "size": 288
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml",
+                "sha256": "afc4813e052e070056cb0da9294b602417e24b8351f051f0b34ca4b2458ee089",
+                "size": 72884
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Fadt.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Fadt.acpi",
+                "sha256": "22aa320ceed1ff0185d38b4d01d7971640cf12f1d5d1bc2da5962ffd8019e70d",
+                "size": 448
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Gtdt.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Gtdt.acpi",
+                "sha256": "0d46101cef2c423513c8492e14384730559f3d0025baa4ac5ab144535c6244f2",
+                "size": 320
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort.acpi",
+                "sha256": "fa5c9d7309e6d3392b808e2f797593d2304d22da7ad7510056f1782b5afeb098",
+                "size": 2976
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Pcct.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Pcct.acpi",
+                "sha256": "2658cba511d2e8a80f88a6ee8b3e68e8b072fe938c342346a1aec411acade591",
+                "size": 320
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Sdei.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Sdei.acpi",
+                "sha256": "1b07a8b3396d69709eae7806d5a53ca4f21b59350f8cc87792fee2ca7067cce3",
+                "size": 224
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Spcr.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Spcr.acpi",
+                "sha256": "4b252039224f19950ca27113afdfbdeb2474243eb907362c19e75b9dced3d250",
+                "size": 256
+              },
+              "AARCH64/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml": {
+                "path": "AARCH64/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml",
+                "sha256": "f358980692c880da4a79c80a9d6d758a7a9f0ecbab96d2f417b7117159a795cc",
+                "size": 16120
+              }
+            },
+            "target": "RELEASE_GCC"
+          },
+          "target": "RELEASE_GCC"
+        },
+        "O6N": {
+          "acpi": {
+            "board": "O6N",
+            "iasl": {
+              "platform_ssdt": {
+                "diagnostics": [],
+                "error_codes": {},
+                "error_messages": {},
+                "path": "AARCH64/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.iiii",
+                "remark_codes": {},
+                "remark_messages": {},
+                "source": "Ssdt.iiii",
+                "status": "match",
+                "summary": {
+                  "constants_folded": 13,
+                  "errors": 0,
+                  "optimizations": 212,
+                  "remarks": 0,
+                  "warnings": 0
+                },
+                "warning_codes": {},
+                "warning_messages": {}
+              },
+              "soc_dsdt": {
+                "diagnostics": [
+                  {
+                    "code": "3175",
+                    "kind": "warning",
+                    "line": 47,
+                    "message": "Static OperationRegion should be declared outside control method"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 47,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.UDBG)"
+                  },
+                  {
+                    "code": "2158",
+                    "kind": "remark",
+                    "line": 49,
+                    "message": "Unnecessary/redundant use of Offset operator"
+                  },
+                  {
+                    "code": "2158",
+                    "kind": "remark",
+                    "line": 561,
+                    "message": "Unnecessary/redundant use of Offset operator"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 1148,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 1202,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 1208,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 1213,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2158",
+                    "kind": "remark",
+                    "line": 1575,
+                    "message": "Unnecessary/redundant use of Offset operator"
+                  },
+                  {
+                    "code": "2158",
+                    "kind": "remark",
+                    "line": 1834,
+                    "message": "Unnecessary/redundant use of Offset operator"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1869,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.PRSS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1883,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.PRSG)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1898,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.PEFG)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1914,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.CLKG)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1933,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.CLKS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1950,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.CLKD)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1968,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.CLKC)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 1993,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.SENG)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 2008,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PMMX.SFMD)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 2115,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 3437,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PCI0._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 3514,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PCI1._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 3590,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PCI2._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 3668,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PCI3._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 3746,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.PCI4._CRS)"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 3858,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 3862,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 3882,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 3902,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4110,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4114,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4156,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4160,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4177,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4197,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4392,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4396,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4436,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4440,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4454,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4474,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4653,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4657,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4677,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 4863,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4867,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 4887,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 5127,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 5131,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 5802,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 5874,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6024,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6096,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3134",
+                    "kind": "warning",
+                    "line": 6143,
+                    "message": "Statement is unreachable"
+                  },
+                  {
+                    "code": "3134",
+                    "kind": "warning",
+                    "line": 6163,
+                    "message": "Statement is unreachable"
+                  },
+                  {
+                    "code": "3134",
+                    "kind": "warning",
+                    "line": 6183,
+                    "message": "Statement is unreachable"
+                  },
+                  {
+                    "code": "3134",
+                    "kind": "warning",
+                    "line": 6203,
+                    "message": "Statement is unreachable"
+                  },
+                  {
+                    "code": "3134",
+                    "kind": "warning",
+                    "line": 6223,
+                    "message": "Statement is unreachable"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6536,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6582,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6628,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 6674,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7191,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC0._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7215,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC1._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7239,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC2._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7263,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC3._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7288,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC4._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7312,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.XHC5._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7336,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.USB0._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7360,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.USB1._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7384,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.USB2._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 7408,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.USB3._CRS)"
+                  },
+                  {
+                    "code": "3144",
+                    "kind": "warning",
+                    "line": 8968,
+                    "message": "Method Local is set but never used (Local1)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9573,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.GETV)"
+                  },
+                  {
+                    "code": "3175",
+                    "kind": "warning",
+                    "line": 9587,
+                    "message": "Static OperationRegion should be declared outside control method"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9587,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.MVCK)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9609,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.DMRP)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9667,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.TGSP)"
+                  },
+                  {
+                    "code": "3115",
+                    "kind": "warning",
+                    "line": 9694,
+                    "message": "Not all control paths return a value (\\_SB.RLSP)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9701,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.RLSP)"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 9774,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "3124",
+                    "kind": "warning",
+                    "line": 9813,
+                    "message": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer"
+                  },
+                  {
+                    "code": "2120",
+                    "kind": "remark",
+                    "line": 9921,
+                    "message": "Control Method should be made Serialized due to creation of named objects within (\\_SB.DTPM._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 9922,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.DTPM._CRS)"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 9941,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  },
+                  {
+                    "code": "3115",
+                    "kind": "warning",
+                    "line": 9941,
+                    "message": "Not all control paths return a value (\\_SB.DTPM._DSM)"
+                  },
+                  {
+                    "code": "3107",
+                    "kind": "warning",
+                    "line": 9941,
+                    "message": "Reserved method must return a value (Integer/String/Buffer/Package/Reference required for _DSM)"
+                  },
+                  {
+                    "code": "2120",
+                    "kind": "remark",
+                    "line": 10046,
+                    "message": "Control Method should be made Serialized due to creation of named objects within (\\_SB.TREE._CRS)"
+                  },
+                  {
+                    "code": "2173",
+                    "kind": "remark",
+                    "line": 10047,
+                    "message": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.TREE._CRS)"
+                  },
+                  {
+                    "code": "3150",
+                    "kind": "warning",
+                    "line": 10048,
+                    "message": "Empty Resource Template (END_TAG only)"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 10065,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 10067,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 10079,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2095",
+                    "kind": "remark",
+                    "line": 10081,
+                    "message": "Effective AML package length is zero"
+                  },
+                  {
+                    "code": "2119",
+                    "kind": "remark",
+                    "line": 10098,
+                    "message": "Control Method marked Serialized (Due to use of Switch operator)"
+                  }
+                ],
+                "error_codes": {},
+                "error_messages": {},
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.iiii",
+                "remark_codes": {
+                  "2095": 8,
+                  "2119": 10,
+                  "2120": 2,
+                  "2158": 4,
+                  "2173": 32
+                },
+                "remark_messages": {
+                  "2095": "Effective AML package length is zero",
+                  "2119": "Control Method marked Serialized (Due to use of Switch operator)",
+                  "2120": "Control Method should be made Serialized due to creation of named objects within (\\_SB.DTPM._CRS)",
+                  "2158": "Unnecessary/redundant use of Offset operator",
+                  "2173": "Creation of named objects within a method is highly inefficient, use globals or method local variables instead (\\_SB.UDBG)"
+                },
+                "source": "Dsdt.iiii",
+                "status": "match",
+                "summary": {
+                  "constants_folded": 156,
+                  "errors": 0,
+                  "optimizations": 2616,
+                  "remarks": 56,
+                  "warnings": 39
+                },
+                "warning_codes": {
+                  "3107": 1,
+                  "3115": 2,
+                  "3124": 18,
+                  "3134": 5,
+                  "3144": 10,
+                  "3150": 1,
+                  "3175": 2
+                },
+                "warning_messages": {
+                  "3107": "Reserved method must return a value (Integer/String/Buffer/Package/Reference required for _DSM)",
+                  "3115": "Not all control paths return a value (\\_SB.RLSP)",
+                  "3124": "Switch expression is not a static Integer/Buffer/String data type, defaulting to Integer",
+                  "3134": "Statement is unreachable",
+                  "3144": "Method Local is set but never used (Local1)",
+                  "3150": "Empty Resource Template (END_TAG only)",
+                  "3175": "Static OperationRegion should be declared outside control method"
+                }
+              }
+            },
+            "tables": {
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Csrt.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Csrt.acpi",
+                "sha256": "9bc0e61463766868f7835afb8fecaf1f3dfeee930602bb63a26b12683a289b25",
+                "size": 320
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dbg2.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dbg2.acpi",
+                "sha256": "e018186cdb46406df63df3697b98ed4b8c154be04ac6d21c9da5fe5a7cff15dc",
+                "size": 288
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml",
+                "sha256": "71ae1334c76467cbe346eebfc2046349f1c40e360a797c787667db3d3eed5902",
+                "size": 71872
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Fadt.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Fadt.acpi",
+                "sha256": "bfc5b27b38990f568a27ba384eeb6b7117f3fbbeef7a6679c7e5384c371ae92f",
+                "size": 448
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Gtdt.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Gtdt.acpi",
+                "sha256": "8743c5153593b8d48d38ce60791fd9d404b429fdfce55b9638a19b888eb5442c",
+                "size": 320
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort.acpi",
+                "sha256": "75959ec4db7166cfb1870ba934837eb4cb4f37f9e265ea1b24f4ba98b4e6034a",
+                "size": 2976
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Pcct.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Pcct.acpi",
+                "sha256": "b86380d1ae76688b462f3c73228e0348be2281c3d2713b9bfa51d4e68f5f985e",
+                "size": 320
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Sdei.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Sdei.acpi",
+                "sha256": "3dea585d1d1377967ea07b70090e8588d9a2d71f26814db819caf07b5da5bf07",
+                "size": 224
+              },
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Spcr.acpi": {
+                "path": "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Spcr.acpi",
+                "sha256": "4e947b4b2640871f512b2467755482c0cfdb47da74a50fd5ca076667f83dc1e1",
+                "size": 256
+              },
+              "AARCH64/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml": {
+                "path": "AARCH64/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml",
+                "sha256": "462f37efcfe427f1d7c5ab7f669894dba7787645b496198e2c3dee6e2265f65d",
+                "size": 12680
+              }
+            },
+            "target": "RELEASE_GCC"
+          },
+          "target": "RELEASE_GCC"
+        }
+      },
+      "description": "Generated from deterministic upstream replay outputs for ACPI regression checks."
+    }
+  }
+}
