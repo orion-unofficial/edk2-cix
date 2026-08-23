@@ -411,6 +411,7 @@ def prepare_propagation(repo: Path, args: argparse.Namespace, verbose: bool) -> 
     op_dir.mkdir(parents=True)
     state: dict[str, Any] = {
         "op_id": op_id,
+        "repo": str(repo.resolve()),
         "from_ref": args.from_ref,
         "from_oid": from_oid,
         "base_ref": args.base_ref,

@@ -49,7 +49,7 @@ def write_file(repo: Path, relative: str, text: str) -> None:
 
 
 def commit_all(repo: Path, message: str) -> str:
-    git(repo, "add", ".", ":!.cache")
+    git(repo, "add", ".", ":!.cache", ":!.worktrees")
     git(repo, "commit", "-m", message)
     return rev_parse(repo, "HEAD")
 

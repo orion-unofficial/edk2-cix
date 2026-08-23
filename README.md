@@ -359,7 +359,8 @@ patch to one or more temporary scratch trees, and updates the real source refs
 only after every target applies cleanly. A dry run still creates scratch trees
 and tries the patch against each target so it can report whether the import is
 clean. If the dry run succeeds, those scratch trees are removed. If it
-conflicts, the scratch trees are kept under `.cache/edk2-cix/operations/` so
+conflicts, the scratch trees are kept under
+`.worktrees/edk2-cix-tmp/operations/` at the shared repository root so
 you can resolve and validate the candidate import before any permanent ref or
 tag is moved.
 
@@ -407,7 +408,8 @@ make propagate-release-branches
 ```
 
 This target reads the previous selected line-tip commit from the last successful
-import receipt under `.cache/edk2-cix/operations/import-receipts/` or, if
+import receipt under
+`.worktrees/edk2-cix-tmp/operations/import-receipts/` or, if
 needed, from that ref's local Git reflog. If neither is available, provide the
 previous line-tip commit explicitly:
 
@@ -454,7 +456,8 @@ git -C /path/to/edk2-cix diff <BASE_REF>..<FROM_REF> -- path/to/file
 ```
 
 If Git cannot create `.rej` files either, the output prints the extracted patch
-stored under `.cache/edk2-cix/operations/.../change.patch`; use that patch as
+stored under `.worktrees/edk2-cix-tmp/operations/.../change.patch`; use that
+patch as
 the manual source of truth.
 
 For conflicts where one side is a symlink and the other is a regular file,
@@ -568,7 +571,7 @@ make import-unofficial-commits \
 ```
 
 Propagation prepares all candidate release-branch commits under
-`.cache/edk2-cix/operations/import-unofficial/` before moving any permanent
+`.worktrees/edk2-cix-tmp/operations/import-unofficial/` before moving any permanent
 refs. If one release branch conflicts, no `source/unofficial/**` branch is
 updated. Resolve the conflicts in the scratch tree printed by the command, then
 continue:
@@ -1062,9 +1065,11 @@ render the default source target, run:
 make verify-minimised-clone
 ```
 
-This creates a temporary verification workspace under `.cache/edk2-cix/tmp` and
-removes it when the check completes. Set `KEEP=1` to retain that workspace for
-inspection, or `DIR=<path>` to choose an explicit workspace directory.
+This creates a temporary verification workspace under the shared repository's
+`.worktrees/edk2-cix-tmp` directory and removes it when the check completes.
+Set `KEEP=1` to retain that workspace for inspection, or `DIR=<path>` to choose
+an explicit workspace directory. Set `EDK2_CIX_TMP_ROOT=<path>` when all source
+porting and verification scratch for a run should share another explicit root.
 
 ## How do I materialise an Unofficial line?
 

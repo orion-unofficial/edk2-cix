@@ -116,10 +116,10 @@ source/unofficial/<line>/current ref.
 
 Dry-run mode still applies the extracted patch in scratch trees for every
 target and never moves refs or tags. If the dry run succeeds, those scratch
-trees are removed. If it conflicts, scratch state is kept under .cache for
-resolution. Resolve and stage conflicted files there, run CONTINUE=1 without
-WRITE=1 to validate candidate commits, then add WRITE=1 only for the final
-guarded ref/tag update.
+trees are removed. If it conflicts, scratch state is kept under the shared
+repository's .worktrees/edk2-cix-tmp directory for resolution. Resolve and
+stage conflicted files there, run CONTINUE=1 without WRITE=1 to validate
+candidate commits, then add WRITE=1 only for the final guarded ref/tag update.
 """
 
 
@@ -776,6 +776,7 @@ def prepare_operation(repo: Path, args: argparse.Namespace, verbose: bool) -> tu
     lifecycle_mode = normalise_mode(args.source_lifecycle_normalise)
     state: dict[str, Any] = {
         "op_id": op_id,
+        "repo": str(repo.resolve()),
         "from_ref": args.from_ref,
         "from_oid": from_oid,
         "base_ref": base_ref,

@@ -14,7 +14,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from import_workflow import load_state
+from import_workflow import load_state, operations_root
 from inspect_import_conflicts import (
     OP_NAMESPACES,
     STAGE_LABELS,
@@ -27,7 +27,7 @@ from inspect_import_conflicts import (
     unmerged_entries,
     write_conflict_report,
 )
-from reconstruction_common import ReconstructionError, cache_dir, git, main_wrapper, repo_root, safe_name, truthy
+from reconstruction_common import ReconstructionError, git, main_wrapper, repo_root, safe_name, truthy
 
 
 HELP = """resolve-import-conflicts
@@ -53,10 +53,11 @@ Environment:
   ALLOW_CONFLICT_MARKERS=0|1         Permit unresolved conflict-marker text.
                                      Default: 0.
 
-This helper edits and stages only scratch trees under .cache. It never moves
-source refs or tags. After resolving, run the relevant import CONTINUE command
-without WRITE=1 to validate candidates, then add WRITE=1 only when ready to
-persist the already-validated candidates.
+This helper edits and stages only scratch trees under the shared repository's
+.worktrees/edk2-cix-tmp directory. It never moves source refs or tags. After
+resolving, run the relevant import CONTINUE command without WRITE=1 to validate
+candidates, then add WRITE=1 only when ready to persist the already-validated
+candidates.
 """
 
 MARKERS = (b"<<<<<<< ", b"=======", b">>>>>>> ")
@@ -113,7 +114,7 @@ def find_operation(repo: Path, op_id: str, namespace: str) -> tuple[str, Path]:
     namespaces = [namespace] if namespace else list(OP_NAMESPACES)
     matches: list[tuple[str, Path]] = []
     for item in namespaces:
-        root = cache_dir(repo, "operations", item)
+        root = operations_root(repo, item)
         if not root.exists():
             continue
         if op_id:

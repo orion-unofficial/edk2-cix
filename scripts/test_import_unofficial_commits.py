@@ -36,6 +36,10 @@ SCRIPT_FILES = [
 ]
 
 
+def operations_root(repo: Path) -> Path:
+    return repo / ".worktrees" / "edk2-cix-tmp" / "operations" / "import-unofficial"
+
+
 def make_repo() -> Path:
     tmp = Path(tempfile.mkdtemp(prefix="edk2-cix-import-test."))
     git(tmp, "init", "-b", "build")
@@ -499,7 +503,7 @@ def test_conflict_leaves_permanent_refs_unchanged_then_continue_finalises() -> N
         require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "current moved despite conflict")
         require(rev_parse(repo, "source/unofficial/edk2-stable202208") == old_release_branch, "release branch moved despite conflict")
 
-        op_dirs = sorted((repo / ".cache" / "edk2-cix" / "operations" / "import-unofficial").iterdir())
+        op_dirs = sorted(operations_root(repo).iterdir())
         require(len(op_dirs) == 1, "expected one paused operation")
         op_id = op_dirs[0].name
         scratch = conflicted_scratch(op_dirs[0])
@@ -530,10 +534,10 @@ def test_abort_removes_paused_operation_without_moving_refs() -> None:
 
         result = run_import(repo, FROM_REF=topic, BASE_REF=base, PROPAGATE_RELEASE_BRANCHES="all", WRITE="1")
         require(result.returncode != 0, "conflicting replay should pause")
-        op_id = next((repo / ".cache" / "edk2-cix" / "operations" / "import-unofficial").iterdir()).name
+        op_id = next(operations_root(repo).iterdir()).name
         aborted = run_import(repo, ABORT="1", OP_ID=op_id)
         require(aborted.returncode == 0, aborted.stderr)
-        require(not (repo / ".cache" / "edk2-cix" / "operations" / "import-unofficial" / op_id).exists(), "abort left operation state")
+        require(not (operations_root(repo) / op_id).exists(), "abort left operation state")
         require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "abort moved current")
     finally:
         shutil.rmtree(repo)
@@ -549,8 +553,8 @@ def test_concurrent_ref_movement_aborts_finalise() -> None:
         git(repo, "switch", "build")
         result = run_import(repo, FROM_REF=topic, BASE_REF=base, PROPAGATE_RELEASE_BRANCHES="all", WRITE="1")
         require(result.returncode != 0, "conflicting replay should pause")
-        op_id = next((repo / ".cache" / "edk2-cix" / "operations" / "import-unofficial").iterdir()).name
-        scratch = conflicted_scratch(repo / ".cache" / "edk2-cix" / "operations" / "import-unofficial" / op_id)
+        op_id = next(operations_root(repo).iterdir()).name
+        scratch = conflicted_scratch(operations_root(repo) / op_id)
         write_file(scratch, "firmware.txt", "resolved\n")
         git(scratch, "add", "firmware.txt")
 

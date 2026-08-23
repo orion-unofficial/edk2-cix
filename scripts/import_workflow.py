@@ -14,12 +14,12 @@ from typing import Any
 from reconstruction_common import (
     ReconstructionError,
     branch_to_ref,
-    cache_dir,
     checked_out_worktree,
     clear_metadata_caches,
     git,
     is_dirty_worktree,
     selected_unofficial_current_ref,
+    temp_root,
     unofficial_release_branches,
     rev_parse,
     safe_name,
@@ -83,7 +83,9 @@ def ensure_target_not_checked_out_dirty(repo: Path, ref: str) -> None:
 
 
 def operations_root(repo: Path, namespace: str) -> Path:
-    return cache_dir(repo, "operations", namespace)
+    path = temp_root(repo) / "operations" / namespace
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def operation_path(repo: Path, namespace: str, op_id: str) -> Path:
@@ -157,8 +159,18 @@ def clone_scratch(repo: Path, op_dir: Path, ref: str, verbose: bool) -> Path:
 
 
 def repo_from_operation_dir(op_dir: Path) -> Path | None:
+    saved_state = state_path(op_dir)
+    if saved_state.exists():
+        try:
+            repo = json.loads(saved_state.read_text(encoding="utf-8")).get("repo")
+        except (OSError, json.JSONDecodeError, AttributeError):
+            repo = None
+        if repo:
+            return Path(str(repo))
     for parent in op_dir.parents:
         if parent.name == ".cache":
+            return parent.parent
+        if parent.name == ".worktrees":
             return parent.parent
     return None
 
@@ -295,7 +307,7 @@ def remove_operation_state(op_dir: Path, *, ignore_errors: bool = False) -> None
 
 
 def import_receipt_path(repo: Path, target_ref: str) -> Path:
-    return cache_dir(repo, "operations", "import-receipts") / f"last-{safe_name(target_ref)}.json"
+    return operations_root(repo, "import-receipts") / f"last-{safe_name(target_ref)}.json"
 
 
 def write_current_import_receipt(
