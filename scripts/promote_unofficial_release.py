@@ -262,6 +262,7 @@ def main() -> None:
             label=f"unofficial-{line}-{radxa_release}-{edk2_base}",
             verbose=verbose,
             paths=changed,
+            include_worktree_drift=False,
         )
         candidate = git(repo, "commit-tree", tree, "-m", message).stdout.strip()
     else:
