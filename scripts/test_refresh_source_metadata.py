@@ -188,6 +188,38 @@ def test_full_render_does_not_trust_existing_generated_cache_ref() -> None:
         shutil.rmtree(repo)
 
 
+def test_refresh_preserves_inactive_retained_custom_target() -> None:
+    repo = make_repo()
+    try:
+        cix_ref = (
+            "source/cache/release/custom/edk2-202208/cix-1.2/"
+            "radxa-1.2.1/unofficial"
+        )
+        plain_ref = (
+            "source/cache/release/custom/edk2-202208/"
+            "radxa-1.2.1/unofficial"
+        )
+        retained = create_branch(
+            repo,
+            cix_ref,
+            {"src/current.txt": "retained mutable-tip snapshot\n"},
+            "retained mutable-tip snapshot",
+        )
+        git(repo, "branch", plain_ref, retained)
+        git(repo, "switch", "build")
+
+        refreshed = run_refresh(repo, WRITE="1")
+        require(refreshed.returncode == 0, refreshed.stderr + refreshed.stdout)
+        cache = load_json(repo / "config/refs-source-target-cache.json")
+        require(
+            cache["refs"][0]["tree_id"]
+            == git(repo, "rev-parse", f"{retained}^{{tree}}").stdout.strip(),
+            "metadata refresh rebound an inactive retained custom target",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_refresh_repairs_hashes_cache_trees_and_tags() -> None:
     repo = make_repo()
     try:
@@ -219,6 +251,7 @@ def test_refresh_repairs_hashes_cache_trees_and_tags() -> None:
 def main() -> None:
     test_dry_run_does_not_modify_metadata_or_tags()
     test_full_render_does_not_trust_existing_generated_cache_ref()
+    test_refresh_preserves_inactive_retained_custom_target()
     test_refresh_repairs_hashes_cache_trees_and_tags()
     print("refresh_source_metadata tests passed")
 

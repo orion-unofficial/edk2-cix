@@ -16,6 +16,8 @@ from reconstruction_common import (
     check_immutable_refs,
     ref_exists,
     selected_unofficial_current_ref,
+    source_target_ref_records,
+    synthesise_release_entry,
     tree_id,
 )
 from source_porting import normalise_overlay_tree
@@ -387,6 +389,93 @@ def test_active_line_tip_can_advance_beyond_immutable_checkpoint() -> None:
         shutil.rmtree(repo)
 
 
+def test_retained_historical_target_is_not_rebound_to_old_checkpoint() -> None:
+    repo = make_repo()
+    try:
+        create_branch(
+            repo,
+            "source/unofficial/1.2.4/edk2-stable202605",
+            {"src/firmware.c": "release checkpoint\n"},
+            "release checkpoint",
+        )
+        current = create_branch(
+            repo,
+            "source/unofficial/1.2/current",
+            {"src/firmware.c": "advanced line tip\n"},
+            "advanced line tip",
+        )
+        old_target = (
+            "source/cache/release/custom/edk2-202605/cix-1.2/"
+            "radxa-1.2.4/unofficial"
+        )
+        old_cache = create_branch(
+            repo,
+            old_target,
+            {"src/firmware.c": "old rendered line tip\n"},
+            "retained old rendered line tip",
+        )
+        current_target = (
+            "source/cache/release/custom/edk2-202608/cix-1.2/"
+            "radxa-1.2.4/unofficial"
+        )
+        git(repo, "switch", "build")
+        write_file(
+            repo,
+            "config/policies.json",
+            json.dumps(
+                {
+                    "unofficial_source_policy": {
+                        "default_line": "1.2",
+                        "lines": {
+                            "1.2": {
+                                "current_cix_release": "1.2",
+                                "current_edk2_release": "202608",
+                                "current_radxa_release": "1.2.4",
+                                "current_ref": "source/unofficial/1.2/current",
+                            }
+                        },
+                    }
+                }
+            )
+            + "\n",
+        )
+        write_file(
+            repo,
+            "config/refs-source-target-cache.json",
+            json.dumps(
+                {
+                    "refs": [
+                        {"ref": old_target, "tree_id": tree_id(repo, old_cache)},
+                        {"ref": current_target, "tree_id": "0" * 40},
+                    ]
+                }
+            )
+            + "\n",
+        )
+
+        records = source_target_ref_records(repo)
+        require(
+            records[old_target]["tree_id"] == tree_id(repo, old_cache),
+            "inactive retained target was rebound to a different checkpoint",
+        )
+        require(
+            records[current_target]["tree_id"] == tree_id(repo, current),
+            "active target did not follow the mutable line tip",
+        )
+        require(
+            synthesise_release_entry(repo, old_target)["tree_id"]
+            == tree_id(repo, old_cache),
+            "inactive retained render plan ignored its manifested tree",
+        )
+        require(
+            synthesise_release_entry(repo, current_target)["tree_id"]
+            == tree_id(repo, current),
+            "active render plan ignored its mutable line tip",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_release_line_validation() -> None:
     require(release_line("1.3.1") == "1.3", "release line was derived incorrectly")
     try:
@@ -707,6 +796,7 @@ def main() -> None:
     test_unchanged_source_accepts_canonical_overlay_normalisation()
     test_resolved_unofficial_stage_detects_overlay_handoff()
     test_active_line_tip_can_advance_beyond_immutable_checkpoint()
+    test_retained_historical_target_is_not_rebound_to_old_checkpoint()
     test_release_line_validation()
     test_explicit_unofficial_source_overrides_exact_checkpoint()
     test_delegated_ref_creation_invalidates_parent_metadata_cache()

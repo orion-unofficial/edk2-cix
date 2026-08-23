@@ -823,11 +823,10 @@ def source_target_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
             continue
         edk2_ref = edk2_ref_for_release(parts["release"])
         try:
-            source_ref = (
-                active_unofficial_source_ref(repo, parts["radxa"], edk2_ref)
-                or unofficial_source_ref(repo, parts["radxa"], edk2_ref)
-            )
+            source_ref = active_unofficial_source_ref(repo, parts["radxa"], edk2_ref)
         except ReconstructionError:
+            continue
+        if not source_ref:
             continue
         record["tree_id"] = tree_id(repo, source_ref)
         record["derived_from"] = source_ref
@@ -1012,7 +1011,7 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
             entry["alias_of"] = target
 
     expected_tree = rendered_tree_for(repo, branch)
-    if expected_tree and not entry.get("tree_id"):
+    if expected_tree:
         entry["tree_id"] = expected_tree
     return entry
 
