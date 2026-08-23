@@ -6,7 +6,9 @@ script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 act_version="${EDK2_CIX_ACT_VERSION:-0.2.88}"
 tool_root="${EDK2_CIX_ACT_TOOL_ROOT:-${repo_root}/.cache/edk2-cix/tools/act}"
-temp_root="${repo_root}/.cache/edk2-cix/tmp"
+git_common_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
+shared_repo_root="$(dirname -- "$git_common_dir")"
+temp_root="${EDK2_CIX_TMP_ROOT:-${shared_repo_root}/.worktrees/edk2-cix-tmp}"
 
 status() {
     printf '[act-bootstrap] %s\n' "$*" >&2

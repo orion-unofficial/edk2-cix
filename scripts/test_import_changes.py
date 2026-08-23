@@ -39,6 +39,10 @@ SCRIPT_FILES = [
 ]
 
 
+def operations_root(repo: Path) -> Path:
+    return repo / ".worktrees" / "edk2-cix-tmp" / "operations" / "import-changes"
+
+
 def make_repo() -> Path:
     tmp = Path(tempfile.mkdtemp(prefix="edk2-cix-import-changes-test."))
     git(tmp, "init", "-b", "build")
@@ -299,7 +303,7 @@ def test_dry_run_infers_materialised_base_without_moving_refs() -> None:
         require("make test" in result.stdout, "dry run did not print qualification guidance")
         require("firmware qualification" not in result.stdout, "dry run printed overly broad qualification guidance")
         require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "dry run moved source/unofficial/1.2/current")
-        operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
+        operations = operations_root(repo)
         require(not operations.exists() or not any(operations.iterdir()), "dry run left operation state")
     finally:
         shutil.rmtree(repo)
@@ -650,7 +654,7 @@ def test_conflict_pauses_without_moving_refs_then_continue_finalises() -> None:
         require("Import paused due to conflicts" in result.stderr, result.stderr)
         require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "current moved despite conflict")
 
-        op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
+        op_dir = next(operations_root(repo).iterdir())
         scratch = conflicted_scratch(op_dir)
         write_file(scratch, "firmware.txt", "resolved\n")
         git(scratch, "add", "firmware.txt")
@@ -692,7 +696,7 @@ def test_dry_run_conflict_reports_paths_without_moving_refs() -> None:
         require("firmware.txt" in result.stderr, result.stderr)
         require("CONTINUE=1 OP_ID=" in result.stderr, result.stderr)
         require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "dry-run conflict moved current")
-        operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
+        operations = operations_root(repo)
         op_dir = next(operations.iterdir())
         short_op_id = op_dir.name.split("-", 1)[0]
         scratch = conflicted_scratch(op_dir)
@@ -770,7 +774,7 @@ def test_resolve_conflicts_edits_scratch_only_then_continue_finalises() -> None:
         topic = make_materialised_topic(repo, text="topic conflict\n")
         result = run_import_changes(repo, FROM_REF=topic)
         require(result.returncode != 0, "conflicting dry-run should fail")
-        op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
+        op_dir = next(operations_root(repo).iterdir())
         script = editor_script(
             repo,
             "resolve-editor.sh",
@@ -843,7 +847,7 @@ def test_continue_rejects_changed_operation_options() -> None:
         topic = make_materialised_topic(repo, text="topic conflict\n")
         result = run_import_changes(repo, FROM_REF=topic)
         require(result.returncode != 0, "conflicting dry-run should fail")
-        op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
+        op_dir = next(operations_root(repo).iterdir())
 
         changed_continue = run_import_changes(
             repo,
@@ -878,7 +882,7 @@ def test_failed_apply_without_conflict_markers_pauses_for_manual_resolution() ->
         require("Import paused due to conflicts" in result.stderr, result.stderr)
         require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "current moved despite failed apply")
 
-        op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
+        op_dir = next(operations_root(repo).iterdir())
         scratch = conflicted_scratch(op_dir)
         write_file(scratch, "legacy-only.txt", "legacy topic\n")
         remove_reject_files(scratch)
@@ -913,7 +917,7 @@ def test_dry_run_failed_apply_without_conflict_markers_keeps_rejects() -> None:
         require("For mode conflicts involving symlinks" not in result.stderr, "reject output used Git jargon")
         require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "dry-run moved current")
 
-        op_dir = next((repo / ".cache" / "edk2-cix" / "operations" / "import-changes").iterdir())
+        op_dir = next(operations_root(repo).iterdir())
         scratch = conflicted_scratch(op_dir)
         clean_continue = run_import_changes(repo, CONTINUE="1", OP_ID=op_dir.name)
         require(clean_continue.returncode != 0, "clean conflicted scratch must not become ready")
@@ -955,7 +959,7 @@ def test_import_rejects_identical_overlay_copy() -> None:
             result.stderr,
         )
         require(rev_parse(repo, "source/unofficial/1.2/current") == old_current, "current moved despite source policy failure")
-        operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
+        operations = operations_root(repo)
         require(not operations.exists() or not any(operations.iterdir()), "policy failure left operation state")
     finally:
         shutil.rmtree(repo)
@@ -1020,7 +1024,7 @@ def test_abort_all_removes_all_paused_import_changes_operations() -> None:
             result = run_import_changes(repo, FROM_REF=topic, OP_ID=op_id)
             require(result.returncode != 0, f"{op_id} should pause")
 
-        operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
+        operations = operations_root(repo)
         require(sorted(path.name for path in operations.iterdir()) == ["first-paused-import", "second-paused-import"], "paused operations missing")
         aborted = run_import_changes(repo, ABORT_ALL="1")
         require(aborted.returncode == 0, aborted.stderr + aborted.stdout)
@@ -1035,7 +1039,7 @@ def test_abort_all_removes_all_paused_import_changes_operations() -> None:
 def test_numeric_op_id_prefix_must_be_unique() -> None:
     repo = make_repo()
     try:
-        operations = repo / ".cache" / "edk2-cix" / "operations" / "import-changes"
+        operations = operations_root(repo)
         (operations / "123-first").mkdir(parents=True)
         (operations / "123-second").mkdir()
         result = run_import_changes(repo, CONTINUE="1", OP_ID="123")

@@ -13,7 +13,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, cache_dir, git, main_wrapper, repo_root, safe_name
+from import_workflow import operations_root
+from reconstruction_common import ReconstructionError, git, main_wrapper, repo_root, safe_name
 
 
 STAGE_LABELS = {
@@ -252,7 +253,7 @@ def write_conflict_report(repo: Path, report_path: Path, *, paths: list[str] | N
 
 
 def operation_dir(repo: Path, namespace: str, op_id: str) -> Path:
-    path = cache_dir(repo, "operations", namespace) / op_id
+    path = operations_root(repo, namespace) / op_id
     if not path.exists():
         raise ReconstructionError(f"operation does not exist: {namespace}/{op_id}")
     return path
@@ -262,7 +263,7 @@ def find_operation(repo: Path, op_id: str, namespace: str) -> tuple[str, Path]:
     namespaces = [namespace] if namespace else list(OP_NAMESPACES)
     matches: list[tuple[str, Path]] = []
     for item in namespaces:
-        root = cache_dir(repo, "operations", item)
+        root = operations_root(repo, item)
         if not root.exists():
             continue
         if op_id:

@@ -10,14 +10,15 @@ import tempfile
 import time
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, cache_dir, default_release, format_duration, git, main_wrapper, repo_root, run, temp_dir, truthy
+from reconstruction_common import ReconstructionError, default_release, format_duration, git, main_wrapper, repo_root, run, temp_dir, temp_root, truthy
 
 
 HELP = """verify-minimised-clone
 
 Optional variables:
   DIR=<path>     Directory to use for the verification workspace. If unset,
-                 a temporary directory under .cache/edk2-cix/tmp is used and
+                 a temporary directory under the shared repository's
+                 .worktrees/edk2-cix-tmp is used and
                  removed automatically.
   KEEP=0|1      Keep the verification workspace after completion. Default: 0.
   REPACK=0|1    Repack the exported bare repo. Default: 1.
@@ -141,7 +142,7 @@ def main() -> None:
         ensure_empty_dir(workspace)
         verify_from_workspace(repo, workspace, keep=True, repack=args.repack, verbose=verbose)
     elif keep:
-        workspace = Path(tempfile.mkdtemp(prefix="minimised-verify-", dir=cache_dir(repo, "tmp")))
+        workspace = Path(tempfile.mkdtemp(prefix="minimised-verify-", dir=temp_root(repo)))
         verify_from_workspace(repo, workspace, keep=True, repack=args.repack, verbose=verbose)
     else:
         with temp_dir(repo, "minimised-verify-") as tmp:

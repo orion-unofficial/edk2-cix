@@ -1283,6 +1283,20 @@ def cache_dir(repo: Path, *parts: str) -> Path:
     return path
 
 
+def shared_repository_root(repo: Path) -> Path:
+    """Return the primary checkout root shared by linked Git worktrees."""
+
+    result = git(repo, "rev-parse", "--git-common-dir", check=False)
+    if result.returncode != 0 or not result.stdout.strip():
+        return repo.resolve()
+    common = Path(result.stdout.strip())
+    if not common.is_absolute():
+        common = (repo / common).resolve()
+    if common.name == ".git":
+        return common.parent
+    return repo.resolve()
+
+
 def temp_root(repo: Path) -> Path:
     configured = os.environ.get("EDK2_CIX_TMP_ROOT", "").strip()
     if configured:
@@ -1290,7 +1304,7 @@ def temp_root(repo: Path) -> Path:
         if not root.is_absolute():
             root = repo / root
     else:
-        root = cache_dir(repo, "tmp")
+        root = shared_repository_root(repo) / ".worktrees" / "edk2-cix-tmp"
     root.mkdir(parents=True, exist_ok=True)
     return root
 

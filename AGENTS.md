@@ -98,45 +98,45 @@ required context, reformulate it before delivering or committing it.
 
 ## Ephemeral Worktrees And Temporary Data
 
-Treat Git worktrees as ephemeral execution state, not as durable storage. A
-worktree under an operating-system temporary location may disappear on reboot,
-under storage pressure, or during normal temporary-directory cleanup. If a task
-needs a branch checked out as a temporary worktree, remove that worktree once
-the task is complete instead of leaving it behind for manual and uncertain
-cleanup.
+Treat `/tmp/`, `/private/tmp/`, and other operating-system temporary locations
+as strictly ephemeral. Do not put resumable work, conflict resolutions, build
+logs needed for audit, or other unique task state there. Prefer a clearly named
+directory beneath `.worktrees/` at the shared repository root for worktrees and
+scratch that may need to survive a crash, reboot, cleanup job, or session reset.
 
-Do not store unique work only in a temporary worktree. Commit, stash, bundle,
-or otherwise preserve any useful data in an associated Git repository before
-assuming it is safe to remove the worktree.
+Git worktrees remain execution state rather than the sole durable record of
+completed work. Commit, stash, bundle, or otherwise preserve useful changes in
+the associated Git repository before removing a worktree.
 
-All directly agent-created ephemeral data must live under a directory named
-after the active session id provided by the execution harness. For example,
-after assigning that value to `AGENT_SESSION_ID`, a temporary root may be:
+All directly agent-created scratch must live under a directory named after the
+active session id where the execution harness provides one. For example, from
+the shared repository root:
 
 ```bash
-: "${TMPDIR:?set TMPDIR to a writable temporary root first}"
 : "${AGENT_SESSION_ID:?set AGENT_SESSION_ID to the active session id first}"
-${TMPDIR%/}/edk2-cix-agent/${AGENT_SESSION_ID}
+scratch_root="$(git rev-parse --path-format=absolute --git-common-dir)/../.worktrees/codex-session-${AGENT_SESSION_ID}-scratch"
+mkdir -p "$scratch_root/tmp"
 ```
 
-When invoking scripts or tools that may create temporary files, set the
-temporary environment variables to that session-specific root, for example:
+When invoking scripts or tools that create temporary files, point both the
+generic temporary variables and the repository helper at that root:
 
 ```bash
-: "${TMPDIR:?set TMPDIR to a writable temporary root first}"
 : "${AGENT_SESSION_ID:?set AGENT_SESSION_ID to the active session id first}"
-export TMPDIR="${TMPDIR%/}/edk2-cix-agent/${AGENT_SESSION_ID}"
+scratch_root="$(git rev-parse --path-format=absolute --git-common-dir)/../.worktrees/codex-session-${AGENT_SESSION_ID}-scratch"
+export TMPDIR="$scratch_root/tmp"
 export TMP="$TMPDIR"
 export TEMP="$TMPDIR"
+export EDK2_CIX_TMP_ROOT="$TMPDIR"
 mkdir -p "$TMPDIR"
 ```
 
-The intent is that every worktree, temporary file, build scratch directory,
-download cache, log, archive, and other non-repository artefact written by an
-agent can be traced back to the agent session that created it. If
-the execution harness does not expose a session id, create a clearly labelled
-substitute id and record it in user-facing progress or final output before
-creating temporary state.
+Use an operating-system temporary location only when complete loss is
+acceptable. Even then, group directly created files beneath one session-labelled
+parent and remove them promptly. Keep a running list of scratch paths, remove
+only paths created for the current task, and report anything intentionally
+retained at handoff. If the harness exposes no session id, create a clearly
+labelled substitute and record it before creating scratch state.
 
 ## Before Pruning
 
