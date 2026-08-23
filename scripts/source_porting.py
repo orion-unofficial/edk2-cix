@@ -34,6 +34,7 @@ from source_normalisation import (
     attribute_inconsistent_paths,
     modified_tracked_paths,
     normalise_worktree,
+    path_batches,
 )
 
 
@@ -479,6 +480,112 @@ def normalise_overlay_state(mode: str, data: bytes) -> tuple[str, bytes]:
     return mode, normalised
 
 
+def canonical_tree_entry_state(
+    repo: Path,
+    commit: str,
+    path: str,
+) -> tuple[str, bytes] | None:
+    return canonical_tree_entry_states(repo, commit, [path]).get(path)
+
+
+def git_blob_bytes_batch(repo: Path, object_ids: Iterable[str]) -> dict[str, bytes]:
+    selected = tuple(dict.fromkeys(object_ids))
+    if not selected:
+        return {}
+    process = subprocess.run(
+        ["git", "-C", str(repo), "cat-file", "--batch"],
+        input="".join(f"{object_id}\n" for object_id in selected).encode("ascii"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if process.returncode != 0:
+        detail = process.stderr.decode("utf-8", errors="replace").strip()
+        raise ReconstructionError(f"cannot batch-read Git blobs: {detail}")
+
+    offset = 0
+    blobs: dict[str, bytes] = {}
+    for requested in selected:
+        header_end = process.stdout.find(b"\n", offset)
+        if header_end < 0:
+            raise ReconstructionError(f"missing Git cat-file header for {requested}")
+        header = process.stdout[offset:header_end].decode("ascii", errors="replace")
+        fields = header.split()
+        if len(fields) != 3 or fields[1] != "blob":
+            raise ReconstructionError(f"unexpected Git cat-file header: {header}")
+        object_id, _kind, raw_size = fields
+        size = int(raw_size)
+        data_start = header_end + 1
+        data_end = data_start + size
+        if data_end >= len(process.stdout) or process.stdout[data_end : data_end + 1] != b"\n":
+            raise ReconstructionError(f"truncated Git blob data for {requested}")
+        blobs[object_id] = process.stdout[data_start:data_end]
+        offset = data_end + 1
+    return blobs
+
+
+def canonical_tree_entry_states(
+    repo: Path,
+    commit: str,
+    paths: Iterable[str],
+) -> dict[str, tuple[str, bytes]]:
+    selected = tuple(dict.fromkeys(path for path in paths if path))
+    entries: dict[str, tuple[str, str, str]] = {}
+    for batch in path_batches(selected):
+        literal_batch = [f":(literal){path}" for path in batch]
+        result = git(repo, "ls-tree", "-rz", commit, "--", *literal_batch, check=False)
+        if result.returncode != 0:
+            raise ReconstructionError(f"cannot enumerate Git tree entries for {commit}")
+        for record in result.stdout.split("\0"):
+            if not record:
+                continue
+            metadata, path = record.split("\t", 1)
+            fields = metadata.split()
+            if len(fields) != 3:
+                raise ReconstructionError(f"cannot parse Git tree entry for {commit}:{path}")
+            entries[path] = (fields[0], fields[1], fields[2])
+
+    blobs = git_blob_bytes_batch(
+        repo,
+        (object_id for _mode, kind, object_id in entries.values() if kind == "blob"),
+    )
+    states: dict[str, tuple[str, bytes]] = {}
+    for path, (mode, kind, object_id) in entries.items():
+        if kind == "blob":
+            states[path] = normalise_overlay_state(mode, blobs[object_id])
+        else:
+            states[path] = (mode, object_id.encode("ascii"))
+    return states
+
+
+def replay_source_delta_paths(
+    repo: Path,
+    old_base: str,
+    source: str,
+    new_base: str,
+    paths: Iterable[str] = (),
+) -> list[str]:
+    """Return source changes that are neither normalisation drift nor upstreamed."""
+
+    raw_paths = list(paths) or [
+        path
+        for path in git(repo, "diff", "--name-only", "-z", old_base, source).stdout.split("\0")
+        if path
+    ]
+    old_states = canonical_tree_entry_states(repo, old_base, raw_paths)
+    source_states = canonical_tree_entry_states(repo, source, raw_paths)
+    new_states = canonical_tree_entry_states(repo, new_base, raw_paths)
+    replay_paths: list[str] = []
+    for path in raw_paths:
+        old_state = old_states.get(path)
+        source_state = source_states.get(path)
+        new_state = new_states.get(path)
+        if old_state == source_state or source_state == new_state:
+            continue
+        replay_paths.append(path)
+    return replay_paths
+
+
 def normalise_source_tree(
     repo: Path,
     *,
@@ -486,6 +593,7 @@ def normalise_source_tree(
     label: str,
     verbose: bool,
     paths: Iterable[str] = (),
+    include_worktree_drift: bool = True,
 ) -> tuple[str, NormalisationResult]:
     """Canonicalise selected editable-source paths without changing raw vendor refs."""
 
@@ -498,15 +606,11 @@ def normalise_source_tree(
         worktree = Path(tmp) / "worktree"
         git(repo, "worktree", "add", "--detach", str(worktree), candidate, capture=not verbose)
         try:
-            selected_paths = list(
-                dict.fromkeys(
-                    [
-                        *paths,
-                        *modified_tracked_paths(worktree),
-                        *attribute_inconsistent_paths(worktree),
-                    ]
-                )
-            )
+            selected_paths = list(paths)
+            if include_worktree_drift:
+                selected_paths.extend(modified_tracked_paths(worktree))
+                selected_paths.extend(attribute_inconsistent_paths(worktree))
+            selected_paths = list(dict.fromkeys(selected_paths))
             result = normalise_worktree(worktree, paths=selected_paths)
             if verbose and result.changed:
                 print(
@@ -673,12 +777,43 @@ def apply_source_delta_to_base(
     old_base = materialised_base_commit(repo, old_base_ref, label=f"{label}-old-base", verbose=verbose)
     new_base = materialised_base_commit(repo, new_base_ref, label=f"{label}-new-base", verbose=verbose)
     source_commit = resolve_ref(repo, source_ref)
-    source_delta_paths = [
-        line
-        for line in git(repo, "diff", "--name-only", old_base, source_commit).stdout.splitlines()
-        if line
+    raw_source_delta_paths = [
+        path
+        for path in git(
+            repo,
+            "diff",
+            "--name-only",
+            "-z",
+            old_base,
+            source_commit,
+        ).stdout.split("\0")
+        if path
     ]
+    source_delta_paths = replay_source_delta_paths(
+        repo,
+        old_base,
+        source_commit,
+        new_base,
+        raw_source_delta_paths,
+    )
     if normalise_source:
+        discarded_source_delta_paths = sorted(
+            set(raw_source_delta_paths) - set(source_delta_paths)
+        )
+        if discarded_source_delta_paths:
+            source_tree = overlay_paths_from_source(
+                repo,
+                tree=tree_id(repo, source_commit),
+                source_ref=old_base,
+                paths=discarded_source_delta_paths,
+                label=f"{label}-discard-non-replay-source-delta",
+                verbose=verbose,
+            )
+            source_commit = commit_tree(
+                repo,
+                source_tree,
+                f"source-port: discard normalisation-only or upstreamed delta for {label}\n",
+            )
         normalised_commits: list[str] = []
         for role, commit in (
             ("old-base", old_base),
@@ -691,6 +826,7 @@ def apply_source_delta_to_base(
                 label=f"{label}-{role}-preimage",
                 verbose=verbose,
                 paths=source_delta_paths,
+                include_worktree_drift=False,
             )
             if tree == tree_id(repo, commit):
                 normalised_commits.append(commit)
@@ -722,6 +858,7 @@ def apply_source_delta_to_base(
             label=label,
             verbose=verbose,
             paths=source_delta_paths,
+            include_worktree_drift=False,
         )
     if tree == tree_id(repo, new_base):
         return new_base

@@ -20,7 +20,7 @@ from reconstruction_common import (
     synthesise_release_entry,
     tree_id,
 )
-from source_porting import normalise_overlay_tree
+from source_porting import apply_source_delta_to_base, git_blob_bytes, normalise_overlay_tree
 from uplift_radxa_release import (
     ensure_checkpoint_record,
     release_line,
@@ -327,6 +327,64 @@ def test_changed_source_absorbs_matching_overlay() -> None:
         require(entry.startswith("120000 blob "), "absorbed overlay was not replaced by a symlink")
         target = git(repo, "show", f"{tree}:custom/overlay/component/file.c").stdout
         require(target == "../../../src/component/file.c", "absorbed overlay symlink target changed")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_source_port_preserves_upstream_crlf_for_non_replayed_source_deltas() -> None:
+    repo = make_repo()
+    try:
+        git(repo, "config", "core.autocrlf", "false")
+        switch_orphan(repo, "old-base")
+        write_file(repo, "src/changed.txt", "old\n")
+        unchanged = repo / "src/unchanged.vcproj"
+        unchanged.parent.mkdir(parents=True, exist_ok=True)
+        unchanged.write_bytes(b"upstream\r\n")
+        absorbed = repo / "src/absorbed.vcproj"
+        absorbed.write_bytes(b"old\r\n")
+        old_base = commit_all(repo, "old base")
+
+        switch_orphan(repo, "source")
+        write_file(repo, "src/changed.txt", "custom\n")
+        write_file(repo, "src/unchanged.vcproj", "upstream\n")
+        write_file(repo, "src/absorbed.vcproj", "upstreamed\n")
+        source = commit_all(repo, "source with historical line-ending drift")
+
+        switch_orphan(repo, "new-base")
+        write_file(repo, "src/changed.txt", "old\n")
+        unchanged = repo / "src/unchanged.vcproj"
+        unchanged.parent.mkdir(parents=True, exist_ok=True)
+        unchanged.write_bytes(b"upstream\r\n")
+        absorbed = repo / "src/absorbed.vcproj"
+        absorbed.write_bytes(b"upstreamed\r\n")
+        new_base = commit_all(repo, "new base")
+        git(repo, "switch", "build")
+
+        candidate = apply_source_delta_to_base(
+            repo,
+            old_base_ref=old_base,
+            source_ref=source,
+            new_base_ref=new_base,
+            message="ported source",
+            label="preserve-upstream-crlf",
+            normalise_source=True,
+            verbose=False,
+        )
+        unchanged_blob = git(repo, "rev-parse", f"{candidate}:src/unchanged.vcproj").stdout.strip()
+        absorbed_blob = git(repo, "rev-parse", f"{candidate}:src/absorbed.vcproj").stdout.strip()
+        changed_blob = git(repo, "rev-parse", f"{candidate}:src/changed.txt").stdout.strip()
+        require(
+            git_blob_bytes(repo, unchanged_blob) == b"upstream\r\n",
+            "normalisation-only source history changed upstream CRLF bytes",
+        )
+        require(
+            git_blob_bytes(repo, absorbed_blob) == b"upstreamed\r\n",
+            "upstream-absorbed source history changed upstream CRLF bytes",
+        )
+        require(
+            git_blob_bytes(repo, changed_blob) == b"custom\n",
+            "semantic source change was not replayed",
+        )
     finally:
         shutil.rmtree(repo)
 
@@ -834,6 +892,7 @@ def main() -> None:
     test_source_stage_resume_flags_changed_overlay_when_vendor_source_is_unchanged()
     test_unchanged_source_accepts_canonical_overlay_normalisation()
     test_changed_source_absorbs_matching_overlay()
+    test_source_port_preserves_upstream_crlf_for_non_replayed_source_deltas()
     test_resolved_unofficial_stage_detects_overlay_handoff()
     test_active_line_tip_can_advance_beyond_immutable_checkpoint()
     test_retained_historical_target_is_not_rebound_to_old_checkpoint()
