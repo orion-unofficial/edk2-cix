@@ -265,6 +265,31 @@ def test_source_stage_resume_flags_changed_overlay_when_vendor_source_is_unchang
         shutil.rmtree(repo)
 
 
+def test_unchanged_source_accepts_canonical_overlay_normalisation() -> None:
+    repo = make_repo()
+    try:
+        switch_orphan(repo, "unofficial")
+        write_file(repo, "src/component/file.c", "vendor\n")
+        overlay = repo / "custom/overlay/component/file.c"
+        overlay.parent.mkdir(parents=True, exist_ok=True)
+        overlay.write_bytes(b"custom policy\r\n")
+        unofficial = commit_all(repo, "unofficial with noncanonical overlay")
+        git(repo, "switch", "build")
+
+        tree, conflicts, detail = normalise_overlay_tree(
+            repo,
+            tree=tree_id(repo, unofficial),
+            source_ref=unofficial,
+            label="unchanged-source-canonical-overlay",
+            verbose=False,
+        )
+        require(not conflicts, f"canonical overlay normalisation was treated as semantic: {detail}")
+        result = git(repo, "show", f"{tree}:custom/overlay/component/file.c").stdout
+        require(result == "custom policy\n", "overlay was not canonicalised")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_resolved_unofficial_stage_detects_overlay_handoff() -> None:
     repo = make_repo()
     try:
@@ -679,6 +704,7 @@ def main() -> None:
     test_resolved_unofficial_tree_gets_canonical_provenance_commit()
     test_final_unofficial_candidate_is_promoted_without_rewriting()
     test_source_stage_resume_flags_changed_overlay_when_vendor_source_is_unchanged()
+    test_unchanged_source_accepts_canonical_overlay_normalisation()
     test_resolved_unofficial_stage_detects_overlay_handoff()
     test_active_line_tip_can_advance_beyond_immutable_checkpoint()
     test_release_line_validation()

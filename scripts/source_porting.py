@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import posixpath
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -296,8 +297,16 @@ def normalise_overlay_tree(
                         "--",
                         projection.target_overlay_path,
                     ).stdout.strip()
-                    expected = f"{entry.mode} {entry.object_id} 0\t{projection.target_overlay_path}"
-                    if current != expected:
+                    metadata = current.split("\t", 1)[0].split()
+                    current_matches = False
+                    if len(metadata) == 3 and metadata[2] == "0":
+                        current_mode, current_object = metadata[:2]
+                        current_blob = git_blob_bytes(repo, current_object)
+                        current_matches = normalise_overlay_state(
+                            current_mode,
+                            current_blob,
+                        ) == normalise_overlay_state(entry.mode, overlay_blob)
+                    if not current_matches:
                         conflicts.add(projection.target_overlay_path)
                         details.append(
                             "CONFLICT (overlay state): "
@@ -456,6 +465,18 @@ def normalise_merge_text(data: bytes) -> bytes | None:
     if b"\0" in data:
         return None
     return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
+def normalise_overlay_state(mode: str, data: bytes) -> tuple[str, bytes]:
+    """Return the canonical state produced by editable-source normalisation."""
+
+    if mode not in NORMAL_FILE_MODES or b"\0" in data:
+        return mode, data
+    normalised = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    normalised = re.sub(rb"[ \t]+(?=\n|$)", b"", normalised)
+    if mode == "100755" and not normalised.startswith(b"#!"):
+        mode = "100644"
+    return mode, normalised
 
 
 def normalise_source_tree(
