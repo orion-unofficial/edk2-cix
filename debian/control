@@ -1,0 +1,46 @@
+Source: edk2-cix
+Maintainer: "Radxa Computer Co., Ltd" <dev@radxa.com>
+Section: admin
+Priority: standard
+Standards-Version: 4.6.0
+Build-Depends: debhelper (>=12~),
+               devscripts,
+               lintian,
+               dh-exec,
+               dos2unix,
+               pandoc,
+               shellcheck,
+               acpica-tools,
+               uuid-dev,
+               nasm,
+               bison,
+               flex,
+               curl,
+               crossbuild-essential-arm64 [!arm64],
+               python-is-python3,
+
+Package: edk2-cix
+Architecture: all
+Section: admin
+Priority: standard
+Depends: ${misc:Depends}
+Description: CIX EDK II firmwares
+ This package contains prebuild CIX EDK II firmwares.
+
+Package: edk2-orion-o6
+Architecture: all
+Section: admin
+Priority: standard
+Depends: edk2-cix,
+         ${misc:Depends}
+Description: Radxa EDK II meta-package for Orion O6
+ This is the meta-package for EDK II.
+
+Package: edk2-radxa-orion-cix-p1
+Architecture: all
+Section: admin
+Priority: standard
+Depends: edk2-cix,
+         ${misc:Depends}
+Description: Radxa EDK II meta-package for generic CIX P1 image
+ This is the meta-package for EDK II.
