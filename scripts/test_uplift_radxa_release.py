@@ -292,6 +292,45 @@ def test_unchanged_source_accepts_canonical_overlay_normalisation() -> None:
         shutil.rmtree(repo)
 
 
+def test_changed_source_absorbs_matching_overlay() -> None:
+    repo = make_repo()
+    try:
+        unofficial = create_branch(
+            repo,
+            "unofficial",
+            {
+                "src/component/file.c": "vendor\n",
+                "custom/overlay/component/file.c": "custom policy\n",
+            },
+            "unofficial with source override",
+        )
+        switch_orphan(repo, "candidate")
+        write_file(repo, "src/component/file.c", "custom policy\n")
+        write_file(repo, "custom/overlay/component/file.c", "custom policy\n")
+        candidate = commit_all(repo, "upstream absorbed source override")
+        git(repo, "switch", "build")
+
+        tree, conflicts, detail = normalise_overlay_tree(
+            repo,
+            tree=tree_id(repo, candidate),
+            source_ref=unofficial,
+            label="changed-source-absorbed-overlay",
+            verbose=False,
+        )
+        require(not conflicts, f"absorbed source override was treated as a conflict: {detail}")
+        entry = git(
+            repo,
+            "ls-tree",
+            tree,
+            "custom/overlay/component/file.c",
+        ).stdout.strip()
+        require(entry.startswith("120000 blob "), "absorbed overlay was not replaced by a symlink")
+        target = git(repo, "show", f"{tree}:custom/overlay/component/file.c").stdout
+        require(target == "../../../src/component/file.c", "absorbed overlay symlink target changed")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_resolved_unofficial_stage_detects_overlay_handoff() -> None:
     repo = make_repo()
     try:
@@ -794,6 +833,7 @@ def main() -> None:
     test_final_unofficial_candidate_is_promoted_without_rewriting()
     test_source_stage_resume_flags_changed_overlay_when_vendor_source_is_unchanged()
     test_unchanged_source_accepts_canonical_overlay_normalisation()
+    test_changed_source_absorbs_matching_overlay()
     test_resolved_unofficial_stage_detects_overlay_handoff()
     test_active_line_tip_can_advance_beyond_immutable_checkpoint()
     test_retained_historical_target_is_not_rebound_to_old_checkpoint()
