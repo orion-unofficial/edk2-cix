@@ -20,7 +20,12 @@ from reconstruction_common import (
     synthesise_release_entry,
     tree_id,
 )
-from source_porting import apply_source_delta_to_base, git_blob_bytes, normalise_overlay_tree
+from source_porting import (
+    apply_source_delta_to_base,
+    git_blob_bytes,
+    normalise_overlay_tree,
+    overlay_paths_from_source,
+)
 from uplift_radxa_release import (
     ensure_checkpoint_record,
     release_line,
@@ -97,6 +102,68 @@ def test_overlap_report_separates_policy_owned_paths() -> None:
         require(
             report["review_overlap_paths"] == ["src/firmware.c"],
             "firmware overlap should remain visible for merge review",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_policy_overlay_batch_restores_files_directories_and_deletions() -> None:
+    repo = make_repo()
+    try:
+        source = create_branch(
+            repo,
+            "source",
+            {
+                "policy/one.txt": "source one\n",
+                "policy/nested/two.txt": "source two\n",
+                "single.txt": "source single\n",
+            },
+            "source",
+        )
+        candidate = create_branch(
+            repo,
+            "candidate",
+            {
+                "policy/one.txt": "candidate one\n",
+                "policy/extra.txt": "candidate extra\n",
+                "single.txt": "candidate single\n",
+            },
+            "candidate",
+        )
+        git(repo, "switch", "build")
+
+        tree = overlay_paths_from_source(
+            repo,
+            tree=tree_id(repo, candidate),
+            source_ref=source,
+            paths=("policy", "single.txt", "absent.txt"),
+            label="batched-policy-overlay",
+            verbose=False,
+        )
+
+        require(
+            git(repo, "show", f"{tree}:policy/one.txt").stdout == "source one\n",
+            "directory overlay did not restore a source file",
+        )
+        require(
+            git(repo, "show", f"{tree}:policy/nested/two.txt").stdout
+            == "source two\n",
+            "directory overlay did not restore a nested source file",
+        )
+        require(
+            git(repo, "show", f"{tree}:single.txt").stdout == "source single\n",
+            "file overlay did not restore the source file",
+        )
+        require(
+            git(
+                repo,
+                "cat-file",
+                "-e",
+                f"{tree}:policy/extra.txt",
+                check=False,
+            ).returncode
+            != 0,
+            "directory overlay retained a candidate-only file",
         )
     finally:
         shutil.rmtree(repo)
