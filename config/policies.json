@@ -44,7 +44,7 @@
     "manifest": "config/refs-source-target-cache.json",
     "requirements": [
       "source/cache/release/** refs are generated firmware artefacts, not irreducible source inputs.",
-      "A pruned clone may omit source/cache/release/** branches when the source/base, source/vendor or source/port, and source/unofficial refs needed to regenerate them are present.",
+      "A pruned clone may omit source/cache/release/** branches when all source/base, applicable source/vendor and/or source/port, and source/unofficial refs needed to regenerate them are present.",
       "Generated release commits are validated by tree ID rather than object ID because commit metadata may differ after regeneration.",
       "Rendered branches must adhere to conventional Git UX over exact retention of stale .gitmodules files.",
       "Rendered branches must contain no gitlinks or active root .gitmodules files.",

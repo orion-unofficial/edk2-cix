@@ -129,11 +129,11 @@ endef
 .PHONY: help help-vars help-dev help-dev-source help-dev-verify help-dev-maintenance help-source-targets build build-all deterministic-replay install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test test-local lint \
 	extract-vendor-delta render-release-branch uplift-edk2-release uplift-radxa-release select-unofficial-line integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
-	propagate-release-branches promote-unofficial-release update-release-tags \
+	propagate-release-branches promote-unofficial-compatibility promote-unofficial-release update-release-tags \
 	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift refresh-vendor-workflow-baseline check-upstream-versions check-source-metadata check-help-cache check-first-output-latency refresh-source-metadata refresh-help-cache ref-report cleanup-report create-minimised-clone \
 	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help uplift-edk2-release-help uplift-radxa-release-help select-unofficial-line-help integrate-source-release-help \
-	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help resolve-conflicts-help promote-unofficial-release-help update-release-tags-help \
+	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help resolve-conflicts-help promote-unofficial-compatibility-help promote-unofficial-release-help update-release-tags-help \
 	verify-release-branch-help verify-build-matrix-help verify-source-policy-help verify-source-lifecycle-help \
 	check-ref-integrity-help check-identity-integrity-help verify-identity-integrity-help check-vendor-workflow-drift-help check-upstream-versions-help check-source-metadata-help refresh-source-metadata-help \
 	create-minimised-clone-help verify-minimised-clone-help prune-help refresh-help-cache-help check-help-cache-help check-first-output-latency-help ref-report-help cleanup-report-help
@@ -228,6 +228,7 @@ help-dev:
 	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
 	print_help_line 'make inspect-import-conflicts-help' 'Show inspect-import-conflicts arguments.'; \
 	print_help_line 'make resolve-conflicts-help' 'Show resolve-conflicts arguments.'; \
+	print_help_line 'make promote-unofficial-compatibility-help' 'Show retained EDK2 compatibility promotion arguments.'; \
 	print_help_line 'make promote-unofficial-release-help' 'Show promote-unofficial-release arguments.'; \
 	print_help_line 'make update-release-tags-help' 'Show update-release-tags arguments.'; \
 	print_help_line 'make check-ref-integrity-help' 'Show check-ref-integrity arguments.'; \
@@ -256,6 +257,7 @@ help-dev-source:
 	print_help_line 'make inspect-import-conflicts' 'Inspect a paused import operation with symlink-aware conflict reporting.'; \
 	print_help_line 'make resolve-conflicts' 'Batch-resolve paused import conflicts in scratch trees with symlink-aware vimdiff panes.'; \
 	print_help_line 'make propagate-release-branches' 'Replay the policy-selected Unofficial line-tip changes onto retained legacy EDK2 branches.'; \
+	print_help_line 'make promote-unofficial-compatibility' 'Port the retained Unofficial compatibility source onto a newer EDK2 base.'; \
 	print_help_line 'make promote-unofficial-release' 'Port a policy-selected Unofficial line onto a newer EDK2 base and record an exact checkpoint.'; \
 	print_help_line 'make update-release-tags' 'Move source/unofficial/edk2/stable-* tags to matching release-branch heads after validation.'; \
 	print_subtitle 'Variables:'; \
@@ -267,13 +269,14 @@ help-dev-source:
 	print_help_variable 'EDK2_REF=<ref>' 'For uplift-edk2-release. Explicit EDK2 upstream object to record instead of the matching release tag.'; \
 	print_help_variable 'EDK2_PLATFORMS_REF=<ref>' 'For uplift-edk2-release. Explicit edk2-platforms companion object to record.'; \
 	print_help_variable 'EDK2_NON_OSI_REF=<ref>' 'For uplift-edk2-release. Explicit edk2-non-osi companion object to record.'; \
+	print_help_variable 'COMPATIBILITY_REF=<ref>' 'For uplift-edk2-release. Resolved retained EDK2 compatibility source-port commit from a conflict handoff.'; \
 	print_help_variable 'EDK2_BASE=<release>' 'EDK2 base used when integrating Radxa vendor sources.'; \
 	print_help_variable 'FROM_EDK2_BASE=<release>' 'Previous EDK2 base used when porting a Radxa or unofficial source tree to a newer EDK2 base.'; \
 	print_help_variable 'ARM_BASE=<release>' 'Arm upstream base used when recording a CIX TF-A or OP-TEE component uplift.'; \
 	print_help_variable 'RADXA_RELEASE=<release>' 'For uplift-edk2-release. Radxa release to carry forward.\nDefault: config/policies.json current_radxa_release.'; \
 	print_help_variable 'FROM_RELEASE=<release>' 'For uplift-radxa-release. Previous Radxa release for the adjacent vendor delta.'; \
 	print_help_variable 'TO_RELEASE=<release>' 'For uplift-radxa-release. New Radxa release to integrate.'; \
-	print_help_variable 'LINE=<major.minor>' 'For uplift-radxa-release, the Unofficial development line to advance; for select-unofficial-line, the validated line to make the default.\nDefault for uplift: TO_RELEASE major.minor.'; \
+	print_help_variable 'LINE=<major.minor>' 'For EDK2 or Radxa uplift, the Unofficial development line to advance; for select-unofficial-line, the validated line to make the default.\nDefault for EDK2 uplift: policy default_line. Default for Radxa uplift: TO_RELEASE major.minor.'; \
 	print_help_variable 'FROM_UNOFFICIAL_REF=<ref>' 'For uplift-radxa-release. Reviewed source that deliberately overrides the previous exact checkpoint, normally to initialise a new line.'; \
 	print_help_variable 'PORT_REF=<ref>' 'For uplift-radxa-release. Resolved Radxa port commit from a conflict handoff.'; \
 	print_help_variable 'UNOFFICIAL_REF_STAGE=auto|source|overlay|final' 'For uplift-radxa-release. Resume stage represented by UNOFFICIAL_REF; auto reads the conflict-stage trailer when available.\nDefault: auto.'; \
@@ -323,6 +326,7 @@ help-dev-source:
 	print_help_line 'make import-unofficial-commits-help' 'Show import-unofficial-commits arguments.'; \
 	print_help_line 'make inspect-import-conflicts-help' 'Show inspect-import-conflicts arguments.'; \
 	print_help_line 'make resolve-conflicts-help' 'Show resolve-conflicts arguments.'; \
+	print_help_line 'make promote-unofficial-compatibility-help' 'Show retained EDK2 compatibility promotion arguments.'; \
 	print_help_line 'make promote-unofficial-release-help' 'Show promote-unofficial-release arguments.'; \
 	print_help_line 'make update-release-tags-help' 'Show update-release-tags arguments.'
 
@@ -654,10 +658,11 @@ extract-vendor-delta:
 	$(call PROGRESS_PROBE,[delta] Extracting vendor delta)
 	@DEBUG="$(DEBUG)" VENDOR="$(VENDOR)" BASE_REF="$(BASE_REF)" VENDOR_REF="$(VENDOR_REF)" OUTPUT="$(OUTPUT)" PATCH_OUTPUT="$(PATCH_OUTPUT)" TARGET_REF="$(TARGET_REF)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/extract_vendor_delta.py --v "$(V)"
 
+uplift-edk2-release: FORCE = 1
 uplift-edk2-release:
 	@if [ -z "$(EDK2_BASE)" ]; then $(MAKE) --no-print-directory uplift-edk2-release-help; printf '%s\n' 'missing required variable: EDK2_BASE' >&2; exit 2; fi
 	$(call PROGRESS_PROBE,[uplift] Starting EDK2 release uplift)
-	@DEBUG="$(DEBUG)" EDK2_BASE="$(EDK2_BASE)" FROM_EDK2_BASE="$(FROM_EDK2_BASE)" RADXA_RELEASE="$(RADXA_RELEASE)" LINE="$(LINE)" CIX_RELEASE="$(CIX_RELEASE)" EDK2_REF="$(EDK2_REF)" EDK2_PLATFORMS_REF="$(EDK2_PLATFORMS_REF)" EDK2_NON_OSI_REF="$(EDK2_NON_OSI_REF)" RADXA_REF="$(RADXA_REF)" UNOFFICIAL_REF="$(UNOFFICIAL_REF)" FROM_REF="$(FROM_REF)" RELEASE="$(RELEASE)" SKIP_RENDER="$(SKIP_RENDER)" VERIFY="$(VERIFY)" WRITE="$(WRITE)" FORCE="$(or $(FORCE),1)" ALLOW_REPLACE="$(ALLOW_REPLACE)" V="$(V)" $(PYTHON) scripts/uplift_edk2_release.py --v "$(V)"
+	@DEBUG="$(DEBUG)" EDK2_BASE="$(EDK2_BASE)" FROM_EDK2_BASE="$(FROM_EDK2_BASE)" RADXA_RELEASE="$(RADXA_RELEASE)" LINE="$(LINE)" CIX_RELEASE="$(CIX_RELEASE)" EDK2_REF="$(EDK2_REF)" EDK2_PLATFORMS_REF="$(EDK2_PLATFORMS_REF)" EDK2_NON_OSI_REF="$(EDK2_NON_OSI_REF)" COMPATIBILITY_REF="$(COMPATIBILITY_REF)" RADXA_REF="$(RADXA_REF)" UNOFFICIAL_REF="$(UNOFFICIAL_REF)" FROM_REF="$(FROM_REF)" RELEASE="$(RELEASE)" SKIP_RENDER="$(SKIP_RENDER)" VERIFY="$(VERIFY)" WRITE="$(WRITE)" FORCE="$(FORCE)" ALLOW_REPLACE="$(ALLOW_REPLACE)" V="$(V)" $(PYTHON) scripts/uplift_edk2_release.py --v "$(V)"
 
 uplift-radxa-release:
 	@if [ -z "$(FROM_RELEASE)" ] || [ -z "$(TO_RELEASE)" ]; then $(MAKE) --no-print-directory uplift-radxa-release-help; printf '%s\n' 'missing required variable(s): FROM_RELEASE TO_RELEASE' >&2; exit 2; fi
@@ -694,6 +699,11 @@ resolve-conflicts:
 propagate-release-branches:
 	$(call PROGRESS_PROBE,[propagate] Propagating the selected Unofficial line tip to retained legacy EDK2 branches)
 	@DEBUG="$(DEBUG)" FROM_REF="$(FROM_REF)" BASE_REF="$(BASE_REF)" SOURCE_UNOFFICIAL_REF="$(SOURCE_UNOFFICIAL_REF)" PROPAGATE_RELEASE_BRANCHES="all" UPDATE_RELEASE_TAGS="0" SOURCE_LIFECYCLE_NORMALISE="$(SOURCE_LIFECYCLE_NORMALISE)" ALLOW_SOURCE_REF_FROM="1" CONTINUE="$(CONTINUE)" ABORT="$(ABORT)" OP_ID="$(OP_ID)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/import_unofficial_commits.py --v "$(V)"
+
+promote-unofficial-compatibility:
+	@if [ -z "$(EDK2_BASE)" ] || [ -z "$(FROM_EDK2_BASE)" ]; then $(MAKE) --no-print-directory promote-unofficial-compatibility-help; printf '%s\n' 'missing required variable(s): EDK2_BASE FROM_EDK2_BASE' >&2; exit 2; fi
+	$(call PROGRESS_PROBE,[promote] Promoting retained EDK2 compatibility source to $(EDK2_BASE))
+	@DEBUG="$(DEBUG)" EDK2_BASE="$(EDK2_BASE)" FROM_EDK2_BASE="$(FROM_EDK2_BASE)" FROM_REF="$(FROM_REF)" RESOLVED_REF="$(or $(RESOLVED_REF),$(REF))" ALLOW_REPLACE="$(ALLOW_REPLACE)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/promote_unofficial_compatibility.py --v "$(V)"
 
 promote-unofficial-release:
 	@if [ -z "$(EDK2_BASE)" ] || [ -z "$(FROM_EDK2_BASE)" ]; then $(MAKE) --no-print-directory promote-unofficial-release-help; printf '%s\n' 'missing required variable(s): EDK2_BASE FROM_EDK2_BASE' >&2; exit 2; fi
@@ -819,6 +829,9 @@ inspect-import-conflicts-help:
 
 resolve-conflicts-help:
 	@$(PYTHON) scripts/resolve_import_conflicts.py --help
+
+promote-unofficial-compatibility-help:
+	@$(PYTHON) scripts/promote_unofficial_compatibility.py --help
 
 promote-unofficial-release-help:
 	@$(PYTHON) scripts/promote_unofficial_release.py --help

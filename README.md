@@ -874,12 +874,16 @@ make buildbox-firmware-build \
 
 ### Upstream EDK2 stable release uplift
 
-For a new upstream EDK2 stable release, prefer the orchestrated target:
+For a new upstream EDK2 stable release, prefer the orchestrated target. One
+invocation advances exactly one maintained Unofficial line; `LINE` defaults to
+the policy-selected line and all line-specific defaults are read from that
+line's policy record:
 
 ```bash
 make uplift-edk2-release \
   EDK2_BASE=edk2-stable202608 \
-  FROM_EDK2_BASE=edk2-stable202605
+  FROM_EDK2_BASE=edk2-stable202605 \
+  LINE=1.3
 ```
 
 Run it once without `WRITE=1` first. The dry run validates the selected
@@ -892,26 +896,50 @@ When the plan is correct, run:
 make uplift-edk2-release \
   EDK2_BASE=edk2-stable202608 \
   FROM_EDK2_BASE=edk2-stable202605 \
+  LINE=1.3 \
   WRITE=1
 ```
 
 `FROM_EDK2_BASE` defaults to
 `config/policies.json` `unofficial_source_policy.current_edk2_release`, so it
 can be omitted for a first run before policy has moved. Passing it explicitly
-is safer in notes, scripts, and reruns.
+is safer in notes, scripts, and reruns. Keep `LINE` explicit as well when more
+than one line is maintained.
+
+Repeat the dry-run/review/write sequence for every maintained line. Completed
+upstream-base and compatibility stages are checked and reused. For the current
+two-line policy the complete sequence is line `1.3`/Radxa `1.3.1`, followed by
+line `1.2`/Radxa `1.2.4`, always retaining the explicit previous EDK2 base:
+
+```bash
+make uplift-edk2-release \
+  EDK2_BASE=edk2-stable202608 \
+  FROM_EDK2_BASE=edk2-stable202605 \
+  LINE=1.2
+
+make uplift-edk2-release \
+  EDK2_BASE=edk2-stable202608 \
+  FROM_EDK2_BASE=edk2-stable202605 \
+  LINE=1.2 \
+  WRITE=1
+```
 
 The target performs the mechanical stages in order:
 
 1. records `source/base/edk2/<EDK2_BASE>`
 2. records `source/base/edk2-platforms/<EDK2_BASE>`
 3. records `source/base/edk2-non-osi/<EDK2_BASE>`
-4. ports the current Radxa source release to `source/port/radxa/**/<EDK2_BASE>`
-5. ports the selected `source/unofficial/<line>/current` tree and records the
+4. ports the retained EDK2 compatibility source and records both
+   `source/unofficial/<EDK2_BASE>` and its
+   `source/unofficial/edk2/stable-*` tag
+5. ports the selected line's Radxa source release to
+   `source/port/radxa/**/<EDK2_BASE>`
+6. ports the selected `source/unofficial/<line>/current` tree and records the
    exact `source/unofficial/<radxa-release>/<EDK2_BASE>` checkpoint
-6. moves only that line's mutable current ref and updates `config/policies.json`
-7. refreshes the rendered `source/cache/release/custom/.../unofficial`
-   branch for the new default source target
-8. runs `make verify-build-matrix`
+7. moves only that line's mutable current ref and updates `config/policies.json`
+8. refreshes the rendered `source/cache/release/custom/.../unofficial`
+   branch for the selected line's source target
+9. runs `make verify-build-matrix`
 
 By default the Radxa release and CIX release are taken from
 `config/policies.json`. Override them when carrying forward a different vendor
@@ -940,10 +968,19 @@ Resolve the conflict markers, commit the resolved tree in that worktree, then
 rerun the orchestrated target with the appropriate resolved ref:
 
 ```bash
+# If the retained EDK2 compatibility stage stopped:
+make uplift-edk2-release \
+  EDK2_BASE=edk2-stable202608 \
+  FROM_EDK2_BASE=edk2-stable202605 \
+  LINE=1.3 \
+  COMPATIBILITY_REF=<resolved-compatibility-commit> \
+  WRITE=1
+
 # If the Radxa stage stopped:
 make uplift-edk2-release \
   EDK2_BASE=edk2-stable202608 \
   FROM_EDK2_BASE=edk2-stable202605 \
+  LINE=1.3 \
   RADXA_REF=<resolved-radxa-commit> \
   WRITE=1
 
@@ -951,6 +988,7 @@ make uplift-edk2-release \
 make uplift-edk2-release \
   EDK2_BASE=edk2-stable202608 \
   FROM_EDK2_BASE=edk2-stable202605 \
+  LINE=1.3 \
   UNOFFICIAL_REF=<resolved-unofficial-commit> \
   WRITE=1
 ```
@@ -966,6 +1004,8 @@ uses internally:
 - `make integrate-source-release` records upstream, vendor, and CIX component
   refs. It is still the right tool for individual source refs and non-EDK2
   component experiments.
+- `make promote-unofficial-compatibility` ports the retained EDK2 compatibility
+  source and records its matching compatibility branch and tag.
 - `make promote-unofficial-release` promotes one unofficial source tree to one
   new EDK2 base. Use it directly when you need to inspect or test that stage in
   isolation.
