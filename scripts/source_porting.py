@@ -508,6 +508,7 @@ def merge_source_tree(
     new_base: str,
     source_ref: str,
     *,
+    source_commit: str = "",
     label: str,
     new_base_ref: str,
     source_owned_paths: Iterable[str],
@@ -525,7 +526,7 @@ def merge_source_tree(
             "--write-tree",
             f"--merge-base={old_base}",
             new_base,
-            resolve_ref(repo, source_ref),
+            source_commit or resolve_ref(repo, source_ref),
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -650,16 +651,43 @@ def apply_source_delta_to_base(
 
     old_base = materialised_base_commit(repo, old_base_ref, label=f"{label}-old-base", verbose=verbose)
     new_base = materialised_base_commit(repo, new_base_ref, label=f"{label}-new-base", verbose=verbose)
+    source_commit = resolve_ref(repo, source_ref)
     source_delta_paths = [
         line
-        for line in git(repo, "diff", "--name-only", old_base, source_ref).stdout.splitlines()
+        for line in git(repo, "diff", "--name-only", old_base, source_commit).stdout.splitlines()
         if line
     ]
+    if normalise_source:
+        normalised_commits: list[str] = []
+        for role, commit in (
+            ("old-base", old_base),
+            ("new-base", new_base),
+            ("source", source_commit),
+        ):
+            tree, _result = normalise_source_tree(
+                repo,
+                tree=tree_id(repo, commit),
+                label=f"{label}-{role}-preimage",
+                verbose=verbose,
+                paths=source_delta_paths,
+            )
+            if tree == tree_id(repo, commit):
+                normalised_commits.append(commit)
+            else:
+                normalised_commits.append(
+                    commit_tree(
+                        repo,
+                        tree,
+                        f"source-port: canonicalise {role} preimage for {label}\n",
+                    )
+                )
+        old_base, new_base, source_commit = normalised_commits
     tree = merge_source_tree(
         repo,
         old_base,
         new_base,
         source_ref,
+        source_commit=source_commit,
         label=label,
         new_base_ref=new_base_ref,
         source_owned_paths=source_owned_paths,
