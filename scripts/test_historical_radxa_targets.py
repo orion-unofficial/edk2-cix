@@ -279,6 +279,61 @@ def test_source_delta_porting_replays_only_project_delta() -> None:
         shutil.rmtree(repo)
 
 
+def test_source_delta_porting_canonicalises_merge_preimages() -> None:
+    repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-normalisation-test."))
+    try:
+        git(repo, "init", "-b", "build")
+        git(repo, "config", "user.name", "Source Port Test")
+        git(repo, "config", "user.email", "source-port-test")
+        write_file(repo, "README.md", "build branch\n")
+        commit_all(repo, "build root")
+
+        create_branch(
+            repo,
+            "old-base",
+            {"src/shared.txt": "vendor base\r\ncontext one\r\ncontext two\r\ncontext three\r\nupstream base\r\n"},
+            "old base",
+        )
+        create_branch(
+            repo,
+            "new-base",
+            {"src/shared.txt": "vendor base\r\ncontext one\r\ncontext two\r\ncontext three\r\nupstream change\r\n"},
+            "new base",
+        )
+        create_branch(
+            repo,
+            "source-tree",
+            {
+                "src/shared.txt": "vendor change\ncontext one\ncontext two\ncontext three\nupstream base\n",
+                "custom/project.txt": "project delta\n",
+            },
+            "normalised source tree",
+        )
+        git(repo, "switch", "build")
+
+        commit = apply_source_delta_to_base(
+            repo,
+            old_base_ref="old-base",
+            source_ref="source-tree",
+            new_base_ref="new-base",
+            message="port normalised source tree",
+            label="source-port-normalisation-test",
+            normalise_source=True,
+            verbose=False,
+        )
+        require(
+            git(repo, "show", f"{commit}:src/shared.txt").stdout
+            == "vendor change\ncontext one\ncontext two\ncontext three\nupstream change\n",
+            "preimage canonicalisation did not preserve both semantic changes",
+        )
+        require(
+            git(repo, "show", f"{commit}:custom/project.txt").stdout == "project delta\n",
+            "project delta was not replayed after preimage canonicalisation",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_source_delta_porting_ignores_deletes_already_absent_upstream() -> None:
     repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-delete-test."))
     try:
@@ -1127,6 +1182,7 @@ def main() -> None:
     test_default_source_target_follows_unofficial_source_policy()
     test_unofficial_source_policy_requires_selected_exact_checkpoint()
     test_source_delta_porting_replays_only_project_delta()
+    test_source_delta_porting_canonicalises_merge_preimages()
     test_source_delta_porting_ignores_deletes_already_absent_upstream()
     test_source_delta_porting_preserves_conflict_worktree_for_manual_resume()
     test_source_delta_porting_resolves_policy_owned_paths_from_source()
