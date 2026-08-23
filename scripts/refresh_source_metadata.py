@@ -12,6 +12,7 @@ from typing import Any
 
 from reconstruction_common import (
     SOURCE_TARGET_CACHE_MANIFEST,
+    UNOFFICIAL_LINE_CURRENT_RE,
     ReconstructionError,
     alias_target_for,
     clear_metadata_caches,
@@ -197,6 +198,14 @@ def computed_source_target_tree(
 ) -> tuple[str | None, str]:
     parts = release_branch_parts(ref)
     stage = parts["stage"]
+    source_ref = entry.get("source_ref")
+    active_custom = (
+        stage == "custom"
+        and isinstance(source_ref, str)
+        and UNOFFICIAL_LINE_CURRENT_RE.match(source_ref) is not None
+    )
+    if stage == "custom" and ref_exists(repo, ref) and not active_custom:
+        return tree_id(repo, ref), "persisted-cache-ref"
     if stage in {"custom", "upstream"} and entry_can_use_source_ref_directly(entry):
         direct = source_ref_tree(repo, entry)
         if direct:
