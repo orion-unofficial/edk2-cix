@@ -205,7 +205,9 @@ def overlay_paths_from_source(
         worktree = Path(tmp) / "worktree"
         git(repo, "worktree", "add", "--detach", str(worktree), overlay_commit, capture=not verbose)
         try:
-            for path in selected:
+            source_paths: list[str] = []
+            for batch in path_batches(selected):
+                literal_batch = [f":(literal){path}" for path in batch]
                 git(
                     worktree,
                     "rm",
@@ -213,13 +215,37 @@ def overlay_paths_from_source(
                     "-f",
                     "--ignore-unmatch",
                     "--",
-                    path,
+                    *literal_batch,
                     check=False,
                     capture=not verbose,
                 )
-                exists = git(repo, "cat-file", "-e", f"{source}:{path}", check=False)
-                if exists.returncode == 0:
-                    git(worktree, "checkout", source, "--", path, capture=not verbose)
+                result = git(
+                    repo,
+                    "ls-tree",
+                    "-z",
+                    source,
+                    "--",
+                    *literal_batch,
+                    check=False,
+                )
+                if result.returncode != 0:
+                    raise ReconstructionError(
+                        f"cannot enumerate policy-overlay paths in {source_ref}"
+                    )
+                for record in result.stdout.split("\0"):
+                    if not record:
+                        continue
+                    _metadata, path = record.split("\t", 1)
+                    source_paths.append(path)
+            for batch in path_batches(source_paths):
+                git(
+                    worktree,
+                    "checkout",
+                    source,
+                    "--",
+                    *[f":(literal){path}" for path in batch],
+                    capture=not verbose,
+                )
             return git(worktree, "write-tree").stdout.strip()
         finally:
             git(repo, "worktree", "remove", "--force", str(worktree), check=False, capture=True)
