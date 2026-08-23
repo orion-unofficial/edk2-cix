@@ -98,11 +98,11 @@ required context, reformulate it before delivering or committing it.
 
 ## Ephemeral Worktrees And Temporary Data
 
-Treat `/tmp/`, `/private/tmp/`, and other operating-system temporary locations
-as strictly ephemeral. Do not put resumable work, conflict resolutions, build
-logs needed for audit, or other unique task state there. Prefer a clearly named
-directory beneath `.worktrees/` at the shared repository root for worktrees and
-scratch that may need to survive a crash, reboot, cleanup job, or session reset.
+Treat operating-system temporary locations as strictly ephemeral. Do not put
+resumable work, conflict resolutions, build logs needed for audit, or other
+unique task state there. Prefer a clearly named directory beneath `.worktrees/`
+at the shared repository root for worktrees and scratch that may need to survive
+a crash, reboot, cleanup job, or session reset.
 
 Git worktrees remain execution state rather than the sole durable record of
 completed work. Commit, stash, bundle, or otherwise preserve useful changes in
@@ -114,7 +114,7 @@ the shared repository root:
 
 ```bash
 : "${AGENT_SESSION_ID:?set AGENT_SESSION_ID to the active session id first}"
-scratch_root="$(git rev-parse --path-format=absolute --git-common-dir)/../.worktrees/codex-session-${AGENT_SESSION_ID}-scratch"
+scratch_root="$(git rev-parse --path-format=absolute --git-common-dir)/../.worktrees/session-${AGENT_SESSION_ID}-scratch"
 mkdir -p "$scratch_root/tmp"
 ```
 
@@ -123,7 +123,7 @@ generic temporary variables and the repository helper at that root:
 
 ```bash
 : "${AGENT_SESSION_ID:?set AGENT_SESSION_ID to the active session id first}"
-scratch_root="$(git rev-parse --path-format=absolute --git-common-dir)/../.worktrees/codex-session-${AGENT_SESSION_ID}-scratch"
+scratch_root="$(git rev-parse --path-format=absolute --git-common-dir)/../.worktrees/session-${AGENT_SESSION_ID}-scratch"
 export TMPDIR="$scratch_root/tmp"
 export TMP="$TMPDIR"
 export TEMP="$TMPDIR"
