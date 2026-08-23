@@ -89,13 +89,13 @@
       "edk2_base": "edk2-stable202608",
       "immutable": true,
       "line": "1.3",
-      "object_id": "4d150084a0c85fc034c78d07fc015d63b0cc7185",
+      "object_id": "0cfe272d43a6965db96ad38bacd2332b921705af",
       "previous_unofficial_object_id": "4ebca7274dec9dcffdf2975e8aa2190e0a3548ec",
-      "previous_unofficial_ref": "source/unofficial/1.3/current",
+      "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202605",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202608",
       "ref": "source/unofficial/1.3.1/edk2-stable202608",
-      "tree_id": "2fb6b1d708e5e66ebb3f5bd5ed9ca74e6548eb5b",
+      "tree_id": "8996714091b85a8f1e0cb8db2b2e0a7425927d79",
       "type": "unofficial-release-checkpoint"
     }
   ]
