@@ -156,6 +156,7 @@ def checkpoint_record(
     radxa_release: str,
     edk2_base: str,
     previous_ref: str,
+    previous_object_id: str,
 ) -> None:
     update_ref_record(
         repo,
@@ -235,17 +236,20 @@ def main() -> None:
         raise ReconstructionError(f"target unofficial checkpoint already exists: {target_ref}")
     if args.resolved_ref and not ref_exists(repo, args.resolved_ref):
         raise ReconstructionError(f"RESOLVED_REF/REF is unavailable locally: {args.resolved_ref}")
-    if not args.resolved_ref and not ref_exists(repo, args.from_ref):
+    if not ref_exists(repo, args.from_ref):
         raise ReconstructionError(f"FROM_REF is unavailable locally: {args.from_ref}")
+    previous_object_id = rev_parse(repo, args.from_ref)
 
     message = (
         f"source: promote Unofficial {line} firmware source to {edk2_base}\n\n"
         f"Source-Port-From: {old_port_ref}\n"
         f"Source-Port-To: {new_port_ref}\n"
         f"Source-Ported-Input: {args.from_ref}\n"
+        f"Source-Ported-Input-Object: {previous_object_id}\n"
     )
     if args.resolved_ref:
         resolved = rev_parse(repo, args.resolved_ref)
+        message += f"Source-Port-Resolution: {resolved}\n"
         changed = [
             line
             for line in git(repo, "diff", "--name-only", new_port_ref, resolved).stdout.splitlines()

@@ -12,15 +12,15 @@ from pathlib import Path
 
 from reconstruction_common import (
     ReconstructionError,
+    check_immutable_refs,
     clear_metadata_caches,
     format_duration,
     main_wrapper,
     ref_exists,
     release_for_edk2_ref,
     repo_root,
-    selected_unofficial_current_ref,
-    selected_unofficial_line_policy,
     truthy,
+    unofficial_line_policies,
     unofficial_source_policy,
 )
 
@@ -32,12 +32,14 @@ Runs the mechanical stages for a new upstream EDK2 stable release:
   1. record source/base/edk2/<EDK2_BASE>
   2. record source/base/edk2-platforms/<EDK2_BASE>
   3. record source/base/edk2-non-osi/<EDK2_BASE>
-  4. port the selected Radxa release to the new EDK2 base
-  5. promote the selected Unofficial line onto the new Radxa port
-  6. record source/unofficial/<RADXA_RELEASE>/<EDK2_BASE>
-  7. move source/unofficial/<LINE>/current
-  8. render the default custom source target for the new release
-  9. run verify-build-matrix
+  4. port the retained EDK2 compatibility source to the new EDK2 base
+  5. record source/unofficial/<EDK2_BASE> and its compatibility tag
+  6. port the selected Radxa release to the new EDK2 base
+  7. promote the selected Unofficial line onto the new Radxa port
+  8. record source/unofficial/<RADXA_RELEASE>/<EDK2_BASE>
+  9. move source/unofficial/<LINE>/current
+ 10. render the selected line's custom source target for the new release
+ 11. run verify-build-matrix
 
 Required variables:
   EDK2_BASE=<edk2-stableYYYYMM>
@@ -61,6 +63,9 @@ Optional variables:
       Explicit upstream objects to record. Companion refs may usually be omitted;
       integrate-source-release selects the latest upstream master commit at or
       before the EDK2 stable tag timestamp.
+  COMPATIBILITY_REF=<ref>
+      Resolved retained EDK2 compatibility source-port commit from a conflict
+      handoff.
   RADXA_REF=<ref>
       Resolved Radxa source-port commit from a conflict handoff.
   UNOFFICIAL_REF=<ref>
@@ -92,8 +97,8 @@ Optional variables:
 
 If a source-port conflict is genuine, the primitive command preserves a
 worktree and stops. Resolve the worktree, commit the result there, and rerun
-this target with RADXA_REF=<commit> or UNOFFICIAL_REF=<commit> depending on
-which stage stopped.
+this target with COMPATIBILITY_REF=<commit>, RADXA_REF=<commit>, or
+UNOFFICIAL_REF=<commit> depending on which stage stopped.
 """
 
 
@@ -107,6 +112,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--edk2-ref", default=os.environ.get("EDK2_REF", ""))
     p.add_argument("--edk2-platforms-ref", default=os.environ.get("EDK2_PLATFORMS_REF", ""))
     p.add_argument("--edk2-non-osi-ref", default=os.environ.get("EDK2_NON_OSI_REF", ""))
+    p.add_argument("--compatibility-ref", default=os.environ.get("COMPATIBILITY_REF", ""))
     p.add_argument("--radxa-ref", default=os.environ.get("RADXA_REF", ""))
     p.add_argument("--unofficial-ref", default=os.environ.get("UNOFFICIAL_REF", ""))
     p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
@@ -131,9 +137,20 @@ def normalise_edk2_base(value: str) -> str:
     return "edk2-stable" + value
 
 
-def policy_defaults(repo: Path) -> dict[str, str]:
+def policy_defaults(repo: Path, requested_line: str = "") -> dict[str, str]:
     policy = unofficial_source_policy(repo)
-    line, selected = selected_unofficial_line_policy(policy)
+    default_line, lines = unofficial_line_policies(policy)
+    line = requested_line.strip() or default_line
+    if not line:
+        raise ReconstructionError(
+            "LINE is required when config/policies.json has no selected Unofficial line"
+        )
+    if line not in lines:
+        available = ", ".join(sorted(lines)) or "<none>"
+        raise ReconstructionError(
+            f"unknown Unofficial line {line!r}; configured lines: {available}"
+        )
+    selected = lines[line]
     defaults = {
         key: str(value).strip()
         for key, value in selected.items()
@@ -248,6 +265,42 @@ def maybe_integrate_radxa(
     )
 
 
+def maybe_promote_compatibility(
+    repo: Path,
+    *,
+    edk2_base: str,
+    from_edk2_base: str,
+    compatibility_ref: str,
+    write: str,
+    allow_replace: str,
+    verbose: bool,
+) -> None:
+    target = f"source/unofficial/{edk2_base}"
+    if ref_exists(repo, target) and not truthy(allow_replace):
+        print(f"[uplift] {target} already exists; checking compatibility tag")
+    elif write == "0" and not ref_exists(repo, f"source/cache/base/edk2/{edk2_base}"):
+        print(
+            "[uplift] dry run; would promote the retained EDK2 compatibility "
+            f"source after {edk2_base} base refs are recorded"
+        )
+        return
+    else:
+        print(f"[uplift] promoting retained EDK2 compatibility source to {edk2_base}")
+    run_script(
+        repo,
+        "promote_unofficial_compatibility.py",
+        {
+            "EDK2_BASE": edk2_base,
+            "FROM_EDK2_BASE": from_edk2_base,
+            "RESOLVED_REF": compatibility_ref,
+            "WRITE": write,
+            "ALLOW_REPLACE": allow_replace,
+            "V": "1" if verbose else "0",
+        },
+        verbose=verbose,
+    )
+
+
 def maybe_promote_unofficial(
     repo: Path,
     *,
@@ -295,10 +348,12 @@ def main() -> None:
     started = time.monotonic()
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
-    defaults = policy_defaults(repo)
+    defaults = policy_defaults(repo, args.line)
     verbose = truthy(args.v)
     write = "1" if truthy(args.write) else "0"
     allow_replace = "1" if truthy(args.allow_replace) else "0"
+
+    check_immutable_refs(repo)
 
     edk2_base = normalise_edk2_base(args.edk2_base)
     if not edk2_base:
@@ -322,10 +377,14 @@ def main() -> None:
     if not radxa_release:
         raise ReconstructionError("RADXA_RELEASE is required when config/policies.json has no current Radxa release")
     cix_release = args.cix_release or defaults.get("current_cix_release", "")
-    line = args.line or defaults.get("line", "")
+    line = defaults.get("line", "")
     if not line:
         raise ReconstructionError("LINE is required when config/policies.json has no selected Unofficial line")
-    args.from_ref = args.from_ref or selected_unofficial_current_ref(repo)
+    args.from_ref = args.from_ref or defaults.get("current_ref", "")
+    if not args.from_ref:
+        raise ReconstructionError(
+            f"FROM_REF is required when Unofficial line {line} has no current_ref"
+        )
     render_target = args.release or source_target(edk2_base, cix_release, radxa_release)
 
     print(f"[uplift] EDK2 base: {edk2_base}")
@@ -359,6 +418,15 @@ def main() -> None:
         component="edk2-non-osi",
         edk2_base=edk2_base,
         explicit_ref=args.edk2_non_osi_ref,
+        write=write,
+        allow_replace=allow_replace,
+        verbose=verbose,
+    )
+    maybe_promote_compatibility(
+        repo,
+        edk2_base=edk2_base,
+        from_edk2_base=from_edk2_base,
+        compatibility_ref=args.compatibility_ref,
         write=write,
         allow_replace=allow_replace,
         verbose=verbose,
