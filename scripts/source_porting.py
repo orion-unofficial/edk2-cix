@@ -22,7 +22,9 @@ from reconstruction_common import (
 )
 from render_release_branch import materialise_submodules
 from source_lifecycle import (
+    OverlayProjection,
     SourceLifecycle,
+    TreeEntry,
     normalise_overlay_lifecycle,
     overlay_entries,
     project_overlay_tree,
@@ -223,6 +225,40 @@ def overlay_paths_from_source(
             git(repo, "worktree", "remove", "--force", str(worktree), check=False, capture=True)
 
 
+def worktree_index_entries(
+    worktree: Path,
+    paths: Iterable[str],
+) -> dict[str, tuple[str, str]]:
+    """Return stage-zero index modes and object IDs for literal paths."""
+
+    selected = tuple(dict.fromkeys(path for path in paths if path))
+    entries: dict[str, tuple[str, str]] = {}
+    for batch in path_batches(selected):
+        literal_batch = [f":(literal){path}" for path in batch]
+        result = git(
+            worktree,
+            "ls-files",
+            "-s",
+            "-z",
+            "--",
+            *literal_batch,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise ReconstructionError("cannot enumerate candidate overlay index entries")
+        for record in result.stdout.split("\0"):
+            if not record:
+                continue
+            metadata, path = record.split("\t", 1)
+            fields = metadata.split()
+            if len(fields) != 3:
+                raise ReconstructionError(f"cannot parse candidate overlay index entry: {record}")
+            mode, object_id, stage = fields
+            if stage == "0":
+                entries[path] = (mode, object_id)
+    return entries
+
+
 def normalise_overlay_tree(
     repo: Path,
     *,
@@ -264,7 +300,8 @@ def normalise_overlay_tree(
             blobs = Path(tmp) / "blobs"
             blobs.mkdir(parents=True, exist_ok=True)
 
-            for index, projection in enumerate(projections):
+            eligible: list[tuple[OverlayProjection, TreeEntry, TreeEntry, TreeEntry, str]] = []
+            for projection in projections:
                 entry = source_overlays.get(projection.overlay_path)
                 if (
                     entry is None
@@ -288,21 +325,59 @@ def normalise_overlay_tree(
                 ):
                     continue
 
-                overlay_blob = git_blob_bytes(repo, entry.object_id)
-                new_source_blob = git_blob_bytes(repo, new_source.object_id)
+                eligible.append(
+                    (
+                        projection,
+                        entry,
+                        previous_source,
+                        new_source,
+                        mapping.target_path,
+                    )
+                )
+
+            current_entries = worktree_index_entries(
+                worktree,
+                (
+                    projection.target_overlay_path
+                    for projection, _entry, previous_source, new_source, _target_source_path in eligible
+                    if previous_source.object_id == new_source.object_id
+                ),
+            )
+            blob_cache = git_blob_bytes_batch(
+                repo,
+                (
+                    object_id
+                    for _projection, entry, previous_source, new_source, _target_source_path in eligible
+                    for object_id in (
+                        entry.object_id,
+                        previous_source.object_id,
+                        new_source.object_id,
+                    )
+                ),
+            )
+            blob_cache.update(
+                git_blob_bytes_batch(
+                    repo,
+                    (object_id for _mode, object_id in current_entries.values()),
+                )
+            )
+
+            for index, (
+                projection,
+                entry,
+                previous_source,
+                new_source,
+                target_source_path,
+            ) in enumerate(eligible):
+                overlay_blob = blob_cache[entry.object_id]
+                new_source_blob = blob_cache[new_source.object_id]
+
                 if previous_source.object_id == new_source.object_id:
-                    current = git(
-                        worktree,
-                        "ls-files",
-                        "-s",
-                        "--",
-                        projection.target_overlay_path,
-                    ).stdout.strip()
-                    metadata = current.split("\t", 1)[0].split()
+                    current = current_entries.get(projection.target_overlay_path)
                     current_matches = False
-                    if len(metadata) == 3 and metadata[2] == "0":
-                        current_mode, current_object = metadata[:2]
-                        current_blob = git_blob_bytes(repo, current_object)
+                    if current is not None:
+                        current_mode, current_object = current
+                        current_blob = blob_cache[current_object]
                         current_matches = normalise_overlay_state(
                             current_mode,
                             current_blob,
@@ -319,7 +394,7 @@ def normalise_overlay_tree(
                 if overlay_blob == new_source_blob:
                     write_mirror_symlink(worktree, projection.target_overlay_path)
                     continue
-                previous_source_blob = git_blob_bytes(repo, previous_source.object_id)
+                previous_source_blob = blob_cache[previous_source.object_id]
                 overlay_normalised = normalise_merge_text(overlay_blob)
                 previous_normalised = normalise_merge_text(previous_source_blob)
                 new_normalised = normalise_merge_text(new_source_blob)
@@ -376,7 +451,7 @@ def normalise_overlay_tree(
                         details.append(
                             "CONFLICT (overlay content): "
                             f"{projection.target_overlay_path} requires review while rebasing "
-                            f"{projection.source_path} onto {mapping.target_path}"
+                            f"{projection.source_path} onto {target_source_path}"
                         )
                     continue
 
