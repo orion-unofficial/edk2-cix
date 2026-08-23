@@ -728,6 +728,10 @@ def normalise_source_tree(
 ) -> tuple[str, NormalisationResult]:
     """Canonicalise selected editable-source paths without changing raw vendor refs."""
 
+    selected_paths = list(dict.fromkeys(path for path in paths if path))
+    if selected_paths and not include_worktree_drift:
+        return normalise_tree_paths(repo, tree=tree, paths=selected_paths)
+
     candidate = commit_tree(
         repo,
         tree,
@@ -737,7 +741,6 @@ def normalise_source_tree(
         worktree = Path(tmp) / "worktree"
         git(repo, "worktree", "add", "--detach", str(worktree), candidate, capture=not verbose)
         try:
-            selected_paths = list(paths)
             if include_worktree_drift:
                 selected_paths.extend(modified_tracked_paths(worktree))
                 selected_paths.extend(attribute_inconsistent_paths(worktree))
@@ -756,6 +759,119 @@ def normalise_source_tree(
             return git(worktree, "write-tree").stdout.strip(), result
         finally:
             git(repo, "worktree", "remove", "--force", str(worktree), check=False, capture=True)
+
+
+def normalise_tree_paths(
+    repo: Path,
+    *,
+    tree: str,
+    paths: Iterable[str],
+) -> tuple[str, NormalisationResult]:
+    """Canonicalise selected tree entries without checking out the full tree."""
+
+    entries = tree_entries_for_paths(repo, tree, paths)
+    blobs = git_blob_bytes_batch(
+        repo,
+        (
+            entry.object_id
+            for entry in entries.values()
+            if entry.mode in NORMAL_FILE_MODES
+        ),
+    )
+    line_endings = 0
+    trailing_whitespace = 0
+    file_modes = 0
+    changes: list[tuple[str, str, bytes]] = []
+    for path, entry in sorted(entries.items()):
+        if entry.mode not in NORMAL_FILE_MODES:
+            continue
+        data = blobs[entry.object_id]
+        if b"\0" in data:
+            continue
+        normalised = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        if normalised != data:
+            line_endings += 1
+        without_trailing = re.sub(rb"[ \t]+(?=\n|$)", b"", normalised)
+        if without_trailing != normalised:
+            trailing_whitespace += 1
+        mode = entry.mode
+        if mode == "100755" and not without_trailing.startswith(b"#!"):
+            mode = "100644"
+            file_modes += 1
+        if without_trailing != data or mode != entry.mode:
+            changes.append((path, mode, without_trailing))
+
+    result = NormalisationResult(line_endings, trailing_whitespace, file_modes)
+    if not changes:
+        return tree, result
+
+    with temp_dir(repo, "normalise-index-") as tmp:
+        root = Path(tmp)
+        blob_paths: list[Path] = []
+        for index, (_path, _mode, data) in enumerate(changes):
+            blob_path = root / f"blob-{index}"
+            blob_path.write_bytes(data)
+            blob_paths.append(blob_path)
+        hash_result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo),
+                "hash-object",
+                "-w",
+                "--no-filters",
+                "--stdin-paths",
+            ],
+            input="".join(f"{path}\n" for path in blob_paths).encode("utf-8"),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if hash_result.returncode != 0:
+            detail = hash_result.stderr.decode("utf-8", errors="replace").strip()
+            raise ReconstructionError(f"cannot write normalised Git blobs: {detail}")
+        object_ids = hash_result.stdout.decode("ascii").splitlines()
+        if len(object_ids) != len(changes):
+            raise ReconstructionError("normalised Git blob count does not match changed path count")
+
+        index_path = root / "index"
+        env = os.environ.copy()
+        env["GIT_INDEX_FILE"] = str(index_path)
+        read_tree = subprocess.run(
+            ["git", "-C", str(repo), "read-tree", tree],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            check=False,
+        )
+        if read_tree.returncode != 0:
+            detail = read_tree.stderr.decode("utf-8", errors="replace").strip()
+            raise ReconstructionError(f"cannot prepare source-normalisation index: {detail}")
+        updates = bytearray()
+        for (path, mode, _data), object_id in zip(changes, object_ids, strict=True):
+            updates.extend(f"{mode} {object_id}\t{path}\0".encode("utf-8"))
+        update_index = subprocess.run(
+            ["git", "-C", str(repo), "update-index", "-z", "--index-info"],
+            input=bytes(updates),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            check=False,
+        )
+        if update_index.returncode != 0:
+            detail = update_index.stderr.decode("utf-8", errors="replace").strip()
+            raise ReconstructionError(f"cannot update source-normalisation index: {detail}")
+        write_tree = subprocess.run(
+            ["git", "-C", str(repo), "write-tree"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            check=False,
+        )
+        if write_tree.returncode != 0:
+            detail = write_tree.stderr.decode("utf-8", errors="replace").strip()
+            raise ReconstructionError(f"cannot write normalised source tree: {detail}")
+        return write_tree.stdout.decode("ascii").strip(), result
 
 
 def merge_source_tree(

@@ -23,6 +23,7 @@ from reconstruction_common import (
 from source_porting import (
     apply_source_delta_to_base,
     git_blob_bytes,
+    normalise_source_tree,
     normalise_overlay_tree,
     overlay_paths_from_source,
 )
@@ -164,6 +165,55 @@ def test_policy_overlay_batch_restores_files_directories_and_deletions() -> None
             ).returncode
             != 0,
             "directory overlay retained a candidate-only file",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_selected_source_paths_are_normalised_without_a_checkout() -> None:
+    repo = make_repo()
+    try:
+        switch_orphan(repo, "candidate")
+        selected = repo / "selected.txt"
+        selected.write_bytes(b"selected \r\n")
+        executable = repo / "executable.txt"
+        executable.write_bytes(b"not a script\r\n")
+        executable.chmod(0o755)
+        untouched = repo / "untouched.txt"
+        untouched.write_bytes(b"untouched\r\n")
+        binary = repo / "firmware.bin"
+        binary.write_bytes(b"binary\r\n\0payload")
+        candidate = commit_all(repo, "candidate source")
+        git(repo, "switch", "build")
+
+        tree, result = normalise_source_tree(
+            repo,
+            tree=tree_id(repo, candidate),
+            label="selected-index-normalisation",
+            verbose=False,
+            paths=("selected.txt", "executable.txt", "firmware.bin"),
+            include_worktree_drift=False,
+        )
+
+        require(result.line_endings == 2, "selected CRLF files were not counted")
+        require(result.trailing_whitespace == 1, "selected trailing whitespace was not counted")
+        require(result.file_modes == 1, "selected non-script executable mode was not counted")
+        require(
+            git_blob_bytes(repo, git(repo, "rev-parse", f"{tree}:selected.txt").stdout.strip())
+            == b"selected\n",
+            "selected text was not canonicalised",
+        )
+        executable_entry = git(repo, "ls-tree", tree, "executable.txt").stdout
+        require(executable_entry.startswith("100644 blob "), "executable mode was not canonicalised")
+        require(
+            git_blob_bytes(repo, git(repo, "rev-parse", f"{tree}:untouched.txt").stdout.strip())
+            == b"untouched\r\n",
+            "unselected text was changed",
+        )
+        require(
+            git_blob_bytes(repo, git(repo, "rev-parse", f"{tree}:firmware.bin").stdout.strip())
+            == b"binary\r\n\0payload",
+            "selected binary data was changed",
         )
     finally:
         shutil.rmtree(repo)
