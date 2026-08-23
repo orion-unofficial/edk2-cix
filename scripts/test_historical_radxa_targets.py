@@ -27,6 +27,7 @@ from reconstruction_common import (  # noqa: E402
 from integrate_source_release import (  # noqa: E402
     cix_component_records,
     cix_record_remote,
+    commit_radxa_source_snapshot,
     existing_immutable_target,
     manifest_path_for,
     materialise_existing_target_local_head,
@@ -1003,6 +1004,44 @@ def test_integrate_source_release_make_target_preserves_materialise_default() ->
     )
 
 
+def test_resolved_radxa_port_snapshot_preserves_exact_tree() -> None:
+    repo = Path(tempfile.mkdtemp(prefix="edk2-cix-resolved-radxa-port-test."))
+    try:
+        git(repo, "init", "-b", "build")
+        git(repo, "config", "user.name", "Resolved Radxa Port Test")
+        git(repo, "config", "user.email", "resolved-radxa-port-test")
+        write_file(repo, "README.md", "build branch\n")
+        commit_all(repo, "build root")
+        create_branch(
+            repo,
+            "source/cache/base/edk2/edk2-stable202608",
+            {"src/upstream.c": "upstream\r\n"},
+            "202608 base",
+        )
+        create_branch(
+            repo,
+            "resolved-port",
+            {"src/upstream.c": "reviewed change\r\n"},
+            "reviewed CRLF source-port resolution",
+        )
+        git(repo, "switch", "build")
+
+        snapshot = commit_radxa_source_snapshot(
+            repo,
+            "resolved-port",
+            "1.3.1",
+            "edk2-stable202608",
+            "ported-vendor-source",
+        )
+        require(
+            git(repo, "rev-parse", f"{snapshot}^{{tree}}").stdout.strip()
+            == git(repo, "rev-parse", "resolved-port^{tree}").stdout.strip(),
+            "resolved Radxa source-port commit was normalised after review",
+        )
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_radxa_vendor_integration_records_raw_upstream_ref() -> None:
     repo = make_repo()
     try:
@@ -1193,6 +1232,7 @@ def main() -> None:
     test_source_delta_porting_resolves_policy_paths_before_mixed_handoff()
     test_historical_upstream_target_overlays_build_infrastructure_only()
     test_integrate_source_release_make_target_preserves_materialise_default()
+    test_resolved_radxa_port_snapshot_preserves_exact_tree()
     test_radxa_vendor_integration_records_raw_upstream_ref()
     test_cix_vendor_payload_and_port_namespaces()
     test_integrate_source_release_recognises_remote_tracking_target()
