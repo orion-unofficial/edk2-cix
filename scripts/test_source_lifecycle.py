@@ -48,6 +48,22 @@ def test_same_path_projection_keeps_overlay_path() -> None:
         shutil.rmtree(repo)
 
 
+def test_remote_tracking_source_ref_is_resolved() -> None:
+    repo = make_repo()
+    try:
+        write_file(repo, "src/component/file.c", "source\n")
+        symlink(repo, "../../../src/component/file.c", "custom/overlay/component/file.c")
+        current = commit_all(repo, "current")
+        git(repo, "update-ref", "refs/remotes/origin/source/unofficial/1.3/current", current)
+        git(repo, "switch", "-c", "older")
+
+        projections = project_overlay_tree(repo, "source/unofficial/1.3/current", "older")
+        require(not lifecycle_errors(projections), "remote-tracking source ref should resolve")
+        require(projections[0].action == "keep", projections[0].action)
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_exact_rename_projection_renames_overlay_path() -> None:
     repo = make_repo()
     try:
@@ -289,6 +305,7 @@ def test_normalisation_blockers_respect_modes() -> None:
 
 def main() -> None:
     test_same_path_projection_keeps_overlay_path()
+    test_remote_tracking_source_ref_is_resolved()
     test_exact_rename_projection_renames_overlay_path()
     test_ambiguous_exact_rename_is_an_error()
     test_deleted_mirror_symlink_can_be_dropped()
