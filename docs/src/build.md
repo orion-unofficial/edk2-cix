@@ -93,8 +93,8 @@ make deterministic-replay FIRMWARE_BOARD=O6
 make deterministic-replay FIRMWARE_BOARD=O6N
 ```
 
-By default, the target renders
-`edk2-202208/radxa-1.2.1/unofficial-1.2.1`, resolves the matching `1.2.1`
+By default, the target renders the exact upstream
+`edk2-202208/radxa-<REPLAY_VERSION>` source target, resolves the matching
 release package from `radxa-pkg/edk2-cix`, downloads it under
 `.cache/edk2-cix/firmware/replay/downloads/`, and delegates to the rendered
 firmware tree's `deterministic-replay` target. The rendered target extracts
@@ -117,10 +117,12 @@ make deterministic-replay \
 `REPLAY_INPUT` when you intentionally want the rendered firmware target to
 reuse an existing `.cache` replay input directory.
 
-This target deliberately uses the EDK2 202208 replay source target even when
-the default build target has moved on. Post-202208 source targets can still use
-`ARTEFACT_MODE=upstream` for closest-to-upstream diagnostics, but they are not
-byte-identical replays of the original published vendor images.
+This target deliberately uses the release-specific Radxa source on the EDK2
+202208 baseline even when the default build target has moved on. It overlays
+the maintained build infrastructure, not unofficial firmware source. Post-202208
+source targets can still use `ARTEFACT_MODE=upstream` for closest-to-upstream
+diagnostics, but they are not byte-identical replays of the original published
+vendor images.
 
 ## Materialise A Source Tree
 
@@ -250,7 +252,7 @@ make gha-act-dry-run \
   ACT_WORKFLOW=.github/workflows/deterministic-replay.yaml \
   ACT_JOB=replay \
   ACT_MATRIX=board:O6 \
-  ACT_EXTRA_ARGS='--input replay_source_target=edk2-202208/radxa-1.2.1/unofficial-1.2.1 --input replay_version=1.2.1 --input upstream_repository=radxa-pkg/edk2-cix'
+  ACT_EXTRA_ARGS='--input replay_source_target=edk2-202208/radxa-1.2.1 --input replay_version=1.2.1 --input upstream_repository=radxa-pkg/edk2-cix'
 ```
 
 ## Validation

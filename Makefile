@@ -55,7 +55,7 @@ ACT_SECRET_FILE ?=
 ACT_EXTRA_ARGS ?=
 ACT_CONTAINER_ARCH ?= auto
 ACT_RUNNER_IMAGE ?=
-REPLAY_SOURCE_TARGET ?= edk2-202208/radxa-1.2.1/unofficial-1.2.1
+REPLAY_SOURCE_TARGET ?= edk2-202208/radxa-$(REPLAY_VERSION)
 REPLAY_UPSTREAM_REPOSITORY ?= radxa-pkg/edk2-cix
 REPLAY_DOWNLOAD ?= 1
 REPLAY_INPUT ?=
@@ -192,12 +192,12 @@ help-vars:
 	print_help_line 'FIRMWARE_CACHE_ROOT=<path>' 'Persistent build-branch firmware cache root shared by rendered worktree builds, including ccache, buildbox temporary state, and CIX release caches.\nDefault: ./.cache/edk2-cix/firmware.'; \
 	print_section 'Replay Variables'; \
 	print_help_line 'REPLAY_INPUT=<path>' 'Published edk2-cix .deb, extracted release directory, or cix_flash_all.bin to replay. If unset, make deterministic-replay downloads REPLAY_VERSION from REPLAY_UPSTREAM_REPOSITORY unless REPLAY_DOWNLOAD=0.\nDefault: unset.'; \
-	print_help_line 'REPLAY_SOURCE_TARGET=<target>' 'Replay-capable source target rendered before delegating to the firmware tree deterministic-replay target.\nDefault: edk2-202208/radxa-1.2.1/unofficial-1.2.1.'; \
+	print_help_line 'REPLAY_SOURCE_TARGET=<target>' 'Exact upstream source target rendered before delegating to the firmware tree deterministic-replay target.\nDefault: edk2-202208/radxa-<REPLAY_VERSION>.'; \
 	print_help_line 'REPLAY_UPSTREAM_REPOSITORY=<owner/name>' 'GitHub repository used to resolve and download the release package when REPLAY_INPUT is unset.\nDefault: radxa-pkg/edk2-cix.'; \
 	print_help_line 'REPLAY_DOWNLOAD=0|1' 'When REPLAY_INPUT is unset, download the REPLAY_VERSION package before replay. Set to 0 to reuse an existing rendered replay cache instead.\nDefault: 1.'; \
 	print_help_line 'REPLAY_BUILD_OPTIONS=<path>' 'BuildOptions file used when REPLAY_INPUT points directly at cix_flash_all.bin.\nDefault: unset.'; \
 	print_help_line 'REPLAY_BUILD_DATE=<iso8601>' 'Fallback build timestamp when replay inputs do not include BuildOptions.\nDefault: unset.'; \
-	print_help_line 'REPLAY_VERSION=<version>' 'Release tag to download and replay validation profile passed to the rendered firmware tree. Keep it matched to REPLAY_SOURCE_TARGET.\nDefault: 1.2.1.'; \
+	print_help_line 'REPLAY_VERSION=<version>' 'Release tag, exact upstream Radxa source version, and replay validation profile passed to the rendered firmware tree.\nDefault: 1.2.1.'; \
 	print_section 'Install Variables'; \
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
 	print_help_line 'FORCE=0|1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \

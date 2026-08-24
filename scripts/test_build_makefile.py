@@ -28,6 +28,26 @@ class BuildMakefileTests(unittest.TestCase):
                 )
                 self.assertIn(f'FIRMWARE_PRODUCT="{product}"', result.stdout)
 
+    def test_replay_source_target_follows_release_version(self) -> None:
+        result = subprocess.run(
+            [
+                "make",
+                "--no-print-directory",
+                "deterministic-replay",
+                "FIRST_OUTPUT_PROBE=1",
+                "REPLAY_VERSION=1.3.1",
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertIn(
+            "Preparing replay-capable source target: edk2-202208/radxa-1.3.1",
+            result.stderr,
+        )
+        self.assertNotIn("unofficial", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

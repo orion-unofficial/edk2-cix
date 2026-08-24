@@ -339,6 +339,10 @@ BUILD_INFRA_OVERLAY_PATHS = (
     "theme",
     "validation",
 )
+HISTORICAL_REPLAY_COMPAT_OVERLAY_PATHS = (
+    "src/edk2-platforms/Platform/Radxa/Orion/O6/pm_config/csupm_bin_config.c",
+    "src/edk2-platforms/Platform/Radxa/Orion/O6N/pm_config/csupm_bin_config.c",
+)
 
 
 def version_key(value: str) -> tuple[Any, ...]:
@@ -487,12 +491,12 @@ def entry_can_use_source_ref_directly(entry: dict[str, Any]) -> bool:
 
 
 def build_infra_overlay_step(edk2_ref: str) -> dict[str, Any]:
-    """Overlay build-system files without taking firmware source changes."""
+    """Overlay replay build support without taking firmware source changes."""
 
     return {
         "overlay_paths": {
             "ref": f"source/unofficial/{edk2_ref}",
-            "paths": list(BUILD_INFRA_OVERLAY_PATHS),
+            "paths": list(BUILD_INFRA_OVERLAY_PATHS + HISTORICAL_REPLAY_COMPAT_OVERLAY_PATHS),
             "missing": "ignore",
         }
     }

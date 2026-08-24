@@ -87,6 +87,9 @@ def make_repo() -> Path:
         {
             "Makefile": "old build entry\n",
             "radxa.txt": "0.2.0\n",
+            "src/edk2-platforms/Platform/Radxa/Orion/O6/pm_config/csupm_bin_config.c": (
+                "vendor PM timestamp\n"
+            ),
             "src/vendor.c": "vendor source\n",
         },
         "radxa 0.2",
@@ -116,6 +119,9 @@ def make_repo() -> Path:
                 "\t\t\t\t;; \\\n"
             ),
             "src/scripts/helper.sh": "#!/bin/sh\n",
+            "src/edk2-platforms/Platform/Radxa/Orion/O6/pm_config/csupm_bin_config.c": (
+                "replayable PM timestamp\n"
+            ),
             "src/unofficial.c": "unofficial source change\n",
         },
         "unofficial 202208",
@@ -937,6 +943,15 @@ def test_historical_upstream_target_overlays_build_infrastructure_only() -> None
         require(
             git(repo, "show", f"{commit}:src/vendor.c").stdout == "vendor source\n",
             "historical upstream target should retain vendor firmware source",
+        )
+        require(
+            git(
+                repo,
+                "show",
+                f"{commit}:src/edk2-platforms/Platform/Radxa/Orion/O6/pm_config/csupm_bin_config.c",
+            ).stdout
+            == "replayable PM timestamp\n",
+            "historical upstream target did not receive the replayable host-side PM generator",
         )
         require(
             "modern src build entry\n" in git(repo, "show", f"{commit}:src/Makefile").stdout,

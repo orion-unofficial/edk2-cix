@@ -108,7 +108,7 @@ Default: unset
 Select the source target to render before replay. Leave this at the default for
 byte-identical vendor release replay.
 
-Default: `edk2-202208/radxa-1.2.1/unofficial-1.2.1`
+Default: `edk2-202208/radxa-<REPLAY_VERSION>`
 
 ### `REPLAY_UPSTREAM_REPOSITORY=<owner/name>`
 
