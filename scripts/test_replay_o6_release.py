@@ -19,6 +19,16 @@ SPEC.loader.exec_module(REPLAY)
 
 
 class ReplayO6ReleaseTests(unittest.TestCase):
+    def test_replay_uses_a_separate_structural_acpi_profile(self) -> None:
+        makefile = (REPO_ROOT / ".github" / "local" / "Makefile.local").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "DETERMINISTIC_REPLAY_ACPI_PROFILE ?= upstream-1.2.1-bookworm",
+            makefile,
+        )
+        self.assertIn('--profile "$(DETERMINISTIC_REPLAY_ACPI_PROFILE)"', makefile)
+
     def test_recorded_replay_inputs_match_the_validation_profiles(self) -> None:
         replay_root = REPO_ROOT / "validation" / "replay-inputs"
         index = json.loads((replay_root / "index.json").read_text(encoding="utf-8"))
