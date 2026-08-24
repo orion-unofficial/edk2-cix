@@ -30,6 +30,18 @@ class GitHubWorkflowTests(unittest.TestCase):
                 self.assertIn("if: ${{ env.ACT != 'true' }}\n        uses: docker/setup-qemu-action@v4", text)
                 self.assertIn("env.ACT != 'true'", text[text.index("uses: actions/upload-artifact@v7") - 120 :])
 
+    def test_local_docs_use_the_reproducible_container_path(self) -> None:
+        text = (REPO_ROOT / ".github" / "workflows" / "build-docs.yaml").read_text(encoding="utf-8")
+        self.assertEqual(text.count("if: ${{ env.ACT != 'true' }}"), 5)
+        self.assertIn("./docs/scripts/run_docs_workflow_local.sh", text)
+        self.assertIn('${GITHUB_WORKSPACE}/.cache/edk2-cix/docs', text)
+        for assignment in (
+            'docs_repository_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"',
+            'export MDBOOK_OUTPUT__HTML__EDIT_URL_TEMPLATE="${docs_repository_url}/edit/${docs_ref_name}/docs/{path}"',
+            'export MDBOOK_OUTPUT__HTML__GIT_REPOSITORY_URL="${docs_repository_url}/tree/${docs_ref_name}"',
+        ):
+            self.assertIn(assignment, text)
+
 
 if __name__ == "__main__":
     unittest.main()

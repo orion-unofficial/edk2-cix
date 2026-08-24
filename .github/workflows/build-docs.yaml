@@ -39,6 +39,7 @@ jobs:
           fetch-depth: 1
 
       - name: Install Nix
+        if: ${{ env.ACT != 'true' }}
         uses: cachix/install-nix-action@v31
         with:
           install_options: --no-daemon
@@ -46,23 +47,28 @@ jobs:
             accept-flake-config = true
 
       - name: Use cachix
+        if: ${{ env.ACT != 'true' }}
         uses: cachix/cachix-action@v17
         with:
           name: devenv
 
       - name: Install devenv.sh
+        if: ${{ env.ACT != 'true' }}
         run: nix profile add --accept-flake-config nixpkgs#devenv nixpkgs#cargo nixpkgs#rustc
 
       - name: Build documentation
         run: |
-          docs_ref_name="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          export DOCS_CACHE_ROOT="${RUNNER_TEMP}/edk2-cix-docs"
-          export EDK2_CIX_DOCS_CACHE_ROOT="${DOCS_CACHE_ROOT}"
-          export MDBOOK_OUTPUT__HTML__EDIT_URL_TEMPLATE=\
-          "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/edit/${docs_ref_name}/docs/{path}"
-          export MDBOOK_OUTPUT__HTML__GIT_REPOSITORY_URL=\
-          "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/tree/${docs_ref_name}"
-          ./docs/scripts/run_docs_build.sh
+          if [[ "${ACT:-}" == true ]]; then
+            ./docs/scripts/run_docs_workflow_local.sh
+          else
+            docs_ref_name="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+            docs_repository_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+            export DOCS_CACHE_ROOT="${RUNNER_TEMP}/edk2-cix-docs"
+            export EDK2_CIX_DOCS_CACHE_ROOT="${DOCS_CACHE_ROOT}"
+            export MDBOOK_OUTPUT__HTML__EDIT_URL_TEMPLATE="${docs_repository_url}/edit/${docs_ref_name}/docs/{path}"
+            export MDBOOK_OUTPUT__HTML__GIT_REPOSITORY_URL="${docs_repository_url}/tree/${docs_ref_name}"
+            ./docs/scripts/run_docs_build.sh
+          fi
         shell: bash
 
       - if: ${{ env.ACT != 'true' }}
@@ -71,7 +77,11 @@ jobs:
 
       - name: Archive Pages artifact
         run: |
-          docs_cache_root="${RUNNER_TEMP}/edk2-cix-docs"
+          if [[ "${ACT:-}" == true ]]; then
+            docs_cache_root="${GITHUB_WORKSPACE}/.cache/edk2-cix/docs"
+          else
+            docs_cache_root="${RUNNER_TEMP}/edk2-cix-docs"
+          fi
           tar \
             --dereference --hard-dereference \
             --directory "${docs_cache_root}/book/html" \

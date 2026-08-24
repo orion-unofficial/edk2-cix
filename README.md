@@ -1230,14 +1230,17 @@ verifies the release checksum, and stores `act` cache data under
 When invoked from a clean linked Git worktree, the wrapper creates an isolated
 local clone for `act`, projects its local and retained remote-tracking source
 refs into the canonical branches a published minimised repository exposes, and
-mounts the shared object store read-only. This lets `actions/checkout` and
+binds that disposable snapshot while mounting the shared object store read-only.
+This lets `actions/checkout`, nested Docker validation, and
 workflow fetches update the disposable clone without moving refs in the
 developer's repository. If a normal clone has another local filesystem
 repository as `origin`, that exact repository is also mounted read-only;
 network remotes need no extra mount. GitHub-only QEMU setup and artifact-upload
 steps are skipped under `act`; the local Docker engine must already support the
-selected buildbox platform. `.worktrees/` remains untracked host-side scratch
-state and is never included in a commit or uploaded as an Actions artifact.
+selected buildbox platform. Documentation runs use the reproducible docs
+container under `act`, while GitHub continues to qualify the pinned Nix path.
+`.worktrees/` remains untracked host-side scratch state and is never included in
+a commit or uploaded as an Actions artifact.
 
 ## Validation checklist
 

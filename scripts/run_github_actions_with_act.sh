@@ -126,6 +126,9 @@ args=(
     --container-architecture "$default_container_arch"
     -P "ubuntu-latest=$default_runner_image"
 )
+if [[ -n "$act_workspace" ]]; then
+    args+=(--bind)
+fi
 
 container_options=""
 if [[ "$git_common_dir" != "$repo_root"/* ]]; then
