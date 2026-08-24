@@ -43,6 +43,14 @@ class QualityCoverageTests(unittest.TestCase):
         commands = [call.args[0] for call in run.call_args_list]
         self.assertTrue(any("verify-minimised-clone" in command for command in commands))
 
+    def test_quality_container_mounts_shared_git_objects_read_only(self) -> None:
+        runner = (SCRIPT_DIR / "run_quality_container.sh").read_text(encoding="utf-8")
+
+        self.assertIn('git_objects="$(git -C "$repo" rev-parse', runner)
+        self.assertIn('git_objects/info/alternates', runner)
+        self.assertIn('--volume "$alternate:$alternate:ro"', runner)
+        self.assertIn('--volume "$git_common:$git_common:ro"', runner)
+
     def test_script_style_tests_are_exposed_to_unittest_discovery(self) -> None:
         missing: list[str] = []
 
