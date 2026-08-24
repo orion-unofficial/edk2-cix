@@ -46,13 +46,13 @@ def ensure_empty_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def run_step(label: str, cmd: list[str], verbose: bool) -> None:
+def run_step(label: str, cmd: list[str], verbose: bool, *, cwd: Path | None = None) -> None:
     started = time.monotonic()
     if verbose:
         print("+ " + " ".join(cmd), file=sys.stderr)
     # Always inherit the terminal/CI streams. GitHub Actions retains this output
     # itself, and hiding it made this end-to-end check appear stuck for minutes.
-    process = subprocess.Popen(cmd)
+    process = subprocess.Popen(cmd, cwd=cwd)
     while True:
         try:
             returncode = process.wait(timeout=30)
@@ -110,21 +110,17 @@ def verify_from_workspace(repo: Path, workspace: Path, keep: bool, repack: str, 
     run_step("Clone", ["git", "clone", str(bare), str(checkout)], verbose)
     require_default_branch(bare, checkout)
 
-    print("[verify-minimised] Verifying source matrix from minimised clone", file=sys.stderr)
+    print("[verify-minimised] Running publication quality gates from minimised clone", file=sys.stderr)
     run_step(
-        "Verification",
+        "Quality gates",
         [
-            "make",
-            "-C",
-            str(checkout),
-            "verify-build-matrix",
-            "verify-manifest-integrity",
-            "check-ref-integrity",
-            "check-help-cache",
-            "ref-report",
-            "--no-print-directory",
+            sys.executable,
+            "scripts/quality_checks.py",
+            "test",
+            "--skip-minimised-clone",
         ],
         verbose,
+        cwd=checkout,
     )
 
     print(f"[verify-minimised] Rendering default source target: {default_source_target}", file=sys.stderr)

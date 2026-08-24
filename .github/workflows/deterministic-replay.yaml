@@ -98,6 +98,7 @@ jobs:
           git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
 
       - name: Set up QEMU for replay buildbox
+        if: ${{ env.ACT != 'true' }}
         uses: docker/setup-qemu-action@v4
 
       - name: Render replay-capable firmware tree
@@ -208,7 +209,7 @@ jobs:
           fi
 
       - name: Upload replay reports
-        if: always()
+        if: ${{ always() && env.ACT != 'true' }}
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: warn

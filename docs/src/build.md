@@ -203,6 +203,12 @@ and keeps its cache under `.cache/edk2-cix/act-cache/`. Set `ACT_WORKFLOW`,
 `ACT_EVENT`, `ACT_JOB`, `ACT_MATRIX`, `ACT_SECRET_FILE`, or `ACT_EXTRA_ARGS`
 when a workflow needs more specific inputs.
 
+Linked Git worktrees are supported: the wrapper mounts the shared Git directory
+needed to resolve the worktree's `.git` pointer. GitHub-only QEMU setup and
+artifact uploads are skipped under `act`, so the local Docker engine must
+already support the requested buildbox platform. The host `.worktrees/`
+directory is untracked runtime scratch data; it is not committed or uploaded.
+
 GitHub Actions expressions such as `${{ inputs.make_target }}` and
 `${{ matrix.board }}` are not Makefile variables. They are values that the
 GitHub Actions runner normally supplies from the event payload and from the

@@ -79,7 +79,7 @@ def lint() -> None:
     lint_markdown()
 
 
-def test() -> None:
+def test(*, skip_minimised_clone: bool = False) -> None:
     run(["python3", "-m", "py_compile", *git_files("scripts/*.py")])
     run(["python3", "-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py"])
     run(["make", "verify-build-matrix", "--no-print-directory"])
@@ -90,7 +90,8 @@ def test() -> None:
     run(["make", "check-source-metadata", "--no-print-directory"])
     run(["make", "check-help-cache", "--no-print-directory"])
     run(["make", "check-first-output-latency", "--no-print-directory"])
-    run(["make", "verify-minimised-clone", "REPACK=0", "--no-print-directory"])
+    if not skip_minimised_clone:
+        run(["make", "verify-minimised-clone", "REPACK=0", "--no-print-directory"])
     run(["make", "check-vendor-workflow-drift", "--no-print-directory"])
     run(["make", "ref-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
     run(["make", "cleanup-report", "--no-print-directory"], stdout=subprocess.DEVNULL)
@@ -103,10 +104,15 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("test", "lint", "all"))
+    parser.add_argument(
+        "--skip-minimised-clone",
+        action="store_true",
+        help="Skip the recursive minimised export check when testing an exported clone.",
+    )
     args = parser.parse_args()
 
     if args.mode in {"test", "all"}:
-        test()
+        test(skip_minimised_clone=args.skip_minimised_clone)
     if args.mode in {"lint", "all"}:
         lint()
 

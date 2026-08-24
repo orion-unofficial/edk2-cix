@@ -6,7 +6,7 @@ script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 act_bootstrap="${script_dir}/ensure_act.sh"
 act_cache_home="${EDK2_CIX_ACT_XDG_CACHE_HOME:-${repo_root}/.cache/edk2-cix/act-cache}"
-default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:act-24.04-20260508}}"
+default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:act-24.04-20260815}}"
 
 detect_container_arch() {
     case "$(uname -m)" in
@@ -36,6 +36,7 @@ resolve_container_arch() {
 }
 
 default_container_arch="$(resolve_container_arch "${ACT_CONTAINER_ARCH:-${EDK2_CIX_ACT_CONTAINER_ARCH:-auto}}")"
+git_common_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
 
 usage() {
     cat <<'EOF'
@@ -55,7 +56,7 @@ Environment:
   ACT_CONTAINER_ARCH=auto|<platform>
       Container architecture. Default: auto-detected from the host.
   ACT_RUNNER_IMAGE=<image>
-      Runner image for ubuntu-latest. Default: ghcr.io/catthehacker/ubuntu:act-24.04-20260508.
+      Runner image for ubuntu-latest. Default: ghcr.io/catthehacker/ubuntu:act-24.04-20260815.
   ACT_EXTRA_ARGS=<args>
       Additional raw flags appended to act.
 EOF
@@ -89,6 +90,10 @@ args=(
     --container-architecture "$default_container_arch"
     -P "ubuntu-latest=$default_runner_image"
 )
+
+if [[ "$git_common_dir" != "$repo_root"/* ]]; then
+    args+=(--container-options "--volume=${git_common_dir}:${git_common_dir}")
+fi
 
 workflow="${ACT_WORKFLOW:-}"
 event="${ACT_EVENT:-workflow_dispatch}"

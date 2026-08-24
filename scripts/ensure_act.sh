@@ -4,7 +4,7 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
-act_version="${EDK2_CIX_ACT_VERSION:-0.2.88}"
+act_version="${EDK2_CIX_ACT_VERSION:-0.2.89}"
 tool_root="${EDK2_CIX_ACT_TOOL_ROOT:-${repo_root}/.cache/edk2-cix/tools/act}"
 git_common_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
 shared_repo_root="$(dirname -- "$git_common_dir")"
