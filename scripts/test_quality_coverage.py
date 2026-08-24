@@ -4,7 +4,10 @@
 from __future__ import annotations
 
 import ast
+from contextlib import redirect_stderr
+import io
 from pathlib import Path
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -50,6 +53,22 @@ class QualityCoverageTests(unittest.TestCase):
         self.assertIn('git_objects/info/alternates', runner)
         self.assertIn('--volume "$alternate:$alternate:ro"', runner)
         self.assertIn('--volume "$git_common:$git_common:ro"', runner)
+        self.assertIn("--progress=plain", runner)
+
+    def test_quality_command_reports_a_heartbeat(self) -> None:
+        with (
+            patch.object(quality_checks.subprocess, "Popen") as popen,
+            patch.object(quality_checks.time, "monotonic", side_effect=(10.0, 40.0)),
+            io.StringIO() as stderr,
+            redirect_stderr(stderr),
+        ):
+            popen.return_value.wait.side_effect = (
+                subprocess.TimeoutExpired(["slow-command"], 30),
+                0,
+            )
+            quality_checks.run(["slow-command"])
+
+            self.assertIn("[quality] Command still running (30.0 s)", stderr.getvalue())
 
     def test_script_style_tests_are_exposed_to_unittest_discovery(self) -> None:
         missing: list[str] = []
