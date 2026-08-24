@@ -29,6 +29,7 @@ REPACK ?= 1
 KEEP ?= 0
 ARTEFACT_MODE ?= custom
 FIRMWARE_BOARD ?= O6
+FIRMWARE_PRODUCT ?= $(if $(filter O6N,$(FIRMWARE_BOARD)),orion-o6n,orion-o6)
 FIRMWARE_TARGET ?= RELEASE
 FIRMWARE_DISTRO ?=
 FIRMWARE_VALIDATE_ON_BUILD ?= 0
@@ -170,6 +171,7 @@ help-vars:
 	print_help_line 'RELEASE=<source-target>' "Select a configured firmware source target.\nUse names from 'make help-source-targets' or a full source/cache/release/... branch name.\nSource: latest available EDK2, CIX, Radxa, and unofficial refs."; \
 	print_help_note 'See make help-source-targets for the available and default source targets.'; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
+	print_help_line 'FIRMWARE_PRODUCT=<name>' 'Set the output product name.\nDefault: orion-o6 for O6 and orion-o6n for O6N.'; \
 	print_help_line 'FIRMWARE_TARGET=RELEASE|DEBUG' 'Select the firmware build target.\nDefault: RELEASE.'; \
 	print_help_line 'FIRMWARE_DISTRO=trixie|bookworm' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected source-target policy default.'; \
 	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds. See README.md, "How do I build the latest firmware?", for the difference.\nDefault: custom.'; \
@@ -189,13 +191,13 @@ help-vars:
 	print_help_line 'BUILD_DIST_ROOT=<path>' 'Directory where build-branch builds mirror rendered worktree archives, staged payloads, and key raw firmware images.\nDefault: ./dist.'; \
 	print_help_line 'FIRMWARE_CACHE_ROOT=<path>' 'Persistent build-branch firmware cache root shared by rendered worktree builds, including ccache, buildbox temporary state, and CIX release caches.\nDefault: ./.cache/edk2-cix/firmware.'; \
 	print_section 'Replay Variables'; \
-	print_help_line 'REPLAY_INPUT=<path>' 'Published edk2-cix .deb, extracted release directory, or cix_flash_all.bin to replay. If unset, make deterministic-replay downloads the latest release from REPLAY_UPSTREAM_REPOSITORY unless REPLAY_DOWNLOAD=0.\nDefault: unset.'; \
+	print_help_line 'REPLAY_INPUT=<path>' 'Published edk2-cix .deb, extracted release directory, or cix_flash_all.bin to replay. If unset, make deterministic-replay downloads REPLAY_VERSION from REPLAY_UPSTREAM_REPOSITORY unless REPLAY_DOWNLOAD=0.\nDefault: unset.'; \
 	print_help_line 'REPLAY_SOURCE_TARGET=<target>' 'Replay-capable source target rendered before delegating to the firmware tree deterministic-replay target.\nDefault: edk2-202208/radxa-1.2.1/unofficial-1.2.1.'; \
 	print_help_line 'REPLAY_UPSTREAM_REPOSITORY=<owner/name>' 'GitHub repository used to resolve and download the release package when REPLAY_INPUT is unset.\nDefault: radxa-pkg/edk2-cix.'; \
-	print_help_line 'REPLAY_DOWNLOAD=0|1' 'When REPLAY_INPUT is unset, download the latest release package before replay. Set to 0 to reuse an existing rendered replay cache instead.\nDefault: 1.'; \
+	print_help_line 'REPLAY_DOWNLOAD=0|1' 'When REPLAY_INPUT is unset, download the REPLAY_VERSION package before replay. Set to 0 to reuse an existing rendered replay cache instead.\nDefault: 1.'; \
 	print_help_line 'REPLAY_BUILD_OPTIONS=<path>' 'BuildOptions file used when REPLAY_INPUT points directly at cix_flash_all.bin.\nDefault: unset.'; \
 	print_help_line 'REPLAY_BUILD_DATE=<iso8601>' 'Fallback build timestamp when replay inputs do not include BuildOptions.\nDefault: unset.'; \
-	print_help_line 'REPLAY_VERSION=<version>' 'Replay validation profile version passed to the rendered firmware tree. Automatically set from the downloaded release tag when REPLAY_INPUT is unset.\nDefault: 1.2.1.'; \
+	print_help_line 'REPLAY_VERSION=<version>' 'Release tag to download and replay validation profile passed to the rendered firmware tree. Keep it matched to REPLAY_SOURCE_TARGET.\nDefault: 1.2.1.'; \
 	print_section 'Install Variables'; \
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
 	print_help_line 'FORCE=0|1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \
@@ -434,9 +436,9 @@ help-dev-maintenance:
 help-source-targets:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-source-targets
 
-BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
+BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
 
-DELEGATED_BUILD_ARGS = V="$(V)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)"
+DELEGATED_BUILD_ARGS = V="$(V)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)"
 
 define run_release_make
 	@set -e; \
@@ -494,13 +496,12 @@ deterministic-replay:
 	if [ -n "$$replay_input" ]; then \
 		replay_input="$$( $(PYTHON) -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).expanduser().resolve())' "$$replay_input" )"; \
 	elif [ "$(REPLAY_DOWNLOAD)" != "0" ]; then \
-		release_json="$$cache_root/replay/latest-release.json"; \
-		printf '[replay] Resolving latest release from %s\n' "$(REPLAY_UPSTREAM_REPOSITORY)" >&2; \
-		$(PYTHON) "$$wt/scripts/resolve_latest_release_asset.py" \
-			--repo-root "$$wt" \
+		release_json="$$cache_root/replay/release-$$replay_version.json"; \
+		printf '[replay] Resolving release %s from %s\n' "$$replay_version" "$(REPLAY_UPSTREAM_REPOSITORY)" >&2; \
+		$(PYTHON) scripts/resolve_release_asset.py \
 			--github-repository "$(REPLAY_UPSTREAM_REPOSITORY)" \
+			--tag "$$replay_version" \
 			>"$$release_json"; \
-		replay_version="$$( $(PYTHON) -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))[sys.argv[2]])' "$$release_json" tag )"; \
 		asset_name="$$( $(PYTHON) -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))[sys.argv[2]])' "$$release_json" asset_name )"; \
 		asset_url="$$( $(PYTHON) -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))[sys.argv[2]])' "$$release_json" asset_download_url )"; \
 		if [ -z "$$asset_url" ] || [ "$$asset_url" = "None" ]; then \

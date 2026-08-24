@@ -10,6 +10,11 @@ on:
         description: Firmware source target to render before running replay.
         required: true
         type: string
+      replay_version:
+        default: 1.2.1
+        description: Matching upstream release tag to download and replay.
+        required: true
+        type: string
       upstream_repository:
         default: radxa-pkg/edk2-cix
         description: GitHub repository that publishes the release package.
@@ -25,6 +30,7 @@ concurrency:
 
 env:
   REPLAY_SOURCE_TARGET: ${{ inputs.replay_source_target || 'edk2-202208/radxa-1.2.1/unofficial-1.2.1' }}
+  REPLAY_VERSION: ${{ inputs.replay_version || '1.2.1' }}
   UPSTREAM_REPOSITORY: ${{ inputs.upstream_repository || 'radxa-pkg/edk2-cix' }}
 
 jobs:
@@ -42,35 +48,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Fetch source refs required by the build branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch --force --no-tags origin '+refs/heads/source/*:refs/remotes/origin/source/*'
-          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
-
-      - name: Render replay-capable firmware tree
-        id: render
-        shell: bash
-        run: |
-          set -euo pipefail
-          worktree="$(
-            RELEASE="${REPLAY_SOURCE_TARGET}" \
-              python3 scripts/render_release_branch.py \
-                --ensure-worktree \
-                --print-worktree
-          )"
-          echo "worktree=${worktree}" >>"${GITHUB_OUTPUT}"
-
-      - name: Resolve latest upstream release
+      - name: Resolve selected upstream release
         id: resolve
         shell: bash
         run: |
           set -euo pipefail
-          release_json="${RUNNER_TEMP}/latest-release.json"
-          python3 "${{ steps.render.outputs.worktree }}/scripts/resolve_latest_release_asset.py" \
-            --repo-root "${{ steps.render.outputs.worktree }}" \
+          release_json="${RUNNER_TEMP}/release.json"
+          python3 scripts/resolve_release_asset.py \
             --github-repository "${UPSTREAM_REPOSITORY}" \
+            --tag "${REPLAY_VERSION}" \
             >"${release_json}"
           cat "${release_json}"
           python3 - "${release_json}" <<'PY' >>"${GITHUB_OUTPUT}"

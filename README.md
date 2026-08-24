@@ -42,6 +42,8 @@ make build FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
 Common variables are:
 
 - `FIRMWARE_BOARD=O6|O6N` selects the board. The default is `O6`.
+- `FIRMWARE_PRODUCT=<name>` selects the output product path and archive name.
+  It defaults to `orion-o6` for O6 and `orion-o6n` for O6N.
 - `FIRMWARE_TARGET=RELEASE|DEBUG` selects a release or debug firmware image.
   The default is `RELEASE`.
 - `RELEASE=<source-target>` selects a configured source target. Leave this
@@ -101,7 +103,7 @@ make deterministic-replay FIRMWARE_BOARD=O6N
 ```
 
 By default, this renders the `edk2-202208/radxa-1.2.1/unofficial-1.2.1`
-source target, downloads the latest release package from
+source target, downloads the matching `1.2.1` release package from
 `radxa-pkg/edk2-cix`, and delegates to the rendered firmware tree's strict
 byte-identical replay target. To replay a package you already have, pass
 `REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb`; for a raw
@@ -123,7 +125,7 @@ form is the prefixless source-target name shown by `make help-source-targets`:
 
 ```bash
 make build \
-  RELEASE=edk2-202605/cix-1.2/radxa-1.3.1/unofficial \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
   FIRMWARE_BOARD=O6N \
   FIRMWARE_TARGET=RELEASE
 ```
@@ -132,7 +134,7 @@ The full internal branch name is also accepted:
 
 ```bash
 make build \
-  RELEASE=source/cache/release/custom/edk2-202605/cix-1.2/radxa-1.3.1/unofficial \
+  RELEASE=source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
   FIRMWARE_BOARD=O6N
 ```
 
@@ -144,14 +146,14 @@ inspection, or CI, set `PERSIST=1` with `make render-release-branch`:
 
 ```bash
 make render-release-branch \
-  RELEASE=edk2-202605/cix-1.2/radxa-1.3.1/unofficial-1.3.1 \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial-1.3.1 \
   PERSIST=1
 ```
 
 This creates or verifies:
 
 ```text
-source/cache/release/custom/edk2-202605/cix-1.2/radxa-1.3.1/unofficial-1.3.1
+source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.3.1/unofficial-1.3.1
 ```
 
 If an explicit unofficial import changes the rendered tree, rebuild and replace
@@ -159,7 +161,7 @@ the persistent branch deliberately:
 
 ```bash
 make render-release-branch \
-  RELEASE=edk2-202605/cix-1.2/radxa-1.3.1/unofficial \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
   PERSIST=1 REBUILD=1 FORCE=1
 ```
 
@@ -248,10 +250,11 @@ second parallel "normalised vendor" branch namespace unnecessary.
 
 `source/unofficial/**` branches contain this project's branded Unofficial
 firmware changes as normal source trees. Mutable development tips are explicit
-per release line, such as `source/unofficial/1.2/current` and
-`source/unofficial/1.3/current`. Immutable uplift checkpoints use
+per release line; the sole actively maintained tip is currently
+`source/unofficial/1.3/current`. The older `source/unofficial/1.2/current` tip
+and its exact checkpoints remain retained historical records. Immutable uplift checkpoints use
 `source/unofficial/<radxa-release>/<edk2-base>`, for example
-`source/unofficial/1.3.1/edk2-stable202605`. The default line is selected by
+`source/unofficial/1.3.1/edk2-stable202608`. The default line is selected by
 `config/policies.json`; no unqualified `source/unofficial/current` ref is used.
 The older `source/unofficial/edk2-stable*` branches and matching tags are
 retained historical EDK2 compatibility records for focused source-change
@@ -303,9 +306,9 @@ Example:
 
 ```bash
 make render-release-branch \
-  RELEASE=edk2-202605/cix-1.2/radxa-1.3.1/unofficial \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
   PERSIST=1
-git switch -c my-change source/cache/release/custom/edk2-202605/cix-1.2/radxa-1.3.1/unofficial
+git switch -c my-change source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.3.1/unofficial
 ```
 
 The supported workflows guard `source/base/**`, `source/vendor/**`, and
@@ -327,7 +330,7 @@ compatibility branches. Import targets default to the line selected in
 ```bash
 make import-changes \
   FROM_REF=my-change \
-  SOURCE_UNOFFICIAL_REF=source/unofficial/1.2/current
+  SOURCE_UNOFFICIAL_REF=source/unofficial/1.3/current
 ```
 
 The import and render tools also enforce shared source-tree policy checks. In
@@ -619,9 +622,9 @@ For each supported EDK2 release, the repo keeps two related records of the
 unofficial project changes:
 
 - an unofficial source branch, such as
-  `source/unofficial/edk2-stable202605`, which is a normal source branch known
+  `source/unofficial/edk2-stable202608`, which is a normal source branch known
   to apply cleanly to that EDK2 release
-- an unofficial release tag, such as `source/unofficial/edk2/stable-202602`,
+- an unofficial release tag, such as `source/unofficial/edk2/stable-202608`,
   which marks the commit known to apply to that EDK2 release without colliding
   with the branch name
 
@@ -656,11 +659,11 @@ is already integrated.
 Examples:
 
 ```bash
-make integrate-source-release TYPE=upstream COMPONENT=edk2 RELEASE=edk2-stable202605
+make integrate-source-release TYPE=upstream COMPONENT=edk2 RELEASE=edk2-stable202608
 make integrate-source-release TYPE=upstream COMPONENT=tf-a RELEASE=v2.7
 make integrate-source-release TYPE=vendor VENDOR=cix RELEASE=1.2
 make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202208 REF=<vendor-ref>
-make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202605 RADXA_SOURCE=port REF=<ported-ref>
+make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.3.1 EDK2_BASE=edk2-stable202608 RADXA_SOURCE=port REF=<ported-ref>
 ```
 
 When the dry run is correct, add `WRITE=1`. The same change updates
@@ -724,7 +727,7 @@ vendor commit, for example:
 ```bash
 make integrate-source-release \
   TYPE=vendor VENDOR=radxa \
-  RELEASE=1.2.1+<short-commit> \
+  RELEASE=<current-release>+<short-commit> \
   EDK2_BASE=edk2-stable202208 \
   REF=main
 ```
@@ -805,7 +808,7 @@ make uplift-radxa-release \
   FROM_RELEASE=<previous-release> \
   TO_RELEASE=<new-release> \
   LINE=<major.minor> \
-  EDK2_BASE=edk2-stable202605 \
+  EDK2_BASE=edk2-stable202608 \
   CIX_RELEASE=1.2
 ```
 
@@ -821,8 +824,8 @@ When the plan is correct, add `WRITE=1`. The target:
    complete source-target matrix
 
 For an ordinary same-line uplift, the source is the exact checkpoint for
-`FROM_RELEASE`. To initialise a new line from a reviewed existing tip, override
-that source deliberately:
+`FROM_RELEASE`. The retained `1.3` line was historically initialised from the
+reviewed `1.2` tip with this deliberate override:
 
 ```bash
 make uplift-radxa-release \
@@ -862,16 +865,16 @@ selecting it as the default:
 
 ```bash
 make buildbox-firmware-build \
-  RELEASE=edk2-202605/cix-1.2/radxa-<new-release>/unofficial \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial-1.3.1 \
   FIRMWARE_BOARD=O6 ENABLE_FIRMWARE_FIXES=true
 make buildbox-firmware-build \
-  RELEASE=edk2-202605/cix-1.2/radxa-<new-release>/unofficial \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial-1.3.1 \
   FIRMWARE_BOARD=O6N ENABLE_FIRMWARE_FIXES=true
 make buildbox-firmware-build \
-  RELEASE=edk2-202605/cix-1.2/radxa-<new-release>/unofficial \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial-1.3.1 \
   FIRMWARE_BOARD=O6 ENABLE_FIRMWARE_FIXES=false
 make buildbox-firmware-build \
-  RELEASE=edk2-202605/cix-1.2/radxa-<new-release>/unofficial \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial-1.3.1 \
   FIRMWARE_BOARD=O6N ENABLE_FIRMWARE_FIXES=false
 ```
 
@@ -909,23 +912,10 @@ can be omitted for a first run before policy has moved. Passing it explicitly
 is safer in notes, scripts, and reruns. Keep `LINE` explicit as well when more
 than one line is maintained.
 
-Repeat the dry-run/review/write sequence for every maintained line. Completed
-upstream-base and compatibility stages are checked and reused. For the current
-two-line policy the complete sequence is line `1.3`/Radxa `1.3.1`, followed by
-line `1.2`/Radxa `1.2.4`, always retaining the explicit previous EDK2 base:
-
-```bash
-make uplift-edk2-release \
-  EDK2_BASE=edk2-stable202608 \
-  FROM_EDK2_BASE=edk2-stable202605 \
-  LINE=1.2
-
-make uplift-edk2-release \
-  EDK2_BASE=edk2-stable202608 \
-  FROM_EDK2_BASE=edk2-stable202605 \
-  LINE=1.2 \
-  WRITE=1
-```
+Repeat the dry-run/review/write sequence for every actively maintained line.
+The current policy maintains only line `1.3`/Radxa `1.3.1`; line `1.2`/Radxa
+`1.2.4` remains available through its retained immutable refs but is not moved
+by routine uplifts.
 
 The target performs the mechanical stages in order:
 
@@ -1077,7 +1067,7 @@ Render a configured source target that includes the unofficial layer:
 
 ```bash
 make render-release-branch \
-  RELEASE=edk2-202605/cix-1.2/radxa-1.3.1/unofficial \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
   PERSIST=1
 ```
 
@@ -1085,7 +1075,7 @@ Then validate it:
 
 ```bash
 make verify-release-branch \
-  RELEASE=edk2-202605/cix-1.2/radxa-1.3.1/unofficial
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial
 ```
 
 Materialised refs are generated mechanically from `source/base/**`,
@@ -1240,5 +1230,5 @@ make ref-report
 For a materialised branch, also run:
 
 ```bash
-make verify-release-branch RELEASE=edk2-202605/cix-1.2/radxa-1.3.1/unofficial
+make verify-release-branch RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial
 ```

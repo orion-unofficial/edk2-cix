@@ -27,7 +27,7 @@ class TempRootTests(unittest.TestCase):
 
             self.assertEqual(
                 selected,
-                repo / ".worktrees" / "edk2-cix-tmp",
+                repo.resolve() / ".worktrees" / "edk2-cix-tmp",
             )
             self.assertTrue(selected.is_dir())
 

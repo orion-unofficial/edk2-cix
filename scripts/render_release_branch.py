@@ -12,8 +12,10 @@ import sys
 import time
 from pathlib import Path
 
+from import_workflow import ZERO_OID, transaction_update_refs
 from reconstruction_common import (
     ReconstructionError,
+    branch_to_ref,
     cache_dir,
     check_immutable_refs,
     clear_metadata_caches,
@@ -61,7 +63,7 @@ Optional variables:
 
 Example:
   make render-release-branch \\
-    RELEASE=edk2-202605/cix-1.2/radxa-1.3.1/unofficial-1.3.1 \\
+    RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial-1.3.1 \\
     PERSIST=1
 """
 
@@ -141,7 +143,12 @@ def ensure_worktree(repo: Path, branch: str, target_ref: str, verbose: bool) -> 
         return path
     if verbose:
         print(f"Creating detached release worktree {path} at {commit}", file=sys.stderr)
-    git(repo, "worktree", "add", "--detach", str(path), commit, capture=not verbose)
+    result = git(repo, "worktree", "add", "--detach", str(path), commit)
+    if verbose:
+        if result.stdout:
+            print(result.stdout, end="", file=sys.stderr)
+        if result.stderr:
+            print(result.stderr, end="", file=sys.stderr)
     ignore_worktree_cache(path)
     return path
 
@@ -437,6 +444,28 @@ def commit_rendered_worktree(repo: Path, worktree: Path, branch: str, entry: dic
     return rev_parse(worktree, "HEAD")
 
 
+def validate_release_metadata(repo: Path, ref: str, entry: dict, branch: str) -> None:
+    """Reject unofficial source targets labelled as a different Radxa release."""
+
+    if not entry.get("unofficial_delta"):
+        return
+    expected = str(entry.get("radxa_release", "")).strip()
+    version = show_file(repo, ref, "VERSION").decode("utf-8", errors="replace").strip()
+    changelog = show_file(repo, ref, "debian/changelog").decode("utf-8", errors="replace")
+    match = re.match(r"^[^ ]+ \(([^)]+)\)", changelog)
+    changelog_version = match.group(1) if match else ""
+    mismatches = []
+    if version != expected:
+        mismatches.append(f"VERSION={version or '<missing>'}")
+    if changelog_version != expected:
+        mismatches.append(f"debian/changelog={changelog_version or '<invalid>'}")
+    if mismatches:
+        raise ReconstructionError(
+            f"release metadata for {branch} does not match Radxa {expected}: "
+            + ", ".join(mismatches)
+        )
+
+
 def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_manifest_refresh: bool = False) -> str:
     render = entry.get("render")
     if not render:
@@ -525,6 +554,17 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_
     return commit
 
 
+def coupled_persistent_refs(repo: Path, branch: str) -> list[str]:
+    """Return an unofficial target and its versioned/canonical counterpart."""
+    entries = release_entries(repo)
+    canonical = entries.get(branch, {}).get("alias_of", branch)
+    return sorted(
+        ref
+        for ref, entry in entries.items()
+        if ref == canonical or entry.get("alias_of") == canonical
+    ) or [branch]
+
+
 def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
@@ -565,6 +605,8 @@ def main() -> None:
             "run integrate-source-release if source objects are missing."
         )
 
+    validate_release_metadata(repo, target_ref, entry, branch)
+
     expected_tree = entry.get("tree_id")
     if expected_tree and tree_id(repo, target_ref) != expected_tree and not allow_manifest_refresh:
         raise ReconstructionError(
@@ -577,9 +619,29 @@ def main() -> None:
     )
 
     if truthy(args.persist):
-        if ref_exists(repo, branch):
+        target = rev_parse(repo, target_ref)
+        if allow_manifest_refresh:
+            refs = [
+                ref
+                for ref in coupled_persistent_refs(repo, branch)
+                if ref == branch or ref_exists(repo, ref)
+            ]
+            updates = [
+                (
+                    branch_to_ref(ref),
+                    target,
+                    rev_parse(repo, ref) if ref_exists(repo, ref) else ZERO_OID,
+                )
+                for ref in refs
+                if not ref_exists(repo, ref) or rev_parse(repo, ref) != target
+            ]
+            if verbose:
+                for full_ref, new_oid, old_oid in updates:
+                    print(f"Updating persistent branch {full_ref}: {old_oid} -> {new_oid}", file=sys.stderr)
+            transaction_update_refs(repo, updates)
+            target_ref = branch
+        elif ref_exists(repo, branch):
             existing = rev_parse(repo, branch)
-            target = rev_parse(repo, target_ref)
             if existing != target and tree_id(repo, existing) != tree_id(repo, target) and not truthy(args.force):
                 raise ReconstructionError(
                     f"persistent branch {branch} already exists at {existing}, not {target}; "
@@ -591,7 +653,7 @@ def main() -> None:
                 target_ref = branch
             elif existing != target:
                 target_ref = branch
-        else:
+        elif not allow_manifest_refresh:
             if verbose:
                 print(f"Creating persistent branch {branch} from {target_ref}", file=sys.stderr)
             git(repo, "branch", branch, target_ref, capture=not verbose)
