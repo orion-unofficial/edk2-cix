@@ -91,7 +91,7 @@ jobs:
             "FIRMWARE_BOARD=${FIRMWARE_BOARD_INPUT}" \
             "FIRMWARE_TARGET=${FIRMWARE_TARGET_INPUT}" \
             "ARTEFACT_MODE=${ARTEFACT_MODE_INPUT}" \
-            "V=0" \
+            "V=1" \
             "${release_arg[@]}"
 
       - name: Upload generated firmware artefacts

@@ -1059,6 +1059,10 @@ This creates a temporary verification workspace under the shared repository's
 Set `KEEP=1` to retain that workspace for inspection, or `DIR=<path>` to choose
 an explicit workspace directory. Set `EDK2_CIX_TMP_ROOT=<path>` when all source
 porting and verification scratch for a run should share another explicit root.
+Delegated command output is streamed to the terminal and therefore to the
+GitHub Actions log. While a delegated command remains active, the verifier also
+prints a heartbeat every 30 seconds. `V=1` additionally prints each delegated
+command line.
 
 ## How do I materialise an Unofficial line?
 
@@ -1122,7 +1126,8 @@ The build branch carries its own workflows under `.github/workflows/`:
 - `Build branch CI` fetches the required `source/**` refs, runs `make test`,
   and runs `make lint`.
 - `Firmware build` is a manual workflow for rendering and building one selected
-  source target, or for running `build-all`.
+  source target, or for running `build-all`. Firmware commands use verbose mode
+  so that their progress is visible in the Actions log.
 - `Deterministic replay` renders the release-specific upstream Radxa source on
   EDK2 `202208`, downloads the selected Radxa release package, and checks that
   the upstream-path rebuild still matches the published payload for O6 and O6N.
