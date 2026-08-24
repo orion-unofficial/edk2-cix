@@ -50,6 +50,13 @@ if [[ "$git_common_dir" != "$repo_root"/* ]]; then
     git clone --quiet --shared --no-checkout "$git_common_dir" "$act_workspace"
     current_branch="$(git -C "$repo_root" symbolic-ref --quiet --short HEAD || printf '%s' act-local)"
     git -C "$act_workspace" checkout --quiet --force -B "$current_branch" "$(git -C "$repo_root" rev-parse HEAD)"
+    while read -r object_id ref; do
+        git -C "$act_workspace" update-ref "refs/heads/${ref#refs/remotes/origin/}" "$object_id"
+    done < <(git -C "$repo_root" for-each-ref --format='%(objectname) %(refname)' refs/remotes/origin/source)
+    while read -r object_id ref; do
+        git -C "$act_workspace" update-ref "$ref" "$object_id"
+    done < <(git -C "$repo_root" for-each-ref --format='%(objectname) %(refname)' refs/heads/source)
+    git -C "$act_workspace" remote set-url origin "${act_workspace}/.git"
     act_workdir="$act_workspace"
 fi
 
