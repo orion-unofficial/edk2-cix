@@ -27,6 +27,10 @@ def write_fake_iasl(path: pathlib.Path, version: str) -> None:
 
 
 class EnsureIaslTests(unittest.TestCase):
+    def test_provisioning_keeps_stdout_machine_readable(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('make -C "${source_root}/generate/unix" iasl >&2', script)
+
     def test_accepts_the_pinned_2026_release(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             iasl = pathlib.Path(tempdir) / "iasl"
