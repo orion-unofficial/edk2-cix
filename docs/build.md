@@ -169,6 +169,14 @@ comparison oracle; it is never substituted into the rebuilt image. The strict
 profile therefore checks `FV/SKY1_BL33_UEFI.fd` as well as the final flash
 images and exported EFI applications.
 
+The replay's semantic ACPI audit deliberately uses the
+`upstream-1.2.1-bookworm` baseline only as a structural table/source-set and
+zero-error IASL check. Release-specific byte identity, including the complete
+BL33 containing the compiled ACPI tables, is enforced separately by the
+`upstream-<version>-bookworm` exact-hash profile. This separation avoids
+mistaking a missing release-specific ACPI diagnostic profile for a firmware
+replay failure.
+
 For non-buildbox workflows, the base OS is whichever environment you are
 already building in. Host-native builds therefore use the host distro, and the
 checked-in devcontainer remains pinned by
