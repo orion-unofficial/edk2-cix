@@ -994,6 +994,27 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
         ]
         entry["source_ref"] = radxa_ref
     else:
+        metadata_candidates = list(dict.fromkeys([
+            f"source/vendor/radxa/{radxa}/edk2-stable202208",
+            f"source/vendor/radxa/{radxa}/{edk2_ref}",
+            f"source/port/radxa/{radxa}/{edk2_ref}",
+            *(ref for ref in radxa_source_refs(repo) if f"/radxa/{radxa}/" in ref),
+        ]))
+        metadata_ref = next(
+            (
+                candidate
+                for candidate in metadata_candidates
+                if ref_exists(repo, candidate)
+                and git(
+                    repo,
+                    "cat-file",
+                    "-e",
+                    f"{resolve_ref(repo, candidate)}:debian/changelog",
+                    check=False,
+                ).returncode == 0
+            ),
+            None,
+        )
         unofficial_ref = (
             active_unofficial_source_ref(repo, radxa, edk2_ref)
             or unofficial_source_ref(repo, radxa, edk2_ref)
@@ -1009,14 +1030,14 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
                 f"render: firmware source target with EDK2 {release}, Radxa {radxa}, "
                 "and unofficial source"
             )
-        render["steps"] = [
-            {
+        render["steps"] = []
+        if metadata_ref:
+            render["steps"].append({
                 "release_metadata": {
-                    "ref": radxa_source_ref(repo, radxa, "edk2-stable202208"),
+                    "ref": metadata_ref,
                     "release": radxa,
                 }
-            }
-        ]
+            })
         target = alias_target_for(branch, parts)
         entry["source_ref"] = unofficial_ref
         if ref_exists(repo, unofficial_ref):
