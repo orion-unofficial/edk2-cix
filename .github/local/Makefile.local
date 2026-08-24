@@ -143,7 +143,8 @@ FIRMWARE_BOARD_LOWER = $(shell printf '%s' '$(FIRMWARE_BOARD)' | tr '[:upper:]' 
 REPLAY_VERSION ?= $(FIRMWARE_VERSION)
 REPLAY_PRODUCT ?= orion-$(FIRMWARE_BOARD_LOWER)
 DETERMINISTIC_REPLAY_PROFILE ?= upstream-$(REPLAY_VERSION)-$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)
-DETERMINISTIC_REPLAY_ACPI_PROFILE ?= upstream-1.2.1-bookworm
+DETERMINISTIC_REPLAY_ACPI_PROFILE ?= upstream-$(word 1,$(subst ., ,$(REPLAY_VERSION))).$(word 2,$(subst ., ,$(REPLAY_VERSION)))-bookworm
+DETERMINISTIC_REPLAY_ACPI_BASELINE ?= $(REPO_ROOT)/validation/replay-acpi-structures.json
 DETERMINISTIC_REPLAY_CACHE_KEY ?= $(DETERMINISTIC_REPLAY_PROFILE)-$(FIRMWARE_BOARD_LOWER)
 DETERMINISTIC_REPLAY_ROOT ?= $(REPO_ROOT)/.buildbox/replay/$(DETERMINISTIC_REPLAY_CACHE_KEY)
 RECORDED_REPLAY_ROOT ?= $(REPO_ROOT)/validation/replay-inputs
@@ -318,7 +319,8 @@ endef
 
 define PRINT_TOP_LEVEL_INTERNAL_VARIABLES_REPLAY
 	print_help_line '  DETERMINISTIC_REPLAY_PROFILE=<name>' 'Override the resolved replay validation profile name.\nDefault: upstream-<version>-<distro>.'; \
-	print_help_line '  DETERMINISTIC_REPLAY_ACPI_PROFILE=<name>' 'Structural ACPI baseline used by deterministic replay. Exact firmware bytes are checked by DETERMINISTIC_REPLAY_PROFILE.\nDefault: upstream-1.2.1-bookworm.'; \
+	print_help_line '  DETERMINISTIC_REPLAY_ACPI_PROFILE=<name>' 'Release-line structural ACPI profile used by deterministic replay. Exact firmware bytes are checked by DETERMINISTIC_REPLAY_PROFILE.\nDefault: upstream-<major.minor>-bookworm.'; \
+	print_help_line '  DETERMINISTIC_REPLAY_ACPI_BASELINE=<path>' 'Structural ACPI baseline file used only by deterministic replay.\nDefault: validation/replay-acpi-structures.json.'; \
 	print_help_line '  DETERMINISTIC_REPLAY_CACHE_KEY=<name>' 'Override the replay cache directory key.\nDefault: $(DETERMINISTIC_REPLAY_PROFILE)-<board>.'; \
 	print_help_line '  DETERMINISTIC_REPLAY_ROOT=<path>' 'Exact replay cache directory used by deterministic-replay.\nDefault: '\''$$(REPO_ROOT)/.buildbox/replay/<cache-key>'\'''; \
 	print_help_line '  RECORDED_REPLAY_ROOT=<path>' 'Checked-in replay inputs used when REPLAY_INPUT and the replay cache are absent.\nDefault: '\''$$(REPO_ROOT)/validation/replay-inputs'\'''; \
@@ -1065,6 +1067,7 @@ __deterministic-replay:
 		--board "$(FIRMWARE_BOARD)" \
 		--target "$(RAW_FIRMWARE_TARGET)" \
 		--profile "$(DETERMINISTIC_REPLAY_ACPI_PROFILE)" \
+		--baseline-file "$(DETERMINISTIC_REPLAY_ACPI_BASELINE)" \
 		--semantic-only \
 		--report-json "build-validation/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(DETERMINISTIC_REPLAY_PROFILE)-rebuilt-acpi.json"; \
 	reference_dir="$$replay_dir/reference"; \
