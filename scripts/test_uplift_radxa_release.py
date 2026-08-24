@@ -26,12 +26,12 @@ from source_porting import (
     normalise_source_tree,
     normalise_overlay_tree,
     overlay_paths_from_source,
+    resolved_source_port_stage,
 )
 from uplift_radxa_release import (
     align_release_metadata,
     ensure_checkpoint_record,
     release_line,
-    resolved_unofficial_stage,
     resolve_from_unofficial_ref,
     run_script,
     unofficial_candidate,
@@ -576,11 +576,23 @@ def test_resolved_unofficial_stage_detects_overlay_handoff() -> None:
         write_file(repo, "custom/overlay/component/file.c", "resolved\n")
         overlay_resolved = commit_all(repo, "resolve overlay")
         require(
-            resolved_unofficial_stage(repo, overlay_resolved, "auto") == "overlay",
+            resolved_source_port_stage(
+                repo,
+                overlay_resolved,
+                "auto",
+                stage_variable="UNOFFICIAL_REF_STAGE",
+            )
+            == "overlay",
             "overlay handoff stage was not detected from its parent metadata",
         )
         require(
-            resolved_unofficial_stage(repo, overlay_resolved, "final") == "final",
+            resolved_source_port_stage(
+                repo,
+                overlay_resolved,
+                "final",
+                stage_variable="UNOFFICIAL_REF_STAGE",
+            )
+            == "final",
             "explicit final-stage override was ignored",
         )
 
@@ -598,7 +610,13 @@ def test_resolved_unofficial_stage_detects_overlay_handoff() -> None:
         write_file(repo, "src/component/file.c", "resolved\n")
         source_resolved = commit_all(repo, "resolve source")
         require(
-            resolved_unofficial_stage(repo, source_resolved, "auto") == "source",
+            resolved_source_port_stage(
+                repo,
+                source_resolved,
+                "auto",
+                stage_variable="UNOFFICIAL_REF_STAGE",
+            )
+            == "source",
             "legacy source handoff stage was not inferred from marker paths",
         )
     finally:
