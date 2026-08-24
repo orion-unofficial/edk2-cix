@@ -46,13 +46,20 @@ def ensure_empty_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def run_step(label: str, cmd: list[str], verbose: bool, *, cwd: Path | None = None) -> None:
+def run_step(
+    label: str,
+    cmd: list[str],
+    verbose: bool,
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+) -> None:
     started = time.monotonic()
     if verbose:
         print("+ " + " ".join(cmd), file=sys.stderr)
     # Always inherit the terminal/CI streams. GitHub Actions retains this output
     # itself, and hiding it made this end-to-end check appear stuck for minutes.
-    process = subprocess.Popen(cmd, cwd=cwd)
+    process = subprocess.Popen(cmd, cwd=cwd, env=env)
     while True:
         try:
             returncode = process.wait(timeout=30)
@@ -74,7 +81,16 @@ def require_default_branch(bare: Path, checkout: Path | None = None) -> None:
         detail = bare_head.stdout.strip() or bare_head.stderr.strip() or "HEAD is not symbolic"
         raise ReconstructionError(f"minimised export default branch is not build: {detail}")
     if checkout:
-        checkout_head = git(checkout, "symbolic-ref", "--quiet", "--short", "HEAD", check=False)
+        checkout_head = git(
+            checkout,
+            "-c",
+            f"safe.directory={checkout}",
+            "symbolic-ref",
+            "--quiet",
+            "--short",
+            "HEAD",
+            check=False,
+        )
         if checkout_head.returncode != 0 or checkout_head.stdout.strip() != "build":
             detail = checkout_head.stdout.strip() or checkout_head.stderr.strip() or "checkout is detached"
             raise ReconstructionError(f"normal clone of minimised export did not check out build: {detail}")
@@ -110,6 +126,12 @@ def verify_from_workspace(repo: Path, workspace: Path, keep: bool, repack: str, 
     run_step("Clone", ["git", "clone", str(bare), str(checkout)], verbose)
     require_default_branch(bare, checkout)
 
+    checkout_env = os.environ.copy()
+    config_count = int(checkout_env.get("GIT_CONFIG_COUNT", "0"))
+    checkout_env[f"GIT_CONFIG_KEY_{config_count}"] = "safe.directory"
+    checkout_env[f"GIT_CONFIG_VALUE_{config_count}"] = str(checkout)
+    checkout_env["GIT_CONFIG_COUNT"] = str(config_count + 1)
+
     print("[verify-minimised] Running publication quality gates from minimised clone", file=sys.stderr)
     run_step(
         "Quality gates",
@@ -121,6 +143,7 @@ def verify_from_workspace(repo: Path, workspace: Path, keep: bool, repack: str, 
         ],
         verbose,
         cwd=checkout,
+        env=checkout_env,
     )
 
     print(f"[verify-minimised] Rendering default source target: {default_source_target}", file=sys.stderr)
@@ -135,6 +158,7 @@ def verify_from_workspace(repo: Path, workspace: Path, keep: bool, repack: str, 
             "--no-print-directory",
         ],
         verbose,
+        env=checkout_env,
     )
 
     if keep:

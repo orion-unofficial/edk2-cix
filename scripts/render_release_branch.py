@@ -68,6 +68,14 @@ Example:
 """
 
 
+RENDER_COMMIT_IDENTITY = (
+    "-c",
+    "user.name=EDK2 CIX renderer",
+    "-c",
+    "user.email=edk2-cix-renderer",
+)
+
+
 def ignore_worktree_cache(worktree: Path) -> None:
     exclude = git(worktree, "rev-parse", "--git-path", "info/exclude").stdout.strip()
     exclude_path = worktree / exclude if not os.path.isabs(exclude) else Path(exclude)
@@ -210,7 +218,12 @@ def overlay_paths_from_ref(repo: Path, worktree: Path, ref: str, paths: list[str
         clean_path = path.strip("/")
         if not clean_path:
             raise ReconstructionError("overlay path must not be empty")
-        if git(repo, "cat-file", "-e", f"{resolved_ref}:{clean_path}", check=False).returncode != 0:
+        path_check = git(repo, "cat-file", "-e", f"{resolved_ref}:{clean_path}", check=False)
+        if path_check.returncode != 0:
+            ref_check = git(repo, "cat-file", "-e", f"{resolved_ref}^{{tree}}", check=False)
+            if ref_check.returncode != 0:
+                detail = (ref_check.stderr or ref_check.stdout or "unknown Git error").strip()
+                raise ReconstructionError(f"could not inspect overlay source {ref}: {detail}")
             if missing == "ignore":
                 continue
             raise ReconstructionError(f"overlay path is missing from {ref}: {clean_path}")
@@ -465,7 +478,7 @@ def commit_rendered_worktree(repo: Path, worktree: Path, branch: str, entry: dic
         for component in render.get("component_replacements", []):
             trailers.append(f"Source-Component: {component['path']}={component['ref']}")
     full_message = message + "\n\n" + "\n".join(trailers)
-    git(worktree, "commit", "-m", full_message, capture=not verbose)
+    git(worktree, *RENDER_COMMIT_IDENTITY, "commit", "-m", full_message, capture=not verbose)
     return rev_parse(worktree, "HEAD")
 
 
@@ -572,7 +585,15 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_
             status = git(worktree, "status", "--porcelain").stdout.strip()
             has_staged_changes = git(worktree, "diff", "--cached", "--quiet", check=False).returncode != 0
             if not status:
-                git(worktree, "commit", "--allow-empty", "-m", f"render: {short_release(branch)}", capture=not verbose)
+                git(
+                    worktree,
+                    *RENDER_COMMIT_IDENTITY,
+                    "commit",
+                    "--allow-empty",
+                    "-m",
+                    f"render: {short_release(branch)}",
+                    capture=not verbose,
+                )
                 commit = rev_parse(worktree, "HEAD")
             elif not has_staged_changes:
                 commit = rev_parse(worktree, "HEAD")
