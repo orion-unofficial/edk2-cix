@@ -223,6 +223,7 @@ def cases(repo: Path) -> list[Case]:
         "scripts/quality_checks.py",
         "scripts/ref_report.py",
         "scripts/render_release_branch.py",
+        "scripts/resolve_release_asset.py",
         "scripts/update_release_tags.py",
         "scripts/validate_build_variables.py",
         "scripts/verify_build_matrix.py",
