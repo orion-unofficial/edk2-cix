@@ -164,7 +164,7 @@ EOF
     printf '%s  %s\n' "$source_sha256" "$archive" | sha256sum --check --status
     tar -xzf "$archive" -C "$build_root"
     source_root="${build_root}/acpica-unix-${acpica_release}"
-    make -C "${source_root}/generate/unix" iasl
+    make -C "${source_root}/generate/unix" iasl >&2
     verify_iasl "${source_root}/generate/unix/bin/iasl"
 
     mkdir -p "${install_root}/bin"
