@@ -41,7 +41,12 @@ from reconstruction_common import (
     version_key,
     write_json,
 )
-from source_porting import apply_source_delta_to_base, normalise_source_tree
+from source_porting import (
+    align_release_metadata,
+    apply_source_delta_to_base,
+    resolved_source_port_stage,
+    resume_source_delta_tree,
+)
 
 
 HELP = """promote-unofficial-release
@@ -63,8 +68,11 @@ Optional variables:
   FROM_REF=<ref>
       Source tree to port from. Default: the policy-selected Unofficial line tip.
   REF=<ref> or RESOLVED_REF=<ref>
-      Already-resolved promoted source tree from a conflict handoff. When set,
-      the command records this tree directly instead of replaying FROM_REF.
+      Reviewed commit from a conflict handoff. The command resumes all stages
+      which follow that conflict before recording the promoted source.
+  RESOLVED_REF_STAGE=auto|source|overlay|final
+      Override resume-stage detection. Use final only for a fully reviewed and
+      already-normalised tree. Default: auto.
   UPDATE_CURRENT=0|1
       Also move the policy-selected Unofficial line tip to the promoted tree.
       Default: 1.
@@ -94,6 +102,10 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--cix-release", default=os.environ.get("CIX_RELEASE", ""))
     p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
     p.add_argument("--resolved-ref", default=os.environ.get("RESOLVED_REF", os.environ.get("REF", "")))
+    p.add_argument(
+        "--resolved-ref-stage",
+        default=os.environ.get("RESOLVED_REF_STAGE", "auto"),
+    )
     p.add_argument("--update-current", default=os.environ.get("UPDATE_CURRENT", "1"))
     p.add_argument("--update-policy", default=os.environ.get("UPDATE_POLICY", "1"))
     p.add_argument("--allow-replace", default=os.environ.get("ALLOW_REPLACE", "0"))
@@ -272,18 +284,21 @@ def main() -> None:
     if args.resolved_ref:
         resolved = rev_parse(repo, args.resolved_ref)
         message += f"Source-Port-Resolution: {resolved}\n"
-        changed = [
-            line
-            for line in git(repo, "diff", "--name-only", new_port_ref, resolved).stdout.splitlines()
-            if line
-        ]
-        tree, _result = normalise_source_tree(
+        stage = resolved_source_port_stage(
             repo,
-            tree=tree_id(repo, resolved),
+            resolved,
+            args.resolved_ref_stage,
+            stage_variable="RESOLVED_REF_STAGE",
+        )
+        tree = resume_source_delta_tree(
+            repo,
+            resolved=resolved,
+            stage=stage,
+            source_ref=args.from_ref,
+            new_base_ref=new_port_ref,
             label=f"unofficial-{line}-{radxa_release}-{edk2_base}",
+            resume_variable="RESOLVED_REF",
             verbose=verbose,
-            paths=changed,
-            include_worktree_drift=False,
         )
         candidate = git(repo, "commit-tree", tree, "-m", message).stdout.strip()
     else:
@@ -299,6 +314,13 @@ def main() -> None:
             resume_variable="RESOLVED_REF",
             verbose=verbose,
         )
+    candidate = align_release_metadata(
+        repo,
+        candidate=candidate,
+        new_port_ref=new_port_ref,
+        to_release=radxa_release,
+        verbose=verbose,
+    )
 
     updates: list[tuple[str, str, str]] = []
     old_target = ref_oid(repo, target_ref) or ZERO_OID

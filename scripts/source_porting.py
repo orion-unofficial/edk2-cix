@@ -13,6 +13,7 @@ from typing import Iterable
 
 from reconstruction_common import (
     ReconstructionError,
+    commit_tree_with_files,
     git,
     resolve_ref,
     resolve_ref_or_generated_cache,
@@ -176,6 +177,57 @@ def preserve_conflict_worktree(
     ]
     (scratch / "README.md").write_text("\n".join(notes), encoding="utf-8")
     return worktree
+
+
+def resolved_source_port_stage(
+    repo: Path,
+    resolved: str,
+    requested: str,
+    *,
+    stage_variable: str,
+) -> str:
+    """Identify which post-conflict source-port stage a commit completed."""
+
+    stage = requested.strip().lower() or "auto"
+    allowed = {"auto", "source", "overlay", "final"}
+    if stage not in allowed:
+        raise ReconstructionError(
+            f"{stage_variable} must be one of: " + ", ".join(sorted(allowed))
+        )
+    if stage != "auto":
+        return stage
+
+    parent = git(repo, "rev-parse", f"{resolved}^", check=False)
+    if parent.returncode != 0:
+        return "source"
+    parent_oid = parent.stdout.strip()
+    message = git(repo, "show", "-s", "--format=%B", parent_oid).stdout
+    prefix = "Source-Port-Conflict-Stage:"
+    for line in message.splitlines():
+        if line.startswith(prefix):
+            recorded = line[len(prefix) :].strip().lower()
+            if recorded in {"source", "overlay"}:
+                return recorded
+
+    markers = git(
+        repo,
+        "grep",
+        "-I",
+        "-l",
+        "-e",
+        "^<<<<<<< ",
+        parent_oid,
+        "--",
+        check=False,
+    )
+    marker_paths = [
+        line.split(":", 1)[1]
+        for line in markers.stdout.splitlines()
+        if ":" in line
+    ]
+    if marker_paths and all(path.startswith("custom/overlay/") for path in marker_paths):
+        return "overlay"
+    return "source"
 
 
 def path_is_under(path: str, roots: Iterable[str]) -> bool:
@@ -532,6 +584,116 @@ def normalise_overlay_tree(
             )
         finally:
             git(repo, "worktree", "remove", "--force", str(worktree), check=False, capture=True)
+
+
+def resume_source_delta_tree(
+    repo: Path,
+    *,
+    resolved: str,
+    stage: str,
+    source_ref: str,
+    new_base_ref: str,
+    label: str,
+    resume_variable: str,
+    verbose: bool,
+) -> str:
+    """Complete the stages after a reviewed source-port conflict resolution."""
+
+    tree = tree_id(repo, resolved)
+    if stage == "final":
+        return tree
+    if stage == "source":
+        tree, conflicts, merge_detail = normalise_overlay_tree(
+            repo,
+            tree=tree,
+            source_ref=source_ref,
+            label=label,
+            verbose=verbose,
+        )
+        if conflicts:
+            worktree = preserve_conflict_worktree(
+                repo,
+                tree=tree,
+                label=label,
+                merge_output=merge_detail,
+                source_ref=source_ref,
+                new_base_ref=new_base_ref,
+                resume_variable=resume_variable,
+                conflict_paths=conflicts,
+                conflict_stage="overlay",
+                verbose=verbose,
+            )
+            raise ReconstructionError(
+                "could not rebase custom overlays onto the new source tree"
+                f"\n\nsource-port conflict worktree preserved at: {worktree}\n"
+                "Resolve conflicts there, commit the result, and rerun with "
+                f"{resume_variable}=<resolved-commit>."
+            )
+    changed = [
+        path
+        for path in git(
+            repo,
+            "diff",
+            "--name-only",
+            "-z",
+            new_base_ref,
+            tree,
+        ).stdout.split("\0")
+        if path
+    ]
+    tree, _result = normalise_source_tree(
+        repo,
+        tree=tree,
+        label=label,
+        verbose=verbose,
+        paths=changed,
+        include_worktree_drift=False,
+    )
+    return tree
+
+
+def align_release_metadata(
+    repo: Path,
+    *,
+    candidate: str,
+    new_port_ref: str,
+    to_release: str,
+    verbose: bool,
+) -> str:
+    """Take release identity from the new Radxa port, not an old overlay."""
+
+    label = f"radxa-{to_release}-release-metadata"
+    tree = overlay_paths_from_source(
+        repo,
+        tree=tree_id(repo, candidate),
+        source_ref=new_port_ref,
+        paths=("debian/changelog",),
+        label=label,
+        verbose=verbose,
+    )
+    version_ref = commit_tree_with_files(
+        repo,
+        {"VERSION": f"{to_release}\n".encode("utf-8")},
+        f"source: stage Radxa {to_release} release metadata",
+    )
+    tree = overlay_paths_from_source(
+        repo,
+        tree=tree,
+        source_ref=version_ref,
+        paths=("VERSION",),
+        label=label,
+        verbose=verbose,
+    )
+    if tree == tree_id(repo, candidate):
+        return candidate
+    message = git(repo, "show", "-s", "--format=%B", candidate).stdout.rstrip()
+    return git(
+        repo,
+        "commit-tree",
+        tree,
+        "-m",
+        f"{message}\n\nSource-Release-Metadata: Radxa {to_release}",
+    ).stdout.strip()
 
 
 def git_blob_bytes(repo: Path, object_id: str) -> bytes:

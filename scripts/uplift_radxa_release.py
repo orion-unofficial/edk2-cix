@@ -26,7 +26,6 @@ from reconstruction_common import (
     cache_dir,
     check_immutable_refs,
     clear_metadata_caches,
-    commit_tree_with_files,
     format_duration,
     git,
     load_json,
@@ -51,11 +50,11 @@ from reconstruction_common import (
 )
 from source_policy import enforce_source_tree_policy
 from source_porting import (
+    align_release_metadata,
     apply_source_delta_to_base,
-    normalise_overlay_tree,
     normalise_source_tree,
-    overlay_paths_from_source,
-    preserve_conflict_worktree,
+    resolved_source_port_stage,
+    resume_source_delta_tree,
 )
 
 
@@ -319,43 +318,23 @@ def unofficial_candidate(
             raise ReconstructionError(f"UNOFFICIAL_REF is unavailable locally: {resolved_ref}")
         resolved = rev_parse(repo, resolved_ref)
         label = f"unofficial-{from_release}-to-{to_release}-{edk2_base}"
-        stage = resolved_unofficial_stage(repo, resolved, resolved_stage)
+        stage = resolved_source_port_stage(
+            repo,
+            resolved,
+            resolved_stage,
+            stage_variable="UNOFFICIAL_REF_STAGE",
+        )
         if stage == "final":
             return resolved
-        tree = tree_id(repo, resolved)
-        if stage == "source":
-            tree, conflicts, merge_detail = normalise_overlay_tree(
-                repo,
-                tree=tree,
-                source_ref=from_unofficial_ref,
-                label=label,
-                verbose=verbose,
-            )
-            if conflicts:
-                worktree = preserve_conflict_worktree(
-                    repo,
-                    tree=tree,
-                    label=label,
-                    merge_output=merge_detail,
-                    source_ref=from_unofficial_ref,
-                    new_base_ref=new_port_ref,
-                    resume_variable="UNOFFICIAL_REF",
-                    conflict_paths=conflicts,
-                    conflict_stage="overlay",
-                    verbose=verbose,
-                )
-                raise ReconstructionError(
-                    "could not rebase custom overlays onto the new source tree"
-                    f"\n\nsource-port conflict worktree preserved at: {worktree}\n"
-                    "Resolve conflicts there, commit the result, and rerun with "
-                    "UNOFFICIAL_REF=<resolved-commit>."
-                )
-        tree, _result = normalise_source_tree(
+        tree = resume_source_delta_tree(
             repo,
-            tree=tree,
+            resolved=resolved,
+            stage=stage,
+            source_ref=from_unofficial_ref,
+            new_base_ref=new_port_ref,
             label=label,
+            resume_variable="UNOFFICIAL_REF",
             verbose=verbose,
-            paths=changed_paths(repo, new_port_ref, resolved),
         )
         return git(repo, "commit-tree", tree, "-m", message).stdout.strip()
 
@@ -372,93 +351,6 @@ def unofficial_candidate(
         resume_variable="UNOFFICIAL_REF",
         verbose=verbose,
     )
-
-
-def align_release_metadata(
-    repo: Path,
-    *,
-    candidate: str,
-    new_port_ref: str,
-    to_release: str,
-    verbose: bool,
-) -> str:
-    """Take release identity from the new Radxa port, not the old build overlay."""
-
-    label = f"radxa-{to_release}-release-metadata"
-    tree = overlay_paths_from_source(
-        repo,
-        tree=tree_id(repo, candidate),
-        source_ref=new_port_ref,
-        paths=("debian/changelog",),
-        label=label,
-        verbose=verbose,
-    )
-    version_ref = commit_tree_with_files(
-        repo,
-        {"VERSION": f"{to_release}\n".encode("utf-8")},
-        f"source: stage Radxa {to_release} release metadata",
-    )
-    tree = overlay_paths_from_source(
-        repo,
-        tree=tree,
-        source_ref=version_ref,
-        paths=("VERSION",),
-        label=label,
-        verbose=verbose,
-    )
-    if tree == tree_id(repo, candidate):
-        return candidate
-    message = git(repo, "show", "-s", "--format=%B", candidate).stdout.rstrip()
-    return git(
-        repo,
-        "commit-tree",
-        tree,
-        "-m",
-        f"{message}\n\nSource-Release-Metadata: Radxa {to_release}",
-    ).stdout.strip()
-
-
-def resolved_unofficial_stage(repo: Path, resolved: str, requested: str) -> str:
-    stage = requested.strip().lower() or "auto"
-    allowed = {"auto", "source", "overlay", "final"}
-    if stage not in allowed:
-        raise ReconstructionError(
-            "UNOFFICIAL_REF_STAGE must be one of: " + ", ".join(sorted(allowed))
-        )
-    if stage != "auto":
-        return stage
-
-    parent = git(repo, "rev-parse", f"{resolved}^", check=False)
-    if parent.returncode != 0:
-        return "source"
-    parent_oid = parent.stdout.strip()
-    message = git(repo, "show", "-s", "--format=%B", parent_oid).stdout
-    prefix = "Source-Port-Conflict-Stage:"
-    for line in message.splitlines():
-        if line.startswith(prefix):
-            recorded = line[len(prefix) :].strip().lower()
-            if recorded in {"source", "overlay"}:
-                return recorded
-
-    markers = git(
-        repo,
-        "grep",
-        "-I",
-        "-l",
-        "-e",
-        "^<<<<<<< ",
-        parent_oid,
-        "--",
-        check=False,
-    )
-    marker_paths = [
-        line.split(":", 1)[1]
-        for line in markers.stdout.splitlines()
-        if ":" in line
-    ]
-    if marker_paths and all(path.startswith("custom/overlay/") for path in marker_paths):
-        return "overlay"
-    return "source"
 
 
 def changed_paths(repo: Path, old_ref: str, new_ref: str) -> list[str]:
