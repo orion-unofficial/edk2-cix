@@ -131,9 +131,9 @@
       "vendor_delta_to": "source/vendor/radxa/1.3.1/edk2-stable202208"
     },
     {
-      "object_id": "924f9af1cbf051a6602c2a21b3a3d4e2f2972274",
+      "object_id": "1c82dce3d47989a74446943a79371fff4e2d144c",
       "ref": "source/port/radxa/1.3.1/edk2-stable202608",
-      "tree_id": "1fd3b6f9e5e94f191d92cf9fff2f75f2c8036c28"
+      "tree_id": "edb9a80aadc2526cfd92c7f5f4d630ccbb29d454"
     },
     {
       "object_id": "37faf8c8456fbe91278ec9dd40838a7cbd249b7c",
