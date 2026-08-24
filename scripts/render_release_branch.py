@@ -220,6 +220,26 @@ def overlay_paths_from_ref(repo: Path, worktree: Path, ref: str, paths: list[str
         git(worktree, "checkout", resolved_ref, "--", clean_path, capture=not verbose)
 
 
+def apply_release_metadata(repo: Path, worktree: Path, ref: str, release: str, verbose: bool) -> None:
+    """Take package identity from the selected Radxa release source."""
+
+    overlay_paths_from_ref(
+        repo,
+        worktree,
+        ref,
+        ["debian/changelog"],
+        "error",
+        verbose,
+    )
+    version = worktree / "VERSION"
+    expected = f"{release}\n"
+    if not version.exists() or version.read_text(encoding="utf-8") != expected:
+        if verbose:
+            print(f"Setting VERSION to Radxa {release}", file=sys.stderr)
+        version.write_text(expected, encoding="utf-8")
+        git(worktree, "add", "--", "VERSION", capture=not verbose)
+
+
 def make_prereqs_optional(worktree: Path, path: str, variable: str, verbose: bool) -> None:
     clean_path = path.strip("/")
     if not clean_path:
@@ -421,6 +441,11 @@ def commit_rendered_worktree(repo: Path, worktree: Path, branch: str, entry: dic
             elif "overlay_paths" in step:
                 overlay = step["overlay_paths"]
                 trailers.append(f"Source-Overlay: {','.join(overlay.get('paths', []))}={overlay.get('ref', '')}")
+            elif "release_metadata" in step:
+                metadata = step["release_metadata"]
+                trailers.append(
+                    f"Source-Release-Metadata: Radxa {metadata.get('release', '')} from {metadata.get('ref', '')}"
+                )
             elif "make_optional_prereqs" in step:
                 prereqs = step["make_optional_prereqs"]
                 trailers.append(f"Source-Build-Compat: optional {prereqs.get('variable', '')} in {prereqs.get('path', '')}")
@@ -494,6 +519,15 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_
                             overlay["ref"],
                             overlay.get("paths", []),
                             overlay.get("missing", "error"),
+                            verbose,
+                        )
+                    elif "release_metadata" in step:
+                        metadata = step["release_metadata"]
+                        apply_release_metadata(
+                            repo,
+                            worktree,
+                            metadata["ref"],
+                            metadata["release"],
                             verbose,
                         )
                     elif "make_optional_prereqs" in step:

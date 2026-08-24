@@ -6,11 +6,12 @@
   "refs": [
     {
       "ref": "source/cache/release/custom/edk2-202208/cix-1.2/radxa-1.2.1/unofficial",
-      "tree_id": "48fba3a25dbe6509e7fc2d369d317c4c3958d9ab"
+      "tree_id": "5186e825acb4d0c830ef7fed4d9ea34fbc2bc91e",
+      "type": "rendered-release"
     },
     {
       "ref": "source/cache/release/custom/edk2-202208/radxa-1.2.1/unofficial",
-      "tree_id": "e91326514d7c51c3444f6c5ab6e0f186cb6a04eb",
+      "tree_id": "5186e825acb4d0c830ef7fed4d9ea34fbc2bc91e",
       "type": "rendered-release"
     },
     {
@@ -79,27 +80,33 @@
     },
     {
       "ref": "source/cache/release/custom/edk2-202605/cix-1.2/radxa-1.2.2/unofficial",
-      "tree_id": "6abf1cdc9bbed7f14a803b3f6ad87829331148bf"
+      "tree_id": "656d4695e69ba7467c25e9f02e76d7f70568cb05",
+      "type": "rendered-release"
     },
     {
       "ref": "source/cache/release/custom/edk2-202605/cix-1.2/radxa-1.2.3/unofficial",
-      "tree_id": "6833ceecbe2d054a5359c47835a7b575e68f6672"
+      "tree_id": "f22a1bab163e0c3b7ce9f5d399bcd43881873000",
+      "type": "rendered-release"
     },
     {
       "ref": "source/cache/release/custom/edk2-202605/cix-1.2/radxa-1.2.4/unofficial",
-      "tree_id": "7609f421f3352ef29b84eb5933a00049110087d4"
+      "tree_id": "c961ba61025caff66d8ee96abc26cf6bc80b5731",
+      "type": "rendered-release"
     },
     {
       "ref": "source/cache/release/custom/edk2-202605/cix-1.2/radxa-1.3.0/unofficial",
-      "tree_id": "3889559994c71f927dd6ac84d289a97e7b65be72"
+      "tree_id": "acf4a03c2feb72e644a2fc55f37436a3dd6bb9c4",
+      "type": "rendered-release"
     },
     {
       "ref": "source/cache/release/custom/edk2-202605/cix-1.2/radxa-1.3.1/unofficial",
-      "tree_id": "e4b3448017ba5b6074841e6f8c8d83166430cb4e"
+      "tree_id": "39075560dbe1a5a72957bc904bc3417290af8072",
+      "type": "rendered-release"
     },
     {
       "ref": "source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.2.4/unofficial",
-      "tree_id": "4463599bfeadf713ef519461e1c736ccc6906479"
+      "tree_id": "14fbf2924638f6ec66ec75e2430ec95267ddc5b1",
+      "type": "rendered-release"
     },
     {
       "ref": "source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.3.1/unofficial",

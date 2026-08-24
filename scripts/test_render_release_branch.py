@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from render_release_branch import (  # noqa: E402
+    apply_release_metadata,
     cached_worktree_is_dirty,
     ensure_worktree,
     validate_release_metadata,
@@ -94,6 +95,31 @@ def test_unofficial_release_metadata_must_match_selected_radxa_release() -> None
         else:
             raise AssertionError("stale unofficial release metadata was accepted")
     finally:
+        shutil.rmtree(repo)
+
+
+def test_release_metadata_is_aligned_from_radxa_source() -> None:
+    repo = make_repo()
+    worktree = None
+    try:
+        write_file(repo, "VERSION", "1.2.1\n")
+        write_file(repo, "debian/changelog", "edk2-cix (1.2.1) main; urgency=medium\n")
+        stale = commit_all(repo, "stale metadata")
+        write_file(repo, "debian/changelog", "edk2-cix (1.3.1) main; urgency=medium\n\n  * vendor release\n")
+        vendor = commit_all(repo, "Radxa metadata")
+        worktree = repo.parent / f"{repo.name}-worktree"
+        git(repo, "worktree", "add", "--detach", str(worktree), stale)
+
+        apply_release_metadata(repo, worktree, vendor, "1.3.1", verbose=False)
+        require((worktree / "VERSION").read_text(encoding="utf-8") == "1.3.1\n", "VERSION was not aligned")
+        require(
+            (worktree / "debian/changelog").read_text(encoding="utf-8")
+            == "edk2-cix (1.3.1) main; urgency=medium\n\n  * vendor release\n",
+            "Radxa changelog was not preserved",
+        )
+    finally:
+        if worktree is not None:
+            git(repo, "worktree", "remove", "--force", str(worktree), check=False)
         shutil.rmtree(repo)
 
 
