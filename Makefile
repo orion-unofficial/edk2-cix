@@ -575,7 +575,7 @@ install:
 		--build-target "buildbox-firmware-stage" \
 		--board "$(FIRMWARE_BOARD)" \
 		--firmware-target "$(FIRMWARE_TARGET)" \
-		--artefact-mode "$(ARTEFACT_MODE)" \
+		--artefact-mode "$(or $(ARTEFACT_MODE),custom)$(if $(filter 1 true yes on,$(ENABLE_FIRMWARE_FIXES)),+fixes,)" \
 		--v "$(V)"; \
 	force_arg=""; \
 	if [ "$(FORCE)" = "1" ]; then force_arg="--force"; fi; \
