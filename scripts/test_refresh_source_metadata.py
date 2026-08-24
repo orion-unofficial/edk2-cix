@@ -138,6 +138,10 @@ def write_config(repo: Path) -> None:
                 "tree_id": ZERO,
                 "type": "rendered-vendor-release",
             },
+            {
+                "ref": "source/cache/release/upstream/edk2-202208/radxa-1.2.1",
+                "tree_id": ZERO,
+            },
         ],
     })
 
@@ -243,7 +247,19 @@ def test_refresh_repairs_hashes_cache_trees_and_tags() -> None:
         cache = load_json(repo / "config/refs-source-target-cache.json")
         custom_tree = cache["refs"][0]["tree_id"]
         require(custom_tree == git(repo, "rev-parse", "source/unofficial/edk2-stable202208^{tree}").stdout.strip(), "custom cache tree was not derived from source/unofficial")
-        require(cache["refs"][1]["tree_id"] != ZERO, "rendered vendor cache tree was not regenerated")
+        vendor = next(
+            item for item in cache["refs"]
+            if item.get("ref") == "source/cache/release/vendor/edk2-202208/cix-1.2/radxa-1.2.1"
+        )
+        require(vendor["tree_id"] != ZERO, "rendered vendor cache tree was not regenerated")
+        upstream = next(
+            item for item in cache["refs"]
+            if item.get("ref") == "source/cache/release/upstream/edk2-202208/radxa-1.2.1"
+        )
+        require(
+            upstream.get("type") == "rendered-upstream-radxa-release",
+            "upstream cache metadata inherited the generic rendered type",
+        )
         require(tag_commit(repo) == rev_parse(repo, "source/unofficial/edk2-stable202208"), "release tag was not updated")
     finally:
         shutil.rmtree(repo)

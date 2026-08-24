@@ -11,7 +11,7 @@ from io import StringIO
 from pathlib import Path
 
 from test_support import commit_all, git, load_function_tests, require, write_file
-from reconstruction_common import ReconstructionError
+from reconstruction_common import ReconstructionError, rendered_release_type
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -114,6 +114,26 @@ def test_verbose_worktree_creation_keeps_stdout_machine_readable() -> None:
         if worktree is not None:
             git(repo, "worktree", "remove", "--force", str(worktree), check=False)
         shutil.rmtree(repo)
+
+
+def test_rendered_release_type_tracks_the_target_stage() -> None:
+    require(
+        rendered_release_type("source/cache/release/upstream/edk2-202208/radxa-1.3.1")
+        == "rendered-upstream-radxa-release",
+        "upstream replay target received the generic rendered type",
+    )
+    require(
+        rendered_release_type("source/cache/release/vendor/edk2-202208/cix-1.2/radxa-1.3.1")
+        == "rendered-vendor-release",
+        "vendor target received the generic rendered type",
+    )
+    require(
+        rendered_release_type(
+            "source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.3.1/unofficial"
+        )
+        == "rendered-release",
+        "custom target did not retain the generic rendered type",
+    )
 
 
 def load_tests(_loader, _tests, _pattern):

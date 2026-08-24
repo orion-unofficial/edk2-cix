@@ -1621,6 +1621,15 @@ def refresh_ref_record(repo: Path, manifest_name: str, ref: str, extra: dict[str
     update_ref_record(repo, manifest_name, ref, updates)
 
 
+def rendered_release_type(ref: str) -> str:
+    stage = release_branch_parts(ref)["stage"]
+    if stage == "upstream":
+        return "rendered-upstream-radxa-release"
+    if stage == "vendor":
+        return "rendered-vendor-release"
+    return "rendered-release"
+
+
 def refresh_release_tree(repo: Path, branch: str) -> None:
     if branch not in release_entries(repo):
         raise ReconstructionError(f"cannot update source-target manifest for unknown source/cache/release branch: {branch}")
@@ -1633,6 +1642,7 @@ def refresh_release_tree(repo: Path, branch: str) -> None:
         {
             "object_id": None,
             "tree_id": tree_id(repo, branch),
+            "type": rendered_release_type(manifest_branch),
         },
     )
 
