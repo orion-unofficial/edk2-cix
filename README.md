@@ -248,9 +248,8 @@ python3 src/scripts/replay_o6_release.py \
 The generated `rebuild-o6-docker.sh` wrapper recreates the upstream
 `/workspaces/edk2-cix` path layout so that `ARTEFACT_MODE=upstream` can
 reproduce the vendor release payloads byte-for-byte. By default it writes its
-helper directory under the current system temp root and mounts that directory
-into the build container automatically. To stage those helper files somewhere
-else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
+helper directory under `.buildbox/replay-extract/` in the repository. To stage
+those helper files somewhere else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
 `EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper.
 
 For the common qualification/replay flow, you can drive the same process from
@@ -264,19 +263,21 @@ make deterministic-replay \
 That target defaults to `FIRMWARE_BOARD=O6` and
 `FIRMWARE_DISTRO=bookworm`, seeds or reuses a cached replay-input directory
 under `.buildbox/replay/<profile>/`, rebuilds in the matching buildbox image,
-and then runs strict validation against the checked-in replay profile. When the
-input is the published `1.2.1` release plus its extracted cert bundle, this is
-the qualification path that proves the Bookworm build can still reproduce the
-published payloads byte-for-byte.
+and then runs strict validation against the checked-in replay profile. When no
+input or cache is supplied, it uses the recorded timestamps and certificate
+payloads under `validation/replay-inputs/<version>/<board>/`. Strict validation
+includes the source-built BL33, final images, and exported EFI applications; a
+published BL33 is never fed back into packaging to make the comparison pass.
 
 You can also switch to `FIRMWARE_DISTRO=trixie` for a same-input Trixie
 replay. In that mode the goal is matching `amd64` and `arm64` outputs
 against the same cert bundle and injected timestamps, not comparison with a
 published upstream release.
 
-If you already populated `.buildbox/replay/<profile>/` once, later reruns can
-omit `REPLAY_INPUT=...` and will reuse the cached `replay.env` plus cert
-bundle. When the replay input is only `cix_flash_all.bin`, also pass
+If the selected release has checked-in replay inputs, or if you already
+populated `.buildbox/replay/<profile>/`, later runs can omit
+`REPLAY_INPUT=...`. The checked-in bundle is preferred only when no cache is
+present. When the replay input is only `cix_flash_all.bin`, also pass
 `REPLAY_BUILD_OPTIONS=/path/to/BuildOptions` when available so the helper can
 recover `BUILD_DATE`.
 

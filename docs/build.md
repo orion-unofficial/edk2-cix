@@ -158,21 +158,23 @@ The firmware-oriented `buildbox-*` targets install the slimmer firmware
 dependency profile inside the reusable container; `buildbox-deb` switches that
 same container to the fuller packaging profile when needed.
 
-Builds and ACPI audits require the repository-pinned ACPICA `20260408` `iasl`.
-Linux buildboxes provision that exact source release into
-`build-cache/acpica/` after checking its SHA-256 digest. A direct host build may
-set `IASL=/path/to/iasl`, but any other compiler version is rejected. This
-historical EDK2 `202208` replay source retains the `GCC5` toolchain tag because
-that release predates upstream EDK2's native `GCC` tag; current and future EDK2
-sources use `GCC` directly.
+Custom builds and current-source ACPI audits require the repository-pinned
+ACPICA `20260408` `iasl`; Linux buildboxes provision that exact source release
+into `build-cache/acpica/` after checking its SHA-256 digest. Historical vendor
+replay instead uses Debian Bookworm's ACPICA `20200925`, matching the Radxa
+release environment. The build-branch wrapper renders the exact
+`source/vendor/radxa/<version>/edk2-stable202208` source for the requested
+release and overlays build infrastructure only. The high-risk ASL blobs under
+`validation/replay-source/` are independent provenance oracles, not shadow
+packages. This historical EDK2 `202208` source retains the `GCC5` toolchain tag
+because that release predates upstream EDK2's native `GCC` tag; current and
+future EDK2 sources use `GCC` directly.
 
-Exact replay also separates source qualification from byte-identical packaging.
-The historical source is always rebuilt with the pinned ACPICA 20260408
-compiler. Because changing the ASL compiler necessarily changes the signed
-BL33 bytes, exact upstream replay packages the published BL33 extracted by
-`replay_o6_release.py`, while retaining the newly compiled BL33 for ACPI and
-semantic audits. This replay-only input is rejected outside
-`ARTEFACT_MODE=upstream` with a complete published certificate bundle.
+Exact replay rebuilds BL33 from source and packages that rebuilt payload. The
+published BL33 extracted by `replay_o6_release.py` is retained only as an exact
+comparison oracle; it is never substituted into the rebuilt image. The strict
+profile therefore checks `FV/SKY1_BL33_UEFI.fd` as well as the final flash
+images and exported EFI applications.
 
 For non-buildbox workflows, the base OS is whichever environment you are
 already building in. Host-native builds therefore use the host distro, and the
@@ -305,7 +307,7 @@ The build also supports two output modes:
 ## Replay published firmware
 
 To recover the replay settings from a published O6 or O6N release artefact and
-write helper files under a fresh temp directory, run:
+write helper files under a fresh `.buildbox/replay-extract/` directory, run:
 
 ```bash
 python3 src/scripts/replay_o6_release.py <edk2-cix_*.deb>

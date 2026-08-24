@@ -28,7 +28,7 @@ FIPTOOL_SOURCE_DIR = SRC_DIR / "tools" / "arm-trusted-firmware-fiptool"
 FLASH_CONFIG_ALL = PACKAGE_TOOL_DIR / "spi_flash_config_all.json"
 PACKAGE_TOOL_SOURCE = SRC_DIR / "tools" / "cix_package_tool" / "cix_package_tool.py"
 DEFAULT_TMP_ROOT = pathlib.Path(
-    os.environ.get("EDK2_CIX_HOST_TMPDIR", tempfile.gettempdir())
+    os.environ.get("EDK2_CIX_HOST_TMPDIR", REPO_ROOT / ".buildbox" / "replay-extract")
 ).resolve()
 DEFAULT_CONTAINER_TMPDIR = pathlib.PurePosixPath(
     os.environ.get("EDK2_CIX_CONTAINER_TMPDIR", "/hosttmp")
@@ -299,15 +299,6 @@ def copy_cert_bundle(flash_dir: pathlib.Path, output_dir: pathlib.Path) -> pathl
     return cert_dir
 
 
-def copy_exact_replay_firmware(
-    flash_dir: pathlib.Path, output_dir: pathlib.Path
-) -> pathlib.Path:
-    firmware_dir = ensure_clean_dir(output_dir / "firmware")
-    nt_fw = firmware_dir / "nt-fw.bin"
-    shutil.copy2(require_file(flash_dir / "nt-fw.bin"), nt_fw)
-    return nt_fw
-
-
 def copy_reference_files(
     reference_files: dict[str, pathlib.Path],
     output_dir: pathlib.Path,
@@ -340,7 +331,6 @@ def write_rebuild_wrapper(
         f"SOURCE_DATE_EPOCH={shlex.quote(env_values['SOURCE_DATE_EPOCH'])}",
         f"PM_CONFIG_SOURCE_DATE_EPOCH={shlex.quote(env_values['PM_CONFIG_SOURCE_DATE_EPOCH'])}",
         f"SIGNING_CERT_SOURCE_DIR={shlex.quote(env_values['SIGNING_CERT_SOURCE_DIR'])}",
-        f"EXACT_REPLAY_NT_FW_SOURCE={shlex.quote(env_values['EXACT_REPLAY_NT_FW_SOURCE'])}",
     ]
     for key in (
         "SOURCE_COMMIT_HASH",
@@ -370,10 +360,6 @@ def write_docker_rebuild_wrapper(
     host_tmp_root = cert_dir.parent
     container_tmp_root = DEFAULT_CONTAINER_TMPDIR
     cert_dir_hosttmp = to_container_tmp_path(cert_dir, host_tmp_root, container_tmp_root)
-    nt_fw_source = pathlib.Path(env_values["EXACT_REPLAY_NT_FW_SOURCE"]).resolve()
-    nt_fw_source_hosttmp = to_container_tmp_path(
-        nt_fw_source, host_tmp_root, container_tmp_root
-    )
     quoted_targets = " ".join(shlex.quote(target) for target in build_targets)
     make_vars = [
         f"BUILD_DATE={shlex.quote(env_values['BUILD_DATE'])}",
@@ -381,7 +367,6 @@ def write_docker_rebuild_wrapper(
         f"SOURCE_DATE_EPOCH={shlex.quote(env_values['SOURCE_DATE_EPOCH'])}",
         f"PM_CONFIG_SOURCE_DATE_EPOCH={shlex.quote(env_values['PM_CONFIG_SOURCE_DATE_EPOCH'])}",
         f"SIGNING_CERT_SOURCE_DIR={shlex.quote(cert_dir_hosttmp)}",
-        f"EXACT_REPLAY_NT_FW_SOURCE={shlex.quote(nt_fw_source_hosttmp)}",
     ]
     for key in (
         "SOURCE_COMMIT_HASH",
@@ -447,11 +432,13 @@ def main() -> int:
     input_kind = detect_input_kind(input_path)
     board_config = BOARD_CONFIG[args.board]
 
-    output_dir = (
-        pathlib.Path(args.output_dir).resolve()
-        if args.output_dir
-        else pathlib.Path(tempfile.mkdtemp(prefix="o6-replay-", dir=str(DEFAULT_TMP_ROOT)))
-    )
+    if args.output_dir:
+        output_dir = pathlib.Path(args.output_dir).resolve()
+    else:
+        ensure_clean_dir(DEFAULT_TMP_ROOT)
+        output_dir = pathlib.Path(
+            tempfile.mkdtemp(prefix="o6-replay-", dir=str(DEFAULT_TMP_ROOT))
+        )
     ensure_clean_dir(output_dir)
 
     work_dir_obj: tempfile.TemporaryDirectory[str] | None = None
@@ -471,6 +458,16 @@ def main() -> int:
         reference_files["cix_flash_all.bin"] = require_file(release_dir / "cix_flash_all.bin")
         reference_files["cix_flash_ota.bin"] = require_file(release_dir / "cix_flash_ota.bin")
         reference_files["BuildOptions"] = require_file(release_dir / "BuildOptions")
+        for name in (
+            "BurnImage.efi",
+            "EnrollFromDefaultKeysApp.efi",
+            "FlashUpdate.efi",
+            "Shell.efi",
+            "VariableInfo.efi",
+        ):
+            candidate = release_dir / name
+            if candidate.is_file():
+                reference_files[f"AARCH64/{name}"] = candidate
         pm_config_path = release_dir / "Firmwares" / "csu_pm_config.bin"
         if pm_config_path.is_file():
             reference_files["Firmwares/csu_pm_config.bin"] = pm_config_path
@@ -502,11 +499,11 @@ def main() -> int:
     pm_config_source_date_epoch, flash_dir = extract_flash_details(
         reference_files["cix_flash_all.bin"], work_dir, board_config["pm_config_dir"]
     )
-    extracted_pm_config = flash_dir / "csu_pm_config.bin"
+    extracted_pm_config = flash_dir / "unpack" / "csu_pm_config.bin"
     if extracted_pm_config.is_file():
         reference_files.setdefault("Firmwares/csu_pm_config.bin", extracted_pm_config)
+    reference_files["FV/SKY1_BL33_UEFI.fd"] = require_file(flash_dir / "nt-fw.bin")
     cert_dir = copy_cert_bundle(flash_dir, output_dir)
-    exact_replay_nt_fw = copy_exact_replay_firmware(flash_dir, output_dir)
     reference_dir = copy_reference_files(reference_files, output_dir)
 
     env_values = {
@@ -514,7 +511,6 @@ def main() -> int:
         "SOURCE_DATE_EPOCH": str(source_date_epoch),
         "PM_CONFIG_SOURCE_DATE_EPOCH": str(pm_config_source_date_epoch),
         "SIGNING_CERT_SOURCE_DIR": str(cert_dir),
-        "EXACT_REPLAY_NT_FW_SOURCE": str(exact_replay_nt_fw),
     }
     if build_date is not None:
         env_values["BUILD_DATE"] = build_date
@@ -566,7 +562,6 @@ def main() -> int:
         "source_date_epoch": source_date_epoch,
         "pm_config_source_date_epoch": pm_config_source_date_epoch,
         "signing_cert_source_dir": str(cert_dir),
-        "exact_replay_nt_fw_source": str(exact_replay_nt_fw),
         "reference_dir": str(reference_dir) if reference_dir is not None else None,
         "build_defines": build_defines,
         "reference_files": (

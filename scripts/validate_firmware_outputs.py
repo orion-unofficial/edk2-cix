@@ -121,6 +121,21 @@ def resolve_build_dir(args: argparse.Namespace) -> pathlib.Path:
     return args.repo_root.resolve() / "src" / "Build" / args.board / args.target
 
 
+def resolve_artefact_path(
+    repo_root: pathlib.Path,
+    build_dir: pathlib.Path,
+    spec: dict[str, Any],
+) -> pathlib.Path:
+    repo_path = spec.get("repo_path")
+    if not repo_path:
+        return build_dir / spec["path"]
+
+    relative_path = pathlib.Path(repo_path)
+    if relative_path.is_absolute() or ".." in relative_path.parts:
+        raise ValueError(f"Profile repo_path must be repository-relative: {repo_path}")
+    return repo_root / relative_path
+
+
 def parse_build_options(path: pathlib.Path) -> dict[str, Any]:
     result: dict[str, Any] = {}
     if not path.is_file():
@@ -328,11 +343,13 @@ def main() -> int:
 
     for label, spec in artefact_specs.items():
         relative_path = pathlib.Path(spec["path"])
-        actual_path = build_dir / relative_path
+        actual_path = resolve_artefact_path(repo_root, build_dir, spec)
         entry: dict[str, Any] = {
             "path": str(relative_path),
             "exists": actual_path.is_file(),
         }
+        if spec.get("repo_path"):
+            entry["repo_path"] = str(spec["repo_path"])
         if actual_path.is_file():
             entry["size"] = actual_path.stat().st_size
             entry["sha256"] = sha256_file(actual_path)
@@ -478,6 +495,8 @@ def main() -> int:
                     "size": entry.get("size"),
                     "sha256": entry.get("sha256"),
                 }
+                if entry.get("repo_path"):
+                    profile_entry["artefacts"][label]["repo_path"] = entry["repo_path"]
         if build_options_actual:
             profile_entry["build_options"] = {
                 "gCommandLineDefines": build_options_actual.get("gCommandLineDefines", {}),

@@ -61,6 +61,7 @@ CCACHE_BIN_RESOLVED := $(if $(CCACHE_DISABLED_EFFECTIVE),,$(strip $(shell comman
 CCACHE_ENABLED_EFFECTIVE := $(if $(CCACHE_BIN_RESOLVED),TRUE,)
 CIX_RELEASE_CACHE_ROOT ?= $(abspath ../build-cache/cix-release)
 ARTEFACT_MODE ?= custom
+IASL_RELEASE ?= $(if $(filter upstream,$(ARTEFACT_MODE)),20200925,20260408)
 FIRMWARE_VALIDATION_PROFILE ?= upstream-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(abspath ../build-validation)
 CUSTOM_OVERLAY_ROOT ?= $(abspath ../custom/overlay)
@@ -373,7 +374,6 @@ CIX_PACKAGE_TOOL_BIN := $(HOST_TOOLS_DIR)/cix_package_tool
 CIX_PACKAGE_TOOL_SOURCE_INPUTS := $(CIX_PACKAGE_TOOL_SOURCE_DIR)/cix_package_tool.py
 SIGNING_CERT_SOURCE_DIR ?=
 REQUIRE_SIGNING_CERT_SOURCE ?= $(if $(and $(filter upstream,$(ARTEFACT_MODE)),$(strip $(SIGNING_CERT_SOURCE_DIR))),1,0)
-EXACT_REPLAY_NT_FW_SOURCE ?=
 IMPORTED_BASETOOLS_DIR := $(abspath edk2/BaseTools)
 CUSTOM_BASETOOLS_DIR := $(CUSTOM_EDK2_WORKSPACE_ROOT)/BaseTools
 ACTIVE_BASETOOLS_DIR := $(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_BASETOOLS_DIR),$(IMPORTED_BASETOOLS_DIR))
@@ -466,7 +466,6 @@ define PRINT_SRC_LOCAL_VARIABLES
 	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory where raw-build audit and validation reports are written.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
 	print_help_line '  GCC5_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
 	print_help_line '  SIGNING_CERT_SOURCE_DIR=<dir>' 'Path to extracted or built cert blobs for exact replay.\nDefault: unset.'; \
-	print_help_line '  EXACT_REPLAY_NT_FW_SOURCE=<file>' 'Published BL33 payload to package only during exact upstream replay; the source BL33 is still rebuilt independently.\nDefault: unset.'; \
 	print_help_line '  SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the compiler-facing reproducible timestamp.\nDefault: resolved from mapped upstream source metadata.'; \
 	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the PM-config timestamp.\nDefault: SOURCE_DATE_EPOCH.'
 endef
@@ -798,7 +797,7 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
-	if ! iasl_path="$$("$(IASL_RESOLVER)" --print-path)"; then \
+	if ! iasl_path="$$(EDK2_CIX_IASL_RELEASE="$(IASL_RELEASE)" "$(IASL_RESOLVER)" --print-path)"; then \
 		echo "[preflight] The required ACPICA iasl compiler could not be resolved" >&2; \
 		missing=1; \
 	else \
@@ -877,7 +876,6 @@ $(call BUILD_CONFIG_STAMP,%): FORCE
 		'O6_SMBIOS_CHASSIS_ASSET_TAG=$(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE)' \
 		'SIGNING_CERT_SOURCE_DIR=$(SIGNING_CERT_SOURCE_DIR)' \
 		'REQUIRE_SIGNING_CERT_SOURCE=$(REQUIRE_SIGNING_CERT_SOURCE)' \
-		'EXACT_REPLAY_NT_FW_SOURCE=$(EXACT_REPLAY_NT_FW_SOURCE)' \
 		'GCC5_AARCH64_PREFIX=$(GCC5_AARCH64_PREFIX)')"; \
 	existing_text="$$(cat "$$stamp_path" 2>/dev/null || true)"; \
 	if [[ "$$existing_text" != "$$config_text" ]]; then \
@@ -1095,7 +1093,6 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 	export SOURCE_CERT_TOOL_BIN="$(abspath $(CERT_UEFI_CREATE_RSA_BIN))" && \
 	export SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" && \
 	export REQUIRE_SIGNING_CERT_SOURCE="$(REQUIRE_SIGNING_CERT_SOURCE)" && \
-	export EXACT_REPLAY_NT_FW_SOURCE="$(EXACT_REPLAY_NT_FW_SOURCE)" && \
 	run_success_only() { \
 		if [[ "$(V)" == "1" ]]; then \
 			"$$@"; \
@@ -1124,19 +1121,6 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 	reused_nt_fw_certs=0; \
 	validator_extra_args=(); \
 	nt_fw_input="$(shell realpath "$<")"; \
-	if [[ -n "$$EXACT_REPLAY_NT_FW_SOURCE" ]]; then \
-		if [[ "$(ARTEFACT_MODE)" != "upstream" || "$$REQUIRE_SIGNING_CERT_SOURCE" != "1" ]]; then \
-			echo "EXACT_REPLAY_NT_FW_SOURCE is only valid for exact upstream replay with a required signing-certificate bundle." >&2; \
-			exit 1; \
-		fi; \
-		if [[ ! -f "$$EXACT_REPLAY_NT_FW_SOURCE" ]]; then \
-			echo "Exact replay BL33 payload does not exist: $$EXACT_REPLAY_NT_FW_SOURCE" >&2; \
-			exit 1; \
-		fi; \
-		nt_fw_input="$$(realpath "$$EXACT_REPLAY_NT_FW_SOURCE")"; \
-		echo "Packaging published exact-replay BL33 from $$nt_fw_input"; \
-		echo "The independently rebuilt source BL33 remains at $(shell realpath "$<") for semantic audit."; \
-	fi; \
 	stage_dir="$(call BUILD_STAGE_DIR,$*)" && \
 	mkdir -p "$$stage_dir/Keys" && \
 	cp -a $(PACKAGE_TOOL)/Keys/. "$$stage_dir/Keys/" && \
@@ -1371,7 +1355,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 	else \
 		export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_REAL_PREFIX)"; \
 	fi; \
-	iasl_path="$$("$(IASL_RESOLVER)" --print-path)"; \
+	iasl_path="$$(EDK2_CIX_IASL_RELEASE="$(IASL_RELEASE)" "$(IASL_RESOLVER)" --print-path)"; \
 	export IASL="$$iasl_path"; \
 	export IASL_PREFIX="$$(dirname "$$iasl_path")/"; \
 	run_edksetup() { \
