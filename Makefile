@@ -282,6 +282,7 @@ help-dev-source:
 	print_help_variable 'FROM_UNOFFICIAL_REF=<ref>' 'For uplift-radxa-release. Reviewed source that deliberately overrides the previous exact checkpoint, normally to initialise a new line.'; \
 	print_help_variable 'PORT_REF=<ref>' 'For uplift-radxa-release. Resolved Radxa port commit from a conflict handoff.'; \
 	print_help_variable 'UNOFFICIAL_REF_STAGE=auto|source|overlay|final' 'For uplift-radxa-release. Resume stage represented by UNOFFICIAL_REF; auto reads the conflict-stage trailer when available.\nDefault: auto.'; \
+	print_help_variable 'RESOLVED_REF_STAGE=auto|source|overlay|final' 'For promote-unofficial-release. Resume stage represented by RESOLVED_REF; use final only for a reviewed complete tree.\nDefault: auto.'; \
 	print_help_variable 'MAKE_DEFAULT=0|1' 'For uplift-radxa-release. Select the updated line as the default source target.'; \
 	print_help_note 'After validating an existing line, use make select-unofficial-line LINE=<major.minor> [WRITE=1] to promote it without replaying the uplift.'; \
 	print_help_variable 'CIX_RELEASE=<release>' 'For uplift-edk2-release. CIX release to use in the rendered source target.\nDefault: config/policies.json current_cix_release.'; \
@@ -709,7 +710,7 @@ promote-unofficial-compatibility:
 promote-unofficial-release:
 	@if [ -z "$(EDK2_BASE)" ] || [ -z "$(FROM_EDK2_BASE)" ]; then $(MAKE) --no-print-directory promote-unofficial-release-help; printf '%s\n' 'missing required variable(s): EDK2_BASE FROM_EDK2_BASE' >&2; exit 2; fi
 	$(call PROGRESS_PROBE,[promote] Promoting unofficial source to $(EDK2_BASE))
-	@DEBUG="$(DEBUG)" EDK2_BASE="$(EDK2_BASE)" FROM_EDK2_BASE="$(FROM_EDK2_BASE)" RADXA_RELEASE="$(RADXA_RELEASE)" LINE="$(LINE)" CIX_RELEASE="$(CIX_RELEASE)" FROM_REF="$(FROM_REF)" RESOLVED_REF="$(or $(RESOLVED_REF),$(REF))" UPDATE_CURRENT="$(or $(UPDATE_CURRENT),1)" UPDATE_POLICY="$(or $(UPDATE_POLICY),1)" ALLOW_REPLACE="$(ALLOW_REPLACE)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/promote_unofficial_release.py --v "$(V)"
+	@DEBUG="$(DEBUG)" EDK2_BASE="$(EDK2_BASE)" FROM_EDK2_BASE="$(FROM_EDK2_BASE)" RADXA_RELEASE="$(RADXA_RELEASE)" LINE="$(LINE)" CIX_RELEASE="$(CIX_RELEASE)" FROM_REF="$(FROM_REF)" RESOLVED_REF="$(or $(RESOLVED_REF),$(REF))" RESOLVED_REF_STAGE="$(RESOLVED_REF_STAGE)" UPDATE_CURRENT="$(or $(UPDATE_CURRENT),1)" UPDATE_POLICY="$(or $(UPDATE_POLICY),1)" ALLOW_REPLACE="$(ALLOW_REPLACE)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/promote_unofficial_release.py --v "$(V)"
 
 update-release-tags:
 	$(call PROGRESS_PROBE,[tags] Checking unofficial release tags)
