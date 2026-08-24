@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --force --no-tags origin '+refs/heads/source/*:refs/remotes/origin/source/*'
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/heads/source/*'
           git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
 
       - name: Set up QEMU for buildbox Docker platforms
