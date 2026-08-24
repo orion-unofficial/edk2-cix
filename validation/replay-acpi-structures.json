@@ -1,0 +1,100 @@
+{
+  "profiles": {
+    "upstream-1.2-bookworm": {
+      "boards": {
+        "O6": {
+          "acpi": {
+            "iasl": {
+              "platform_ssdt": {},
+              "soc_dsdt": {}
+            },
+            "tables": {
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Csrt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dbg2.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Fadt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Gtdt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Pcct.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Sdei.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Spcr.acpi": {},
+              "AARCH64/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml": {}
+            }
+          },
+          "target": "RELEASE_GCC5"
+        },
+        "O6N": {
+          "acpi": {
+            "iasl": {
+              "platform_ssdt": {},
+              "soc_dsdt": {}
+            },
+            "tables": {
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Csrt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dbg2.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Fadt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Gtdt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Pcct.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Sdei.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Spcr.acpi": {},
+              "AARCH64/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml": {}
+            }
+          },
+          "target": "RELEASE_GCC5"
+        }
+      },
+      "description": "Stock Radxa 1.2.x ACPI structure under ACPICA 20200925."
+    },
+    "upstream-1.3-bookworm": {
+      "boards": {
+        "O6": {
+          "acpi": {
+            "iasl": {
+              "platform_ssdt": {},
+              "soc_dsdt": {}
+            },
+            "tables": {
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Csrt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dbg2.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Fadt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Gtdt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort-NoSmmu.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Pcct.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Sdei.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Spcr.acpi": {},
+              "AARCH64/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml": {}
+            }
+          },
+          "target": "RELEASE_GCC5"
+        },
+        "O6N": {
+          "acpi": {
+            "iasl": {
+              "platform_ssdt": {},
+              "soc_dsdt": {}
+            },
+            "tables": {
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Csrt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dbg2.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Dsdt.aml": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Fadt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Gtdt.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort-NoSmmu.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Iort.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Pcct.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Sdei.acpi": {},
+              "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables/OUTPUT/Spcr.acpi": {},
+              "AARCH64/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/AcpiPlatfomTables/OUTPUT/Ssdt.aml": {}
+            }
+          },
+          "target": "RELEASE_GCC5"
+        }
+      },
+      "description": "Stock Radxa 1.3.x ACPI structure under ACPICA 20200925, including the no-SMMU IORT table."
+    }
+  }
+}

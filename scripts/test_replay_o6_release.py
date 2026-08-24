@@ -24,10 +24,43 @@ class ReplayO6ReleaseTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn(
-            "DETERMINISTIC_REPLAY_ACPI_PROFILE ?= upstream-1.2.1-bookworm",
+            "DETERMINISTIC_REPLAY_ACPI_PROFILE ?= upstream-$(word 1,",
             makefile,
         )
         self.assertIn('--profile "$(DETERMINISTIC_REPLAY_ACPI_PROFILE)"', makefile)
+        self.assertIn(
+            '--baseline-file "$(DETERMINISTIC_REPLAY_ACPI_BASELINE)"', makefile
+        )
+
+        structures = json.loads(
+            (REPO_ROOT / "validation" / "replay-acpi-structures.json").read_text(
+                encoding="utf-8"
+            )
+        )["profiles"]
+        self.assertEqual(
+            set(structures), {"upstream-1.2-bookworm", "upstream-1.3-bookworm"}
+        )
+        for profile in structures.values():
+            self.assertEqual(set(profile["boards"]), {"O6", "O6N"})
+
+        for board in ("O6", "O6N"):
+            tables_12 = set(
+                structures["upstream-1.2-bookworm"]["boards"][board]["acpi"][
+                    "tables"
+                ]
+            )
+            tables_13 = set(
+                structures["upstream-1.3-bookworm"]["boards"][board]["acpi"][
+                    "tables"
+                ]
+            )
+            self.assertEqual(
+                tables_13 - tables_12,
+                {
+                    "AARCH64/Platform/CIX/Sky1/Drivers/AcpiSocTables/"
+                    "AcpiSocTables/OUTPUT/Iort-NoSmmu.acpi"
+                },
+            )
 
     def test_recorded_replay_inputs_match_the_validation_profiles(self) -> None:
         replay_root = REPO_ROOT / "validation" / "replay-inputs"
