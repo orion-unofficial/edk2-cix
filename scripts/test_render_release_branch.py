@@ -21,6 +21,7 @@ from render_release_branch import (  # noqa: E402
     apply_release_metadata,
     cached_worktree_is_dirty,
     ensure_worktree,
+    render_from_plan,
     validate_release_metadata,
 )
 
@@ -120,6 +121,27 @@ def test_release_metadata_is_aligned_from_radxa_source() -> None:
     finally:
         if worktree is not None:
             git(repo, "worktree", "remove", "--force", str(worktree), check=False)
+        shutil.rmtree(repo)
+
+
+def test_synthetic_render_commit_does_not_require_operator_identity() -> None:
+    repo = make_repo()
+    try:
+        base = git(repo, "rev-parse", "HEAD").stdout.strip()
+        git(repo, "config", "--unset-all", "user.name")
+        git(repo, "config", "--unset-all", "user.email")
+        rendered = render_from_plan(
+            repo,
+            "source/cache/release/custom/test",
+            {"render": {"base": {"ref": base}, "steps": [], "remove_root_gitmodules": False}},
+            verbose=False,
+        )
+        require(
+            git(repo, "show", "-s", "--format=%an <%ae>", rendered).stdout.strip()
+            == "EDK2 CIX renderer <edk2-cix-renderer>",
+            "synthetic render commit inherited an operator identity",
+        )
+    finally:
         shutil.rmtree(repo)
 
 
