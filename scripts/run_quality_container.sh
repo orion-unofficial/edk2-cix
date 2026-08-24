@@ -6,6 +6,7 @@ repo="$(git rev-parse --show-toplevel)"
 image="${QUALITY_IMAGE:-edk2-cix-build-quality:latest}"
 verbose="${V:-0}"
 git_common="$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)"
+git_objects="$(git -C "$repo" rev-parse --path-format=absolute --git-path objects)"
 shared_temp_root="$(dirname -- "$git_common")/.worktrees/edk2-cix-tmp"
 pycache_prefix="${PYTHONPYCACHEPREFIX:-$repo/.cache/edk2-cix/pycache}"
 
@@ -35,10 +36,21 @@ case "$git_common" in
     *)
         mkdir -p "$shared_temp_root"
         set -- "$@" \
-            --volume "$git_common:$git_common" \
+            --volume "$git_common:$git_common:ro" \
             --volume "$shared_temp_root:$shared_temp_root"
         ;;
 esac
+
+if [ -f "$git_objects/info/alternates" ]; then
+    while IFS= read -r alternate; do
+        case "$alternate" in
+            /*) ;;
+            *) alternate="$git_objects/$alternate" ;;
+        esac
+        alternate="$(cd -- "$alternate" && pwd -P)"
+        set -- "$@" --volume "$alternate:$alternate:ro"
+    done < "$git_objects/info/alternates"
+fi
 
 printf '[quality] Running %s checks in %s\n' "$mode" "$image" >&2
 exec "$@" "$image" "$mode"
