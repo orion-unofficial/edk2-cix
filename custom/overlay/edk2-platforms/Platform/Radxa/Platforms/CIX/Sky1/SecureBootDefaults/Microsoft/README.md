@@ -7,10 +7,14 @@ containing SHA-256 revocation entries. None of these blobs are "run", so there
 is no x86-vs-AArch64 execution concern.
 
 The payload set is pinned by `manifest.lock.json` to the public
-`microsoft/secureboot_objects` firmware release tag `v1.6.4`, resolved to
-commit `bd7abe3cc73734cf364f6a4bc529ef12a9439ec8`, corresponding to the
+`microsoft/secureboot_objects` firmware release tag `v1.6.5`, resolved to
+commit `798cdc513e0c192fe90e99637105748ed3bb4ca5`, corresponding to the
 Microsoft-managed "Most Compatible" template
 (`Templates/MostCompatible.toml`).
+
+The `v1.6.5` source updates the complete Microsoft DBX metadata file. Its
+`aarch64` revocation list is byte-for-byte equivalent to `v1.6.4`, so the
+generated `DBX.bin` payload is intentionally unchanged.
 
 The manifest records:
 
