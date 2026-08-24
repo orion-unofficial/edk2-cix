@@ -573,6 +573,10 @@ container_image="${container_image:-$(default_container_image "$container_platfo
 status "Using container runtime: ${container_runtime}"
 status "Using container platform: ${container_platform}"
 status "Using container image: ${container_image}"
+if ! runtime image inspect "$container_image" >/dev/null 2>&1; then
+    status "Pulling missing container image ${container_image} for ${container_platform}"
+    runtime pull --platform "$container_platform" "$container_image"
+fi
 mkdir -p "$host_tmpdir"
 host_tmpdir="$(cd "$host_tmpdir" && pwd -P)"
 prepare_container_mounts
