@@ -12,7 +12,7 @@ import posixpath
 from pathlib import Path
 from typing import NamedTuple
 
-from reconstruction_common import ReconstructionError, git
+from reconstruction_common import ReconstructionError, git, resolve_ref
 
 
 OVERLAY_PREFIX = "custom/overlay/"
@@ -48,7 +48,15 @@ def parse_ls_files_line(line: str) -> TreeEntry:
 
 
 def tree_entries(repo: Path, ref: str) -> dict[str, TreeEntry]:
-    result = git(repo, "ls-tree", "-r", ref, "--", OVERLAY_PREFIX.rstrip("/"), SOURCE_PREFIX.rstrip("/"))
+    result = git(
+        repo,
+        "ls-tree",
+        "-r",
+        resolve_ref(repo, ref),
+        "--",
+        OVERLAY_PREFIX.rstrip("/"),
+        SOURCE_PREFIX.rstrip("/"),
+    )
     return {
         entry.path: entry
         for entry in (parse_ls_tree_line(line) for line in result.stdout.splitlines() if line)

@@ -1064,6 +1064,11 @@ GitHub Actions log. While a delegated command remains active, the verifier also
 prints a heartbeat every 30 seconds. `V=1` additionally prints each delegated
 command line.
 
+The cloned export runs the same publication quality gates as `make test`,
+including unit, source-policy, source-lifecycle, metadata, vendor-workflow, and
+identity checks. Only the nested minimised-export invocation is skipped to
+avoid recursion.
+
 ## How do I materialise an Unofficial line?
 
 Render a configured source target that includes the unofficial layer:
@@ -1188,6 +1193,11 @@ commits instead are matched by commit subject. Release drift is the important
 signal for most sources. Branch-head drift is usually advisory because
 unreleased commits may be noisy or transient.
 
+The Arm TF-A and OP-TEE releases embedded in the CIX bundle are intentional
+vendor baselines rather than freely replaceable tool pins. Their newer upstream
+releases remain visible as advisories until a separately qualified CIX port is
+available.
+
 The same checker also reports advisory freshness for local build infrastructure
 pins such as the repo-managed `act` version, pinned GitHub Actions major
 versions, the tagged local `act` runner container image, and the documentation
@@ -1210,6 +1220,13 @@ make gha-act-run ACT_WORKFLOW=.github/workflows/upstream-versions.yaml ACT_JOB=u
 The wrapper downloads a pinned `act` binary into `.cache/edk2-cix/tools/act/`,
 verifies the release checksum, and stores `act` cache data under
 `.cache/edk2-cix/act-cache/`.
+
+When invoked from a linked Git worktree, the wrapper mounts its shared Git
+directory into the runner so `actions/checkout` can resolve the worktree's
+`.git` pointer. GitHub-only QEMU setup and artifact-upload steps are skipped
+under `act`; the local Docker engine must already support the selected buildbox
+platform. `.worktrees/` remains untracked host-side scratch state and is never
+included in a commit or uploaded as an Actions artifact.
 
 ## Validation checklist
 

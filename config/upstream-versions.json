@@ -80,7 +80,7 @@
       }
     },
     {
-      "description": "Arm TF-A source",
+      "description": "Arm TF-A source; the local release is the intentional CIX vendor baseline",
       "id": "arm-tf-a",
       "local": {
         "component": "tf-a",
@@ -99,7 +99,7 @@
       }
     },
     {
-      "description": "OP-TEE OS source",
+      "description": "OP-TEE OS source; the local release is the intentional CIX vendor baseline",
       "id": "arm-op-tee",
       "local": {
         "component": "op-tee",

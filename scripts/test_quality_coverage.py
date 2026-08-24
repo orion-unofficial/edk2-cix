@@ -6,6 +6,9 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 import unittest
+from unittest.mock import patch
+
+import quality_checks
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -24,6 +27,22 @@ def has_unittest_testcase(tree: ast.Module) -> bool:
 
 
 class QualityCoverageTests(unittest.TestCase):
+    def test_exported_clone_gate_avoids_recursive_export(self) -> None:
+        with patch.object(quality_checks, "git_files", return_value=[]), patch.object(quality_checks, "run") as run:
+            quality_checks.test(skip_minimised_clone=True)
+
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertFalse(any("verify-minimised-clone" in command for command in commands))
+        self.assertTrue(any("verify-source-policy" in command for command in commands))
+        self.assertTrue(any("verify-source-lifecycle" in command for command in commands))
+
+    def test_normal_quality_gate_includes_minimised_export(self) -> None:
+        with patch.object(quality_checks, "git_files", return_value=[]), patch.object(quality_checks, "run") as run:
+            quality_checks.test()
+
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertTrue(any("verify-minimised-clone" in command for command in commands))
+
     def test_script_style_tests_are_exposed_to_unittest_discovery(self) -> None:
         missing: list[str] = []
 

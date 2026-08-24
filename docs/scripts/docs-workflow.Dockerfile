@@ -1,4 +1,4 @@
-FROM nixos/nix:2.34.7
+FROM nixos/nix:2.35.2
 
 RUN nix --extra-experimental-features 'nix-command flakes' \
     profile install --impure --accept-flake-config \

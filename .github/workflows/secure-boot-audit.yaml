@@ -105,6 +105,7 @@ jobs:
           git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
 
       - name: Set up QEMU for buildbox Docker platforms
+        if: ${{ env.ACT != 'true' }}
         uses: docker/setup-qemu-action@v4
 
       - name: Render selected firmware tree
@@ -183,7 +184,7 @@ jobs:
           fi
 
       - name: Upload Secure Boot reports
-        if: always()
+        if: ${{ always() && env.ACT != 'true' }}
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: warn

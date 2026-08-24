@@ -71,6 +71,7 @@ jobs:
           git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
 
       - name: Set up QEMU for buildbox Docker platforms
+        if: ${{ env.ACT != 'true' }}
         uses: docker/setup-qemu-action@v4
 
       - name: Build selected firmware artefact
@@ -95,7 +96,7 @@ jobs:
             "${release_arg[@]}"
 
       - name: Upload generated firmware artefacts
-        if: ${{ always() && hashFiles('dist/**') != '' }}
+        if: ${{ env.ACT != 'true' && always() && hashFiles('dist/**') != '' }}
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: warn

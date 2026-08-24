@@ -33,6 +33,16 @@ def test_changed_overlay_file_is_allowed() -> None:
         shutil.rmtree(repo)
 
 
+def test_remote_tracking_ref_is_resolved() -> None:
+    repo = make_repo()
+    try:
+        commit = git(repo, "rev-parse", "HEAD").stdout.strip()
+        git(repo, "update-ref", "refs/remotes/origin/source/unofficial/1.3/current", commit)
+        enforce_source_tree_policy(repo, ref="source/unofficial/1.3/current")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_identical_overlay_file_is_rejected_from_ref() -> None:
     repo = make_repo()
     try:
@@ -95,6 +105,7 @@ def test_bad_overlay_symlink_target_is_rejected() -> None:
 
 def main() -> None:
     test_changed_overlay_file_is_allowed()
+    test_remote_tracking_ref_is_resolved()
     test_identical_overlay_file_is_rejected_from_ref()
     test_identical_overlay_file_is_rejected_from_index()
     test_matching_overlay_symlink_is_allowed()

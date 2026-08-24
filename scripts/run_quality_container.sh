@@ -6,6 +6,7 @@ repo="$(git rev-parse --show-toplevel)"
 image="${QUALITY_IMAGE:-edk2-cix-build-quality:latest}"
 verbose="${V:-0}"
 git_common="$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)"
+shared_temp_root="$(dirname -- "$git_common")/.worktrees/edk2-cix-tmp"
 pycache_prefix="${PYTHONPYCACHEPREFIX:-$repo/.cache/edk2-cix/pycache}"
 
 printf '[quality] Building quality container image: %s\n' "$image" >&2
@@ -31,7 +32,12 @@ set -- docker run --rm \
 
 case "$git_common" in
     "$repo"/*) ;;
-    *) set -- "$@" --volume "$git_common:$git_common" ;;
+    *)
+        mkdir -p "$shared_temp_root"
+        set -- "$@" \
+            --volume "$git_common:$git_common" \
+            --volume "$shared_temp_root:$shared_temp_root"
+        ;;
 esac
 
 printf '[quality] Running %s checks in %s\n' "$mode" "$image" >&2
