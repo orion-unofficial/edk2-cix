@@ -16,8 +16,8 @@ from reconstruction_common import (
     ref_exists,
     ref_manifest_records,
     source_target_ref_records,
-    release_branch_parts,
     release_entries,
+    rendered_release_type,
     repo_root,
     tree_id,
     truthy,
@@ -52,15 +52,6 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
-def expected_variant_type(ref: str) -> str:
-    parts = release_branch_parts(ref)
-    if parts["stage"] == "upstream":
-        return "rendered-upstream-radxa-release"
-    if parts["stage"] == "vendor":
-        return "rendered-vendor-release"
-    return "rendered-release"
-
-
 def validate_variant_manifest(repo: Path, verbose: bool) -> list[str]:
     problems: list[str] = []
     records = source_target_ref_records(repo)
@@ -73,7 +64,7 @@ def validate_variant_manifest(repo: Path, verbose: bool) -> list[str]:
         if ref not in generated:
             problems.append(f"{SOURCE_TARGET_CACHE_MANIFEST}: record is not derivable from source refs: {ref}")
             continue
-        expected_type = expected_variant_type(ref)
+        expected_type = rendered_release_type(ref)
         if record.get("type") != expected_type:
             problems.append(f"{ref}: type is {record.get('type')!r}, expected {expected_type!r}")
         if record.get("immutable") is not True:

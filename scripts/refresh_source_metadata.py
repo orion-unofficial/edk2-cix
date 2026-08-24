@@ -26,6 +26,7 @@ from reconstruction_common import (
     ref_exists,
     release_branch_parts,
     release_entries,
+    rendered_release_type,
     repo_root,
     rev_parse,
     tree_id,
@@ -240,6 +241,16 @@ def refresh_source_target_cache_manifest(
         refs = item_refs(item)
         if not refs:
             continue
+        subject = item.get("ref") or ",".join(refs)
+        expected_types = {rendered_release_type(ref) for ref in refs}
+        if len(expected_types) != 1:
+            raise ReconstructionError(
+                f"config/{manifest_name}: grouped source-target refs do not share one stage: {subject}"
+            )
+        expected_type = expected_types.pop()
+        effective_type = item.get("type", data.get("defaults", {}).get("type"))
+        if effective_type != expected_type:
+            update_field(item, f"{manifest_name}:{subject}", "type", expected_type, changes)
         values: dict[str, str] = {}
         for ref in refs:
             try:
@@ -269,7 +280,6 @@ def refresh_source_target_cache_manifest(
         if len(unique_values) != 1:
             details = "\n".join(f"  - {ref}: {value}" for ref, value in sorted(values.items()))
             raise ReconstructionError(f"config/{manifest_name}: grouped source-target refs do not share one tree:\n{details}")
-        subject = item.get("ref") or ",".join(refs)
         update_field(item, f"{manifest_name}:{subject}", "tree_id", unique_values.pop(), changes)
 
     data["refs"] = sorted(data.get("refs", []), key=manifest_record_sort_key)
