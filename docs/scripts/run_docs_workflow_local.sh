@@ -34,7 +34,7 @@ fi
 
 if (( rebuild )) || ! docker image inspect "$image" >/dev/null 2>&1; then
     printf '[docs-repro] Building image %s from %s\n' "$image" "$dockerfile"
-    docker build "${build_args[@]}" -t "$image" -f "$dockerfile" "$repo_root"
+    docker build --progress plain "${build_args[@]}" -t "$image" -f "$dockerfile" "$repo_root"
 fi
 
 printf '[docs-repro] Running in %s:' "$image"
