@@ -1,7 +1,7 @@
 {
   "source_repo": "https://github.com/microsoft/secureboot_objects",
-  "source_tag": "v1.6.4",
-  "source_commit": "bd7abe3cc73734cf364f6a4bc529ef12a9439ec8",
+  "source_tag": "v1.6.5",
+  "source_commit": "798cdc513e0c192fe90e99637105748ed3bb4ca5",
   "source_template": "Templates/MostCompatible.toml",
   "target_arch": "aarch64",
   "signature_owner": "77fa9abd-0359-4d32-bd60-28f4e78f784b",
@@ -30,7 +30,7 @@
     },
     "dbx_info_msft_latest.json": {
       "repo_path": "PreSignedObjects/DBX/dbx_info_msft_latest.json",
-      "sha256": "ad48aee6d5a506d4ffe1f8fe25470398277ada77ae353814686b5dd7fb331543"
+      "sha256": "1020f0ef865f8cf22740298d928a01355ab51cb1d8d473b637fd6d83f74eb3f5"
     },
     "microsoft corporation kek 2k ca 2023.der": {
       "repo_path": "PreSignedObjects/KEK/Certificates/microsoft corporation kek 2k ca 2023.der",
