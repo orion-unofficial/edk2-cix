@@ -37,6 +37,35 @@ resolve_container_arch() {
 
 default_container_arch="$(resolve_container_arch "${ACT_CONTAINER_ARCH:-${EDK2_CIX_ACT_CONTAINER_ARCH:-auto}}")"
 git_common_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
+act_workdir="$repo_root"
+act_workspace=""
+if [[ "$git_common_dir" != "$repo_root"/* ]]; then
+    if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=normal)" ]]; then
+        printf '[act-runner] Linked-worktree runs require a clean checkout so the isolated CI snapshot cannot omit local changes.\n' >&2
+        exit 2
+    fi
+    mkdir -p "${repo_root}/.cache/edk2-cix/act-workspaces"
+    act_workspace="$(mktemp -d "${repo_root}/.cache/edk2-cix/act-workspaces/run.XXXXXX")"
+    trap 'rm -rf -- "$act_workspace"' EXIT
+    git clone --quiet --shared --no-checkout "$git_common_dir" "$act_workspace"
+    current_branch="$(git -C "$repo_root" symbolic-ref --quiet --short HEAD || printf '%s' act-local)"
+    git -C "$act_workspace" checkout --quiet --force -B "$current_branch" "$(git -C "$repo_root" rev-parse HEAD)"
+    act_workdir="$act_workspace"
+fi
+
+origin_url="$(git -C "$act_workdir" remote get-url origin 2>/dev/null || true)"
+local_origin=""
+case "$origin_url" in
+    file://*) local_origin="${origin_url#file://}" ;;
+    /*) local_origin="$origin_url" ;;
+    *://*|*@*:*|*:*) ;;
+    ?*) local_origin="${act_workdir}/${origin_url}" ;;
+esac
+if [[ -n "$local_origin" && -d "$local_origin" ]]; then
+    local_origin="$(cd -- "$local_origin" && pwd -P)"
+else
+    local_origin=""
+fi
 
 usage() {
     cat <<'EOF'
@@ -91,8 +120,15 @@ args=(
     -P "ubuntu-latest=$default_runner_image"
 )
 
+container_options=""
 if [[ "$git_common_dir" != "$repo_root"/* ]]; then
-    args+=(--container-options "--volume=${git_common_dir}:${git_common_dir}")
+    container_options="--volume=${git_common_dir}:${git_common_dir}:ro"
+fi
+if [[ -n "$local_origin" && "$local_origin" != "$act_workdir"/* && "$local_origin" != "$git_common_dir" && "$local_origin" != "$git_common_dir"/* ]]; then
+    container_options="${container_options:+${container_options} }--volume=${local_origin}:${local_origin}:ro"
+fi
+if [[ -n "$container_options" ]]; then
+    args+=(--container-options "$container_options")
 fi
 
 workflow="${ACT_WORKFLOW:-}"
@@ -144,6 +180,13 @@ args+=("$@")
 status "Using ${act_bin}"
 status "Cache root: ${XDG_CACHE_HOME}"
 status "Container architecture: ${default_container_arch}"
+if [[ -n "$act_workspace" ]]; then
+    status "Isolated linked-worktree snapshot: ${act_workspace}"
+    status "Shared object store mount: ${git_common_dir} (read-only)"
+fi
+if [[ -n "$local_origin" && "$local_origin" != "$act_workdir"/* && "$local_origin" != "$git_common_dir" && "$local_origin" != "$git_common_dir"/* ]]; then
+    status "Local origin mount: ${local_origin} (read-only)"
+fi
 
-cd "$repo_root"
+cd "$act_workdir"
 "$act_bin" "${args[@]}"
