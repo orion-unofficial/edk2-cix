@@ -473,7 +473,7 @@ define run_release_make
 		--build-target "$(1)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--firmware-target "$(FIRMWARE_TARGET)" \
-		--artefact-mode "$(ARTEFACT_MODE)" \
+		--artefact-mode "$(or $(ARTEFACT_MODE),custom)$(if $(filter 1 true yes on,$(ENABLE_FIRMWARE_FIXES)),+fixes,)" \
 		--v "$(V)"
 endef
 
