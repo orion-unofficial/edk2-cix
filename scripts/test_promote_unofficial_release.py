@@ -54,7 +54,7 @@ class PromoteUnofficialReleaseTests(unittest.TestCase):
             ).stdout.split()[0]
             self.assertEqual(mode, "120000")
 
-    def test_checkpoint_correction_preserves_original_predecessor(self) -> None:
+    def test_checkpoint_correction_preserves_only_immutable_predecessor(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             git(repo, "init", "-q")
@@ -106,6 +106,34 @@ class PromoteUnofficialReleaseTests(unittest.TestCase):
             )
             self.assertEqual(record["previous_unofficial_object_id"], old)
             self.assertEqual(record["object_id"], corrected)
+
+            record["previous_unofficial_ref"] = "source/unofficial/1.3/current"
+            record["previous_unofficial_object_id"] = corrected
+            manifest.write_text(
+                json.dumps({"refs": [record]}) + "\n",
+                encoding="utf-8",
+            )
+            with patch(
+                "promote_unofficial_release.radxa_source_ref",
+                return_value="source/port/radxa/1.3.1/edk2-stable202608",
+            ):
+                checkpoint_record(
+                    repo,
+                    ref=target,
+                    source_oid=corrected,
+                    line="1.3",
+                    radxa_release="1.3.1",
+                    edk2_base="edk2-stable202608",
+                    previous_ref="source/unofficial/1.3.1/edk2-stable202605",
+                    previous_object_id=old,
+                )
+
+            record = load_json(manifest)["refs"][0]
+            self.assertEqual(
+                record["previous_unofficial_ref"],
+                "source/unofficial/1.3.1/edk2-stable202605",
+            )
+            self.assertEqual(record["previous_unofficial_object_id"], old)
 
 
 if __name__ == "__main__":

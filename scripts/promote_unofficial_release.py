@@ -183,7 +183,11 @@ def checkpoint_record(
     )
     if existing:
         retained_ref = str(existing.get("previous_unofficial_ref", "")).strip()
-        if retained_ref and retained_ref != ref:
+        if (
+            retained_ref
+            and retained_ref != ref
+            and not retained_ref.endswith("/current")
+        ):
             previous_ref = retained_ref
             retained_object_id = str(
                 existing.get("previous_unofficial_object_id", "")
