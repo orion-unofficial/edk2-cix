@@ -1,3 +1,4 @@
+acpica-tools=20200925-8
 bison=2:3.8.2+dfsg-1+b1
 build-essential=12.9
 ca-certificates=20230311+deb12u1
@@ -9,4 +10,5 @@ openssl=3.0.18-1~deb12u2
 perl=5.36.0-7+deb12u3
 pkg-config=1.8.1-1
 python3=3.11.2-1+b1
+python-is-python3=3.11.2-1+deb12u1
 uuid-dev=2.38.1-5+deb12u3

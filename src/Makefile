@@ -64,6 +64,7 @@ CCACHE_BIN_RESOLVED := $(if $(CCACHE_DISABLED_EFFECTIVE),,$(strip $(shell comman
 CCACHE_ENABLED_EFFECTIVE := $(if $(CCACHE_BIN_RESOLVED),TRUE,)
 CIX_RELEASE_CACHE_ROOT ?= $(abspath ../build-cache/cix-release)
 ARTEFACT_MODE ?= custom
+IASL_RELEASE ?= $(if $(filter upstream,$(ARTEFACT_MODE)),20200925,20260408)
 FIRMWARE_VALIDATION_PROFILE ?= upstream-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(abspath ../build-validation)
 CUSTOM_OVERLAY_ROOT ?= $(abspath ../custom/overlay)
@@ -513,7 +514,10 @@ endef
 define PRINT_SRC_LOCAL_VARIABLES
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
 	print_help_line '  CIX_RELEASE_CACHE_ROOT=<path>' 'Directory used for cached curated CIX BL31, OP-TEE, and cert_create intermediates.\nDefault: '\''$$(REPO_ROOT)/build-cache/cix-release'\'''; \
+	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile name shared with the top-level qualification checks.\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
+	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory where raw-build audit and validation reports are written.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
 	print_help_line '  GCC_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
+	print_help_line '  SIGNING_CERT_SOURCE_DIR=<dir>' 'Path to extracted or built cert blobs for exact replay.\nDefault: unset.'; \
 	print_help_line '  SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the compiler-facing reproducible timestamp.\nDefault: resolved from mapped upstream source metadata.'; \
 	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the PM-config timestamp.\nDefault: SOURCE_DATE_EPOCH.'
 endef
@@ -863,7 +867,7 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
-	if ! iasl_path="$$("$(IASL_RESOLVER)" --print-path)"; then \
+	if ! iasl_path="$$(EDK2_CIX_IASL_RELEASE="$(IASL_RELEASE)" "$(IASL_RESOLVER)" --print-path)"; then \
 		echo "[preflight] The required ACPICA iasl compiler could not be resolved" >&2; \
 		missing=1; \
 	else \
@@ -1188,6 +1192,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 	reused_trusted_key_cert=0; \
 	reused_nt_fw_certs=0; \
 	validator_extra_args=(); \
+	nt_fw_input="$(shell realpath "$<")"; \
 	stage_dir="$(call BUILD_STAGE_DIR,$*)" && \
 	mkdir -p "$$stage_dir/Keys" && \
 	cp -a $(PACKAGE_TOOL)/Keys/. "$$stage_dir/Keys/" && \
@@ -1422,7 +1427,7 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 	else \
 		export GCC_AARCH64_PREFIX="$(GCC_AARCH64_REAL_PREFIX)"; \
 	fi; \
-	iasl_path="$$("$(IASL_RESOLVER)" --print-path)"; \
+	iasl_path="$$(EDK2_CIX_IASL_RELEASE="$(IASL_RELEASE)" "$(IASL_RESOLVER)" --print-path)"; \
 	export IASL="$$iasl_path"; \
 	export IASL_PREFIX="$$(dirname "$$iasl_path")/"; \
 	run_edksetup() { \

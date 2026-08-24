@@ -22,7 +22,12 @@ container_image="${EDK2_CIX_BUILDBOX_IMAGE:-}"
 container_runtime="${EDK2_CIX_CONTAINER_RUNTIME:-}"
 container_platform="${EDK2_CIX_BUILDBOX_PLATFORM:-}"
 dep_profile="${EDK2_CIX_DEP_PROFILE:-firmware}"
+iasl_exec_env=()
+if [[ -n "${EDK2_CIX_IASL_RELEASE:-}" ]]; then
+    iasl_exec_env=(-e "EDK2_CIX_IASL_RELEASE=${EDK2_CIX_IASL_RELEASE}")
+fi
 buildbox_image_label="edk2-cix.buildbox.image"
+buildbox_image_id_label="edk2-cix.buildbox.image-id"
 buildbox_platform_label="edk2-cix.buildbox.platform"
 container_mount_args=()
 expected_mounts=()
@@ -470,10 +475,14 @@ fi
 }
 
 ensure_container() {
+    local current_image_id
+    current_image_id="$(runtime image inspect -f '{{.Id}}' "$container_image")"
+
     if runtime container inspect "$container_name" >/dev/null 2>&1; then
-        local mounts existing_image existing_platform expected_mount
+        local mounts existing_image existing_image_id existing_platform expected_mount
         mounts="$(runtime inspect -f '{{range .Mounts}}{{printf "%s=%s\n" .Destination .Source}}{{end}}' "$container_name")"
         existing_image="$(container_label "$buildbox_image_label")"
+        existing_image_id="$(container_label "$buildbox_image_id_label")"
         existing_platform="$(container_label "$buildbox_platform_label")"
         for expected_mount in "${expected_mounts[@]}"; do
             if ! grep -Fxq "$expected_mount" <<<"$mounts"; then
@@ -485,6 +494,7 @@ ensure_container() {
         if ! runtime container inspect "$container_name" >/dev/null 2>&1; then
             :
         elif [[ "$existing_image" != "$container_image" ]] || \
+            [[ "$existing_image_id" != "$current_image_id" ]] || \
             [[ "$existing_platform" != "$container_platform" ]]; then
             status "Recreating ${container_name} with the expected workspace mounts and buildbox settings"
             runtime rm -f "$container_name" >/dev/null
@@ -504,6 +514,7 @@ ensure_container() {
     runtime run -d \
         --name "$container_name" \
         --label "${buildbox_image_label}=${container_image}" \
+        --label "${buildbox_image_id_label}=${current_image_id}" \
         --label "${buildbox_platform_label}=${container_platform}" \
         --platform "$container_platform" \
         --ulimit nofile=1024:524288 \
@@ -571,6 +582,7 @@ verify_workspace
 status "Ensuring ${dep_profile} build dependencies are present"
 mirror_status_to_container_logs "Ensuring ${dep_profile} build dependencies are present"
 runtime_exec_command 1 \
+    "${iasl_exec_env[@]}" \
     -e "EDK2_CIX_VERBOSE=${verbose}" \
     -w "$workspace_path" \
     -- \
@@ -585,6 +597,7 @@ else
     mirror_status_to_container_logs "Running $(describe_command "$@") in ${container_name}"
 fi
 runtime_exec_command 1 \
+    "${iasl_exec_env[@]}" \
     -e "EDK2_CIX_REPO_LOCK_HELD=${EDK2_CIX_REPO_LOCK_HELD:-}" \
     -e "EDK2_CIX_HOST_OS=${host_os}" \
     -e "EDK2_CIX_VERBOSE=${verbose}" \

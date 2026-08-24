@@ -5,10 +5,23 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 
-acpica_release="20260408"
-source_name="acpica-unix-${acpica_release}.tar.gz"
-source_url="https://github.com/acpica/acpica/releases/download/${acpica_release}/${source_name}"
-source_sha256="e66ceb26d6d514ce164fe22f5a4f7ca165cc38349d7a97f41a21f19b364647a2"
+acpica_release="${EDK2_CIX_IASL_RELEASE:-20260408}"
+case "$acpica_release" in
+    20200925)
+        source_name=""
+        source_url=""
+        source_sha256=""
+        ;;
+    20260408)
+        source_name="acpica-unix-${acpica_release}.tar.gz"
+        source_url="https://github.com/acpica/acpica/releases/download/${acpica_release}/${source_name}"
+        source_sha256="e66ceb26d6d514ce164fe22f5a4f7ca165cc38349d7a97f41a21f19b364647a2"
+        ;;
+    *)
+        printf '[iasl] Unsupported ACPICA release: %s\n' "$acpica_release" >&2
+        exit 2
+        ;;
+esac
 cache_root="${EDK2_CIX_ACPICA_CACHE_ROOT:-${repo_root}/build-cache/acpica}"
 platform_key="$(uname -s)-$(uname -m)"
 install_root="${cache_root}/${acpica_release}/${platform_key}"
@@ -21,6 +34,7 @@ usage() {
 usage: scripts/ensure_iasl.sh [--print-path] [--verify <iasl-path>]
 
 Resolve or provision the repository-pinned ACPICA iasl compiler.
+Set EDK2_CIX_IASL_RELEASE=20200925 for historical vendor replay.
 EOF
 }
 
@@ -101,6 +115,14 @@ provision_iasl() {
 [iasl] ACPICA ${acpica_release} is not installed for ${platform_key}.
 [iasl] Automatic source provisioning is supported in the Linux buildbox.
 [iasl] Use scripts/run_in_buildbox.sh, or set IASL to an executable ACPICA ${acpica_release} compiler.
+EOF
+        return 1
+    fi
+
+    if [[ "$acpica_release" == "20200925" ]]; then
+        cat >&2 <<EOF
+[iasl] Exact vendor replay requires Debian Bookworm's ACPICA 20200925 package.
+[iasl] Run inside the recorded Bookworm replay buildbox, where acpica-tools supplies it.
 EOF
         return 1
     fi

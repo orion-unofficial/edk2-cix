@@ -1,30 +1,25 @@
 {
   "profiles": {
     "upstream-1.2.1-bookworm": {
-      "description": "Qualification profile for reproducing the published 1.2.1 upstream release builds in the Bookworm buildboxes when reusing the extracted release cert bundle.",
       "boards": {
         "O6": {
-          "target": "RELEASE_GCC",
           "artefacts": {
-            "BuildOptions": {
-              "path": "BuildOptions",
-              "sha256": "abff6d823593a2259c449d626052ca94a2575be1913d7b85f19df52064c4426c",
-              "size": 617
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "bdf4900f4627c2b3f4369745d526b4e5b9aadf1fe6fbf3956d7d9c4f86600769",
+              "size": 57344
             },
-            "cix_flash_all.bin": {
-              "path": "cix_flash_all.bin",
-              "sha256": "7a694123308c5463837c613092cd1894cc7d7d7e89043dde2806f7c7a658e4e4",
-              "size": 8388608
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "e80c71fa7ce82c66046b98b71f68436a680d99f067dfeadfd76469203affbf00",
+              "size": 20480
             },
-            "cix_flash_ota.bin": {
-              "path": "cix_flash_ota.bin",
-              "sha256": "230aecda7a9079808c45eeabe38aa4b6f94d0a6b8ecb749c0be98f9b2d60b05c",
-              "size": 2101982
-            },
-            "Firmwares/csu_pm_config.bin": {
-              "path": "Firmwares/csu_pm_config.bin",
-              "sha256": "fec26d52ca7e9a9285914e052ab0d2aa34d9ed4aa8aeecb6b5a4d8ee131de9a5",
-              "size": 4096
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "159551827527b866bd7681e9233b5558227ac8749ab9654399bb672200286efd",
+              "size": 434176
             },
             "AARCH64/Shell.efi": {
               "path": "AARCH64/Shell.efi",
@@ -36,30 +31,63 @@
               "sha256": "d49cc6b60181a922e9f48d2ec1191f0afeb1039721c7bd8ffac0902c807aa800",
               "size": 16384
             },
-            "AARCH64/EnrollFromDefaultKeysApp.efi": {
-              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
-              "sha256": "e80c71fa7ce82c66046b98b71f68436a680d99f067dfeadfd76469203affbf00",
-              "size": 20480
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "abff6d823593a2259c449d626052ca94a2575be1913d7b85f19df52064c4426c",
+              "size": 617
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "d9e2c44776ad1843784d40c9b2da5533fe76d271e54cc26f7e3f460de5f78391",
+              "size": 2097152
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "fec26d52ca7e9a9285914e052ab0d2aa34d9ed4aa8aeecb6b5a4d8ee131de9a5",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "7a694123308c5463837c613092cd1894cc7d7d7e89043dde2806f7c7a658e4e4",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "230aecda7a9079808c45eeabe38aa4b6f94d0a6b8ecb749c0be98f9b2d60b05c",
+              "size": 2101982
             }
           },
           "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
             "gCommandLineDefines": {
-              "BUILD_DATE": "2026-03-19T10:41:29+00:00",
-              "SMP_ENABLE": "1",
               "ACPI_BOOT_ENABLE": "1",
-              "VARIABLE_TYPE": "SPI",
-              "STANDARD_MM": "TRUE",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-03-19T10:41:29+00:00",
               "COMMIT_HASH": "dadc5b1",
+              "DEB_VERSION": "1.2.1",
               "EDK2_COMMIT_HASH": "898a41ed09",
               "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
               "EDK2_PLATFORMS_COMMIT_HASH": "918cb36f",
-              "DEB_VERSION": "1.2.1",
-              "ARCH": "AARCH64"
-            },
-            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
-            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf"
+              "FASTBOOT_LOAD": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
           },
           "pe_sections": {
+            "AARCH64/EnrollFromDefaultKeysApp.efi": [
+              {
+                "name": ".text",
+                "size": 12288
+              },
+              {
+                "name": ".data",
+                "size": 4096
+              }
+            ],
             "AARCH64/Shell.efi": [
               {
                 "name": ".text",
@@ -83,41 +111,28 @@
                 "name": ".data",
                 "size": 4096
               }
-            ],
-            "AARCH64/EnrollFromDefaultKeysApp.efi": [
-              {
-                "name": ".text",
-                "size": 12288
-              },
-              {
-                "name": ".data",
-                "size": 4096
-              }
             ]
-          }
+          },
+          "target": "RELEASE_GCC5"
         },
         "O6N": {
-          "target": "RELEASE_GCC",
           "artefacts": {
-            "BuildOptions": {
-              "path": "BuildOptions",
-              "sha256": "0ae03239c43956a966f7e4f1832aa0cf33d0197387948f270eb6ebb44a108deb",
-              "size": 621
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "bdf4900f4627c2b3f4369745d526b4e5b9aadf1fe6fbf3956d7d9c4f86600769",
+              "size": 57344
             },
-            "cix_flash_all.bin": {
-              "path": "cix_flash_all.bin",
-              "sha256": "7c6ed9ea2ff7f2a1e91735e14a65e38a779ee2d18bbf836726fe0e5a8864b097",
-              "size": 8388608
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "ff48233e96659fe5fb9a4268b09d97f4fb0164c9cb903dafc86164994f6b1623",
+              "size": 20480
             },
-            "cix_flash_ota.bin": {
-              "path": "cix_flash_ota.bin",
-              "sha256": "db9a74c768f48e02e7cafb794549ed07cd9a571279f826ae750b3b28a14c6150",
-              "size": 2101982
-            },
-            "Firmwares/csu_pm_config.bin": {
-              "path": "Firmwares/csu_pm_config.bin",
-              "sha256": "f8bfd1fe69bdf908c69e5458c98153be8ef6136258145d248eb2524993dcef7a",
-              "size": 4096
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "159551827527b866bd7681e9233b5558227ac8749ab9654399bb672200286efd",
+              "size": 434176
             },
             "AARCH64/Shell.efi": {
               "path": "AARCH64/Shell.efi",
@@ -129,33 +144,63 @@
               "sha256": "dab0cdcc572e9d2614efa202379a24c7722c455706d322ff75931a6b41c19dbb",
               "size": 16384
             },
-            "AARCH64/EnrollFromDefaultKeysApp.efi": {
-              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
-              "sha256": "ff48233e96659fe5fb9a4268b09d97f4fb0164c9cb903dafc86164994f6b1623",
-              "size": 20480
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "0ae03239c43956a966f7e4f1832aa0cf33d0197387948f270eb6ebb44a108deb",
+              "size": 621
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "91aac1f5dfc5b49fa4543b21c4f21e9138730392b8d04c23ed6eee34b328473e",
+              "size": 2097152
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "f8bfd1fe69bdf908c69e5458c98153be8ef6136258145d248eb2524993dcef7a",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "7c6ed9ea2ff7f2a1e91735e14a65e38a779ee2d18bbf836726fe0e5a8864b097",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "db9a74c768f48e02e7cafb794549ed07cd9a571279f826ae750b3b28a14c6150",
+              "size": 2101982
             }
           },
           "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf",
             "gCommandLineDefines": {
-              "BUILD_DATE": "2026-03-19T10:39:31+00:00",
-              "SMP_ENABLE": "1",
               "ACPI_BOOT_ENABLE": "1",
-              "VARIABLE_TYPE": "SPI",
-              "STANDARD_MM": "TRUE",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-03-19T10:39:31+00:00",
               "COMMIT_HASH": "dadc5b1",
+              "DEB_VERSION": "1.2.1",
               "EDK2_COMMIT_HASH": "898a41ed09",
               "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
               "EDK2_PLATFORMS_COMMIT_HASH": "918cb36f",
-              "DEB_VERSION": "1.2.1",
-              "ARCH": "AARCH64",
               "FASTBOOT_LOAD": "",
-              "BOARD_NAME": "",
-              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE"
-            },
-            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.dsc",
-            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf"
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
           },
           "pe_sections": {
+            "AARCH64/EnrollFromDefaultKeysApp.efi": [
+              {
+                "name": ".text",
+                "size": 12288
+              },
+              {
+                "name": ".data",
+                "size": 4096
+              }
+            ],
             "AARCH64/Shell.efi": [
               {
                 "name": ".text",
@@ -179,46 +224,21 @@
                 "name": ".data",
                 "size": 4096
               }
-            ],
-            "AARCH64/EnrollFromDefaultKeysApp.efi": [
-              {
-                "name": ".text",
-                "size": 12288
-              },
-              {
-                "name": ".data",
-                "size": 4096
-              }
             ]
-          }
+          },
+          "target": "RELEASE_GCC5"
         }
-      }
+      },
+      "description": "Exact published Radxa 1.2.1 replay on edk2-stable202208 with the recorded Bookworm inputs and certificate payloads."
     },
     "upstream-1.2.1-trixie": {
-      "description": "Reproducibility profile from an amd64 Trixie build of upstream main, used to confirm matching amd64 and arm64 Trixie builds on source/unofficial/edk2-stable202208 when they reuse the same cert bundle and injected timestamps.",
       "boards": {
         "O6": {
-          "target": "RELEASE_GCC",
           "artefacts": {
-            "BuildOptions": {
-              "path": "BuildOptions",
-              "sha256": "3321daaaaa4a33226ff12f45f6df81d334910699ba925eba4aa2b8d4fe8addeb",
-              "size": 620
-            },
-            "cix_flash_all.bin": {
-              "path": "cix_flash_all.bin",
-              "sha256": "0ac7814c02d54c87f660d21a8eb67a624b3a59f1c2a2e0713496d1dd79e9da5c",
-              "size": 8388608
-            },
-            "cix_flash_ota.bin": {
-              "path": "cix_flash_ota.bin",
-              "sha256": "dfa49e9e8b86e49d15024ddd020687af3315b4a5a9444f2991b78d4486173cea",
-              "size": 2101982
-            },
-            "Firmwares/csu_pm_config.bin": {
-              "path": "Firmwares/csu_pm_config.bin",
-              "sha256": "739c145ae54de955cd78954120af0395d1bfe147468b52d3600323f869f47d87",
-              "size": 4096
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "393d263c9a8da71f228c1c26fe337a6098de33e97302c9b52ce3a584e6fc316f",
+              "size": 20480
             },
             "AARCH64/Shell.efi": {
               "path": "AARCH64/Shell.efi",
@@ -230,30 +250,55 @@
               "sha256": "486181a5207f93af9ca92f63573203ddedb80a603c22badc75f2efd644e29734",
               "size": 16384
             },
-            "AARCH64/EnrollFromDefaultKeysApp.efi": {
-              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
-              "sha256": "393d263c9a8da71f228c1c26fe337a6098de33e97302c9b52ce3a584e6fc316f",
-              "size": 20480
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "3321daaaaa4a33226ff12f45f6df81d334910699ba925eba4aa2b8d4fe8addeb",
+              "size": 620
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "739c145ae54de955cd78954120af0395d1bfe147468b52d3600323f869f47d87",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "0ac7814c02d54c87f660d21a8eb67a624b3a59f1c2a2e0713496d1dd79e9da5c",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "dfa49e9e8b86e49d15024ddd020687af3315b4a5a9444f2991b78d4486173cea",
+              "size": 2101982
             }
           },
           "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
             "gCommandLineDefines": {
-              "BUILD_DATE": "2026-03-30T07:57:08+00:00",
-              "SMP_ENABLE": "1",
               "ACPI_BOOT_ENABLE": "1",
-              "VARIABLE_TYPE": "SPI",
-              "STANDARD_MM": "TRUE",
+              "ARCH": "AARCH64",
+              "BUILD_DATE": "2026-03-30T07:57:08+00:00",
               "COMMIT_HASH": "dadc5b14b1",
+              "DEB_VERSION": "1.2.1",
               "EDK2_COMMIT_HASH": "898a41ed09",
               "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
               "EDK2_PLATFORMS_COMMIT_HASH": "918cb36f",
-              "DEB_VERSION": "1.2.1",
-              "ARCH": "AARCH64"
-            },
-            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
-            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf"
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
           },
           "pe_sections": {
+            "AARCH64/EnrollFromDefaultKeysApp.efi": [
+              {
+                "name": ".text",
+                "size": 12288
+              },
+              {
+                "name": ".data",
+                "size": 4096
+              }
+            ],
             "AARCH64/Shell.efi": [
               {
                 "name": ".text",
@@ -277,20 +322,817 @@
                 "name": ".data",
                 "size": 4096
               }
-            ],
-            "AARCH64/EnrollFromDefaultKeysApp.efi": [
-              {
-                "name": ".text",
-                "size": 12288
-              },
-              {
-                "name": ".data",
-                "size": 4096
-              }
             ]
-          }
+          },
+          "target": "RELEASE_GCC5"
         }
-      }
+      },
+      "description": "Reproducibility profile from an amd64 Trixie build of upstream main, used to confirm matching amd64 and arm64 Trixie builds on source/local/edk2-stable202208 when they reuse the same cert bundle and injected timestamps."
+    },
+    "upstream-1.2.2-bookworm": {
+      "boards": {
+        "O6": {
+          "artefacts": {
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "bdf4900f4627c2b3f4369745d526b4e5b9aadf1fe6fbf3956d7d9c4f86600769",
+              "size": 57344
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "e80c71fa7ce82c66046b98b71f68436a680d99f067dfeadfd76469203affbf00",
+              "size": 20480
+            },
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "159551827527b866bd7681e9233b5558227ac8749ab9654399bb672200286efd",
+              "size": 434176
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "566fb4c143a1c8e6c072464399702418c7fe4341bffb65706cf5e00465166ed6",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "d49cc6b60181a922e9f48d2ec1191f0afeb1039721c7bd8ffac0902c807aa800",
+              "size": 16384
+            },
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "1958213a3851ffc2e681f8973e45e5b41260b817164bf9638b52ce9e54aea889",
+              "size": 617
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "0cc6cc047bd0f1168d43095277cf46a614c5d75f5b1871631f7afd4106e358b0",
+              "size": 2097152
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "513be5eb29433013b4fef2fdb69979783fd94d031abc537af2a524da74908a78",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "b14af4c657fc5964b667f8b5fb0a145a7d7888969694ceeee84de94f41200a51",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "b4acacb3afd93f1f97e4e82252827b76f36650fdec17e99998eb875c47f4e9c2",
+              "size": 2101982
+            }
+          },
+          "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
+            "gCommandLineDefines": {
+              "ACPI_BOOT_ENABLE": "1",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-06-12T11:55:49+00:00",
+              "COMMIT_HASH": "2e70744",
+              "DEB_VERSION": "1.2.2",
+              "EDK2_COMMIT_HASH": "898a41ed09",
+              "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
+              "EDK2_PLATFORMS_COMMIT_HASH": "a77c6e7f",
+              "FASTBOOT_LOAD": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
+          },
+          "pe_sections": {},
+          "target": "RELEASE_GCC5"
+        },
+        "O6N": {
+          "artefacts": {
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "bdf4900f4627c2b3f4369745d526b4e5b9aadf1fe6fbf3956d7d9c4f86600769",
+              "size": 57344
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "ff48233e96659fe5fb9a4268b09d97f4fb0164c9cb903dafc86164994f6b1623",
+              "size": 20480
+            },
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "159551827527b866bd7681e9233b5558227ac8749ab9654399bb672200286efd",
+              "size": 434176
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "761fb5b0c7d91aa1579fb7eb9b7d115dbb76d6974add463216d0002ad20aa76b",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "dab0cdcc572e9d2614efa202379a24c7722c455706d322ff75931a6b41c19dbb",
+              "size": 16384
+            },
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "0375e7d3147bba8ccdd578407de2b3d9156ebb8de67bce9c7d8696767ac31db9",
+              "size": 621
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "889db672b6827eb25b3ccfde5c1626bb8e807144f6aab8953fc1cbaf671685e5",
+              "size": 2097152
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "ee60759387019c21821c42fb47d4d34f6e02a05a3f4d0e4b8adb81559741d052",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "9ae68888e368e5a2211c93a66d88760631891529e2c10c1a599c0a38419d16e7",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "84fe563294d7a2f34807401f212519d76d1cccc0fad3ee5fa21b9c45de32a2cb",
+              "size": 2101982
+            }
+          },
+          "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf",
+            "gCommandLineDefines": {
+              "ACPI_BOOT_ENABLE": "1",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-06-12T11:57:52+00:00",
+              "COMMIT_HASH": "2e70744",
+              "DEB_VERSION": "1.2.2",
+              "EDK2_COMMIT_HASH": "898a41ed09",
+              "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
+              "EDK2_PLATFORMS_COMMIT_HASH": "a77c6e7f",
+              "FASTBOOT_LOAD": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
+          },
+          "pe_sections": {},
+          "target": "RELEASE_GCC5"
+        }
+      },
+      "description": "Exact published Radxa 1.2.2 replay on edk2-stable202208 with the recorded Bookworm inputs and certificate payloads."
+    },
+    "upstream-1.2.3-bookworm": {
+      "boards": {
+        "O6": {
+          "artefacts": {
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "bdf4900f4627c2b3f4369745d526b4e5b9aadf1fe6fbf3956d7d9c4f86600769",
+              "size": 57344
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "e80c71fa7ce82c66046b98b71f68436a680d99f067dfeadfd76469203affbf00",
+              "size": 20480
+            },
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "159551827527b866bd7681e9233b5558227ac8749ab9654399bb672200286efd",
+              "size": 434176
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "566fb4c143a1c8e6c072464399702418c7fe4341bffb65706cf5e00465166ed6",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "d49cc6b60181a922e9f48d2ec1191f0afeb1039721c7bd8ffac0902c807aa800",
+              "size": 16384
+            },
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "2b4aeb1d1d518721573d0a31e5494e3681616923cf0a2d0a657f810946b49403",
+              "size": 617
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "a8f1802225741550e988384d8916b1c943a9172b196aa0e16901419cf6ad1a58",
+              "size": 2097152
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "fad11ab9beae566c731bc4578fc89eefe915dce316ea92af30868c0eac3363c3",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "a6f2221275b5e859e92018794e124a69c4a832a33e6bf6b08f4382eb08bce06f",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "10125988e4c4bdbf6758674af20de3566b4c78782e46a017fcdeb15a476451e4",
+              "size": 2101982
+            }
+          },
+          "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
+            "gCommandLineDefines": {
+              "ACPI_BOOT_ENABLE": "1",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-06-15T03:35:10+00:00",
+              "COMMIT_HASH": "3b60488",
+              "DEB_VERSION": "1.2.3",
+              "EDK2_COMMIT_HASH": "898a41ed09",
+              "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
+              "EDK2_PLATFORMS_COMMIT_HASH": "74dca776",
+              "FASTBOOT_LOAD": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
+          },
+          "pe_sections": {},
+          "target": "RELEASE_GCC5"
+        },
+        "O6N": {
+          "artefacts": {
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "bdf4900f4627c2b3f4369745d526b4e5b9aadf1fe6fbf3956d7d9c4f86600769",
+              "size": 57344
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "ff48233e96659fe5fb9a4268b09d97f4fb0164c9cb903dafc86164994f6b1623",
+              "size": 20480
+            },
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "159551827527b866bd7681e9233b5558227ac8749ab9654399bb672200286efd",
+              "size": 434176
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "761fb5b0c7d91aa1579fb7eb9b7d115dbb76d6974add463216d0002ad20aa76b",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "dab0cdcc572e9d2614efa202379a24c7722c455706d322ff75931a6b41c19dbb",
+              "size": 16384
+            },
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "7ce21b89766f501ad22c4d6de7de53940cd86d75e5d293687f4b9bf3f4d11801",
+              "size": 621
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "e1d946f5a9424242f7c3488e371c9774498a823146006ccb4f985efa571a23f0",
+              "size": 2097152
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "1dcbaf1f0664bc22a907314ef0cd6d3bdb8a81b57f2173be8afb2a816b196f2a",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "d36ea97ad41fe64f79abd47e3d2254d2a3e9b97f68cc0ee692dc9041dc2cb7de",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "2a04b93c676ad2544e9f82ec033324969c39cc9cc454cff917800a0aa7c244c5",
+              "size": 2101982
+            }
+          },
+          "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf",
+            "gCommandLineDefines": {
+              "ACPI_BOOT_ENABLE": "1",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-06-15T03:37:10+00:00",
+              "COMMIT_HASH": "3b60488",
+              "DEB_VERSION": "1.2.3",
+              "EDK2_COMMIT_HASH": "898a41ed09",
+              "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
+              "EDK2_PLATFORMS_COMMIT_HASH": "74dca776",
+              "FASTBOOT_LOAD": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
+          },
+          "pe_sections": {},
+          "target": "RELEASE_GCC5"
+        }
+      },
+      "description": "Exact published Radxa 1.2.3 replay on edk2-stable202208 with the recorded Bookworm inputs and certificate payloads."
+    },
+    "upstream-1.2.4-bookworm": {
+      "boards": {
+        "O6": {
+          "artefacts": {
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "bdf4900f4627c2b3f4369745d526b4e5b9aadf1fe6fbf3956d7d9c4f86600769",
+              "size": 57344
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "e80c71fa7ce82c66046b98b71f68436a680d99f067dfeadfd76469203affbf00",
+              "size": 20480
+            },
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "159551827527b866bd7681e9233b5558227ac8749ab9654399bb672200286efd",
+              "size": 434176
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "566fb4c143a1c8e6c072464399702418c7fe4341bffb65706cf5e00465166ed6",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "d49cc6b60181a922e9f48d2ec1191f0afeb1039721c7bd8ffac0902c807aa800",
+              "size": 16384
+            },
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "20d21b78181ee29441997236ecf870ef9b753294ff8c36c72fb29e3f5ac7b01e",
+              "size": 617
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "ccd1d15fb9b40a71971ccb66c3a5facba0b6ef5c3d3708a0c0456711cde057f0",
+              "size": 2097152
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "b5301b9386b3a4dc79957b6a827e897d643e6ffa08a68ae15c6cf0c5ce7ba3c6",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "538acf353f79c9217baab06dbd756263842f79de3e0497b267d3e5d2726974fc",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "5d8c35541600df6ad04f3e9460eea1dc951ad5021cf193910d4336c1cb0b7530",
+              "size": 2101982
+            }
+          },
+          "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
+            "gCommandLineDefines": {
+              "ACPI_BOOT_ENABLE": "1",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-06-29T03:25:38+00:00",
+              "COMMIT_HASH": "e4e8f1c",
+              "DEB_VERSION": "1.2.4",
+              "EDK2_COMMIT_HASH": "898a41ed09",
+              "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
+              "EDK2_PLATFORMS_COMMIT_HASH": "cfa81cfc",
+              "FASTBOOT_LOAD": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
+          },
+          "pe_sections": {},
+          "target": "RELEASE_GCC5"
+        },
+        "O6N": {
+          "artefacts": {
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "bdf4900f4627c2b3f4369745d526b4e5b9aadf1fe6fbf3956d7d9c4f86600769",
+              "size": 57344
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "ff48233e96659fe5fb9a4268b09d97f4fb0164c9cb903dafc86164994f6b1623",
+              "size": 20480
+            },
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "159551827527b866bd7681e9233b5558227ac8749ab9654399bb672200286efd",
+              "size": 434176
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "761fb5b0c7d91aa1579fb7eb9b7d115dbb76d6974add463216d0002ad20aa76b",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "dab0cdcc572e9d2614efa202379a24c7722c455706d322ff75931a6b41c19dbb",
+              "size": 16384
+            },
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "5119e86ab80612e37b8cba1cea92d01a5d25898b85cc4693d53f26e02eb69c11",
+              "size": 621
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "024ac7a06c518ebb0c98422c9fd8997575b90ef55d277a75e5de1e060dbb2339",
+              "size": 2097152
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "e038cd92c5a202e4d12bff433aebc5a50ab05561fc539b929b541fdab302ed49",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "8c46ceaf8076300714e5e2fb2f844b729853fb16dabb66ea4dfb9a3961252f2a",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "e5fa50761ed742cac84f6d4b398bc8521e38db25a654c209290bab8884caa1a5",
+              "size": 2101982
+            }
+          },
+          "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf",
+            "gCommandLineDefines": {
+              "ACPI_BOOT_ENABLE": "1",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-06-29T03:27:36+00:00",
+              "COMMIT_HASH": "e4e8f1c",
+              "DEB_VERSION": "1.2.4",
+              "EDK2_COMMIT_HASH": "898a41ed09",
+              "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
+              "EDK2_PLATFORMS_COMMIT_HASH": "cfa81cfc",
+              "FASTBOOT_LOAD": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
+          },
+          "pe_sections": {},
+          "target": "RELEASE_GCC5"
+        }
+      },
+      "description": "Exact published Radxa 1.2.4 replay on edk2-stable202208 with the recorded Bookworm inputs and certificate payloads."
+    },
+    "upstream-1.3.0-bookworm": {
+      "boards": {
+        "O6": {
+          "artefacts": {
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "45b518013f8bb7aedd2ce3942764d48b71502cd8d30fce77c0d0a0ced651da2a",
+              "size": 57344
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "e80c71fa7ce82c66046b98b71f68436a680d99f067dfeadfd76469203affbf00",
+              "size": 20480
+            },
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "bb75273d604da80daa694b612108cba9e2c6931b9ad0f684ca96c9bc18c27e34",
+              "size": 434176
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "566fb4c143a1c8e6c072464399702418c7fe4341bffb65706cf5e00465166ed6",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "d49cc6b60181a922e9f48d2ec1191f0afeb1039721c7bd8ffac0902c807aa800",
+              "size": 16384
+            },
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "11c68bb90b87eb540325dfe60b8b6e70ab79dc4a19f593bab64367c3597be1ce",
+              "size": 617
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "08b8e19ded648464376ec9319c49ec0550abd93ad53b4382d9428c53f1131aa2",
+              "size": 2031616
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "e3ff40a253d734fcd9ac68f843219aeebb9f536bc2ee99b6b98d2fb789131bee",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "bb4a57c63f2676a22582c578c159a2bed7617735669c7a108591552fe1f25938",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "5f46815ee6f5513d9e1364e14d8d8a201bb0b7e132cee5c43393cf625f732637",
+              "size": 2036446
+            }
+          },
+          "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
+            "gCommandLineDefines": {
+              "ACPI_BOOT_ENABLE": "1",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-07-08T08:34:59+00:00",
+              "COMMIT_HASH": "39bc6f9",
+              "DEB_VERSION": "1.3.0",
+              "EDK2_COMMIT_HASH": "39c4bb1d67",
+              "EDK2_NON_OSI_COMMIT_HASH": "b15f5c1",
+              "EDK2_PLATFORMS_COMMIT_HASH": "1584aed4",
+              "FASTBOOT_LOAD": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
+          },
+          "pe_sections": {},
+          "target": "RELEASE_GCC5"
+        },
+        "O6N": {
+          "artefacts": {
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "45b518013f8bb7aedd2ce3942764d48b71502cd8d30fce77c0d0a0ced651da2a",
+              "size": 57344
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "ff48233e96659fe5fb9a4268b09d97f4fb0164c9cb903dafc86164994f6b1623",
+              "size": 20480
+            },
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "bb75273d604da80daa694b612108cba9e2c6931b9ad0f684ca96c9bc18c27e34",
+              "size": 434176
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "761fb5b0c7d91aa1579fb7eb9b7d115dbb76d6974add463216d0002ad20aa76b",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "dab0cdcc572e9d2614efa202379a24c7722c455706d322ff75931a6b41c19dbb",
+              "size": 16384
+            },
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "b88c3140e6818ac2c7ff5279e02ff412a7b73fbaf3a72c0c875bee4b5556f79f",
+              "size": 621
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "5464d7415be6edecc1cfd7e5a83eb3da9cde0dd9cc729ae99f74a452f35fa770",
+              "size": 2097152
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "5c8ec6d1de11bcc40c7ed1b3aa7bc646a29f687728545ca97387aa9e59f5012a",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "7976d21289952f24d77e77e08f0fd19595fc78e972419c4e10cbff182c0c187f",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "a5aef34f8acc067b9943d243ab9bd4bda393315bc3330b695432b4c4e369762d",
+              "size": 2101982
+            }
+          },
+          "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf",
+            "gCommandLineDefines": {
+              "ACPI_BOOT_ENABLE": "1",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-07-08T08:36:52+00:00",
+              "COMMIT_HASH": "39bc6f9",
+              "DEB_VERSION": "1.3.0",
+              "EDK2_COMMIT_HASH": "39c4bb1d67",
+              "EDK2_NON_OSI_COMMIT_HASH": "b15f5c1",
+              "EDK2_PLATFORMS_COMMIT_HASH": "1584aed4",
+              "FASTBOOT_LOAD": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
+          },
+          "pe_sections": {},
+          "target": "RELEASE_GCC5"
+        }
+      },
+      "description": "Exact published Radxa 1.3.0 replay on edk2-stable202208 with the recorded Bookworm inputs and certificate payloads."
+    },
+    "upstream-1.3.1-bookworm": {
+      "boards": {
+        "O6": {
+          "artefacts": {
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "45b518013f8bb7aedd2ce3942764d48b71502cd8d30fce77c0d0a0ced651da2a",
+              "size": 57344
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "e80c71fa7ce82c66046b98b71f68436a680d99f067dfeadfd76469203affbf00",
+              "size": 20480
+            },
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "bb75273d604da80daa694b612108cba9e2c6931b9ad0f684ca96c9bc18c27e34",
+              "size": 434176
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "566fb4c143a1c8e6c072464399702418c7fe4341bffb65706cf5e00465166ed6",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "d49cc6b60181a922e9f48d2ec1191f0afeb1039721c7bd8ffac0902c807aa800",
+              "size": 16384
+            },
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "c206a97680f7ab51f06d63a86e975f4d8de5e10873b945ace37e188c4471f394",
+              "size": 617
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "9da7d43e9ddc840f89eb1530bba6f19a9326d86a218e58d08e4550d1cee4fb89",
+              "size": 2031616
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "64cb15b7325039d3af3ef871061a13677abf4421b3c3cc573cb9b59d2ea59dad",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "933de73e618dff300c9decc3fbe742f588df8785a29466f2ed595be10a402bb8",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "a2721c4436910478a6076cf03cc9853a5f19bf3b07fa5760dbc8dc456f2533a4",
+              "size": 2036446
+            }
+          },
+          "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf",
+            "gCommandLineDefines": {
+              "ACPI_BOOT_ENABLE": "1",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-07-16T11:55:04+00:00",
+              "COMMIT_HASH": "d70d68c",
+              "DEB_VERSION": "1.3.1",
+              "EDK2_COMMIT_HASH": "39c4bb1d67",
+              "EDK2_NON_OSI_COMMIT_HASH": "f567460",
+              "EDK2_PLATFORMS_COMMIT_HASH": "40a0f372",
+              "FASTBOOT_LOAD": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
+          },
+          "pe_sections": {},
+          "target": "RELEASE_GCC5"
+        },
+        "O6N": {
+          "artefacts": {
+            "AARCH64/BurnImage.efi": {
+              "path": "AARCH64/BurnImage.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+              "sha256": "45b518013f8bb7aedd2ce3942764d48b71502cd8d30fce77c0d0a0ced651da2a",
+              "size": 57344
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "ff48233e96659fe5fb9a4268b09d97f4fb0164c9cb903dafc86164994f6b1623",
+              "size": 20480
+            },
+            "AARCH64/FlashUpdate.efi": {
+              "path": "AARCH64/FlashUpdate.efi",
+              "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+              "sha256": "bb75273d604da80daa694b612108cba9e2c6931b9ad0f684ca96c9bc18c27e34",
+              "size": 434176
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "761fb5b0c7d91aa1579fb7eb9b7d115dbb76d6974add463216d0002ad20aa76b",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "dab0cdcc572e9d2614efa202379a24c7722c455706d322ff75931a6b41c19dbb",
+              "size": 16384
+            },
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "3aed54ddcf706bed0f912d8f7f3db76519009e14be0901b2232c5fe616e4f892",
+              "size": 621
+            },
+            "FV/SKY1_BL33_UEFI.fd": {
+              "path": "FV/SKY1_BL33_UEFI.fd",
+              "sha256": "dea55820c89a08f3841911c6abf58816e16546d89ffe0d03095ded364c37dbd6",
+              "size": 2031616
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "6433aeaaf4fad52cf68812cc0c4539056bc4dab627f6447c9128e7320bcb263d",
+              "size": 4096
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "a5152fabf725adb721511c209e15e3768593223ee60e41ecdc7c89fbc972b55e",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "7e64cc68dadd1bebf73c6ace53abcb20a9009c1aa47e26f44b6422310902b489",
+              "size": 2036446
+            }
+          },
+          "build_options": {
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf",
+            "gCommandLineDefines": {
+              "ACPI_BOOT_ENABLE": "1",
+              "ARCH": "AARCH64",
+              "BOARD_NAME": "",
+              "BUILD_DATE": "2026-07-16T11:56:52+00:00",
+              "COMMIT_HASH": "d70d68c",
+              "DEB_VERSION": "1.3.1",
+              "EDK2_COMMIT_HASH": "39c4bb1d67",
+              "EDK2_NON_OSI_COMMIT_HASH": "f567460",
+              "EDK2_PLATFORMS_COMMIT_HASH": "40a0f372",
+              "FASTBOOT_LOAD": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE",
+              "SMP_ENABLE": "1",
+              "STANDARD_MM": "TRUE",
+              "VARIABLE_TYPE": "SPI"
+            }
+          },
+          "pe_sections": {},
+          "target": "RELEASE_GCC5"
+        }
+      },
+      "description": "Exact published Radxa 1.3.1 replay on edk2-stable202208 with the recorded Bookworm inputs and certificate payloads."
     }
   }
 }

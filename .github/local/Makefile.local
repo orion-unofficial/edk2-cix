@@ -151,6 +151,7 @@ REPLAY_PRODUCT ?= orion-$(FIRMWARE_BOARD_LOWER)
 DETERMINISTIC_REPLAY_PROFILE ?= upstream-$(REPLAY_VERSION)-$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)
 DETERMINISTIC_REPLAY_CACHE_KEY ?= $(DETERMINISTIC_REPLAY_PROFILE)-$(FIRMWARE_BOARD_LOWER)
 DETERMINISTIC_REPLAY_ROOT ?= $(REPO_ROOT)/.buildbox/replay/$(DETERMINISTIC_REPLAY_CACHE_KEY)
+RECORDED_REPLAY_ROOT ?= $(REPO_ROOT)/validation/replay-inputs
 DETERMINISTIC_REPLAY_IMAGE ?= $(if $(filter bookworm,$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)),$(REPLAY_BUILDBOX_IMAGE),$(BUILDBOX_IMAGE_EFFECTIVE))
 DETERMINISTIC_REPLAY_DEP_PROFILE ?= $(if $(filter bookworm,$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)),$(REPLAY_BUILDBOX_DEP_PROFILE),firmware)
 DETERMINISTIC_REPLAY_MOUNT_ROOT ?= $(REPO_ROOT)/.buildbox
@@ -329,6 +330,7 @@ define PRINT_TOP_LEVEL_INTERNAL_VARIABLES_REPLAY
 	print_help_line '  DETERMINISTIC_REPLAY_PROFILE=<name>' 'Override the resolved replay validation profile name.\nDefault: upstream-<version>-<distro>.'; \
 	print_help_line '  DETERMINISTIC_REPLAY_CACHE_KEY=<name>' 'Override the replay cache directory key.\nDefault: $(DETERMINISTIC_REPLAY_PROFILE)-<board>.'; \
 	print_help_line '  DETERMINISTIC_REPLAY_ROOT=<path>' 'Exact replay cache directory used by deterministic-replay.\nDefault: '\''$$(REPO_ROOT)/.buildbox/replay/<cache-key>'\'''; \
+	print_help_line '  RECORDED_REPLAY_ROOT=<path>' 'Checked-in replay inputs used when REPLAY_INPUT and the replay cache are absent.\nDefault: '\''$$(REPO_ROOT)/validation/replay-inputs'\'''; \
 	print_help_line '  DETERMINISTIC_REPLAY_IMAGE=<image>' 'Container image override used only by deterministic-replay.\nDefault: the effective buildbox image.'; \
 	print_help_line '  DETERMINISTIC_REPLAY_DEP_PROFILE=<name>' 'Dependency profile used by deterministic-replay.\nDefault: '\''replay'\'' on Bookworm, otherwise '\''firmware'\''.'; \
 	print_help_line '  DETERMINISTIC_REPLAY_MOUNT_ROOT=<path>' 'Host root that deterministic-replay may translate into the buildbox.\nDefault: '\''$$(REPO_ROOT)/.buildbox'\'''
@@ -1010,6 +1012,7 @@ __deterministic-replay:
 	replay_input='$(strip $(REPLAY_INPUT))'; \
 	replay_build_options='$(strip $(REPLAY_BUILD_OPTIONS))'; \
 	replay_build_date='$(strip $(REPLAY_BUILD_DATE))'; \
+	recorded_replay_dir="$(RECORDED_REPLAY_ROOT)/$(REPLAY_VERSION)/$$replay_board"; \
 	validation_file="$(REPO_ROOT)/validation/expected-hashes.json"; \
 	if [ ! -f "$$validation_file" ]; then \
 		echo "[replay] No checked-in exact replay validation data exists for board $$replay_board." >&2; \
@@ -1032,13 +1035,17 @@ __deterministic-replay:
 			replay_cmd+=(--build-date "$$replay_build_date"); \
 		fi; \
 		"$${replay_cmd[@]}"; \
-	elif [ ! -f "$$replay_dir/replay.env" ]; then \
+	elif [ -f "$$replay_dir/replay.env" ]; then \
+		printf '[replay] Reusing cached replay inputs from %s\n' "$$replay_dir"; \
+	elif [ -f "$$recorded_replay_dir/replay.env" ]; then \
+		replay_dir="$$recorded_replay_dir"; \
+		printf '[replay] Using checked-in replay inputs from %s\n' "$$replay_dir"; \
+	else \
 		echo "[replay] No cached replay inputs found at $$replay_dir/replay.env" >&2; \
+		echo "[replay] No checked-in replay inputs found at $$recorded_replay_dir/replay.env" >&2; \
 		echo "[replay] Re-run with REPLAY_INPUT=/path/to/edk2-cix_*.deb" >&2; \
 		echo "[replay] or REPLAY_INPUT=/path/to/cix_flash_all.bin plus REPLAY_BUILD_OPTIONS=/path/to/BuildOptions." >&2; \
 		exit 2; \
-	else \
-		printf '[replay] Reusing cached replay inputs from %s\n' "$$replay_dir"; \
 	fi; \
 	if [ ! -f "$$replay_dir/replay.env" ]; then \
 		echo "[replay] Expected $$replay_dir/replay.env after preparing replay inputs." >&2; \
@@ -1046,8 +1053,11 @@ __deterministic-replay:
 	fi; \
 	set -a; . "$$replay_dir/replay.env"; set +a; \
 	replay_mount_root="$(DETERMINISTIC_REPLAY_MOUNT_ROOT)"; \
-	replay_cert_dir_host="$$SIGNING_CERT_SOURCE_DIR"; \
+	replay_cert_dir_host="$${SIGNING_CERT_SOURCE_DIR:-$$replay_dir/certs}"; \
 	case "$$replay_cert_dir_host" in \
+		"$(REPO_ROOT)"/*) \
+			replay_cert_dir_container="$(BUILDBOX_WORKSPACE_ROOT)/$${replay_cert_dir_host#$(REPO_ROOT)/}"; \
+			;; \
 		"$$replay_mount_root"/*) \
 			replay_cert_dir_container="/hosttmp/$${replay_cert_dir_host#$$replay_mount_root/}"; \
 			;; \
@@ -1058,10 +1068,10 @@ __deterministic-replay:
 			;; \
 	esac; \
 	printf '[replay] Running %s in %s using %s\n' "$(DETERMINISTIC_REPLAY_PROFILE)" "$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)" "$(DETERMINISTIC_REPLAY_IMAGE)"; \
-	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" \
+	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" EDK2_CIX_IASL_RELEASE="20200925" \
 		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
 		make --no-print-directory -C src clean V="$(V)"; \
-	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" \
+	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" EDK2_CIX_IASL_RELEASE="20200925" \
 		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
 		make --no-print-directory firmware-build V="$(V)" \
 		ARTEFACT_MODE="upstream" \
@@ -1086,6 +1096,15 @@ __deterministic-replay:
 		EDK2_NON_OSI_COMMIT_HASH_LENGTH="$${EDK2_NON_OSI_COMMIT_HASH_LENGTH:-}" \
 		EDK2_PLATFORMS_SOURCE_COMMIT="$${EDK2_PLATFORMS_SOURCE_COMMIT:-}" \
 		EDK2_PLATFORMS_COMMIT_HASH_LENGTH="$${EDK2_PLATFORMS_COMMIT_HASH_LENGTH:-}"; \
+	printf '[replay] Auditing independently rebuilt ACPI output with the pinned compiler\n'; \
+	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" EDK2_CIX_IASL_RELEASE="20200925" \
+		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
+		python3 scripts/audit_acpi_regression.py \
+		--board "$(FIRMWARE_BOARD)" \
+		--target "$(RAW_FIRMWARE_TARGET)" \
+		--profile "$(DETERMINISTIC_REPLAY_PROFILE)" \
+		--semantic-only \
+		--report-json "build-validation/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(DETERMINISTIC_REPLAY_PROFILE)-rebuilt-acpi.json"; \
 	reference_dir="$$replay_dir/reference"; \
 	if [ -d "$$reference_dir" ]; then \
 		printf '[replay] Comparing built outputs against upstream release payload in %s\n' "$$reference_dir"; \
@@ -1098,7 +1117,7 @@ __deterministic-replay:
 	else \
 		printf '[replay] No preserved upstream release payload found at %s; skipping direct release comparison\n' "$$reference_dir"; \
 	fi; \
-	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" \
+	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" EDK2_CIX_IASL_RELEASE="20200925" \
 		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
 		make --no-print-directory validate-firmware-strict V="$(V)" \
 		FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
