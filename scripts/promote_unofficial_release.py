@@ -182,7 +182,11 @@ def checkpoint_record(
     )
     if existing:
         retained_ref = str(existing.get("previous_unofficial_ref", "")).strip()
-        if retained_ref and retained_ref != ref:
+        if (
+            retained_ref
+            and retained_ref != ref
+            and not retained_ref.endswith("/current")
+        ):
             previous_ref = retained_ref
     update_ref_record(
         repo,
