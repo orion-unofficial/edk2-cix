@@ -24,13 +24,15 @@ make build FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
 
 `FIRMWARE_BOARD=O6|O6N` selects the board. `FIRMWARE_TARGET=RELEASE|DEBUG`
 selects the EDK2 build target. The defaults are `O6` and `RELEASE`.
+`FIRMWARE_PRODUCT` defaults to `orion-o6` for O6 and `orion-o6n` for O6N so
+the boards cannot overwrite each other's staged payloads or archives.
 
 To build an explicit source combination, set `RELEASE` to one of the source
 targets listed by `make help-source-targets`:
 
 ```bash
 make build \
-  RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/unofficial \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
   FIRMWARE_BOARD=O6N \
   FIRMWARE_TARGET=RELEASE
 ```
@@ -92,8 +94,8 @@ make deterministic-replay FIRMWARE_BOARD=O6N
 ```
 
 By default, the target renders
-`edk2-202208/radxa-1.2.1/unofficial-1.2.1`, resolves the latest release
-package from `radxa-pkg/edk2-cix`, downloads it under
+`edk2-202208/radxa-1.2.1/unofficial-1.2.1`, resolves the matching `1.2.1`
+release package from `radxa-pkg/edk2-cix`, downloads it under
 `.cache/edk2-cix/firmware/replay/downloads/`, and delegates to the rendered
 firmware tree's `deterministic-replay` target. The rendered target extracts
 the vendor timestamps and signing certificate inputs, rebuilds
@@ -127,7 +129,7 @@ a persistent branch for inspection or development, render it explicitly:
 
 ```bash
 make render-release-branch \
-  RELEASE=edk2-202602/cix-1.2/radxa-1.2.1/unofficial \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
   PERSIST=1
 ```
 
@@ -248,7 +250,7 @@ make gha-act-dry-run \
   ACT_WORKFLOW=.github/workflows/deterministic-replay.yaml \
   ACT_JOB=replay \
   ACT_MATRIX=board:O6 \
-  ACT_EXTRA_ARGS='--input replay_source_target=edk2-202208/radxa-1.2.1/unofficial-1.2.1 --input upstream_repository=radxa-pkg/edk2-cix'
+  ACT_EXTRA_ARGS='--input replay_source_target=edk2-202208/radxa-1.2.1/unofficial-1.2.1 --input replay_version=1.2.1 --input upstream_repository=radxa-pkg/edk2-cix'
 ```
 
 ## Validation

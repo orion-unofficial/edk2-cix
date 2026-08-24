@@ -26,6 +26,7 @@ from reconstruction_common import (
     cache_dir,
     check_immutable_refs,
     clear_metadata_caches,
+    commit_tree_with_files,
     format_duration,
     git,
     load_json,
@@ -53,6 +54,7 @@ from source_porting import (
     apply_source_delta_to_base,
     normalise_overlay_tree,
     normalise_source_tree,
+    overlay_paths_from_source,
     preserve_conflict_worktree,
 )
 
@@ -370,6 +372,50 @@ def unofficial_candidate(
         resume_variable="UNOFFICIAL_REF",
         verbose=verbose,
     )
+
+
+def align_release_metadata(
+    repo: Path,
+    *,
+    candidate: str,
+    new_port_ref: str,
+    to_release: str,
+    verbose: bool,
+) -> str:
+    """Take release identity from the new Radxa port, not the old build overlay."""
+
+    label = f"radxa-{to_release}-release-metadata"
+    tree = overlay_paths_from_source(
+        repo,
+        tree=tree_id(repo, candidate),
+        source_ref=new_port_ref,
+        paths=("debian/changelog",),
+        label=label,
+        verbose=verbose,
+    )
+    version_ref = commit_tree_with_files(
+        repo,
+        {"VERSION": f"{to_release}\n".encode("utf-8")},
+        f"source: stage Radxa {to_release} release metadata",
+    )
+    tree = overlay_paths_from_source(
+        repo,
+        tree=tree,
+        source_ref=version_ref,
+        paths=("VERSION",),
+        label=label,
+        verbose=verbose,
+    )
+    if tree == tree_id(repo, candidate):
+        return candidate
+    message = git(repo, "show", "-s", "--format=%B", candidate).stdout.rstrip()
+    return git(
+        repo,
+        "commit-tree",
+        tree,
+        "-m",
+        f"{message}\n\nSource-Release-Metadata: Radxa {to_release}",
+    ).stdout.strip()
 
 
 def resolved_unofficial_stage(repo: Path, resolved: str, requested: str) -> str:
@@ -757,10 +803,17 @@ def main() -> None:
             verbose=verbose,
             resolved_stage=args.unofficial_ref_stage,
         )
-        print(
-            f"[radxa-uplift] unofficial candidate: {candidate} "
-            f"(tree {tree_id(repo, candidate)})"
-        )
+    candidate = align_release_metadata(
+        repo,
+        candidate=candidate,
+        new_port_ref=target_port if write else new_port,
+        to_release=args.to_release,
+        verbose=verbose,
+    )
+    print(
+        f"[radxa-uplift] unofficial candidate: {candidate} "
+        f"(tree {tree_id(repo, candidate)})"
+    )
     enforce_source_tree_policy(
         repo,
         ref=candidate,

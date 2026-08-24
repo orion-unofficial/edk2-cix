@@ -14,6 +14,7 @@ from test_support import commit_all, git, load_function_tests, load_json, requir
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT_FILES = [
+    "import_workflow.py",
     "reconstruction_common.py",
     "refresh_source_metadata.py",
     "render_release_branch.py",

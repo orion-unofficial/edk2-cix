@@ -34,7 +34,7 @@ from integrate_source_release import (  # noqa: E402
     operation_manifest_metadata,
 )
 from source_porting import apply_source_delta_to_base, unchanged_ours_conflicts  # noqa: E402
-from render_release_branch import render_from_plan  # noqa: E402
+from render_release_branch import coupled_persistent_refs, render_from_plan  # noqa: E402
 from verify_build_matrix import require_unofficial_source_policy  # noqa: E402
 
 
@@ -205,6 +205,19 @@ def test_default_source_target_follows_unofficial_source_policy() -> None:
             default_release(repo) == "edk2-202602/cix-1.2/radxa-1.2.1/unofficial-1.2.1",
             "default source target should not silently advance to a newer Radxa release",
         )
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_unofficial_cache_aliases_are_coupled_for_persistent_refresh() -> None:
+    repo = make_repo()
+    try:
+        canonical = f"{CACHE_RELEASE_PREFIX}custom/edk2-202602/cix-1.2/radxa-1.2.1/unofficial"
+        versioned = f"{canonical}-1.2.1"
+        expected = sorted([canonical, versioned])
+
+        require(coupled_persistent_refs(repo, canonical) == expected, "canonical target lost its versioned alias")
+        require(coupled_persistent_refs(repo, versioned) == expected, "versioned alias lost its canonical target")
     finally:
         shutil.rmtree(repo)
 
@@ -1219,6 +1232,7 @@ def test_integrate_source_release_recognises_remote_tracking_target() -> None:
 def main() -> None:
     test_custom_targets_allow_historical_radxa_releases_on_later_edk2()
     test_default_source_target_follows_unofficial_source_policy()
+    test_unofficial_cache_aliases_are_coupled_for_persistent_refresh()
     test_unofficial_source_policy_requires_selected_exact_checkpoint()
     test_source_delta_porting_replays_only_project_delta()
     test_source_delta_porting_canonicalises_merge_preimages()

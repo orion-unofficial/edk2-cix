@@ -156,8 +156,21 @@ def checkpoint_record(
     radxa_release: str,
     edk2_base: str,
     previous_ref: str,
-    previous_object_id: str,
 ) -> None:
+    existing = next(
+        (
+            record
+            for record in load_json(
+                repo, f"config/{UNOFFICIAL_REFS_MANIFEST}"
+            ).get("refs", [])
+            if record.get("ref") == ref
+        ),
+        None,
+    )
+    if existing:
+        retained_ref = str(existing.get("previous_unofficial_ref", "")).strip()
+        if retained_ref and retained_ref != ref:
+            previous_ref = retained_ref
     update_ref_record(
         repo,
         UNOFFICIAL_REFS_MANIFEST,

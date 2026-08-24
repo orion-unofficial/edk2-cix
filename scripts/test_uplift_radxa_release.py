@@ -28,6 +28,7 @@ from source_porting import (
     overlay_paths_from_source,
 )
 from uplift_radxa_release import (
+    align_release_metadata,
     ensure_checkpoint_record,
     release_line,
     resolved_unofficial_stage,
@@ -341,6 +342,57 @@ def test_final_unofficial_candidate_is_promoted_without_rewriting() -> None:
             verbose=False,
         )
         require(candidate == final, "tested final candidate was rewritten during promotion")
+    finally:
+        shutil.rmtree(repo)
+
+
+def test_release_metadata_comes_from_new_radxa_port() -> None:
+    repo = make_repo()
+    try:
+        new_changelog = (
+            "edk2-cix (1.3.1) main; urgency=medium\n\n"
+            "  * Radxa 1.3.1\n\n"
+            " -- Radxa <dev@radxa.com>  Thu, 16 Jul 2026 11:43:01 +0000\n"
+        )
+        new_port = create_branch(
+            repo,
+            "new-port",
+            {"debian/changelog": new_changelog, "src/firmware.c": "vendor\n"},
+            "new port",
+        )
+        candidate = create_branch(
+            repo,
+            "candidate",
+            {
+                "VERSION": "1.2.1\n",
+                "debian/changelog": "edk2-cix (1.2.1) main; urgency=medium\n",
+                "src/firmware.c": "project\n",
+            },
+            "unofficial candidate",
+        )
+        git(repo, "switch", "build")
+
+        aligned = align_release_metadata(
+            repo,
+            candidate=candidate,
+            new_port_ref=new_port,
+            to_release="1.3.1",
+            verbose=False,
+        )
+        require(git(repo, "show", f"{aligned}:VERSION").stdout == "1.3.1\n", "VERSION was stale")
+        require(
+            git(repo, "show", f"{aligned}:debian/changelog").stdout == new_changelog,
+            "new Radxa changelog was not preserved exactly",
+        )
+        require(
+            git(repo, "show", f"{aligned}:src/firmware.c").stdout == "project\n",
+            "release metadata alignment replaced unrelated unofficial source",
+        )
+        require(
+            "Source-Release-Metadata: Radxa 1.3.1"
+            in git(repo, "show", "-s", "--format=%B", aligned).stdout,
+            "release metadata provenance was not recorded",
+        )
     finally:
         shutil.rmtree(repo)
 
