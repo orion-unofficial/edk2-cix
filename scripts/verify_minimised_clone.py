@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -22,7 +23,7 @@ Optional variables:
                  removed automatically.
   KEEP=0|1      Keep the verification workspace after completion. Default: 0.
   REPACK=0|1    Repack the exported bare repo. Default: 1.
-  V=0|1         Print delegated git and make operations.
+  V=0|1         Print delegated command lines. Command output is always streamed.
 
 The check exports a minimised bare repository, clones it normally, verifies the
 source/build matrix from that clone, and renders the default firmware source target.
@@ -49,7 +50,21 @@ def run_step(label: str, cmd: list[str], verbose: bool) -> None:
     started = time.monotonic()
     if verbose:
         print("+ " + " ".join(cmd), file=sys.stderr)
-    run(cmd, capture=not verbose)
+    # Always inherit the terminal/CI streams. GitHub Actions retains this output
+    # itself, and hiding it made this end-to-end check appear stuck for minutes.
+    process = subprocess.Popen(cmd)
+    while True:
+        try:
+            returncode = process.wait(timeout=30)
+            break
+        except subprocess.TimeoutExpired:
+            print(
+                f"[verify-minimised] {label} still running "
+                f"({format_duration(time.monotonic() - started)})",
+                file=sys.stderr,
+            )
+    if returncode:
+        raise ReconstructionError(f"command failed: {' '.join(cmd)}\nexit status {returncode}")
     print(f"[verify-minimised] {label} completed in {format_duration(time.monotonic() - started)}", file=sys.stderr)
 
 
