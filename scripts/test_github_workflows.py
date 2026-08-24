@@ -42,6 +42,21 @@ class GitHubWorkflowTests(unittest.TestCase):
         ):
             self.assertIn(assignment, text)
 
+        dockerfile = (REPO_ROOT / "docs" / "scripts" / "docs-workflow.Dockerfile").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "github:NixOS/nixpkgs/nixpkgs-unstable",
+            dockerfile,
+        )
+        self.assertNotIn("channels.nixos.org", dockerfile)
+        self.assertNotIn("profile install", dockerfile)
+
+        runner = (REPO_ROOT / "docs" / "scripts" / "run_docs_workflow_local.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('docker build --progress plain "${build_args[@]}"', runner)
+
 
 if __name__ == "__main__":
     unittest.main()
