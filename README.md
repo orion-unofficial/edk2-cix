@@ -102,8 +102,8 @@ make deterministic-replay FIRMWARE_BOARD=O6
 make deterministic-replay FIRMWARE_BOARD=O6N
 ```
 
-By default, this renders the `edk2-202208/radxa-1.2.1/unofficial-1.2.1`
-source target, downloads the matching `1.2.1` release package from
+By default, this renders the exact `edk2-202208/radxa-1.2.1` upstream source
+target, downloads the matching `1.2.1` release package from
 `radxa-pkg/edk2-cix`, and delegates to the rendered firmware tree's strict
 byte-identical replay target. To replay a package you already have, pass
 `REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb`; for a raw
@@ -1017,7 +1017,6 @@ publishing:
 ```bash
 make test-local
 make deterministic-replay \
-  REPLAY_SOURCE_TARGET=edk2-202208/radxa-1.2.1/unofficial-1.2.1 \
   REPLAY_VERSION=1.2.1 \
   REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
 ```
@@ -1124,8 +1123,8 @@ The build branch carries its own workflows under `.github/workflows/`:
   and runs `make lint`.
 - `Firmware build` is a manual workflow for rendering and building one selected
   source target, or for running `build-all`.
-- `Deterministic replay` renders the replay-capable EDK2 `202208` unofficial
-  source target, downloads the latest Radxa release package, and checks that
+- `Deterministic replay` renders the release-specific upstream Radxa source on
+  EDK2 `202208`, downloads the selected Radxa release package, and checks that
   the upstream-path rebuild still matches the published payload for O6 and O6N.
 - `Secure Boot audit` renders the selected custom source target, checks the
   pinned Microsoft Secure Boot payload metadata and release version, then
