@@ -14,7 +14,10 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
+
+from reconstruction_common import format_duration
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -22,13 +25,24 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def run(cmd: list[str], *, stdout=None) -> None:
     print("+ " + " ".join(cmd), file=sys.stderr)
-    result = subprocess.run(cmd, check=False, stdout=stdout)
-    if result.returncode != 0:
+    started = time.monotonic()
+    process = subprocess.Popen(cmd, stdout=stdout)
+    while True:
+        try:
+            returncode = process.wait(timeout=30)
+            break
+        except subprocess.TimeoutExpired:
+            print(
+                f"[quality] Command still running "
+                f"({format_duration(time.monotonic() - started)}): {' '.join(cmd)}",
+                file=sys.stderr,
+            )
+    if returncode != 0:
         print(
-            f"command failed with exit status {result.returncode}: {' '.join(cmd)}",
+            f"command failed with exit status {returncode}: {' '.join(cmd)}",
             file=sys.stderr,
         )
-        raise SystemExit(result.returncode)
+        raise SystemExit(returncode)
 
 
 def git_files(*patterns: str) -> list[str]:

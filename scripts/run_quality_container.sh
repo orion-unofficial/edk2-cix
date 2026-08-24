@@ -4,7 +4,6 @@ set -eu
 mode="${1:-test}"
 repo="$(git rev-parse --show-toplevel)"
 image="${QUALITY_IMAGE:-edk2-cix-build-quality:latest}"
-verbose="${V:-0}"
 git_common="$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)"
 git_objects="$(git -C "$repo" rev-parse --path-format=absolute --git-path objects)"
 shared_temp_root="$(dirname -- "$git_common")/.worktrees/edk2-cix-tmp"
@@ -14,11 +13,8 @@ printf '[quality] Building quality container image: %s\n' "$image" >&2
 
 set -- docker build \
     --file "$repo/scripts/quality.Dockerfile" \
+    --progress=plain \
     --tag "$image"
-
-if [ "$verbose" = "1" ]; then
-    set -- "$@" --progress=plain
-fi
 
 "$@" "$repo"
 
