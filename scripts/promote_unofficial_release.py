@@ -41,6 +41,7 @@ from reconstruction_common import (
     version_key,
     write_json,
 )
+from source_policy import enforce_source_tree_policy
 from source_porting import (
     align_release_metadata,
     apply_source_delta_to_base,
@@ -320,6 +321,11 @@ def main() -> None:
         new_port_ref=new_port_ref,
         to_release=radxa_release,
         verbose=verbose,
+    )
+    enforce_source_tree_policy(
+        repo,
+        ref=candidate,
+        label=f"unofficial candidate for Radxa {radxa_release}",
     )
 
     updates: list[tuple[str, str, str]] = []
