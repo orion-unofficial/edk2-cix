@@ -352,7 +352,7 @@ def test_release_metadata_comes_from_new_radxa_port() -> None:
         new_changelog = (
             "edk2-cix (1.3.1) main; urgency=medium\n\n"
             "  * Radxa 1.3.1\n\n"
-            " -- Radxa <dev@radxa.com>  Thu, 16 Jul 2026 11:43:01 +0000\n"
+            " -- Radxa  Thu, 16 Jul 2026 11:43:01 +0000\n"
         )
         new_port = create_branch(
             repo,
