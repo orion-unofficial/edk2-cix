@@ -21,7 +21,14 @@ def repo_root() -> Path:
     return Path(result.stdout.strip())
 
 
-def run_mirror(repo: Path, worktree: Path, dist: Path) -> None:
+def run_mirror(
+    repo: Path,
+    worktree: Path,
+    dist: Path,
+    *,
+    build_target: str = "buildbox-targz",
+    artefact_mode: str = "custom",
+) -> None:
     subprocess.run(
         [
             "python3",
@@ -35,13 +42,13 @@ def run_mirror(repo: Path, worktree: Path, dist: Path) -> None:
             "--release",
             "source/cache/release/edk2-202602/cix-1.2/radxa-1.2.1/unofficial-1.2.1",
             "--build-target",
-            "buildbox-targz",
+            build_target,
             "--board",
             "O6",
             "--firmware-target",
             "RELEASE",
             "--artefact-mode",
-            "custom",
+            artefact_mode,
         ],
         cwd=repo,
         check=True,
@@ -67,6 +74,11 @@ def main() -> None:
         raise SystemExit("buildbox host mount root must live below FIRMWARE_CACHE_ROOT")
     if 'CCACHE_DIR="$$container_cache_root/ccache"' not in makefile:
         raise SystemExit("buildbox ccache must be addressed through the container mount")
+    mirror_line = next(
+        line for line in makefile.splitlines() if "--artefact-mode" in line
+    )
+    if "ENABLE_FIRMWARE_FIXES" not in mirror_line or "+fixes" not in mirror_line:
+        raise SystemExit("raw build mirrors must keep custom and custom+fixes separate")
 
     with tempfile.TemporaryDirectory(prefix="edk2-cix-mirror-test-") as tmp:
         root = Path(tmp)
@@ -89,6 +101,30 @@ def main() -> None:
         expected_stage = dist / "firmware" / "O6" / "cix_flash_all.bin"
         if expected_stage.read_text(encoding="utf-8") != "staged":
             raise SystemExit("staged payload was not mirrored")
+
+        expected_archive.unlink()
+        run_mirror(
+            repo,
+            worktree,
+            dist,
+            build_target="buildbox-firmware-build",
+            artefact_mode="custom+fixes",
+        )
+        if expected_archive.exists():
+            raise SystemExit("ordinary firmware build recopied a stale archive")
+        fixes_raw_root = (
+            dist
+            / "build"
+            / "edk2-202602"
+            / "cix-1.2"
+            / "radxa-1.2.1"
+            / "unofficial-1.2.1"
+            / "custom+fixes"
+            / "O6"
+            / "RELEASE_GCC"
+        )
+        if (fixes_raw_root / "BuildOptions").read_text(encoding="utf-8") != "options":
+            raise SystemExit("custom+fixes raw output was not mirrored separately")
         raw_root = (
             dist
             / "build"

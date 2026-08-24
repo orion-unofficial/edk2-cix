@@ -42,6 +42,7 @@ RAW_OUTPUTS = (
 )
 
 SAFE_COMPONENT_RE = re.compile(r"[^A-Za-z0-9._+-]+")
+DIST_OUTPUT_TARGETS = {"build-all", "buildbox-targz", "buildbox-zip"}
 
 
 def parser() -> argparse.ArgumentParser:
@@ -205,7 +206,8 @@ def main() -> None:
     dist_root.mkdir(parents=True, exist_ok=True)
 
     copied = []
-    copied.extend(mirror_dist_outputs(worktree, dist_root))
+    if args.build_target in DIST_OUTPUT_TARGETS:
+        copied.extend(mirror_dist_outputs(worktree, dist_root))
     copied.extend(
         mirror_raw_outputs(
             worktree,
