@@ -474,6 +474,9 @@ def release_entry_required_refs(entry: dict[str, Any]) -> set[str]:
         overlay = step.get("overlay_paths", {})
         if overlay.get("ref"):
             refs.add(overlay["ref"])
+        release_metadata = step.get("release_metadata", {})
+        if release_metadata.get("ref"):
+            refs.add(release_metadata["ref"])
     source_ref = entry.get("source_ref")
     if source_ref and source_ref.startswith("source/unofficial/"):
         refs.add(source_ref)
@@ -1006,7 +1009,14 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
                 f"render: firmware source target with EDK2 {release}, Radxa {radxa}, "
                 "and unofficial source"
             )
-        render["steps"] = []
+        render["steps"] = [
+            {
+                "release_metadata": {
+                    "ref": radxa_source_ref(repo, radxa, "edk2-stable202208"),
+                    "release": radxa,
+                }
+            }
+        ]
         target = alias_target_for(branch, parts)
         entry["source_ref"] = unofficial_ref
         if ref_exists(repo, unofficial_ref):

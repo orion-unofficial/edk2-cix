@@ -1092,6 +1092,12 @@ branches. They may be stored as
 `source/cache/release/**` branches for convenience, but ordinary build and
 validation targets regenerate them when those branches are absent.
 
+Unofficial checkpoints retain the project source carried across releases. At
+render time, `VERSION` and `debian/changelog` are aligned with the immutable
+`source/vendor/radxa/<release>/edk2-stable202208` release source. This prevents
+an older checkpoint's package identity from being mislabeled as the selected
+Radxa release while preserving the checkpoint and its provenance unchanged.
+
 ## How do I test a floating upstream tip instead of the latest release?
 
 Integrate the upstream component using an explicit `REF` or a release-like name
