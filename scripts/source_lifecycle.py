@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from reconstruction_common import ReconstructionError, git
+from reconstruction_common import ReconstructionError, git, resolve_ref
 from source_policy import (
     NORMAL_FILE_MODES,
     OVERLAY_PREFIX,
@@ -69,7 +69,7 @@ def parse_ls_tree_record(record: str) -> TreeEntry:
 
 def tree_entries(repo: Path, ref: str, prefixes: Iterable[str]) -> dict[str, TreeEntry]:
     prefix_list = [prefix.rstrip("/") for prefix in prefixes]
-    result = git(repo, "ls-tree", "-rz", ref, "--", *prefix_list)
+    result = git(repo, "ls-tree", "-rz", resolve_ref(repo, ref), "--", *prefix_list)
     entries: dict[str, TreeEntry] = {}
     for record in result.stdout.split("\0"):
         if not record:
@@ -88,7 +88,7 @@ def overlay_entries(repo: Path, ref: str) -> dict[str, TreeEntry]:
 
 
 def tree_entry(repo: Path, ref: str, path: str) -> TreeEntry | None:
-    result = git(repo, "ls-tree", ref, "--", path)
+    result = git(repo, "ls-tree", resolve_ref(repo, ref), "--", path)
     if not result.stdout.strip():
         return None
     return parse_ls_tree_record(result.stdout.strip())
