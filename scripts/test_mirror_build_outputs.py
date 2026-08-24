@@ -74,10 +74,13 @@ def main() -> None:
         raise SystemExit("buildbox host mount root must live below FIRMWARE_CACHE_ROOT")
     if 'CCACHE_DIR="$$container_cache_root/ccache"' not in makefile:
         raise SystemExit("buildbox ccache must be addressed through the container mount")
-    mirror_line = next(
+    mirror_lines = [
         line for line in makefile.splitlines() if "--artefact-mode" in line
-    )
-    if "ENABLE_FIRMWARE_FIXES" not in mirror_line or "+fixes" not in mirror_line:
+    ]
+    if not mirror_lines or any(
+        "ENABLE_FIRMWARE_FIXES" not in line or "+fixes" not in line
+        for line in mirror_lines
+    ):
         raise SystemExit("raw build mirrors must keep custom and custom+fixes separate")
 
     with tempfile.TemporaryDirectory(prefix="edk2-cix-mirror-test-") as tmp:
