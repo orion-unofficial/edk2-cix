@@ -31,6 +31,14 @@ class ReplayO6ReleaseTests(unittest.TestCase):
         self.assertIn(
             '--baseline-file "$(DETERMINISTIC_REPLAY_ACPI_BASELINE)"', makefile
         )
+        self.assertIn(
+            "DETERMINISTIC_REPLAY_ACPI_BASELINE ?= "
+            "validation/replay-acpi-structures.json",
+            makefile,
+        )
+        self.assertNotIn(
+            "DETERMINISTIC_REPLAY_ACPI_BASELINE ?= $(REPO_ROOT)/", makefile
+        )
 
         structures = json.loads(
             (REPO_ROOT / "validation" / "replay-acpi-structures.json").read_text(
