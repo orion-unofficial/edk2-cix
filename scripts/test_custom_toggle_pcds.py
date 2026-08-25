@@ -169,6 +169,9 @@ class CustomTogglePcdsTest(unittest.TestCase):
             ("custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/PlatformSmbios/SmbiosType0.c", False),
             ("custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/PlatformSmbios/SmbiosType0.c", False),
             ("custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionDxe.c", False),
+            ("custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionDxe.inf", True),
+            ("custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionProtocolTest.c", True),
+            ("custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionProtocolTest.inf", True),
             ("custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/SmbiosType45.c", True),
             ("custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/UefiMemRecords.h", True),
         )
