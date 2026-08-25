@@ -67,6 +67,9 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn("--entrypoint find", runner)
         self.assertIn("-mindepth 1 -depth -delete", runner)
         self.assertIn("args=(\n    --rm", runner)
+        self.assertIn("--filter label=edk2-cix.buildbox.image", runner)
+        self.assertIn('"${act_workspace}/"*', runner)
+        self.assertIn('docker rm -f "$container_id"', runner)
         self.assertNotIn("--volume=${repo_root}/.worktrees", runner)
 
 

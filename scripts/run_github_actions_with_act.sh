@@ -41,7 +41,7 @@ act_workdir="$repo_root"
 act_workspace=""
 
 cleanup_act_workspace() {
-    local exit_status=$? cleanup_status=0
+    local exit_status=$? cleanup_status=0 container_id mount_source
 
     trap - EXIT
     if [[ -z "$act_workspace" || ! -d "$act_workspace" ]]; then
@@ -54,6 +54,22 @@ cleanup_act_workspace() {
             return 1
             ;;
     esac
+
+    while IFS= read -r container_id; do
+        [[ -n "$container_id" ]] || continue
+        while IFS= read -r mount_source; do
+            case "${mount_source}/" in
+                "${act_workspace}/"*)
+                    printf '[act-runner] Removing nested buildbox %s before isolated-workspace cleanup.\n' "$container_id" >&2
+                    if ! docker rm -f "$container_id" >/dev/null; then
+                        cleanup_status=1
+                        printf '[act-runner] Failed to remove nested buildbox %s.\n' "$container_id" >&2
+                    fi
+                    break
+                    ;;
+            esac
+        done < <(docker inspect --format '{{range .Mounts}}{{println .Source}}{{end}}' "$container_id" 2>/dev/null || true)
+    done < <(docker ps -aq --filter label=edk2-cix.buildbox.image 2>/dev/null || true)
 
     if ! rm -rf -- "$act_workspace"; then
         printf '[act-runner] Retrying isolated-workspace cleanup through Docker to remove container-owned files.\n' >&2
