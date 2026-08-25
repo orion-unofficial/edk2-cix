@@ -221,7 +221,7 @@ resolve_git_common_dir() {
 }
 
 prepare_container_mounts() {
-    local workspace_root_real git_objects git_path git_path_real alternate
+    local workspace_root_real git_common_dir_real git_objects git_path git_path_real alternate
     local -a extra_git_paths=()
 
     container_mount_args=()
@@ -236,6 +236,12 @@ prepare_container_mounts() {
     host_git_repo_usable=1
 
     workspace_root_real="$(cd "$host_workspace_root" && pwd -P)"
+    git_common_dir_real="$(resolve_git_common_dir 2>/dev/null || true)"
+    if [[ -n "$git_common_dir_real" && -d "$git_common_dir_real" ]]; then
+        git_common_dir_real="$(cd "$git_common_dir_real" && pwd -P)"
+    else
+        git_common_dir_real=""
+    fi
 
     while IFS= read -r git_path; do
         [[ -n "$git_path" ]] || continue
@@ -246,6 +252,13 @@ prepare_container_mounts() {
                 continue
                 ;;
         esac
+        if [[ -n "$git_common_dir_real" && "$git_path_real" != "$git_common_dir_real" ]]; then
+            case "${git_path_real}/" in
+                "${git_common_dir_real}/"*)
+                    continue
+                    ;;
+            esac
+        fi
         extra_git_paths+=("$git_path")
     done < <(
         git -C "$repo_root" rev-parse --absolute-git-dir 2>/dev/null || true
@@ -266,6 +279,13 @@ prepare_container_mounts() {
                     continue
                     ;;
             esac
+            if [[ -n "$git_common_dir_real" ]]; then
+                case "${alternate}/" in
+                    "${git_common_dir_real}/"*)
+                        continue
+                        ;;
+                esac
+            fi
             extra_git_paths+=("$alternate")
         done <"${git_objects}/info/alternates"
     fi
