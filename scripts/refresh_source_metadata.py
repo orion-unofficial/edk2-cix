@@ -286,6 +286,21 @@ def refresh_source_target_cache_manifest(
     return data, changes, skipped
 
 
+def persistent_cache_ref_changes(repo: Path, manifest: dict[str, Any]) -> list[Change]:
+    changes: list[Change] = []
+    for item in manifest.get("refs", []):
+        expected = item.get("tree_id")
+        if not isinstance(expected, str) or not expected:
+            continue
+        for ref in item_refs(item):
+            if not ref_exists(repo, ref):
+                continue
+            actual = tree_id(repo, ref)
+            if actual != expected:
+                changes.append(Change(f"refs/heads/{ref}", "tree_id", actual, expected))
+    return changes
+
+
 def tag_oid(repo: Path, tag: str) -> str | None:
     result = git(repo, "rev-parse", "--verify", "--quiet", f"refs/tags/{tag}^{{commit}}", check=False)
     if result.returncode != 0:
@@ -352,10 +367,12 @@ def main() -> None:
     manifests = dict(source_manifests)
     manifests[SOURCE_TARGET_CACHE_MANIFEST] = target_manifest
     tag_changes = release_tag_changes(repo) if update_tags else []
+    persistent_cache_changes = persistent_cache_ref_changes(repo, target_manifest)
     all_changes = source_changes + target_changes + tag_changes
 
     print_changes("source ref manifest metadata", source_changes)
     print_changes("source-target cache metadata", target_changes)
+    print_changes("persistent source-target cache refs", persistent_cache_changes)
     if update_tags:
         print_changes("unofficial release tags", tag_changes)
     if skipped:
@@ -371,17 +388,27 @@ def main() -> None:
         write_refreshed_manifests(repo, manifests, source_changes + target_changes)
         if update_tags:
             write_release_tags(repo, tag_changes)
+        if persistent_cache_changes:
+            print(
+                "rebuild each reported source/cache ref with "
+                "make render-release-branch PERSIST=1 REBUILD=1 FORCE=1 RELEASE=<ref>"
+            )
         print(f"wrote refreshed source metadata in {format_duration(time.monotonic() - started)}")
         return
 
-    if all_changes and check:
+    if (all_changes or persistent_cache_changes) and check:
         raise ReconstructionError(
-            "source metadata is stale; run make refresh-source-metadata WRITE=1 "
-            "after reviewing the reported updates"
+            "source metadata is stale or persistent source-target cache refs are stale; "
+            "refresh metadata and rebuild the reported source/cache refs after reviewing the updates"
         )
 
     if all_changes:
         print("dry run; set WRITE=1 to update source metadata")
+    elif persistent_cache_changes:
+        print(
+            "rebuild each reported source/cache ref with "
+            "make render-release-branch PERSIST=1 REBUILD=1 FORCE=1 RELEASE=<ref>"
+        )
     else:
         print(f"source metadata already current in {format_duration(time.monotonic() - started)}")
 
