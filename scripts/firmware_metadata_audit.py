@@ -10,7 +10,12 @@ import re
 
 MIN_TEXT_LENGTH = 4
 BASE_BANNED_TEXT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    (".pdb", re.compile(r"\.pdb\b", re.IGNORECASE)),
+    # Require a plausible basename. A bare four-byte ``.PDB`` sequence occurs
+    # naturally in signed/compressed firmware and is not a debug-file path.
+    (
+        ".pdb",
+        re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.-]*\.pdb\b", re.IGNORECASE),
+    ),
     ("/Users/", re.compile(r"/Users/", re.IGNORECASE)),
     ("/workspaces/", re.compile(r"/workspaces/", re.IGNORECASE)),
     (
