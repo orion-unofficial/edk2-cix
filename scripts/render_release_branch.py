@@ -518,7 +518,13 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_
         try:
             steps = render.get("steps")
             if steps:
-                for step in steps:
+                for step_index, step in enumerate(steps, start=1):
+                    print(
+                        f"[render] Applying {branch} step {step_index}/{len(steps)}: "
+                        f"{next(iter(step))}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
                     if "delta" in step:
                         apply_patch_artefact(repo, worktree, step["delta"], verbose)
                     elif "component" in step:
@@ -668,6 +674,7 @@ def main() -> None:
             f"resolved tree for {branch} does not match manifest: {tree_id(repo, target_ref)} != {expected_tree}"
         )
 
+    print("[render] Validating immutable source refs", file=sys.stderr, flush=True)
     check_immutable_refs(
         repo,
         allow_generated_refresh=allow_manifest_refresh,

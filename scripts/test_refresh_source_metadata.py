@@ -165,6 +165,7 @@ def test_dry_run_does_not_modify_metadata_or_tags() -> None:
         before_tag = tag_commit(repo)
         result = run_refresh(repo, RENDER_GENERATED="1", UPDATE_RELEASE_TAGS="1")
         require(result.returncode == 0, result.stderr)
+        require("[metadata] Rendering generated source target:" in result.stdout, result.stdout)
         require("dry run; set WRITE=1" in result.stdout, result.stdout)
         require((repo / "config/refs-source-target-cache.json").read_text(encoding="utf-8") == before_config, "dry run rewrote config")
         require(tag_commit(repo) == before_tag, "dry run moved release tag")

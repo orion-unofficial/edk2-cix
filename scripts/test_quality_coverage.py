@@ -9,9 +9,11 @@ import io
 from pathlib import Path
 import subprocess
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import quality_checks
+import reconstruction_common
+from reconstruction_common import selected_unofficial_current_ref
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -55,6 +57,25 @@ class QualityCoverageTests(unittest.TestCase):
         self.assertIn('--volume "$git_common:$git_common:ro"', runner)
         self.assertIn("--progress=plain", runner)
 
+    def test_buildbox_mounts_shared_git_objects_read_only(self) -> None:
+        source_ref = selected_unofficial_current_ref(SCRIPT_DIR.parent)
+        runner = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(SCRIPT_DIR.parent),
+                "show",
+                f"{source_ref}:scripts/run_in_buildbox.sh",
+            ],
+            check=True,
+            stdout=subprocess.PIPE,
+            text=True,
+        ).stdout
+
+        self.assertIn('git_objects="$(git -C "$repo_root" rev-parse', runner)
+        self.assertIn('${git_objects}/info/alternates', runner)
+        self.assertIn('record_bind_mount "$git_path" "$git_path" ro', runner)
+
     def test_quality_command_reports_a_heartbeat(self) -> None:
         with (
             patch.object(quality_checks.subprocess, "Popen") as popen,
@@ -69,6 +90,31 @@ class QualityCoverageTests(unittest.TestCase):
             quality_checks.run(["slow-command"])
 
             self.assertIn("[quality] Command still running (30.0 s)", stderr.getvalue())
+
+    def test_source_tool_wrapper_reports_a_heartbeat(self) -> None:
+        class ImmediateThread:
+            def __init__(self, *, target, daemon):
+                self.target = target
+
+            def start(self):
+                self.target()
+
+            def join(self):
+                pass
+
+        event = MagicMock()
+        event.wait.side_effect = (False, True)
+        with (
+            patch.object(reconstruction_common.threading, "Event", return_value=event),
+            patch.object(reconstruction_common.threading, "Thread", ImmediateThread),
+            patch.object(reconstruction_common.time, "monotonic", side_effect=(10.0, 40.0)),
+            io.StringIO() as diagnostics,
+            redirect_stderr(diagnostics),
+        ):
+            reconstruction_common.main_wrapper(lambda: None)
+
+            self.assertIn("[progress]", diagnostics.getvalue())
+            self.assertIn("still running (30.0 s)", diagnostics.getvalue())
 
     def test_script_style_tests_are_exposed_to_unittest_discovery(self) -> None:
         missing: list[str] = []

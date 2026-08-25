@@ -9,6 +9,8 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import traceback
 from copy import deepcopy
 from pathlib import Path
@@ -22,6 +24,7 @@ class ReconstructionError(RuntimeError):
 _REF_MANIFEST_RECORD_CACHE: dict[tuple[str, str], list[dict[str, Any]]] = {}
 _RENDERED_REF_RECORD_CACHE: dict[str, dict[str, dict[str, Any]]] = {}
 _BASE_TREE_RECORD_CACHE: dict[str, dict[str, dict[str, Any]]] = {}
+_REF_VALUE_CACHE: dict[str, dict[str, tuple[str, str]]] = {}
 _RESOLVE_REF_CACHE: dict[tuple[str, str], str | None] = {}
 _TREE_ID_CACHE: dict[tuple[str, str], str] = {}
 
@@ -30,6 +33,7 @@ def clear_metadata_caches() -> None:
     _REF_MANIFEST_RECORD_CACHE.clear()
     _RENDERED_REF_RECORD_CACHE.clear()
     _BASE_TREE_RECORD_CACHE.clear()
+    _REF_VALUE_CACHE.clear()
     _RESOLVE_REF_CACHE.clear()
     _TREE_ID_CACHE.clear()
 
@@ -376,6 +380,23 @@ def source_ref_candidates(ref: str) -> list[str]:
     return [f"refs/heads/{ref}", ref, f"refs/remotes/origin/{ref}"]
 
 
+def available_ref_values(repo: Path) -> dict[str, tuple[str, str]]:
+    """Return peeled commit/tree IDs for every local ref using one Git query."""
+
+    repo_key = str(repo.resolve())
+    if repo_key not in _REF_VALUE_CACHE:
+        _REF_VALUE_CACHE[repo_key] = {
+            ref: (peeled_oid or oid, peeled_tree or tree)
+            for line in git(
+                repo,
+                "for-each-ref",
+                "--format=%(refname)%09%(objectname)%09%(tree)%09%(*objectname)%09%(*tree)",
+            ).stdout.splitlines()
+            for ref, oid, tree, peeled_oid, peeled_tree in [line.split("\t", 4)]
+        }
+    return _REF_VALUE_CACHE[repo_key]
+
+
 def resolve_ref(repo: Path, ref: str, check: bool = True) -> str | None:
     """Resolve a ref, accepting origin/source/** when local source heads are absent."""
 
@@ -385,7 +406,18 @@ def resolve_ref(repo: Path, ref: str, check: bool = True) -> str | None:
         if resolved or not check:
             return resolved
         raise ReconstructionError(f"ref is unavailable locally: {ref}")
-    for candidate in source_ref_candidates(ref):
+    candidates = source_ref_candidates(ref)
+    if ref.startswith(("source/", "refs/")):
+        available_refs = available_ref_values(repo)
+        resolved = next(
+            (candidate for candidate in candidates if candidate in available_refs),
+            None,
+        )
+        _RESOLVE_REF_CACHE[key] = resolved
+        if resolved or not check:
+            return resolved
+        raise ReconstructionError(f"ref is unavailable locally: {ref}")
+    for candidate in candidates:
         result = git(
             repo,
             "rev-parse",
@@ -1243,6 +1275,9 @@ def ref_exists(repo: Path, ref: str) -> bool:
 
 def rev_parse(repo: Path, ref: str) -> str:
     resolved = resolve_ref(repo, ref)
+    value = available_ref_values(repo).get(resolved)
+    if value:
+        return value[0]
     return git(repo, "rev-parse", f"{resolved}^{{commit}}").stdout.strip()
 
 
@@ -1251,7 +1286,12 @@ def tree_id(repo: Path, ref: str) -> str:
     if key in _TREE_ID_CACHE:
         return _TREE_ID_CACHE[key]
     resolved = resolve_ref(repo, ref)
-    value = git(repo, "rev-parse", f"{resolved}^{{tree}}").stdout.strip()
+    ref_value = available_ref_values(repo).get(resolved)
+    value = (
+        ref_value[1]
+        if ref_value
+        else git(repo, "rev-parse", f"{resolved}^{{tree}}").stdout.strip()
+    )
     _TREE_ID_CACHE[key] = value
     return value
 
@@ -1382,6 +1422,8 @@ def update_ref(repo: Path, ref: str, commit: str, old: str | None = None) -> Non
     if old:
         cmd.append(old)
     git(repo, *cmd)
+    _REF_VALUE_CACHE.pop(str(repo.resolve()), None)
+    _RESOLVE_REF_CACHE.clear()
 
 
 def mktree_from_entries(repo: Path, entries: list[tuple[str, str, str, str]]) -> str:
@@ -1721,15 +1763,34 @@ def check_immutable_refs(
     problems: list[str] = []
     records = immutable_records(repo)
     recorded_refs = {record.get("ref") for record in records if record.get("ref")}
+    checked_out = {
+        data.get("branch"): Path(path)
+        for path, data in worktree_paths(repo).items()
+        if data.get("branch")
+    }
+    relevant_records = [
+        record
+        for record in records
+        if record.get("ref") and (not wanted or record.get("ref") in wanted)
+    ]
+    available_refs = available_ref_values(repo)
     if not allow_manifest_update and not wanted:
         for ref in immutable_namespace_refs(repo):
             if ref not in recorded_refs:
                 problems.append(f"{ref}: immutable namespace ref is not recorded in config/refs-*.json")
-    for record in records:
+    for record_index, record in enumerate(relevant_records, start=1):
         ref = record.get("ref")
-        if not ref or (wanted and ref not in wanted):
-            continue
-        if not ref_exists(repo, ref):
+        if record_index == 1 or record_index % 25 == 0 or record_index == len(relevant_records):
+            print(
+                f"[refs] Checking immutable ref {record_index}/{len(relevant_records)}: {ref}",
+                file=sys.stderr,
+                flush=True,
+            )
+        resolved = next(
+            (candidate for candidate in source_ref_candidates(ref) if candidate in available_refs),
+            None,
+        )
+        if resolved is None:
             # Generated refs may be omitted by a pruned clone; any copy that is
             # present is still checked below against its recorded tree.
             if generated_ref_record(record):
@@ -1740,8 +1801,7 @@ def check_immutable_refs(
             continue
         expected_oid = record.get("object_id")
         expected_tree = record.get("tree_id")
-        actual_oid = rev_parse(repo, ref)
-        actual_tree = tree_id(repo, ref)
+        actual_oid, actual_tree = available_refs[resolved]
         is_generated = generated_ref_record(record)
         if expected_oid and actual_oid != expected_oid and not allow_manifest_update and not is_generated:
             problems.append(f"{ref}: object moved from {expected_oid} to {actual_oid}")
@@ -1752,7 +1812,7 @@ def check_immutable_refs(
             and not (allow_generated_refresh and is_generated)
         ):
             problems.append(f"{ref}: tree moved from {expected_tree} to {actual_tree}")
-        wt = checked_out_worktree(repo, ref)
+        wt = checked_out.get(branch_to_ref(ref))
         if wt and is_dirty_worktree(wt):
             problems.append(f"{ref}: checked out in dirty worktree {wt}")
     if problems:
@@ -1766,14 +1826,32 @@ def die(message: str, code: int = 2) -> None:
 
 
 def main_wrapper(fn) -> None:
+    started = time.monotonic()
+    finished = threading.Event()
+
+    def report_progress() -> None:
+        while not finished.wait(30):
+            print(
+                f"[progress] {Path(sys.argv[0]).name} still running "
+                f"({format_duration(time.monotonic() - started)})",
+                file=sys.stderr,
+                flush=True,
+            )
+
+    heartbeat = threading.Thread(target=report_progress, daemon=True)
+    heartbeat.start()
     try:
-        fn()
-    except ReconstructionError as exc:
-        die(str(exc), 2)
-    except KeyboardInterrupt:
-        die("interrupted by user", 130)
-    except Exception as exc:
-        if truthy(os.environ.get("DEBUG")):
-            traceback.print_exc()
-            raise SystemExit(1)
-        die(f"internal error: {exc}\nRe-run with DEBUG=1 to show the Python traceback.", 1)
+        try:
+            fn()
+        except ReconstructionError as exc:
+            die(str(exc), 2)
+        except KeyboardInterrupt:
+            die("interrupted by user", 130)
+        except Exception as exc:
+            if truthy(os.environ.get("DEBUG")):
+                traceback.print_exc()
+                raise SystemExit(1)
+            die(f"internal error: {exc}\nRe-run with DEBUG=1 to show the Python traceback.", 1)
+    finally:
+        finished.set()
+        heartbeat.join()
