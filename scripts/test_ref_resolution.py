@@ -16,7 +16,7 @@ def test_unofficial_release_tag_short_name_resolves() -> None:
         repo = Path(raw)
         git(repo, "init", "-q")
         git(repo, "config", "user.name", "Test User")
-        git(repo, "config", "user.email", "test@example.invalid")
+        git(repo, "config", "user.email", "ref-resolution-test")
         write_file(repo, "fixture", "release\n")
         commit_all(repo, "fixture")
         tag = "source/unofficial/edk2/stable-202608"
@@ -30,7 +30,7 @@ def test_source_branch_resolution_does_not_fall_back_to_arbitrary_tag() -> None:
         repo = Path(raw)
         git(repo, "init", "-q")
         git(repo, "config", "user.name", "Test User")
-        git(repo, "config", "user.email", "test@example.invalid")
+        git(repo, "config", "user.email", "ref-resolution-test")
         write_file(repo, "fixture", "release\n")
         commit_all(repo, "fixture")
         tag = "source/base/edk2/edk2-stable202608"
