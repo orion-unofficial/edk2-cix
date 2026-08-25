@@ -59,18 +59,11 @@ class QualityCoverageTests(unittest.TestCase):
 
     def test_buildbox_mounts_shared_git_objects_read_only(self) -> None:
         source_ref = selected_unofficial_current_ref(SCRIPT_DIR.parent)
-        runner = subprocess.run(
-            [
-                "git",
-                "-C",
-                str(SCRIPT_DIR.parent),
-                "show",
-                f"{source_ref}:scripts/run_in_buildbox.sh",
-            ],
-            check=True,
-            stdout=subprocess.PIPE,
-            text=True,
-        ).stdout
+        runner = reconstruction_common.show_file(
+            SCRIPT_DIR.parent,
+            source_ref,
+            "scripts/run_in_buildbox.sh",
+        ).decode()
 
         self.assertIn('git_objects="$(git -C "$repo_root" rev-parse', runner)
         self.assertIn('${git_objects}/info/alternates', runner)
