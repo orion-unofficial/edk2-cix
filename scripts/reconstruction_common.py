@@ -377,6 +377,8 @@ def source_ref_candidates(ref: str) -> list[str]:
         return [ref]
     if not ref.startswith("source/"):
         return [ref]
+    if ref.startswith("source/unofficial/edk2/stable-"):
+        return [f"refs/tags/{ref}"]
     return [f"refs/heads/{ref}", ref, f"refs/remotes/origin/{ref}"]
 
 
