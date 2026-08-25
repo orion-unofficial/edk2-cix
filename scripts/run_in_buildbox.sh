@@ -216,7 +216,7 @@ resolve_git_common_dir() {
 }
 
 prepare_container_mounts() {
-    local workspace_root_real git_path git_path_real
+    local workspace_root_real git_objects git_path git_path_real alternate
     local -a extra_git_paths=()
 
     container_mount_args=()
@@ -247,8 +247,26 @@ prepare_container_mounts() {
         resolve_git_common_dir 2>/dev/null || true
     )
 
+    git_objects="$(git -C "$repo_root" rev-parse --path-format=absolute --git-path objects 2>/dev/null || true)"
+    if [[ -f "${git_objects}/info/alternates" ]]; then
+        while IFS= read -r alternate; do
+            [[ -n "$alternate" ]] || continue
+            if [[ "$alternate" != /* ]]; then
+                alternate="${git_objects}/${alternate}"
+            fi
+            [[ -d "$alternate" ]] || continue
+            alternate="$(cd -- "$alternate" && pwd -P)"
+            case "${alternate}/" in
+                "${workspace_root_real}/"*)
+                    continue
+                    ;;
+            esac
+            extra_git_paths+=("$alternate")
+        done <"${git_objects}/info/alternates"
+    fi
+
     if (( ${#extra_git_paths[@]} > 0 )); then
-        status "Exposing external git metadata inside the buildbox so source metadata can resolve"
+        status "Exposing external git metadata and objects inside the buildbox so source metadata can resolve"
     fi
 
     for git_path in "${extra_git_paths[@]}"; do
