@@ -188,6 +188,28 @@ def test_full_render_does_not_trust_existing_generated_cache_ref() -> None:
         require(rendered_tree != wrong_cache_tree, "full render reused an existing generated cache ref")
 
         current = run_refresh(repo, CHECK="1", RENDER_GENERATED="1")
+        require(current.returncode != 0, "stale persistent cache ref unexpectedly passed")
+        require("persistent source-target cache refs" in current.stdout, current.stdout)
+
+        rebuilt = run(
+            [
+                "python3",
+                "scripts/render_release_branch.py",
+                "--release",
+                cache_ref,
+                "--persist",
+                "1",
+                "--rebuild",
+                "1",
+                "--force",
+                "1",
+            ],
+            repo,
+            check=False,
+        )
+        require(rebuilt.returncode == 0, rebuilt.stderr + rebuilt.stdout)
+
+        current = run_refresh(repo, CHECK="1", RENDER_GENERATED="1")
         require(current.returncode == 0, current.stderr + current.stdout)
     finally:
         shutil.rmtree(repo)
