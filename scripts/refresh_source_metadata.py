@@ -213,8 +213,7 @@ def computed_source_target_tree(
             return direct, "source-ref"
 
     if render_generated:
-        if verbose:
-            print(f"rendering generated source target for metadata refresh: {ref}")
+        print(f"[metadata] Rendering generated source target: {ref}", flush=True)
         commit = render_from_plan(repo, ref, entry, verbose, allow_manifest_refresh=True)
         return tree_id(repo, commit), "rendered"
 
