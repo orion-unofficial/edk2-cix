@@ -77,6 +77,14 @@ class FirmwareMetadataAuditTests(unittest.TestCase):
         self.assertIn("Windows drive path", findings[0].reasons)
         self.assertIn(".pdb", findings[0].reasons)
 
+    def test_bare_pdb_binary_noise_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir_text:
+            payload = Path(tempdir_text) / "bootloader3.img"
+            payload.write_bytes(b"\x00.PDB\x00")
+            findings = audit_targets([(payload.name, payload)])
+
+        self.assertEqual(findings, [])
+
     def test_shell_help_example_is_ignored(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir_text:
             payload = Path(tempdir_text) / "Shell.efi"
