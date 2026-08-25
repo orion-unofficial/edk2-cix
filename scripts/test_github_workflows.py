@@ -57,6 +57,18 @@ class GitHubWorkflowTests(unittest.TestCase):
         )
         self.assertIn('docker build --progress plain "${build_args[@]}"', runner)
 
+    def test_local_act_removes_job_containers_and_container_owned_snapshots(self) -> None:
+        runner = (REPO_ROOT / "scripts" / "run_github_actions_with_act.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("cleanup_act_workspace()", runner)
+        self.assertIn('"${repo_root}/.cache/edk2-cix/act-workspaces/run."*', runner)
+        self.assertIn("--entrypoint find", runner)
+        self.assertIn("-mindepth 1 -depth -delete", runner)
+        self.assertIn("args=(\n    --rm", runner)
+        self.assertNotIn("--volume=${repo_root}/.worktrees", runner)
+
 
 if __name__ == "__main__":
     unittest.main()

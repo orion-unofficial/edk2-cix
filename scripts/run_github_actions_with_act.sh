@@ -39,6 +39,44 @@ default_container_arch="$(resolve_container_arch "${ACT_CONTAINER_ARCH:-${EDK2_C
 git_common_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
 act_workdir="$repo_root"
 act_workspace=""
+
+cleanup_act_workspace() {
+    local exit_status=$? cleanup_status=0
+
+    trap - EXIT
+    if [[ -z "$act_workspace" || ! -d "$act_workspace" ]]; then
+        return "$exit_status"
+    fi
+    case "$act_workspace" in
+        "${repo_root}/.cache/edk2-cix/act-workspaces/run."*) ;;
+        *)
+            printf '[act-runner] Refusing to remove unexpected act workspace: %s\n' "$act_workspace" >&2
+            return 1
+            ;;
+    esac
+
+    if ! rm -rf -- "$act_workspace"; then
+        printf '[act-runner] Retrying isolated-workspace cleanup through Docker to remove container-owned files.\n' >&2
+        if docker run --rm \
+            --platform "$default_container_arch" \
+            --volume "${act_workspace}:${act_workspace}" \
+            --entrypoint find \
+            "$default_runner_image" \
+            "$act_workspace" -mindepth 1 -depth -delete && \
+            rmdir -- "$act_workspace"; then
+            :
+        else
+            cleanup_status=1
+            printf '[act-runner] Cleanup failed; isolated workspace remains at %s\n' "$act_workspace" >&2
+        fi
+    fi
+
+    if (( exit_status != 0 )); then
+        return "$exit_status"
+    fi
+    return "$cleanup_status"
+}
+
 if [[ "$git_common_dir" != "$repo_root"/* ]]; then
     if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=normal)" ]]; then
         printf '[act-runner] Linked-worktree runs require a clean checkout so the isolated CI snapshot cannot omit local changes.\n' >&2
@@ -46,7 +84,7 @@ if [[ "$git_common_dir" != "$repo_root"/* ]]; then
     fi
     mkdir -p "${repo_root}/.cache/edk2-cix/act-workspaces"
     act_workspace="$(mktemp -d "${repo_root}/.cache/edk2-cix/act-workspaces/run.XXXXXX")"
-    trap 'rm -rf -- "$act_workspace"' EXIT
+    trap cleanup_act_workspace EXIT
     git clone --quiet --shared --no-checkout "$git_common_dir" "$act_workspace"
     current_branch="$(git -C "$repo_root" symbolic-ref --quiet --short HEAD || printf '%s' act-local)"
     git -C "$act_workspace" checkout --quiet --force -B "$current_branch" "$(git -C "$repo_root" rev-parse HEAD)"
@@ -123,6 +161,7 @@ export XDG_CACHE_HOME="$act_cache_home"
 act_bin="$("$act_bootstrap")"
 
 args=(
+    --rm
     --container-architecture "$default_container_arch"
     -P "ubuntu-latest=$default_runner_image"
 )
