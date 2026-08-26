@@ -1,11 +1,12 @@
 SHELL := /bin/sh
-.DEFAULT_GOAL := help
+.DEFAULT_GOAL := firmware
 
 PYTHON ?= python3
 PYTHONPYCACHEPREFIX ?= $(CURDIR)/.cache/edk2-cix/pycache
 export PYTHONPYCACHEPREFIX
 V ?= 0
 DEBUG ?= 0
+PROFILE ?=
 RELEASE ?=
 PERSIST ?= 0
 WORKTREE ?=
@@ -61,7 +62,7 @@ REPLAY_DOWNLOAD ?= 1
 REPLAY_INPUT ?=
 REPLAY_BUILD_OPTIONS ?=
 REPLAY_BUILD_DATE ?=
-REPLAY_VERSION ?= 1.2.1
+REPLAY_VERSION ?= 1.3.1
 DOCS_BUILD_MODE ?= auto
 CONFLICT_PATHS ?=
 CONFLICT_EDITOR ?=
@@ -127,7 +128,7 @@ define PRINT_HELP_SHELL_PROLOGUE
 		}
 endef
 
-.PHONY: help help-vars help-dev help-dev-source help-dev-verify help-dev-maintenance help-source-targets build build-all deterministic-replay install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
+.PHONY: firmware help help-vars help-dev help-dev-source help-dev-verify help-dev-maintenance help-source-targets build build-all deterministic-replay install zip targz clean realclean prune buildbox-firmware-build buildbox-firmware-stage docs-build docs-workflow-local \
 	test test-local lint \
 	extract-vendor-delta render-release-branch uplift-edk2-release uplift-radxa-release select-unofficial-line integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
 	propagate-release-branches promote-unofficial-compatibility promote-unofficial-release update-release-tags \
@@ -143,6 +144,8 @@ help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	printf '%s\n' 'edk2-cix firmware build targets'; \
 	print_section 'Build Targets'; \
+	print_help_line 'make' 'Rebuild and byte-compare the latest published Radxa firmware. Currently: Radxa 1.3.1 for O6.'; \
+	print_help_line 'make PROFILE=latest' 'Build from the latest maintained EDK2/Radxa source stack. Opinionated fixes remain disabled unless ENABLE_FIRMWARE_FIXES=true is also set.'; \
 	print_help_line 'make build' 'Build one firmware image in buildbox for the selected board and source target.'; \
 	print_help_line 'make deterministic-replay' 'Render the replay-capable vendor source target and run byte-identical replay for the selected board.'; \
 	print_help_line 'make install' 'Build one firmware payload in buildbox, safety-check it on the local host, then install it for the selected board and source target.'; \
@@ -168,15 +171,16 @@ help:
 help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Common Build Variables'; \
-	print_help_line 'RELEASE=<source-target>' "Select a configured firmware source target.\nUse names from 'make help-source-targets' or a full source/cache/release/... branch name.\nSource: latest available EDK2, CIX, Radxa, and unofficial refs."; \
+	print_help_line 'PROFILE=upstream|latest' 'Select the high-level behavior of a targetless make invocation. upstream performs an exact replay of the latest published Radxa release; latest builds the latest maintained source stack with firmware fixes disabled by default.\nDefault: upstream.'; \
+	print_help_line 'RELEASE=<source-target>' "Select a configured firmware source target.\nUse names from 'make help-source-targets' or a full source/cache/release/... branch name.\nSource: latest available EDK2, CIX early-boot, Radxa, and unofficial refs."; \
 	print_help_note 'See make help-source-targets for the available and default source targets.'; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
 	print_help_line 'FIRMWARE_PRODUCT=<name>' 'Set the output product name.\nDefault: orion-o6 for O6 and orion-o6n for O6N.'; \
 	print_help_line 'FIRMWARE_TARGET=RELEASE|DEBUG' 'Select the firmware build target.\nDefault: RELEASE.'; \
 	print_help_line 'FIRMWARE_DISTRO=trixie|bookworm' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected source-target policy default.'; \
-	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds. See README.md, "How do I build the latest firmware?", for the difference.\nDefault: custom.'; \
+	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds. See README.md, "What does a bare make build?", for the difference.\nDefault for explicit source-build targets: custom.'; \
 	print_section 'Custom Build Gates'; \
-	print_help_line 'CIX_RELEASE=v1.2' 'Use public CIX BIOS V1.2 bootloader1 payload with TF-A and OP-TEE sources for bootloader2 when the selected rendered source target supports it.\nDefault: unset.'; \
+	print_help_line 'CIX_RELEASE=v1.2' 'Use the public CIX v1.2 early-boot replacement: a recorded bootloader1 payload plus TF-A and OP-TEE sources for bootloader2.\nDefault: unset.'; \
 	print_help_line 'ENABLE_FIRMWARE_FIXES=true|false' 'Enable opt-in custom firmware fixes for O6/O6N. This changes firmware metadata and setup behavior; see FIXES.md in the rendered source target for details.\nDefault: false.'; \
 	print_help_line 'ENABLE_CORE_ORDER=cix|conventional|performance' 'Choose how custom firmware numbers CPUs exposed to the OS. cix keeps vendor order; conventional puts A520 cores before A720 cores; performance puts A720 cores first.\nDefault: unset, which behaves like cix.\nRequires ENABLE_FIRMWARE_FIXES=true for conventional and performance.'; \
 	print_help_line 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Enable the experimental Radxa settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
@@ -197,7 +201,7 @@ help-vars:
 	print_help_line 'REPLAY_DOWNLOAD=0|1' 'When REPLAY_INPUT is unset, download the REPLAY_VERSION package before replay. Set to 0 to reuse an existing rendered replay cache instead.\nDefault: 1.'; \
 	print_help_line 'REPLAY_BUILD_OPTIONS=<path>' 'BuildOptions file used when REPLAY_INPUT points directly at cix_flash_all.bin.\nDefault: unset.'; \
 	print_help_line 'REPLAY_BUILD_DATE=<iso8601>' 'Fallback build timestamp when replay inputs do not include BuildOptions.\nDefault: unset.'; \
-	print_help_line 'REPLAY_VERSION=<version>' 'Release tag, exact upstream Radxa source version, and replay validation profile passed to the rendered firmware tree.\nDefault: 1.2.1.'; \
+	print_help_line 'REPLAY_VERSION=<version>' 'Release tag, exact upstream Radxa source version, and replay validation profile passed to the rendered firmware tree.\nDefault: 1.3.1.'; \
 	print_section 'Install Variables'; \
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
 	print_help_line 'FORCE=0|1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \
@@ -285,7 +289,7 @@ help-dev-source:
 	print_help_variable 'RESOLVED_REF_STAGE=auto|source|overlay|final' 'For promote-unofficial-release. Resume stage represented by RESOLVED_REF; use final only for a reviewed complete tree.\nDefault: auto.'; \
 	print_help_variable 'MAKE_DEFAULT=0|1' 'For uplift-radxa-release. Select the updated line as the default source target.'; \
 	print_help_note 'After validating an existing line, use make select-unofficial-line LINE=<major.minor> [WRITE=1] to promote it without replaying the uplift.'; \
-	print_help_variable 'CIX_RELEASE=<release>' 'For uplift-edk2-release. CIX release to use in the rendered source target.\nDefault: config/policies.json current_cix_release.'; \
+	print_help_variable 'CIX_RELEASE=<release>' 'For uplift-edk2-release. CIX early-boot bundle release to use in the rendered source target.\nDefault: config/policies.json current_cix_release.'; \
 	print_help_variable 'RADXA_SOURCE=auto|vendor|port' 'Select whether a Radxa integration is a vendor-published source tree or this project'\''s port to an EDK2 base.\nDefault: auto.'; \
 	print_help_variable 'RADXA_REF=<ref>' 'For uplift-edk2-release. Resolved Radxa source-port commit from a conflict handoff.'; \
 	print_help_variable 'UNOFFICIAL_REF=<ref>' 'For EDK2 or Radxa uplift. Resolved Unofficial source-port commit from a conflict handoff.'; \
@@ -437,6 +441,49 @@ help-dev-maintenance:
 help-source-targets:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-source-targets
 
+firmware:
+	@set -eu; \
+	printf '[profile] Resolving firmware profile: %s\n' "$(or $(PROFILE),<default>)" >&2; \
+	if [ "$(FIRST_OUTPUT_PROBE)" = "1" ]; then exit 0; fi; \
+	eval "$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/build_profiles.py \
+		--profile "$(PROFILE)" \
+		--release "$(RELEASE)" \
+		--artefact-mode "$(if $(filter file default undefined,$(origin ARTEFACT_MODE)),,$(ARTEFACT_MODE))" \
+		--firmware-target "$(FIRMWARE_TARGET)" \
+		--enable-firmware-fixes "$(ENABLE_FIRMWARE_FIXES)" \
+		--cix-release "$(CIX_RELEASE)" \
+		--custom-option "ENABLE_CORE_ORDER=$(ENABLE_CORE_ORDER)" \
+		--custom-option "ENABLE_EXPERIMENTAL_UEFI_SETTINGS=$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" \
+		--custom-option "DEBUG_ON_UART3=$(DEBUG_ON_UART3)" \
+		--custom-option "UART3_ENABLE=$(UART3_ENABLE)" \
+		--custom-option "DEBUG_VERBOSE=$(DEBUG_VERBOSE)" \
+		--custom-option "DEBUG_PRINT_ERROR_LEVEL=$(DEBUG_PRINT_ERROR_LEVEL)")"; \
+	if [ "$$PROFILE_BUILD_KIND" = "deterministic-replay" ]; then \
+		printf '%s\n' \
+			"[profile] Exact upstream replay: Radxa $$PROFILE_REPLAY_VERSION; source $$PROFILE_RELEASE; firmware fixes disabled." \
+			'[profile] The published package will be downloaded when it is not already cached and the rebuilt payload will be compared byte for byte.' \
+			'[profile] To build the latest maintained source stack instead, run: make PROFILE=latest' >&2; \
+		$(MAKE) --no-print-directory deterministic-replay \
+			REPLAY_VERSION="$$PROFILE_REPLAY_VERSION" \
+			REPLAY_SOURCE_TARGET="$$PROFILE_RELEASE" \
+			FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
+			FIRMWARE_TARGET=RELEASE; \
+		printf '[profile] Byte-identical Radxa %s upstream replay succeeded for %s.\n' \
+			"$$PROFILE_REPLAY_VERSION" "$(FIRMWARE_BOARD)" >&2; \
+	else \
+		printf '%s\n' \
+			"[profile] Latest source build: $$PROFILE_RELEASE" \
+			"[profile] CIX early-boot replacement: v$$PROFILE_CIX_EARLY_BOOT_RELEASE; firmware fixes: $$PROFILE_ENABLE_FIRMWARE_FIXES." \
+			'[profile] This is a current-source build and is not expected to be byte-identical to a published Radxa image.' >&2; \
+		$(MAKE) --no-print-directory build \
+			RELEASE="$$PROFILE_RELEASE" \
+			ARTEFACT_MODE="$$PROFILE_ARTEFACT_MODE" \
+			CIX_RELEASE="v$$PROFILE_CIX_EARLY_BOOT_RELEASE" \
+			ENABLE_FIRMWARE_FIXES="$$PROFILE_ENABLE_FIRMWARE_FIXES"; \
+		printf '[profile] Latest source build succeeded for %s; firmware fixes: %s.\n' \
+			"$(FIRMWARE_BOARD)" "$$PROFILE_ENABLE_FIRMWARE_FIXES" >&2; \
+	fi
+
 BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
 
 DELEGATED_BUILD_ARGS = V="$(V)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)"
@@ -541,7 +588,17 @@ deterministic-replay:
 		REPLAY_VERSION="$$replay_version" \
 		REPLAY_INPUT="$$replay_input" \
 		REPLAY_BUILD_OPTIONS="$$replay_build_options" \
-		REPLAY_BUILD_DATE="$$replay_build_date"
+		REPLAY_BUILD_DATE="$$replay_build_date"; \
+	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
+		--repo-root "$(CURDIR)" \
+		--worktree "$$wt" \
+		--dist-root "$(BUILD_DIST_ROOT)" \
+		--release "$(REPLAY_SOURCE_TARGET)" \
+		--build-target "deterministic-replay" \
+		--board "$(FIRMWARE_BOARD)" \
+		--firmware-target "$(FIRMWARE_TARGET)" \
+		--artefact-mode "upstream" \
+		--v "$(V)"
 
 install:
 	@set -e; \

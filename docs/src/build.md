@@ -15,7 +15,29 @@ make help-source-targets
 
 ## Build One Firmware Image
 
-For the latest supported source target, choose the board and target:
+The default behavior is a byte-identical rebuild of the latest published Radxa
+firmware. A targetless invocation currently replays Radxa `1.3.1` from its
+EDK2 202208 source and compares the rebuilt payload with the release package:
+
+```bash
+make
+make FIRMWARE_BOARD=O6N
+```
+
+The `latest` profile instead builds from the latest maintained source stack.
+It does not enable the project's opinionated fixes unless asked:
+
+```bash
+make PROFILE=latest
+make PROFILE=latest ENABLE_FIRMWARE_FIXES=true
+```
+
+The current `latest` stack uses EDK2 `202608`, Radxa `1.3.1`, and the CIX v1.2
+early-boot replacement. That CIX input means a recorded `bootloader1.img`
+payload plus CIX TF-A and OP-TEE sources used to build `bootloader2.img`; it is
+not a general label for all CIX firmware source.
+
+For a lower-level source build, choose the board and target explicitly:
 
 ```bash
 make build FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE
@@ -72,9 +94,16 @@ Set `INSTALL_ROOT=/boot` or another mount point if your system does not use
 
 ## Build Modes
 
-`ARTEFACT_MODE=custom` is the normal mode for this project. It permits the
-unofficial feature switches and source overlays carried by the selected source
-target.
+`PROFILE=upstream|latest` controls a targetless `make`:
+
+- `upstream` is the default and performs exact replay of the latest published
+  Radxa release
+- `latest` selects the latest maintained source target, uses the custom-capable
+  build path, and leaves `ENABLE_FIRMWARE_FIXES=false`
+
+`ARTEFACT_MODE=custom` is the lower-level mode that permits the source
+replacements and feature switches carried by the selected source target. It
+does not enable those optional firmware fixes by itself.
 
 `ARTEFACT_MODE=upstream` keeps the vendor-style build path for qualification
 and replay checks. It is useful when comparing against a published Radxa
@@ -94,7 +123,7 @@ make deterministic-replay FIRMWARE_BOARD=O6N
 ```
 
 By default, the target renders the exact upstream
-`edk2-202208/radxa-<REPLAY_VERSION>` source target, resolves the matching
+`edk2-202208/radxa-1.3.1` source target, resolves the matching
 release package from `radxa-pkg/edk2-cix`, downloads it under
 `.cache/edk2-cix/firmware/replay/downloads/`, and delegates to the rendered
 firmware tree's `deterministic-replay` target. The rendered target extracts
@@ -107,7 +136,7 @@ To replay a package you already downloaded, pass it explicitly:
 ```bash
 make deterministic-replay \
   FIRMWARE_BOARD=O6 \
-  REPLAY_INPUT=/path/to/edk2-cix_1.2.1_all.deb
+  REPLAY_INPUT=/path/to/edk2-cix_1.3.1_all.deb
 ```
 
 `REPLAY_INPUT` may also point at an extracted release directory or directly at
@@ -123,6 +152,12 @@ the maintained build infrastructure, not unofficial firmware source. Post-202208
 source targets can still use `ARTEFACT_MODE=upstream` for closest-to-upstream
 diagnostics, but they are not byte-identical replays of the original published
 vendor images.
+
+The retained replay corpus covers Radxa `1.2.1` through `1.2.4`, `1.3.0`, and
+`1.3.1` for both boards. Each release records its package hash, build timestamp,
+certificate hashes, and strict validation profile. Identical certificate bytes
+are recognized by SHA-256 instead of being treated as different merely because
+they occur in different release directories.
 
 ## Materialise A Source Tree
 
@@ -228,13 +263,15 @@ Makefile variables:
   several inputs in a file. `act` reads the file in `name=value` format.
 
 For example, `firmware-build.yaml` uses `workflow_dispatch` inputs rather than
-a matrix:
+a matrix. It always uses the custom-capable latest source stack and CIX v1.2
+early-boot replacement; `enable_firmware_fixes` controls the separate fixes
+gate:
 
 ```bash
 make gha-act-dry-run \
   ACT_WORKFLOW=.github/workflows/firmware-build.yaml \
   ACT_JOB=firmware \
-  ACT_EXTRA_ARGS='--input make_target=buildbox-firmware-stage --input board=O6 --input firmware_target=RELEASE --input artefact_mode=custom'
+  ACT_EXTRA_ARGS='--input make_target=buildbox-firmware-stage --input board=O6 --input firmware_target=RELEASE --input enable_firmware_fixes=false'
 ```
 
 The same command can be executed for real by replacing `gha-act-dry-run` with
@@ -258,7 +295,7 @@ make gha-act-dry-run \
   ACT_WORKFLOW=.github/workflows/deterministic-replay.yaml \
   ACT_JOB=replay \
   ACT_MATRIX=board:O6 \
-  ACT_EXTRA_ARGS='--input replay_source_target=edk2-202208/radxa-1.2.1 --input replay_version=1.2.1 --input upstream_repository=radxa-pkg/edk2-cix'
+  ACT_EXTRA_ARGS='--input replay_source_target=edk2-202208/radxa-1.3.1 --input replay_version=1.3.1 --input upstream_repository=radxa-pkg/edk2-cix'
 ```
 
 ## Validation

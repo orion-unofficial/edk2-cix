@@ -30,6 +30,45 @@ class GitHubWorkflowTests(unittest.TestCase):
                 self.assertIn("if: ${{ env.ACT != 'true' }}\n        uses: docker/setup-qemu-action@v4", text)
                 self.assertIn("env.ACT != 'true'", text[text.index("uses: actions/upload-artifact@v7") - 120 :])
 
+    def test_firmware_workflows_select_latest_source_explicitly(self) -> None:
+        firmware = (REPO_ROOT / ".github" / "workflows" / "firmware-build.yaml").read_text(
+            encoding="utf-8"
+        )
+        secure_boot = (REPO_ROOT / ".github" / "workflows" / "secure-boot-audit.yaml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("scripts/build_profiles.py --profile latest --field release", firmware)
+        self.assertNotIn("artefact_mode:", firmware)
+        self.assertIn('"ARTEFACT_MODE=custom"', firmware)
+        self.assertIn('"CIX_RELEASE=v1.2"', firmware)
+        self.assertIn('"ENABLE_FIRMWARE_FIXES=${ENABLE_FIRMWARE_FIXES_INPUT}"', firmware)
+        self.assertIn("default: false\n        description: Enable the project's opinionated firmware fixes", firmware)
+        self.assertEqual(
+            secure_boot.count("scripts/build_profiles.py --profile latest --field release"),
+            2,
+        )
+        self.assertEqual(secure_boot.count("ARTEFACT_MODE=custom"), 2)
+
+    def test_no_firmware_workflow_depends_on_targetless_make(self) -> None:
+        for name in ("deterministic-replay.yaml", "firmware-build.yaml", "secure-boot-audit.yaml"):
+            with self.subTest(workflow=name):
+                lines = (REPO_ROOT / ".github" / "workflows" / name).read_text(
+                    encoding="utf-8"
+                ).splitlines()
+                self.assertFalse(any(line.strip() == "make" for line in lines))
+
+    def test_deterministic_replay_defaults_to_exact_current_upstream_release(self) -> None:
+        text = (REPO_ROOT / ".github" / "workflows" / "deterministic-replay.yaml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertEqual(text.count("default: edk2-202208/radxa-1.3.1"), 1)
+        self.assertEqual(text.count("default: 1.3.1"), 1)
+        self.assertIn("inputs.replay_source_target || 'edk2-202208/radxa-1.3.1'", text)
+        self.assertIn("inputs.replay_version || '1.3.1'", text)
+        self.assertNotIn("unofficial-1.2.1", text)
+
     def test_local_docs_use_the_reproducible_container_path(self) -> None:
         text = (REPO_ROOT / ".github" / "workflows" / "build-docs.yaml").read_text(encoding="utf-8")
         self.assertEqual(text.count("if: ${{ env.ACT != 'true' }}"), 5)

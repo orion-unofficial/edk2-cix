@@ -9,9 +9,27 @@ variable.
 
 Start with these variables.
 
+### `PROFILE=upstream|latest`
+
+Select the high-level behavior of a targetless `make`.
+
+- `PROFILE=upstream`
+   - the default
+   - rebuild the latest published Radxa release from its exact EDK2 202208
+    source and recorded replay inputs
+   - compare the rebuilt payload byte-for-byte with the published package
+   - reject active custom firmware options
+- `PROFILE=latest`
+   - build the latest maintained EDK2/Radxa source combination
+   - use the CIX v1.2 early-boot replacement selected by current policy
+   - leave `ENABLE_FIRMWARE_FIXES=false` unless explicitly enabled
+   - produce a current-source build, not a byte-identical Radxa reconstruction
+
+Default: `upstream`
+
 ### `ARTEFACT_MODE=custom|upstream`
 
-This is the highest-level build-mode switch.
+This is the lower-level build-path switch used by explicit build targets.
 
 - `ARTEFACT_MODE=upstream`
    - keep the upstream vendor build path
@@ -25,7 +43,7 @@ This is the highest-level build-mode switch.
    - this is the right choice for local overlays and opt-in firmware changes
     instead of an upstream-identical vendor image
 
-Default: `custom`
+Default for explicit source-build targets: `custom`
 
 `ARTEFACT_MODE=upstream` is the mode that follows the upstream vendor build
 path. When you also provide the extracted certs, timestamps, and other replay
@@ -98,7 +116,7 @@ Accepted inputs are:
 - an extracted release directory containing `cix_flash_all.bin`
 - a raw `cix_flash_all.bin`
 
-When unset, `make deterministic-replay` downloads the latest release package
+When unset, `make deterministic-replay` downloads the selected release package
 from `REPLAY_UPSTREAM_REPOSITORY`, unless `REPLAY_DOWNLOAD=0` is set.
 
 Default: unset
@@ -122,7 +140,7 @@ Default: `radxa-pkg/edk2-cix`
 Control automatic release-package downloads when `REPLAY_INPUT` is unset.
 
 - `1`
-   - resolve and download the latest release package before replay
+   - resolve and download the selected release package before replay
 - `0`
    - do not download; delegate with no replay input so the rendered firmware
      target can reuse an existing replay cache
@@ -135,7 +153,7 @@ Select the version component used for the rendered firmware validation profile.
 When `REPLAY_INPUT` is unset and the wrapper downloads a release package, the
 resolved release tag overrides this value for that run.
 
-Default: `1.2.1`
+Default: `1.3.1`
 
 ### `REPLAY_BUILD_OPTIONS=<path>`
 
@@ -197,7 +215,8 @@ Default: `ccache`
 
 ### `CIX_RELEASE=v1.2`
 
-Set this on the custom build path to select the curated CIX early-boot path.
+Set this on the custom build path to select the curated CIX early-boot
+replacement. It does not select general CIX firmware source.
 
 Example:
 
@@ -210,7 +229,8 @@ make buildbox-firmware-build \
 
 When you enable it, the build:
 
-- imports the public CIX BIOS V1.2 TF-A and OP-TEE source set
+- imports the public CIX BIOS V1.2 TF-A and OP-TEE source set used to build
+  `bootloader2.img`
 - stages the later public CIX community-release `bootloader1.img` payload that
   matches community hardware logs
 - source-builds `bootloader2.img` during the packaging step
@@ -479,7 +499,8 @@ Default: `0`
 
 The most important compatibility rules are:
 
-- `ARTEFACT_MODE=upstream` rejects all custom-only feature variables
+- `PROFILE=upstream` and `ARTEFACT_MODE=upstream` reject active custom-only
+  feature variables; explicit false boolean gates are harmless
 - `ENABLE_CORE_ORDER=...` requires `ENABLE_FIRMWARE_FIXES=true`
 - `DEBUG_ON_UART3=true` implies `UART3_ENABLE=true`
 - `CIX_RELEASE=v1.2` is custom-only and board-limited to `O6` / `O6N`
@@ -493,8 +514,21 @@ The most important compatibility rules are:
 ### Byte-identical vendor release replay
 
 ```bash
+make
 make deterministic-replay FIRMWARE_BOARD=O6
 make deterministic-replay FIRMWARE_BOARD=O6N
+```
+
+### Latest maintained source without opinionated fixes
+
+```bash
+make PROFILE=latest
+```
+
+### Latest maintained source with opinionated fixes
+
+```bash
+make PROFILE=latest ENABLE_FIRMWARE_FIXES=true
 ```
 
 ### Closest-to-upstream vendor-path build

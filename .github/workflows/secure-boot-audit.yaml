@@ -53,13 +53,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          release_arg=()
-          if [[ -n "${FIRMWARE_SOURCE_TARGET}" ]]; then
-            release_arg=("--release" "${FIRMWARE_SOURCE_TARGET}")
+          release="${FIRMWARE_SOURCE_TARGET}"
+          if [[ -z "${release}" ]]; then
+            release="$(python3 scripts/build_profiles.py --profile latest --field release)"
           fi
           worktree="$(
             python3 scripts/render_release_branch.py \
-              "${release_arg[@]}" \
+              --release "${release}" \
               --ensure-worktree \
               --print-worktree
           )"
@@ -112,13 +112,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          release_arg=()
-          if [[ -n "${FIRMWARE_SOURCE_TARGET}" ]]; then
-            release_arg=("--release" "${FIRMWARE_SOURCE_TARGET}")
+          release="${FIRMWARE_SOURCE_TARGET}"
+          if [[ -z "${release}" ]]; then
+            release="$(python3 scripts/build_profiles.py --profile latest --field release)"
           fi
           worktree="$(
             python3 scripts/render_release_branch.py \
-              "${release_arg[@]}" \
+              --release "${release}" \
               --ensure-worktree \
               --print-worktree
           )"
