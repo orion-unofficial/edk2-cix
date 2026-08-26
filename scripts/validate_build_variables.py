@@ -87,18 +87,18 @@ def validate_feature_relationships(repo: Path, problems: list[str]) -> None:
     core_order = env("ENABLE_CORE_ORDER").lower()
     cix_release = env("CIX_RELEASE").lower().lstrip("v")
 
-    custom_only = (
+    custom_only_booleans = (
         "DEBUG_ON_UART3",
         "UART3_ENABLE",
         "DEBUG_VERBOSE",
-        "DEBUG_PRINT_ERROR_LEVEL",
         "ENABLE_FIRMWARE_FIXES",
-        "ENABLE_CORE_ORDER",
-        "CIX_RELEASE",
         "ENABLE_EXPERIMENTAL_UEFI_SETTINGS",
     )
     if artefact_mode != "custom":
-        for name in custom_only:
+        for name in custom_only_booleans:
+            if env(name).lower() in TRUE_TOKENS:
+                problems.append(f"{name} is only supported with ARTEFACT_MODE=custom")
+        for name in ("DEBUG_PRINT_ERROR_LEVEL", "ENABLE_CORE_ORDER", "CIX_RELEASE"):
             if env(name):
                 problems.append(f"{name} is only supported with ARTEFACT_MODE=custom")
 

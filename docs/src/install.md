@@ -1,4 +1,22 @@
-# Manually install released binary
+# Stage and manually deploy a firmware payload
+
+`make install` builds and stages a selected payload, then copies it to a mounted
+filesystem. With the default `INSTALL_ROOT=/boot/efi`, the destination is:
+
+```text
+/boot/efi/edk2/radxa/<product>/<version>/
+```
+
+For example:
+
+```bash
+make install FIRMWARE_BOARD=O6
+```
+
+This filesystem copy does not execute `BurnImage.efi`, `FlashUpdate.efi`, or
+`startup.nsh`, and does not modify the board's firmware. Deployment remains a
+separate manual action from the UEFI Shell, described below. Existing staged
+files are not replaced unless `FORCE=1` is supplied.
 
 ## Full demo
 
@@ -21,12 +39,11 @@ Similar to the upstream firmware packaging flow, each release contains the main
 binary package as well as small metapackages.
 
 Taking release
-[`1.2.1`](https://github.com/radxa-pkg/edk2-cix/releases/tag/1.2.1) as an
+[`1.3.1`](https://github.com/radxa-pkg/edk2-cix/releases/tag/1.3.1) as an
 example, you can expect:
 
-- `edk2-cix_1.2.1_all.deb`: main binary package
-- `edk2-orion-o6_1.2.1_all.deb`: lightweight metapackage
-- `edk2-radxa-orion-cix-p1_1.2.1_all.deb`: lightweight metapackage
+- `edk2-cix_1.3.1_all.deb`: main binary package
+- board-specific lightweight metapackages where published by Radxa
 
 As usual, the main binary package is the large one, and the metapackages are
 usually only a few KB.
@@ -41,37 +58,26 @@ To prepare a BIOS update disk, first, download and extract the package:
 ```bash
 mkdir extract
 cd extract
-wget https://github.com/radxa-pkg/edk2-cix/releases/download/1.2.1/edk2-cix_1.2.1_all.deb
+wget https://github.com/radxa-pkg/edk2-cix/releases/download/1.3.1/edk2-cix_1.3.1_all.deb
 ar vx *.deb
 tar xvf data.tar.xz
 ```
 
 ## Create the BIOS update disk
 
-You should now have BIOS payloads for the supported platforms, along with some
-supporting files:
+You should now have firmware payloads for the supported platforms, along with
+the EFI utilities and `startup.nsh`. A current staged board directory includes
+files such as:
 
 ```bash
-$ find usr/share/edk2/
-usr/share/edk2/
-usr/share/edk2/radxa
-usr/share/edk2/radxa/startup.nsh
-usr/share/edk2/radxa/orion-o6
-usr/share/edk2/radxa/orion-o6/BuildOptions
-usr/share/edk2/radxa/orion-o6/BurnImage.efi
-usr/share/edk2/radxa/orion-o6/FlashUpdate.efi
-usr/share/edk2/radxa/orion-o6/Shell.efi
-usr/share/edk2/radxa/orion-o6/VariableInfo.efi
-usr/share/edk2/radxa/orion-o6/cix_flash.bin
-usr/share/edk2/radxa/orion-o6/startup.nsh
-usr/share/edk2/radxa/orion-o6n
-usr/share/edk2/radxa/orion-o6n/BuildOptions
-usr/share/edk2/radxa/orion-o6n/BurnImage.efi
-usr/share/edk2/radxa/orion-o6n/FlashUpdate.efi
-usr/share/edk2/radxa/orion-o6n/Shell.efi
-usr/share/edk2/radxa/orion-o6n/VariableInfo.efi
-usr/share/edk2/radxa/orion-o6n/cix_flash.bin
-usr/share/edk2/radxa/orion-o6n/startup.nsh
+BuildOptions
+BurnImage.efi
+FlashUpdate.efi
+Shell.efi
+VariableInfo.efi
+cix_flash_all.bin
+cix_flash_ota.bin
+startup.nsh
 ```
 
 Copy them to a USB disk formatted with a FAT filesystem, then connect it to the
@@ -126,7 +132,7 @@ but when in doubt, only use the one that came with your target platform and
 only copy the EDK2 release output for that platform.
 ```
 
-## Update BIOS from UEFI Shell
+## Run the vendor deployment script from UEFI Shell
 
 Once inside the UEFI Shell, you should first see a list of available storage
 devices and their physical paths.
@@ -136,11 +142,19 @@ If you only have the USB disk connected, it should be listed as `fs0`.
 You can rescan the storage devices with the `map -r` command, which will also
 reprint the available mappings.
 
-You can now run the BIOS flash script from the UEFI Shell. It uses Windows path
-conventions, so an example command would be:
+You can now run the supplied vendor script from the UEFI Shell. It uses Windows
+path conventions, so an example command for a package copied beneath `radxa`
+would be:
 
 ```cmd
 fs0:\radxa\orion-o6\startup.nsh
+```
+
+For a payload staged by `make install` at its default destination, include the
+repository staging prefix and version, for example:
+
+```cmd
+fs0:\edk2\radxa\orion-o6\1.3.1\startup.nsh
 ```
 
 Use `orion-o6n` instead when flashing the O6N payload.
@@ -157,5 +171,5 @@ fs0:radxa\orion-o6\startup.nsh
 
 The UEFI Shell provides limited auto-completion when you press `Tab`.
 
-Running this command will flash your BIOS. Follow its prompt to complete the
-process.
+The script invokes the supplied EFI utilities. Review its prompt and the
+selected board directory before continuing.

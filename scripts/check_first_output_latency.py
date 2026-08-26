@@ -118,6 +118,7 @@ def cases(repo: Path) -> list[Case]:
     with_dir = f"DIR={Path(tempfile.gettempdir()) / 'edk2-cix-first-output-probe'}"
 
     make_targets = [
+        make_case(repo, "firmware"),
         make_help_case(repo, "help"),
         make_help_case(repo, "help-vars"),
         make_help_case(repo, "help-dev"),
@@ -207,6 +208,7 @@ def cases(repo: Path) -> list[Case]:
         "scripts/check_ref_integrity.py",
         "scripts/check_upstream_versions.py",
         "scripts/check_vendor_workflow_drift.py",
+        "scripts/build_profiles.py",
         "scripts/clean_cache.py",
         "scripts/create_minimised_clone.py",
         "scripts/extract_vendor_delta.py",

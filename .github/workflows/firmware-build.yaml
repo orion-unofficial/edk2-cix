@@ -30,14 +30,11 @@ on:
           - DEBUG
         required: true
         type: choice
-      artefact_mode:
-        default: custom
-        description: Build artefact mode.
-        options:
-          - custom
-          - upstream
+      enable_firmware_fixes:
+        default: false
+        description: Enable the project's opinionated firmware fixes in the latest source build.
         required: true
-        type: choice
+        type: boolean
       release:
         default: ''
         description: Optional source target from make help-source-targets.
@@ -76,7 +73,7 @@ jobs:
 
       - name: Build selected firmware artefact
         env:
-          ARTEFACT_MODE_INPUT: ${{ inputs.artefact_mode }}
+          ENABLE_FIRMWARE_FIXES_INPUT: ${{ inputs.enable_firmware_fixes }}
           FIRMWARE_BOARD_INPUT: ${{ inputs.board }}
           FIRMWARE_TARGET_INPUT: ${{ inputs.firmware_target }}
           MAKE_TARGET_INPUT: ${{ inputs.make_target }}
@@ -85,13 +82,17 @@ jobs:
         run: |
           set -euo pipefail
           release_arg=()
-          if [[ -n "${RELEASE_INPUT}" ]]; then
-            release_arg=("RELEASE=${RELEASE_INPUT}")
+          release="${RELEASE_INPUT}"
+          if [[ -z "${release}" ]]; then
+            release="$(python3 scripts/build_profiles.py --profile latest --field release)"
           fi
+          release_arg=("RELEASE=${release}")
           make "${MAKE_TARGET_INPUT}" \
             "FIRMWARE_BOARD=${FIRMWARE_BOARD_INPUT}" \
             "FIRMWARE_TARGET=${FIRMWARE_TARGET_INPUT}" \
-            "ARTEFACT_MODE=${ARTEFACT_MODE_INPUT}" \
+            "ARTEFACT_MODE=custom" \
+            "CIX_RELEASE=v1.2" \
+            "ENABLE_FIRMWARE_FIXES=${ENABLE_FIRMWARE_FIXES_INPUT}" \
             "V=1" \
             "${release_arg[@]}"
 

@@ -11,6 +11,28 @@
       "notes": "Post-202208 builds are deterministic source materialisations, but not byte-identical replays of the original vendor firmware."
     }
   },
+  "firmware_profile_policy": {
+    "default_profile": "upstream",
+    "profiles": {
+      "latest": {
+        "artefact_mode": "custom",
+        "build_kind": "source-build",
+        "cix_early_boot_release": "1.2",
+        "description": "Build the latest maintained EDK2/Radxa source combination without opinionated firmware fixes unless they are explicitly enabled.",
+        "enable_firmware_fixes": false,
+        "release": "unofficial-policy-default"
+      },
+      "upstream": {
+        "artefact_mode": "upstream",
+        "build_kind": "deterministic-replay",
+        "cix_early_boot_release": null,
+        "description": "Rebuild and byte-compare the latest published Radxa firmware from its exact EDK2 202208 source and recorded replay inputs.",
+        "enable_firmware_fixes": false,
+        "release": "edk2-202208/radxa-1.3.1",
+        "replay_version": "1.3.1"
+      }
+    }
+  },
   "immutability": {
     "immutable_patterns": [
       "source/base/**",

@@ -75,7 +75,9 @@ def main() -> None:
     if 'CCACHE_DIR="$$container_cache_root/ccache"' not in makefile:
         raise SystemExit("buildbox ccache must be addressed through the container mount")
     mirror_lines = [
-        line for line in makefile.splitlines() if "--artefact-mode" in line
+        line
+        for line in makefile.splitlines()
+        if '--artefact-mode "$(or $(ARTEFACT_MODE),custom)' in line
     ]
     if not mirror_lines or any(
         "ENABLE_FIRMWARE_FIXES" not in line or "+fixes" not in line
