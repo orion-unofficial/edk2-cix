@@ -22,10 +22,20 @@ Optional variables:
   V=0|1       Print delegated git operations.
 
 The destination must not already contain data. The exported repository contains
-only refs required by the source model: build, non-cache source/** branches, and
-source/** tags. Generated source/cache/** branches and legacy/private branches
-are intentionally omitted.
+only refs required by the current source model: build, non-cache source/base/**,
+source/vendor/**, source/port/**, and source/unofficial/** branches, plus
+source/** tags. Generated source/cache/** branches, obsolete
+source/component/** and source/unofficial/current aliases, and legacy/private
+branches are intentionally omitted.
 """
+
+SOURCE_BRANCH_PREFIXES = (
+    "source/base/",
+    "source/vendor/",
+    "source/port/",
+    "source/unofficial/",
+)
+OBSOLETE_SOURCE_BRANCHES = {"source/unofficial/current"}
 
 
 def parser() -> argparse.ArgumentParser:
@@ -51,15 +61,20 @@ def build_refspec(repo: Path) -> tuple[str, str]:
     return ("HEAD", "refs/heads/build")
 
 
+def exportable_source_branch(branch: str) -> bool:
+    return branch not in OBSOLETE_SOURCE_BRANCHES and branch.startswith(SOURCE_BRANCH_PREFIXES)
+
+
 def required_refspecs(repo: Path) -> list[tuple[str, str]]:
     build_source, build_target = build_refspec(repo)
     refspecs: dict[str, str] = {build_target: build_source}
     for ref in ref_list(repo, "refs/heads/source"):
-        if not ref.startswith("refs/heads/source/cache/"):
+        branch = ref.removeprefix("refs/heads/")
+        if exportable_source_branch(branch):
             refspecs.setdefault(ref, ref)
     for ref in ref_list(repo, "refs/remotes/origin/source"):
         branch = ref.removeprefix("refs/remotes/origin/")
-        if not branch.startswith("source/cache/"):
+        if exportable_source_branch(branch):
             refspecs.setdefault(f"refs/heads/{branch}", ref)
     for ref in ref_list(repo, "refs/tags/source"):
         refspecs.setdefault(ref, ref)
