@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+from io import StringIO
 import tempfile
 from pathlib import Path
 
@@ -17,6 +19,7 @@ from check_upstream_versions import (
     latest_docker_tag_from_snapshot,
     latest_remote_subject_from_snapshot,
     latest_remote_tag,
+    ls_remote,
     local_file_regex,
     local_json_field,
     local_workflow_action_ref,
@@ -41,6 +44,22 @@ def test_latest_remote_tag_prefers_peeled_commit() -> None:
     only_annotated = latest_remote_tag(refs[:2], r"^refs/tags/v(?P<version>\d+\.\d+)$")
     require(only_annotated is not None, "expected annotated tag")
     require(only_annotated.object_id == "commit-object", "expected peeled commit object")
+
+
+def test_verbose_snapshot_reports_count_without_dumping_refs() -> None:
+    snapshot = {
+        "example": [
+            RemoteRef("first-object", "refs/tags/v1"),
+            RemoteRef("second-object", "refs/tags/v2"),
+        ]
+    }
+    output = StringIO()
+    with redirect_stdout(output):
+        refs = ls_remote(Path("."), "example", snapshot, True, "refs/tags/*")
+
+    require(refs == snapshot["example"], "snapshot refs should be returned unchanged")
+    require("inspected 2 ref(s) matching refs/tags/*" in output.getvalue(), "expected count summary")
+    require("first-object" not in output.getvalue(), "verbose output must not dump every object")
 
 
 def test_compare_tag_statuses() -> None:
@@ -258,6 +277,7 @@ def test_docker_latest_tag_snapshot() -> None:
 
 def main() -> None:
     test_latest_remote_tag_prefers_peeled_commit()
+    test_verbose_snapshot_reports_count_without_dumping_refs()
     test_compare_tag_statuses()
     test_compare_head_statuses()
     test_advisory_branch_head_drift_is_non_fatal_in_strict_mode()

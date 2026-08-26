@@ -59,7 +59,7 @@ Optional variables:
   UPSTREAM_VERSION_SNAPSHOT=<path>
       Offline remote-ref snapshot for tests.
   V=0|1
-      Show checked remote refs.
+      Show remote-query progress and ref counts.
 
 Each configured source or tooling pin can report two independent signals:
   release
@@ -127,12 +127,18 @@ def load_snapshot(path: str) -> dict[str, list[RemoteRef]]:
     return snapshot
 
 
-def ls_remote(repo: Path, remote_key: str, snapshot: dict[str, list[RemoteRef]], verbose: bool) -> list[RemoteRef]:
+def ls_remote(
+    repo: Path,
+    remote_key: str,
+    snapshot: dict[str, list[RemoteRef]],
+    verbose: bool,
+    *patterns: str,
+) -> list[RemoteRef]:
     if remote_key in snapshot:
         refs = snapshot[remote_key]
     else:
         url = configured_remote_url(repo, remote_key=remote_key)
-        result = run(["git", "ls-remote", url], check=False)
+        result = run(["git", "ls-remote", url, *patterns], check=False)
         if result.returncode != 0:
             detail = (result.stderr or result.stdout or "").strip()
             raise ReconstructionError(f"remote unavailable for {remote_key}: {detail or url}")
@@ -143,8 +149,8 @@ def ls_remote(repo: Path, remote_key: str, snapshot: dict[str, list[RemoteRef]],
             oid, ref = line.split(None, 1)
             refs.append(RemoteRef(oid, ref))
     if verbose:
-        for item in refs:
-            print(f"[upstream-version] {remote_key}: {item.oid} {item.ref}")
+        scope = ", ".join(patterns) if patterns else "all refs"
+        print(f"[upstream-version] {remote_key}: inspected {len(refs)} ref(s) matching {scope}")
     return refs
 
 
@@ -633,7 +639,7 @@ def evaluate_comparison(
         raise ReconstructionError(f"{comparison_id}: unsupported version-check kind: {kind}")
     try:
         if kind == "latest_tag":
-            refs = ls_remote(repo, remote_key, snapshot, verbose)
+            refs = ls_remote(repo, remote_key, snapshot, verbose, "refs/tags/*")
             remote = latest_remote_tag(refs, str(comparison["tag_pattern"]))
             if remote is None:
                 return UpstreamVersionResult(
@@ -649,8 +655,9 @@ def evaluate_comparison(
                 )
             status, detail = compare_tag(local, remote)
         elif kind == "branch_head":
-            refs = ls_remote(repo, remote_key, snapshot, verbose)
-            remote = remote_branch_head(refs, str(comparison["ref"]))
+            remote_ref = str(comparison["ref"])
+            refs = ls_remote(repo, remote_key, snapshot, verbose, remote_ref)
+            remote = remote_branch_head(refs, remote_ref)
             if remote is None:
                 return UpstreamVersionResult(
                     check_id,
