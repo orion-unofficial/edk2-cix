@@ -22,6 +22,14 @@ make help-vars
 make help-source-targets
 ```
 
+## Licensing
+
+Project-authored build-branch material is distributed under the GNU General
+Public License, version 3; see `LICENSE`. Each retained source ref also carries
+its own upstream or vendor licensing and copyright information. Those
+component-specific terms continue to govern that component: the root licence
+does not replace or reinterpret them.
+
 ## What does a bare `make` build?
 
 A targetless `make` uses the `upstream` profile. It rebuilds the latest
