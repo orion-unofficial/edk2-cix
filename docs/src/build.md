@@ -238,11 +238,24 @@ and keeps its cache under `.cache/edk2-cix/act-cache/`. Set `ACT_WORKFLOW`,
 `ACT_EVENT`, `ACT_JOB`, `ACT_MATRIX`, `ACT_SECRET_FILE`, or `ACT_EXTRA_ARGS`
 when a workflow needs more specific inputs.
 
-Linked Git worktrees are supported: the wrapper mounts the shared Git directory
-needed to resolve the worktree's `.git` pointer. GitHub-only QEMU setup and
-artifact uploads are skipped under `act`, so the local Docker engine must
-already support the requested buildbox platform. The host `.worktrees/`
-directory is untracked runtime scratch data; it is not committed or uploaded.
+Executable jobs run from a clean, isolated snapshot beneath
+`.cache/edk2-cix/act-workspaces/`, whether the wrapper is invoked from the
+primary checkout or a linked Git worktree. The snapshot is bind-mounted into
+the runner, while its shared Git object store is mounted read-only. This lets
+nested Docker builds consume and update the exact CI workspace without exposing
+the invoking checkout to workflow mutations. `make gha-act-run` therefore
+refuses a dirty checkout instead of silently omitting local changes.
+
+The local documentation container reuses the normal
+`.cache/edk2-cix/docs/` Cargo and documentation-tool cache, then copies the
+generated site into the isolated workspace for the same archive step used by
+GitHub Actions. A failed dependency download can therefore resume on the next
+local run without making the source snapshot mutable.
+
+GitHub-only QEMU setup and artifact uploads are skipped under `act`, so the
+local Docker engine must already support the requested buildbox platform. The
+host `.worktrees/` directory is untracked runtime scratch data; it is not
+committed, mounted into the job, or uploaded.
 
 GitHub Actions expressions such as `${{ inputs.make_target }}` and
 `${{ matrix.board }}` are not Makefile variables. They are values that the
