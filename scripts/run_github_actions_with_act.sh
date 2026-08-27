@@ -6,6 +6,7 @@ script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
 act_bootstrap="${script_dir}/ensure_act.sh"
 act_cache_home="${EDK2_CIX_ACT_XDG_CACHE_HOME:-${repo_root}/.cache/edk2-cix/act-cache}"
+act_host_cache_root="${EDK2_CIX_ACT_HOST_CACHE_ROOT:-${repo_root}/.cache/edk2-cix}"
 default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:act-24.04-20260815}}"
 
 detect_container_arch() {
@@ -93,12 +94,12 @@ cleanup_act_workspace() {
     return "$cleanup_status"
 }
 
-if [[ "$git_common_dir" != "$repo_root"/* ]]; then
+if [[ "${1:-list}" == run || "$git_common_dir" != "$repo_root"/* ]]; then
     if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=normal)" ]]; then
-        printf '[act-runner] Linked-worktree runs require a clean checkout so the isolated CI snapshot cannot omit local changes.\n' >&2
+        printf '[act-runner] Isolated act runs require a clean checkout so the CI snapshot cannot omit local changes.\n' >&2
         exit 2
     fi
-    mkdir -p "${repo_root}/.cache/edk2-cix/act-workspaces"
+    mkdir -p "${repo_root}/.cache/edk2-cix/act-workspaces" "$act_host_cache_root"
     act_workspace="$(mktemp -d "${repo_root}/.cache/edk2-cix/act-workspaces/run.XXXXXX")"
     trap cleanup_act_workspace EXIT
     git clone --quiet --shared --no-checkout "$git_common_dir" "$act_workspace"
@@ -183,10 +184,11 @@ args=(
 )
 if [[ -n "$act_workspace" ]]; then
     args+=(--bind)
+    args+=(--env "EDK2_CIX_ACT_HOST_CACHE_ROOT=${act_host_cache_root}")
 fi
 
 container_options=""
-if [[ "$git_common_dir" != "$repo_root"/* ]]; then
+if [[ -n "$act_workspace" ]]; then
     container_options="--volume=${git_common_dir}:${git_common_dir}:ro"
 fi
 if [[ -n "$local_origin" && "$local_origin" != "$act_workdir"/* && "$local_origin" != "$git_common_dir" && "$local_origin" != "$git_common_dir"/* ]]; then
@@ -246,8 +248,9 @@ status "Using ${act_bin}"
 status "Cache root: ${XDG_CACHE_HOME}"
 status "Container architecture: ${default_container_arch}"
 if [[ -n "$act_workspace" ]]; then
-    status "Isolated linked-worktree snapshot: ${act_workspace}"
+    status "Isolated CI snapshot: ${act_workspace}"
     status "Shared object store mount: ${git_common_dir} (read-only)"
+    status "Persistent local cache: ${act_host_cache_root}"
 fi
 if [[ -n "$local_origin" && "$local_origin" != "$act_workdir"/* && "$local_origin" != "$git_common_dir" && "$local_origin" != "$git_common_dir"/* ]]; then
     status "Local origin mount: ${local_origin} (read-only)"

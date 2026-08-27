@@ -6,9 +6,9 @@ script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 docs_root="$(dirname -- "$script_dir")"
 repo_root="$(dirname -- "$docs_root")"
 dockerfile="${EDK2_CIX_DOCS_WORKFLOW_DOCKERFILE:-${script_dir}/docs-workflow.Dockerfile}"
-repo_key="$(printf '%s' "$repo_root" | cksum | awk '{print $1}')"
-image="${EDK2_CIX_DOCS_WORKFLOW_IMAGE:-edk2-cix-docs-workflow:20260330-${repo_key}}"
-container_name="${EDK2_CIX_DOCS_WORKFLOW_CONTAINER_NAME:-edk2-cix-docs-workflow-${repo_key}-$$}"
+image="${EDK2_CIX_DOCS_WORKFLOW_IMAGE:-edk2-cix-docs-workflow:20260330-$(cksum "$dockerfile" | awk '{print $1}')}"
+container_name="${EDK2_CIX_DOCS_WORKFLOW_CONTAINER_NAME:-edk2-cix-docs-workflow-$$}"
+host_cache_root="${EDK2_CIX_ACT_HOST_CACHE_ROOT:-}"
 platform="${EDK2_CIX_DOCS_WORKFLOW_PLATFORM:-}"
 rebuild=0
 
@@ -31,6 +31,12 @@ if [[ -n "$platform" ]]; then
     build_args+=(--platform "$platform")
     run_args+=(--platform "$platform")
 fi
+if [[ -n "$host_cache_root" ]]; then
+    run_args+=(
+        -e EDK2_CIX_DOCS_CACHE_ROOT=/docs-cache
+        -v "${host_cache_root}/docs:/docs-cache"
+    )
+fi
 
 if (( rebuild )) || ! docker image inspect "$image" >/dev/null 2>&1; then
     printf '[docs-repro] Building image %s from %s\n' "$image" "$dockerfile"
@@ -52,3 +58,12 @@ docker run --rm \
     -w /work \
     "$image" \
     bash -lc "$(printf '%q ' "${cmd[@]}")"
+
+if [[ -n "$host_cache_root" ]]; then
+    docker run --rm \
+        "${run_args[@]}" \
+        -v "${repo_root}:/work" \
+        -w /work \
+        "$image" \
+        bash -lc 'rm -rf /work/.cache/edk2-cix/docs/book/html && mkdir -p /work/.cache/edk2-cix/docs/book && cp -a /docs-cache/book/html /work/.cache/edk2-cix/docs/book/html'
+fi

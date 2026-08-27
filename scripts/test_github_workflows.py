@@ -102,6 +102,8 @@ class GitHubWorkflowTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn('docker build --progress plain "${build_args[@]}"', runner)
+        self.assertIn('$(cksum "$dockerfile"', runner)
+        self.assertNotIn('printf \'%s\' "$repo_root" | cksum', runner)
 
     def test_local_act_removes_job_containers_and_container_owned_snapshots(self) -> None:
         runner = (REPO_ROOT / "scripts" / "run_github_actions_with_act.sh").read_text(
@@ -110,13 +112,31 @@ class GitHubWorkflowTests(unittest.TestCase):
 
         self.assertIn("cleanup_act_workspace()", runner)
         self.assertIn('"${repo_root}/.cache/edk2-cix/act-workspaces/run."*', runner)
+        self.assertIn(
+            'if [[ "${1:-list}" == run || "$git_common_dir" != "$repo_root"/* ]]; then',
+            runner,
+        )
+        self.assertIn('if [[ -n "$act_workspace" ]]; then', runner)
+        self.assertIn('--env "EDK2_CIX_ACT_HOST_CACHE_ROOT=${act_host_cache_root}"', runner)
+        self.assertIn('container_options="--volume=${git_common_dir}:${git_common_dir}:ro"', runner)
         self.assertIn("--entrypoint find", runner)
         self.assertIn("-mindepth 1 -depth -delete", runner)
         self.assertIn("args=(\n    --rm", runner)
         self.assertIn("--filter label=edk2-cix.buildbox.image", runner)
         self.assertIn('"${act_workspace}/"*', runner)
         self.assertIn('docker rm -f "$container_id"', runner)
+        self.assertIn('status "Isolated CI snapshot: ${act_workspace}"', runner)
+        self.assertIn('status "Persistent local cache: ${act_host_cache_root}"', runner)
+        self.assertNotIn("Isolated linked-worktree snapshot", runner)
         self.assertNotIn("--volume=${repo_root}/.worktrees", runner)
+
+        docs_runner = (REPO_ROOT / "docs" / "scripts" / "run_docs_workflow_local.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('host_cache_root="${EDK2_CIX_ACT_HOST_CACHE_ROOT:-}"', docs_runner)
+        self.assertIn('-e EDK2_CIX_DOCS_CACHE_ROOT=/docs-cache', docs_runner)
+        self.assertIn('-v "${host_cache_root}/docs:/docs-cache"', docs_runner)
+        self.assertIn("cp -a /docs-cache/book/html", docs_runner)
 
 
 if __name__ == "__main__":
