@@ -25,7 +25,7 @@ jobs:
       - name: Checkout build branch
         uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Fetch source refs required by the build branch
         shell: bash
