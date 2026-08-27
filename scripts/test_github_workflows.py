@@ -16,6 +16,13 @@ SOURCE_WORKFLOWS = (
 
 
 class GitHubWorkflowTests(unittest.TestCase):
+    def test_build_ci_fetches_complete_history_for_minimised_export(self) -> None:
+        text = (REPO_ROOT / ".github" / "workflows" / "build-branch-ci.yaml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("fetch-depth: 0", text)
+
     def test_source_workflows_fetch_canonical_local_refs(self) -> None:
         for name in SOURCE_WORKFLOWS:
             with self.subTest(workflow=name):
