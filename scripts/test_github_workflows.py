@@ -23,6 +23,18 @@ class GitHubWorkflowTests(unittest.TestCase):
 
         self.assertIn("fetch-depth: 0", text)
 
+    def test_reusable_firmware_workflows_do_not_reuse_caller_concurrency(self) -> None:
+        for name in ("deterministic-replay.yaml", "secure-boot-audit.yaml"):
+            with self.subTest(workflow=name):
+                text = (REPO_ROOT / ".github" / "workflows" / name).read_text(
+                    encoding="utf-8"
+                )
+                self.assertIn("workflow_call:", text)
+                self.assertNotIn(
+                    "group: ${{ github.workflow }}-${{ github.run_id }}",
+                    text,
+                )
+
     def test_source_workflows_fetch_canonical_local_refs(self) -> None:
         for name in SOURCE_WORKFLOWS:
             with self.subTest(workflow=name):
