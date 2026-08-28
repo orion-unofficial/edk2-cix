@@ -111,6 +111,8 @@ jobs:
 
       - name: Render replay-capable firmware tree
         id: render
+        env:
+          EDK2_CIX_WORKTREE_NAMESPACE: replay-${{ matrix.board }}
         shell: bash
         run: |
           set -euo pipefail
@@ -203,17 +205,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p ci-artifacts
+          if [[ -z "${FIRMWARE_CACHE:-}" || -z "${FIRMWARE_WORKTREE:-}" ]]; then
+            echo "Replay render did not complete; no reports were available to collect." \
+              >>"${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          artifact_root="ci-artifacts/${{ matrix.board }}"
+          mkdir -p "${artifact_root}"
           if [[ -d "${FIRMWARE_CACHE}/build-validation" ]]; then
-            cp -a "${FIRMWARE_CACHE}/build-validation" "ci-artifacts/build-validation"
+            cp -a "${FIRMWARE_CACHE}/build-validation" "${artifact_root}/build-validation"
             python3 "${FIRMWARE_WORKTREE}/scripts/summarize_validation_reports.py" \
               --report-root "${FIRMWARE_CACHE}/build-validation" \
               --heading "Validation reports for ${{ matrix.board }} / ${{ needs.resolve-release.outputs.tag }}" \
               >>"${GITHUB_STEP_SUMMARY}"
           fi
           if [[ -d "${FIRMWARE_CACHE}/buildbox/replay" ]]; then
-            mkdir -p ci-artifacts/replay
-            cp -a "${FIRMWARE_CACHE}/buildbox/replay/." "ci-artifacts/replay/"
+            mkdir -p "${artifact_root}/replay"
+            cp -a "${FIRMWARE_CACHE}/buildbox/replay/." "${artifact_root}/replay/"
           fi
 
       - name: Upload replay reports

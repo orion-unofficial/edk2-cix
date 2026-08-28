@@ -54,6 +54,8 @@ jobs:
           git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
 
       - name: Render selected firmware tree
+        env:
+          EDK2_CIX_WORKTREE_NAMESPACE: metadata
         shell: bash
         run: |
           set -euo pipefail
@@ -121,6 +123,8 @@ jobs:
         uses: docker/setup-qemu-action@v4
 
       - name: Render selected firmware tree
+        env:
+          EDK2_CIX_WORKTREE_NAMESPACE: secure-boot-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}
         shell: bash
         run: |
           set -euo pipefail
@@ -194,16 +198,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p ci-artifacts
+          if [[ -z "${FIRMWARE_CACHE:-}" || -z "${FIRMWARE_WORKTREE:-}" ]]; then
+            echo "Firmware render did not complete; no reports were available to collect." \
+              >>"${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          artifact_root="ci-artifacts/${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"
+          mkdir -p "${artifact_root}"
           if [[ -d "${FIRMWARE_CACHE}/build-validation" ]]; then
-            cp -a "${FIRMWARE_CACHE}/build-validation" "ci-artifacts/build-validation"
+            cp -a "${FIRMWARE_CACHE}/build-validation" "${artifact_root}/build-validation"
             python3 "${FIRMWARE_WORKTREE}/scripts/summarize_validation_reports.py" \
               --report-root "${FIRMWARE_CACHE}/build-validation" \
               --heading "Validation reports for ${{ matrix.board }} / firmware fixes ${{ matrix.firmware_fixes }}" \
               >>"${GITHUB_STEP_SUMMARY}"
           fi
           if [[ -d "${FIRMWARE_WORKTREE}/dist" ]]; then
-            cp -a "${FIRMWARE_WORKTREE}/dist" "ci-artifacts/dist"
+            cp -a "${FIRMWARE_WORKTREE}/dist" "${artifact_root}/dist"
           fi
 
       - name: Upload Secure Boot reports

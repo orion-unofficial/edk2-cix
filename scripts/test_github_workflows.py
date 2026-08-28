@@ -49,6 +49,28 @@ class GitHubWorkflowTests(unittest.TestCase):
                 self.assertIn("if: ${{ env.ACT != 'true' }}\n        uses: docker/setup-qemu-action@v4", text)
                 self.assertIn("env.ACT != 'true'", text[text.index("uses: actions/upload-artifact@v7") - 120 :])
 
+    def test_parallel_firmware_jobs_isolate_worktrees_and_report_paths(self) -> None:
+        replay = (REPO_ROOT / ".github" / "workflows" / "deterministic-replay.yaml").read_text(
+            encoding="utf-8"
+        )
+        secure_boot = (REPO_ROOT / ".github" / "workflows" / "secure-boot-audit.yaml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("EDK2_CIX_WORKTREE_NAMESPACE: replay-${{ matrix.board }}", replay)
+        self.assertIn('artifact_root="ci-artifacts/${{ matrix.board }}"', replay)
+        self.assertIn('[[ -z "${FIRMWARE_CACHE:-}" || -z "${FIRMWARE_WORKTREE:-}" ]]', replay)
+        self.assertIn("EDK2_CIX_WORKTREE_NAMESPACE: metadata", secure_boot)
+        self.assertIn(
+            "EDK2_CIX_WORKTREE_NAMESPACE: secure-boot-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}",
+            secure_boot,
+        )
+        self.assertIn(
+            'artifact_root="ci-artifacts/${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"',
+            secure_boot,
+        )
+        self.assertIn('[[ -z "${FIRMWARE_CACHE:-}" || -z "${FIRMWARE_WORKTREE:-}" ]]', secure_boot)
+
     def test_firmware_workflows_select_latest_source_explicitly(self) -> None:
         firmware = (REPO_ROOT / ".github" / "workflows" / "manual-firmware-build.yaml").read_text(
             encoding="utf-8"
