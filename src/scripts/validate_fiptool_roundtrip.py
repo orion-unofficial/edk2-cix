@@ -219,6 +219,7 @@ def stage_input(input_path: pathlib.Path, work_dir: pathlib.Path) -> tuple[str, 
 def main() -> int:
     args = parse_args()
     input_path = pathlib.Path(args.input_path).resolve()
+    ensure_dir(DEFAULT_TMP_ROOT)
     output_dir = (
         pathlib.Path(args.output_dir).resolve()
         if args.output_dir
