@@ -230,6 +230,19 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
         self.assertIn("buildbox-ccache-stats", command)
         self.assertIn("CCACHE_STATS_FORMAT=json", command)
 
+    def test_ccache_stats_creates_the_configured_temp_root(self) -> None:
+        makefile_path = SCRIPT_DIR.parent / ".github" / "local" / "Makefile.local"
+        makefile = makefile_path.read_text(encoding="utf-8")
+        recipe = makefile.split("__buildbox-ccache-stats:", 1)[1].split(
+            "\n\n", 1
+        )[0]
+
+        self.assertIn('mkdir -p "$(BUILDBOX_HOST_TMPDIR)"', recipe)
+        self.assertIn(
+            'mktemp "$(BUILDBOX_HOST_TMPDIR)/ccache-stats.XXXXXX"', recipe
+        )
+        self.assertNotIn('mktemp "$(REPO_ROOT)/.buildbox/tmp/', recipe)
+
     def test_traversal_groups_keep_release_before_debug(self) -> None:
         variants = firmware_layout.iter_build_all_variants()
         phases: list[str] = []
