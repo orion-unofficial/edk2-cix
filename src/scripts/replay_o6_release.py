@@ -440,6 +440,7 @@ def main() -> int:
             tempfile.mkdtemp(prefix="o6-replay-", dir=str(DEFAULT_TMP_ROOT))
         )
     ensure_clean_dir(output_dir)
+    ensure_clean_dir(DEFAULT_TMP_ROOT)
 
     work_dir_obj: tempfile.TemporaryDirectory[str] | None = None
     if args.keep_workdir:

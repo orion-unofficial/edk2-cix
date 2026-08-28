@@ -1448,7 +1448,8 @@ buildbox-ccache-stats:
 
 __buildbox-ccache-stats:
 	@set -euo pipefail; \
-	stats_log="$$(mktemp "$(REPO_ROOT)/.buildbox/tmp/ccache-stats.XXXXXX")"; \
+	mkdir -p "$(BUILDBOX_HOST_TMPDIR)"; \
+	stats_log="$$(mktemp "$(BUILDBOX_HOST_TMPDIR)/ccache-stats.XXXXXX")"; \
 	if ! $(BUILDBOX_ENV) "$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
 		python3 "$(BUILDBOX_WORKSPACE_ROOT)/scripts/ccache_stats.py" \
 			--cache-dir "$(CCACHE_DIR_IN_CONTAINER)" \
