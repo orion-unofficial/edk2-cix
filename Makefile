@@ -11,6 +11,8 @@ RELEASE ?=
 PERSIST ?= 0
 WORKTREE ?=
 TARGET_REF ?=
+SOURCE_REFS ?=
+REMOTE ?= origin
 SOURCE_UNOFFICIAL_REF ?=
 BASE_REF ?=
 COMMIT_MESSAGE ?=
@@ -132,12 +134,12 @@ endef
 	test test-local lint \
 	extract-vendor-delta render-release-branch uplift-edk2-release uplift-radxa-release select-unofficial-line integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
 	propagate-release-branches promote-unofficial-compatibility promote-unofficial-release update-release-tags \
-	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift refresh-vendor-workflow-baseline check-upstream-versions check-source-metadata check-help-cache check-first-output-latency refresh-source-metadata refresh-help-cache ref-report cleanup-report create-minimised-clone \
+	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift refresh-vendor-workflow-baseline check-upstream-versions check-source-metadata check-help-cache check-first-output-latency refresh-source-metadata refresh-help-cache ref-report cleanup-report create-minimised-clone publish-source-update \
 	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help uplift-edk2-release-help uplift-radxa-release-help select-unofficial-line-help integrate-source-release-help \
 	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help resolve-conflicts-help promote-unofficial-compatibility-help promote-unofficial-release-help update-release-tags-help \
 	verify-release-branch-help verify-build-matrix-help verify-source-policy-help verify-source-lifecycle-help \
-	check-ref-integrity-help check-identity-integrity-help verify-identity-integrity-help check-vendor-workflow-drift-help check-upstream-versions-help check-source-metadata-help refresh-source-metadata-help \
+	check-ref-integrity-help check-identity-integrity-help verify-identity-integrity-help check-vendor-workflow-drift-help check-upstream-versions-help check-source-metadata-help refresh-source-metadata-help publish-source-update-help \
 	create-minimised-clone-help verify-minimised-clone-help prune-help refresh-help-cache-help check-help-cache-help check-first-output-latency-help ref-report-help cleanup-report-help
 
 help:
@@ -350,6 +352,7 @@ help-dev-verify:
 	print_help_line 'make check-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
 	print_help_line 'make check-source-metadata' 'Check source-ref hashes, source-target cache tree IDs, and optionally unofficial release tags for drift.'; \
 	print_help_line 'make refresh-source-metadata' 'Refresh source-ref hashes and source-target cache tree IDs from current refs.'; \
+	print_help_line 'make publish-source-update' 'Atomically publish a committed build metadata update with explicitly selected source refs.'; \
 	print_help_line 'make check-identity-integrity' 'Quickly scan build-branch files for path/identity integrity issues.'; \
 	print_help_line 'make verify-identity-integrity' 'Deep-scan build-branch files, commit metadata, and persistent source refs for path/identity integrity issues.'; \
 	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
@@ -375,6 +378,8 @@ help-dev-verify:
 	print_help_variable 'WRITE=0|1' 'For refresh-source-metadata. Required before config metadata or requested release tags are updated.\nDefault: 0.'; \
 	print_help_variable 'RENDER_GENERATED=0|1' 'For check-source-metadata and refresh-source-metadata. Re-render generated source/cache/release entries whose tree cannot be derived directly from retained source refs. Use 1 for full post-rewrite cache regeneration.\nDefault: 0.'; \
 	print_help_variable 'UPDATE_RELEASE_TAGS=0|1' 'For check-source-metadata and refresh-source-metadata. Include refs/tags/source/unofficial/edk2/stable-* in the check or refresh.\nDefault: 0.'; \
+	print_help_variable 'SOURCE_REFS=<ref[,ref...]>' 'For publish-source-update. Explicit source branches or tags to publish with build.'; \
+	print_help_variable 'REMOTE=<name>' 'For publish-source-update. Git remote to update.\nDefault: origin.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
 	print_help_line 'make verify-release-branch-help' 'Show verify-release-branch arguments.'; \
@@ -387,7 +392,8 @@ help-dev-verify:
 	print_help_line 'make check-identity-integrity-help' 'Show check-identity-integrity arguments.'; \
 	print_help_line 'make verify-identity-integrity-help' 'Show verify-identity-integrity arguments.'; \
 	print_help_line 'make check-vendor-workflow-drift-help' 'Show check-vendor-workflow-drift arguments.'; \
-	print_help_line 'make check-upstream-versions-help' 'Show check-upstream-versions arguments.'
+	print_help_line 'make check-upstream-versions-help' 'Show check-upstream-versions arguments.'; \
+	print_help_line 'make publish-source-update-help' 'Show publish-source-update arguments.'
 
 help-dev-maintenance:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
@@ -793,6 +799,11 @@ check-upstream-versions:
 	$(call PROGRESS_PROBE,[check] Checking upstream versions)
 	@DEBUG="$(DEBUG)" UPSTREAM_VERSION_MODE="$(UPSTREAM_VERSION_MODE)" UPSTREAM_VERSION_ONLY="$(UPSTREAM_VERSION_ONLY)" UPSTREAM_VERSION_FORMAT="$(UPSTREAM_VERSION_FORMAT)" UPSTREAM_VERSION_SNAPSHOT="$(UPSTREAM_VERSION_SNAPSHOT)" V="$(V)" $(PYTHON) scripts/check_upstream_versions.py --v "$(V)"
 
+publish-source-update:
+	@if [ -z "$(SOURCE_REFS)" ]; then $(MAKE) --no-print-directory publish-source-update-help; printf '%s\n' 'missing required variable: SOURCE_REFS' >&2; exit 2; fi
+	$(call PROGRESS_PROBE,[publish] Validating atomic build/source ref update)
+	@DEBUG="$(DEBUG)" SOURCE_REFS="$(SOURCE_REFS)" REMOTE="$(REMOTE)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/publish_source_update.py --v "$(V)"
+
 check-source-metadata:
 	$(call PROGRESS_PROBE,[check] Checking source metadata refresh state)
 	@DEBUG="$(DEBUG)" CHECK="1" WRITE="0" RENDER_GENERATED="$(RENDER_GENERATED)" UPDATE_RELEASE_TAGS="$(UPDATE_RELEASE_TAGS)" V="$(V)" $(PYTHON) scripts/refresh_source_metadata.py --check 1 --write 0 --render-generated "$(RENDER_GENERATED)" --update-release-tags "$(UPDATE_RELEASE_TAGS)" --v "$(V)"
@@ -912,6 +923,9 @@ check-vendor-workflow-drift-help:
 
 check-upstream-versions-help:
 	@$(PYTHON) scripts/check_upstream_versions.py --help
+
+publish-source-update-help:
+	@$(PYTHON) scripts/publish_source_update.py --help
 
 check-source-metadata-help:
 	@$(PYTHON) scripts/refresh_source_metadata.py --help

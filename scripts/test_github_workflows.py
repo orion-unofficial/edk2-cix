@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_WORKFLOWS = (
     "build-branch-ci.yaml",
     "deterministic-replay.yaml",
-    "firmware-build.yaml",
+    "manual-firmware-build.yaml",
     "secure-boot-audit.yaml",
     "upstream-versions.yaml",
 )
@@ -31,14 +31,14 @@ class GitHubWorkflowTests(unittest.TestCase):
                 self.assertNotIn("+refs/heads/source/*:refs/remotes/origin/source/*", text)
 
     def test_local_runs_skip_github_only_qemu_and_upload_actions(self) -> None:
-        for name in ("deterministic-replay.yaml", "firmware-build.yaml", "secure-boot-audit.yaml"):
+        for name in ("deterministic-replay.yaml", "manual-firmware-build.yaml", "secure-boot-audit.yaml"):
             with self.subTest(workflow=name):
                 text = (REPO_ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
                 self.assertIn("if: ${{ env.ACT != 'true' }}\n        uses: docker/setup-qemu-action@v4", text)
                 self.assertIn("env.ACT != 'true'", text[text.index("uses: actions/upload-artifact@v7") - 120 :])
 
     def test_firmware_workflows_select_latest_source_explicitly(self) -> None:
-        firmware = (REPO_ROOT / ".github" / "workflows" / "firmware-build.yaml").read_text(
+        firmware = (REPO_ROOT / ".github" / "workflows" / "manual-firmware-build.yaml").read_text(
             encoding="utf-8"
         )
         secure_boot = (REPO_ROOT / ".github" / "workflows" / "secure-boot-audit.yaml").read_text(
@@ -58,7 +58,7 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertEqual(secure_boot.count("ARTEFACT_MODE=custom"), 2)
 
     def test_no_firmware_workflow_depends_on_targetless_make(self) -> None:
-        for name in ("deterministic-replay.yaml", "firmware-build.yaml", "secure-boot-audit.yaml"):
+        for name in ("deterministic-replay.yaml", "manual-firmware-build.yaml", "secure-boot-audit.yaml"):
             with self.subTest(workflow=name):
                 lines = (REPO_ROOT / ".github" / "workflows" / name).read_text(
                     encoding="utf-8"
@@ -70,8 +70,8 @@ class GitHubWorkflowTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertEqual(text.count("default: edk2-202208/radxa-1.3.1"), 1)
-        self.assertEqual(text.count("default: 1.3.1"), 1)
+        self.assertEqual(text.count("default: edk2-202208/radxa-1.3.1"), 2)
+        self.assertEqual(text.count("default: 1.3.1"), 2)
         self.assertIn("inputs.replay_source_target || 'edk2-202208/radxa-1.3.1'", text)
         self.assertIn("inputs.replay_version || '1.3.1'", text)
         self.assertNotIn("unofficial-1.2.1", text)
@@ -97,6 +97,9 @@ class GitHubWorkflowTests(unittest.TestCase):
         )
         self.assertNotIn("channels.nixos.org", dockerfile)
         self.assertNotIn("profile install", dockerfile)
+        self.assertIn('ENV NIX_CONFIG="connect-timeout = 5"', dockerfile)
+        self.assertIn('RES_OPTIONS="no-aaaa"', dockerfile)
+        self.assertIn("nix --connect-timeout 60", dockerfile)
 
         runner = (REPO_ROOT / "docs" / "scripts" / "run_docs_workflow_local.sh").read_text(
             encoding="utf-8"
@@ -105,12 +108,33 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn('$(cksum "$dockerfile"', runner)
         self.assertNotIn('printf \'%s\' "$repo_root" | cksum', runner)
 
+        build_runner = (REPO_ROOT / "docs" / "scripts" / "run_docs_build.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('if [[ "$in_container" == 1 ]]', build_runner)
+        self.assertIn("--option cachix.enable:bool false", build_runner)
+        self.assertIn("--option devenv.latestVersion:string 2.2.2", build_runner)
+        self.assertIn('! "$binary" --version', build_runner)
+
+        installer = (REPO_ROOT / "docs" / "scripts" / "install_mdbook_toc.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('&& "$binary" --version', installer)
+
     def test_local_act_removes_job_containers_and_container_owned_snapshots(self) -> None:
         runner = (REPO_ROOT / "scripts" / "run_github_actions_with_act.sh").read_text(
             encoding="utf-8"
         )
 
         self.assertIn("cleanup_act_workspace()", runner)
+        self.assertIn('repository_root="$(dirname -- "$git_common_dir")"', runner)
+        self.assertIn('${repository_root}/.cache/edk2-cix/act-cache', runner)
+        self.assertIn('${repository_root}/.cache/edk2-cix}', runner)
+        self.assertIn("prepare_action_cache()", runner)
+        self.assertIn('git -C "$cache_dir" update-ref -d refs/heads/HEAD', runner)
+        self.assertIn('git -C "$cache_dir" fetch --quiet --depth 1 origin "$action_ref"', runner)
+        self.assertIn('git -c advice.detachedHead=false clone --quiet', runner)
+        self.assertIn("args+=(--action-offline-mode)", runner)
         self.assertIn('"${repo_root}/.cache/edk2-cix/act-workspaces/run."*', runner)
         self.assertIn(
             'if [[ "${1:-list}" == run || "$git_common_dir" != "$repo_root"/* ]]; then',

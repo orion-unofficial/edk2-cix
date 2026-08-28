@@ -1025,10 +1025,8 @@ def test_integrate_source_release_make_target_preserves_materialise_default() ->
     )
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     require(
-        "The primitive targets remain supported" in readme
-        and "make integrate-source-release" in readme
-        and "make promote-unofficial-release" in readme,
-        "README should document how older source-uplift primitives fit the current process",
+        "`test` branch" in readme and "`MAINTENANCE.md`" in readme,
+        "end-user README should direct maintainers to the test branch",
     )
 
 

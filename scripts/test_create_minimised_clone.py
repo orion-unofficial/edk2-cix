@@ -17,6 +17,27 @@ from test_support import commit_all, git, write_file  # noqa: E402
 
 
 class MinimisedCloneRefTests(unittest.TestCase):
+    def test_export_uses_build_ref_when_another_branch_is_checked_out(self) -> None:
+        with tempfile.TemporaryDirectory(
+            prefix="edk2-cix-minimised-build-ref-test."
+        ) as directory:
+            repo = Path(directory)
+            git(repo, "init", "-q", "-b", "build")
+            git(repo, "config", "user.name", "Test User")
+            git(repo, "config", "user.email", "minimised-build-ref-test")
+            write_file(repo, "fixture", "build\n")
+            commit_all(repo, "build fixture")
+            git(repo, "switch", "-q", "-c", "test")
+            write_file(repo, "test-only", "must not be exported as build\n")
+            commit_all(repo, "test fixture")
+
+            selected = dict(required_refspecs(repo))
+
+            self.assertEqual(
+                selected["refs/heads/build"],
+                "refs/heads/build",
+            )
+
     def test_export_omits_stale_remote_compatibility_refs(self) -> None:
         with tempfile.TemporaryDirectory(prefix="edk2-cix-minimised-refs-test.") as directory:
             repo = Path(directory)

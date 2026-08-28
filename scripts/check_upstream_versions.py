@@ -99,6 +99,16 @@ class UpstreamVersionResult:
     detail: str
 
 
+SOURCE_REMOTE_TYPES = {
+    "security-payload",
+    "upstream",
+    "vendor-bundle",
+    "vendor-component",
+    "vendor-payload",
+    "vendor-superproject",
+}
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
     p.add_argument("--mode", default=os.environ.get("UPSTREAM_VERSION_MODE", "policy"), choices=("advisory", "policy", "strict"))
@@ -178,6 +188,38 @@ def local_edk2_release(repo: Path) -> LocalState:
     ]
     object_id = records[0].get("object_id") if records else None
     return LocalState(label=edk2_ref, version=release, object_id=str(object_id) if object_id else None)
+
+
+def latest_edk2_companion_record(repo: Path, component: str) -> tuple[dict[str, Any], str]:
+    releases = load_json(repo, f"config/{EDK2_REFS_MANIFEST}").get("releases", [])
+    candidates = [
+        release
+        for release in releases
+        if isinstance(release, dict)
+        and isinstance(release.get("components"), dict)
+        and component in release["components"]
+    ]
+    if not candidates:
+        raise ReconstructionError(f"no local EDK2 {component} selection is available")
+    release = sorted(candidates, key=lambda item: version_key(str(item.get("edk2_ref", ""))))[-1]
+    timestamp = str(release.get("selected_at_or_before", ""))
+    if not timestamp:
+        raise ReconstructionError(
+            f"latest EDK2 {component} selection has no selected_at_or_before timestamp"
+        )
+    return release, timestamp
+
+
+def local_edk2_companion_selection(repo: Path, component: str) -> LocalState:
+    release, timestamp = latest_edk2_companion_record(repo, component)
+    component_record = release["components"][component]
+    object_id = str(component_record.get("object_id", ""))
+    if not object_id:
+        raise ReconstructionError(f"latest EDK2 {component} selection has no object_id")
+    return LocalState(
+        label=f"{release['edk2_ref']} at or before {timestamp}",
+        object_id=object_id,
+    )
 
 
 def local_arm_release(repo: Path, component: str) -> LocalState:
@@ -288,6 +330,8 @@ def local_state(repo: Path, check: dict[str, Any]) -> LocalState:
     local_type = local.get("type")
     if local_type == "edk2-release":
         state = local_edk2_release(repo)
+    elif local_type == "edk2-companion-selection":
+        state = local_edk2_companion_selection(repo, str(local["component"]))
     elif local_type == "arm-base-release":
         state = local_arm_release(repo, str(local["component"]))
     elif local_type == "radxa-release":
@@ -337,6 +381,94 @@ def remote_branch_head(refs: list[RemoteRef], ref: str) -> LocalState | None:
         if item.ref == ref:
             return LocalState(label=ref, object_id=item.oid)
     return None
+
+
+def remote_selected_at_or_before(
+    repo: Path,
+    remote_key: str,
+    ref: str,
+    timestamp: str,
+    snapshot: dict[str, list[RemoteRef]],
+    verbose: bool,
+) -> LocalState | None:
+    snapshot_ref = f"{ref}@{{{timestamp}}}"
+    if remote_key in snapshot:
+        selected = next((item for item in snapshot[remote_key] if item.ref == snapshot_ref), None)
+        return LocalState(label=snapshot_ref, object_id=selected.oid) if selected else None
+
+    url = configured_remote_url(repo, remote_key=remote_key)
+    with tempfile.TemporaryDirectory(prefix=f"upstream-version-{remote_key}-") as tmp:
+        run(["git", "init", "--bare", "--quiet", tmp])
+        fetched = run(
+            [
+                "git",
+                "-C",
+                tmp,
+                "fetch",
+                "--quiet",
+                "--filter=blob:none",
+                "--no-tags",
+                url,
+                ref,
+            ],
+            check=False,
+        )
+        if fetched.returncode != 0:
+            detail = (fetched.stderr or fetched.stdout or "").strip()
+            raise ReconstructionError(f"remote unavailable for {remote_key}: {detail or url}")
+        object_id = run(
+            ["git", "-C", tmp, "rev-list", "-n", "1", f"--before={timestamp}", "FETCH_HEAD"]
+        ).stdout.strip()
+    if not object_id:
+        return None
+    if verbose:
+        print(f"[upstream-version] {remote_key}: selected {object_id} from {ref} at or before {timestamp}")
+    return LocalState(label=snapshot_ref, object_id=object_id)
+
+
+def nested_remote_keys(value: Any) -> set[str]:
+    if isinstance(value, dict):
+        keys = {str(value["remote"])} if isinstance(value.get("remote"), str) else set()
+        for child in value.values():
+            keys.update(nested_remote_keys(child))
+        return keys
+    if isinstance(value, list):
+        keys: set[str] = set()
+        for child in value:
+            keys.update(nested_remote_keys(child))
+        return keys
+    return set()
+
+
+def validate_remote_monitoring(repo: Path, checks: list[dict[str, Any]]) -> None:
+    remotes = load_json(repo, "config/remotes.json").get("remotes", {})
+    if not isinstance(remotes, dict):
+        raise ReconstructionError("config/remotes.json: remotes must be an object")
+    monitored = {str(item["remote"]) for check in checks for _kind, item in comparison_items(check)}
+    required = {
+        key
+        for key, entry in remotes.items()
+        if isinstance(entry, dict) and entry.get("type") in SOURCE_REMOTE_TYPES
+    }
+    for manifest in sorted((repo / "config").glob("refs-*.json")):
+        required.update(nested_remote_keys(json.loads(manifest.read_text(encoding="utf-8"))))
+
+    unknown = sorted(required - set(remotes))
+    if unknown:
+        raise ReconstructionError(
+            "source manifests reference unknown remotes: " + ", ".join(unknown)
+        )
+    missing = []
+    for key in sorted(required - monitored):
+        entry = remotes[key]
+        if entry.get("monitor") is False and str(entry.get("monitor_reason", "")).strip():
+            continue
+        missing.append(key)
+    if missing:
+        raise ReconstructionError(
+            "source remotes lack an upstream-version check or an explicit "
+            "monitor=false reason: " + ", ".join(missing)
+        )
 
 
 def latest_remote_subject_from_snapshot(refs: list[RemoteRef], ref: str, pattern: str) -> LocalState | None:
@@ -635,7 +767,13 @@ def evaluate_comparison(
     local = local_state(repo, comparison)
     remote_key = str(comparison["remote"])
     kind = comparison.get("kind")
-    if kind not in {"latest_tag", "branch_head", "release_subject", "docker_latest_tag"}:
+    if kind not in {
+        "branch_head",
+        "date_coupled_commit",
+        "docker_latest_tag",
+        "latest_tag",
+        "release_subject",
+    }:
         raise ReconstructionError(f"{comparison_id}: unsupported version-check kind: {kind}")
     try:
         if kind == "latest_tag":
@@ -674,6 +812,31 @@ def evaluate_comparison(
             if status == "stale" and mode == "advisory":
                 status = "unreleased"
                 detail = advisory_branch_head_detail(comparison_id, local, remote)
+        elif kind == "date_coupled_commit":
+            local_config = comparison.get("local", {})
+            component = str(local_config.get("component", ""))
+            _release, timestamp = latest_edk2_companion_record(repo, component)
+            remote = remote_selected_at_or_before(
+                repo,
+                remote_key,
+                str(comparison["ref"]),
+                timestamp,
+                snapshot,
+                verbose,
+            )
+            if remote is None:
+                return UpstreamVersionResult(
+                    check_id,
+                    comparison_id,
+                    kind_label,
+                    description,
+                    mode,
+                    "unavailable",
+                    local.label,
+                    f"<no commit at or before {timestamp}>",
+                    "remote history has no matching date-coupled commit",
+                )
+            status, detail = compare_object(local, remote, "date-coupled upstream commit")
         elif kind == "release_subject":
             remote = latest_remote_subject(
                 repo,
@@ -833,11 +996,12 @@ def main() -> None:
     checks = manifest.get("checks", [])
     if not isinstance(checks, list) or not checks:
         raise ReconstructionError("config/upstream-versions.json has no checks")
+    if not all(isinstance(check, dict) for check in checks):
+        raise ReconstructionError("config/upstream-versions.json checks must be objects")
+    validate_remote_monitoring(repo, checks)
 
     results = []
     for check in checks:
-        if not isinstance(check, dict):
-            raise ReconstructionError("config/upstream-versions.json checks must be objects")
         for kind_label, comparison in comparison_items(check):
             check_id = str(check.get("id", ""))
             comparison_id = str(comparison.get("comparison_id", f"{check_id}:{kind_label}"))

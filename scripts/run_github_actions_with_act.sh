@@ -4,9 +4,11 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "$0")" && pwd -P)"
 repo_root="$(dirname -- "$script_dir")"
+git_common_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
+repository_root="$(dirname -- "$git_common_dir")"
 act_bootstrap="${script_dir}/ensure_act.sh"
-act_cache_home="${EDK2_CIX_ACT_XDG_CACHE_HOME:-${repo_root}/.cache/edk2-cix/act-cache}"
-act_host_cache_root="${EDK2_CIX_ACT_HOST_CACHE_ROOT:-${repo_root}/.cache/edk2-cix}"
+act_cache_home="${EDK2_CIX_ACT_XDG_CACHE_HOME:-${repository_root}/.cache/edk2-cix/act-cache}"
+act_host_cache_root="${EDK2_CIX_ACT_HOST_CACHE_ROOT:-${repository_root}/.cache/edk2-cix}"
 default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:act-24.04-20260815}}"
 
 detect_container_arch() {
@@ -37,7 +39,6 @@ resolve_container_arch() {
 }
 
 default_container_arch="$(resolve_container_arch "${ACT_CONTAINER_ARCH:-${EDK2_CIX_ACT_CONTAINER_ARCH:-auto}}")"
-git_common_dir="$(git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir)"
 act_workdir="$repo_root"
 act_workspace=""
 
@@ -157,6 +158,42 @@ status() {
     printf '[act-runner] %s\n' "$*"
 }
 
+prepare_action_cache() {
+    local action_spec action_repository action_ref cache_dir
+
+    mkdir -p "${act_cache_home}/act"
+    while IFS= read -r action_spec; do
+        case "$action_spec" in
+            ./*|docker://*) continue ;;
+        esac
+        action_repository="${action_spec%@*}"
+        action_ref="${action_spec##*@}"
+        cache_dir="${act_cache_home}/act/${action_repository//\//-}@${action_ref}"
+        if [[ -d "${cache_dir}/.git" ]]; then
+            status "Refreshing action ${action_spec} with system Git"
+            git -C "$cache_dir" update-ref -d refs/heads/HEAD
+            if git -C "$cache_dir" fetch --quiet --depth 1 origin "$action_ref"; then
+                git -C "$cache_dir" checkout --quiet --detach FETCH_HEAD
+            elif git -C "$cache_dir" rev-parse --verify HEAD >/dev/null 2>&1; then
+                status "Action refresh failed; using cached ${action_spec}"
+            else
+                printf '[act-runner] Action cache is incomplete and refresh failed: %s\n' "$cache_dir" >&2
+                return 1
+            fi
+        elif [[ -e "$cache_dir" ]]; then
+            printf '[act-runner] Refusing to replace unexpected action-cache path: %s\n' "$cache_dir" >&2
+            return 1
+        else
+            status "Caching action ${action_spec} with system Git"
+            git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$action_ref" \
+                "https://github.com/${action_repository}.git" "$cache_dir"
+        fi
+    done < <(
+        sed -nE 's/^[[:space:]]*uses:[[:space:]]+([^#[:space:]]+).*/\1/p' \
+            "$act_workdir"/.github/workflows/*.yaml | sort -u
+    )
+}
+
 mode="${1:-list}"
 case "$mode" in
     -h|--help)
@@ -177,11 +214,18 @@ export XDG_CACHE_HOME="$act_cache_home"
 
 act_bin="$("$act_bootstrap")"
 
+if [[ "$mode" != list ]]; then
+    prepare_action_cache
+fi
+
 args=(
     --rm
     --container-architecture "$default_container_arch"
     -P "ubuntu-latest=$default_runner_image"
 )
+if [[ "$mode" != list ]]; then
+    args+=(--action-offline-mode)
+fi
 if [[ -n "$act_workspace" ]]; then
     args+=(--bind)
     args+=(--env "EDK2_CIX_ACT_HOST_CACHE_ROOT=${act_host_cache_root}")

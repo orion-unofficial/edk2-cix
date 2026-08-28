@@ -14,6 +14,7 @@ reconstruct the same firmware source trees, then ask for explicit approval
 before removing the old refs:
 
 - `refs/heads/build`
+- `refs/heads/test`
 - `refs/heads/source/base/edk2/**`
 - `refs/heads/source/base/edk2-platforms/**`
 - `refs/heads/source/base/edk2-non-osi/**`

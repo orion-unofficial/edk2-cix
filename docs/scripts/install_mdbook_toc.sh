@@ -14,7 +14,10 @@ temp_root="$("${script_dir}/resolve_temp_root.sh")"
 read -r lockfile_cksum lockfile_size _ < <(cksum "$lockfile")
 expected_stamp="${lockfile_cksum}:${lockfile_size}"
 
-if [[ -x "$binary" ]] && [[ -f "$stamp_file" ]] && [[ "$(cat "$stamp_file")" == "$expected_stamp" ]]; then
+if [[ -x "$binary" ]] \
+    && [[ -f "$stamp_file" ]] \
+    && [[ "$(cat "$stamp_file")" == "$expected_stamp" ]] \
+    && "$binary" --version >/dev/null 2>&1; then
     exit 0
 fi
 

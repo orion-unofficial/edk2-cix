@@ -1,8 +1,10 @@
-name: Build branch CI
+name: Firmware qualification
 
 on:
   merge_group:
   pull_request:
+    branches:
+      - build
   push:
     branches:
       - build
@@ -12,12 +14,69 @@ permissions:
   contents: read
 
 concurrency:
-  cancel-in-progress: true
-  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: >-
+    ${{ github.workflow }}-${{
+      github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id
+    }}
 
 jobs:
+  classify:
+    name: Classify change
+    runs-on: ubuntu-latest
+    outputs:
+      build_affecting: ${{ steps.changes.outputs.build_affecting }}
+      reason: ${{ steps.changes.outputs.reason }}
+
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Classify firmware impact
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == workflow_dispatch || "${EVENT_NAME}" == merge_group ]]; then
+            echo "build_affecting=true" >>"${GITHUB_OUTPUT}"
+            echo "reason=${EVENT_NAME} requests full qualification" >>"${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          if [[ -z "${BASE_SHA}" || "${BASE_SHA}" =~ ^0+$ ]] \
+            || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            echo "build_affecting=true" >>"${GITHUB_OUTPUT}"
+            echo "reason=no comparable base commit" >>"${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          mapfile -t changed < <(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}")
+          if ((${#changed[@]} == 0)); then
+            echo "build_affecting=false" >>"${GITHUB_OUTPUT}"
+            echo "reason=no changed paths" >>"${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          for path in "${changed[@]}"; do
+            case "${path}" in
+              README.md|LICENSES/*|docs/*) ;;
+              *)
+                echo "build_affecting=true" >>"${GITHUB_OUTPUT}"
+                echo "reason=firmware-affecting path: ${path}" >>"${GITHUB_OUTPUT}"
+                exit 0
+                ;;
+            esac
+          done
+          echo "build_affecting=false" >>"${GITHUB_OUTPUT}"
+          echo "reason=documentation/licensing-only change" >>"${GITHUB_OUTPUT}"
+
   source-model:
     name: Source model, lint, and minimised clone
+    needs: classify
+    if: ${{ needs.classify.outputs.build_affecting == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -39,3 +98,62 @@ jobs:
 
       - name: Run lint checks
         run: make lint
+
+  current-source:
+    name: Current-source firmware matrix
+    needs: classify
+    if: ${{ needs.classify.outputs.build_affecting == 'true' }}
+    uses: ./.github/workflows/secure-boot-audit.yaml
+    with:
+      firmware_distro: trixie
+
+  upstream-replay:
+    name: Exact upstream replay matrix
+    needs: classify
+    if: ${{ needs.classify.outputs.build_affecting == 'true' }}
+    uses: ./.github/workflows/deterministic-replay.yaml
+    with:
+      replay_source_target: edk2-202208/radxa-1.3.1
+      replay_version: 1.3.1
+      upstream_repository: radxa-pkg/edk2-cix
+
+  qualification:
+    name: Qualification summary
+    if: ${{ always() }}
+    needs:
+      - classify
+      - source-model
+      - current-source
+      - upstream-replay
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Report qualification result
+        env:
+          BUILD_AFFECTING: ${{ needs.classify.outputs.build_affecting }}
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          CURRENT_SOURCE_RESULT: ${{ needs.current-source.result }}
+          REASON: ${{ needs.classify.outputs.reason }}
+          SOURCE_MODEL_RESULT: ${{ needs.source-model.result }}
+          UPSTREAM_REPLAY_RESULT: ${{ needs.upstream-replay.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Firmware qualification"
+            echo
+            echo "Classification: ${REASON:-unavailable}"
+            echo
+            echo "| Gate | Result |"
+            echo "| --- | --- |"
+            echo "| Classifier | ${CLASSIFY_RESULT} |"
+            echo "| Source model | ${SOURCE_MODEL_RESULT} |"
+            echo "| Current-source O6/O6N, fixes off/on | ${CURRENT_SOURCE_RESULT} |"
+            echo "| Radxa 1.3.1 exact replay, O6/O6N | ${UPSTREAM_REPLAY_RESULT} |"
+          } >>"${GITHUB_STEP_SUMMARY}"
+          [[ "${CLASSIFY_RESULT}" == success ]]
+          if [[ "${BUILD_AFFECTING}" == true ]]; then
+            [[ "${SOURCE_MODEL_RESULT}" == success ]]
+            [[ "${CURRENT_SOURCE_RESULT}" == success ]]
+            [[ "${UPSTREAM_REPLAY_RESULT}" == success ]]
+          fi

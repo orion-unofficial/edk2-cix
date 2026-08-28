@@ -1,4 +1,4 @@
-name: Firmware build
+name: Manual firmware build
 
 on:
   workflow_dispatch:
@@ -28,6 +28,14 @@ on:
         options:
           - RELEASE
           - DEBUG
+        required: true
+        type: choice
+      firmware_distro:
+        default: trixie
+        description: Buildbox distribution.
+        options:
+          - trixie
+          - bookworm
         required: true
         type: choice
       enable_firmware_fixes:
@@ -75,6 +83,7 @@ jobs:
         env:
           ENABLE_FIRMWARE_FIXES_INPUT: ${{ inputs.enable_firmware_fixes }}
           FIRMWARE_BOARD_INPUT: ${{ inputs.board }}
+          FIRMWARE_DISTRO_INPUT: ${{ inputs.firmware_distro }}
           FIRMWARE_TARGET_INPUT: ${{ inputs.firmware_target }}
           MAKE_TARGET_INPUT: ${{ inputs.make_target }}
           RELEASE_INPUT: ${{ inputs.release }}
@@ -89,6 +98,7 @@ jobs:
           release_arg=("RELEASE=${release}")
           make "${MAKE_TARGET_INPUT}" \
             "FIRMWARE_BOARD=${FIRMWARE_BOARD_INPUT}" \
+            "FIRMWARE_DISTRO=${FIRMWARE_DISTRO_INPUT}" \
             "FIRMWARE_TARGET=${FIRMWARE_TARGET_INPUT}" \
             "ARTEFACT_MODE=custom" \
             "CIX_RELEASE=v1.2" \

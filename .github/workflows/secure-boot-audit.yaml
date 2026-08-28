@@ -1,8 +1,16 @@
-name: Secure Boot audit
+name: Current-source firmware validation
 
 on:
-  schedule:
-    - cron: '17 6 * * 1'
+  workflow_call:
+    inputs:
+      release:
+        default: ''
+        required: false
+        type: string
+      firmware_distro:
+        default: trixie
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       release:
@@ -23,8 +31,8 @@ permissions:
   contents: read
 
 concurrency:
-  cancel-in-progress: true
-  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.run_id }}
 
 env:
   FIRMWARE_DISTRO: ${{ inputs.firmware_distro || 'trixie' }}
@@ -79,7 +87,7 @@ jobs:
             MICROSOFT_SECURE_BOOT_RELEASE_CHECK_MODE=strict
 
   secure-boot:
-    name: Secure Boot payloads / ${{ matrix.board }}
+    name: ${{ matrix.board }} / firmware fixes ${{ matrix.firmware_fixes }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
@@ -87,8 +95,16 @@ jobs:
       matrix:
         include:
           - board: O6
+            firmware_fixes: false
+            product: orion-o6
+          - board: O6
+            firmware_fixes: true
             product: orion-o6
           - board: O6N
+            firmware_fixes: false
+            product: orion-o6n
+          - board: O6N
+            firmware_fixes: true
             product: orion-o6n
 
     steps:
@@ -133,12 +149,15 @@ jobs:
           set -euo pipefail
           make -C "${FIRMWARE_WORKTREE}/src" check-microsoft-secure-boot-defaults
 
-      - name: Build custom firmware
+      - name: Build and stage custom firmware
         shell: bash
         run: |
           set -euo pipefail
-          make -C "${FIRMWARE_WORKTREE}" buildbox-firmware-build V=1 \
+          validation_profile="current-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"
+          make -C "${FIRMWARE_WORKTREE}" buildbox-firmware-stage V=1 \
             ARTEFACT_MODE=custom \
+            CIX_RELEASE=v1.2 \
+            ENABLE_FIRMWARE_FIXES="${{ matrix.firmware_fixes }}" \
             FIRMWARE_BOARD="${{ matrix.board }}" \
             FIRMWARE_PRODUCT="${{ matrix.product }}" \
             FIRMWARE_TARGET=RELEASE \
@@ -149,14 +168,18 @@ jobs:
             CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
             CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
             FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro" \
-            FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation"
+            FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation" \
+            FIRMWARE_VALIDATION_PROFILE="${validation_profile}-${FIRMWARE_DISTRO}"
 
       - name: Validate embedded Secure Boot payloads
         shell: bash
         run: |
           set -euo pipefail
+          validation_profile="current-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"
           make -C "${FIRMWARE_WORKTREE}" buildbox-validate-secure-boot-defaults V=1 \
             ARTEFACT_MODE=custom \
+            CIX_RELEASE=v1.2 \
+            ENABLE_FIRMWARE_FIXES="${{ matrix.firmware_fixes }}" \
             FIRMWARE_BOARD="${{ matrix.board }}" \
             FIRMWARE_PRODUCT="${{ matrix.product }}" \
             FIRMWARE_TARGET=RELEASE \
@@ -167,7 +190,8 @@ jobs:
             CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
             CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
             FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro" \
-            FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation"
+            FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation" \
+            FIRMWARE_VALIDATION_PROFILE="${validation_profile}-${FIRMWARE_DISTRO}"
 
       - name: Collect Secure Boot reports
         if: always()
@@ -179,8 +203,11 @@ jobs:
             cp -a "${FIRMWARE_CACHE}/build-validation" "ci-artifacts/build-validation"
             python3 "${FIRMWARE_WORKTREE}/scripts/summarize_validation_reports.py" \
               --report-root "${FIRMWARE_CACHE}/build-validation" \
-              --heading "Secure Boot reports for ${{ matrix.board }}" \
+              --heading "Validation reports for ${{ matrix.board }} / firmware fixes ${{ matrix.firmware_fixes }}" \
               >>"${GITHUB_STEP_SUMMARY}"
+          fi
+          if [[ -d "${FIRMWARE_WORKTREE}/dist" ]]; then
+            cp -a "${FIRMWARE_WORKTREE}/dist" "ci-artifacts/dist"
           fi
 
       - name: Upload Secure Boot reports
@@ -188,5 +215,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: warn
-          name: secure-boot-${{ matrix.board }}
+          name: current-source-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}
           path: ci-artifacts/**
