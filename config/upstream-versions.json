@@ -19,6 +19,46 @@
       }
     },
     {
+      "description": "EDK2 Platforms companion source selected for the latest EDK2 release",
+      "id": "edk2-platforms",
+      "local": {
+        "component": "edk2-platforms",
+        "type": "edk2-companion-selection"
+      },
+      "remote": "edk2-platforms",
+      "release": {
+        "description": "Date-coupled EDK2 Platforms selection",
+        "kind": "date_coupled_commit",
+        "mode": "strict",
+        "ref": "refs/heads/master"
+      },
+      "commits": {
+        "description": "EDK2 Platforms master branch head",
+        "mode": "advisory",
+        "ref": "refs/heads/master"
+      }
+    },
+    {
+      "description": "EDK2 Non-OSI companion source selected for the latest EDK2 release",
+      "id": "edk2-non-osi",
+      "local": {
+        "component": "edk2-non-osi",
+        "type": "edk2-companion-selection"
+      },
+      "remote": "edk2-non-osi",
+      "release": {
+        "description": "Date-coupled EDK2 Non-OSI selection",
+        "kind": "date_coupled_commit",
+        "mode": "strict",
+        "ref": "refs/heads/master"
+      },
+      "commits": {
+        "description": "EDK2 Non-OSI master branch head",
+        "mode": "advisory",
+        "ref": "refs/heads/master"
+      }
+    },
+    {
       "description": "Radxa edk2-cix source",
       "id": "radxa",
       "remote": "radxa-edk2-cix",
@@ -51,14 +91,14 @@
       "release": {
         "description": "Latest CIX bios community release commit",
         "kind": "release_subject",
-        "mode": "advisory",
+        "mode": "strict",
         "ref": "refs/heads/cix_p1_community_dev",
         "scan_depth": 64,
         "subject_pattern": "^CIX P1 BIOS Community V(?P<version>\\d+(?:\\.\\d+)*) base on O6 Ecosystem Board$"
       },
       "commits": {
         "description": "CIX bios development branch head",
-        "mode": "strict",
+        "mode": "advisory",
         "ref": "refs/heads/cix_p1_community_dev"
       }
     },
@@ -73,10 +113,38 @@
       "release": {
         "description": "Latest CIX bootloader1 release commit",
         "kind": "release_subject",
-        "mode": "advisory",
+        "mode": "strict",
         "ref": "refs/heads/cix_p1_dev",
         "scan_depth": 128,
         "subject_pattern": "^(?:CIX )?P1 GA .*(?: \\[COMMUNITY\\])? RELEASE$"
+      }
+    },
+    {
+      "description": "CIX TF-A vendor fork used by the curated early-boot replacement",
+      "id": "cix-tf-a",
+      "local": {
+        "component": "tf-a",
+        "type": "cix-component-ref"
+      },
+      "remote": "cix-tf-a",
+      "commits": {
+        "description": "CIX TF-A development branch head",
+        "mode": "advisory",
+        "ref": "refs/heads/cix_p1_k6.6_2025q3_tfa_open_dev"
+      }
+    },
+    {
+      "description": "CIX OP-TEE vendor fork used by the curated early-boot replacement",
+      "id": "cix-op-tee",
+      "local": {
+        "component": "op-tee",
+        "type": "cix-component-ref"
+      },
+      "remote": "cix-op-tee",
+      "commits": {
+        "description": "CIX OP-TEE development branch head",
+        "mode": "advisory",
+        "ref": "refs/heads/cix_p1_k6.6_2025q3_tfa_open_dev"
       }
     },
     {

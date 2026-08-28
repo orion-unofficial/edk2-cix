@@ -94,7 +94,8 @@ mdbook_toc_needs_build() {
 
     read -r lockfile_cksum lockfile_size _ < <(cksum "$lockfile")
     expected_stamp="${lockfile_cksum}:${lockfile_size}"
-    [[ "$(cat "$stamp_file")" != "$expected_stamp" ]]
+    [[ "$(cat "$stamp_file")" != "$expected_stamp" ]] \
+        || ! "$binary" --version >/dev/null 2>&1
 }
 
 missing_host_tools() {
@@ -168,4 +169,11 @@ esac
 "${script_dir}/install_mdbook_toc.sh"
 prepare_devenv_dotfile
 cd "$docs_root"
-devenv shell --option starship.enable:bool false --option devenv.latestVersion:string 2.0.7 make docs-build
+devenv_cache_options=()
+if [[ "$in_container" == 1 ]]; then
+    devenv_cache_options=(--option cachix.enable:bool false)
+fi
+devenv shell "${devenv_cache_options[@]}" \
+    --option starship.enable:bool false \
+    --option devenv.latestVersion:string 2.2.2 \
+    make docs-build

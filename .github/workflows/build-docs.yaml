@@ -1,6 +1,7 @@
 name: Build documentation
 
 on:
+  workflow_call:
   merge_group:
   pull_request:
     paths:
@@ -101,6 +102,6 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-      - if: ${{ github.event_name != 'pull_request' && env.ACT != 'true' }}
+      - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/build' && env.ACT != 'true' }}
         name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v5

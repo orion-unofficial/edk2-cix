@@ -53,21 +53,13 @@ def ref_list(repo: Path, namespace: str) -> list[str]:
     return sorted(line for line in result.stdout.splitlines() if line)
 
 
-def build_refspec(repo: Path) -> tuple[str, str]:
-    head = git(repo, "rev-parse", "--verify", "HEAD").stdout.strip()
-    build = git(repo, "rev-parse", "--verify", "refs/heads/build", check=False)
-    if build.returncode == 0 and build.stdout.strip() == head:
-        return ("refs/heads/build", "refs/heads/build")
-    return ("HEAD", "refs/heads/build")
-
-
 def exportable_source_branch(branch: str) -> bool:
     return branch not in OBSOLETE_SOURCE_BRANCHES and branch.startswith(SOURCE_BRANCH_PREFIXES)
 
 
 def required_refspecs(repo: Path) -> list[tuple[str, str]]:
-    build_source, build_target = build_refspec(repo)
-    refspecs: dict[str, str] = {build_target: build_source}
+    git(repo, "rev-parse", "--verify", "refs/heads/build")
+    refspecs = {"refs/heads/build": "refs/heads/build"}
     for ref in ref_list(repo, "refs/heads/source"):
         branch = ref.removeprefix("refs/heads/")
         if exportable_source_branch(branch):
