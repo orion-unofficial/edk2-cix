@@ -56,7 +56,7 @@ ACT_JOB ?=
 ACT_MATRIX ?=
 ACT_SECRET_FILE ?=
 ACT_EXTRA_ARGS ?=
-ACT_CONCURRENT_JOBS ?= 2
+ACT_CONCURRENT_JOBS ?= 1
 ACT_CONTAINER_ARCH ?= auto
 ACT_RUNNER_IMAGE ?=
 REPLAY_SOURCE_TARGET ?= edk2-202208/radxa-$(REPLAY_VERSION)
@@ -422,7 +422,7 @@ help-dev-maintenance:
 	print_help_variable 'ACT_MATRIX=<name:value>' 'Optional single act matrix filter, for example board:O6.'; \
 	print_help_variable 'ACT_SECRET_FILE=<path>' 'Optional act --secret-file path for local workflow runs.'; \
 	print_help_variable 'ACT_EXTRA_ARGS=<args>' 'Additional raw flags appended to act.'; \
-	print_help_variable 'ACT_CONCURRENT_JOBS=<count>' 'Maximum number of local act jobs to run concurrently. Increase only when host CPU, memory, and disk capacity can sustain parallel firmware worktrees and buildboxes.\nDefault: 2.'; \
+	print_help_variable 'ACT_CONCURRENT_JOBS=<count>' 'Maximum number of top-level local act jobs to run concurrently. Keep this at 1 when workflows contain their own parallel firmware matrices; increase only when host CPU, memory, and disk capacity can sustain the multiplied workload.\nDefault: 1.'; \
 	print_help_variable 'ACT_CONTAINER_ARCH=auto|<platform>' 'Container architecture used by act. auto selects linux/arm64 on arm64 hosts and linux/amd64 on x86_64 hosts.\nDefault: auto.'; \
 	print_help_variable 'ACT_RUNNER_IMAGE=<image>' 'Runner image mapped to ubuntu-latest.\nDefault: ghcr.io/catthehacker/ubuntu:act-24.04-20260815.'; \
 	print_help_note 'Use ACT_JOB or ACT_MATRIX to narrow a local run; use ACT_EXTRA_ARGS for additional act options.'; \

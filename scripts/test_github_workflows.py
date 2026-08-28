@@ -70,6 +70,7 @@ class GitHubWorkflowTests(unittest.TestCase):
             secure_boot,
         )
         self.assertIn('[[ -z "${FIRMWARE_CACHE:-}" || -z "${FIRMWARE_WORKTREE:-}" ]]', secure_boot)
+        self.assertIn("strategy:\n      fail-fast: false\n      max-parallel: 2", secure_boot)
 
     def test_firmware_workflows_select_latest_source_explicitly(self) -> None:
         firmware = (REPO_ROOT / ".github" / "workflows" / "manual-firmware-build.yaml").read_text(
@@ -181,7 +182,7 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn("-mindepth 1 -depth -delete", runner)
         self.assertIn("args=(\n    --rm", runner)
         self.assertIn('--concurrent-jobs "$concurrent_jobs"', runner)
-        self.assertIn('concurrent_jobs="${ACT_CONCURRENT_JOBS:-${EDK2_CIX_ACT_CONCURRENT_JOBS:-2}}"', runner)
+        self.assertIn('concurrent_jobs="${ACT_CONCURRENT_JOBS:-${EDK2_CIX_ACT_CONCURRENT_JOBS:-1}}"', runner)
         self.assertIn("done < <(docker ps -aq 2>/dev/null || true)", runner)
         self.assertNotIn("--filter label=edk2-cix.buildbox.image", runner)
         self.assertIn('"${act_workspace}/"*', runner)
@@ -201,7 +202,7 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn("cp -a /docs-cache/book/html", docs_runner)
 
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
-        self.assertIn("ACT_CONCURRENT_JOBS ?= 2", makefile)
+        self.assertIn("ACT_CONCURRENT_JOBS ?= 1", makefile)
         self.assertEqual(
             makefile.count('ACT_CONCURRENT_JOBS="$(ACT_CONCURRENT_JOBS)"'),
             3,

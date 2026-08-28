@@ -10,7 +10,7 @@ act_bootstrap="${script_dir}/ensure_act.sh"
 act_cache_home="${EDK2_CIX_ACT_XDG_CACHE_HOME:-${repository_root}/.cache/edk2-cix/act-cache}"
 act_host_cache_root="${EDK2_CIX_ACT_HOST_CACHE_ROOT:-${repository_root}/.cache/edk2-cix}"
 default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:act-24.04-20260815}}"
-concurrent_jobs="${ACT_CONCURRENT_JOBS:-${EDK2_CIX_ACT_CONCURRENT_JOBS:-2}}"
+concurrent_jobs="${ACT_CONCURRENT_JOBS:-${EDK2_CIX_ACT_CONCURRENT_JOBS:-1}}"
 
 case "$concurrent_jobs" in
     ""|0|*[!0-9]*)
@@ -156,7 +156,8 @@ Environment:
   ACT_CONTAINER_ARCH=auto|<platform>
       Container architecture. Default: auto-detected from the host.
   ACT_CONCURRENT_JOBS=<count>
-      Maximum number of concurrent local jobs. Default: 2.
+      Maximum number of top-level concurrent local jobs. Default: 1.
+      Workflows can add their own matrix concurrency, so increase cautiously.
   ACT_RUNNER_IMAGE=<image>
       Runner image for ubuntu-latest. Default: ghcr.io/catthehacker/ubuntu:act-24.04-20260815.
   ACT_EXTRA_ARGS=<args>
