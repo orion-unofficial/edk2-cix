@@ -180,11 +180,15 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn("--entrypoint find", runner)
         self.assertIn("-mindepth 1 -depth -delete", runner)
         self.assertIn("args=(\n    --rm", runner)
-        self.assertIn("--filter label=edk2-cix.buildbox.image", runner)
+        self.assertIn('--concurrent-jobs "$concurrent_jobs"', runner)
+        self.assertIn('concurrent_jobs="${ACT_CONCURRENT_JOBS:-${EDK2_CIX_ACT_CONCURRENT_JOBS:-2}}"', runner)
+        self.assertIn("done < <(docker ps -aq 2>/dev/null || true)", runner)
+        self.assertNotIn("--filter label=edk2-cix.buildbox.image", runner)
         self.assertIn('"${act_workspace}/"*', runner)
         self.assertIn('docker rm -f "$container_id"', runner)
         self.assertIn('status "Isolated CI snapshot: ${act_workspace}"', runner)
         self.assertIn('status "Persistent local cache: ${act_host_cache_root}"', runner)
+        self.assertIn('status "Concurrent jobs: ${concurrent_jobs}"', runner)
         self.assertNotIn("Isolated linked-worktree snapshot", runner)
         self.assertNotIn("--volume=${repo_root}/.worktrees", runner)
 
@@ -195,6 +199,14 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn('-e EDK2_CIX_DOCS_CACHE_ROOT=/docs-cache', docs_runner)
         self.assertIn('-v "${host_cache_root}/docs:/docs-cache"', docs_runner)
         self.assertIn("cp -a /docs-cache/book/html", docs_runner)
+
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        self.assertIn("ACT_CONCURRENT_JOBS ?= 2", makefile)
+        self.assertEqual(
+            makefile.count('ACT_CONCURRENT_JOBS="$(ACT_CONCURRENT_JOBS)"'),
+            3,
+        )
+        self.assertNotIn('docs/src/build.md, "Test GitHub Actions Locally"', makefile)
 
 
 if __name__ == "__main__":

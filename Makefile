@@ -56,6 +56,7 @@ ACT_JOB ?=
 ACT_MATRIX ?=
 ACT_SECRET_FILE ?=
 ACT_EXTRA_ARGS ?=
+ACT_CONCURRENT_JOBS ?= 2
 ACT_CONTAINER_ARCH ?= auto
 ACT_RUNNER_IMAGE ?=
 REPLAY_SOURCE_TARGET ?= edk2-202208/radxa-$(REPLAY_VERSION)
@@ -421,9 +422,10 @@ help-dev-maintenance:
 	print_help_variable 'ACT_MATRIX=<name:value>' 'Optional single act matrix filter, for example board:O6.'; \
 	print_help_variable 'ACT_SECRET_FILE=<path>' 'Optional act --secret-file path for local workflow runs.'; \
 	print_help_variable 'ACT_EXTRA_ARGS=<args>' 'Additional raw flags appended to act.'; \
+	print_help_variable 'ACT_CONCURRENT_JOBS=<count>' 'Maximum number of local act jobs to run concurrently. Increase only when host CPU, memory, and disk capacity can sustain parallel firmware worktrees and buildboxes.\nDefault: 2.'; \
 	print_help_variable 'ACT_CONTAINER_ARCH=auto|<platform>' 'Container architecture used by act. auto selects linux/arm64 on arm64 hosts and linux/amd64 on x86_64 hosts.\nDefault: auto.'; \
 	print_help_variable 'ACT_RUNNER_IMAGE=<image>' 'Runner image mapped to ubuntu-latest.\nDefault: ghcr.io/catthehacker/ubuntu:act-24.04-20260815.'; \
-	print_help_note 'For workflow_dispatch inputs and matrix examples, see docs/src/build.md, "Test GitHub Actions Locally".'; \
+	print_help_note 'Use ACT_JOB or ACT_MATRIX to narrow a local run; use ACT_EXTRA_ARGS for additional act options.'; \
 	print_section 'Documentation'; \
 	print_help_line 'make docs-build' 'Build product docs. DOCS_BUILD_MODE=auto uses host tools when available and otherwise delegates to the internal docs container workflow.'; \
 	print_subtitle 'Variables:'; \
@@ -846,17 +848,17 @@ lint:
 
 gha-act-list:
 	$(call PROGRESS_PROBE,[gha] Listing local GitHub Actions jobs)
-	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh list
+	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONCURRENT_JOBS="$(ACT_CONCURRENT_JOBS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh list
 
 gha-act-dry-run:
 	@if [ -z "$(ACT_WORKFLOW)" ]; then printf '%s\n' 'missing required variable: ACT_WORKFLOW=.github/workflows/<file>.yaml' >&2; exit 2; fi
 	$(call PROGRESS_PROBE,[gha] Dry-running local GitHub Actions workflow: $(ACT_WORKFLOW))
-	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh dry-run
+	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONCURRENT_JOBS="$(ACT_CONCURRENT_JOBS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh dry-run
 
 gha-act-run:
 	@if [ -z "$(ACT_WORKFLOW)" ]; then printf '%s\n' 'missing required variable: ACT_WORKFLOW=.github/workflows/<file>.yaml' >&2; exit 2; fi
 	$(call PROGRESS_PROBE,[gha] Running local GitHub Actions workflow: $(ACT_WORKFLOW))
-	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh run
+	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONCURRENT_JOBS="$(ACT_CONCURRENT_JOBS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh run
 
 render-release-branch-help:
 	@$(PYTHON) scripts/render_release_branch.py --help
