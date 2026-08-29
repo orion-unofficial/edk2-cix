@@ -18,6 +18,11 @@ def parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument("--build-dir", type=pathlib.Path, required=True)
+    parser.add_argument(
+        "--fallback-build-dir",
+        type=pathlib.Path,
+        help="fallback tree for internal build outputs absent from the staged payload",
+    )
     parser.add_argument("--reference-dir", type=pathlib.Path, required=True)
     parser.add_argument("--report-json", type=pathlib.Path)
     parser.add_argument("--strict", action="store_true")
@@ -39,6 +44,9 @@ def collect_reference_files(reference_dir: pathlib.Path) -> list[pathlib.Path]:
 def main() -> int:
     args = parse_args()
     build_dir = args.build_dir.resolve()
+    fallback_build_dir = (
+        args.fallback_build_dir.resolve() if args.fallback_build_dir else None
+    )
     reference_dir = args.reference_dir.resolve()
 
     if not reference_dir.is_dir():
@@ -63,12 +71,17 @@ def main() -> int:
     for reference_path in reference_files:
         relative_path = reference_path.relative_to(reference_dir)
         build_path = build_dir / relative_path
+        if not build_path.is_file() and fallback_build_dir is not None:
+            fallback_path = fallback_build_dir / relative_path
+            if fallback_path.is_file():
+                build_path = fallback_path
         entry: dict[str, Any] = {
             "path": str(relative_path),
             "reference_exists": True,
             "reference_size": reference_path.stat().st_size,
             "reference_sha256": sha256_file(reference_path),
             "build_exists": build_path.is_file(),
+            "build_path": str(build_path),
             "status": "missing",
         }
         if build_path.is_file():
