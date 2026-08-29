@@ -90,8 +90,13 @@ def main() -> None:
 
     if not destination_ready(dest):
         raise ReconstructionError(f"destination already exists and is not empty: {dest}")
-    if git(repo, "status", "--porcelain").stdout.strip():
-        raise ReconstructionError("working tree is dirty; commit or stash changes before exporting a minimised clone")
+    status = git(repo, "status", "--porcelain").stdout.strip()
+    if status:
+        raise ReconstructionError(
+            "working tree is dirty; commit or stash changes before exporting "
+            "a minimised clone:\n"
+            f"{status}"
+        )
 
     refspecs = required_refspecs(repo)
     dest.parent.mkdir(parents=True, exist_ok=True)

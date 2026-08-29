@@ -210,7 +210,7 @@ jobs:
               >>"${GITHUB_STEP_SUMMARY}"
             exit 0
           fi
-          artifact_root="ci-artifacts/${{ matrix.board }}"
+          artifact_root="${RUNNER_TEMP}/ci-artifacts/${{ matrix.board }}"
           mkdir -p "${artifact_root}"
           if [[ -d "${FIRMWARE_CACHE}/build-validation" ]]; then
             cp -a "${FIRMWARE_CACHE}/build-validation" "${artifact_root}/build-validation"
@@ -230,4 +230,4 @@ jobs:
         with:
           if-no-files-found: warn
           name: deterministic-replay-${{ matrix.board }}-${{ needs.resolve-release.outputs.tag }}
-          path: ci-artifacts/**
+          path: ${{ runner.temp }}/ci-artifacts/**
