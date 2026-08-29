@@ -891,6 +891,7 @@ __check-offline-audit-baselines:
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_offline_audit_baselines.py"
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_audit_acpi_regression.py"
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_audit_final_image_manifest.py"
+	$(Q)python3 "$(REPO_ROOT)/scripts/test_compare_release_payloads.py"
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_export_firmware_payload.py"
 	$(Q)python3 "$(REPO_ROOT)/scripts/test_validate_firmware_outputs.py"
 
@@ -1072,10 +1073,20 @@ __deterministic-replay:
 		--report-json "build-validation/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(DETERMINISTIC_REPLAY_PROFILE)-rebuilt-acpi.json"; \
 	reference_dir="$$replay_dir/reference"; \
 	if [ -d "$$reference_dir" ]; then \
+		rebuilt_payload_dir="$$replay_dir/rebuilt-payload"; \
+		python3 "$(REPO_ROOT)/scripts/export_firmware_payload.py" stage \
+			--repo-root "$(REPO_ROOT)" \
+			--board "$(FIRMWARE_BOARD)" \
+			--product "$(REPLAY_PRODUCT)" \
+			--target "$(RAW_FIRMWARE_TARGET)" \
+			--artefact-mode upstream \
+			--version "$(REPLAY_VERSION)" \
+			--output-dir "$$rebuilt_payload_dir"; \
 		printf '[replay] Comparing built outputs against upstream release payload in %s\n' "$$reference_dir"; \
 		mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"; \
 		python3 "$(REPO_ROOT)/scripts/compare_release_payloads.py" \
-			--build-dir "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)" \
+			--build-dir "$$rebuilt_payload_dir" \
+			--fallback-build-dir "$(REPO_ROOT)/src/Build/$(FIRMWARE_BOARD)/$(RAW_FIRMWARE_TARGET)" \
 			--reference-dir "$$reference_dir" \
 			--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$(FIRMWARE_BOARD)-$(RAW_FIRMWARE_TARGET)-$(DETERMINISTIC_REPLAY_PROFILE)-release-compare.json" \
 			--strict; \

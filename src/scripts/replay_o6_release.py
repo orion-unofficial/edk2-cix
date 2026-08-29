@@ -314,6 +314,24 @@ def copy_reference_files(
     return reference_dir
 
 
+def collect_release_payload_files(release_dir: pathlib.Path) -> dict[str, pathlib.Path]:
+    return {
+        relative_name: release_dir / relative_name
+        for relative_name in (
+            "cix_flash_all.bin",
+            "cix_flash_ota.bin",
+            "BuildOptions",
+            "BurnImage.efi",
+            "EnrollFromDefaultKeysApp.efi",
+            "FlashUpdate.efi",
+            "Shell.efi",
+            "VariableInfo.efi",
+            "startup.nsh",
+        )
+        if (release_dir / relative_name).is_file()
+    }
+
+
 def write_env_file(env_path: pathlib.Path, env_values: dict[str, str]) -> None:
     lines = [f"{key}={value}" for key, value in env_values.items()]
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -489,6 +507,13 @@ def main() -> int:
         if args.build_options:
             reference_files["BuildOptions"] = pathlib.Path(args.build_options).resolve()
             build_defines = parse_build_options(reference_files["BuildOptions"])
+
+    if input_kind in {"deb", "dir"}:
+        release_payload_dir = release_dir if input_kind == "deb" else input_path
+        published_payload_files = collect_release_payload_files(release_payload_dir)
+        reference_files.update(published_payload_files)
+        for relative_name in published_payload_files:
+            reference_files.pop(f"AARCH64/{relative_name}", None)
 
     build_date = build_defines.get("BUILD_DATE")
     if build_date is None and args.build_date:
