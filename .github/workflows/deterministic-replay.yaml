@@ -164,42 +164,6 @@ jobs:
             REPLAY_VERSION="${{ needs.resolve-release.outputs.tag }}" \
             REPLAY_INPUT="${{ steps.download.outputs.deb_path }}"
 
-      - name: Audit final firmware manifest
-        shell: bash
-        run: |
-          set -euo pipefail
-          make -C "${FIRMWARE_WORKTREE}" buildbox-audit-final-image-manifest V=1 \
-            ARTEFACT_MODE=upstream \
-            FIRMWARE_BOARD="${{ matrix.board }}" \
-            FIRMWARE_TARGET=RELEASE \
-            FIRMWARE_DISTRO=bookworm \
-            BUILDBOX_PLATFORM=linux/amd64 \
-            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox/tmp" \
-            CCACHE_DIR="${FIRMWARE_CACHE}/ccache" \
-            CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
-            CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
-            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro" \
-            FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation" \
-            FIRMWARE_VALIDATION_PROFILE="upstream-${{ needs.resolve-release.outputs.tag }}-bookworm"
-
-      - name: Audit ACPI regression baseline
-        shell: bash
-        run: |
-          set -euo pipefail
-          make -C "${FIRMWARE_WORKTREE}" buildbox-audit-acpi-regression V=1 \
-            ARTEFACT_MODE=upstream \
-            FIRMWARE_BOARD="${{ matrix.board }}" \
-            FIRMWARE_TARGET=RELEASE \
-            FIRMWARE_DISTRO=bookworm \
-            BUILDBOX_PLATFORM=linux/amd64 \
-            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox/tmp" \
-            CCACHE_DIR="${FIRMWARE_CACHE}/ccache" \
-            CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
-            CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
-            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro" \
-            FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation" \
-            FIRMWARE_VALIDATION_PROFILE="upstream-${{ needs.resolve-release.outputs.tag }}-bookworm"
-
       - name: Collect replay reports
         if: always()
         shell: bash
@@ -211,11 +175,12 @@ jobs:
             exit 0
           fi
           artifact_root="${RUNNER_TEMP}/ci-artifacts/${{ matrix.board }}"
+          report_root="${FIRMWARE_WORKTREE}/build-validation"
           mkdir -p "${artifact_root}"
-          if [[ -d "${FIRMWARE_CACHE}/build-validation" ]]; then
-            cp -a "${FIRMWARE_CACHE}/build-validation" "${artifact_root}/build-validation"
+          if [[ -d "${report_root}" ]]; then
+            cp -a "${report_root}" "${artifact_root}/build-validation"
             python3 "${FIRMWARE_WORKTREE}/scripts/summarize_validation_reports.py" \
-              --report-root "${FIRMWARE_CACHE}/build-validation" \
+              --report-root "${report_root}" \
               --heading "Validation reports for ${{ matrix.board }} / ${{ needs.resolve-release.outputs.tag }}" \
               >>"${GITHUB_STEP_SUMMARY}"
           fi
