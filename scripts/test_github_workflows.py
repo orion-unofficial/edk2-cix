@@ -116,6 +116,18 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn("inputs.replay_version || '1.3.1'", text)
         self.assertNotIn("unofficial-1.2.1", text)
 
+    def test_deterministic_replay_validates_once_and_collects_its_reports(self) -> None:
+        text = (REPO_ROOT / ".github" / "workflows" / "deterministic-replay.yaml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertEqual(text.count('make -C "${FIRMWARE_WORKTREE}" deterministic-replay'), 1)
+        self.assertNotIn("buildbox-audit-final-image-manifest", text)
+        self.assertNotIn("buildbox-audit-acpi-regression", text)
+        self.assertNotIn("scripts/audit_final_image_manifest.py", text)
+        self.assertIn('report_root="${FIRMWARE_WORKTREE}/build-validation"', text)
+        self.assertIn('--report-root "${report_root}"', text)
+
     def test_local_docs_use_the_reproducible_container_path(self) -> None:
         text = (REPO_ROOT / ".github" / "workflows" / "build-docs.yaml").read_text(encoding="utf-8")
         self.assertEqual(text.count("if: ${{ env.ACT != 'true' }}"), 5)
