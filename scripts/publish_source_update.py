@@ -33,11 +33,13 @@ Optional variables:
   WRITE=0|1      Execute the atomic push. Without WRITE=1, use git push --dry-run.
   V=0|1          Print delegated Git operations.
 
-The checked-out build branch must be clean, ahead of the remote build branch,
-and contain object/tree metadata matching every selected source ref. Existing
-immutable source refs may not move. Mutable Unofficial tips, compatibility refs,
-and compatibility tags use an exact force-with-lease expectation. Git receives
-the build branch and every selected source ref in one --atomic push.
+The checked-out build branch must be clean, contain object/tree metadata matching
+every selected source ref, and be either ahead of or identical to the remote
+build branch. The identical case safely resumes a publication whose metadata
+commit reached the remote before its source refs. Existing immutable source refs
+may not move. Mutable Unofficial tips, compatibility refs, and compatibility
+tags use an exact force-with-lease expectation. Git receives every pending ref
+in one --atomic push.
 """
 
 
@@ -138,38 +140,41 @@ def main() -> None:
     remote_build = queried.get("refs/heads/build")
     if not remote_build:
         raise ReconstructionError(f"{args.remote} has no build branch")
-    if remote_build == local_build:
-        raise ReconstructionError("build is not ahead of the remote; source updates require a paired metadata commit")
-    fetched = git(repo, "fetch", "--quiet", "--no-tags", args.remote, "refs/heads/build", check=False)
-    if fetched.returncode != 0 or subprocess.run(
-        ["git", "-C", str(repo), "merge-base", "--is-ancestor", "FETCH_HEAD", local_build],
-        check=False,
-    ).returncode != 0:
-        raise ReconstructionError("local build is not a fast-forward of the remote build branch")
+    build_pending = remote_build != local_build
+    if build_pending:
+        fetched = git(repo, "fetch", "--quiet", "--no-tags", args.remote, "refs/heads/build", check=False)
+        if fetched.returncode != 0 or subprocess.run(
+            ["git", "-C", str(repo), "merge-base", "--is-ancestor", "FETCH_HEAD", local_build],
+            check=False,
+        ).returncode != 0:
+            raise ReconstructionError("local build is not a fast-forward of the remote build branch")
+    else:
+        print("remote build already contains the selected metadata commit; checking for source refs to resume")
 
     records = load_ref_records(repo)
-    refspecs = ["refs/heads/build:refs/heads/build"]
-    leases = [f"--force-with-lease=refs/heads/build:{remote_build}"]
+    refspecs: list[str] = []
+    leases: list[str] = []
+    if build_pending:
+        refspecs.append("refs/heads/build:refs/heads/build")
+        leases.append(f"--force-with-lease=refs/heads/build:{remote_build}")
+    matched_refs = 0
     for ref in refs:
         git(repo, "rev-parse", "--verify", ref)
-        manifest = verify_metadata(repo, ref, records)
-        if subprocess.run(
-            ["git", "-C", str(repo), "diff", "--quiet", remote_build, local_build, "--", manifest],
-            check=False,
-        ).returncode == 0:
-            raise ReconstructionError(
-                f"{ref}: {manifest} is unchanged from the remote build; "
-                "publish the source ref with its metadata commit"
-            )
+        verify_metadata(repo, ref, records)
         local_object = git(repo, "rev-parse", ref).stdout.strip()
         remote_object = queried.get(ref)
         if local_object == remote_object:
-            raise ReconstructionError(f"{ref}: selected ref already matches {args.remote}")
+            matched_refs += 1
+            continue
         if remote_object and not mutable_ref(ref):
             raise ReconstructionError(f"refusing to replace immutable source ref on {args.remote}: {ref}")
         if remote_object:
             leases.append(f"--force-with-lease={ref}:{remote_object}")
         refspecs.append(f"{ref}:{ref}")
+
+    if not refspecs:
+        print(f"{args.remote} already matches build and all {matched_refs} selected source ref(s)")
+        return
 
     command = ["git", "push", "--atomic", *leases]
     if not truthy(args.write):
@@ -180,7 +185,11 @@ def main() -> None:
     if result.returncode != 0:
         raise ReconstructionError(f"atomic source publication failed with exit status {result.returncode}")
     action = "published" if truthy(args.write) else "validated dry-run publication for"
-    print(f"{action} build plus {len(refs)} source ref(s) in {format_duration(time.monotonic() - started)}")
+    pending_sources = len(refs) - matched_refs
+    targets = f"{pending_sources} source ref(s)"
+    if build_pending:
+        targets = f"build plus {targets}"
+    print(f"{action} {targets} in {format_duration(time.monotonic() - started)}")
 
 
 if __name__ == "__main__":
