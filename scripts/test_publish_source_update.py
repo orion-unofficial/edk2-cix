@@ -6,8 +6,9 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from publish_source_update import metadata_ref, mutable_ref, verify_metadata
+from publish_source_update import main, metadata_ref, mutable_ref, verify_metadata
 from reconstruction_common import ReconstructionError
 from test_support import commit_all, git, write_file
 
@@ -91,6 +92,92 @@ class PublishSourceUpdateTests(unittest.TestCase):
                 "tag does not identify its recorded compatibility branch",
             ):
                 verify_metadata(repo, f"refs/tags/{tag}", [record])
+
+    def test_publication_resumes_after_build_metadata_reaches_remote_first(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            remote = root / "remote.git"
+            git(root, "init", "-q", "--bare", str(remote))
+            git(root, "init", "-q", "-b", "build", str(repo))
+            git(repo, "config", "user.name", "Publication Test")
+            git(repo, "config", "user.email", "publication-test")
+            git(repo, "remote", "add", "origin", str(remote))
+
+            branch = "source/unofficial/1.3/current"
+            write_file(repo, "firmware.txt", "old\n")
+            old_source = commit_all(repo, "old source")
+            git(repo, "branch", branch, old_source)
+            old_tree = git(repo, "rev-parse", f"{branch}^{{tree}}").stdout.strip()
+            write_file(
+                repo,
+                "config/refs-unofficial.json",
+                (
+                    '{"refs":[{"immutable":false,"object_id":"'
+                    f'{old_source}","ref":"{branch}","tree_id":"{old_tree}"'
+                    '}]}\n'
+                ),
+            )
+            commit_all(repo, "old metadata")
+            git(repo, "push", "-q", "origin", "build", branch)
+
+            git(repo, "switch", "-q", branch)
+            write_file(repo, "firmware.txt", "new\n")
+            new_source = commit_all(repo, "new source")
+            new_tree = git(repo, "rev-parse", "HEAD^{tree}").stdout.strip()
+            git(repo, "switch", "-q", "build")
+            write_file(
+                repo,
+                "config/refs-unofficial.json",
+                (
+                    '{"refs":[{"immutable":false,"object_id":"'
+                    f'{new_source}","ref":"{branch}","tree_id":"{new_tree}"'
+                    '}]}\n'
+                ),
+            )
+            commit_all(repo, "new metadata")
+            git(repo, "push", "-q", "origin", "build")
+
+            arguments = [
+                "publish_source_update.py",
+                "--source-refs",
+                branch,
+                "--remote",
+                "origin",
+                "--write",
+                "0",
+            ]
+            with patch("publish_source_update.repo_root", return_value=repo), patch(
+                "sys.argv", arguments
+            ):
+                main()
+
+            self.assertEqual(
+                git(repo, "ls-remote", "origin", f"refs/heads/{branch}").stdout.split()[0],
+                old_source,
+            )
+
+            write_file(repo, "publisher.txt", "publisher fix\n")
+            final_build = commit_all(repo, "publisher fix")
+            arguments[-1] = "1"
+            with patch("publish_source_update.repo_root", return_value=repo), patch(
+                "sys.argv", arguments
+            ):
+                main()
+
+            self.assertEqual(
+                git(repo, "ls-remote", "origin", f"refs/heads/{branch}").stdout.split()[0],
+                new_source,
+            )
+            self.assertEqual(
+                git(repo, "ls-remote", "origin", "refs/heads/build").stdout.split()[0],
+                final_build,
+            )
+
+            with patch("publish_source_update.repo_root", return_value=repo), patch(
+                "sys.argv", arguments
+            ):
+                main()
 
 
 if __name__ == "__main__":
