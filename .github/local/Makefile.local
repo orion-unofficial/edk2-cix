@@ -1072,6 +1072,7 @@ __deterministic-replay:
 			exit 2; \
 			;; \
 	esac; \
+	mkdir -p "$(REPO_ROOT)/build-validation"; \
 	printf '[replay] Running %s in %s using %s\n' "$(DETERMINISTIC_REPLAY_PROFILE)" "$(REPLAY_FIRMWARE_DISTRO_EFFECTIVE)" "$(DETERMINISTIC_REPLAY_IMAGE)"; \
 	$(BUILDBOX_ENV) EDK2_CIX_HOST_TMPDIR="$$replay_mount_root" EDK2_CIX_CONTAINER_TMPDIR="/hosttmp" EDK2_CIX_BUILDBOX_IMAGE="$(DETERMINISTIC_REPLAY_IMAGE)" EDK2_CIX_DEP_PROFILE="$(DETERMINISTIC_REPLAY_DEP_PROFILE)" EDK2_CIX_IASL_RELEASE="20200925" \
 		"$(REPO_ROOT)/scripts/run_in_buildbox.sh" \
