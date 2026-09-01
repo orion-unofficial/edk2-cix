@@ -13,7 +13,22 @@ from unittest import mock
 import compare_release_payloads
 
 
+REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
 class CompareReleasePayloadsTests(unittest.TestCase):
+    def test_replay_creates_report_root_before_first_buildbox(self) -> None:
+        makefile = (REPO_ROOT / ".github/local/Makefile.local").read_text(
+            encoding="utf-8"
+        )
+        replay_start = makefile.index("__deterministic-replay:")
+        replay = makefile[replay_start:]
+
+        self.assertLess(
+            replay.index('mkdir -p "$(REPO_ROOT)/build-validation"'),
+            replay.index('"$(REPO_ROOT)/scripts/run_in_buildbox.sh"'),
+        )
+
     def test_collects_complete_published_board_payload_at_package_paths(self) -> None:
         replay_path = (
             pathlib.Path(__file__).resolve().parents[1]
