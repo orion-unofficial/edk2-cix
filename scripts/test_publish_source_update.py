@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from contextlib import redirect_stdout
+from io import StringIO
 import tempfile
 import unittest
 from pathlib import Path
@@ -243,6 +245,130 @@ class PublishSourceUpdateTests(unittest.TestCase):
 
             with patch("publish_source_update.repo_root", return_value=repo), patch(
                 "sys.argv", arguments
+            ):
+                main()
+
+    def test_dry_run_uses_one_atomic_push_for_build_and_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            remote = root / "remote.git"
+            git(root, "init", "-q", "--bare", str(remote))
+            git(root, "init", "-q", "-b", "build", str(repo))
+            git(repo, "config", "user.name", "Publication Test")
+            git(repo, "config", "user.email", "publication-test")
+            git(repo, "remote", "add", "origin", str(remote))
+
+            branch = "source/unofficial/1.3/current"
+            write_file(repo, "firmware.txt", "old\n")
+            old_source = commit_all(repo, "old source")
+            git(repo, "branch", branch, old_source)
+            old_tree = git(repo, "rev-parse", f"{branch}^{{tree}}").stdout.strip()
+            write_file(
+                repo,
+                "config/refs-unofficial.json",
+                (
+                    '{"refs":[{"immutable":false,"object_id":"'
+                    f'{old_source}","ref":"{branch}","tree_id":"{old_tree}"'
+                    '}]}'
+                    "\n"
+                ),
+            )
+            old_build = commit_all(repo, "old metadata")
+            git(repo, "push", "-q", "origin", "build", branch)
+
+            git(repo, "switch", "-q", branch)
+            write_file(repo, "firmware.txt", "new\n")
+            new_source = commit_all(repo, "new source")
+            new_tree = git(repo, "rev-parse", "HEAD^{tree}").stdout.strip()
+            git(repo, "switch", "-q", "build")
+            write_file(
+                repo,
+                "config/refs-unofficial.json",
+                (
+                    '{"refs":[{"immutable":false,"object_id":"'
+                    f'{new_source}","ref":"{branch}","tree_id":"{new_tree}"'
+                    '}]}'
+                    "\n"
+                ),
+            )
+            commit_all(repo, "new metadata")
+
+            output = StringIO()
+            with patch("publish_source_update.repo_root", return_value=repo), patch(
+                "sys.argv",
+                ["publish_source_update.py", "--remote", "origin", "--write", "0"],
+            ), redirect_stdout(output):
+                main()
+
+            publication = output.getvalue()
+            self.assertIn("publication command: git push --atomic", publication)
+            self.assertIn("refs/heads/build:refs/heads/build", publication)
+            self.assertIn(
+                f"refs/heads/{branch}:refs/heads/{branch}",
+                publication,
+            )
+            self.assertEqual(
+                git(repo, "ls-remote", "origin", "refs/heads/build").stdout.split()[0],
+                old_build,
+            )
+            self.assertEqual(
+                git(repo, "ls-remote", "origin", f"refs/heads/{branch}").stdout.split()[0],
+                old_source,
+            )
+
+    def test_existing_immutable_source_ref_cannot_be_replaced(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            remote = root / "remote.git"
+            git(root, "init", "-q", "--bare", str(remote))
+            git(root, "init", "-q", "-b", "build", str(repo))
+            git(repo, "config", "user.name", "Publication Test")
+            git(repo, "config", "user.email", "publication-test")
+            git(repo, "remote", "add", "origin", str(remote))
+
+            branch = "source/base/edk2/edk2-stable202608"
+            write_file(repo, "firmware.txt", "published\n")
+            published_source = commit_all(repo, "published source")
+            git(repo, "branch", branch, published_source)
+            published_tree = git(repo, "rev-parse", f"{branch}^{{tree}}").stdout.strip()
+            write_file(
+                repo,
+                "config/refs-edk2.json",
+                (
+                    '{"refs":[{"immutable":true,"object_id":"'
+                    f'{published_source}","ref":"{branch}",'
+                    f'"tree_id":"{published_tree}"}}]'
+                    "}\n"
+                ),
+            )
+            commit_all(repo, "published metadata")
+            git(repo, "push", "-q", "origin", "build", branch)
+
+            git(repo, "switch", "-q", branch)
+            write_file(repo, "firmware.txt", "replacement\n")
+            replacement = commit_all(repo, "replacement source")
+            replacement_tree = git(repo, "rev-parse", "HEAD^{tree}").stdout.strip()
+            git(repo, "switch", "-q", "build")
+            write_file(
+                repo,
+                "config/refs-edk2.json",
+                (
+                    '{"refs":[{"immutable":true,"object_id":"'
+                    f'{replacement}","ref":"{branch}",'
+                    f'"tree_id":"{replacement_tree}"}}]'
+                    "}\n"
+                ),
+            )
+            commit_all(repo, "replacement metadata")
+
+            with self.assertRaisesRegex(
+                ReconstructionError,
+                "refusing to replace immutable source ref",
+            ), patch("publish_source_update.repo_root", return_value=repo), patch(
+                "sys.argv",
+                ["publish_source_update.py", "--remote", "origin", "--write", "0"],
             ):
                 main()
 

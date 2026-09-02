@@ -2,6 +2,7 @@
 
 - [Build](build.md)
 - [Build Variables](build-variables.md)
+- [Maintenance and CI](maintenance-and-ci.md)
 - [Firmware Features](features.md)
 - [Custom ACPI Overlays](custom-acpi-overlays.md)
 - [Debug](debug.md)
