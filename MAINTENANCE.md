@@ -2,6 +2,84 @@
 
 This document is intentionally maintained on the `test` branch. The default `build` branch README remains focused on end-user firmware usage.
 
+## How do I publish an ordinary change?
+
+For a documentation, workflow, build-orchestration, or other `build`-branch
+change that does not move a retained `source/**` ref, use the normal Git flow:
+
+```bash
+git switch -c my-build-change build
+# edit, test, and commit
+git push -u origin my-build-change
+```
+
+A pull request or direct update to `build` runs the remote source-coherence gate
+before either firmware matrix. The gate compares `config/refs-*.json` with the
+actual branches and compatibility tags published by the repository. It does
+not require the candidate build commit itself to exist on the remote, so an
+ordinary topic branch remains a one-branch push.
+
+Minimised-clone creation exports the clean checked-out commit as the clone's
+`build` branch. A maintainer can therefore validate or share a topic-branch
+candidate without first moving their local canonical `build` ref, and CI tests
+the pull-request candidate rather than an older remote `build` commit.
+
+Run the same check explicitly with:
+
+```bash
+make check-remote-source-coherence
+```
+
+The local `act` wrapper runs this check against the real remote before creating
+its isolated snapshot. This prevents a locally present, unpublished source ref
+from making `act` succeed when GitHub Actions would fail. For deliberate local
+testing of an unfinished source update, set
+`ACT_ALLOW_REMOTE_REF_DRIFT=1`; the wrapper labels that run as non-equivalent
+to GitHub.
+
+When the remote-coherence gate fails, the firmware matrices remain blocked so
+they cannot report success against stale inputs. The source-model job still
+runs its independent diagnostics. It first invokes
+`make prepare-ci-source-refs WRITE=1`, which may repair runner-local ref names
+only when the exact manifest-recorded commit objects are already present. This
+can recover from a missing local ref name and lets later diagnostics continue,
+but it cannot recreate a commit that was never uploaded. The source-model job
+continues its test and lint steps after a failed preparation attempt, then
+reports failure if any diagnostic failed.
+
+Do not use `make refresh-source-metadata` as a CI recovery step. That command
+describes the refs that happen to be local; using it against stale remote refs
+would make the candidate metadata describe the wrong source instead of testing
+the intended update.
+
+## How do I publish a source-model update?
+
+A source integration or Unofficial import can deliberately move more than one
+retained branch or compatibility tag. After the guarded update has refreshed
+and committed the matching `config/refs-*.json` records, publish the complete
+transaction with:
+
+```bash
+make publish-source-update
+make publish-source-update WRITE=1
+```
+
+The dry run and write mode both compare the committed manifests with the remote
+and infer every pending source branch and compatibility tag. Do not construct a
+`SOURCE_REFS` list by hand. `SOURCE_REFS` remains only as an optional way to add
+an explicit ref to the automatically discovered set. The publisher validates
+the object and tree IDs, refuses to replace immutable refs, uses exact leases
+for mutable refs, and sends the build commit plus all pending refs in one
+atomic push. It can also resume safely if an older, non-atomic publication left
+the build metadata on the remote before its source refs.
+
+Git cannot make a plain one-branch `git push` include changes made on other Git
+branches. This automatic publisher is therefore the sole exceptional command
+for a real multi-ref source update; ordinary build-branch changes continue to
+use normal Git commands.
+
+## How do I develop a firmware-source change?
+
 1. Choose the source target you want to develop against by running
    `make help-source-targets`.
 2. Materialise that source target.
