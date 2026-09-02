@@ -10,6 +10,15 @@ act_bootstrap="${script_dir}/ensure_act.sh"
 act_cache_home="${EDK2_CIX_ACT_XDG_CACHE_HOME:-${repository_root}/.cache/edk2-cix/act-cache}"
 act_host_cache_root="${EDK2_CIX_ACT_HOST_CACHE_ROOT:-${repository_root}/.cache/edk2-cix}"
 default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:act-24.04-20260815}}"
+concurrent_jobs="${ACT_CONCURRENT_JOBS:-${EDK2_CIX_ACT_CONCURRENT_JOBS:-1}}"
+allow_remote_ref_drift="${ACT_ALLOW_REMOTE_REF_DRIFT:-${EDK2_CIX_ACT_ALLOW_REMOTE_REF_DRIFT:-0}}"
+
+case "$concurrent_jobs" in
+    ""|0|*[!0-9]*)
+        printf '[act-runner] ACT_CONCURRENT_JOBS must be a positive integer, got: %s\n' "$concurrent_jobs" >&2
+        exit 2
+        ;;
+esac
 
 detect_container_arch() {
     case "$(uname -m)" in
@@ -62,16 +71,16 @@ cleanup_act_workspace() {
         while IFS= read -r mount_source; do
             case "${mount_source}/" in
                 "${act_workspace}/"*)
-                    printf '[act-runner] Removing nested buildbox %s before isolated-workspace cleanup.\n' "$container_id" >&2
+                    printf '[act-runner] Removing task container %s before isolated-workspace cleanup.\n' "$container_id" >&2
                     if ! docker rm -f "$container_id" >/dev/null; then
                         cleanup_status=1
-                        printf '[act-runner] Failed to remove nested buildbox %s.\n' "$container_id" >&2
+                        printf '[act-runner] Failed to remove task container %s.\n' "$container_id" >&2
                     fi
                     break
                     ;;
             esac
         done < <(docker inspect --format '{{range .Mounts}}{{println .Source}}{{end}}' "$container_id" 2>/dev/null || true)
-    done < <(docker ps -aq --filter label=edk2-cix.buildbox.image 2>/dev/null || true)
+    done < <(docker ps -aq 2>/dev/null || true)
 
     if ! rm -rf -- "$act_workspace"; then
         printf '[act-runner] Retrying isolated-workspace cleanup through Docker to remove container-owned files.\n' >&2
@@ -147,8 +156,14 @@ Environment:
       Optional act --secret-file path.
   ACT_CONTAINER_ARCH=auto|<platform>
       Container architecture. Default: auto-detected from the host.
+  ACT_CONCURRENT_JOBS=<count>
+      Maximum number of top-level concurrent local jobs. Default: 1.
+      Workflows can add their own matrix concurrency, so increase cautiously.
   ACT_RUNNER_IMAGE=<image>
       Runner image for ubuntu-latest. Default: ghcr.io/catthehacker/ubuntu:act-24.04-20260815.
+  ACT_ALLOW_REMOTE_REF_DRIFT=0|1
+      Permit a deliberately non-equivalent run when source metadata is ahead
+      of the real remote. Default: 0 (verify remote coherence before act).
   ACT_EXTRA_ARGS=<args>
       Additional raw flags appended to act.
 EOF
@@ -215,11 +230,25 @@ export XDG_CACHE_HOME="$act_cache_home"
 act_bin="$("$act_bootstrap")"
 
 if [[ "$mode" != list ]]; then
+    case "$allow_remote_ref_drift" in
+        1|true|TRUE|yes|YES|on|ON)
+            printf '[act-runner] warning: remote source-ref coherence check explicitly bypassed; this run is not proof of GitHub equivalence.\n' >&2
+            ;;
+        0|false|FALSE|no|NO|off|OFF|'')
+            status "Checking real remote source refs before isolated act execution"
+            python3 "$script_dir/check_remote_source_coherence.py" --remote origin
+            ;;
+        *)
+            printf '[act-runner] ACT_ALLOW_REMOTE_REF_DRIFT must be a boolean, got: %s\n' "$allow_remote_ref_drift" >&2
+            exit 2
+            ;;
+    esac
     prepare_action_cache
 fi
 
 args=(
     --rm
+    --concurrent-jobs "$concurrent_jobs"
     --container-architecture "$default_container_arch"
     -P "ubuntu-latest=$default_runner_image"
 )
@@ -291,6 +320,7 @@ args+=("$@")
 status "Using ${act_bin}"
 status "Cache root: ${XDG_CACHE_HOME}"
 status "Container architecture: ${default_container_arch}"
+status "Concurrent jobs: ${concurrent_jobs}"
 if [[ -n "$act_workspace" ]]; then
     status "Isolated CI snapshot: ${act_workspace}"
     status "Shared object store mount: ${git_common_dir} (read-only)"

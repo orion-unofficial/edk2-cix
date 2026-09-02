@@ -3,12 +3,14 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 import tempfile
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 from test_support import commit_all, git, load_function_tests, require, write_file
 from reconstruction_common import ReconstructionError, rendered_release_type
@@ -157,6 +159,22 @@ def test_verbose_worktree_creation_keeps_stdout_machine_readable() -> None:
         require(
             "Creating detached release worktree" in diagnostics.getvalue(),
             "verbose worktree diagnostics were lost",
+        )
+    finally:
+        if worktree is not None:
+            git(repo, "worktree", "remove", "--force", str(worktree), check=False)
+        shutil.rmtree(repo)
+
+
+def test_worktree_namespace_isolates_parallel_ci_jobs() -> None:
+    repo = make_repo()
+    worktree = None
+    try:
+        with patch.dict(os.environ, {"EDK2_CIX_WORKTREE_NAMESPACE": "replay/O6"}):
+            worktree = ensure_worktree(repo, "test-release", "HEAD", verbose=False)
+        require(
+            worktree.parent == repo / ".cache" / "edk2-cix" / "worktrees" / "replay_O6",
+            "configured worktree namespace was not applied",
         )
     finally:
         if worktree is not None:

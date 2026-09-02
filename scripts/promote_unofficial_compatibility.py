@@ -25,6 +25,7 @@ from reconstruction_common import (
     git,
     main_wrapper,
     ref_exists,
+    refresh_ref_record,
     repo_root,
     rev_parse,
     tree_id,
@@ -60,6 +61,19 @@ The compatibility branch is deliberately independent of a mutable Unofficial
 line. It remains the EDK2-release target used by focused project-change
 propagation across every retained upstream base.
 """
+
+
+def record_compatibility_ref(repo: Path, ref: str, edk2_base: str) -> None:
+    refresh_ref_record(
+        repo,
+        "refs-unofficial.json",
+        ref,
+        {
+            "edk2_base": edk2_base,
+            "immutable": False,
+            "type": "unofficial-edk2-compatibility",
+        },
+    )
 
 
 def parser() -> argparse.ArgumentParser:
@@ -169,6 +183,8 @@ def main() -> None:
         write=write,
         verbose=verbose,
     ):
+        if write:
+            record_compatibility_ref(repo, target_ref, edk2_base)
         return
 
     from_ref = args.from_ref.strip() or f"source/unofficial/{from_edk2_base}"
@@ -244,6 +260,7 @@ def main() -> None:
     if ref_exists(repo, target_ref):
         ensure_target_not_checked_out_dirty(repo, target_ref)
     transaction_update_refs(repo, updates)
+    record_compatibility_ref(repo, target_ref, edk2_base)
     print(
         "promoted unofficial EDK2 compatibility source to "
         f"{edk2_base} in {format_duration(time.monotonic() - started)}"

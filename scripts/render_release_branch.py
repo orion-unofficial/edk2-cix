@@ -143,6 +143,10 @@ def parser() -> argparse.ArgumentParser:
 def ensure_worktree(repo: Path, branch: str, target_ref: str, verbose: bool) -> Path:
     commit = rev_parse(repo, target_ref)
     root = cache_dir(repo, "worktrees")
+    namespace = os.environ.get("EDK2_CIX_WORKTREE_NAMESPACE", "").strip()
+    if namespace:
+        root = root / safe_name(namespace)
+        root.mkdir(parents=True, exist_ok=True)
     path = root / f"{safe_name(branch)}-{commit[:12]}"
     if path.exists():
         ignore_worktree_cache(path)

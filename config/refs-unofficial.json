@@ -1,6 +1,158 @@
 {
   "refs": [
     {
+      "immutable": false,
+      "line": "1.3",
+      "object_id": "0f29cc276f03a132d0f6a16a362586d6b13095e7",
+      "ref": "source/unofficial/1.3/current",
+      "tree_id": "afe6f5e2e10831ee50c83fe13ab5e055bffc5d07",
+      "type": "unofficial-line-tip"
+    },
+    {
+      "edk2_base": "edk2-stable202208",
+      "immutable": false,
+      "object_id": "19fb690fb6abb76a3395a736fe444e65e473124a",
+      "ref": "source/unofficial/edk2-stable202208",
+      "tree_id": "b651dcf714b4ae161df9dcec25385de28d337549",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202211",
+      "immutable": false,
+      "object_id": "b9cf63b583c40efbc2ff91e79ce302c0bcc4ee72",
+      "ref": "source/unofficial/edk2-stable202211",
+      "tree_id": "e9fac34377d002c1789179de1b7d9fa464377b95",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202302",
+      "immutable": false,
+      "object_id": "d07e60e52497725d0a536677f193334c222091ad",
+      "ref": "source/unofficial/edk2-stable202302",
+      "tree_id": "d019c4690ac6c32caf2169f2b892e29a76b9161e",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202305",
+      "immutable": false,
+      "object_id": "34ebfaac7175bd21c635ddaeeee0f05a9e9ce1b8",
+      "ref": "source/unofficial/edk2-stable202305",
+      "tree_id": "3ddc7ba4d88e9d6de1ca20067239e9d9ad295a18",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202308",
+      "immutable": false,
+      "object_id": "75b6905ec26dd106f82fa40feba1787d4c3b00cc",
+      "ref": "source/unofficial/edk2-stable202308",
+      "tree_id": "b6a4be088c6507e9bd20b2acf6430ef3c4470f65",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202311",
+      "immutable": false,
+      "object_id": "cb843bd6187748a6a67263d87c3283c1720b62c1",
+      "ref": "source/unofficial/edk2-stable202311",
+      "tree_id": "960854b1bc87504d841e8f96b75cdd249af603ff",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202402",
+      "immutable": false,
+      "object_id": "f530bcba113c3a2a2a3a364b1fc26afcd6f86bce",
+      "ref": "source/unofficial/edk2-stable202402",
+      "tree_id": "ed3b6edbc27c6eb5cf74450c5b70f799208da89f",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202405",
+      "immutable": false,
+      "object_id": "e7ff176ed2181b3aee1c77827ae15435625f8ae2",
+      "ref": "source/unofficial/edk2-stable202405",
+      "tree_id": "fc51beaba1711dc56a7671d2ac8bb321496fa5e7",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202408",
+      "immutable": false,
+      "object_id": "f2e717f5ceb5db8c1f268854ed2585f93c7006d7",
+      "ref": "source/unofficial/edk2-stable202408",
+      "tree_id": "5a287b9f5f5ed2900261a3563c6e6d516fe56166",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202408.01",
+      "immutable": false,
+      "object_id": "9f71e0f5c9765d810c831556e4568167ef9fc83a",
+      "ref": "source/unofficial/edk2-stable202408.01",
+      "tree_id": "bceaa40f6a528698adb3828da0df9c737627ba41",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202411",
+      "immutable": false,
+      "object_id": "1e1fc7e4f91680e77c36347a6cc1c81cc4adcc61",
+      "ref": "source/unofficial/edk2-stable202411",
+      "tree_id": "ae543d58aa3425b2fd59ed5139c19cd6ce591085",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202502",
+      "immutable": false,
+      "object_id": "5d27d91ea0af53cf701e90bf92fb54bf86b77146",
+      "ref": "source/unofficial/edk2-stable202502",
+      "tree_id": "674e68521506bfa30df8c3613beeb1ca680140a7",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202505",
+      "immutable": false,
+      "object_id": "5f334e70cf526635838a37ae8663397e62cde50a",
+      "ref": "source/unofficial/edk2-stable202505",
+      "tree_id": "149287d2879cff2e96187e1a0c83660fa43fdb4d",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202508",
+      "immutable": false,
+      "object_id": "14f1540db7216322d88d2c9bb9da396ed823c67e",
+      "ref": "source/unofficial/edk2-stable202508",
+      "tree_id": "f70c93bac0791c24853aa2a7739033b1f49306bd",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202511",
+      "immutable": false,
+      "object_id": "dda6c0f4343f6187ae517fb2647d62364c66220a",
+      "ref": "source/unofficial/edk2-stable202511",
+      "tree_id": "9ea165ebbd995b1afcfeaadd3c523fc38dd0b904",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202602",
+      "immutable": false,
+      "object_id": "5c427e8ce19398d3c8f3276ed95b5603d6f6fc4f",
+      "ref": "source/unofficial/edk2-stable202602",
+      "tree_id": "7a211ffcb30240eedbd4011922dd33df08f5d0b6",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202605",
+      "immutable": false,
+      "object_id": "a33d09e43d1daf2d87e79218577d5cc51a1d8999",
+      "ref": "source/unofficial/edk2-stable202605",
+      "tree_id": "1882ac47d8dfaee62c67b4d2594bb34cfc1393ff",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
+      "edk2_base": "edk2-stable202608",
+      "immutable": false,
+      "object_id": "8a097c97c61da84c93cdd98dc0e1502a20ce5962",
+      "ref": "source/unofficial/edk2-stable202608",
+      "tree_id": "8a2370bb3c28be4372b5b25c0848810e9e1a0f3c",
+      "type": "unofficial-edk2-compatibility"
+    },
+    {
       "edk2_base": "edk2-stable202605",
       "immutable": true,
       "line": "1.2",
