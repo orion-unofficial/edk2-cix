@@ -73,12 +73,18 @@ class QualificationPolicyTests(unittest.TestCase):
                 text,
             )
             self.assertIn("github.run_id", text)
+
+        self.assertIn(
+            "cancel-in-progress: false",
+            self.workflow("manual-firmware-build.yaml"),
+        )
         for name in (
             "deterministic-replay.yaml",
-            "manual-firmware-build.yaml",
             "secure-boot-audit.yaml",
         ):
-            self.assertIn("cancel-in-progress: false", self.workflow(name))
+            text = self.workflow(name)
+            self.assertIn("workflow_call:", text)
+            self.assertNotIn("\nconcurrency:\n", text)
 
     def test_docs_deploy_only_from_a_build_push(self) -> None:
         text = self.workflow("build-docs.yaml")
@@ -97,13 +103,19 @@ class QualificationPolicyTests(unittest.TestCase):
         summary = (REPO_ROOT / "docs" / "src" / "SUMMARY.md").read_text(
             encoding="utf-8"
         )
+        extended = (
+            REPO_ROOT / "docs" / "src" / "maintenance-and-ci.md"
+        ).read_text(encoding="utf-8")
         test_workflow = self.workflow("test-branch-ci.yaml")
 
-        self.assertIn("Repository-maintenance", readme)
-        self.assertIn("`test` branch", readme)
+        self.assertIn("## Repository maintenance", readme)
+        self.assertIn("[`MAINTENANCE.md`](MAINTENANCE.md)", readme)
+        self.assertNotIn("`test` branch", readme)
         self.assertNotIn("## How does CI work?", readme)
         self.assertIn("# Repository Maintenance", maintenance)
         self.assertIn("[Maintenance and CI](maintenance-and-ci.md)", summary)
+        self.assertIn("root `MAINTENANCE.md`", extended)
+        self.assertIn("exists on `test`", extended)
         self.assertIn("branches:\n      - test", test_workflow)
         self.assertIn(
             "uses: ./.github/workflows/build-docs.yaml",

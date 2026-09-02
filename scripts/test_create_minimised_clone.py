@@ -17,7 +17,7 @@ from test_support import commit_all, git, write_file  # noqa: E402
 
 
 class MinimisedCloneRefTests(unittest.TestCase):
-    def test_export_uses_build_ref_when_another_branch_is_checked_out(self) -> None:
+    def test_export_uses_checked_out_candidate_as_build(self) -> None:
         with tempfile.TemporaryDirectory(
             prefix="edk2-cix-minimised-build-ref-test."
         ) as directory:
@@ -34,9 +34,10 @@ class MinimisedCloneRefTests(unittest.TestCase):
             selected = dict(required_refspecs(repo))
 
             self.assertEqual(
-                selected["refs/heads/build"],
+                selected["HEAD"],
                 "refs/heads/build",
             )
+            self.assertNotIn("refs/heads/build", selected)
 
     def test_export_omits_stale_remote_compatibility_refs(self) -> None:
         with tempfile.TemporaryDirectory(prefix="edk2-cix-minimised-refs-test.") as directory:
@@ -61,7 +62,7 @@ class MinimisedCloneRefTests(unittest.TestCase):
 
             selected = dict(required_refspecs(repo))
 
-            self.assertEqual(selected["refs/heads/build"], "refs/heads/build")
+            self.assertEqual(selected["HEAD"], "refs/heads/build")
             self.assertIn("refs/heads/source/vendor/radxa/1.3.1/edk2-stable202208", selected)
             self.assertEqual(
                 selected["refs/remotes/origin/source/base/edk2/edk2-stable202608"],

@@ -1,133 +1,376 @@
 #!/usr/bin/env python3
-"""Regression checks for atomic source-ref publication."""
+"""Regression tests for guarded build/source publication."""
 
-import argparse
+from __future__ import annotations
+
 from contextlib import redirect_stdout
 from io import StringIO
-from pathlib import Path
-import subprocess
+import tempfile
 import unittest
-from unittest.mock import Mock, patch
+from pathlib import Path
+from unittest.mock import patch
 
-import publish_source_update
+from publish_source_update import (
+    compatibility_tag,
+    infer_pending_refs,
+    local_commit,
+    main,
+    metadata_ref,
+    mutable_ref,
+    verify_metadata,
+)
 from reconstruction_common import ReconstructionError
-
-
-def completed(
-    args: tuple[str, ...] | list[str],
-    output: str = "",
-    returncode: int = 0,
-):
-    return subprocess.CompletedProcess(args, returncode, output, "")
+from test_support import commit_all, git, write_file
 
 
 class PublishSourceUpdateTests(unittest.TestCase):
-    source_ref = "refs/heads/source/base/edk2/edk2-stable202608"
+    def test_mutable_unofficial_refs_have_direct_metadata_mappings(self) -> None:
+        current = "refs/heads/source/unofficial/1.3/current"
+        compatibility = "refs/heads/source/unofficial/edk2-stable202608"
+        tag = "refs/tags/source/unofficial/edk2/stable-202608"
 
-    def arguments(self, write: str = "0") -> argparse.Namespace:
-        return argparse.Namespace(
-            source_refs=self.source_ref,
-            remote="origin",
-            write=write,
-            v="0",
+        self.assertEqual(metadata_ref(current), "source/unofficial/1.3/current")
+        self.assertEqual(
+            metadata_ref(compatibility),
+            "source/unofficial/edk2-stable202608",
         )
+        self.assertEqual(
+            metadata_ref(tag),
+            "source/unofficial/edk2-stable202608",
+        )
+        self.assertTrue(mutable_ref(current))
+        self.assertTrue(mutable_ref(compatibility))
+        self.assertTrue(mutable_ref(tag))
+        self.assertEqual(
+            compatibility_tag(compatibility),
+            tag,
+        )
+        self.assertIsNone(compatibility_tag(current))
 
-    def git_result(self, _repo: Path, *args: str, **_kwargs):
-        if args[:4] == ("symbolic-ref", "--quiet", "--short", "HEAD"):
-            return completed(args, "build\n")
-        if args[:2] == ("status", "--porcelain"):
-            return completed(args)
-        if args[:2] == ("rev-parse", "refs/heads/build"):
-            return completed(args, "local-build\n")
-        if args[:2] == ("rev-parse", f"{self.source_ref}^{{commit}}"):
-            return completed(args, "source-object\n")
-        if args[:2] == ("rev-parse", f"{self.source_ref}^{{tree}}"):
-            return completed(args, "source-tree\n")
-        if args[:3] == ("rev-parse", "--verify", self.source_ref):
-            return completed(args, "source-object\n")
-        if args[:2] == ("rev-parse", self.source_ref):
-            return completed(args, "source-object\n")
-        if args[0] == "fetch":
-            return completed(args)
-        raise AssertionError(f"unexpected git call: {args}")
+    def test_pending_refs_are_inferred_from_remote_manifest_differences(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            git(repo, "init", "-q", "-b", "build")
+            git(repo, "config", "user.name", "Publication Test")
+            git(repo, "config", "user.email", "publication-test")
+            write_file(repo, "firmware.txt", "current\n")
+            commit = commit_all(repo, "current")
+            current = "source/unofficial/1.3/current"
+            compatibility = "source/unofficial/edk2-stable202608"
+            tag = "source/unofficial/edk2/stable-202608"
+            git(repo, "branch", current, commit)
+            git(repo, "branch", compatibility, commit)
+            git(repo, "tag", tag, commit)
+            tree = git(repo, "rev-parse", "HEAD^{tree}").stdout.strip()
+            records = [
+                {"ref": current, "object_id": commit, "tree_id": tree},
+                {"ref": compatibility, "object_id": commit, "tree_id": tree},
+            ]
 
-    def run_main(self, *, write: str = "0", remote_source: str | None = None):
-        pushed: list[list[str]] = []
+            self.assertEqual(
+                infer_pending_refs(repo, records, {}),
+                [
+                    f"refs/heads/{current}",
+                    f"refs/heads/{compatibility}",
+                    f"refs/tags/{tag}",
+                ],
+            )
+            self.assertEqual(
+                infer_pending_refs(
+                    repo,
+                    records,
+                    {
+                        f"refs/heads/{current}": commit,
+                        f"refs/heads/{compatibility}": commit,
+                        f"refs/tags/{tag}": commit,
+                    },
+                ),
+                [],
+            )
 
-        def subprocess_run(command, **_kwargs):
-            if command[:3] == ["git", "-C", "/repository"]:
-                return completed(
-                    command,
-                    returncode=1 if "diff" in command else 0,
+            git(repo, "switch", "-q", current)
+            write_file(repo, "firmware.txt", "unrecorded\n")
+            unrecorded = commit_all(repo, "unrecorded source move")
+            self.assertEqual(local_commit(repo, f"refs/heads/{current}"), unrecorded)
+            with self.assertRaisesRegex(ReconstructionError, "does not match build metadata"):
+                infer_pending_refs(
+                    repo,
+                    records,
+                    {
+                        f"refs/heads/{current}": commit,
+                        f"refs/heads/{compatibility}": commit,
+                        f"refs/tags/{tag}": commit,
+                    },
                 )
-            if command[:3] == ["git", "push", "--atomic"]:
-                pushed.append(command)
-                return completed(command)
-            raise AssertionError(f"unexpected subprocess call: {command}")
 
-        remote_refs = {"refs/heads/build": "remote-build"}
-        if remote_source is not None:
-            remote_refs[self.source_ref] = remote_source
-        record = {
-            "manifest": "config/refs-edk2.json",
-            "object_id": "source-object",
-            "ref": self.source_ref.removeprefix("refs/heads/"),
-            "tree_id": "source-tree",
-        }
-        parser = Mock()
-        parser.parse_args.return_value = self.arguments(write)
-        with (
-            patch.object(publish_source_update, "parser", return_value=parser),
-            patch.object(
-                publish_source_update,
-                "repo_root",
-                return_value=Path("/repository"),
-            ),
-            patch.object(
-                publish_source_update,
-                "remote_objects",
-                return_value=remote_refs,
-            ),
-            patch.object(
-                publish_source_update,
-                "load_ref_records",
-                return_value=[record],
-            ),
-            patch.object(
-                publish_source_update,
-                "git",
-                side_effect=self.git_result,
-            ),
-            patch.object(
-                publish_source_update.subprocess,
-                "run",
-                side_effect=subprocess_run,
-            ),
-            redirect_stdout(StringIO()),
-        ):
-            publish_source_update.main()
-        return pushed
+    def test_mutable_ref_metadata_must_match_selected_object_and_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            git(repo, "init", "-q", "-b", "build")
+            git(repo, "config", "user.name", "Publication Test")
+            git(repo, "config", "user.email", "publication-test")
+            write_file(repo, "firmware.txt", "current\n")
+            commit = commit_all(repo, "current")
+            branch = "source/unofficial/1.3/current"
+            git(repo, "branch", branch, commit)
+            tree = git(repo, "rev-parse", f"{branch}^{{tree}}").stdout.strip()
+            record = {
+                "manifest": "config/refs-unofficial.json",
+                "object_id": commit,
+                "ref": branch,
+                "tree_id": tree,
+            }
+
+            self.assertEqual(
+                verify_metadata(repo, f"refs/heads/{branch}", [record]),
+                "config/refs-unofficial.json",
+            )
+
+            write_file(repo, "firmware.txt", "moved\n")
+            moved = commit_all(repo, "moved")
+            git(repo, "branch", "-f", branch, moved)
+            with self.assertRaisesRegex(ReconstructionError, "does not match"):
+                verify_metadata(repo, f"refs/heads/{branch}", [record])
+
+    def test_compatibility_tag_must_match_its_recorded_branch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            git(repo, "init", "-q", "-b", "build")
+            git(repo, "config", "user.name", "Publication Test")
+            git(repo, "config", "user.email", "publication-test")
+            write_file(repo, "firmware.txt", "tagged\n")
+            tagged = commit_all(repo, "tagged")
+            branch = "source/unofficial/edk2-stable202608"
+            tag = "source/unofficial/edk2/stable-202608"
+            git(repo, "branch", branch, tagged)
+            git(repo, "tag", tag, tagged)
+            write_file(repo, "firmware.txt", "branch moved\n")
+            moved = commit_all(repo, "branch moved")
+            git(repo, "branch", "-f", branch, moved)
+            record = {
+                "manifest": "config/refs-unofficial.json",
+                "object_id": tagged,
+                "ref": branch,
+                "tree_id": git(
+                    repo,
+                    "rev-parse",
+                    f"{tag}^{{tree}}",
+                ).stdout.strip(),
+            }
+
+            with self.assertRaisesRegex(
+                ReconstructionError,
+                "tag does not identify its recorded compatibility branch",
+            ):
+                verify_metadata(repo, f"refs/tags/{tag}", [record])
+
+    def test_publication_resumes_after_build_metadata_reaches_remote_first(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            remote = root / "remote.git"
+            git(root, "init", "-q", "--bare", str(remote))
+            git(root, "init", "-q", "-b", "build", str(repo))
+            git(repo, "config", "user.name", "Publication Test")
+            git(repo, "config", "user.email", "publication-test")
+            git(repo, "remote", "add", "origin", str(remote))
+
+            branch = "source/unofficial/1.3/current"
+            write_file(repo, "firmware.txt", "old\n")
+            old_source = commit_all(repo, "old source")
+            git(repo, "branch", branch, old_source)
+            old_tree = git(repo, "rev-parse", f"{branch}^{{tree}}").stdout.strip()
+            write_file(
+                repo,
+                "config/refs-unofficial.json",
+                (
+                    '{"refs":[{"immutable":false,"object_id":"'
+                    f'{old_source}","ref":"{branch}","tree_id":"{old_tree}"'
+                    '}]}\n'
+                ),
+            )
+            commit_all(repo, "old metadata")
+            git(repo, "push", "-q", "origin", "build", branch)
+
+            git(repo, "switch", "-q", branch)
+            write_file(repo, "firmware.txt", "new\n")
+            new_source = commit_all(repo, "new source")
+            new_tree = git(repo, "rev-parse", "HEAD^{tree}").stdout.strip()
+            git(repo, "switch", "-q", "build")
+            write_file(
+                repo,
+                "config/refs-unofficial.json",
+                (
+                    '{"refs":[{"immutable":false,"object_id":"'
+                    f'{new_source}","ref":"{branch}","tree_id":"{new_tree}"'
+                    '}]}\n'
+                ),
+            )
+            commit_all(repo, "new metadata")
+            git(repo, "push", "-q", "origin", "build")
+
+            arguments = [
+                "publish_source_update.py",
+                "--remote",
+                "origin",
+                "--write",
+                "0",
+            ]
+            with patch("publish_source_update.repo_root", return_value=repo), patch(
+                "sys.argv", arguments
+            ):
+                main()
+
+            self.assertEqual(
+                git(repo, "ls-remote", "origin", f"refs/heads/{branch}").stdout.split()[0],
+                old_source,
+            )
+
+            write_file(repo, "publisher.txt", "publisher fix\n")
+            final_build = commit_all(repo, "publisher fix")
+            arguments[-1] = "1"
+            with patch("publish_source_update.repo_root", return_value=repo), patch(
+                "sys.argv", arguments
+            ):
+                main()
+
+            self.assertEqual(
+                git(repo, "ls-remote", "origin", f"refs/heads/{branch}").stdout.split()[0],
+                new_source,
+            )
+            self.assertEqual(
+                git(repo, "ls-remote", "origin", "refs/heads/build").stdout.split()[0],
+                final_build,
+            )
+
+            with patch("publish_source_update.repo_root", return_value=repo), patch(
+                "sys.argv", arguments
+            ):
+                main()
 
     def test_dry_run_uses_one_atomic_push_for_build_and_source(self) -> None:
-        pushes = self.run_main()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            remote = root / "remote.git"
+            git(root, "init", "-q", "--bare", str(remote))
+            git(root, "init", "-q", "-b", "build", str(repo))
+            git(repo, "config", "user.name", "Publication Test")
+            git(repo, "config", "user.email", "publication-test")
+            git(repo, "remote", "add", "origin", str(remote))
 
-        self.assertEqual(len(pushes), 1)
-        command = pushes[0]
-        self.assertIn("--atomic", command)
-        self.assertIn("--dry-run", command)
-        self.assertIn(
-            "--force-with-lease=refs/heads/build:remote-build",
-            command,
-        )
-        self.assertIn("refs/heads/build:refs/heads/build", command)
-        self.assertIn(f"{self.source_ref}:{self.source_ref}", command)
+            branch = "source/unofficial/1.3/current"
+            write_file(repo, "firmware.txt", "old\n")
+            old_source = commit_all(repo, "old source")
+            git(repo, "branch", branch, old_source)
+            old_tree = git(repo, "rev-parse", f"{branch}^{{tree}}").stdout.strip()
+            write_file(
+                repo,
+                "config/refs-unofficial.json",
+                (
+                    '{"refs":[{"immutable":false,"object_id":"'
+                    f'{old_source}","ref":"{branch}","tree_id":"{old_tree}"'
+                    '}]}'
+                    "\n"
+                ),
+            )
+            old_build = commit_all(repo, "old metadata")
+            git(repo, "push", "-q", "origin", "build", branch)
+
+            git(repo, "switch", "-q", branch)
+            write_file(repo, "firmware.txt", "new\n")
+            new_source = commit_all(repo, "new source")
+            new_tree = git(repo, "rev-parse", "HEAD^{tree}").stdout.strip()
+            git(repo, "switch", "-q", "build")
+            write_file(
+                repo,
+                "config/refs-unofficial.json",
+                (
+                    '{"refs":[{"immutable":false,"object_id":"'
+                    f'{new_source}","ref":"{branch}","tree_id":"{new_tree}"'
+                    '}]}'
+                    "\n"
+                ),
+            )
+            commit_all(repo, "new metadata")
+
+            output = StringIO()
+            with patch("publish_source_update.repo_root", return_value=repo), patch(
+                "sys.argv",
+                ["publish_source_update.py", "--remote", "origin", "--write", "0"],
+            ), redirect_stdout(output):
+                main()
+
+            publication = output.getvalue()
+            self.assertIn("publication command: git push --atomic", publication)
+            self.assertIn("refs/heads/build:refs/heads/build", publication)
+            self.assertIn(
+                f"refs/heads/{branch}:refs/heads/{branch}",
+                publication,
+            )
+            self.assertEqual(
+                git(repo, "ls-remote", "origin", "refs/heads/build").stdout.split()[0],
+                old_build,
+            )
+            self.assertEqual(
+                git(repo, "ls-remote", "origin", f"refs/heads/{branch}").stdout.split()[0],
+                old_source,
+            )
 
     def test_existing_immutable_source_ref_cannot_be_replaced(self) -> None:
-        with self.assertRaisesRegex(
-            ReconstructionError,
-            "refusing to replace immutable",
-        ):
-            self.run_main(remote_source="old-source-object")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            remote = root / "remote.git"
+            git(root, "init", "-q", "--bare", str(remote))
+            git(root, "init", "-q", "-b", "build", str(repo))
+            git(repo, "config", "user.name", "Publication Test")
+            git(repo, "config", "user.email", "publication-test")
+            git(repo, "remote", "add", "origin", str(remote))
+
+            branch = "source/base/edk2/edk2-stable202608"
+            write_file(repo, "firmware.txt", "published\n")
+            published_source = commit_all(repo, "published source")
+            git(repo, "branch", branch, published_source)
+            published_tree = git(repo, "rev-parse", f"{branch}^{{tree}}").stdout.strip()
+            write_file(
+                repo,
+                "config/refs-edk2.json",
+                (
+                    '{"refs":[{"immutable":true,"object_id":"'
+                    f'{published_source}","ref":"{branch}",'
+                    f'"tree_id":"{published_tree}"}}]'
+                    "}\n"
+                ),
+            )
+            commit_all(repo, "published metadata")
+            git(repo, "push", "-q", "origin", "build", branch)
+
+            git(repo, "switch", "-q", branch)
+            write_file(repo, "firmware.txt", "replacement\n")
+            replacement = commit_all(repo, "replacement source")
+            replacement_tree = git(repo, "rev-parse", "HEAD^{tree}").stdout.strip()
+            git(repo, "switch", "-q", "build")
+            write_file(
+                repo,
+                "config/refs-edk2.json",
+                (
+                    '{"refs":[{"immutable":true,"object_id":"'
+                    f'{replacement}","ref":"{branch}",'
+                    f'"tree_id":"{replacement_tree}"}}]'
+                    "}\n"
+                ),
+            )
+            commit_all(repo, "replacement metadata")
+
+            with self.assertRaisesRegex(
+                ReconstructionError,
+                "refusing to replace immutable source ref",
+            ), patch("publish_source_update.repo_root", return_value=repo), patch(
+                "sys.argv",
+                ["publish_source_update.py", "--remote", "origin", "--write", "0"],
+            ):
+                main()
 
 
 if __name__ == "__main__":

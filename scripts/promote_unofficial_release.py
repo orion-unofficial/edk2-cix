@@ -373,6 +373,22 @@ def main() -> None:
             edk2_base=edk2_base,
             cix_release=cix_release,
         )
+    if update_current:
+        update_ref_record(
+            repo,
+            UNOFFICIAL_REFS_MANIFEST,
+            current_ref,
+            {
+                "cix_release": cix_release,
+                "edk2_base": edk2_base,
+                "immutable": False,
+                "line": line,
+                "object_id": rev_parse(repo, current_ref),
+                "radxa_release": radxa_release,
+                "tree_id": tree_id(repo, current_ref),
+                "type": "unofficial-line-tip",
+            },
+        )
     clear_metadata_caches()
     print(f"promoted unofficial source to {edk2_base} in {format_duration(time.monotonic() - started)}")
     for full_ref, new_oid, old_oid in updates:

@@ -9,7 +9,11 @@ import unittest
 from pathlib import Path
 
 from reconstruction_common import ReconstructionError
-from promote_unofficial_compatibility import repair_or_report_existing
+from promote_unofficial_compatibility import (
+    record_compatibility_ref,
+    repair_or_report_existing,
+)
+from test_support import load_json
 
 
 def git(repo: Path, *args: str) -> str:
@@ -38,6 +42,19 @@ def fixture_repo(directory: str) -> tuple[Path, str, str]:
 
 
 class PromoteUnofficialCompatibilityTests(unittest.TestCase):
+    def test_compatibility_ref_is_recorded_as_mutable_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo, target, oid = fixture_repo(directory)
+
+            record_compatibility_ref(repo, target, "edk2-stable202608")
+
+            record = load_json(repo / "config/refs-unofficial.json")["refs"][0]
+            self.assertEqual(record["ref"], target)
+            self.assertEqual(record["object_id"], oid)
+            self.assertEqual(record["edk2_base"], "edk2-stable202608")
+            self.assertFalse(record["immutable"])
+            self.assertEqual(record["type"], "unofficial-edk2-compatibility")
+
     def test_existing_branch_repairs_only_its_missing_tag(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo, target, oid = fixture_repo(directory)

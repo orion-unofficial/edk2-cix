@@ -1,6 +1,10 @@
 # Repository Maintenance
 
-This document is intentionally maintained on the `test` branch. The default `build` branch README remains focused on end-user firmware usage.
+This guide is maintained on the default `build` branch so that every complete
+clone contains the information needed to integrate, qualify, and publish future
+source updates. [`README.md`](README.md) remains focused on selecting, building,
+staging, and understanding firmware; this document covers repository structure,
+source development, upstream uplifts, publication, CI, and maintainer validation.
 
 ## How do I publish an ordinary change?
 
@@ -813,27 +817,26 @@ uses the pinned `edk2-202208` vendor source target; it proves the enhanced
 uplift tooling did not drift the byte-identical upstream replay path while the
 new current target moved forward.
 
-Publish the resulting build metadata commit and its source refs atomically.
-The target is a dry run unless `WRITE=1` is explicit:
+Publish the resulting build metadata commit and its source refs atomically with
+the source-model publisher described above. It is a dry run unless `WRITE=1`
+is explicit:
 
 ```bash
-make publish-source-update \
-  SOURCE_REFS=source/base/edk2/edk2-stable202608
-make publish-source-update \
-  SOURCE_REFS=source/base/edk2/edk2-stable202608 \
-  WRITE=1
+make publish-source-update
+make publish-source-update WRITE=1
 ```
 
-Comma-separate every source ref recorded by the metadata commit. The publisher
-requires a clean `build` checkout that is a fast-forward of the remote branch,
+The publisher infers every pending ref from the committed manifests; do not
+construct a `SOURCE_REFS` list manually. It requires a clean `build` checkout,
 checks each recorded object and tree ID, refuses replacement of an immutable
-remote source ref, and sends `build` plus all selected source refs in one
-atomic push. Mutable Unofficial refs use exact force-with-lease expectations.
+remote source ref, and sends `build` plus the inferred source refs in one atomic
+push. Mutable Unofficial refs use exact force-with-lease expectations.
 
 `test` is deliberately not part of that atomic source-data transaction. After
-the source update is committed to `build`, fast-forward or rebase `test` to the
-same build commit, update any test-only coverage, validate it, and publish that
-branch separately.
+the source update is committed to `build`, merge the published `build` commit
+into `test`, update any test-only coverage, validate it, and publish that branch
+separately. Preserve the history of both required branches; do not rebase or
+rewrite `test` merely to align it with `build`.
 
 The persistent `source/cache/release/**` branch created by the render stage is a cache.
 Once the tree ID has been recorded and validation passes, it may be deleted
@@ -877,15 +880,39 @@ including unit, source-policy, source-lifecycle, metadata, vendor-workflow, and
 identity checks. Only the nested minimised-export invocation is skipped to
 avoid recursion.
 
-## How do I materialise an Unofficial line?
+## How do I materialise a source target?
 
-Render a configured source target that includes the unofficial layer:
+Normal build targets render or reuse a detached cache automatically. To create
+a persistent branch for inspection, development, or CI, render a configured
+source target explicitly:
 
 ```bash
 make render-release-branch \
   RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
   PERSIST=1
 ```
+
+The prefixless name shown by `make help-source-targets` is the documented input
+form. A full internal name such as
+`source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.3.1/unofficial` is also
+accepted. A persistent render creates or verifies the corresponding generated
+`source/cache/release/**` branch.
+
+Versioned aliases can be persisted in the same way. For example,
+`RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial-1.3.1` creates or verifies
+`source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.3.1/unofficial-1.3.1`.
+
+If an explicit Unofficial import changes the rendered tree, rebuild and replace
+the persistent branch deliberately:
+
+```bash
+make render-release-branch \
+  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
+  PERSIST=1 REBUILD=1 FORCE=1
+```
+
+That command also refreshes the source-target tree-ID metadata in
+`config/refs-source-target-cache.json`.
 
 Then validate it:
 
@@ -900,11 +927,124 @@ branches. They may be stored as
 `source/cache/release/**` branches for convenience, but ordinary build and
 validation targets regenerate them when those branches are absent.
 
+Inside a rendered firmware tree, lower-level targets such as `make -C src help`,
+`make -C src preflight`, and board-specific validation targets are available.
+Prefer the top-level build-branch targets unless work specifically needs to run
+inside that rendered tree.
+
 Unofficial checkpoints retain the project source carried across releases. At
 render time, `VERSION` and `debian/changelog` are aligned with the immutable
 `source/vendor/radxa/<release>/edk2-stable202208` release source. This prevents
 an older checkpoint's package identity from being mislabeled as the selected
 Radxa release while preserving the checkpoint and its provenance unchanged.
+
+A configured build variation is supported only when all of its source inputs
+are recorded locally. At a high level, this means:
+
+- the selected EDK2, `edk2-platforms`, and `edk2-non-osi` base refs are present;
+- the Radxa vendor changes are available for that EDK2 release;
+- any selected CIX component refs are present under
+  `source/vendor/cix/<cix-release>/`;
+- the Unofficial project source branch for the selected EDK2 release is present;
+- `source/base/edk2/edk2-stable*` refs declare the supported EDK2 release set
+  from `202208` onward;
+- `config/refs-*.json` records the source and rendered tree IDs needed to verify
+  the target; and
+- the build policy records the relevant distro defaults and replay availability.
+
+Run `make verify-build-matrix` to check that the derived build matrix and
+available refs agree.
+
+## How is the source model represented?
+
+The firmware tree is built from several layers rather than from one permanent
+monolithic branch.
+
+`source/base/**` branches contain upstream sources, such as EDK2, TF-A, and
+OP-TEE, at recorded versions. For EDK2 releases, the separate upstream `edk2`,
+`edk2-platforms`, and `edk2-non-osi` repos are combined into generated
+`source/cache/base/edk2/**` skeleton caches when needed. Those cache refs are
+not required source data when `config/refs-edk2.json` and the referenced
+component refs are present. The base-cache tree IDs are derived from that EDK2
+ref metadata rather than stored in a separate manifest.
+
+`source/vendor/cix/**` branches contain source and payload trees published by
+CIX. CIX publishes OP-TEE under a `tee` directory, but this source model
+records that component as `op-tee`. `source/port/cix/**` branches are reserved
+for this project's reviewed ports of those components to a newer Arm upstream
+base.
+
+`source/vendor/radxa/**` branches contain source trees actually published by
+Radxa for a recorded EDK2 base. `source/port/radxa/**` branches contain this
+project's deterministic ports of a Radxa release to later EDK2 bases. For
+example, Radxa `1.2.1` was published on `edk2-stable202208`, while
+`source/port/radxa/1.2.1/edk2-stable202605` records the same vendor intent
+ported forward to EDK2 `202605`.
+
+Raw `source/vendor/**` refs preserve the vendor's materialised content and Git
+file modes exactly; they are the byte-level provenance record. In editable
+`source/port/**` and `source/unofficial/**` trees, files introduced or changed
+by the supported integration, uplift, and import commands are canonicalised:
+text uses LF line endings with no trailing horizontal whitespace, text files
+without a shebang are non-executable, scripts with a shebang keep their
+executable bit, and binary files are left byte-for-byte and mode-for-mode
+unchanged. Untouched upstream-base files are not mass-rewritten. The split
+between exact vendor refs and canonical changed files in workable refs makes a
+second parallel "normalised vendor" branch namespace unnecessary.
+
+`source/unofficial/**` branches contain this project's branded Unofficial
+firmware changes as normal source trees. Mutable development tips are explicit
+per release line; the sole actively maintained tip is currently
+`source/unofficial/1.3/current`. The older `source/unofficial/1.2/current` tip
+and its exact checkpoints remain retained historical records. Immutable uplift
+checkpoints use `source/unofficial/<radxa-release>/<edk2-base>`, for example
+`source/unofficial/1.3.1/edk2-stable202608`. The default line is selected by
+`config/policies.json`; no unqualified `source/unofficial/current` ref is used.
+The older `source/unofficial/edk2-stable*` branches and matching tags are
+retained historical EDK2 compatibility records for focused source-change
+propagation, not firmware-line tips.
+
+Render plans are derived from the selected source target name and available
+source refs, then verified against the ref metadata in `config/`. They can
+include an explicit `materialise_submodules` step. If gitlinks remain after all
+configured steps have run, the renderer attempts recursive submodule
+materialisation using the nearest recorded `.gitmodules` mapping and writes a
+submodule report under `.cache/edk2-cix/reports/`. The report records which
+paths were flattened, the commit IDs and recorded URLs, and the `.gitmodules`
+file that supplied each mapping. It is normally only a diagnostic aid and can
+be ignored after a successful build, but is useful when checking that a
+rendered branch contains ordinary files rather than active submodules.
+
+`source/cache/release/**` branches are generated materialised firmware trees,
+not required source inputs. Generated Git caches always live under
+`source/cache/**`. Use `make prune` to report cache branches that are safe to
+remove and `make prune DELETE=1` to delete only verified cache branches. Use
+`make clean` to remove stale transient filesystem caches and `make realclean`
+to remove all transient filesystem caches. Neither target deletes Git refs.
+
+The source-target tree-ID manifest records canonical rendered trees. Versioned
+Unofficial aliases, such as `/unofficial-1.2.1`, are derived from the matching
+canonical `/unofficial` target for the same EDK2/CIX/Radxa combination and must
+resolve to the same tree.
+
+## How are help listings kept current?
+
+`make help-source-targets` uses an untracked runtime cache under
+`.cache/edk2-cix/help/`. It records the source refs and tracked help-generation
+inputs used to build it and refreshes itself when those inputs change. No
+generated help cache is committed to the repository.
+
+The first refresh in a new clone may take several seconds. The helper prints a
+`[help-cache]` status line before the slow work so the command does not appear
+to have hung. Refresh or validate the cache explicitly with:
+
+```bash
+make refresh-help-cache
+make check-help-cache
+```
+
+`make test` also runs `make check-help-cache`; this checks the generation path
+without requiring any cache file to be staged or committed.
 
 ## How do I test a floating upstream tip instead of the latest release?
 
@@ -961,8 +1101,8 @@ minimal entry points cannot live only on `test`:
   push to `build` deploys Pages; pull requests, merge-queue candidates, calls
   from `test`, and local `act` runs build without deploying.
 
-The `test` branch contains this maintainer documentation, the extended
-regression suite, and `test-branch-ci.yaml`. Keep it based on the exact `build`
+This maintenance guide lives on `build`; the extended regression suite and
+`test-branch-ci.yaml` remain on `test`. Keep `test` based on the exact `build`
 candidate under review. The test workflow runs on test-branch pushes and pull
 requests targeting `test`, and it calls the same reusable documentation
 workflow retained on `build`.
@@ -1005,6 +1145,10 @@ make docs-build
 back to the same documentation container used by `make docs-workflow-local`.
 Use `DOCS_BUILD_MODE=host` to require a host-only build or
 `DOCS_BUILD_MODE=container` to force the container path.
+
+The generated site is written to `.cache/edk2-cix/docs/book/html/`. Tool
+downloads, Cargo state, and temporary files used by the documentation build are
+also kept under `.cache/edk2-cix/docs/`.
 
 To check upstream versions locally:
 

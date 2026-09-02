@@ -56,8 +56,10 @@ ACT_JOB ?=
 ACT_MATRIX ?=
 ACT_SECRET_FILE ?=
 ACT_EXTRA_ARGS ?=
+ACT_CONCURRENT_JOBS ?= 1
 ACT_CONTAINER_ARCH ?= auto
 ACT_RUNNER_IMAGE ?=
+ACT_ALLOW_REMOTE_REF_DRIFT ?= 0
 REPLAY_SOURCE_TARGET ?= edk2-202208/radxa-$(REPLAY_VERSION)
 REPLAY_UPSTREAM_REPOSITORY ?= radxa-pkg/edk2-cix
 REPLAY_DOWNLOAD ?= 1
@@ -134,12 +136,12 @@ endef
 	test test-local lint \
 	extract-vendor-delta render-release-branch uplift-edk2-release uplift-radxa-release select-unofficial-line integrate-source-release import-changes import-unofficial-commits inspect-import-conflicts resolve-conflicts \
 	propagate-release-branches promote-unofficial-compatibility promote-unofficial-release update-release-tags \
-	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift refresh-vendor-workflow-baseline check-upstream-versions check-source-metadata check-help-cache check-first-output-latency refresh-source-metadata refresh-help-cache ref-report cleanup-report create-minimised-clone publish-source-update \
+	verify-release-branch verify-build-matrix verify-manifest-integrity check-ref-integrity verify-minimised-clone check-identity-integrity verify-identity-integrity check-vendor-workflow-drift refresh-vendor-workflow-baseline check-upstream-versions check-source-metadata check-remote-source-coherence prepare-ci-source-refs check-help-cache check-first-output-latency refresh-source-metadata refresh-help-cache ref-report cleanup-report create-minimised-clone publish-source-update \
 	gha-act-list gha-act-dry-run gha-act-run \
 	extract-vendor-delta-help render-release-branch-help uplift-edk2-release-help uplift-radxa-release-help select-unofficial-line-help integrate-source-release-help \
 	import-changes-help import-unofficial-commits-help inspect-import-conflicts-help resolve-conflicts-help promote-unofficial-compatibility-help promote-unofficial-release-help update-release-tags-help \
 	verify-release-branch-help verify-build-matrix-help verify-source-policy-help verify-source-lifecycle-help \
-	check-ref-integrity-help check-identity-integrity-help verify-identity-integrity-help check-vendor-workflow-drift-help check-upstream-versions-help check-source-metadata-help refresh-source-metadata-help publish-source-update-help \
+	check-ref-integrity-help check-identity-integrity-help verify-identity-integrity-help check-vendor-workflow-drift-help check-upstream-versions-help check-source-metadata-help check-remote-source-coherence-help refresh-source-metadata-help publish-source-update-help \
 	create-minimised-clone-help verify-minimised-clone-help prune-help refresh-help-cache-help check-help-cache-help check-first-output-latency-help ref-report-help cleanup-report-help
 
 help:
@@ -351,8 +353,10 @@ help-dev-verify:
 	print_section 'Source Metadata and Integrity'; \
 	print_help_line 'make check-ref-integrity' 'Check persistent source refs do not depend on generated cache refs.'; \
 	print_help_line 'make check-source-metadata' 'Check source-ref hashes, source-target cache tree IDs, and optionally unofficial release tags for drift.'; \
+	print_help_line 'make check-remote-source-coherence' 'Check that the remote source refs and retained compatibility tags match the checked-out build metadata.'; \
+	print_help_line 'make prepare-ci-source-refs' 'In an ephemeral CI/act clone, point runner-local refs at exact manifest objects that are already available; never reconstruct or substitute missing commits.'; \
 	print_help_line 'make refresh-source-metadata' 'Refresh source-ref hashes and source-target cache tree IDs from current refs.'; \
-	print_help_line 'make publish-source-update' 'Atomically publish a committed build metadata update with explicitly selected source refs.'; \
+	print_help_line 'make publish-source-update' 'Atomically publish a committed build metadata update with every pending source ref inferred automatically.'; \
 	print_help_line 'make check-identity-integrity' 'Quickly scan build-branch files for path/identity integrity issues.'; \
 	print_help_line 'make verify-identity-integrity' 'Deep-scan build-branch files, commit metadata, and persistent source refs for path/identity integrity issues.'; \
 	print_help_line 'make check-vendor-workflow-drift' 'Detect vendor .github/workflows changes that may need porting to the build branch CI.'; \
@@ -378,7 +382,7 @@ help-dev-verify:
 	print_help_variable 'WRITE=0|1' 'For refresh-source-metadata. Required before config metadata or requested release tags are updated.\nDefault: 0.'; \
 	print_help_variable 'RENDER_GENERATED=0|1' 'For check-source-metadata and refresh-source-metadata. Re-render generated source/cache/release entries whose tree cannot be derived directly from retained source refs. Use 1 for full post-rewrite cache regeneration.\nDefault: 0.'; \
 	print_help_variable 'UPDATE_RELEASE_TAGS=0|1' 'For check-source-metadata and refresh-source-metadata. Include refs/tags/source/unofficial/edk2/stable-* in the check or refresh.\nDefault: 0.'; \
-	print_help_variable 'SOURCE_REFS=<ref[,ref...]>' 'For publish-source-update. Explicit source branches or tags to publish with build.'; \
+	print_help_variable 'SOURCE_REFS=<ref[,ref...]>' 'For publish-source-update. Optional additional source branches or tags; pending refs are inferred automatically.'; \
 	print_help_variable 'REMOTE=<name>' 'For publish-source-update. Git remote to update.\nDefault: origin.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make render-release-branch-help' 'Show render-release-branch arguments.'; \
@@ -388,6 +392,7 @@ help-dev-verify:
 	print_help_line 'make verify-source-lifecycle-help' 'Show verify-source-lifecycle arguments.'; \
 	print_help_line 'make check-ref-integrity-help' 'Show check-ref-integrity arguments.'; \
 	print_help_line 'make check-source-metadata-help' 'Show check-source-metadata arguments.'; \
+	print_help_line 'make check-remote-source-coherence-help' 'Show remote source-coherence arguments.'; \
 	print_help_line 'make refresh-source-metadata-help' 'Show refresh-source-metadata arguments.'; \
 	print_help_line 'make check-identity-integrity-help' 'Show check-identity-integrity arguments.'; \
 	print_help_line 'make verify-identity-integrity-help' 'Show verify-identity-integrity arguments.'; \
@@ -421,9 +426,11 @@ help-dev-maintenance:
 	print_help_variable 'ACT_MATRIX=<name:value>' 'Optional single act matrix filter, for example board:O6.'; \
 	print_help_variable 'ACT_SECRET_FILE=<path>' 'Optional act --secret-file path for local workflow runs.'; \
 	print_help_variable 'ACT_EXTRA_ARGS=<args>' 'Additional raw flags appended to act.'; \
+	print_help_variable 'ACT_CONCURRENT_JOBS=<count>' 'Maximum number of top-level local act jobs to run concurrently. Keep this at 1 when workflows contain their own parallel firmware matrices; increase only when host CPU, memory, and disk capacity can sustain the multiplied workload.\nDefault: 1.'; \
 	print_help_variable 'ACT_CONTAINER_ARCH=auto|<platform>' 'Container architecture used by act. auto selects linux/arm64 on arm64 hosts and linux/amd64 on x86_64 hosts.\nDefault: auto.'; \
 	print_help_variable 'ACT_RUNNER_IMAGE=<image>' 'Runner image mapped to ubuntu-latest.\nDefault: ghcr.io/catthehacker/ubuntu:act-24.04-20260815.'; \
-	print_help_note 'For workflow_dispatch inputs and matrix examples, see docs/src/build.md, "Test GitHub Actions Locally".'; \
+	print_help_variable 'ACT_ALLOW_REMOTE_REF_DRIFT=0|1' 'Permit an explicitly non-equivalent local act run when checked-out source metadata is not yet published. The default fails before act so a local success cannot mask remote source-ref drift.\nDefault: 0.'; \
+	print_help_note 'Use ACT_JOB or ACT_MATRIX to narrow a local run; use ACT_EXTRA_ARGS for additional act options.'; \
 	print_section 'Documentation'; \
 	print_help_line 'make docs-build' 'Build product docs. DOCS_BUILD_MODE=auto uses host tools when available and otherwise delegates to the internal docs container workflow.'; \
 	print_subtitle 'Variables:'; \
@@ -800,13 +807,20 @@ check-upstream-versions:
 	@DEBUG="$(DEBUG)" UPSTREAM_VERSION_MODE="$(UPSTREAM_VERSION_MODE)" UPSTREAM_VERSION_ONLY="$(UPSTREAM_VERSION_ONLY)" UPSTREAM_VERSION_FORMAT="$(UPSTREAM_VERSION_FORMAT)" UPSTREAM_VERSION_SNAPSHOT="$(UPSTREAM_VERSION_SNAPSHOT)" V="$(V)" $(PYTHON) scripts/check_upstream_versions.py --v "$(V)"
 
 publish-source-update:
-	@if [ -z "$(SOURCE_REFS)" ]; then $(MAKE) --no-print-directory publish-source-update-help; printf '%s\n' 'missing required variable: SOURCE_REFS' >&2; exit 2; fi
 	$(call PROGRESS_PROBE,[publish] Validating atomic build/source ref update)
 	@DEBUG="$(DEBUG)" SOURCE_REFS="$(SOURCE_REFS)" REMOTE="$(REMOTE)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/publish_source_update.py --v "$(V)"
 
 check-source-metadata:
 	$(call PROGRESS_PROBE,[check] Checking source metadata refresh state)
 	@DEBUG="$(DEBUG)" CHECK="1" WRITE="0" RENDER_GENERATED="$(RENDER_GENERATED)" UPDATE_RELEASE_TAGS="$(UPDATE_RELEASE_TAGS)" V="$(V)" $(PYTHON) scripts/refresh_source_metadata.py --check 1 --write 0 --render-generated "$(RENDER_GENERATED)" --update-release-tags "$(UPDATE_RELEASE_TAGS)" --v "$(V)"
+
+check-remote-source-coherence:
+	$(call PROGRESS_PROBE,[check] Comparing published source refs with build metadata)
+	@DEBUG="$(DEBUG)" REMOTE="$(REMOTE)" $(PYTHON) scripts/check_remote_source_coherence.py --remote "$(REMOTE)"
+
+prepare-ci-source-refs:
+	$(call PROGRESS_PROBE,[ci] Preparing exact runner-local source refs already present in the object database)
+	@DEBUG="$(DEBUG)" WRITE="$(WRITE)" $(PYTHON) scripts/check_remote_source_coherence.py --prepare-local --write "$(WRITE)"
 
 refresh-source-metadata:
 	$(call PROGRESS_PROBE,[metadata] Refreshing source metadata)
@@ -846,17 +860,17 @@ lint:
 
 gha-act-list:
 	$(call PROGRESS_PROBE,[gha] Listing local GitHub Actions jobs)
-	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh list
+	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONCURRENT_JOBS="$(ACT_CONCURRENT_JOBS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" ACT_ALLOW_REMOTE_REF_DRIFT="$(ACT_ALLOW_REMOTE_REF_DRIFT)" scripts/run_github_actions_with_act.sh list
 
 gha-act-dry-run:
 	@if [ -z "$(ACT_WORKFLOW)" ]; then printf '%s\n' 'missing required variable: ACT_WORKFLOW=.github/workflows/<file>.yaml' >&2; exit 2; fi
 	$(call PROGRESS_PROBE,[gha] Dry-running local GitHub Actions workflow: $(ACT_WORKFLOW))
-	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh dry-run
+	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONCURRENT_JOBS="$(ACT_CONCURRENT_JOBS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" ACT_ALLOW_REMOTE_REF_DRIFT="$(ACT_ALLOW_REMOTE_REF_DRIFT)" scripts/run_github_actions_with_act.sh dry-run
 
 gha-act-run:
 	@if [ -z "$(ACT_WORKFLOW)" ]; then printf '%s\n' 'missing required variable: ACT_WORKFLOW=.github/workflows/<file>.yaml' >&2; exit 2; fi
 	$(call PROGRESS_PROBE,[gha] Running local GitHub Actions workflow: $(ACT_WORKFLOW))
-	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" scripts/run_github_actions_with_act.sh run
+	@ACT_WORKFLOW="$(ACT_WORKFLOW)" ACT_EVENT="$(ACT_EVENT)" ACT_JOB="$(ACT_JOB)" ACT_MATRIX="$(ACT_MATRIX)" ACT_SECRET_FILE="$(ACT_SECRET_FILE)" ACT_EXTRA_ARGS="$(ACT_EXTRA_ARGS)" ACT_CONCURRENT_JOBS="$(ACT_CONCURRENT_JOBS)" ACT_CONTAINER_ARCH="$(ACT_CONTAINER_ARCH)" ACT_RUNNER_IMAGE="$(ACT_RUNNER_IMAGE)" ACT_ALLOW_REMOTE_REF_DRIFT="$(ACT_ALLOW_REMOTE_REF_DRIFT)" scripts/run_github_actions_with_act.sh run
 
 render-release-branch-help:
 	@$(PYTHON) scripts/render_release_branch.py --help
@@ -926,6 +940,9 @@ check-upstream-versions-help:
 
 publish-source-update-help:
 	@$(PYTHON) scripts/publish_source_update.py --help
+
+check-remote-source-coherence-help:
+	@$(PYTHON) scripts/check_remote_source_coherence.py --help
 
 check-source-metadata-help:
 	@$(PYTHON) scripts/refresh_source_metadata.py --help
