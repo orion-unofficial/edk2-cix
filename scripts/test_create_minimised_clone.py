@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 import sys
+from unittest.mock import MagicMock, patch
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -14,6 +15,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from create_minimised_clone import required_refspecs  # noqa: E402
 from test_support import commit_all, git, write_file  # noqa: E402
+import verify_minimised_clone  # noqa: E402
 
 
 class MinimisedCloneRefTests(unittest.TestCase):
@@ -27,9 +29,9 @@ class MinimisedCloneRefTests(unittest.TestCase):
             git(repo, "config", "user.email", "minimised-build-ref-test")
             write_file(repo, "fixture", "build\n")
             commit_all(repo, "build fixture")
-            git(repo, "switch", "-q", "-c", "test")
-            write_file(repo, "test-only", "must not be exported as build\n")
-            commit_all(repo, "test fixture")
+            git(repo, "switch", "-q", "-c", "candidate")
+            write_file(repo, "candidate-only", "must be exported as build\n")
+            commit_all(repo, "candidate fixture")
 
             selected = dict(required_refspecs(repo))
 
@@ -74,6 +76,48 @@ class MinimisedCloneRefTests(unittest.TestCase):
             self.assertNotIn("refs/heads/source/unofficial/current", selected)
             self.assertNotIn("refs/remotes/origin/source/unofficial/current", selected)
             self.assertNotIn("refs/heads/source/cache/release/generated", selected)
+
+    def test_verifier_trusts_nested_worktrees_within_exported_checkout(self) -> None:
+        with tempfile.TemporaryDirectory(
+            prefix="edk2-cix-minimised-safe-directory-test."
+        ) as directory:
+            root = Path(directory)
+            repo = root / "source"
+            workspace = root / "workspace"
+            checkout = workspace / "checkout"
+            git_result = MagicMock(returncode=0, stdout="", stderr="")
+
+            with (
+                patch.object(
+                    verify_minimised_clone,
+                    "default_release",
+                    return_value="default-source-target",
+                ),
+                patch.object(
+                    verify_minimised_clone,
+                    "git",
+                    return_value=git_result,
+                ),
+                patch.object(verify_minimised_clone, "require_default_branch"),
+                patch.object(verify_minimised_clone, "run_step") as run_step,
+            ):
+                verify_minimised_clone.verify_from_workspace(
+                    repo,
+                    workspace,
+                    keep=False,
+                    repack="0",
+                    verbose=False,
+                )
+
+            for call in run_step.call_args_list[-2:]:
+                environment = call.kwargs["env"]
+                values = {
+                    value
+                    for key, value in environment.items()
+                    if key.startswith("GIT_CONFIG_VALUE_")
+                }
+                self.assertIn(str(checkout), values)
+                self.assertIn(str(checkout / "*"), values)
 
 
 if __name__ == "__main__":

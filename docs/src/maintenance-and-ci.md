@@ -1,12 +1,9 @@
-# Extended Maintenance Qualification
+# Maintenance Qualification
 
 The root `MAINTENANCE.md` on the default `build` branch is the canonical,
-self-contained repository-maintenance guide. This page documents only the
-extended qualification material that exists on `test`: additional regression
-tests, their workflow, and the branch-protection result they produce.
-
-Keep `test` merged with the exact `build` candidate being reviewed. A green
-`test` run otherwise says nothing about a newer build tip.
+self-contained repository-maintenance guide. This page explains the extended
+qualification policy and regression tests that live alongside the build
+implementation and are retained by minimised exports.
 
 ## Qualification policy
 
@@ -35,37 +32,31 @@ policy, avoiding a caller/callee concurrency deadlock. A direct dispatch with
 no concurrency group is also allowed to finish independently.
 
 `Build documentation` runs when its inputs change and deploys Pages only from a
-push to `build`. Pull requests, merge-queue candidates, reusable calls from
-`test`, and local `act` runs build and archive the site without deploying it.
+push to `build`. Pull requests, merge-queue candidates, reusable calls, and
+local `act` runs build and archive the site without deploying it.
 
-## Test-branch workflow
+## Build-branch qualification
 
-GitHub requires scheduled and manually dispatched workflows to exist on the
-default branch, so firmware qualification, release replay, manual builds,
-documentation, and upstream monitoring remain defined on `build`. Their
-maintenance and local `act` commands are documented in the root guide.
+The build branch contains the tests and every workflow that exercises them.
+Its `Firmware qualification` workflow runs `make test` and `make lint` before
+the firmware matrices, while `Build documentation` builds this book. The
+stable qualification summary is therefore tied to the exact implementation,
+metadata, tests, and documentation in the candidate commit.
 
-The additional `test-branch-ci.yaml` workflow runs the test branch's extended
-suite and the shared documentation build, then reports one stable
-`Test qualification summary` result. Run its maintenance job locally with:
+The extended regression coverage includes:
 
-```bash
-make gha-act-dry-run \
-  ACT_WORKFLOW=.github/workflows/test-branch-ci.yaml \
-  ACT_JOB=maintenance-tests
-make gha-act-run \
-  ACT_WORKFLOW=.github/workflows/test-branch-ci.yaml \
-  ACT_JOB=maintenance-tests
-```
+- atomic publication and immutable-source-ref safeguards;
+- event-driven qualification, matrix, concurrency, and documentation-deployment
+  policy; and
+- upstream-monitor coverage and date-coupled source selection.
 
-The full workflow also calls the reusable documentation job. The normal
-`make docs-build DOCS_BUILD_MODE=container` command is the faster local check
-when only the test-branch documentation changed.
+The local `act` commands for each build-branch workflow are documented in the
+root guide. `make docs-build DOCS_BUILD_MODE=container` is the faster local
+check when only documentation changed.
 
 ## Validation
 
-The additional test files on this branch are discovered by the same commands as
-the build-branch suite:
+Run the same checks locally before publishing a maintenance change:
 
 ```bash
 make test
@@ -73,6 +64,5 @@ make lint
 make docs-build DOCS_BUILD_MODE=container
 ```
 
-Run the source-specific checks listed in root `MAINTENANCE.md` when the merged
-build candidate changes source refs, render logic, manifests, or CI. The test
-branch supplements those checks; it does not replace them.
+Run the source-specific checks listed in root `MAINTENANCE.md` when a candidate
+changes source refs, render logic, manifests, or CI.

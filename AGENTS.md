@@ -14,7 +14,6 @@ reconstruct the same firmware source trees, then ask for explicit approval
 before removing the old refs:
 
 - `refs/heads/build`
-- `refs/heads/test`
 - `refs/heads/source/base/edk2/**`
 - `refs/heads/source/base/edk2-platforms/**`
 - `refs/heads/source/base/edk2-non-osi/**`
@@ -56,11 +55,11 @@ the referenced EDK2 component refs are present.
 
 Keep repository orchestration on `build`. GitHub workflows, local `act`
 support, source rendering, publication checks, host-side cache preparation,
-report collection, and other code that runs before or after the delegated
-firmware-tree `make` belong on the `build` branch. A change in that category
-must remain an ordinary one-branch Git change and must not be copied into
-`source/unofficial/**` merely because a CI job happens to consume a rendered
-worktree.
+report collection, maintenance documentation, regression tests, and other code
+that runs before or after the delegated firmware-tree `make` belong on the
+`build` branch. A change in that category must remain an ordinary one-branch
+Git change and must not be copied into `source/unofficial/**` merely because a
+CI job happens to consume a rendered worktree.
 
 Only propagate a build-harness change through retained Unofficial refs when
 the changed file genuinely has to execute from inside the rendered firmware
