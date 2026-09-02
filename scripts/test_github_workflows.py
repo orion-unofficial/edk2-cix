@@ -23,6 +23,30 @@ class GitHubWorkflowTests(unittest.TestCase):
 
         self.assertIn("fetch-depth: 0", text)
 
+    def test_build_ci_checks_remote_source_coherence_before_expensive_jobs(self) -> None:
+        text = (REPO_ROOT / ".github" / "workflows" / "build-branch-ci.yaml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("source-coherence:", text)
+        self.assertIn("make check-remote-source-coherence REMOTE=origin", text)
+        self.assertEqual(text.count("      - source-coherence"), 4)
+        self.assertEqual(
+            text.count("needs:\n      - classify\n      - source-coherence"),
+            4,
+        )
+        source_model = text[
+            text.index("  source-model:") : text.index("\n  current-source:")
+        ]
+        self.assertIn(
+            "if: ${{ always() && needs.classify.outputs.build_affecting == 'true' }}",
+            source_model,
+        )
+        self.assertIn("make prepare-ci-source-refs WRITE=1", source_model)
+        self.assertIn("continue-on-error: true", source_model)
+        self.assertEqual(source_model.count("if: ${{ always() }}"), 4)
+        self.assertIn('[[ "${PREPARE_OUTCOME}" == success ]]', source_model)
+
     def test_reusable_firmware_workflows_do_not_reuse_caller_concurrency(self) -> None:
         for name in ("deterministic-replay.yaml", "secure-boot-audit.yaml"):
             with self.subTest(workflow=name):
@@ -183,6 +207,9 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn('${repository_root}/.cache/edk2-cix/act-cache', runner)
         self.assertIn('${repository_root}/.cache/edk2-cix}', runner)
         self.assertIn("prepare_action_cache()", runner)
+        self.assertIn('python3 "$script_dir/check_remote_source_coherence.py" --remote origin', runner)
+        self.assertIn("ACT_ALLOW_REMOTE_REF_DRIFT", runner)
+        self.assertIn("this run is not proof of GitHub equivalence", runner)
         self.assertIn('git -C "$cache_dir" update-ref -d refs/heads/HEAD', runner)
         self.assertIn('git -C "$cache_dir" fetch --quiet --depth 1 origin "$action_ref"', runner)
         self.assertIn('git -c advice.detachedHead=false clone --quiet', runner)

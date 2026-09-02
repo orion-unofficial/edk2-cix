@@ -54,6 +54,21 @@ the referenced EDK2 component refs are present.
 
 ## Source Change Propagation
 
+Keep repository orchestration on `build`. GitHub workflows, local `act`
+support, source rendering, publication checks, host-side cache preparation,
+report collection, and other code that runs before or after the delegated
+firmware-tree `make` belong on the `build` branch. A change in that category
+must remain an ordinary one-branch Git change and must not be copied into
+`source/unofficial/**` merely because a CI job happens to consume a rendered
+worktree.
+
+Only propagate a build-harness change through retained Unofficial refs when
+the changed file genuinely has to execute from inside the rendered firmware
+source tree. Before doing so, record why the build-branch caller cannot own the
+operation. This distinction prevents a small CI or host-integration repair
+from unnecessarily rewriting every historical compatibility ref and its
+hash-bearing metadata.
+
 Changes to a mutable `source/unofficial/<line>/current` ref are not
 automatically known-good for another firmware line or for every retained EDK2
 release branch. Select the destination explicitly with

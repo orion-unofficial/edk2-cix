@@ -73,10 +73,28 @@ jobs:
           echo "build_affecting=false" >>"${GITHUB_OUTPUT}"
           echo "reason=documentation/licensing-only change" >>"${GITHUB_OUTPUT}"
 
-  source-model:
-    name: Source model, lint, and minimised clone
+  source-coherence:
+    name: Published source-ref coherence
     needs: classify
     if: ${{ needs.classify.outputs.build_affecting == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout candidate build metadata
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compare published source refs with candidate metadata
+        run: make check-remote-source-coherence REMOTE=origin
+
+  source-model:
+    name: Source model, lint, and minimised clone
+    needs:
+      - classify
+      - source-coherence
+    if: ${{ always() && needs.classify.outputs.build_affecting == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -93,15 +111,40 @@ jobs:
           git fetch --force --no-tags origin '+refs/heads/source/*:refs/heads/source/*'
           git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
 
+      - name: Prepare exact candidate refs already present in the runner
+        id: prepare_source_refs
+        if: ${{ always() }}
+        continue-on-error: true
+        run: make prepare-ci-source-refs WRITE=1
+
       - name: Run source-model tests
+        id: source_model_tests
+        if: ${{ always() }}
         run: make test
 
       - name: Run lint checks
+        id: lint_checks
+        if: ${{ always() }}
         run: make lint
+
+      - name: Require every source-model diagnostic
+        if: ${{ always() }}
+        env:
+          LINT_OUTCOME: ${{ steps.lint_checks.outcome }}
+          PREPARE_OUTCOME: ${{ steps.prepare_source_refs.outcome }}
+          TEST_OUTCOME: ${{ steps.source_model_tests.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${PREPARE_OUTCOME}" == success ]]
+          [[ "${TEST_OUTCOME}" == success ]]
+          [[ "${LINT_OUTCOME}" == success ]]
 
   current-source:
     name: Current-source firmware matrix
-    needs: classify
+    needs:
+      - classify
+      - source-coherence
     if: ${{ needs.classify.outputs.build_affecting == 'true' }}
     uses: ./.github/workflows/secure-boot-audit.yaml
     with:
@@ -109,7 +152,9 @@ jobs:
 
   upstream-replay:
     name: Exact upstream replay matrix
-    needs: classify
+    needs:
+      - classify
+      - source-coherence
     if: ${{ needs.classify.outputs.build_affecting == 'true' }}
     uses: ./.github/workflows/deterministic-replay.yaml
     with:
@@ -122,6 +167,7 @@ jobs:
     if: ${{ always() }}
     needs:
       - classify
+      - source-coherence
       - source-model
       - current-source
       - upstream-replay
@@ -134,6 +180,7 @@ jobs:
           CLASSIFY_RESULT: ${{ needs.classify.result }}
           CURRENT_SOURCE_RESULT: ${{ needs.current-source.result }}
           REASON: ${{ needs.classify.outputs.reason }}
+          SOURCE_COHERENCE_RESULT: ${{ needs.source-coherence.result }}
           SOURCE_MODEL_RESULT: ${{ needs.source-model.result }}
           UPSTREAM_REPLAY_RESULT: ${{ needs.upstream-replay.result }}
         shell: bash
@@ -147,12 +194,14 @@ jobs:
             echo "| Gate | Result |"
             echo "| --- | --- |"
             echo "| Classifier | ${CLASSIFY_RESULT} |"
+            echo "| Published source refs | ${SOURCE_COHERENCE_RESULT} |"
             echo "| Source model | ${SOURCE_MODEL_RESULT} |"
             echo "| Current-source O6/O6N, fixes off/on | ${CURRENT_SOURCE_RESULT} |"
             echo "| Radxa 1.3.1 exact replay, O6/O6N | ${UPSTREAM_REPLAY_RESULT} |"
           } >>"${GITHUB_STEP_SUMMARY}"
           [[ "${CLASSIFY_RESULT}" == success ]]
           if [[ "${BUILD_AFFECTING}" == true ]]; then
+            [[ "${SOURCE_COHERENCE_RESULT}" == success ]]
             [[ "${SOURCE_MODEL_RESULT}" == success ]]
             [[ "${CURRENT_SOURCE_RESULT}" == success ]]
             [[ "${UPSTREAM_REPLAY_RESULT}" == success ]]
