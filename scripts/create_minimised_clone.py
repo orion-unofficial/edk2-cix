@@ -21,8 +21,9 @@ Optional variables:
   REPACK=0|1  Repack the destination after exporting refs. Default: 1.
   V=0|1       Print delegated git operations.
 
-The destination must not already contain data. The exported repository contains
-only refs required by the current source model: build, non-cache source/base/**,
+The destination must not already contain data. The clean checked-out commit is
+exported as build, together with only refs required by the current source model:
+non-cache source/base/**,
 source/vendor/**, source/port/**, and source/unofficial/** branches, plus
 source/** tags. Generated source/cache/** branches, obsolete
 source/component/** and source/unofficial/current aliases, and legacy/private
@@ -58,8 +59,8 @@ def exportable_source_branch(branch: str) -> bool:
 
 
 def required_refspecs(repo: Path) -> list[tuple[str, str]]:
-    git(repo, "rev-parse", "--verify", "refs/heads/build")
-    refspecs = {"refs/heads/build": "refs/heads/build"}
+    git(repo, "rev-parse", "--verify", "HEAD^{commit}")
+    refspecs = {"refs/heads/build": "HEAD"}
     for ref in ref_list(repo, "refs/heads/source"):
         branch = ref.removeprefix("refs/heads/")
         if exportable_source_branch(branch):

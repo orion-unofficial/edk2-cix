@@ -8,7 +8,15 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from publish_source_update import main, metadata_ref, mutable_ref, verify_metadata
+from publish_source_update import (
+    compatibility_tag,
+    infer_pending_refs,
+    local_commit,
+    main,
+    metadata_ref,
+    mutable_ref,
+    verify_metadata,
+)
 from reconstruction_common import ReconstructionError
 from test_support import commit_all, git, write_file
 
@@ -31,6 +39,67 @@ class PublishSourceUpdateTests(unittest.TestCase):
         self.assertTrue(mutable_ref(current))
         self.assertTrue(mutable_ref(compatibility))
         self.assertTrue(mutable_ref(tag))
+        self.assertEqual(
+            compatibility_tag(compatibility),
+            tag,
+        )
+        self.assertIsNone(compatibility_tag(current))
+
+    def test_pending_refs_are_inferred_from_remote_manifest_differences(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            git(repo, "init", "-q", "-b", "build")
+            git(repo, "config", "user.name", "Publication Test")
+            git(repo, "config", "user.email", "publication-test")
+            write_file(repo, "firmware.txt", "current\n")
+            commit = commit_all(repo, "current")
+            current = "source/unofficial/1.3/current"
+            compatibility = "source/unofficial/edk2-stable202608"
+            tag = "source/unofficial/edk2/stable-202608"
+            git(repo, "branch", current, commit)
+            git(repo, "branch", compatibility, commit)
+            git(repo, "tag", tag, commit)
+            tree = git(repo, "rev-parse", "HEAD^{tree}").stdout.strip()
+            records = [
+                {"ref": current, "object_id": commit, "tree_id": tree},
+                {"ref": compatibility, "object_id": commit, "tree_id": tree},
+            ]
+
+            self.assertEqual(
+                infer_pending_refs(repo, records, {}),
+                [
+                    f"refs/heads/{current}",
+                    f"refs/heads/{compatibility}",
+                    f"refs/tags/{tag}",
+                ],
+            )
+            self.assertEqual(
+                infer_pending_refs(
+                    repo,
+                    records,
+                    {
+                        f"refs/heads/{current}": commit,
+                        f"refs/heads/{compatibility}": commit,
+                        f"refs/tags/{tag}": commit,
+                    },
+                ),
+                [],
+            )
+
+            git(repo, "switch", "-q", current)
+            write_file(repo, "firmware.txt", "unrecorded\n")
+            unrecorded = commit_all(repo, "unrecorded source move")
+            self.assertEqual(local_commit(repo, f"refs/heads/{current}"), unrecorded)
+            with self.assertRaisesRegex(ReconstructionError, "does not match build metadata"):
+                infer_pending_refs(
+                    repo,
+                    records,
+                    {
+                        f"refs/heads/{current}": commit,
+                        f"refs/heads/{compatibility}": commit,
+                        f"refs/tags/{tag}": commit,
+                    },
+                )
 
     def test_mutable_ref_metadata_must_match_selected_object_and_tree(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -140,8 +209,6 @@ class PublishSourceUpdateTests(unittest.TestCase):
 
             arguments = [
                 "publish_source_update.py",
-                "--source-refs",
-                branch,
                 "--remote",
                 "origin",
                 "--write",

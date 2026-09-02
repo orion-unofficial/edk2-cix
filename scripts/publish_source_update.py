@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Atomically publish a build metadata commit with explicitly selected source refs."""
+"""Atomically publish a build metadata commit and its pending source refs."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import argparse
 import os
 import shlex
 import subprocess
-import sys
 import time
 from pathlib import Path
 
@@ -24,22 +23,22 @@ from reconstruction_common import (
 
 HELP = """publish-source-update
 
-Required variables:
-  SOURCE_REFS=<ref[,ref...]>
-      Source branches or tags to publish with the build metadata commit.
-
 Optional variables:
+  SOURCE_REFS=<ref[,ref...]>
+      Additional source branches or tags to validate for publication. Pending
+      refs are inferred from the checked-out metadata and the remote, so this
+      variable is normally unnecessary.
   REMOTE=<name>  Git remote to update. Default: origin.
   WRITE=0|1      Execute the atomic push. Without WRITE=1, use git push --dry-run.
   V=0|1          Print delegated Git operations.
 
 The checked-out build branch must be clean, contain object/tree metadata matching
-every selected source ref, and be either ahead of or identical to the remote
+every pending source ref, and be either ahead of or identical to the remote
 build branch. The identical case safely resumes a publication whose metadata
 commit reached the remote before its source refs. Existing immutable source refs
 may not move. Mutable Unofficial tips, compatibility refs, and compatibility
-tags use an exact force-with-lease expectation. Git receives every pending ref
-in one --atomic push.
+tags use an exact force-with-lease expectation. Git receives the build branch
+and every inferred pending ref in one --atomic push.
 """
 
 
@@ -97,6 +96,63 @@ def remote_objects(repo: Path, remote: str, refs: list[str]) -> dict[str, str]:
     }
 
 
+def local_commit(repo: Path, ref: str) -> str | None:
+    result = git(repo, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def compatibility_tag(ref: str) -> str | None:
+    prefix = "refs/heads/source/unofficial/edk2-stable"
+    if not ref.startswith(prefix):
+        return None
+    release = ref.removeprefix(prefix)
+    return f"refs/tags/source/unofficial/edk2/stable-{release}" if release else None
+
+
+def infer_pending_refs(
+    repo: Path,
+    records: list[dict],
+    queried: dict[str, str],
+) -> list[str]:
+    refs: set[str] = set()
+    for record in records:
+        source_ref = str(record.get("ref", ""))
+        if not source_ref.startswith("source/") or source_ref.startswith(
+            ("source/cache/", "source/component/")
+        ):
+            continue
+        ref = f"refs/heads/{source_ref}"
+        recorded_object = str(record.get("object_id", ""))
+        local = local_commit(repo, ref)
+        if local is not None and local != recorded_object:
+            raise ReconstructionError(
+                f"{ref}: local ref {local} does not match build metadata {recorded_object}; "
+                "refresh and commit source metadata before publication"
+            )
+        if queried.get(ref) != recorded_object:
+            if local is None:
+                raise ReconstructionError(
+                    f"{ref}: remote does not match the build metadata and the local ref is unavailable; "
+                    "fetch or reconstruct the source ref before publication"
+                )
+            refs.add(ref)
+        tag = compatibility_tag(ref)
+        if tag and queried.get(tag) != recorded_object:
+            local_tag = local_commit(repo, tag)
+            if local_tag is not None and local_tag != recorded_object:
+                raise ReconstructionError(
+                    f"{tag}: local tag {local_tag} does not match its compatibility branch "
+                    f"{recorded_object}"
+                )
+            if local_tag is None:
+                raise ReconstructionError(
+                    f"{tag}: remote does not match the compatibility branch and the local tag is unavailable; "
+                    "run `make refresh-source-metadata UPDATE_RELEASE_TAGS=1 WRITE=1` first"
+                )
+            refs.add(tag)
+    return sorted(refs)
+
+
 def verify_metadata(repo: Path, ref: str, records: list[dict]) -> str:
     recorded_ref = metadata_ref(ref)
     matches = [record for record in records if record.get("ref") == recorded_ref]
@@ -125,18 +181,37 @@ def main() -> None:
     started = time.monotonic()
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
-    refs = sorted({canonical_ref(item) for item in args.source_refs.split(",") if item.strip()})
-    if not refs:
-        print(HELP)
-        print("missing required variable: SOURCE_REFS", file=sys.stderr)
-        raise SystemExit(2)
+    explicit_refs = {
+        canonical_ref(item) for item in args.source_refs.split(",") if item.strip()
+    }
     if git(repo, "symbolic-ref", "--quiet", "--short", "HEAD").stdout.strip() != "build":
         raise ReconstructionError("publish-source-update must run from the checked-out build branch")
     if git(repo, "status", "--porcelain").stdout.strip():
         raise ReconstructionError("working tree is dirty; commit the build metadata before publication")
 
+    records = load_ref_records(repo)
+    published_refs = {
+        f"refs/heads/{record['ref']}"
+        for record in records
+        if str(record.get("ref", "")).startswith("source/")
+        and not str(record["ref"]).startswith(("source/cache/", "source/component/"))
+    }
+    published_refs.update(
+        tag
+        for ref in tuple(published_refs)
+        for tag in [compatibility_tag(ref)]
+        if tag
+    )
     local_build = git(repo, "rev-parse", "refs/heads/build").stdout.strip()
-    queried = remote_objects(repo, args.remote, ["refs/heads/build", *refs])
+    queried = remote_objects(
+        repo,
+        args.remote,
+        ["refs/heads/build", *sorted(published_refs | explicit_refs)],
+    )
+    inferred_refs = set(infer_pending_refs(repo, records, queried))
+    refs = sorted(explicit_refs | inferred_refs)
+    if inferred_refs:
+        print(f"inferred {len(inferred_refs)} pending source ref(s) from build metadata")
     remote_build = queried.get("refs/heads/build")
     if not remote_build:
         raise ReconstructionError(f"{args.remote} has no build branch")
@@ -151,7 +226,6 @@ def main() -> None:
     else:
         print("remote build already contains the selected metadata commit; checking for source refs to resume")
 
-    records = load_ref_records(repo)
     refspecs: list[str] = []
     leases: list[str] = []
     if build_pending:

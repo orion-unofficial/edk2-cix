@@ -11,6 +11,7 @@ act_cache_home="${EDK2_CIX_ACT_XDG_CACHE_HOME:-${repository_root}/.cache/edk2-ci
 act_host_cache_root="${EDK2_CIX_ACT_HOST_CACHE_ROOT:-${repository_root}/.cache/edk2-cix}"
 default_runner_image="${ACT_RUNNER_IMAGE:-${EDK2_CIX_ACT_RUNNER_IMAGE:-ghcr.io/catthehacker/ubuntu:act-24.04-20260815}}"
 concurrent_jobs="${ACT_CONCURRENT_JOBS:-${EDK2_CIX_ACT_CONCURRENT_JOBS:-1}}"
+allow_remote_ref_drift="${ACT_ALLOW_REMOTE_REF_DRIFT:-${EDK2_CIX_ACT_ALLOW_REMOTE_REF_DRIFT:-0}}"
 
 case "$concurrent_jobs" in
     ""|0|*[!0-9]*)
@@ -160,6 +161,9 @@ Environment:
       Workflows can add their own matrix concurrency, so increase cautiously.
   ACT_RUNNER_IMAGE=<image>
       Runner image for ubuntu-latest. Default: ghcr.io/catthehacker/ubuntu:act-24.04-20260815.
+  ACT_ALLOW_REMOTE_REF_DRIFT=0|1
+      Permit a deliberately non-equivalent run when source metadata is ahead
+      of the real remote. Default: 0 (verify remote coherence before act).
   ACT_EXTRA_ARGS=<args>
       Additional raw flags appended to act.
 EOF
@@ -226,6 +230,19 @@ export XDG_CACHE_HOME="$act_cache_home"
 act_bin="$("$act_bootstrap")"
 
 if [[ "$mode" != list ]]; then
+    case "$allow_remote_ref_drift" in
+        1|true|TRUE|yes|YES|on|ON)
+            printf '[act-runner] warning: remote source-ref coherence check explicitly bypassed; this run is not proof of GitHub equivalence.\n' >&2
+            ;;
+        0|false|FALSE|no|NO|off|OFF|'')
+            status "Checking real remote source refs before isolated act execution"
+            python3 "$script_dir/check_remote_source_coherence.py" --remote origin
+            ;;
+        *)
+            printf '[act-runner] ACT_ALLOW_REMOTE_REF_DRIFT must be a boolean, got: %s\n' "$allow_remote_ref_drift" >&2
+            exit 2
+            ;;
+    esac
     prepare_action_cache
 fi
 
