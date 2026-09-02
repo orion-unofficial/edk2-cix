@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression checks for event-driven qualification and branch boundaries."""
+"""Regression checks for event-driven qualification and documentation boundaries."""
 
 from pathlib import Path
 import unittest
@@ -95,7 +95,7 @@ class QualificationPolicyTests(unittest.TestCase):
             text,
         )
 
-    def test_branch_content_boundary_is_explicit(self) -> None:
+    def test_maintenance_content_boundary_is_explicit(self) -> None:
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
         maintenance = (REPO_ROOT / "MAINTENANCE.md").read_text(
             encoding="utf-8"
@@ -106,22 +106,18 @@ class QualificationPolicyTests(unittest.TestCase):
         extended = (
             REPO_ROOT / "docs" / "src" / "maintenance-and-ci.md"
         ).read_text(encoding="utf-8")
-        test_workflow = self.workflow("test-branch-ci.yaml")
+        build_workflow = self.workflow("build-branch-ci.yaml")
 
         self.assertIn("## Repository maintenance", readme)
         self.assertIn("[`MAINTENANCE.md`](MAINTENANCE.md)", readme)
-        self.assertNotIn("`test` branch", readme)
         self.assertNotIn("## How does CI work?", readme)
         self.assertIn("# Repository Maintenance", maintenance)
         self.assertIn("[Maintenance and CI](maintenance-and-ci.md)", summary)
         self.assertIn("root `MAINTENANCE.md`", extended)
-        self.assertIn("exists on `test`", extended)
-        self.assertIn("branches:\n      - test", test_workflow)
-        self.assertIn(
-            "uses: ./.github/workflows/build-docs.yaml",
-            test_workflow,
-        )
-        self.assertNotIn("\n  schedule:\n", test_workflow)
+        self.assertIn("retained by minimised exports", extended)
+        self.assertIn("run: make test", build_workflow)
+        self.assertIn("run: make lint", build_workflow)
+        self.assertFalse((WORKFLOW_ROOT / "test-branch-ci.yaml").exists())
 
 
 if __name__ == "__main__":

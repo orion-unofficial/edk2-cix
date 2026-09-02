@@ -130,7 +130,9 @@ def verify_from_workspace(repo: Path, workspace: Path, keep: bool, repack: str, 
     config_count = int(checkout_env.get("GIT_CONFIG_COUNT", "0"))
     checkout_env[f"GIT_CONFIG_KEY_{config_count}"] = "safe.directory"
     checkout_env[f"GIT_CONFIG_VALUE_{config_count}"] = str(checkout)
-    checkout_env["GIT_CONFIG_COUNT"] = str(config_count + 1)
+    checkout_env[f"GIT_CONFIG_KEY_{config_count + 1}"] = "safe.directory"
+    checkout_env[f"GIT_CONFIG_VALUE_{config_count + 1}"] = str(checkout / "*")
+    checkout_env["GIT_CONFIG_COUNT"] = str(config_count + 2)
 
     print("[verify-minimised] Running publication quality gates from minimised clone", file=sys.stderr)
     run_step(

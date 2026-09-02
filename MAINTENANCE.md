@@ -832,11 +832,9 @@ checks each recorded object and tree ID, refuses replacement of an immutable
 remote source ref, and sends `build` plus the inferred source refs in one atomic
 push. Mutable Unofficial refs use exact force-with-lease expectations.
 
-`test` is deliberately not part of that atomic source-data transaction. After
-the source update is committed to `build`, merge the published `build` commit
-into `test`, update any test-only coverage, validate it, and publish that branch
-separately. Preserve the history of both required branches; do not rebase or
-rewrite `test` merely to align it with `build`.
+Maintenance documentation and regression tests live on `build`, so they are
+published with the implementation and metadata they describe. There is no
+separate test branch to align or publish.
 
 The persistent `source/cache/release/**` branch created by the render stage is a cache.
 Once the tree ID has been recorded and validation passes, it may be deleted
@@ -1082,7 +1080,7 @@ operation impossible.
 
 The default `build` branch is the GitHub Actions control plane. GitHub discovers
 scheduled and manually dispatched workflows from the default branch, so these
-minimal entry points cannot live only on `test`:
+entry points live there with the implementation they exercise:
 
 - `Firmware qualification` runs on every build push, pull request, merge-queue
   candidate, and manual dispatch. Firmware-affecting candidates run source
@@ -1098,14 +1096,13 @@ minimal entry points cannot live only on `test`:
 - `Upstream versions` is the only scheduled Actions workflow. It also runs when
   relevant configuration or tooling changes.
 - `Build documentation` builds the mdBook site when its inputs change. Only a
-  push to `build` deploys Pages; pull requests, merge-queue candidates, calls
-  from `test`, and local `act` runs build without deploying.
+  push to `build` deploys Pages; pull requests, merge-queue candidates,
+  reusable calls, and local `act` runs build without deploying.
 
-This maintenance guide lives on `build`; the extended regression suite and
-`test-branch-ci.yaml` remain on `test`. Keep `test` based on the exact `build`
-candidate under review. The test workflow runs on test-branch pushes and pull
-requests targeting `test`, and it calls the same reusable documentation
-workflow retained on `build`.
+This maintenance guide and the extended regression suite live on `build` and
+are retained by minimised exports. `make test` discovers the extended checks
+alongside the rest of the source-model tests, so a build candidate cannot drift
+away from tests held on another branch.
 
 The stable `Qualification summary` job is the branch-protection target. It
 reports every gate and fails when any required result fails. Superseded pull
