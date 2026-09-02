@@ -159,62 +159,8 @@ certificate hashes, and strict validation profile. Identical certificate bytes
 are recognized by SHA-256 instead of being treated as different merely because
 they occur in different release directories.
 
-## Materialise A Source Tree
+## Repository Maintenance
 
-Most build targets render or reuse a detached cache automatically. If you want
-a persistent branch for inspection or development, render it explicitly:
-
-```bash
-make render-release-branch \
-  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
-  PERSIST=1
-```
-
-This creates a generated branch under `source/cache/release/**`. Cache branches
-are disposable: the same source can be regenerated later from the retained
-`source/base/**`, `source/vendor/**`, `source/port/**`,
-and `source/unofficial/**` refs.
-
-Inside a rendered firmware tree, lower-level firmware targets such as
-`make -C src help`, `make -C src preflight`, or board-specific validation
-targets are available. Prefer the top-level build-branch targets unless you
-specifically need to work inside that rendered tree.
-
-## Help Cache
-
-`make help-vars` and `make help-source-targets` use the committed cache at
-`config/help-cache.json` so those commands stay fast. They are read-only: they
-do not rewrite the cache and they do not verify freshness every time they run.
-If the cache is missing, the help helper regenerates output in memory and asks
-you to refresh it.
-
-When you change `Makefile`, `config/`, `scripts/`, or source refs that affect
-the derived source-target list, update the cache explicitly:
-
-```bash
-make refresh-help-cache
-make check-help-cache
-```
-
-There is no automatically installed Git pre-commit hook for this. `make test`
-and CI run `make check-help-cache`, so stale committed help cache data fails
-validation.
-
-## Documentation Builds
-
-Documentation-specific files live under `docs/` so they do not clutter the
-build-branch root. Build the mdBook site with:
-
-```bash
-make docs-build
-```
-
-By default, `make docs-build` uses `DOCS_BUILD_MODE=auto`: it builds with the
-host `devenv`/`cargo` toolchain when available and falls back to the
-documentation container when those host tools are missing. Use
-`DOCS_BUILD_MODE=host` to require a host-only build, or
-`DOCS_BUILD_MODE=container` to force the container path.
-
-The generated site is written to `.cache/edk2-cix/docs/book/html/`. Tool
-downloads, cargo state, and temporary files used by the documentation build are
-also kept under `.cache/edk2-cix/docs/`.
+Persistent materialised branches, source integration and uplift, help-cache
+maintenance, documentation builds, CI, and maintainer validation are described
+in `MAINTENANCE.md` at the repository root.
