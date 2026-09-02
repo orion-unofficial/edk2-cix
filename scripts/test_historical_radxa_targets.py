@@ -1025,8 +1025,12 @@ def test_integrate_source_release_make_target_preserves_materialise_default() ->
     )
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     require(
-        "`test` branch" in readme and "`MAINTENANCE.md`" in readme,
-        "end-user README should direct maintainers to the test branch",
+        "[`MAINTENANCE.md`](MAINTENANCE.md)" in readme,
+        "end-user README should direct maintainers to the build-branch guide",
+    )
+    require(
+        (ROOT / "MAINTENANCE.md").is_file(),
+        "build branch should contain the repository maintenance guide",
     )
 
 
