@@ -833,9 +833,10 @@ remote source ref, and sends `build` plus the inferred source refs in one atomic
 push. Mutable Unofficial refs use exact force-with-lease expectations.
 
 `test` is deliberately not part of that atomic source-data transaction. After
-the source update is committed to `build`, fast-forward or rebase `test` to the
-same build commit, update any test-only coverage, validate it, and publish that
-branch separately.
+the source update is committed to `build`, merge the published `build` commit
+into `test`, update any test-only coverage, validate it, and publish that branch
+separately. Preserve the history of both required branches; do not rebase or
+rewrite `test` merely to align it with `build`.
 
 The persistent `source/cache/release/**` branch created by the render stage is a cache.
 Once the tree ID has been recorded and validation passes, it may be deleted
