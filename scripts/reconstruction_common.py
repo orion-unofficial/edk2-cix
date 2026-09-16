@@ -27,6 +27,10 @@ _BASE_TREE_RECORD_CACHE: dict[str, dict[str, dict[str, Any]]] = {}
 _REF_VALUE_CACHE: dict[str, dict[str, tuple[str, str]]] = {}
 _RESOLVE_REF_CACHE: dict[tuple[str, str], str | None] = {}
 _TREE_ID_CACHE: dict[tuple[str, str], str] = {}
+_RELEASE_METADATA_REF_CACHE: dict[tuple[str, str, str], str | None] = {}
+_UNOFFICIAL_RENDERED_TREE_CACHE: dict[tuple[str, str, str | None, str], str] = {}
+_GIT_TREE_ENTRIES_CACHE: dict[tuple[str, str], dict[str, tuple[str, str, str]]] = {}
+_VERSION_BLOB_CACHE: dict[tuple[str, str], str] = {}
 
 
 def clear_metadata_caches() -> None:
@@ -36,6 +40,10 @@ def clear_metadata_caches() -> None:
     _REF_VALUE_CACHE.clear()
     _RESOLVE_REF_CACHE.clear()
     _TREE_ID_CACHE.clear()
+    _RELEASE_METADATA_REF_CACHE.clear()
+    _UNOFFICIAL_RENDERED_TREE_CACHE.clear()
+    _GIT_TREE_ENTRIES_CACHE.clear()
+    _VERSION_BLOB_CACHE.clear()
 
 
 def run(cmd: list[str], cwd: Path | str | None = None, check: bool = True, capture: bool = True) -> subprocess.CompletedProcess[str]:
@@ -869,7 +877,9 @@ def source_target_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
             continue
         if not source_ref:
             continue
-        record["tree_id"] = tree_id(repo, source_ref)
+        record["tree_id"] = unofficial_rendered_tree(
+            repo, source_ref, release_metadata_ref(repo, parts["radxa"], edk2_ref), parts["radxa"]
+        )
         record["derived_from"] = source_ref
     for ref, record in list(by_ref.items()):
         try:
@@ -980,6 +990,97 @@ def alias_target_for(branch: str, parts: dict[str, str]) -> str | None:
     return f"{CACHE_RELEASE_PREFIX}custom/edk2-{release}/radxa-{radxa}/unofficial"
 
 
+def git_tree_entries(repo: Path, tree: str) -> dict[str, tuple[str, str, str]]:
+    """Read one tree level; callers can change the returned copy safely."""
+
+    key = (str(repo.resolve()), tree)
+    if key not in _GIT_TREE_ENTRIES_CACHE:
+        result = {}
+        for item in git(repo, "ls-tree", "-z", tree).stdout.split("\0"):
+            if item:
+                info, name = item.split("\t", 1)
+                mode, kind, oid = info.split()
+                result[name] = (mode, kind, oid)
+        _GIT_TREE_ENTRIES_CACHE[key] = result
+    return dict(_GIT_TREE_ENTRIES_CACHE[key])
+
+
+def release_metadata_ref(repo: Path, radxa: str, edk2_ref: str) -> str | None:
+    """Select the Radxa metadata source used by every custom target spelling."""
+
+    key = (str(repo.resolve()), radxa, edk2_ref)
+    if key not in _RELEASE_METADATA_REF_CACHE:
+        def candidates() -> Iterable[str]:
+            yield f"source/vendor/radxa/{radxa}/edk2-stable202208"
+            yield f"source/vendor/radxa/{radxa}/{edk2_ref}"
+            yield f"source/port/radxa/{radxa}/{edk2_ref}"
+            yield from (ref for ref in radxa_source_refs(repo) if f"/radxa/{radxa}/" in ref)
+
+        selected = None
+        for candidate in candidates():
+            if not ref_exists(repo, candidate):
+                continue
+            root = git_tree_entries(repo, tree_id(repo, candidate))
+            debian = root.get("debian")
+            if debian and debian[1] == "tree" and "changelog" in git_tree_entries(repo, debian[2]):
+                selected = candidate
+                break
+        _RELEASE_METADATA_REF_CACHE[key] = selected
+    return _RELEASE_METADATA_REF_CACHE[key]
+
+
+def unofficial_rendered_tree(repo: Path, source_ref: str, metadata_ref: str | None, release: str) -> str:
+    """Derive the final tree of a materialised Unofficial checkpoint.
+
+    Release metadata is an intentional content change, so the source tree is
+    not generally the expected rendered tree. Rebuild only the affected Git
+    tree hashes, without writing objects, checking out the firmware, or
+    touching the caller's index or refs. Explicit historical cache manifests
+    remain independent checks.
+    """
+
+    source_tree = tree_id(repo, source_ref)
+    if metadata_ref is None:
+        return source_tree
+    metadata_tree = tree_id(repo, metadata_ref)
+    key = (str(repo.resolve()), source_tree, metadata_tree, release)
+    if key in _UNOFFICIAL_RENDERED_TREE_CACHE:
+        return _UNOFFICIAL_RENDERED_TREE_CACHE[key]
+
+    def hash_tree(items: dict[str, tuple[str, str, str]]) -> str:
+        # Git sorts directory names with a trailing slash and encodes tree
+        # entries as mode/name/NUL followed by the raw object ID bytes.
+        ordered = sorted(items.items(), key=lambda item: (item[0] + ("/" if item[1][1] == "tree" else "")).encode())
+        data = b"".join(
+            f"{mode.lstrip('0')} {name}\0".encode() + bytes.fromhex(oid)
+            for name, (mode, _kind, oid) in ordered
+        )
+        return subprocess.run(
+            ["git", "-C", str(repo), "hash-object", "-t", "tree", "--stdin"], input=data,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+        ).stdout.decode("ascii").strip()
+
+    root = git_tree_entries(repo, source_tree)
+    root.pop(".gitmodules", None)
+    vendor = git_tree_entries(repo, metadata_tree)
+    changelog = git_tree_entries(repo, vendor["debian"][2])["changelog"]
+    debian = git_tree_entries(repo, root["debian"][2]) if "debian" in root else {}
+    debian["changelog"] = changelog
+    root["debian"] = ("040000", "tree", hash_tree(debian))
+    version_key = (str(repo.resolve()), release)
+    if version_key not in _VERSION_BLOB_CACHE:
+        _VERSION_BLOB_CACHE[version_key] = subprocess.run(
+            ["git", "-C", str(repo), "hash-object", "--stdin"],
+            input=f"{release}\n", text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+        ).stdout.strip()
+    version = _VERSION_BLOB_CACHE[version_key]
+    mode = root.get("VERSION", ("100644", "blob", ""))[0]
+    root["VERSION"] = (mode, "blob", version)
+    result = hash_tree(root)
+    _UNOFFICIAL_RENDERED_TREE_CACHE[key] = result
+    return result
+
+
 def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
     parts = release_branch_parts(branch)
     stage = parts["stage"]
@@ -1028,27 +1129,7 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
         ]
         entry["source_ref"] = radxa_ref
     else:
-        metadata_candidates = list(dict.fromkeys([
-            f"source/vendor/radxa/{radxa}/edk2-stable202208",
-            f"source/vendor/radxa/{radxa}/{edk2_ref}",
-            f"source/port/radxa/{radxa}/{edk2_ref}",
-            *(ref for ref in radxa_source_refs(repo) if f"/radxa/{radxa}/" in ref),
-        ]))
-        metadata_ref = next(
-            (
-                candidate
-                for candidate in metadata_candidates
-                if ref_exists(repo, candidate)
-                and git(
-                    repo,
-                    "cat-file",
-                    "-e",
-                    f"{resolve_ref(repo, candidate)}:debian/changelog",
-                    check=False,
-                ).returncode == 0
-            ),
-            None,
-        )
+        metadata_ref = release_metadata_ref(repo, radxa, edk2_ref)
         unofficial_ref = (
             active_unofficial_source_ref(repo, radxa, edk2_ref)
             or unofficial_source_ref(repo, radxa, edk2_ref)
@@ -1075,7 +1156,7 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
         target = alias_target_for(branch, parts)
         entry["source_ref"] = unofficial_ref
         if ref_exists(repo, unofficial_ref):
-            entry["tree_id"] = tree_id(repo, unofficial_ref)
+            entry["tree_id"] = unofficial_rendered_tree(repo, unofficial_ref, metadata_ref, radxa)
         if target:
             entry["alias_of"] = target
 

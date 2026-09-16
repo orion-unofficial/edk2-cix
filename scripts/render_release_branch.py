@@ -249,11 +249,13 @@ def apply_release_metadata(repo: Path, worktree: Path, ref: str, release: str, v
         verbose,
     )
     version = worktree / "VERSION"
-    expected = f"{release}\n"
-    if not version.exists() or version.read_text(encoding="utf-8") != expected:
+    # Compare bytes so an already aligned CRLF file is canonicalised too;
+    # text-mode newline conversion would hide a different Git blob hash.
+    expected = f"{release}\n".encode("utf-8")
+    if not version.exists() or version.read_bytes() != expected:
         if verbose:
             print(f"Setting VERSION to Radxa {release}", file=sys.stderr)
-        version.write_text(expected, encoding="utf-8")
+        version.write_bytes(expected)
         git(worktree, "add", "--", "VERSION", capture=not verbose)
 
 

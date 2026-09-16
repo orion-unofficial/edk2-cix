@@ -936,6 +936,15 @@ render time, `VERSION` and `debian/changelog` are aligned with the immutable
 an older checkpoint's package identity from being mislabeled as the selected
 Radxa release while preserving the checkpoint and its provenance unchanged.
 
+The expected custom tree hash includes these metadata changes, including for
+targets without a retained cache-manifest record and targets selected through a
+mutable line policy. CIX-labelled targets and versioned aliases use the same
+calculation. Explicit historical manifest hashes remain integrity checks.
+`make test-local` checks every supported custom target against an independently
+constructed Git index, and exercises rendering and Makefile delegation in fresh
+clones without generated cache refs. These checks do not compile firmware or
+qualify it for booting on a device.
+
 A configured build variation is supported only when all of its source inputs
 are recorded locally. At a high level, this means:
 
