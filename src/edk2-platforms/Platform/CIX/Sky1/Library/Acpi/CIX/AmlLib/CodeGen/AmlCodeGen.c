@@ -1369,7 +1369,6 @@ error_handler1:
   @retval EFI_INVALID_PARAMETER   Invalid parameter.
   @retval EFI_OUT_OF_RESOURCES    Failed to allocate memory.
 **/
-STATIC
 EFI_STATUS
 EFIAPI
 AmlCodeGenMethod (
@@ -1377,8 +1376,8 @@ AmlCodeGenMethod (
   IN        UINT8            NumArgs,
   IN        BOOLEAN          IsSerialized,
   IN        UINT8            SyncLevel,
-  IN        AML_NODE_HEADER  *ParentNode      OPTIONAL,
-  OUT       AML_OBJECT_NODE  **NewObjectNode   OPTIONAL
+  IN        AML_NODE_HANDLE  *ParentNode      OPTIONAL,
+  OUT       AML_OBJECT_NODE_HANDLE  *NewObjectNode   OPTIONAL
   )
 {
   EFI_STATUS       Status;
