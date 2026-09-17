@@ -206,7 +206,7 @@
 !if $(PLATFORM_DTB_UPDATE_ENABLE) == TRUE
   PlatformDtbUpdateLib|Platform/CIX/Sky1/Library/PlatformDtbUpdateLib/PlatformDtbUpdateLib.inf
 !endif
-  ArmLib|ArmPkg/Library/ArmLib/ArmBaseLib.inf
+  ArmLib|MdePkg/Library/ArmLib/ArmBaseLib.inf
   ArmMmuLib|UefiCpuPkg/Library/ArmMmuLib/ArmMmuBaseLib.inf
   ArmPlatformLib|Platform/CIX/Sky1/Library/PlatformLib/PlatformLib.inf
   CapsuleLib|MdeModulePkg/Library/DxeCapsuleLibNull/DxeCapsuleLibNull.inf
