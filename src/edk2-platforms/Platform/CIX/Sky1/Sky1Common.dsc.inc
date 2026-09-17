@@ -229,8 +229,6 @@
 !endif
   EdkiiSystemCapsuleLib|Platform/CIX/Sky1/Library/EdkiiSystemCapsuleLib/EdkiiSystemCapsuleLib.inf
   FmpAuthenticationLib|SecurityPkg/Library/FmpAuthenticationLibPkcs7/FmpAuthenticationLibPkcs7.inf
-  IniParsingLib|SignedCapsulePkg/Library/IniParsingLib/IniParsingLib.inf
-  PlatformFlashAccessLib|SignedCapsulePkg/Library/PlatformFlashAccessLibNull/PlatformFlashAccessLibNull.inf
 #  PlatformFlashAccessLib|Platform/RaspberryPi/Library/PlatformFlashAccessLib/PlatformFlashAccessLib.inf
   DisplayUpdateProgressLib|MdeModulePkg/Library/DisplayUpdateProgressLibGraphics/DisplayUpdateProgressLibGraphics.inf
 !endif

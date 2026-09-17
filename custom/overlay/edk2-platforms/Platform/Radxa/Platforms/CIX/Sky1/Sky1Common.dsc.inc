@@ -5,7 +5,7 @@
   PdEcLib|Platform/Radxa/Library/PdEcLibNull/PdEcLibNull.inf
 
 !if $(CAPSULE_ENABLE) == FALSE
-  EdkiiSystemCapsuleLib|SignedCapsulePkg/Library/EdkiiSystemCapsuleLib/EdkiiSystemCapsuleLib.inf
+  EdkiiSystemCapsuleLib|Platform/CIX/Sky1/Library/EdkiiSystemCapsuleLib/EdkiiSystemCapsuleLib.inf
   FmpAuthenticationLib|SecurityPkg/Library/FmpAuthenticationLibPkcs7/FmpAuthenticationLibPkcs7.inf
 !endif
 
