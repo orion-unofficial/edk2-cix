@@ -13,6 +13,11 @@ candidate range. Documentation- and licensing-only changes stop after the
 classifier; unknown or firmware-affecting paths run all of these gates:
 
 - source-model tests, lint, and minimised-clone reconstruction;
+- overlay, symlink, and required build-fix checks across every retained
+  Unofficial checkpoint;
+- every valid `edk2-*/radxa-1.2.4/unofficial` and
+  `edk2-*/radxa-1.3.1/unofficial` target through public `make build`, for both
+  boards with fixes off/on (RELEASE, Trixie, CIX replacement disabled);
 - current-source Trixie builds for O6 and O6N, both with firmware fixes disabled
   and enabled; and
 - exact Radxa 1.3.1 replay on its historical EDK2 `202208` base for O6 and O6N.
@@ -22,6 +27,9 @@ fails if any required gate failed. Branch protection should require that job,
 not a matrix child whose displayed name may change. A run qualifies the
 candidate tip represented by that run; it is not a claim that every historical
 commit was independently built.
+
+See the [checkpoint maintenance audit](source-checkpoint-maintenance.md) for
+the regression that motivated this coverage and its precise validation limits.
 
 Pull-request runs are cancelled when superseded. Published build pushes,
 manual builds, exact replays, and current-source matrices are not cancelled by

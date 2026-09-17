@@ -36,7 +36,8 @@ The checked-out build branch must be clean, contain object/tree metadata matchin
 every pending source ref, and be either ahead of or identical to the remote
 build branch. The identical case safely resumes a publication whose metadata
 commit reached the remote before its source refs. Existing immutable source refs
-may not move. Mutable Unofficial tips, compatibility refs, and compatibility
+may not move, except explicitly recorded descendant corrections to Unofficial
+release checkpoints. Mutable Unofficial tips, compatibility refs, and compatibility
 tags use an exact force-with-lease expectation. Git receives the build branch
 and every inferred pending ref in one --atomic push.
 """
@@ -80,6 +81,20 @@ def mutable_ref(ref: str) -> bool:
         or (short.startswith("source/unofficial/") and short.endswith("/current"))
         or short.startswith("source/unofficial/edk2-stable")
     )
+
+
+def checkpoint_correction(repo: Path, ref: str, old: str, new: str, records: list[dict]) -> bool:
+    """Allow only the ancestry-preserving maintenance recorded by integration."""
+    short = ref.removeprefix("refs/heads/")
+    matches = [record for record in records if record.get("ref") == short]
+    if not ref.startswith("refs/heads/source/unofficial/") or len(matches) != 1:
+        return False
+    record = matches[0]
+    base = record.get("maintenance_base_object_id")
+    if record.get("type") != "unofficial-release-checkpoint" or not base or record.get("object_id") != new:
+        return False
+    return all(git(repo, "merge-base", "--is-ancestor", a, b, check=False).returncode == 0
+               for a, b in ((base, old), (old, new)))
 
 
 def remote_objects(repo: Path, remote: str, refs: list[str]) -> dict[str, str]:
@@ -240,7 +255,7 @@ def main() -> None:
         if local_object == remote_object:
             matched_refs += 1
             continue
-        if remote_object and not mutable_ref(ref):
+        if remote_object and not mutable_ref(ref) and not checkpoint_correction(repo, ref, remote_object, local_object, records):
             raise ReconstructionError(f"refusing to replace immutable source ref on {args.remote}: {ref}")
         if remote_object:
             leases.append(f"--force-with-lease={ref}:{remote_object}")

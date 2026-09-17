@@ -11,11 +11,25 @@ SOURCE_WORKFLOWS = (
     "deterministic-replay.yaml",
     "manual-firmware-build.yaml",
     "secure-boot-audit.yaml",
+    "supported-firmware.yaml",
     "upstream-versions.yaml",
 )
 
 
 class GitHubWorkflowTests(unittest.TestCase):
+    def test_supported_matrix_uses_the_public_build_and_is_a_required_gate(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/supported-firmware.yaml").read_text()
+        gate = (REPO_ROOT / ".github/workflows/build-branch-ci.yaml").read_text()
+        self.assertIn("python3 scripts/firmware_ci_matrix.py", workflow)
+        self.assertIn("fromJSON(needs.matrix.outputs.builds)", workflow)
+        self.assertIn("make build \\", workflow)
+        self.assertIn('RELEASE="${RELEASE}"', workflow)
+        self.assertIn("CIX_RELEASE= \\", workflow)
+        self.assertNotIn('make -C "${FIRMWARE_WORKTREE}"', workflow)
+        self.assertIn("set -euo pipefail", workflow)
+        self.assertIn("- supported-source", gate)
+        self.assertIn('[[ "${SUPPORTED_SOURCE_RESULT}" == success ]]', gate)
+
     def test_build_ci_fetches_complete_history_for_minimised_export(self) -> None:
         text = (REPO_ROOT / ".github" / "workflows" / "build-branch-ci.yaml").read_text(
             encoding="utf-8"
@@ -30,10 +44,10 @@ class GitHubWorkflowTests(unittest.TestCase):
 
         self.assertIn("source-coherence:", text)
         self.assertIn("make check-remote-source-coherence REMOTE=origin", text)
-        self.assertEqual(text.count("      - source-coherence"), 4)
+        self.assertEqual(text.count("      - source-coherence"), 5)
         self.assertEqual(
             text.count("needs:\n      - classify\n      - source-coherence"),
-            4,
+            5,
         )
         source_model = text[
             text.index("  source-model:") : text.index("\n  current-source:")

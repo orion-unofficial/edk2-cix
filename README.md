@@ -186,6 +186,34 @@ Build targets render or reuse a cached detached worktree. They do not normally
 create or advance a named source branch, so selecting a source target requires
 no repository-maintenance step.
 
+Downloads and compiler caches are reused beneath `.cache/edk2-cix/firmware/`.
+Identical source renders reuse the same detached worktree. Custom builds clean
+their generated build directory by default; for a deliberate incremental
+debugging run, add `EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE=1`.
+
+To inspect or modify the prepared source tree, resolve its path once, then run
+its build target directly. This also avoids the renderer rejecting intentional
+edits to a cached tree:
+
+```bash
+firmware_tree="$(python3 scripts/render_release_branch.py \
+  --release edk2-202605/radxa-1.3.1/unofficial --print-worktree)"
+firmware_cache="$PWD/.cache/edk2-cix/firmware/buildbox"
+make -C "$firmware_tree" buildbox-firmware-build \
+  ARTEFACT_MODE=custom FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE \
+  FIRMWARE_DISTRO=trixie ENABLE_FIRMWARE_FIXES=false ENABLE_CORE_ORDER=cix \
+  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false DEBUG_VERBOSE=false CIX_RELEASE= \
+  EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE=1 \
+  BUILDBOX_HOST_TMPDIR="$firmware_cache" BUILDBOX_CONTAINER_TMPDIR=/hosttmp \
+  CCACHE_DIR=/hosttmp/ccache CCACHE_WRAPPER_ROOT=/hosttmp/ccache-toolchain \
+  CIX_RELEASE_CACHE_ROOT=/hosttmp/cix-release
+```
+
+That direct debugging build leaves firmware under
+`$firmware_tree/src/Build/O6/RELEASE_GCC*/`. Normal top-level `make build`
+also copies outputs beneath `dist/build/<release>/<profile>/<board>/`.
+The complete flash image is `cix_flash_all.bin`. Neither command flashes a device.
+
 ## Repository maintenance
 
 For persistent materialised branches, source-model internals, firmware-source

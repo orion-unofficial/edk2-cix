@@ -271,7 +271,7 @@ help-dev-source:
 	print_help_line 'make promote-unofficial-release' 'Port a policy-selected Unofficial line onto a newer EDK2 base and record an exact checkpoint.'; \
 	print_help_line 'make update-release-tags' 'Move source/unofficial/edk2/stable-* tags to matching release-branch heads after validation.'; \
 	print_subtitle 'Variables:'; \
-	print_help_variable 'TYPE=upstream|vendor' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa source refs or CIX-carried source layers.'; \
+	print_help_variable 'TYPE=upstream|vendor|unofficial' 'For integrate-source-release. upstream updates base component refs; vendor updates Radxa or CIX layers; unofficial records a reviewed descendant correction to an existing checkpoint.'; \
 	print_help_variable 'COMPONENT=<name>' 'For TYPE=upstream: edk2, edk2-platforms, edk2-non-osi, tf-a, or op-tee.'; \
 	print_help_variable 'VENDOR=radxa|cix' 'For TYPE=vendor. Radxa records vendor-published or ported EDK2 source trees; CIX updates the TF-A/OP-TEE release bundle.'; \
 	print_help_variable 'RELEASE=<name>' 'For source integration: release, tag, or source version name.'; \

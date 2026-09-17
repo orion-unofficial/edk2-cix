@@ -72,9 +72,10 @@ The dry run and write mode both compare the committed manifests with the remote
 and infer every pending source branch and compatibility tag. Do not construct a
 `SOURCE_REFS` list by hand. `SOURCE_REFS` remains only as an optional way to add
 an explicit ref to the automatically discovered set. The publisher validates
-the object and tree IDs, refuses to replace immutable refs, uses exact leases
-for mutable refs, and sends the build commit plus all pending refs in one
-atomic push. It can also resume safely if an older, non-atomic publication left
+the object and tree IDs, permits immutable Unofficial checkpoint corrections
+only when explicitly recorded and ancestry-preserving, uses exact leases for
+changed refs, and sends the build commit plus all pending refs in one atomic
+push. It can also resume safely if an older, non-atomic publication left
 the build metadata on the remote before its source refs.
 
 Git cannot make a plain one-branch `git push` include changes made on other Git
@@ -1093,9 +1094,16 @@ entry points live there with the implementation they exercise:
 
 - `Firmware qualification` runs on every build push, pull request, merge-queue
   candidate, and manual dispatch. Firmware-affecting candidates run source
-  tests and lint, the O6/O6N current-source matrix with fixes both off and on,
+  tests and lint, all supported EDK2 releases against Radxa 1.2.4 and 1.3.1
+  through public `make build` for O6/O6N with fixes off/on, the current-source matrix,
   and the O6/O6N exact Radxa 1.3.1 replay. Documentation/licensing-only changes
   stop after classification.
+- `Supported firmware release matrix` derives its targets from the public
+  source model and `firmware_qualification_policy` in `config/policies.json`.
+  It compiles and packages each selected target; it also retains failure logs.
+  The [checkpoint audit](docs/src/source-checkpoint-maintenance.md) records
+  source-input regression checks and the distinction between structural
+  validation and completed compilation.
 - `Manual firmware build` renders and builds one selected current source target
   using explicit workflow inputs.
 - `Current-source firmware validation` provides the reusable and manually

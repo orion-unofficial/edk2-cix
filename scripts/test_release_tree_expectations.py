@@ -21,7 +21,7 @@ from reconstruction_common import (
     synthesise_release_entry,
     tree_id,
 )
-from render_release_branch import apply_release_metadata, render_from_plan, validate_release_metadata
+from render_release_branch import apply_release_metadata, ensure_worktree, render_from_plan, validate_release_metadata
 from test_support import commit_all, git, run, write_file
 
 
@@ -90,6 +90,20 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
         for branch in custom:
             with self.subTest(target=branch):
                 self.assert_render(self.repo, branch)
+
+    def test_repeated_render_reuses_worktree_across_wall_clock_changes(self) -> None:
+        for target in ("edk2-202605/radxa-1.3.1/unofficial", "edk2-202605/radxa-1.2.4/unofficial"):
+            branch, entry = release_entry(self.repo, target, require=True)
+            commits = []
+            for date in ("2026-09-01T00:00:00Z", "2026-09-17T12:00:00Z"):
+                with patch.dict(os.environ, {"GIT_AUTHOR_DATE": date, "GIT_COMMITTER_DATE": date}):
+                    commits.append(render_from_plan(self.repo, branch, entry, verbose=False))
+            self.assertEqual(commits[0], commits[1])
+            first = ensure_worktree(self.repo, branch, commits[0], verbose=False)
+            try:
+                self.assertEqual(first, ensure_worktree(self.repo, branch, commits[1], verbose=False))
+            finally:
+                git(self.repo, "worktree", "remove", "--force", str(first))
 
     def test_fresh_clone_uses_remote_refs_and_does_not_need_generated_branches(self) -> None:
         commit_all(self.repo, "build metadata")

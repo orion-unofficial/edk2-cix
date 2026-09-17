@@ -37,6 +37,8 @@ from reconstruction_common import (
 )
 from render_release_branch import gitlinks, materialise_submodules
 from source_porting import apply_source_delta_to_base
+from source_policy import enforce_source_tree_policy
+from import_workflow import ensure_target_not_checked_out_dirty
 
 
 HELP = """integrate-source-release
@@ -49,9 +51,10 @@ Supported forms:
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1 EDK2_BASE=edk2-stable202208 REF=<vendor-ref> WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.3.1 EDK2_BASE=edk2-stable202608 REF=<ported-ref> RADXA_SOURCE=port WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1+<commit> EDK2_BASE=edk2-stable202208 REF=main WRITE=1
+  make integrate-source-release TYPE=unofficial RELEASE=1.3.1 EDK2_BASE=edk2-stable202605 REF=<reviewed-descendant> ALLOW_REPLACE=1 WRITE=1
 
 Required variables:
-  TYPE=upstream|vendor
+  TYPE=upstream|vendor|unofficial
   COMPONENT=edk2|edk2-platforms|edk2-non-osi|tf-a|op-tee when TYPE=upstream
   VENDOR=radxa|cix when TYPE=vendor
 
@@ -75,6 +78,9 @@ Optional variables:
 
 Without WRITE=1 this command validates inputs and prints the operation it would perform.
 Only this command is allowed to create or advance immutable source refs.
+TYPE=unofficial records a reviewed maintenance correction to an existing
+Unofficial release checkpoint. It requires ALLOW_REPLACE=1 and a descendant
+commit, preserves the old checkpoint in history, and never moves a line tip.
 If an immutable target is already recorded locally or as an origin
 remote-tracking ref, rerunning the same integration is a no-op. The command
 reports where the existing ref was found; git branch alone lists only local
@@ -606,8 +612,10 @@ def ported_radxa_source_snapshot(
 
 def validate(args: argparse.Namespace) -> list[str]:
     missing: list[str] = []
-    if args.type_ not in {"upstream", "vendor"}:
-        missing.append("TYPE=upstream|vendor")
+    if args.type_ not in {"upstream", "vendor", "unofficial"}:
+        missing.append("TYPE=upstream|vendor|unofficial")
+    if args.type_ == "unofficial" and not (args.release and args.edk2_base and args.ref):
+        missing.append("RELEASE=<radxa-release> EDK2_BASE=<edk2-release> REF=<reviewed-descendant>")
     if args.type_ == "upstream" and args.component not in UPSTREAM_COMPONENTS:
         missing.append("COMPONENT=edk2|edk2-platforms|edk2-non-osi|tf-a|op-tee")
     if args.type_ == "vendor" and args.vendor not in VENDORS:
@@ -630,6 +638,47 @@ def validate(args: argparse.Namespace) -> list[str]:
     return missing
 
 
+def integrate_checkpoint_correction(repo: Path, args: argparse.Namespace) -> None:
+    """Advance a reviewed checkpoint without rewriting or losing its history."""
+    target = f"source/unofficial/{args.release}/{normalise_edk2_base(args.edk2_base)}"
+    path = repo / "config/refs-unofficial.json"
+    original = path.read_text()
+    data = json.loads(original)
+    record = next((item for item in data.get("refs", []) if item.get("ref") == target), None)
+    if not record or record.get("type") != "unofficial-release-checkpoint":
+        raise ReconstructionError(f"not a recorded Unofficial release checkpoint: {target}")
+    local_old = exact_commit_id(repo, f"refs/heads/{target}") or "0" * 40
+    old = rev_parse(repo, target)
+    candidate = rev_parse(repo, args.ref)
+    if old != record.get("object_id"):
+        raise ReconstructionError(f"checkpoint differs from its recorded object: {target}")
+    if old == candidate:
+        print(f"{target} already records {candidate}")
+        return
+    if not truthy(args.allow_replace):
+        raise ReconstructionError("checkpoint maintenance requires ALLOW_REPLACE=1")
+    if git(repo, "merge-base", "--is-ancestor", old, candidate, check=False).returncode:
+        raise ReconstructionError("checkpoint correction must preserve the old checkpoint as an ancestor")
+    enforce_source_tree_policy(repo, ref=candidate, label=target)
+    ensure_target_not_checked_out_dirty(repo, target)
+    print(f"checkpoint correction: {target}: {old} -> {candidate}")
+    if not truthy(args.write):
+        print("dry run; set WRITE=1 after reviewing and validating the candidate")
+        return
+    record.setdefault("maintenance_base_object_id", old)
+    record["object_id"] = candidate
+    record["tree_id"] = tree_id(repo, candidate)
+    # As with source integration, the manifest and ref are one maintenance
+    # operation. Restore the manifest if the guarded ref update is rejected.
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    try:
+        git(repo, "update-ref", f"refs/heads/{target}", candidate, local_old)
+    except Exception:
+        path.write_text(original)
+        raise
+    clear_metadata_caches()
+
+
 def main() -> None:
     args = parser().parse_args()
     missing = validate(args)
@@ -642,6 +691,9 @@ def main() -> None:
     write = truthy(args.write)
     allow_replace = truthy(args.allow_replace)
     check_immutable_refs(repo, allow_manifest_update=write)
+    if args.type_ == "unofficial":
+        integrate_checkpoint_correction(repo, args)
+        return
 
     operations: list[tuple[str, str, str, dict[str, str]]] = []
     if args.type_ == "upstream":
