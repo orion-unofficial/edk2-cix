@@ -1,0 +1,92 @@
+name: Supported firmware release matrix
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    name: Enumerate supported release targets
+    runs-on: ubuntu-latest
+    outputs:
+      builds: ${{ steps.matrix.outputs.builds }}
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Fetch required source refs
+        run: |
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/heads/source/*'
+          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
+      - name: Derive every supported completion
+        id: matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          builds="$(python3 scripts/firmware_ci_matrix.py)"
+          echo "builds=${builds}" >>"${GITHUB_OUTPUT}"
+
+  firmware:
+    name: ${{ matrix.release }} / ${{ matrix.board }} / fixes ${{ matrix.firmware_fixes }}
+    needs: matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.matrix.outputs.builds) }}
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Fetch required source refs
+        run: |
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/heads/source/*'
+          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
+      - name: Set up QEMU for buildbox Docker platforms
+        if: ${{ env.ACT != 'true' }}
+        uses: docker/setup-qemu-action@v4
+      - name: Compile and package through the public Makefile
+        env:
+          RELEASE: ${{ matrix.release }}
+          FIRMWARE_BOARD: ${{ matrix.board }}
+          ENABLE_FIRMWARE_FIXES: ${{ matrix.firmware_fixes }}
+          EDK2_CIX_WORKTREE_NAMESPACE: ${{ matrix.key }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/edk2-cix/qualification
+          make build \
+            RELEASE="${RELEASE}" \
+            ARTEFACT_MODE=custom \
+            FIRMWARE_BOARD="${FIRMWARE_BOARD}" \
+            FIRMWARE_TARGET=RELEASE \
+            FIRMWARE_DISTRO=trixie \
+            ENABLE_FIRMWARE_FIXES="${ENABLE_FIRMWARE_FIXES}" \
+            ENABLE_CORE_ORDER=cix \
+            ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false \
+            DEBUG_VERBOSE=false \
+            CIX_RELEASE= \
+            2>&1 | tee .cache/edk2-cix/qualification/build.log
+          python3 - <<'PY'
+          from pathlib import Path
+          images = list(Path('dist/build').rglob('cix_flash_all.bin'))
+          assert images and all(p.stat().st_size > 0 for p in images), 'No packaged full flash image'
+          PY
+      - name: Upload build evidence
+        if: ${{ always() && env.ACT != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: firmware-${{ matrix.key }}
+          retention-days: 7
+          include-hidden-files: true
+          if-no-files-found: warn
+          path: |
+            .cache/edk2-cix/qualification/
+            dist/**/cix_flash_all.bin
+            dist/**/BuildOptions

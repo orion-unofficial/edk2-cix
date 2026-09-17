@@ -46,11 +46,11 @@ def clear_metadata_caches() -> None:
     _VERSION_BLOB_CACHE.clear()
 
 
-def run(cmd: list[str], cwd: Path | str | None = None, check: bool = True, capture: bool = True) -> subprocess.CompletedProcess[str]:
+def run(cmd: list[str], cwd: Path | str | None = None, check: bool = True, capture: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     kwargs: dict[str, Any] = {"text": True}
     if capture:
         kwargs.update({"stdout": subprocess.PIPE, "stderr": subprocess.PIPE})
-    result = subprocess.run(cmd, cwd=str(cwd) if cwd else None, **kwargs)
+    result = subprocess.run(cmd, cwd=str(cwd) if cwd else None, env=env, **kwargs)
     if check and result.returncode != 0:
         stderr = (result.stderr or "").strip()
         stdout = (result.stdout or "").strip()
@@ -59,8 +59,8 @@ def run(cmd: list[str], cwd: Path | str | None = None, check: bool = True, captu
     return result
 
 
-def git(repo: Path, *args: str, check: bool = True, capture: bool = True) -> subprocess.CompletedProcess[str]:
-    return run(["git", "-C", str(repo), *args], check=check, capture=capture)
+def git(repo: Path, *args: str, check: bool = True, capture: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    return run(["git", "-C", str(repo), *args], check=check, capture=capture, env=env)
 
 
 def repo_root(start: Path | str | None = None) -> Path:

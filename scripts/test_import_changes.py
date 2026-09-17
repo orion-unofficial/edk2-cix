@@ -103,18 +103,24 @@ def make_repo() -> Path:
 
 
 def run_import_changes(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
+    # Keep paused operations inside this fixture even when the caller has
+    # configured a session-wide scratch directory.
+    env.setdefault("EDK2_CIX_TMP_ROOT", str(operations_root(repo).parent.parent))
     return run(["python3", "scripts/import_changes.py"], repo, check=False, env=env)
 
 
 def run_import_unofficial(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
+    env.setdefault("EDK2_CIX_TMP_ROOT", str(operations_root(repo).parent.parent))
     return run(["python3", "scripts/import_unofficial_commits.py"], repo, check=False, env=env)
 
 
 def run_inspect_conflicts(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
+    env.setdefault("EDK2_CIX_TMP_ROOT", str(operations_root(repo).parent.parent))
     return run(["python3", str(ROOT / "scripts" / "inspect_import_conflicts.py")], repo, check=False, env=env)
 
 
 def run_resolve_conflicts(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
+    env.setdefault("EDK2_CIX_TMP_ROOT", str(operations_root(repo).parent.parent))
     script = str(ROOT / "scripts" / "resolve_import_conflicts.py") if env.get("SCRATCH") else "scripts/resolve_import_conflicts.py"
     return run(["python3", script], repo, check=False, env=env)
 

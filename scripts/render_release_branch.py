@@ -443,6 +443,13 @@ def materialise_submodules(repo: Path, worktree: Path, branch: str, verbose: boo
     return report
 
 
+def render_commit_environment(worktree: Path) -> dict[str, str]:
+    # Rendering identical source inputs must not allocate a new cached worktree
+    # just because it ran a second later. Preserve a source-derived timestamp.
+    timestamp = git(worktree, "show", "-s", "--format=%ct", "HEAD").stdout.strip()
+    return {**os.environ, "GIT_AUTHOR_DATE": f"@{timestamp} +0000", "GIT_COMMITTER_DATE": f"@{timestamp} +0000"}
+
+
 def commit_rendered_worktree(repo: Path, worktree: Path, branch: str, entry: dict, verbose: bool) -> str:
     render = entry.get("render", {})
     message = render.get("commit_message") or f"render: {short_release(branch)}"
@@ -484,7 +491,7 @@ def commit_rendered_worktree(repo: Path, worktree: Path, branch: str, entry: dic
         for component in render.get("component_replacements", []):
             trailers.append(f"Source-Component: {component['path']}={component['ref']}")
     full_message = message + "\n\n" + "\n".join(trailers)
-    git(worktree, *RENDER_COMMIT_IDENTITY, "commit", "-m", full_message, capture=not verbose)
+    git(worktree, *RENDER_COMMIT_IDENTITY, "commit", "-m", full_message, capture=not verbose, env=render_commit_environment(worktree))
     return rev_parse(worktree, "HEAD")
 
 
@@ -605,6 +612,7 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_
                     "-m",
                     f"render: {short_release(branch)}",
                     capture=not verbose,
+                    env=render_commit_environment(worktree),
                 )
                 commit = rev_parse(worktree, "HEAD")
             elif not has_staged_changes:

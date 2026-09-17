@@ -100,6 +100,7 @@ def test(*, skip_minimised_clone: bool = False) -> None:
     run(["make", "verify-manifest-integrity", "--no-print-directory"])
     run(["make", "verify-source-policy", "--no-print-directory"])
     run(["make", "verify-source-lifecycle", "--no-print-directory"])
+    run(["python3", "scripts/check_source_build_inputs.py"])
     run(["make", "check-ref-integrity", "--no-print-directory"])
     run(["make", "check-source-metadata", "--no-print-directory"])
     run(["make", "check-help-cache", "--no-print-directory"])

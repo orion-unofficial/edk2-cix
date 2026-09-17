@@ -3,6 +3,7 @@
 - [Build](build.md)
 - [Build Variables](build-variables.md)
 - [Maintenance and CI](maintenance-and-ci.md)
+- [Source Checkpoint Maintenance](source-checkpoint-maintenance.md)
 - [Firmware Features](features.md)
 - [Custom ACPI Overlays](custom-acpi-overlays.md)
 - [Debug](debug.md)

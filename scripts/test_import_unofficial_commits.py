@@ -91,6 +91,8 @@ def make_repo() -> Path:
 
 
 def run_import(repo: Path, **env: str) -> subprocess.CompletedProcess[str]:
+    # Paused operations belong to the fixture, not the caller's shared cache.
+    env.setdefault("EDK2_CIX_TMP_ROOT", str(operations_root(repo).parent.parent))
     return run(["python3", "scripts/import_unofficial_commits.py"], repo, check=False, env=env)
 
 
