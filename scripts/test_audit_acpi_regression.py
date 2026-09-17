@@ -20,7 +20,7 @@ class AuditAcpiRegressionTests(unittest.TestCase):
     def test_compare_audits_flags_table_sha_changes(self) -> None:
         expected = {
             "board": "O6",
-            "target": "RELEASE_GCC5",
+            "target": "RELEASE_GCC",
             "tables": {
                 TABLE_PATH: {
                     "path": TABLE_PATH,
@@ -32,7 +32,7 @@ class AuditAcpiRegressionTests(unittest.TestCase):
         }
         actual = {
             "board": "O6",
-            "target": "RELEASE_GCC5",
+            "target": "RELEASE_GCC",
             "tables": {
                 TABLE_PATH: {
                     "path": TABLE_PATH,
@@ -51,7 +51,7 @@ class AuditAcpiRegressionTests(unittest.TestCase):
     def test_compare_audits_flags_iasl_summary_changes(self) -> None:
         expected = {
             "board": "O6",
-            "target": "RELEASE_GCC5",
+            "target": "RELEASE_GCC",
             "tables": {},
             "iasl": {
                 "soc_dsdt": {
@@ -75,7 +75,7 @@ class AuditAcpiRegressionTests(unittest.TestCase):
         }
         actual = {
             "board": "O6",
-            "target": "RELEASE_GCC5",
+            "target": "RELEASE_GCC",
             "tables": {},
             "iasl": {
                 "soc_dsdt": {

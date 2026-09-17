@@ -36,7 +36,7 @@ def parse_args() -> argparse.Namespace:
     common.add_argument("--repo-root", type=pathlib.Path, default=REPO_ROOT)
     common.add_argument("--board", default="O6")
     common.add_argument("--product", default="orion-o6")
-    common.add_argument("--target", default="RELEASE_GCC5")
+    common.add_argument("--target", default="RELEASE_GCC")
     common.add_argument(
         "--artefact-mode",
         choices=("custom", "upstream"),
