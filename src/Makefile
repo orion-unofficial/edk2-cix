@@ -210,22 +210,22 @@ UEFI_FW_VERSION ?= $(strip $(shell python3 "$(FIRMWARE_LAYOUT_SCRIPT)" display-v
 export SOURCE_DATE_EPOCH
 export PM_CONFIG_SOURCE_DATE_EPOCH
 
-# The first GCC5_AARCH64_PREFIX value uses distro-supplied cross compiler
-# The second GCC5_AARCH64_PREFIX value uses CIX-verified cross compiler
+# The first GCC_AARCH64_PREFIX value uses distro-supplied cross compiler
+# The second GCC_AARCH64_PREFIX value uses CIX-verified cross compiler
 ifeq ($(UNAME), aarch64)
 PACKAGE_TOOL_ARCH := AARCH64
-GCC5_AARCH64_PREFIX :=
-# GCC5_AARCH64_PREFIX := $(CURDIR)/tools/gcc/gcc-arm-10.3-2021.07-aarch64-aarch64-none-elf/bin/aarch64-none-elf-
+GCC_AARCH64_PREFIX :=
+# GCC_AARCH64_PREFIX := $(CURDIR)/tools/gcc/gcc-arm-10.3-2021.07-aarch64-aarch64-none-elf/bin/aarch64-none-elf-
 else
 PACKAGE_TOOL_ARCH := X86_64
-GCC5_AARCH64_PREFIX := aarch64-linux-gnu-
-# GCC5_AARCH64_PREFIX := $(CURDIR)/tools/gcc/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf/bin/aarch64-none-elf-
+GCC_AARCH64_PREFIX := aarch64-linux-gnu-
+# GCC_AARCH64_PREFIX := $(CURDIR)/tools/gcc/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf/bin/aarch64-none-elf-
 endif
 
-GCC5_AARCH64_REAL_PREFIX := $(GCC5_AARCH64_PREFIX)
-CCACHE_TOOLCHAIN_KEY := $(strip $(shell printf '%s|%s' '$(HOST_ARCH)' '$(GCC5_AARCH64_REAL_PREFIX)' | cksum | awk '{print $$1}'))
+GCC_AARCH64_REAL_PREFIX := $(GCC_AARCH64_PREFIX)
+CCACHE_TOOLCHAIN_KEY := $(strip $(shell printf '%s|%s' '$(HOST_ARCH)' '$(GCC_AARCH64_REAL_PREFIX)' | cksum | awk '{print $$1}'))
 CCACHE_WRAPPER_DIR := $(CCACHE_WRAPPER_ROOT)/$(CCACHE_TOOLCHAIN_KEY)
-CCACHE_GCC5_AARCH64_PREFIX_EFFECTIVE := $(if $(filter TRUE,$(CCACHE_ENABLED_EFFECTIVE)),$(CCACHE_WRAPPER_DIR)/$(notdir $(GCC5_AARCH64_REAL_PREFIX)),$(GCC5_AARCH64_REAL_PREFIX))
+CCACHE_GCC_AARCH64_PREFIX_EFFECTIVE := $(if $(filter TRUE,$(CCACHE_ENABLED_EFFECTIVE)),$(CCACHE_WRAPPER_DIR)/$(notdir $(GCC_AARCH64_REAL_PREFIX)),$(GCC_AARCH64_REAL_PREFIX))
 
 PACKAGE_TOOL := edk2-non-osi/Platform/CIX/Sky1/PackageTool
 CIX_RELEASE_SOURCE_DIR := cix-v1.2
@@ -448,10 +448,10 @@ DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name 
 	#    $(shell find edk2-platforms/Platform/CIX -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f")
 
 FIRMWARE_BOARDS := $(foreach i,$(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)),$(lastword $(subst /, ,$(i))))
-CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_all.bin) \
-				 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
-BUILD_OUTPUT_DIR = Build/$1/$(UEFI_TARGET)_GCC5
-BUILD_STAGE_DIR = Build/$1/$(UEFI_TARGET)_GCC5.build
+CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC/cix_flash_all.bin) \
+				 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC/cix_flash_ota.bin)
+BUILD_OUTPUT_DIR = Build/$1/$(UEFI_TARGET)_GCC
+BUILD_STAGE_DIR = Build/$1/$(UEFI_TARGET)_GCC.build
 BUILD_CONFIG_STAMP = $(call BUILD_OUTPUT_DIR,$1)/.edk2-cix-build-config
 .PHONY: build __build host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool
 build:
@@ -507,7 +507,7 @@ endef
 define PRINT_SRC_LOCAL_VARIABLES
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
 	print_help_line '  CIX_RELEASE_CACHE_ROOT=<path>' 'Directory used for cached curated CIX BL31, OP-TEE, and cert_create intermediates.\nDefault: '\''$$(REPO_ROOT)/build-cache/cix-release'\'''; \
-	print_help_line '  GCC5_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
+	print_help_line '  GCC_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
 	print_help_line '  SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the compiler-facing reproducible timestamp.\nDefault: resolved from mapped upstream source metadata.'; \
 	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the PM-config timestamp.\nDefault: SOURCE_DATE_EPOCH.'
 endef
@@ -516,10 +516,10 @@ help:
 	@$(PRINT_SRC_HELP_SHELL_PROLOGUE); \
 	printf '%s\n\n' 'edk2-cix raw firmware targets'; \
 	print_help_line '  build' 'Build all raw flash images for the supported boards'; \
-	print_help_line '  Build/O6/{RELEASE|DEBUG}_GCC5/cix_flash_all.bin' 'Build the full flash image for O6'; \
-	print_help_line '  Build/O6/{RELEASE|DEBUG}_GCC5/cix_flash_ota.bin' 'Build the OTA flash image for O6'; \
-	print_help_line '  Build/O6N/{RELEASE|DEBUG}_GCC5/cix_flash_all.bin' 'Build the full flash image for O6N'; \
-	print_help_line '  Build/O6N/{RELEASE|DEBUG}_GCC5/cix_flash_ota.bin' 'Build the OTA flash image for O6N'; \
+	print_help_line '  Build/O6/{RELEASE|DEBUG}_GCC/cix_flash_all.bin' 'Build the full flash image for O6'; \
+	print_help_line '  Build/O6/{RELEASE|DEBUG}_GCC/cix_flash_ota.bin' 'Build the OTA flash image for O6'; \
+	print_help_line '  Build/O6N/{RELEASE|DEBUG}_GCC/cix_flash_all.bin' 'Build the full flash image for O6N'; \
+	print_help_line '  Build/O6N/{RELEASE|DEBUG}_GCC/cix_flash_ota.bin' 'Build the OTA flash image for O6N'; \
 	printf '\n%s\n\n' 'Host Tools and Checks'; \
 	print_help_line '  preflight' 'Check host tools, metadata, and toolchain prerequisites'; \
 	print_help_line '  print-build-metadata' 'Show the resolved reproducible build metadata'; \
@@ -863,8 +863,8 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
-	if [[ -n "$(GCC5_AARCH64_PREFIX)" ]] && ! command -v "$(GCC5_AARCH64_PREFIX)gcc" >/dev/null 2>&1; then \
-		echo "[preflight] Missing cross-compiler: $(GCC5_AARCH64_PREFIX)gcc" >&2; \
+	if [[ -n "$(GCC_AARCH64_PREFIX)" ]] && ! command -v "$(GCC_AARCH64_PREFIX)gcc" >/dev/null 2>&1; then \
+		echo "[preflight] Missing cross-compiler: $(GCC_AARCH64_PREFIX)gcc" >&2; \
 		missing=1; \
 	fi; \
 	for required_file in $(FIPTOOL_SOURCE_INPUTS); do \
@@ -931,7 +931,7 @@ $(call BUILD_CONFIG_STAMP,%): FORCE
 		'O6_SMBIOS_CHASSIS_ASSET_TAG=$(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE)' \
 		'SIGNING_CERT_SOURCE_DIR=$(SIGNING_CERT_SOURCE_DIR)' \
 		'REQUIRE_SIGNING_CERT_SOURCE=$(REQUIRE_SIGNING_CERT_SOURCE)' \
-		'GCC5_AARCH64_PREFIX=$(GCC5_AARCH64_PREFIX)')"; \
+		'GCC_AARCH64_PREFIX=$(GCC_AARCH64_PREFIX)')"; \
 	existing_text="$$(cat "$$stamp_path" 2>/dev/null || true)"; \
 	if [[ "$$existing_text" != "$$config_text" ]]; then \
 		rm -rf "$$output_dir" "$$stage_dir"; \
@@ -939,8 +939,8 @@ $(call BUILD_CONFIG_STAMP,%): FORCE
 		printf '%s\n' "$$config_text" > "$$stamp_path"; \
 	fi
 
-.SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin
-Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
+.SILENT: Build/%/$(UEFI_TARGET)_GCC/cix_flash_ota.bin
+Build/%/$(UEFI_TARGET)_GCC/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) preflight-% Build/%/$(UEFI_TARGET)_GCC/Firmwares/bootloader2.img Build/%/$(UEFI_TARGET)_GCC/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
 	@$(ENSURE_REPO_LOCK)
 	@find_platform_match() { \
 		local relative_path="$$1"; \
@@ -996,8 +996,8 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) pref
 # MEM_CFG_MEMFREQ ?= 2750
 MEM_CFG_MEMFREQ ?= 3000
 
-.SILENT: Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin
-Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) preflight-% Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
+.SILENT: Build/%/$(UEFI_TARGET)_GCC/cix_flash_all.bin
+Build/%/$(UEFI_TARGET)_GCC/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) preflight-% Build/%/$(UEFI_TARGET)_GCC/Firmwares/bootloader2.img Build/%/$(UEFI_TARGET)_GCC/Firmwares/bootloader3.img | $(CIX_PACKAGE_TOOL_BIN)
 	@$(ENSURE_REPO_LOCK)
 	@find_platform_match() { \
 		local relative_path="$$1"; \
@@ -1083,13 +1083,13 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) pref
 	fi
 
 .NOTINTERMEDIATE: \
-	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd) \
+	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd) \
 	$(foreach board,$(FIRMWARE_BOARDS),$(call BUILD_STAGE_DIR,$(board))/Firmwares/dummy.bin) \
 	$(foreach board,$(FIRMWARE_BOARDS),$(call BUILD_STAGE_DIR,$(board))/certs/trusted_key_no.crt) \
 	$(foreach board,$(FIRMWARE_BOARDS),$(call BUILD_STAGE_DIR,$(board))/Firmwares/bootloader2.img) \
 	$(foreach board,$(FIRMWARE_BOARDS),$(call BUILD_STAGE_DIR,$(board))/Firmwares/bootloader3.img) \
-	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img) \
-	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img)
+	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC/Firmwares/bootloader2.img) \
+	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC/Firmwares/bootloader3.img)
 
 .SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img
 $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
@@ -1116,7 +1116,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 		--build-root "$(abspath $(call BUILD_STAGE_DIR,$*))" \
 		--fiptool "$(abspath $(FIPTOOL_BIN))" \
 		--output "$$tmp_output" \
-		--cross-compile "$(GCC5_AARCH64_PREFIX)" \
+		--cross-compile "$(GCC_AARCH64_PREFIX)" \
 		--jobs "$(HELPER_BUILD_JOBS)" \
 		--mode "$(shell printf '%s' '$(FIRMWARE_TARGET)' | tr '[:upper:]' '[:lower:]')" \
 		$(if $(filter TRUE,$(ENABLE_TF_A_FIXES_NORMALIZED)),--enable-tf-a-fixes,) \
@@ -1128,8 +1128,8 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 	fi && \
 	mv -f "$$tmp_output" "$@"
 
-.SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img
-Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img: \
+.SILENT: Build/%/$(UEFI_TARGET)_GCC/Firmwares/bootloader2.img
+Build/%/$(UEFI_TARGET)_GCC/Firmwares/bootloader2.img: \
 	$(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img \
 	$(call BUILD_CONFIG_STAMP,%)
 	@$(ENSURE_REPO_LOCK)
@@ -1138,7 +1138,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img: \
 
 .SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img
 $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
-	Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd \
+	Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd \
 	$(call BUILD_CONFIG_STAMP,%) \
 	$(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin \
 	$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt \
@@ -1263,8 +1263,8 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 		exit 1; \
 	fi
 
-.SILENT: Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img
-Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img: \
+.SILENT: Build/%/$(UEFI_TARGET)_GCC/Firmwares/bootloader3.img
+Build/%/$(UEFI_TARGET)_GCC/Firmwares/bootloader3.img: \
 	$(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img \
 	$(call BUILD_CONFIG_STAMP,%)
 	@$(ENSURE_REPO_LOCK)
@@ -1365,8 +1365,8 @@ $(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt: $(call BUILD_CONFIG_STAMP,%)
 			;; \
 	esac
 
-.SILENT: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
-Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(PATCHED_EDK2_SOURCE_INPUTS) $(CUSTOM_EDK2_BUILD_INPUTS) | preflight-% $(CUSTOM_EDK2_ORDER_ONLY_PREREQS)
+.SILENT: Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd
+Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(PATCHED_EDK2_SOURCE_INPUTS) $(CUSTOM_EDK2_BUILD_INPUTS) | preflight-% $(CUSTOM_EDK2_ORDER_ONLY_PREREQS)
 	@$(ENSURE_REPO_LOCK)
 	$(MAKE) prepare-basetools-c
 	@set -euo pipefail; \
@@ -1385,9 +1385,9 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 		export PACKAGES_PATH="$(IMPORTED_EDK2_PACKAGES_PATH)"; \
 	fi; \
 	if [[ "$(CCACHE_ENABLED_EFFECTIVE)" == "TRUE" ]]; then \
-		real_gcc_prefix="$(GCC5_AARCH64_REAL_PREFIX)"; \
+		real_gcc_prefix="$(GCC_AARCH64_REAL_PREFIX)"; \
 		wrapper_dir="$(CCACHE_WRAPPER_DIR)"; \
-		wrapper_prefix="$(CCACHE_GCC5_AARCH64_PREFIX_EFFECTIVE)"; \
+		wrapper_prefix="$(CCACHE_GCC_AARCH64_PREFIX_EFFECTIVE)"; \
 		resolve_host_tool() { \
 			local tool_name="$$1"; \
 			local tool_path; \
@@ -1406,9 +1406,9 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 		ln -sf "$$real_gcc_ar" "$${wrapper_prefix}gcc-ar"; \
 		ln -sf "$$real_objcopy" "$${wrapper_prefix}objcopy"; \
 		export CCACHE_DIR="$(CCACHE_DIR)"; \
-		export GCC5_AARCH64_PREFIX="$(CCACHE_GCC5_AARCH64_PREFIX_EFFECTIVE)"; \
+		export GCC_AARCH64_PREFIX="$(CCACHE_GCC_AARCH64_PREFIX_EFFECTIVE)"; \
 	else \
-		export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_REAL_PREFIX)"; \
+		export GCC_AARCH64_PREFIX="$(GCC_AARCH64_REAL_PREFIX)"; \
 	fi; \
 	if command -v iasl >/dev/null 2>&1; then \
 		export IASL_PREFIX="$$(dirname "$$(command -v iasl)")/"; \
@@ -1480,25 +1480,25 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 		rwx_warning_flag=''; \
 		if [[ "$(V)" != "1" ]]; then \
 			tool_def_overrides+=( \
-				'  DEBUG_GCC5_AARCH64_ASL_FLAGS   = -vr -vs' \
-				'RELEASE_GCC5_AARCH64_ASL_FLAGS   = -vr -vs' \
+				'  DEBUG_GCC_AARCH64_ASL_FLAGS   = -vr -vs' \
+				'RELEASE_GCC_AARCH64_ASL_FLAGS   = -vr -vs' \
 			); \
 			rwx_warning_flag=' -Wl,--no-warn-rwx-segments'; \
 		fi; \
 		tool_def_overrides+=( \
-			"  DEBUG_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
-			"  DEBUG_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/BaseTools/Bin/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
-			'  DEBUG_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1' \
-			"RELEASE_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
-			"RELEASE_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/BaseTools/Bin/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
-			'RELEASE_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1' \
+			"  DEBUG_GCC_AARCH64_CC_FLAGS    = DEF(GCC_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
+			"  DEBUG_GCC_AARCH64_DLINK_FLAGS = DEF(GCC_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/BaseTools/Bin/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
+			'  DEBUG_GCC_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1' \
+			"RELEASE_GCC_AARCH64_CC_FLAGS    = DEF(GCC_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
+			"RELEASE_GCC_AARCH64_DLINK_FLAGS = DEF(GCC_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/BaseTools/Bin/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
+			'RELEASE_GCC_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1' \
 		); \
 		if [[ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" ]]; then \
 			tool_def_overrides+=( \
-				'  DEBUG_GCC5_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
-				'RELEASE_GCC5_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
-				'  DEBUG_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1 -DENABLE_FIRMWARE_FIXES=1' \
-				'RELEASE_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1 -DENABLE_FIRMWARE_FIXES=1' \
+				'  DEBUG_GCC_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
+				'RELEASE_GCC_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
+				'  DEBUG_GCC_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1 -DENABLE_FIRMWARE_FIXES=1' \
+				'RELEASE_GCC_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1 -DENABLE_FIRMWARE_FIXES=1' \
 			); \
 		fi; \
 	fi; \
@@ -1537,7 +1537,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 			fi; \
 			run_edk2_build() { \
 		export EDK2_CIX_QUIET_PREBUILD="$(if $(filter 1,$(V)),0,1)"; \
-		build -a AARCH64 -t GCC5 -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
+		build -a AARCH64 -t GCC -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
 			$(if $(strip $(EDK2_BUILD_JOBS)),-n $(EDK2_BUILD_JOBS)) \
 			$(EDK2_GENFDS_MULTI_THREAD_FLAG) \
 			$(EDK2_BUILD_SILENT_FLAG) \
@@ -1556,14 +1556,14 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 		run_edk2_build 2>&1 | ARTEFACT_MODE="$(ARTEFACT_MODE)" python3 "$(EDK2_BUILD_OUTPUT_FILTER)"; \
 	fi; \
 	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
-		if [[ ! -d "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5" ]]; then \
-			echo "[build/$*] Expected custom workspace output $$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5 was not produced" >&2; \
+		if [[ ! -d "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC" ]]; then \
+			echo "[build/$*] Expected custom workspace output $$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC was not produced" >&2; \
 			exit 1; \
 		fi; \
 		mkdir -p "Build/$*"; \
-		rm -rf "Build/$*/$(UEFI_TARGET)_GCC5"; \
-		cp -a "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5" "Build/$*/"; \
-		build_options_path="Build/$*/$(UEFI_TARGET)_GCC5/BuildOptions"; \
+		rm -rf "Build/$*/$(UEFI_TARGET)_GCC"; \
+		cp -a "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC" "Build/$*/"; \
+		build_options_path="Build/$*/$(UEFI_TARGET)_GCC/BuildOptions"; \
 		if [[ ! -f "$$build_options_path" ]]; then \
 			echo "[build/$*] Expected BuildOptions $$build_options_path was not produced" >&2; \
 			exit 1; \
@@ -1612,16 +1612,16 @@ audit-final-image-manifest:
 audit-final-image-manifest-%:
 	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
 
-__audit-final-image-manifest-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
+__audit-final-image-manifest-%: Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
 	@python3 "$(FINAL_IMAGE_MANIFEST_AUDIT_SCRIPT)" \
 		--repo-root "$(abspath ..)" \
 		--board "$*" \
-		--target "$(UEFI_TARGET)_GCC5" \
+		--target "$(UEFI_TARGET)_GCC" \
 		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
 		--baseline-file "$(FINAL_IMAGE_MANIFEST_BASELINE)" \
-		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$*-$(UEFI_TARGET)_GCC5-$(FIRMWARE_VALIDATION_PROFILE)-manifest-audit.json"
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$*-$(UEFI_TARGET)_GCC-$(FIRMWARE_VALIDATION_PROFILE)-manifest-audit.json"
 
 .PHONY: audit-acpi-regression audit-acpi-regression-% __audit-acpi-regression-%
 audit-acpi-regression:
@@ -1630,16 +1630,16 @@ audit-acpi-regression:
 audit-acpi-regression-%:
 	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
 
-__audit-acpi-regression-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
+__audit-acpi-regression-%: Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
 	@python3 "$(ACPI_REGRESSION_AUDIT_SCRIPT)" \
 		--repo-root "$(abspath ..)" \
 		--board "$*" \
-		--target "$(UEFI_TARGET)_GCC5" \
+		--target "$(UEFI_TARGET)_GCC" \
 		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
 		--baseline-file "$(ACPI_REGRESSION_AUDIT_BASELINE)" \
-		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$*-$(UEFI_TARGET)_GCC5-$(FIRMWARE_VALIDATION_PROFILE)-acpi-audit.json"
+		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$*-$(UEFI_TARGET)_GCC-$(FIRMWARE_VALIDATION_PROFILE)-acpi-audit.json"
 
 .PHONY: refresh-offline-audit-baselines refresh-offline-audit-baselines-% __refresh-offline-audit-baselines-%
 refresh-offline-audit-baselines:
@@ -1654,7 +1654,7 @@ __refresh-offline-audit-baselines-%:
 	@python3 "$(OFFLINE_AUDIT_BASELINE_REFRESH)" \
 		--repo-root "$(abspath ..)" \
 		--board "$*" \
-		--target "$(UEFI_TARGET)_GCC5" \
+		--target "$(UEFI_TARGET)_GCC" \
 		--profile "$(FIRMWARE_VALIDATION_PROFILE)" \
 		--report-dir "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
@@ -1662,11 +1662,11 @@ __refresh-offline-audit-baselines-%:
 .PHONY: validate-secure-boot-defaults validate-secure-boot-defaults-%
 validate-secure-boot-defaults: $(foreach board,$(FIRMWARE_BOARDS),validate-secure-boot-defaults-$(board))
 
-validate-secure-boot-defaults-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
+validate-secure-boot-defaults-%: Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd
 	@python3 ../scripts/validate_secure_boot_defaults.py \
 		--repo-root "$(abspath ..)" \
 		--board "$*" \
-		--target "$(UEFI_TARGET)_GCC5"
+		--target "$(UEFI_TARGET)_GCC"
 
 $(MICROSOFT_SECURE_BOOT_PAYLOADS) &: ../scripts/generate_microsoft_secure_boot_defaults.py $(MICROSOFT_SECURE_BOOT_MANIFEST)
 	@python3 ../scripts/generate_microsoft_secure_boot_defaults.py >/dev/null
