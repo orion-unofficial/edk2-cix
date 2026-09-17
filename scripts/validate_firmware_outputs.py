@@ -44,7 +44,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repo-root", type=pathlib.Path, default=REPO_ROOT)
     parser.add_argument("--build-dir", type=pathlib.Path)
     parser.add_argument("--board", default="O6")
-    parser.add_argument("--target", default="RELEASE_GCC5")
+    parser.add_argument("--target", default="RELEASE_GCC")
     parser.add_argument("--profile-file", type=pathlib.Path, default=DEFAULT_PROFILE_FILE)
     parser.add_argument("--profile", default=DEFAULT_PROFILE)
     parser.add_argument("--report-json", type=pathlib.Path)
