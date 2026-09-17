@@ -1372,11 +1372,11 @@ error_handler1:
 EFI_STATUS
 EFIAPI
 AmlCodeGenMethod (
-  IN  CONST CHAR8            *NameString,
-  IN        UINT8            NumArgs,
-  IN        BOOLEAN          IsSerialized,
-  IN        UINT8            SyncLevel,
-  IN        AML_NODE_HANDLE  *ParentNode      OPTIONAL,
+  IN  CONST CHAR8                   *NameString,
+  IN        UINT8                   NumArgs,
+  IN        BOOLEAN                 IsSerialized,
+  IN        UINT8                   SyncLevel,
+  IN        AML_NODE_HANDLE         ParentNode      OPTIONAL,
   OUT       AML_OBJECT_NODE_HANDLE  *NewObjectNode   OPTIONAL
   )
 {
