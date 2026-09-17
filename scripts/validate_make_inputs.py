@@ -18,7 +18,7 @@ DEFAULT_PROFILE_FILE = REPO_ROOT / "validation" / "expected-hashes.json"
 
 VALID_ARTEFACT_MODES = {"custom", "upstream"}
 VALID_FIRMWARE_TARGETS = {"RELEASE", "DEBUG"}
-VALID_RAW_FIRMWARE_TARGETS = {f"{target}_GCC5" for target in VALID_FIRMWARE_TARGETS}
+VALID_RAW_FIRMWARE_TARGETS = {f"{target}_GCC" for target in VALID_FIRMWARE_TARGETS}
 VALID_BOARDS = {"O6", "O6N"}
 VALID_FIRMWARE_DISTROS = {"bookworm", "trixie"}
 VALID_BUILDBOX_PLATFORMS = {"linux/amd64", "linux/arm64"}
