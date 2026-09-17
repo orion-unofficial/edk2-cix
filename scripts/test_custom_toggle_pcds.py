@@ -205,5 +205,14 @@ class CustomTogglePcdsTest(unittest.TestCase):
                 self.assertEqual((REPO_ROOT / relative_path).is_symlink(), expect_symlink)
 
 
+    def test_experimental_setup_manager_has_its_module_inf(self) -> None:
+        relative = "edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/SetupManagerDxe.inf"
+        experimental = REPO_ROOT / "custom/overlay-experimental-uefi-settings" / relative
+        normal = REPO_ROOT / "custom/overlay" / relative
+        self.assertTrue(experimental.is_symlink())
+        self.assertTrue(experimental.is_file())
+        self.assertEqual(experimental.resolve(), normal.resolve())
+
+
 if __name__ == "__main__":
     unittest.main()
