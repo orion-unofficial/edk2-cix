@@ -32,7 +32,6 @@
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
-  SignedCapsulePkg/SignedCapsulePkg.dec
   SecurityPkg/SecurityPkg.dec
   ArmPkg/ArmPkg.dec
   Platform/CIX/Sky1/Sky1.dec
