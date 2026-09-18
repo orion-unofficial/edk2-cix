@@ -124,7 +124,7 @@ class SourceRefTests(unittest.TestCase):
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 destination.write_bytes(payload)
             git(repo, "add", "src")
-            git(repo, "-c", "user.name=BL1 regression", "-c", "user.email=bl1@example.invalid",
+            git(repo, "-c", "user.name=BL1 regression", "-c", "user.email=bl1-regression",
                 "-c", "commit.gpgsign=false", "commit", "-qm", "fixture vendor payloads")
             commit = git(repo, "rev-parse", "HEAD").stdout.decode().strip()
             vendor = "source/vendor/cix/fixture"
@@ -155,7 +155,7 @@ class BuildBoundaryTests(unittest.TestCase):
             destination.write_bytes(data)
         git(self.worktree, "init", "-q")
         git(self.worktree, "add", "src")
-        git(self.worktree, "-c", "user.name=BL1 regression", "-c", "user.email=bl1@example.invalid",
+        git(self.worktree, "-c", "user.name=BL1 regression", "-c", "user.email=bl1-regression",
             "-c", "commit.gpgsign=false", "commit", "-qm", "fixture vendor payloads")
 
     def test_selection_and_dirty_input(self):
@@ -270,7 +270,7 @@ class BuildBoundaryTests(unittest.TestCase):
         path = self.worktree / bl1.CIX
         path.write_bytes(path.read_bytes() + b"\0")
         git(self.worktree, "add", bl1.CIX)
-        git(self.worktree, "-c", "user.name=BL1 regression", "-c", "user.email=bl1@example.invalid",
+        git(self.worktree, "-c", "user.name=BL1 regression", "-c", "user.email=bl1-regression",
             "-c", "commit.gpgsign=false", "commit", "-qm", "changed BL1 remains unapproved")
         with self.assertRaisesRegex(ReconstructionError, "not an unchanged qualified vendor"):
             bl1.source_payloads(self.worktree, bl1.load_catalog(), "custom", "1.2", "buildbox-firmware-build")
