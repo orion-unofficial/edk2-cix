@@ -90,3 +90,4 @@ jobs:
             .cache/edk2-cix/qualification/
             dist/**/cix_flash_all.bin
             dist/**/BuildOptions
+            dist/**/bootloader1-validation.json

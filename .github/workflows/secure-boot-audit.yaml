@@ -155,6 +155,8 @@ jobs:
         run: |
           set -euo pipefail
           validation_profile="current-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"
+          python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
+            --phase inputs --board "${{ matrix.board }}" --cix-release v1.2
           make -C "${FIRMWARE_WORKTREE}" buildbox-firmware-stage V=1 \
             ARTEFACT_MODE=custom \
             CIX_RELEASE=v1.2 \
@@ -171,6 +173,9 @@ jobs:
             FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro" \
             FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation" \
             FIRMWARE_VALIDATION_PROFILE="${validation_profile}-${FIRMWARE_DISTRO}"
+          python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
+            --phase outputs --build-target buildbox-firmware-stage \
+            --board "${{ matrix.board }}" --cix-release v1.2
 
       - name: Validate embedded Secure Boot payloads
         shell: bash

@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "purpose": "Whole-file integrity of vendor BL1 payloads; not board eFuse acceptance.",
+  "vendor_tool": {
+    "url": "https://raw.githubusercontent.com/cixtech/cix_proprietary__cix_firmware/9162ccf45c71b309cf303ec93775f2ffb1ba25bc/common/cix_tools/cix_mkimage_rsa",
+    "sha256": "088034c043e973bc5f4d8c709e4a8eef39336e90cafd9a92df48dc072fc946c1",
+    "architecture": "linux-x86_64",
+    "reported_commit": "fc4a3f33feb2441dc2a8208a8df36c114616c6c3",
+    "qualified_on": "2026-09-18"
+  },
+  "payloads": [
+    {
+      "sha256": "ccacd8a8a80ab983958a0b0a0fe08f562cc6b9b8a7b8a8e892123b9b2d8e168a",
+      "size": 847872,
+      "provenance": [
+        {
+          "ref": "source/vendor/radxa/0.2.0-1/edk2-stable202208",
+          "commit": "1270744166bac1bbe690145fff5a44a8e78e10fb",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/0.2.1-1/edk2-stable202208",
+          "commit": "5a9243a02b5292c7e6023362a5b3c575d012eb73",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        }
+      ],
+      "vendor_signature_qualified": true
+    },
+    {
+      "sha256": "8bde9f3999c413bdda6e2b1f742367f9398227e4bfa11596a0257c9f50034a82",
+      "size": 847872,
+      "provenance": [
+        {
+          "ref": "source/vendor/radxa/0.2.2-1/edk2-stable202208",
+          "commit": "91798c4778f1b0a3c8c71856b03b96175e194c4d",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        }
+      ],
+      "vendor_signature_qualified": true
+    },
+    {
+      "sha256": "5fd15f794f3e17979df7d005ca4e9a1d851cbf4b53383cf200b6c216b0b43168",
+      "size": 856064,
+      "provenance": [
+        {
+          "ref": "source/vendor/radxa/0.3.0-1/edk2-stable202208",
+          "commit": "3570c1d8f008c8981d339639a0e35e40c4547bbb",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/0.3.1-1/edk2-stable202208",
+          "commit": "421021d036e523f2955c8dcfcb8c583ae0434460",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        }
+      ],
+      "vendor_signature_qualified": true
+    },
+    {
+      "sha256": "6f9578eb9f8f860158c5f5d39405ac5209d2296449feaf691b8799ba66893c34",
+      "size": 872448,
+      "provenance": [
+        {
+          "ref": "source/vendor/radxa/1.0.0-1/edk2-stable202208",
+          "commit": "7c8e36acd15635c0b7e36308223cbfccb8e014e4",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        }
+      ],
+      "vendor_signature_qualified": true
+    },
+    {
+      "sha256": "cc68df7cf762fe86b50dd16c3f88f95caec340e15d6090884392e2d1645c8615",
+      "size": 880640,
+      "provenance": [
+        {
+          "ref": "source/vendor/radxa/1.0.0-2/edk2-stable202208",
+          "commit": "0d97bea0efbb20e23765b7fa6d5efb20f5e95e1e",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.0.0-3/edk2-stable202208",
+          "commit": "671c7508719ab17873cdb27ca0538a79cdebf099",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.0.0-4/edk2-stable202208",
+          "commit": "51c4f94c316da510c22d44bc4358b9d768b1d0cf",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.0.0-5/edk2-stable202208",
+          "commit": "1b94ee47ec8a1630de2ae19251505856bf5d7336",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.0.0-6/edk2-stable202208",
+          "commit": "56c220c652f3ffe3a9de1b3447299bf32d11fa92",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.0.0-7/edk2-stable202208",
+          "commit": "d0c2711a586c95817e7e1eb7a06190bde12e6f8e",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.0.0-8/edk2-stable202208",
+          "commit": "936ca7ddc9f4463bf0eca09bc5e2712e9c92df60",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.1.0-1/edk2-stable202208",
+          "commit": "66e36390513c4991aac826390470f0cc3665dd64",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.1.0-2/edk2-stable202208",
+          "commit": "1db151524899c5c7631ceeb69bfde7010dad3da0",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        }
+      ],
+      "vendor_signature_qualified": true
+    },
+    {
+      "sha256": "92fe13e4aee7fe5d18e3cc8a7f693c7d02d0b2d62739c2c031e31b9f1bb6eb5d",
+      "size": 884736,
+      "provenance": [
+        {
+          "ref": "source/vendor/radxa/1.2.0-1/edk2-stable202208",
+          "commit": "a28a879a938a76512c1e5e1ff45e7ac2e6dce074",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.2.1/edk2-stable202208",
+          "commit": "28fe053174551017054a67772a42bf7ae51837de",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.2.2/edk2-stable202208",
+          "commit": "7f6dccb62c7014429a99e3b21eb8c9fc6a180937",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.2.3/edk2-stable202208",
+          "commit": "d9bbcbf806fa531057a4d79436dc384d42547996",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.2.4/edk2-stable202208",
+          "commit": "6cacc6c1278be56a40d50ba7084aa029567720b9",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        }
+      ],
+      "vendor_signature_qualified": true
+    },
+    {
+      "sha256": "fcddd093649e243b16e0b9f92ec3bec7e68e03fe78fed2c594952f0eefd72f15",
+      "size": 868352,
+      "provenance": [
+        {
+          "ref": "source/vendor/radxa/1.3.0/edk2-stable202208",
+          "commit": "a0e4dd10e320e9e8e5de10cc353b7226b32d886f",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        },
+        {
+          "ref": "source/vendor/radxa/1.3.1/edk2-stable202208",
+          "commit": "8628b567985a6943897faf23aa2e392329bfb4b6",
+          "path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        }
+      ],
+      "vendor_signature_qualified": true
+    },
+    {
+      "sha256": "04be52c3a0df73fe4461cd5b41a5fe1be0e9d02a3b22cb0dd2514e305f102c74",
+      "size": 884736,
+      "provenance": [
+        {
+          "ref": "source/vendor/cix/1.2/bootloader1",
+          "commit": "3140811e6fd4f08fa064858168309f098381335b",
+          "path": "Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img"
+        }
+      ],
+      "vendor_signature_qualified": true
+    }
+  ]
+}

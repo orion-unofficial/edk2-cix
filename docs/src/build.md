@@ -49,6 +49,12 @@ selects the EDK2 build target. The defaults are `O6` and `RELEASE`.
 `FIRMWARE_PRODUCT` defaults to `orion-o6` for O6 and `orion-o6n` for O6N so
 the boards cannot overwrite each other's staged payloads or archives.
 
+Builds check that BL1 retains the selected vendor's exact bytes and attempt
+vendor signature verification. Verification rejection fails the build;
+an unavailable verifier produces a warning. See
+[Bootloader1 Validation](bootloader1-validation.md) for platform support,
+reports, and the limits of this check.
+
 To build an explicit source combination, set `RELEASE` to one of the source
 targets listed by `make help-source-targets`:
 

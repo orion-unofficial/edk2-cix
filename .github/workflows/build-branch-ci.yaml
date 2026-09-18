@@ -127,10 +127,27 @@ jobs:
         if: ${{ always() }}
         run: make lint
 
+      - name: Qualify pinned BL1 vendor signatures
+        id: bl1_signatures
+        if: ${{ always() }}
+        run: >-
+          python3 scripts/qualify_bootloader1_signatures.py --download --allow-unavailable
+          --report .cache/edk2-cix/qualification/bootloader1-signatures.json
+
+      - name: Upload BL1 signature qualification report
+        if: ${{ always() && env.ACT != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: bootloader1-signatures
+          if-no-files-found: warn
+          include-hidden-files: true
+          path: .cache/edk2-cix/qualification/bootloader1-signatures.json
+
       - name: Require every source-model diagnostic
         if: ${{ always() }}
         env:
           LINT_OUTCOME: ${{ steps.lint_checks.outcome }}
+          BL1_OUTCOME: ${{ steps.bl1_signatures.outcome }}
           PREPARE_OUTCOME: ${{ steps.prepare_source_refs.outcome }}
           TEST_OUTCOME: ${{ steps.source_model_tests.outcome }}
         shell: bash
@@ -139,6 +156,7 @@ jobs:
           [[ "${PREPARE_OUTCOME}" == success ]]
           [[ "${TEST_OUTCOME}" == success ]]
           [[ "${LINT_OUTCOME}" == success ]]
+          [[ "${BL1_OUTCOME}" == success ]]
 
   current-source:
     name: Current-source firmware matrix

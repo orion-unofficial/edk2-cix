@@ -8,6 +8,7 @@ repo_root="$(dirname -- "$docs_root")"
 mode="${DOCS_BUILD_MODE:-${EDK2_CIX_DOCS_BUILD_MODE:-auto}}"
 in_container="${EDK2_CIX_DOCS_IN_CONTAINER:-0}"
 docs_cache_root="${EDK2_CIX_DOCS_CACHE_ROOT:-${repo_root}/.cache/edk2-cix/docs}"
+export DOCS_CACHE_ROOT="$docs_cache_root"
 export EDK2_CIX_DOCS_TOOLS_DIR="${EDK2_CIX_DOCS_TOOLS_DIR:-${docs_cache_root}/tools}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${docs_cache_root}/xdg-cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-${docs_cache_root}/xdg-state}"
@@ -175,5 +176,5 @@ if [[ "$in_container" == 1 ]]; then
 fi
 devenv shell "${devenv_cache_options[@]}" \
     --option starship.enable:bool false \
-    --option devenv.latestVersion:string 2.2.2 \
+    --option devenv.latestVersion:string 2.3.1 \
     make docs-build

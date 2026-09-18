@@ -15,6 +15,11 @@ from source_porting import git_blob_bytes_batch
 ROOT = Path(__file__).resolve().parents[1]
 OVERLAYS = ("custom/overlay", "custom/overlay-experimental-uefi-settings")
 PACKAGE_ROOTS = ("src/edk2", "src/edk2-platforms", "src/edk2-non-osi", "src/edk2-platforms/Silicon/Intel")
+SMBIOS_OVERLAY = "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/SmbiosMiscLib/SmbiosMiscLib.c"
+SMBIOS_HEADER = "src/edk2/MdePkg/Include/IndustryStandard/SmBios.h"
+CONFIG_MANAGER = "src/edk2-platforms/Platform/CIX/Sky1/Drivers/ConfigurationManagerDxe/ConfigurationManager.c"
+ACPI_NAMESPACE = "src/edk2-platforms/Platform/CIX/Sky1/Include/Library/AcpiNameSpaceObjects.h"
+COMMON_NAMESPACE = "src/edk2/DynamicTablesPkg/Include/ArchCommonNameSpaceObjects.h"
 # Regression contracts for focused fixes missed by vendor-line checkpoints.
 # The audit in docs/src/source-checkpoint-maintenance.md records applicability.
 BUILD_FIXES = (
@@ -38,6 +43,14 @@ def missing_toolchain(makefile: bytes, tools_definition: bytes) -> list[str]:
             if not re.search(rb"(?m)^DEFINE\s+" + re.escape(tag) + rb"_AARCH64_CC_FLAGS\s*=", tools_definition)]
 
 
+def missing_smbios_cache_types(overlay: bytes, header: bytes) -> list[str]:
+    """The Type 7 cache fields changed from integers to structs in 202511."""
+    required = set(re.findall(rb"\bSMBIOS_CACHE_SIZE(?:_2)?\b", overlay))
+    declared = set(re.findall(rb"}\s*(SMBIOS_CACHE_SIZE(?:_2)?)\s*;", header))
+    return [f"SmbiosMiscLib uses {name.decode()} absent from this EDK2 SmBios.h"
+            for name in sorted(required - declared)]
+
+
 def missing_package_declarations(paths: set[str], infs: dict[str, str]) -> list[str]:
     roots = PACKAGE_ROOTS + tuple(f"{overlay}/{component}" for overlay in OVERLAYS
                                   for component in ("edk2", "edk2-platforms"))
@@ -51,6 +64,27 @@ def missing_package_declarations(paths: set[str], infs: dict[str, str]) -> list[
             elif in_packages and re.fullmatch(r"[\w/.-]+\.dec", line):
                 if not any(f"{root}/{line}" in paths for root in roots):
                     problems.append(f"{path}:{number}: missing package declaration: {line}")
+    return problems
+
+
+def missing_lto_library(paths: set[str], makefile: bytes) -> list[str]:
+    """EDK2 moved its AArch64 LTO archive out of ArmPkg in 202408."""
+    problems = []
+    for directory in ("ArmPkg/Library/GccLto", "BaseTools/Bin/GccLto"):
+        if directory.encode() not in makefile:
+            continue
+        if f"src/edk2/{directory}/liblto-aarch64.a" not in paths:
+            problems.append(f"AArch64 LTO linker path {directory} has no support archive")
+    return problems
+
+
+def missing_configuration_manager_types(source: bytes, common: bytes, cix: bytes) -> list[str]:
+    problems = []
+    for name, header in ((b"CM_ARCH_COMMON_CPC_INFO", common), (b"CIX_AML_PSD_INFO", cix)):
+        if name in source and name not in header:
+            problems.append(f"ConfigurationManager uses {name.decode()} absent from its namespace headers")
+    if b"CIX_AML_PSD_INFO" in cix and re.search(rb"\bAML_PSD_INFO\b", source):
+        problems.append("ConfigurationManager uses upstream AML_PSD_INFO for the vendor PSD initializer")
     return problems
 
 
@@ -138,6 +172,17 @@ def source_input_problems(repo: Path, ref: str) -> list[str]:
     if all(path in entries for path in tool_paths):
         tool_blobs = git_blob_bytes_batch(repo, (entries[path].object_id for path in tool_paths))
         problems.extend(missing_toolchain(*(tool_blobs[entries[path].object_id] for path in tool_paths)))
+        problems.extend(missing_lto_library(paths, tool_blobs[entries["src/Makefile"].object_id]))
+    if all(path in entries for path in (SMBIOS_OVERLAY, SMBIOS_HEADER)):
+        smbios_blobs = git_blob_bytes_batch(repo, (entries[path].object_id for path in (SMBIOS_OVERLAY, SMBIOS_HEADER)))
+        problems.extend(missing_smbios_cache_types(*(smbios_blobs[entries[path].object_id]
+                                                   for path in (SMBIOS_OVERLAY, SMBIOS_HEADER))))
+    if CONFIG_MANAGER in entries:
+        cm_paths = (CONFIG_MANAGER, COMMON_NAMESPACE, ACPI_NAMESPACE)
+        cm_blobs = git_blob_bytes_batch(repo, (entries[path].object_id for path in cm_paths if path in entries))
+        problems.extend(missing_configuration_manager_types(*(
+            cm_blobs[entries[path].object_id] if path in entries else b"" for path in cm_paths
+        )))
     links = {path: entry for path, entry in entries.items() if entry.mode == "120000" and path.startswith("custom/")}
     blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in links.values()))
     resolved_links = {}

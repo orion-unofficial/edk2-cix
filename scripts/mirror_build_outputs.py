@@ -31,6 +31,7 @@ after stale rendered worktrees are cleaned.
 
 RAW_OUTPUTS = (
     "BuildOptions",
+    "bootloader1-validation.json",
     "cix_flash_all.bin",
     "cix_flash_all.raw",
     "cix_flash_ota.bin",
