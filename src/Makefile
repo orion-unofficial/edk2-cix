@@ -1421,10 +1421,10 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 		fi; \
 		tool_def_overrides+=( \
 			"  DEBUG_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
-			"  DEBUG_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/BaseTools/Bin/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
+			"  DEBUG_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
 			'  DEBUG_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1' \
 			"RELEASE_GCC5_AARCH64_CC_FLAGS    = DEF(GCC5_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
-			"RELEASE_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/BaseTools/Bin/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
+			"RELEASE_GCC5_AARCH64_DLINK_FLAGS = DEF(GCC5_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/ArmPkg/Library/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
 			'RELEASE_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1' \
 		); \
 		if [[ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" ]]; then \
