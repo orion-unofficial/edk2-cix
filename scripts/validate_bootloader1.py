@@ -18,7 +18,7 @@ import zipfile
 from pathlib import Path
 
 from bootloader1_vendor import verify_or_warn
-from reconstruction_common import ReconstructionError, main_wrapper
+from reconstruction_common import ReconstructionError, for_each_ref, main_wrapper, resolve_ref
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,7 +96,8 @@ def extract_bl1(data: bytes, label: str) -> bytes:
 
 
 def git_bytes(repo: Path, ref: str, path: str) -> bytes:
-    result = subprocess.run(["git", "-C", str(repo), "show", f"{ref}:{path}"],
+    resolved = resolve_ref(repo, ref)
+    result = subprocess.run(["git", "-C", str(repo), "show", f"{resolved}:{path}"],
                             capture_output=True, check=False)
     if result.returncode:
         raise ReconstructionError(f"cannot read committed BL1 reference {ref}:{path}")
@@ -220,10 +221,7 @@ def check_source_refs(repo: Path, catalog: dict[str, dict]) -> int:
             data = git_bytes(repo, origin["commit"], origin["path"])
             check_payload(data, origin["ref"], catalog, {digest})
             checked += 1
-    refs = subprocess.check_output(
-        ["git", "-C", str(repo), "for-each-ref", "--format=%(refname)", "refs/heads/source/unofficial/"],
-        text=True,
-    ).splitlines()
+    refs = for_each_ref(repo, "source/unofficial/")
     if not refs:
         raise ReconstructionError("no Unofficial source refs available for BL1 audit")
     for ref in refs:

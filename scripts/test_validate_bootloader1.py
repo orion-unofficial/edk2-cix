@@ -112,6 +112,34 @@ class PayloadTests(unittest.TestCase):
             self.assertFalse((root / "a").exists())
 
 
+class SourceRefTests(unittest.TestCase):
+    def test_vendor_reads_and_source_audit_accept_remote_tracking_refs(self):
+        # A regular clone has origin/source/**, without local source branches.
+        with tempfile.TemporaryDirectory(prefix="bl1-remote-refs-") as tmp:
+            repo = Path(tmp)
+            git(repo, "init", "-q", "-b", "build")
+            payload = b"unchanged fixture vendor BL1"
+            for path in (bl1.STOCK, bl1.CIX):
+                destination = repo / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(payload)
+            git(repo, "add", "src")
+            git(repo, "-c", "user.name=BL1 regression", "-c", "user.email=bl1@example.invalid",
+                "-c", "commit.gpgsign=false", "commit", "-qm", "fixture vendor payloads")
+            commit = git(repo, "rev-parse", "HEAD").stdout.decode().strip()
+            vendor = "source/vendor/cix/fixture"
+            for ref in (vendor, "source/unofficial/fixture"):
+                git(repo, "update-ref", f"refs/remotes/origin/{ref}", commit)
+            self.assertEqual(git(repo, "for-each-ref", "refs/heads/source/").stdout, b"")
+            catalog = catalogue(payload)
+            catalog[hashlib.sha256(payload).hexdigest()]["provenance"] = [
+                {"commit": commit, "ref": vendor, "path": bl1.STOCK},
+            ]
+            self.assertEqual(bl1.git_bytes(repo, vendor, bl1.STOCK), payload)
+            # One pinned vendor reference and both inputs on the Unofficial ref.
+            self.assertEqual(bl1.check_source_refs(repo, catalog), 3)
+
+
 class BuildBoundaryTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="bl1-build-boundary-")
