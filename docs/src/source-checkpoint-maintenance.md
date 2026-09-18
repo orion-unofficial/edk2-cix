@@ -1,5 +1,49 @@
 # Source checkpoint maintenance audit
 
+## September 2026 full-matrix follow-up
+
+The first complete 144-job matrix exposed a compatibility regression in all
+eight configurations of each EDK2 release from 202211 through 202508. Their
+SMBIOS overlay used the cache-field structs introduced in 202511, while their
+headers still declared integer fields. Correct the overlay on those thirteen
+compatibility refs; keep the existing cache-size calculations and granularity
+bits. The 202208 implementation and the 202511-and-newer implementations already
+match their respective headers.
+
+Compiling the repaired 202211 source revealed two further adaptations that had
+been applied before their upstream interfaces existed. Through 202405, the
+linker needs `ArmPkg/Library/GccLto`, and ConfigurationManager needs the Arm CPC
+namespace. Restore those interfaces from the working 202208 implementation.
+The vendor PSD type is named `AML_PSD_INFO` before 202402 and
+`CIX_AML_PSD_INFO` from 202402; the latter avoids the similarly named upstream
+type with a different layout. From 202408 onward, retain the newer LTO location
+and common CPC namespace. These are focused descendant corrections to the
+affected refs, not a replay of unrelated modern firmware changes. They execute
+inside EDK2 and therefore cannot be supplied by the build-branch caller alone.
+
+The source-input audit now checks these header and linker-path boundaries before
+compilation. The full build matrix remains required: static dependency checks
+cannot establish that the C interfaces compile together.
+
+The upstream replay failure had a separate cause: its recorded tree hash had
+not followed a nine-line addition to `scripts/test_custom_toggle_pcds.py` in the
+overlaid build infrastructure. Regeneration changed that test file only; the
+firmware inputs were identical. A regression test now renders the manifested
+upstream replay from its actual source refs in an isolated repository with no
+generated release cache.
+
+Metadata refresh also derives custom trees after applying their release metadata
+when a cache ref is absent. It previously skipped those records unless a full
+render was requested, leaving historical expectations stale after source repairs.
+An explicitly requested full refresh now regenerates retained custom snapshots
+too. Tests cover both cases and preserve the ordinary refresh policy for an
+inactive retained snapshot.
+
+The current 1.3 line also advances its Microsoft Secure Boot source pin to
+`v1.7.0`. The updated revocation-list input changes the x64 and ia32 records;
+the generated AArch64 PK, KEK, DB, and DBX payloads remain byte-identical.
+Historical checkpoint pins are retained.
+
 ## September 2026 build failure
 
 The public `edk2-202605/radxa-1.3.1/unofficial` custom build failed because

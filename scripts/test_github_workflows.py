@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Regression checks for build-branch GitHub Actions portability."""
 
+import json
 from pathlib import Path
+import re
 import unittest
 
 
@@ -17,6 +19,18 @@ SOURCE_WORKFLOWS = (
 
 
 class GitHubWorkflowTests(unittest.TestCase):
+    def test_docs_runtime_and_modules_are_pinned_together(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/build-docs.yaml").read_text()
+        container = (REPO_ROOT / "docs/scripts/docs-workflow.Dockerfile").read_text()
+        pin = r"nixpkgs=github:NixOS/nixpkgs/([0-9a-f]{40})"
+        self.assertEqual(re.findall(pin, workflow), re.findall(pin, container))
+        self.assertEqual(len(re.findall(pin, workflow)), 1)
+        lock = json.loads((REPO_ROOT / "docs/devenv.lock").read_text())["nodes"]["devenv"]
+        version = lock["original"]["ref"]
+        self.assertRegex(version, r"^v\d+\.\d+\.\d+$")
+        self.assertIn(f"github:cachix/devenv/{version}?dir=src/modules", (REPO_ROOT / "docs/devenv.yaml").read_text())
+        self.assertIn(f"devenv.latestVersion:string {version[1:]}", (REPO_ROOT / "docs/scripts/run_docs_build.sh").read_text())
+
     def test_supported_matrix_uses_the_public_build_and_is_a_required_gate(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/supported-firmware.yaml").read_text()
         gate = (REPO_ROOT / ".github/workflows/build-branch-ci.yaml").read_text()
@@ -58,8 +72,10 @@ class GitHubWorkflowTests(unittest.TestCase):
         )
         self.assertIn("make prepare-ci-source-refs WRITE=1", source_model)
         self.assertIn("continue-on-error: true", source_model)
-        self.assertEqual(source_model.count("if: ${{ always() }}"), 4)
+        self.assertEqual(source_model.count("if: ${{ always() }}"), 5)
         self.assertIn('[[ "${PREPARE_OUTCOME}" == success ]]', source_model)
+        self.assertIn("qualify_bootloader1_signatures.py --download --allow-unavailable", source_model)
+        self.assertIn('[[ "${BL1_OUTCOME}" == success ]]', source_model)
 
     def test_reusable_firmware_workflows_do_not_reuse_caller_concurrency(self) -> None:
         for name in ("deterministic-replay.yaml", "secure-boot-audit.yaml"):
@@ -181,10 +197,7 @@ class GitHubWorkflowTests(unittest.TestCase):
         dockerfile = (REPO_ROOT / "docs" / "scripts" / "docs-workflow.Dockerfile").read_text(
             encoding="utf-8"
         )
-        self.assertIn(
-            "github:NixOS/nixpkgs/nixpkgs-unstable",
-            dockerfile,
-        )
+        self.assertRegex(dockerfile, r"github:NixOS/nixpkgs/[0-9a-f]{40}")
         self.assertNotIn("channels.nixos.org", dockerfile)
         self.assertNotIn("profile install", dockerfile)
         self.assertIn('ENV NIX_CONFIG="connect-timeout = 5"', dockerfile)
@@ -203,7 +216,7 @@ class GitHubWorkflowTests(unittest.TestCase):
         )
         self.assertIn('if [[ "$in_container" == 1 ]]', build_runner)
         self.assertIn("--option cachix.enable:bool false", build_runner)
-        self.assertIn("--option devenv.latestVersion:string 2.2.2", build_runner)
+        self.assertIn('export DOCS_CACHE_ROOT="$docs_cache_root"', build_runner)
         self.assertIn('! "$binary" --version', build_runner)
 
         installer = (REPO_ROOT / "docs" / "scripts" / "install_mdbook_toc.sh").read_text(

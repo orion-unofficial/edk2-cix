@@ -6,11 +6,36 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from check_source_build_inputs import BUILD_FIXES, missing_build_fixes, missing_module_infs, missing_package_declarations, missing_platform_inputs, missing_toolchain, source_input_problems
+from check_source_build_inputs import BUILD_FIXES, missing_build_fixes, missing_configuration_manager_types, missing_lto_library, missing_module_infs, missing_package_declarations, missing_platform_inputs, missing_smbios_cache_types, missing_toolchain, source_input_problems
 from test_support import commit_all, git, write_file
 
 
 class SourceBuildInputsTests(unittest.TestCase):
+    def test_lto_link_path_requires_the_matching_support_archive(self) -> None:
+        old = {"src/edk2/ArmPkg/Library/GccLto/liblto-aarch64.a"}
+        new = {"src/edk2/BaseTools/Bin/GccLto/liblto-aarch64.a"}
+        self.assertEqual(missing_lto_library(old, b"ArmPkg/Library/GccLto"), [])
+        self.assertEqual(missing_lto_library(new, b"BaseTools/Bin/GccLto"), [])
+        self.assertEqual(len(missing_lto_library(old, b"BaseTools/Bin/GccLto")), 1)
+        self.assertEqual(len(missing_lto_library(new, b"ArmPkg/Library/GccLto")), 1)
+
+    def test_configuration_manager_namespace_matches_its_headers(self) -> None:
+        source = b"CM_ARCH_COMMON_CPC_INFO info; CIX_AML_PSD_INFO psd;"
+        self.assertEqual(len(missing_configuration_manager_types(source, b"", b"")), 2)
+        self.assertEqual(missing_configuration_manager_types(source, source, source), [])
+        self.assertEqual(missing_configuration_manager_types(b"CM_ARM_CPC_INFO info; AML_PSD_INFO psd;", b"", b""), [])
+        self.assertEqual(len(missing_configuration_manager_types(b"AML_PSD_INFO psd;", b"", b"CIX_AML_PSD_INFO")), 1)
+
+    def test_smbios_cache_api_must_match_the_selected_edk2_header(self) -> None:
+        modern = b"SMBIOS_CACHE_SIZE a; SMBIOS_CACHE_SIZE_2 b;"
+        legacy = b"UINT16 a; UINT32 b;"
+        header = b"typedef struct { UINT16 Size:15; } SMBIOS_CACHE_SIZE;\r\n"
+        self.assertEqual(len(missing_smbios_cache_types(modern, b"")), 2)
+        self.assertEqual(len(missing_smbios_cache_types(modern, header)), 1)
+        header += b"typedef struct { UINT32 Size:31; } SMBIOS_CACHE_SIZE_2;\r\n"
+        self.assertEqual(missing_smbios_cache_types(modern, header), [])
+        self.assertEqual(missing_smbios_cache_types(legacy, b"UINT16 MaximumCacheSize;"), [])
+
     def test_inf_package_dependencies_follow_upstream_package_removal(self) -> None:
         infs = {"Driver.inf": "[Packages]\nSignedCapsulePkg/SignedCapsulePkg.dec\n[Sources]\nignored.dec\n"}
         self.assertEqual(missing_package_declarations({"src/edk2/SignedCapsulePkg/SignedCapsulePkg.dec"}, infs), [])

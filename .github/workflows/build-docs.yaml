@@ -55,7 +55,10 @@ jobs:
 
       - name: Install devenv.sh
         if: ${{ env.ACT != 'true' }}
-        run: nix profile add --accept-flake-config nixpkgs#devenv nixpkgs#cargo nixpkgs#rustc
+        run: |
+          # Pins devenv 2.3.1, matching docs/devenv.yaml and docs/devenv.lock.
+          nixpkgs=github:NixOS/nixpkgs/a32edd7654519351e48e80372a928df336394670
+          nix profile add --accept-flake-config "${nixpkgs}#devenv" "${nixpkgs}#cargo" "${nixpkgs}#rustc"
 
       - name: Build documentation
         run: |

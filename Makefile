@@ -501,6 +501,10 @@ BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT
 
 DELEGATED_BUILD_ARGS = V="$(V)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)"
 
+define check_bootloader1
+$(PYTHON) scripts/validate_bootloader1.py --worktree "$$wt" --phase "$(1)" --build-target "$(2)" --artefact-mode "$(3)" --cix-release "$(4)" --board "$(FIRMWARE_BOARD)" --firmware-target "$(FIRMWARE_TARGET)"
+endef
+
 define run_release_make
 	@set -e; \
 	printf '[build] Resolving source target for %s\n' "$(1)" >&2; \
@@ -510,6 +514,7 @@ define run_release_make
 	printf '[build] Preparing release worktree: %s\n' "$$release_label" >&2; \
 	$(BUILD_VARIABLE_ENV) $(PYTHON) scripts/validate_build_variables.py --target "$(1)"; \
 	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
+	$(call check_bootloader1,inputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
 	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
 	container_cache_root="/hosttmp"; \
@@ -525,6 +530,7 @@ define run_release_make
 		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
 		BUILD_LOG_ROOT="$$cache_root/build-logs" \
 		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"; \
+	$(call check_bootloader1,outputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
 		--repo-root "$(CURDIR)" \
 		--worktree "$$wt" \
@@ -554,6 +560,7 @@ deterministic-replay:
 	replay_version="$(REPLAY_VERSION)"; \
 	mkdir -p "$$cache_root/buildbox" "$$cache_root/replay/downloads"; \
 	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(REPLAY_SOURCE_TARGET)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
+	$(call check_bootloader1,inputs,deterministic-replay,upstream,); \
 	if [ -n "$$replay_input" ]; then \
 		replay_input="$$( $(PYTHON) -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).expanduser().resolve())' "$$replay_input" )"; \
 	elif [ "$(REPLAY_DOWNLOAD)" != "0" ]; then \
@@ -602,6 +609,7 @@ deterministic-replay:
 		REPLAY_INPUT="$$replay_input" \
 		REPLAY_BUILD_OPTIONS="$$replay_build_options" \
 		REPLAY_BUILD_DATE="$$replay_build_date"; \
+	$(call check_bootloader1,outputs,deterministic-replay,upstream,); \
 	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
 		--repo-root "$(CURDIR)" \
 		--worktree "$$wt" \
@@ -622,6 +630,7 @@ install:
 	printf '[build] Preparing release worktree: %s\n' "$$release_label" >&2; \
 	$(BUILD_VARIABLE_ENV) $(PYTHON) scripts/validate_build_variables.py --target "install"; \
 	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
+	$(call check_bootloader1,inputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
 	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
 	container_cache_root="/hosttmp"; \
@@ -637,6 +646,7 @@ install:
 		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
 		BUILD_LOG_ROOT="$$cache_root/build-logs" \
 		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"; \
+	$(call check_bootloader1,outputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
 		--repo-root "$(CURDIR)" \
 		--worktree "$$wt" \

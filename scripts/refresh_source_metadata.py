@@ -34,6 +34,7 @@ from reconstruction_common import (
     unofficial_release_branch_for_tag,
     unofficial_release_branches,
     unofficial_release_tag_for_branch,
+    unofficial_rendered_tree,
     write_json,
 )
 from render_release_branch import render_from_plan
@@ -51,7 +52,9 @@ Optional variables:
   RENDER_GENERATED=0|1
       Re-render generated source/cache/release entries whose tree cannot be
       derived directly from a retained source ref. This is slower, but is the
-      deterministic full-cache mode needed after history rewrites.
+      deterministic full-cache mode needed after history rewrites. This also
+      overrides retained inactive custom snapshots. Custom targets without a
+      retained cache ref are derived with their release metadata in either mode.
   UPDATE_RELEASE_TAGS=0|1
       Check or update refs/tags/source/unofficial/edk2/stable-* so they match
       the corresponding source/unofficial/edk2-stable* branch heads.
@@ -205,8 +208,13 @@ def computed_source_target_tree(
         and isinstance(source_ref, str)
         and UNOFFICIAL_LINE_CURRENT_RE.match(source_ref) is not None
     )
-    if stage == "custom" and ref_exists(repo, ref) and not active_custom:
+    if stage == "custom" and ref_exists(repo, ref) and not active_custom and not render_generated:
         return tree_id(repo, ref), "persisted-cache-ref"
+    if stage == "custom" and isinstance(source_ref, str) and ref_exists(repo, source_ref):
+        steps = entry.get("render", {}).get("steps", [])
+        if len(steps) == 1 and "release_metadata" in steps[0]:
+            metadata = steps[0]["release_metadata"]
+            return unofficial_rendered_tree(repo, source_ref, metadata["ref"], metadata["release"]), "source-with-metadata"
     if stage in {"custom", "upstream"} and entry_can_use_source_ref_directly(entry):
         direct = source_ref_tree(repo, entry)
         if direct:

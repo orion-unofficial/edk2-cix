@@ -4,7 +4,8 @@ FROM nixos/nix:2.35.2
 ENV NIX_CONFIG="connect-timeout = 5" \
     RES_OPTIONS="no-aaaa"
 
-RUN nixpkgs=github:NixOS/nixpkgs/nixpkgs-unstable && \
+# Pins devenv 2.3.1, matching docs/devenv.yaml and docs/devenv.lock.
+RUN nixpkgs=github:NixOS/nixpkgs/a32edd7654519351e48e80372a928df336394670 && \
     nix --connect-timeout 60 \
     --extra-experimental-features 'nix-command flakes' \
     profile add --impure --accept-flake-config \

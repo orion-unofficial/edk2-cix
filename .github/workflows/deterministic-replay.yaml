@@ -150,6 +150,8 @@ jobs:
         run: |
           set -euo pipefail
           replay_key="${{ matrix.board }}-${{ needs.resolve-release.outputs.tag }}"
+          python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
+            --phase inputs --board "${{ matrix.board }}" --artefact-mode upstream
           make -C "${FIRMWARE_WORKTREE}" deterministic-replay V=1 \
             FIRMWARE_BOARD="${{ matrix.board }}" \
             FIRMWARE_DISTRO=bookworm \
@@ -163,6 +165,8 @@ jobs:
             DETERMINISTIC_REPLAY_MOUNT_ROOT="${FIRMWARE_CACHE}/buildbox" \
             REPLAY_VERSION="${{ needs.resolve-release.outputs.tag }}" \
             REPLAY_INPUT="${{ steps.download.outputs.deb_path }}"
+          python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
+            --phase outputs --board "${{ matrix.board }}" --artefact-mode upstream
 
       - name: Collect replay reports
         if: always()

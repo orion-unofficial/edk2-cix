@@ -244,6 +244,11 @@ def test_refresh_preserves_inactive_retained_custom_target() -> None:
             == git(repo, "rev-parse", f"{retained}^{{tree}}").stdout.strip(),
             "metadata refresh rebound an inactive retained custom target",
         )
+        refreshed = run_refresh(repo, WRITE="1", RENDER_GENERATED="1")
+        require(refreshed.returncode == 0, refreshed.stderr + refreshed.stdout)
+        cache = load_json(repo / "config/refs-source-target-cache.json")
+        require(cache["refs"][0]["tree_id"] == git(repo, "rev-parse", "source/unofficial/edk2-stable202208^{tree}").stdout.strip(),
+                "explicit full refresh trusted the stale custom cache")
     finally:
         shutil.rmtree(repo)
 
@@ -288,11 +293,40 @@ def test_refresh_repairs_hashes_cache_trees_and_tags() -> None:
         shutil.rmtree(repo)
 
 
+def test_custom_refresh_applies_release_metadata_without_cached_ref() -> None:
+    repo = make_repo()
+    try:
+        source = "source/unofficial/edk2-stable202208"
+        vendor = "source/vendor/radxa/1.2.1/edk2-stable202208"
+        git(repo, "switch", source)
+        write_file(repo, "VERSION", "1.2.0\n")
+        write_file(repo, "debian/changelog", "old metadata\n")
+        commit_all(repo, "source with old release metadata")
+        git(repo, "switch", vendor)
+        write_file(repo, "debian/changelog", "edk2-cix (1.2.1) main; urgency=medium\n")
+        commit_all(repo, "vendor release metadata")
+        git(repo, "switch", "build")
+        refreshed = run_refresh(repo, WRITE="1")
+        require(refreshed.returncode == 0, refreshed.stderr + refreshed.stdout)
+        cache = load_json(repo / "config/refs-source-target-cache.json")
+        expected = cache["refs"][0]["tree_id"]
+        require(expected != ZERO, "custom target was skipped because it had no cached ref")
+        require(expected != git(repo, "rev-parse", source + "^{tree}").stdout.strip(),
+                "custom refresh ignored the release metadata transformation")
+        rendered = run(["python3", "scripts/render_release_branch.py", "--release",
+                        "source/cache/release/custom/edk2-202208/radxa-1.2.1/unofficial",
+                        "--rebuild", "1"], repo, check=False)
+        require(rendered.returncode == 0, rendered.stderr + rendered.stdout)
+    finally:
+        shutil.rmtree(repo)
+
+
 def main() -> None:
     test_dry_run_does_not_modify_metadata_or_tags()
     test_full_render_does_not_trust_existing_generated_cache_ref()
     test_refresh_preserves_inactive_retained_custom_target()
     test_refresh_repairs_hashes_cache_trees_and_tags()
+    test_custom_refresh_applies_release_metadata_without_cached_ref()
     print("refresh_source_metadata tests passed")
 
 

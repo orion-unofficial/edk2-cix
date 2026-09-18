@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 from pathlib import Path
 import shutil
 import subprocess
+import struct
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -42,11 +44,30 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
         write_file(self.repo, "debian/changelog", "edk2-cix (1.2.1) main; urgency=medium\n")
         write_file(self.repo, "debian/control", "preserve packaging\n")
         write_file(self.repo, "src/payload", "preserve firmware\n")
+        # Approved bytes and a bounded flash table let the real BL1 gate run
+        # even though this fixture substitutes compilation and vendor signing.
+        bl1 = b"fixture vendor BL1"
+        for path in ("src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img",
+                     "src/cix-v1.2/release-payloads/bootloader1-2026q1.img"):
+            target = self.repo / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(bl1)
+        flash = bytearray(0x188000 + len(bl1))
+        struct.pack_into("<4I", flash, 0x100000, 0x55AA55AA, 1, 1, 0)
+        struct.pack_into("<4I", flash, 0x100010, 1, 0x188000, len(bl1), 0)
+        flash[0x188000:] = bl1
+        (self.repo / "fixture-flash.bin").write_bytes(flash)
+        write_file(self.repo, "config/bootloader1-payloads.json", json.dumps({
+            "schema_version": 1, "vendor_tool": {"sha256": "0" * 64},
+            "payloads": [{"sha256": hashlib.sha256(bl1).hexdigest(), "size": len(bl1),
+                          "vendor_signature_qualified": True, "provenance": [{"ref": "fixture"}]}],
+        }))
         # Stop at the firmware-build boundary: exercise the real top-level
         # Makefile, renderer, worktree preparation and output mirroring.
         write_file(self.repo, "Makefile", (
             "buildbox-firmware-build deterministic-replay:\n"
             "\t@mkdir -p src/Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)_GCC\n"
+            "\t@cp fixture-flash.bin src/Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)_GCC/cix_flash_all.bin\n"
             "\t@printf '%s\\n' 'ARTEFACT_MODE=$(ARTEFACT_MODE)' 'ENABLE_FIRMWARE_FIXES=$(ENABLE_FIRMWARE_FIXES)' 'CIX_RELEASE=$(CIX_RELEASE)' > src/Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)_GCC/BuildOptions\n"
         ))
         write_file(self.repo, "src/Makefile", "# -vw 6084 -vw 6161 -vw 6033 -vw 6049 -vw 6050\n")
@@ -66,7 +87,10 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
         write_file(self.repo, "config/refs-source-target-cache.json", '{"refs": []}\n')
         clear_metadata_caches()
         self.addCleanup(clear_metadata_caches)
-        self.environment = patch.dict(os.environ, {"EDK2_CIX_TMP_ROOT": str(Path(self.temp.name) / "tmp")})
+        self.environment = patch.dict(os.environ, {
+            "EDK2_CIX_TMP_ROOT": str(Path(self.temp.name) / "tmp"),
+            "EDK2_CIX_BL1_TOOL": str(Path(self.temp.name) / "unavailable-tool"),
+        })
         self.environment.start()
         self.addCleanup(self.environment.stop)
 
@@ -230,6 +254,31 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
 
 
 class SupportedReleaseTreeTests(unittest.TestCase):
+    def test_manifested_upstream_replay_renders_from_current_overlay_inputs(self) -> None:
+        """A retained tree hash must also work when a fresh clone has no cache."""
+        entries = release_entries(ROOT)
+        upstream = {ref: entry for ref, entry in entries.items()
+                    if ref.startswith("source/cache/release/upstream/") and entry.get("tree_id")}
+        self.assertTrue(upstream)
+        with tempfile.TemporaryDirectory(prefix="edk2-cix-upstream-tree.") as tmp:
+            repo = Path(tmp)
+            git(repo, "init", "-b", "test")
+            objects = git(ROOT, "rev-parse", "--path-format=absolute", "--git-path", "objects").stdout.strip()
+            write_file(repo, ".git/objects/info/alternates", objects + "\n")
+            shutil.copytree(ROOT / "config", repo / "config")
+            rendered = {}
+            for ref, entry in upstream.items():
+                with self.subTest(target=ref):
+                    plan = entry["render"]
+                    key = json.dumps(plan, sort_keys=True)
+                    if key not in rendered:
+                        inputs = [plan["base"]["ref"]]
+                        inputs.extend(step["overlay_paths"]["ref"] for step in plan["steps"] if "overlay_paths" in step)
+                        for source in inputs:
+                            git(repo, "update-ref", f"refs/heads/{source}", git(ROOT, "rev-parse", source).stdout.strip())
+                        rendered[key] = tree_id(repo, render_from_plan(repo, ref, entry, verbose=False))
+                    self.assertEqual(rendered[key], entry["tree_id"])
+
     def test_all_supported_custom_expectations_match_git_index_rendering(self) -> None:
         """Check real manifests, including targets with no retained cache ref.
 

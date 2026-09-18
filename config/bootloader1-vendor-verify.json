@@ -1,0 +1,138 @@
+{
+  "magic": "CIXBTFF!",
+  "cbff_version": 257,
+  "keys_number": 2,
+  "key_groups": [
+    {
+      "key_id": 1,
+      "key_file": "bootloader1-keys/key-1.pem"
+    },
+    {
+      "key_id": 2,
+      "key_file": "bootloader1-keys/key-2.pem"
+    }
+  ],
+  "qspi_number": 9,
+  "qspi_configs": [
+    {
+      "jedec_id": "0xef6018",
+      "qspi_bus_clk": 0,
+      "read_cmd": 0,
+      "qspi_numdc": 0,
+      "qspi_rxdly": 0,
+      "read_cmd_opt": 0,
+      "qspi_numdc_opt": 0
+    },
+    {
+      "jedec_id": "0xc86017",
+      "qspi_bus_clk": 0,
+      "read_cmd": 0,
+      "qspi_numdc": 0,
+      "qspi_rxdly": 0,
+      "read_cmd_opt": 0,
+      "qspi_numdc_opt": 0
+    },
+    {
+      "jedec_id": "0xef6019",
+      "qspi_bus_clk": 0,
+      "read_cmd": 0,
+      "qspi_numdc": 0,
+      "qspi_rxdly": 0,
+      "read_cmd_opt": 0,
+      "qspi_numdc_opt": 0
+    },
+    {
+      "jedec_id": "0xef6017",
+      "qspi_bus_clk": 0,
+      "read_cmd": 2,
+      "qspi_numdc": 8,
+      "qspi_rxdly": 0,
+      "read_cmd_opt": 0,
+      "qspi_numdc_opt": 0
+    },
+    {
+      "jedec_id": "0xef8a17",
+      "qspi_bus_clk": 0,
+      "read_cmd": 0,
+      "qspi_numdc": 0,
+      "qspi_rxdly": 0,
+      "read_cmd_opt": 0,
+      "qspi_numdc_opt": 0
+    },
+    {
+      "jedec_id": "0xc84017",
+      "qspi_bus_clk": 0,
+      "read_cmd": 0,
+      "qspi_numdc": 0,
+      "qspi_rxdly": 0,
+      "read_cmd_opt": 0,
+      "qspi_numdc_opt": 0
+    },
+    {
+      "jedec_id": "0xef8a18",
+      "qspi_bus_clk": 0,
+      "read_cmd": 0,
+      "qspi_numdc": 0,
+      "qspi_rxdly": 0,
+      "read_cmd_opt": 0,
+      "qspi_numdc_opt": 0
+    },
+    {
+      "jedec_id": "0xef6020",
+      "qspi_bus_clk": 0,
+      "read_cmd": 0,
+      "qspi_numdc": 0,
+      "qspi_rxdly": 0,
+      "read_cmd_opt": 0,
+      "qspi_numdc_opt": 0
+    },
+    {
+      "jedec_id": "0xc86018",
+      "qspi_bus_clk": 0,
+      "read_cmd": 0,
+      "qspi_numdc": 0,
+      "qspi_rxdly": 0,
+      "read_cmd_opt": 0,
+      "qspi_numdc_opt": 0
+    }
+  ],
+  "hash_type": "sha256",
+  "hash_count": 4,
+  "sign_type": "RSA3072_PSS_SHA256",
+  "sign_header_private_file": "rsa3072_product_keys/cix_user_privatekey.pem",
+  "sign_image_private_file": "rsa3072_product_keys/cix_privatekey.pem",
+  "image_count": 4,
+  "image_header_groups": [
+    {
+      "image_id": 1,
+      "image_major_ver": 1,
+      "image_minor_ver": 0,
+      "run_address": "0x20000000",
+      "file": "images/se_fw.bin"
+    },
+    {
+      "image_id": 2,
+      "image_major_ver": 1,
+      "image_minor_ver": 0,
+      "run_address": "0x06a90000",
+      "file": "images/pm_fw.bin"
+    },
+    {
+      "image_id": 3,
+      "image_major_ver": 1,
+      "image_minor_ver": 0,
+      "run_address": "0x00000000",
+      "file": "images/pbl_fw.bin"
+    },
+    {
+      "image_id": 4,
+      "image_major_ver": 1,
+      "image_minor_ver": 0,
+      "run_address": "0x00000000",
+      "file": "images/efuse_fw.bin"
+    }
+  ],
+  "key_sln": 2,
+  "root_key": 71,
+  "signature": ""
+}
