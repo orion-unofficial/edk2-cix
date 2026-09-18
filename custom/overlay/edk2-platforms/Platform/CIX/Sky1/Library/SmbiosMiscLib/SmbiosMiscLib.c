@@ -60,45 +60,41 @@ typedef enum {
 STATIC
 UINT64
 DecodeSmbiosCacheSizeKiB (
-  IN SMBIOS_CACHE_SIZE    CacheSize16,
-  IN SMBIOS_CACHE_SIZE_2  CacheSize32
+  IN UINT16  CacheSize16,
+  IN UINT32  CacheSize32
   )
 {
-  if (CacheSize32.Size != 0) {
-    return CacheSize32.Granularity64K ? ((UINT64)CacheSize32.Size * 64) : (UINT64)CacheSize32.Size;
+  // Before EDK2 202511, SMBIOS Type 7 uses integers with a granularity bit.
+  if ((CacheSize32 & 0x7FFFFFFFU) != 0) {
+    return (UINT64)(CacheSize32 & 0x7FFFFFFFU) * ((CacheSize32 & BIT31) ? 64 : 1);
   }
 
-  return CacheSize16.Granularity64K ? ((UINT64)CacheSize16.Size * 64) : (UINT64)CacheSize16.Size;
+  return (UINT64)(CacheSize16 & 0x7FFFU) * ((CacheSize16 & BIT15) ? 64 : 1);
 }
 
 STATIC
 VOID
 EncodeSmbiosCacheSizeKiB (
-  IN  UINT64               CacheSizeKiB,
-  OUT SMBIOS_CACHE_SIZE    *CacheSize16,
-  OUT SMBIOS_CACHE_SIZE_2  *CacheSize32
+  IN  UINT64  CacheSizeKiB,
+  OUT UINT16  *CacheSize16,
+  OUT UINT32  *CacheSize32
   )
 {
   ASSERT (CacheSize16 != NULL);
   ASSERT (CacheSize32 != NULL);
 
-  if (CacheSizeKiB > SMBIOS_CACHE_SIZE_MAX_SIZE_64K_GRANULARITY) {
-    CacheSize16->Size           = 0x7FFF;
-    CacheSize16->Granularity64K = 1;
-  } else if (CacheSizeKiB > SMBIOS_CACHE_SIZE_MAX_SIZE_1K_GRANULARITY) {
-    CacheSize16->Size           = (UINT16)(CacheSizeKiB / 64);
-    CacheSize16->Granularity64K = 1;
+  if (CacheSizeKiB > (0x7FFFULL * 64)) {
+    *CacheSize16 = MAX_UINT16;
+  } else if (CacheSizeKiB > 0x7FFFU) {
+    *CacheSize16 = (UINT16)(CacheSizeKiB / 64) | BIT15;
   } else {
-    CacheSize16->Size           = (UINT16)CacheSizeKiB;
-    CacheSize16->Granularity64K = 0;
+    *CacheSize16 = (UINT16)CacheSizeKiB;
   }
 
   if (CacheSizeKiB > 0x7FFFFFFFULL) {
-    CacheSize32->Size           = (UINT32)(CacheSizeKiB / 64);
-    CacheSize32->Granularity64K = 1;
+    *CacheSize32 = (UINT32)(CacheSizeKiB / 64) | BIT31;
   } else {
-    CacheSize32->Size           = (UINT32)CacheSizeKiB;
-    CacheSize32->Granularity64K = 0;
+    *CacheSize32 = (UINT32)CacheSizeKiB;
   }
 }
 
@@ -289,10 +285,10 @@ OemGetCacheInformation (
   EFI_STATUS         Status;
   UINT64             CacheSize;
   UINT64             MaximumCacheSize;
-  SMBIOS_CACHE_SIZE  CacheSize16;
-  SMBIOS_CACHE_SIZE  MaximumCacheSize16;
-  SMBIOS_CACHE_SIZE_2  CacheSize32;
-  SMBIOS_CACHE_SIZE_2  MaximumCacheSize32;
+  UINT16             CacheSize16;
+  UINT16             MaximumCacheSize16;
+  UINT32             CacheSize32;
+  UINT32             MaximumCacheSize32;
 
   if (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
     UINT8  LittleCoreCount;
