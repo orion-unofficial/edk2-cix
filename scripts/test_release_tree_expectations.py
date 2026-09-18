@@ -20,6 +20,7 @@ from reconstruction_common import (
     matrix_release_branches,
     release_entries,
     release_entry,
+    rev_parse,
     synthesise_release_entry,
     tree_id,
 )
@@ -275,7 +276,7 @@ class SupportedReleaseTreeTests(unittest.TestCase):
                         inputs = [plan["base"]["ref"]]
                         inputs.extend(step["overlay_paths"]["ref"] for step in plan["steps"] if "overlay_paths" in step)
                         for source in inputs:
-                            git(repo, "update-ref", f"refs/heads/{source}", git(ROOT, "rev-parse", source).stdout.strip())
+                            git(repo, "update-ref", f"refs/heads/{source}", rev_parse(ROOT, source))
                         rendered[key] = tree_id(repo, render_from_plan(repo, ref, entry, verbose=False))
                     self.assertEqual(rendered[key], entry["tree_id"])
 
