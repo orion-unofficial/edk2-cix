@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import hashlib
 import io
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 import json
 import os
 import shlex
+import shutil
 import struct
 import subprocess
 import sys
@@ -145,6 +146,7 @@ class BuildBoundaryTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(prefix="bl1-build-boundary-")
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
+        self.report = self.root / "reports/bootloader1-validation.json"
         self.worktree = self.root / "rendered"
         self.worktree.mkdir()
         self.stock = bl1.git_bytes(bl1.ROOT, "source/vendor/radxa/1.3.1/edk2-stable202208", bl1.STOCK)
@@ -173,6 +175,8 @@ class BuildBoundaryTests(unittest.TestCase):
     def test_public_make_build_gates_inputs_and_outputs_before_mirroring(self):
         # Substitute only rendering and compilation. The public Makefile,
         # argument validation, BL1 checks, and mirroring all execute for real.
+        cached_report = bl1.bootloader1_report_path(bl1.ROOT, self.worktree, "O6", "RELEASE")
+        self.addCleanup(shutil.rmtree, cached_report.parent, True)
         proxy = self.root / "python-proxy.py"
         proxy.write_text(
             "import os,sys\n"
@@ -218,7 +222,7 @@ class BuildBoundaryTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue(marker.exists())
         self.assertEqual(published.read_bytes(), published_bytes)
-        self.assertFalse((self.worktree / "src/Build/O6/RELEASE_GCC/bootloader1-validation.json").exists())
+        self.assertFalse(cached_report.exists())
 
     def test_distribution_checks_each_variant_against_this_source_tree(self):
         catalog = bl1.load_catalog()
@@ -231,28 +235,49 @@ class BuildBoundaryTests(unittest.TestCase):
         cix = (self.worktree / bl1.CIX).read_bytes()
         distribution.write_bytes(flash(cix))
         with patch.object(bl1, "verify_or_warn", return_value={"status": "verified"}) as verify:
-            records = bl1.check_outputs(self.worktree, "O6", "RELEASE", "buildbox-zip", catalog, expected)
+            records = bl1.check_outputs(self.worktree, "O6", "RELEASE", "buildbox-zip", catalog, expected,
+                                        report_path=self.report)
             self.assertEqual(len(records), 2)
             self.assertEqual(set(verify.call_args.args[0]), {hashlib.sha256(data).hexdigest() for data in (self.stock, cix)})
             distribution.write_bytes(flash(cix + b"\0"))
             verify.reset_mock()
             with self.assertRaises(ReconstructionError):
-                bl1.check_outputs(self.worktree, "O6", "RELEASE", "buildbox-zip", catalog, expected)
+                bl1.check_outputs(self.worktree, "O6", "RELEASE", "buildbox-zip", catalog, expected,
+                                  report_path=self.report)
             verify.assert_not_called()
-            self.assertFalse((output / "bootloader1-validation.json").exists())
+            self.assertFalse(self.report.exists())
+
+    def test_explicit_cli_report_is_written_and_invalidated_on_input_failure(self):
+        output = self.worktree / "src/Build/O6/RELEASE_GCC"
+        output.mkdir(parents=True)
+        (output / "cix_flash_all.bin").write_bytes(flash(self.stock))
+        command = ["validate_bootloader1.py", "--worktree", str(self.worktree),
+                   "--phase", "outputs", "--report", str(self.report)]
+        with patch.object(sys, "argv", command), redirect_stdout(io.StringIO()), \
+                patch.object(bl1, "verify_or_warn", return_value={"status": "verified"}):
+            bl1.main()
+        self.assertEqual(json.loads(self.report.read_text())["acceptance_basis"],
+                         "approved-vendor-hash-and-signature")
+        (self.worktree / bl1.STOCK).write_bytes(self.stock + b"\0")
+        command[command.index("outputs")] = "inputs"
+        with patch.object(sys, "argv", command):
+            with self.assertRaisesRegex(ReconstructionError, "committed vendor"):
+                bl1.main()
+        self.assertFalse(self.report.exists())
 
     def test_unavailable_verifier_accepts_only_unchanged_vendor_bl1_including_cix_2026q1(self):
         catalog = bl1.load_catalog()
         output = self.worktree / "src/Build/O6/RELEASE_GCC"
         output.mkdir(parents=True)
         image = output / "cix_flash_all.bin"
-        report = output / "bootloader1-validation.json"
+        report = self.report
         for cix_release, data in (("", self.stock), ("1.2", (self.worktree / bl1.CIX).read_bytes())):
             expected = bl1.source_payloads(self.worktree, catalog, "custom", cix_release, "buildbox-firmware-build")
             image.write_bytes(flash(data))
             with patch.dict(os.environ, {"EDK2_CIX_BL1_TOOL": str(self.root / "missing-tool")}), \
                     io.StringIO() as warning, redirect_stderr(warning):
-                bl1.check_outputs(self.worktree, "O6", "RELEASE", "buildbox-firmware-build", catalog, expected)
+                bl1.check_outputs(self.worktree, "O6", "RELEASE", "buildbox-firmware-build", catalog, expected,
+                                  report_path=report)
                 self.assertIn("WARNING", warning.getvalue())
             result = json.loads(report.read_text())
             self.assertEqual(result["acceptance_basis"], "approved-vendor-hash-fallback")
@@ -262,7 +287,8 @@ class BuildBoundaryTests(unittest.TestCase):
                 image.write_bytes(flash(changed))
                 with patch.object(bl1, "verify_or_warn") as verifier:
                     with self.assertRaisesRegex(ReconstructionError, "not an unchanged qualified vendor"):
-                        bl1.check_outputs(self.worktree, "O6", "RELEASE", "buildbox-firmware-build", catalog, expected)
+                        bl1.check_outputs(self.worktree, "O6", "RELEASE", "buildbox-firmware-build", catalog, expected,
+                                          report_path=report)
                     verifier.assert_not_called()
                 self.assertFalse(report.exists())
 

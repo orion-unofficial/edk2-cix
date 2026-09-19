@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -69,6 +70,13 @@ def repo_root(start: Path | str | None = None) -> Path:
         base = base.parent
     result = run(["git", "-C", str(base), "rev-parse", "--show-toplevel"])
     return Path(result.stdout.strip())
+
+
+def bootloader1_report_path(repo: Path, worktree: Path, board: str, firmware_target: str) -> Path:
+    """Keep host-written evidence outside container-owned firmware outputs."""
+    identity = "\0".join((str(worktree.resolve()), board, firmware_target.upper()))
+    key = hashlib.sha256(identity.encode()).hexdigest()
+    return repo / ".cache/edk2-cix/bootloader1-validation" / key / "bootloader1-validation.json"
 
 
 def load_json(repo: Path, relative: str) -> dict[str, Any]:

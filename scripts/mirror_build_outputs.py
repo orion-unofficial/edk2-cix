@@ -10,7 +10,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, main_wrapper, truthy
+from reconstruction_common import ReconstructionError, bootloader1_report_path, main_wrapper, truthy
 
 
 HELP = """mirror-build-outputs
@@ -31,7 +31,6 @@ after stale rendered worktrees are cleaned.
 
 RAW_OUTPUTS = (
     "BuildOptions",
-    "bootloader1-validation.json",
     "cix_flash_all.bin",
     "cix_flash_all.raw",
     "cix_flash_ota.bin",
@@ -166,6 +165,7 @@ def mirror_raw_outputs(
     artefact_mode: str,
     board: str,
     firmware_target: str,
+    validation_report: Path | None = None,
 ) -> list[Path]:
     copied: list[Path] = []
     resolved = find_firmware_build_root(worktree, board, firmware_target)
@@ -188,6 +188,10 @@ def mirror_raw_outputs(
         destination = destination_root / relative_name
         ensure_inside(destination, dist_root)
         copy_file(source, destination)
+        copied.append(destination)
+    if validation_report is not None and validation_report.is_file():
+        destination = destination_root / "bootloader1-validation.json"
+        copy_file(validation_report, destination)
         copied.append(destination)
     return copied
 
@@ -217,6 +221,7 @@ def main() -> None:
             args.artefact_mode,
             args.board,
             args.firmware_target,
+            validation_report=bootloader1_report_path(repo_root, worktree, args.board, args.firmware_target),
         )
     )
 

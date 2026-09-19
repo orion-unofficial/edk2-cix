@@ -151,7 +151,8 @@ jobs:
           set -euo pipefail
           replay_key="${{ matrix.board }}-${{ needs.resolve-release.outputs.tag }}"
           python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
-            --phase inputs --board "${{ matrix.board }}" --artefact-mode upstream
+            --phase inputs --board "${{ matrix.board }}" --artefact-mode upstream \
+            --report .cache/edk2-cix/qualification/bootloader1-validation.json
           make -C "${FIRMWARE_WORKTREE}" deterministic-replay V=1 \
             FIRMWARE_BOARD="${{ matrix.board }}" \
             FIRMWARE_DISTRO=bookworm \
@@ -166,7 +167,8 @@ jobs:
             REPLAY_VERSION="${{ needs.resolve-release.outputs.tag }}" \
             REPLAY_INPUT="${{ steps.download.outputs.deb_path }}"
           python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
-            --phase outputs --board "${{ matrix.board }}" --artefact-mode upstream
+            --phase outputs --board "${{ matrix.board }}" --artefact-mode upstream \
+            --report .cache/edk2-cix/qualification/bootloader1-validation.json
 
       - name: Collect replay reports
         if: always()
@@ -181,6 +183,9 @@ jobs:
           artifact_root="${RUNNER_TEMP}/ci-artifacts/${{ matrix.board }}"
           report_root="${FIRMWARE_WORKTREE}/build-validation"
           mkdir -p "${artifact_root}"
+          if [[ -f .cache/edk2-cix/qualification/bootloader1-validation.json ]]; then
+            cp .cache/edk2-cix/qualification/bootloader1-validation.json "${artifact_root}/"
+          fi
           if [[ -d "${report_root}" ]]; then
             cp -a "${report_root}" "${artifact_root}/build-validation"
             python3 "${FIRMWARE_WORKTREE}/scripts/summarize_validation_reports.py" \

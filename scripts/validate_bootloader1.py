@@ -18,7 +18,7 @@ import zipfile
 from pathlib import Path
 
 from bootloader1_vendor import verify_or_warn
-from reconstruction_common import ReconstructionError, for_each_ref, main_wrapper, resolve_ref
+from reconstruction_common import ReconstructionError, bootloader1_report_path, for_each_ref, main_wrapper, resolve_ref
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -163,7 +163,9 @@ def check_archive(path: Path, catalog: dict[str, dict], expected: set[str],
 
 
 def check_outputs(worktree: Path, board: str, firmware_target: str, target: str,
-                  catalog: dict[str, dict], expected: set[str]) -> list[dict]:
+                  catalog: dict[str, dict], expected: set[str], report_path: Path | None = None) -> list[dict]:
+    report_path = report_path or bootloader1_report_path(ROOT, worktree, board, firmware_target)
+    report_path.unlink(missing_ok=True)
     records = []
     payloads = {}
     build = worktree / "src/Build" / board
@@ -173,8 +175,6 @@ def check_outputs(worktree: Path, board: str, firmware_target: str, target: str,
              and (target == "build-all" or p.name == prefix or p.name.startswith(prefix + "_"))]
     if target != "build-all" and len(roots) > 1:
         raise ReconstructionError(f"multiple {prefix} firmware output trees exist for {board}")
-    for root in roots:
-        (root / "bootloader1-validation.json").unlink(missing_ok=True)
     for root in roots:
         path = root / "cix_flash_all.bin"
         payload = extract_bl1(read_image(path), str(path))
@@ -209,8 +209,8 @@ def check_outputs(worktree: Path, board: str, firmware_target: str, target: str,
                                      "provenance": catalog[digest]["provenance"]}
                                     for digest in sorted(payloads)],
               "expected_sha256": sorted(expected), "images": records}
-    for root in roots:
-        (root / "bootloader1-validation.json").write_text(json.dumps(report, indent=2) + "\n")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(report, indent=2) + "\n")
     return records
 
 
@@ -244,16 +244,21 @@ def main() -> None:
     parser.add_argument("--build-target", default="buildbox-firmware-build")
     parser.add_argument("--artefact-mode", default="custom")
     parser.add_argument("--cix-release", default="")
+    parser.add_argument("--report", type=Path, help="host-writable JSON report path; defaults to the build-branch cache")
     args = parser.parse_args()
     catalog = load_catalog()
     if args.check_source_refs:
         count = check_source_refs(ROOT, catalog)
         print(f"[bl1] Qualified vendor bytes confirmed in {count} source inputs")
     elif args.worktree:
+        report_path = args.report or bootloader1_report_path(ROOT, args.worktree, args.board, args.firmware_target)
+        report_path.unlink(missing_ok=True)
         expected = source_payloads(args.worktree, catalog, args.artefact_mode, args.cix_release, args.build_target)
         if args.phase == "outputs":
-            records = check_outputs(args.worktree, args.board, args.firmware_target, args.build_target, catalog, expected)
+            records = check_outputs(args.worktree, args.board, args.firmware_target, args.build_target,
+                                    catalog, expected, report_path=report_path)
             print(f"[bl1] Unchanged vendor BL1 confirmed in {len(records)} packaged image(s)")
+            print(f"[bl1] Validation report: {report_path}")
         else:
             print("[bl1] Selected BL1 input matches qualified vendor bytes")
     else:

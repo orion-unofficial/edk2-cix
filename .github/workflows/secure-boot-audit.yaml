@@ -156,7 +156,8 @@ jobs:
           set -euo pipefail
           validation_profile="current-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"
           python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
-            --phase inputs --board "${{ matrix.board }}" --cix-release v1.2
+            --phase inputs --board "${{ matrix.board }}" --cix-release v1.2 \
+            --report .cache/edk2-cix/qualification/bootloader1-validation.json
           make -C "${FIRMWARE_WORKTREE}" buildbox-firmware-stage V=1 \
             ARTEFACT_MODE=custom \
             CIX_RELEASE=v1.2 \
@@ -175,7 +176,8 @@ jobs:
             FIRMWARE_VALIDATION_PROFILE="${validation_profile}-${FIRMWARE_DISTRO}"
           python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
             --phase outputs --build-target buildbox-firmware-stage \
-            --board "${{ matrix.board }}" --cix-release v1.2
+            --board "${{ matrix.board }}" --cix-release v1.2 \
+            --report .cache/edk2-cix/qualification/bootloader1-validation.json
 
       - name: Validate embedded Secure Boot payloads
         shell: bash
@@ -211,6 +213,9 @@ jobs:
           fi
           artifact_root="${RUNNER_TEMP}/ci-artifacts/${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"
           mkdir -p "${artifact_root}"
+          if [[ -f .cache/edk2-cix/qualification/bootloader1-validation.json ]]; then
+            cp .cache/edk2-cix/qualification/bootloader1-validation.json "${artifact_root}/"
+          fi
           if [[ -d "${FIRMWARE_CACHE}/build-validation" ]]; then
             cp -a "${FIRMWARE_CACHE}/build-validation" "${artifact_root}/build-validation"
             python3 "${FIRMWARE_WORKTREE}/scripts/summarize_validation_reports.py" \
