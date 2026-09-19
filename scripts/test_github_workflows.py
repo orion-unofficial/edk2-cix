@@ -72,7 +72,7 @@ class GitHubWorkflowTests(unittest.TestCase):
         )
         self.assertIn("make prepare-ci-source-refs WRITE=1", source_model)
         self.assertIn("continue-on-error: true", source_model)
-        self.assertEqual(source_model.count("if: ${{ always() }}"), 5)
+        self.assertEqual(source_model.count("if: ${{ always() }}"), 6)
         self.assertIn('[[ "${PREPARE_OUTCOME}" == success ]]', source_model)
         self.assertIn("qualify_bootloader1_signatures.py --download --allow-unavailable", source_model)
         self.assertIn('[[ "${BL1_OUTCOME}" == success ]]', source_model)
@@ -130,6 +130,17 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn('path: ${{ runner.temp }}/ci-artifacts/**', secure_boot)
         self.assertIn('[[ -z "${FIRMWARE_CACHE:-}" || -z "${FIRMWARE_WORKTREE:-}" ]]', secure_boot)
         self.assertIn("strategy:\n      fail-fast: false\n      max-parallel: 2", secure_boot)
+
+    def test_bl1_reports_use_host_storage_and_native_permission_coverage(self) -> None:
+        for name in ("deterministic-replay.yaml", "secure-boot-audit.yaml"):
+            text = (REPO_ROOT / ".github/workflows" / name).read_text()
+            self.assertEqual(text.count("--report .cache/edk2-cix/qualification/bootloader1-validation.json"), 2)
+            self.assertIn('cp .cache/edk2-cix/qualification/bootloader1-validation.json "${artifact_root}/"', text)
+        source_model = (REPO_ROOT / ".github/workflows/build-branch-ci.yaml").read_text()
+        self.assertIn("assert os.geteuid() != 0", source_model)
+        self.assertIn("python3 -m unittest discover -s scripts -p test_bl1_report_permissions.py", source_model)
+        self.assertIn("setpriv --reuid=65534 --regid=65534 --clear-groups", source_model)
+        self.assertIn('[[ "${BL1_PERMISSIONS_OUTCOME}" == success ]]', source_model)
 
     def test_firmware_workflows_select_latest_source_explicitly(self) -> None:
         firmware = (REPO_ROOT / ".github" / "workflows" / "manual-firmware-build.yaml").read_text(
