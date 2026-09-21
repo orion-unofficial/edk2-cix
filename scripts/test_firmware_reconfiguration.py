@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import unittest
 
+from reconstruction_common import show_file
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ("src/Makefile", ".github/local/Makefile.local",
@@ -22,9 +23,8 @@ class FirmwareReconfigurationTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         for relative in FILES:
             local = os.environ.get("SOURCE_TEST_ROOT")
-            data = (Path(local) / relative).read_bytes() if local else subprocess.check_output(
-                ["git", "-C", str(ROOT), "show",
-                 os.environ.get("SOURCE_TEST_REF", "source/unofficial/1.3/current") + ":" + relative]
+            data = (Path(local) / relative).read_bytes() if local else show_file(
+                ROOT, os.environ.get("SOURCE_TEST_REF", "source/unofficial/1.3/current"), relative
             )
             dest = self.root / relative
             dest.parent.mkdir(parents=True, exist_ok=True)

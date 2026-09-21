@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 
+from reconstruction_common import show_file
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = (
@@ -30,9 +31,7 @@ class SourceWarningPolicyTests(unittest.TestCase):
                     data = (Path(source_root) / relative).read_bytes()
                 else:
                     ref = os.environ.get("SOURCE_TEST_REF", "source/unofficial/1.3/current")
-                    data = subprocess.check_output(
-                        ["git", "-C", str(ROOT), "show", f"{ref}:{relative}"]
-                    )
+                    data = show_file(ROOT, ref, relative)
                 path = root / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(data)
