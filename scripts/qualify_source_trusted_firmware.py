@@ -49,6 +49,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--worktree', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--distro', choices=('bookworm', 'trixie'),
+                        default=os.environ.get('FIRMWARE_DISTRO', 'trixie'))
     args = parser.parse_args()
     worktree = args.worktree.resolve()
     package = worktree / PACKAGE
@@ -68,6 +70,7 @@ def main():
                         'bash', '-euc', DEVELOPMENT_BUILD, 'trusted-component-check', fixes],
                        cwd=worktree, env=dict(os.environ,
                                               CIX_RELEASE='',
+                                              EDK2_CIX_BUILDBOX_IMAGE=os.environ.get('EDK2_CIX_BUILDBOX_IMAGE') or f'mcr.microsoft.com/devcontainers/base:{args.distro}',
                                               EDK2_CIX_BUILDBOX_PLATFORM=os.environ.get('BUILDBOX_PLATFORM', 'linux/amd64'),
                                               EDK2_CIX_HOST_TMPDIR=os.environ.get('EDK2_CIX_HOST_TMPDIR', str(worktree / '.cache/edk2-cix/firmware/buildbox/tmp'))), check=True)
         image = worktree / DEVELOPMENT_ROOT / fixes / 'bootloader2-untrusted.img'
