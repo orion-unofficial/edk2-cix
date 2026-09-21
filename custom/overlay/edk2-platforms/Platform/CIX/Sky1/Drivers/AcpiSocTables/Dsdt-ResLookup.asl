@@ -20,6 +20,7 @@ Device (REST) { /* resource table */
 #ifndef ENABLE_FIRMWARE_FIXES
     Package() {0xd0000000, 0x700000, "no-map", \_SB.DMA1},
     Package() {0xd0700000, 0x700000, "no-map", \_SB.HDA},
+#endif
     Package() {0xcde08000, 0x100000, "no-map", \_SB.DSP},
   })
 
