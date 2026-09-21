@@ -8,7 +8,7 @@ from pathlib import Path
 import shlex
 import shutil
 
-MODULE = Path('edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe')
+MODULE = Path('edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe')
 BOOLS = ('ENABLE_FIRMWARE_FIXES', 'ENABLE_TF_A_FIXES',
          'ENABLE_EXPERIMENTAL_UEFI_SETTINGS', 'DEBUG_ON_UART3', 'UART3_ENABLE', 'DEBUG_VERBOSE')
 
@@ -67,12 +67,12 @@ def generate(overlay: Path, output: Path, config: dict[str, str], release: str,
            '#string STR_BUILD_RECIPE_TITLE #language en-US ' + uni_string(title),
            '#string STR_BUILD_RECIPE_HELP #language en-US ' + uni_string(help_text)]
     hfr = ['#if (EXPERIMENTAL_UEFI_SETTINGS_UI_ENABLE == TRUE)',
-           'form formid = 0x2402, title = STRING_TOKEN(STR_BUILD_RECIPE_TITLE);']
+           'subtitle text = STRING_TOKEN(STR_BUILD_RECIPE_TITLE);']
     for index, line in enumerate(display):
         token = f'STR_BUILD_RECIPE_{index:02d}'
         uni.append(f'#string {token} #language en-US ' + uni_string(line))
         hfr.append(f'  text help = STRING_TOKEN(STR_BUILD_RECIPE_HELP), text = STRING_TOKEN({token});')
-    hfr.extend(['endform;', '#endif'])
+    hfr.append('#endif')
     (module / 'BuildRecipe.uni').write_text('\n'.join(uni) + '\n')
     (module / 'BuildRecipe.hfr').write_text('\n'.join(hfr) + '\n')
     command = ' \\\n  '.join(lines) + '\n'
