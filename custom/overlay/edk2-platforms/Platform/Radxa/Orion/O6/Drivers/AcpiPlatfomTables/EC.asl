@@ -578,6 +578,10 @@ Device(ECFP)
 }
 
 ThermalZone(ECTZ) {
+#ifdef ENABLE_FIRMWARE_FIXES
+  Name (_STR, Unicode ("EC"))
+  Name (_CRT, 0x0E80) // 98 degrees C, matching the maintained ACPI upgrade.
+#endif
   Name (_TZD, Package () { \_SB} ) //Thermal Zone Devices
 
   Method(_TMP, 0, Serialized) {
