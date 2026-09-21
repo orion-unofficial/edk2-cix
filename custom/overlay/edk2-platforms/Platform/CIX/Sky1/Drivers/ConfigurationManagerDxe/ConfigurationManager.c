@@ -58,6 +58,8 @@ SKY1_PLATFORM_REPOSITORY_INFO  Sky1PlatformRepositoryInfo = {
     // PPTT Table
     {
       EFI_ACPI_6_3_PROCESSOR_PROPERTIES_TOPOLOGY_TABLE_STRUCTURE_SIGNATURE,
+      FixedPcdGetBool (PcdCustomFirmwareFixesEnable) ?
+      EFI_ACPI_6_4_PROCESSOR_PROPERTIES_TOPOLOGY_TABLE_REVISION :
       EFI_ACPI_6_3_PROCESSOR_PROPERTIES_TOPOLOGY_TABLE_REVISION,
       CREATE_STD_ACPI_TABLE_GEN_ID (EStdAcpiTableIdPptt),
       NULL,
@@ -420,9 +422,11 @@ InitializeCmArmGiccInfo (
 {
   EFI_STATUS                     Status;
   SKY1_PLATFORM_REPOSITORY_INFO  *PlatformRepo;
-  UINT8                          ClusterIndex, CoreIndex, GicCIndex, CpuCoreNum;
+  UINT8                          ClusterIndex, CoreIndex, CpuCoreNum;
 #if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
   UINT32                         UidIndex;
+#else
+  UINT8                          GicCIndex;
 #endif
   CIX_CLUSTER_TOPO               *ClusterTopo;
   CIX_CPU_CORE                   *CpuCore;
@@ -439,7 +443,9 @@ InitializeCmArmGiccInfo (
 
   ZeroMem (PlatformRepo->GicCInfo, CpuCoreNum*sizeof (CM_ARM_GICC_INFO));
 
+#if !defined (ENABLE_CORE_ORDER_CONVENTIONAL) && !defined (ENABLE_CORE_ORDER_PERFORMANCE)
   GicCIndex = 0;
+#endif
 
   for (ClusterIndex = 0; ClusterIndex < PlatformRepo->CpuTopoInfo->ClusterNumber; ClusterIndex++) {
     ClusterTopo = &PlatformRepo->CpuTopoInfo->ClusterTopo[ClusterIndex];
