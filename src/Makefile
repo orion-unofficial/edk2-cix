@@ -1,3 +1,8 @@
+# Source-built trusted firmware lacks a vendor-authorized signing key.
+ifneq ($(strip $(CIX_RELEASE)),)
+$(error CIX_RELEASE must be empty: source-built TF-A/OP-TEE cannot be signed with a vendor-trusted key. Leave it unset or use CIX_RELEASE=)
+endif
+
 FIRMWARE_TARGET ?= RELEASE
 # Specify DEBUG build for development
 # FIRMWARE_TARGET ?= DEBUG
@@ -404,7 +409,8 @@ EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigHii.uni) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigHii.vfr) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Define.dsc.inc)
-EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES += $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf) $(abspath scripts/generate_build_recipe.py) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/BuildRecipe.hfr) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/BuildRecipe.uni)
+EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES += $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf) $(abspath scripts/generate_build_recipe.py) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe/BuildRecipe.hfr) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe/BuildRecipe.uni)
+EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES += $(wildcard ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe/*)
 ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))),$(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES))
 PATCHED_EDK2_SOURCE_INPUTS := \
@@ -514,7 +520,6 @@ endef
 
 define PRINT_SRC_LOCAL_VARIABLES
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
-	print_help_line '  CIX_RELEASE_CACHE_ROOT=<path>' 'Directory used for cached curated CIX BL31, OP-TEE, and cert_create intermediates.\nDefault: '\''$$(REPO_ROOT)/build-cache/cix-release'\'''; \
 	print_help_line '  GCC_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
 	print_help_line '  SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the compiler-facing reproducible timestamp.\nDefault: resolved from mapped upstream source metadata.'; \
 	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the PM-config timestamp.\nDefault: SOURCE_DATE_EPOCH.'
@@ -548,7 +553,7 @@ help:
 help-vars:
 	@$(PRINT_SRC_HELP_SHELL_PROLOGUE); \
 	printf '%s\n\n' 'Raw Build Variables'; \
-	printf '%s\n' 'See make help-vars for common options such as ARTEFACT_MODE, FIRMWARE_BOARD, FIRMWARE_TARGET, CCACHE_DISABLE, ENABLE_FIRMWARE_FIXES, CIX_RELEASE, ENABLE_TF_A_FIXES, and the DEBUG_* switches.' | fold -s -w 78 | sed 's/^/  /'; \
+	printf '%s\n' 'See make help-vars for common options such as ARTEFACT_MODE, FIRMWARE_BOARD, FIRMWARE_TARGET, CCACHE_DISABLE, ENABLE_FIRMWARE_FIXES and the DEBUG_* switches.' | fold -s -w 78 | sed 's/^/  /'; \
 	printf '\n'; \
 	printf '%s\n' 'The following options are specific to the raw make -C src flow, covering host toolchains and reproducible metadata overrides.' | fold -s -w 78 | sed 's/^/  /'; \
 	printf '\n'; \
