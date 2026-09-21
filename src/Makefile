@@ -1592,6 +1592,10 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 			echo "[build/$*] Expected BuildOptions $$build_options_path was not produced" >&2; \
 			exit 1; \
 		fi; \
+		if [[ "$(UEFI_TARGET)" == "RELEASE" && "$(DEBUG_VERBOSE_NORMALIZED)" == "TRUE" ]]; then \
+			python3 "$(REPO_ROOT)/src/scripts/check_release_debug.py" \
+				--build-dir "Build/$*/$(UEFI_TARGET)_GCC" --error-level "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)"; \
+		fi; \
 		python3 ../scripts/normalize_build_options.py \
 			--build-options "$$build_options_path" \
 			--active-platform "src/$(filter %/$*.dsc,$(DSC))" \
