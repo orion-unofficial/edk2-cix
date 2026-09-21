@@ -357,7 +357,10 @@ def validate_debian_version(repo_root: Path) -> tuple[str, str]:
 
 def _iter_custom_target_variants(target: str) -> list[FirmwareLayout]:
     generated: list[FirmwareLayout] = []
-    cix_release_options = (("", False), ("1.2", False), ("1.2", True))
+    # Only vendor-signed trusted payloads are qualified for locked boards.
+    # Curated TF-A/OP-TEE source compilation is checked separately; its OEM
+    # development signatures cannot authorise a distributable flash image.
+    cix_release_options = (("", False),)
     presets = [
         {},
         {"enable_firmware_fixes": True},
