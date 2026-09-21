@@ -16,10 +16,7 @@ Device (TREE) {
     Return (0xF)
   }
   Method (_CRS, 0x0, NotSerialized) {
-    Return (Buffer () {
-      0x79,
-      0x00
-    })
+    Return (__EXPECT__(3150) ResourceTemplate () {})
   }
   Name(SVCS, Package()
   {
