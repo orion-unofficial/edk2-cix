@@ -7,8 +7,10 @@
 #define CIX_ASL_STRING_RAW(Value) #Value
 #define CIX_ASL_STRING(Value) CIX_ASL_STRING_RAW(Value)
 #ifdef ENABLE_FIRMWARE_FIXES
-#define CIX_GRAPH_REMOTE4(Dev, Pipeline, Port, Endpoint, AslEndpoint) CIX_ASL_STRING(Dev.AslEndpoint)
-#define CIX_GRAPH_REMOTE3(Dev, Port, Endpoint, AslEndpoint) CIX_ASL_STRING(Dev.AslEndpoint)
+// Dev is an absolute ASL name (\_SB...). Add its string escape before
+// preprocessing; stringification alone leaves an invalid ASL escape.
+#define CIX_GRAPH_REMOTE4(Dev, Pipeline, Port, Endpoint, AslEndpoint) CIX_ASL_STRING(\Dev.AslEndpoint)
+#define CIX_GRAPH_REMOTE3(Dev, Port, Endpoint, AslEndpoint) CIX_ASL_STRING(\Dev.AslEndpoint)
 #else
 #define CIX_GRAPH_REMOTE4(Dev, Pipeline, Port, Endpoint, AslEndpoint) Package () { Dev, Pipeline, Port, Endpoint }
 #define CIX_GRAPH_REMOTE3(Dev, Port, Endpoint, AslEndpoint) Package () { Dev, Port, Endpoint }
