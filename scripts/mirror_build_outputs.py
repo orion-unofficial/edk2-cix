@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 import shutil
@@ -31,6 +32,8 @@ after stale rendered worktrees are cleaned.
 
 RAW_OUTPUTS = (
     "BuildOptions",
+    "firmware-rebuild.txt",
+    "firmware-rebuild.json",
     "cix_flash_all.bin",
     "cix_flash_all.raw",
     "cix_flash_ota.bin",
@@ -182,6 +185,10 @@ def mirror_raw_outputs(
         shutil.rmtree(destination_root)
 
     for relative_name in RAW_OUTPUTS:
+        if artefact_mode.split("+", 1)[0] == "custom" and relative_name in {"cix_flash_all.raw", "cix_flash_ota.bin.tmp"}:
+            continue
+        if artefact_mode.split("+", 1)[0] != "custom" and relative_name.startswith("firmware-rebuild."):
+            continue
         source = source_root / relative_name
         if not source.is_file() and not source.is_symlink():
             continue
@@ -193,6 +200,12 @@ def mirror_raw_outputs(
         destination = destination_root / "bootloader1-validation.json"
         copy_file(validation_report, destination)
         copied.append(destination)
+    if artefact_mode.split("+", 1)[0] == "custom" and validation_report is not None:
+        chain_report = validation_report.with_name("firmware-chain-validation.json")
+        if chain_report.is_file():
+            destination = destination_root / chain_report.name
+            copy_file(chain_report, destination)
+            copied.append(destination)
     return copied
 
 
@@ -231,6 +244,12 @@ def main() -> None:
         for path in copied:
             print(f"mirrored {path.relative_to(dist_root)}", file=sys.stderr)
     print(f"[output] Mirrored {len(copied)} build artefact(s) to {dist_root}")
+    if args.artefact_mode.split("+", 1)[0] == "custom":
+        for path in copied:
+            if path.name == "cix_flash_all.bin":
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                print(f"[output] Full-flash image: {path}")
+                print(f"[output] SHA-256: {digest}")
 
 
 if __name__ == "__main__":

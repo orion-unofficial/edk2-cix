@@ -422,6 +422,18 @@ def normalise_overlay_lifecycle(
         return []
 
     projections = project_overlay_tree(source_repo, from_ref, to_ref, selected)
+    # Replay can introduce a source file together with its mirror. The old
+    # destination ref cannot describe that new file; consult the replay index
+    # before treating its mirror as a reference to a deleted component.
+    for index, projection in enumerate(projections):
+        if projection.action != "drop-mirror" or not projection.source_path:
+            continue
+        staged = git(repo, "ls-files", "--stage", "--", projection.source_path).stdout
+        if staged and staged.split()[0] in NORMAL_FILE_MODES and staged.split()[2] == "0":
+            projections[index] = OverlayProjection(
+                "ok", "keep", projection.overlay_path, projection.source_path,
+                projection.overlay_path, "source counterpart is present in the replay index", mirror=True,
+            )
     blockers = normalisation_blockers(projections, resolved_mode)
     if blockers:
         required = required_normalisation(projections)

@@ -11,3 +11,6 @@
 - [Secure Boot Hardware Validation](secure-boot-hardware-validation.md)
 - [Update BIOS from RadxaOS](update.md)
 - [Manually install released binary](install.md)
+
+- [Firmware certificate chains](firmware-chain-validation.md)
+- [ACPI Table Upgrade coverage](acpi-upgrade-coverage.md)

@@ -120,13 +120,16 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn('[[ -z "${FIRMWARE_CACHE:-}" || -z "${FIRMWARE_WORKTREE:-}" ]]', replay)
         self.assertIn("EDK2_CIX_WORKTREE_NAMESPACE: metadata", secure_boot)
         self.assertIn(
-            "EDK2_CIX_WORKTREE_NAMESPACE: secure-boot-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}",
+            "EDK2_CIX_WORKTREE_NAMESPACE: >-\n"
+            "            secure-boot-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"
+            "-experimental-${{ matrix.experimental }}",
             secure_boot,
         )
         self.assertIn(
             'artifact_root="${RUNNER_TEMP}/ci-artifacts/${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"',
             secure_boot,
         )
+        self.assertIn('artifact_root+="-experimental-${{ matrix.experimental }}"', secure_boot)
         self.assertIn('path: ${{ runner.temp }}/ci-artifacts/**', secure_boot)
         self.assertIn('[[ -z "${FIRMWARE_CACHE:-}" || -z "${FIRMWARE_WORKTREE:-}" ]]', secure_boot)
         self.assertIn("strategy:\n      fail-fast: false\n      max-parallel: 2", secure_boot)

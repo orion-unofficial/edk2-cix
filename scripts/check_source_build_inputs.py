@@ -18,6 +18,7 @@ PACKAGE_ROOTS = ("src/edk2", "src/edk2-platforms", "src/edk2-non-osi", "src/edk2
 SMBIOS_OVERLAY = "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/SmbiosMiscLib/SmbiosMiscLib.c"
 SMBIOS_HEADER = "src/edk2/MdePkg/Include/IndustryStandard/SmBios.h"
 CONFIG_MANAGER = "src/edk2-platforms/Platform/CIX/Sky1/Drivers/ConfigurationManagerDxe/ConfigurationManager.c"
+CPU_GENERATOR = "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/Acpi/CIX/AcpiSsdtCpuTopologyLibCIX/SsdtCpuTopologyGenerator.c"
 ACPI_NAMESPACE = "src/edk2-platforms/Platform/CIX/Sky1/Include/Library/AcpiNameSpaceObjects.h"
 COMMON_NAMESPACE = "src/edk2/DynamicTablesPkg/Include/ArchCommonNameSpaceObjects.h"
 # Regression contracts for focused fixes missed by vendor-line checkpoints.
@@ -27,7 +28,8 @@ BUILD_FIXES = (
     ("65f3abc664", "scripts/run_in_buildbox.sh", b'${git_objects}/info/alternates', False),
     ("24ef31676a", "scripts/run_in_buildbox.sh", b'"${git_common_dir_real}/"*)', False),
     ("57c8f42fe3", "scripts/firmware_metadata_audit.py", b'[A-Za-z0-9_][A-Za-z0-9_.-]*', False),
-    ("052459dd2b", "scripts/ensure_iasl.sh", b'make -C "${source_root}/generate/unix" iasl >&2', True),
+    ("052459dd2b/strict-bison", "scripts/ensure_iasl.sh", b"'YFLAGS=-y -Werror -Wno-yacc' NOWERROR=FALSE >&2", True),
+    ("stored-version-header", "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionDxe.c", b"STR (UEFI_FW_VERSION),", False),
 )
 
 
@@ -67,6 +69,47 @@ def missing_package_declarations(paths: set[str], infs: dict[str, str]) -> list[
     return problems
 
 
+def missing_wrapper_dependencies(infs: dict[str, str], sources: dict[str, str]) -> list[str]:
+    """A wrapper including a maintained C file also needs its INF dependencies."""
+    sections = {"packages", "libraryclasses", "guids", "protocols", "ppis"}
+
+    def entries(text: str) -> set[tuple[str, str]]:
+        result = set()
+        section = ""
+        for line in text.splitlines():
+            line = line.split("#", 1)[0].strip()
+            if line.startswith("["):
+                section = line.strip("[]").split(".", 1)[0].lower()
+            elif line and section in sections:
+                result.add((section, line))
+        return result
+
+    problems = []
+    # PlatformConfigDxe keeps the imported C implementation and vendor forms.
+    # Dynamic-vs-fixed access can intentionally differ, but each PCD must exist.
+
+    def pcds(text: str) -> set[str]:
+        return set(re.findall(r"(?m)^\s*(g\w+\.Pcd\w+)\s*(?:#.*)?$", text))
+
+    for path, descriptor in infs.items():
+        if path.startswith("custom/overlay-experimental-uefi-settings/") and path.endswith("/PlatformConfigDxe/PlatformConfigDxe.inf"):
+            imported = "src/" + path.split("/", 2)[2]
+            for entry in sorted(pcds(infs.get(imported, "")) - pcds(descriptor)):
+                problems.append(f"{path}: imported configuration UI requires {entry}")
+    for wrapper, text in sources.items():
+        for included in re.findall(r'^\s*#include "([^"]+\.c)"', text, re.M):
+            target = posixpath.normpath(posixpath.join(posixpath.dirname(wrapper), included))
+            for inf, descriptor in infs.items():
+                if posixpath.dirname(inf) != posixpath.dirname(wrapper):
+                    continue
+                original = posixpath.join(posixpath.dirname(target), posixpath.basename(inf))
+                if original not in infs:
+                    continue
+                for section, entry in sorted(entries(infs[original]) - entries(descriptor)):
+                    problems.append(f"{inf}: included source {target} requires [{section}] {entry}")
+    return problems
+
+
 def missing_lto_library(paths: set[str], makefile: bytes) -> list[str]:
     """EDK2 moved its AArch64 LTO archive out of ArmPkg in 202408."""
     problems = []
@@ -85,6 +128,46 @@ def missing_configuration_manager_types(source: bytes, common: bytes, cix: bytes
             problems.append(f"ConfigurationManager uses {name.decode()} absent from its namespace headers")
     if b"CIX_AML_PSD_INFO" in cix and re.search(rb"\bAML_PSD_INFO\b", source):
         problems.append("ConfigurationManager uses upstream AML_PSD_INFO for the vendor PSD initializer")
+    return problems
+
+
+def missing_board_table_inputs(paths: set[str]) -> list[str]:
+    """Board table overlays must retain the selected release's ASL inputs."""
+    missing = []
+    for board in ("O6", "O6N"):
+        directory = f"edk2-platforms/Platform/Radxa/Orion/{board}/Drivers/AcpiPlatfomTables/"
+        overlay = "custom/overlay/" + directory
+        if overlay + "AcpiPlatfomTables.inf" not in paths:
+            continue
+        for path in sorted(paths):
+            if path.startswith("src/" + directory) and path.endswith((".asl", ".asl.template", ".h")):
+                counterpart = "custom/overlay/" + path[len("src/"):]
+                if counterpart not in paths:
+                    missing.append(f"missing board table input: {counterpart}")
+    return missing
+
+
+def unbalanced_asl_conditionals(text: str) -> list[str]:
+    """Catch damaged conditional blocks before compiling a rendered board."""
+    text = re.sub(r"/\*.*?\*/", lambda m: "\n" * m[0].count("\n"), text, flags=re.S)
+    stack = []
+    problems = []
+    for number, line in enumerate(text.splitlines(), 1):
+        match = re.match(r"\s*#\s*(if|ifdef|ifndef|else|elif|endif)\b", line)
+        if not match:
+            continue
+        directive = match[1]
+        if directive in {"if", "ifdef", "ifndef"}:
+            stack.append((number, False))
+        elif not stack:
+            problems.append(f"line {number}: #{directive} without an opening conditional")
+        elif directive == "endif":
+            stack.pop()
+        elif stack[-1][1]:
+            problems.append(f"line {number}: #{directive} after #else")
+        elif directive == "else":
+            stack[-1] = (stack[-1][0], True)
+    problems.extend(f"line {number}: unterminated conditional" for number, _ in stack)
     return problems
 
 
@@ -165,6 +248,13 @@ def source_input_problems(repo: Path, ref: str) -> list[str]:
     inf_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in infs.values()))
     libraries = {path for path, entry in infs.items() if re.search(rb"(?m)^\s*LIBRARY_CLASS\s*=", inf_blobs[entry.object_id])}
     problems = [f"missing overlay module: {path}" for overlay in OVERLAYS for path in missing_module_infs(paths, overlay, libraries)]
+    problems.extend(missing_board_table_inputs(paths))
+    asl_entries = {path: entry for path, entry in entries.items()
+                   if entry.mode != "120000" and path.endswith((".asl", ".asl.template"))
+                   and "/edk2-platforms/" in path and ("/CIX/" in path or "/Radxa/" in path)}
+    asl_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in asl_entries.values()))
+    for path, entry in asl_entries.items():
+        problems.extend(f"{path}: {error}" for error in unbalanced_asl_conditionals(asl_blobs[entry.object_id].decode("utf-8-sig")))
     fix_entries = {path: entries[path] for _, path, _, _ in BUILD_FIXES if path in entries}
     fix_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in fix_entries.values()))
     problems.extend(missing_build_fixes({path: fix_blobs[entry.object_id] for path, entry in fix_entries.items()}))
@@ -177,10 +267,12 @@ def source_input_problems(repo: Path, ref: str) -> list[str]:
         smbios_blobs = git_blob_bytes_batch(repo, (entries[path].object_id for path in (SMBIOS_OVERLAY, SMBIOS_HEADER)))
         problems.extend(missing_smbios_cache_types(*(smbios_blobs[entries[path].object_id]
                                                    for path in (SMBIOS_OVERLAY, SMBIOS_HEADER))))
-    if CONFIG_MANAGER in entries:
-        cm_paths = (CONFIG_MANAGER, COMMON_NAMESPACE, ACPI_NAMESPACE)
+    for module in (CONFIG_MANAGER, CONFIG_MANAGER.replace("src/", "custom/overlay/", 1), CPU_GENERATOR):
+        if module not in entries:
+            continue
+        cm_paths = (module, COMMON_NAMESPACE, ACPI_NAMESPACE)
         cm_blobs = git_blob_bytes_batch(repo, (entries[path].object_id for path in cm_paths if path in entries))
-        problems.extend(missing_configuration_manager_types(*(
+        problems.extend(f"{module}: {problem}" for problem in missing_configuration_manager_types(*(
             cm_blobs[entries[path].object_id] if path in entries else b"" for path in cm_paths
         )))
     links = {path: entry for path, entry in entries.items() if entry.mode == "120000" and path.startswith("custom/")}
@@ -213,8 +305,14 @@ def source_input_problems(repo: Path, ref: str) -> list[str]:
         and (entries[path].mode != "120000" or resolved_links.get(path) in entries)
     }
     package_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in platform_infs.values()))
-    problems.extend(missing_package_declarations(paths, {
-        path: package_blobs[entry.object_id].decode("utf-8-sig") for path, entry in platform_infs.items()
+    inf_text = {path: package_blobs[entry.object_id].decode("utf-8-sig") for path, entry in platform_infs.items()}
+    problems.extend(missing_package_declarations(paths, inf_text))
+    wrappers = {path: entry for path, entry in entries.items()
+                if path.startswith("custom/overlay-experimental-uefi-settings/")
+                and path.endswith(".c") and entry.mode != "120000"}
+    wrapper_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in wrappers.values()))
+    problems.extend(missing_wrapper_dependencies(inf_text, {
+        path: wrapper_blobs[entry.object_id].decode("utf-8-sig") for path, entry in wrappers.items()
     }))
     return sorted(set(problems))
 
@@ -227,6 +325,20 @@ def main() -> None:
         tree = tree_id(ROOT, ref)
         if tree not in checked:
             checked[tree] = source_input_problems(ROOT, ref)
+            entries = tree_entries(ROOT, ref, ("src/scripts",))
+            # Packaging executes inside rendered trees as well as from build.
+            # Every retained checkpoint must carry the same mandatory verifier.
+            for source, caller in (("src/scripts/firmware_chain.py", "scripts/firmware_chain.py"),
+                                   ("src/scripts/validate_firmware_chain.py", "scripts/validate_firmware_chain.py"),
+                                   ("src/scripts/check_release_debug.py", "scripts/check_release_debug.py"),
+                                   ("src/scripts/firmware-trust.json", "config/firmware-trust.json")):
+                entry = entries.get(source)
+                if entry is None:
+                    checked[tree].append(f"missing mandatory build validation input: {source}")
+                else:
+                    content = git_blob_bytes_batch(ROOT, [entry.object_id])[entry.object_id]
+                    if content != (ROOT / caller).read_bytes():
+                        checked[tree].append(f"build validation input differs from build branch: {source}")
         problems.extend(f"{ref}: {problem}" for problem in checked[tree])
     if problems:
         raise ReconstructionError("source build-input checks failed:\n" + "\n".join(problems))

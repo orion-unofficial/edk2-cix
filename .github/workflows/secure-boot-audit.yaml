@@ -69,6 +69,7 @@ jobs:
               --ensure-worktree \
               --print-worktree
           )"
+          echo "FIRMWARE_REBUILD_RELEASE=${release}" >>"${GITHUB_ENV}"
           echo "FIRMWARE_WORKTREE=${worktree}" >>"${GITHUB_ENV}"
           echo "FIRMWARE_CACHE=${worktree}/.cache/edk2-cix/firmware" >>"${GITHUB_ENV}"
           buildbox_name_file="${worktree}/.cache/edk2-cix/firmware/buildbox/buildbox-name"
@@ -85,7 +86,7 @@ jobs:
             MICROSOFT_SECURE_BOOT_RELEASE_CHECK_MODE=strict
 
   secure-boot:
-    name: ${{ matrix.board }} / firmware fixes ${{ matrix.firmware_fixes }}
+    name: ${{ matrix.board }} / fixes ${{ matrix.firmware_fixes }} / experimental ${{ matrix.experimental }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
@@ -96,15 +97,33 @@ jobs:
           - board: O6
             firmware_fixes: false
             product: orion-o6
+            experimental: false
+            debug_mask: "0x80000001"
           - board: O6
             firmware_fixes: true
             product: orion-o6
+            experimental: false
+            debug_mask: "0x80000001"
           - board: O6N
             firmware_fixes: false
             product: orion-o6n
+            experimental: false
+            debug_mask: "0x80000001"
           - board: O6N
             firmware_fixes: true
             product: orion-o6n
+            experimental: false
+            debug_mask: "0x80000001"
+          - board: O6
+            firmware_fixes: true
+            product: orion-o6
+            experimental: true
+            debug_mask: "0x80000040"
+          - board: O6N
+            firmware_fixes: true
+            product: orion-o6n
+            experimental: true
+            debug_mask: "0x80000040"
 
     steps:
       - name: Checkout build branch
@@ -125,7 +144,8 @@ jobs:
 
       - name: Render selected firmware tree
         env:
-          EDK2_CIX_WORKTREE_NAMESPACE: secure-boot-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}
+          EDK2_CIX_WORKTREE_NAMESPACE: >-
+            secure-boot-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}-experimental-${{ matrix.experimental }}
         shell: bash
         run: |
           set -euo pipefail
@@ -139,6 +159,7 @@ jobs:
               --ensure-worktree \
               --print-worktree
           )"
+          echo "FIRMWARE_REBUILD_RELEASE=${release}" >>"${GITHUB_ENV}"
           echo "FIRMWARE_WORKTREE=${worktree}" >>"${GITHUB_ENV}"
           echo "FIRMWARE_CACHE=${worktree}/.cache/edk2-cix/firmware" >>"${GITHUB_ENV}"
           buildbox_name_file="${worktree}/.cache/edk2-cix/firmware/buildbox/buildbox-name"
@@ -155,12 +176,20 @@ jobs:
         run: |
           set -euo pipefail
           validation_profile="current-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"
+          validation_profile+="-experimental-${{ matrix.experimental }}"
           python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
-            --phase inputs --board "${{ matrix.board }}" --cix-release v1.2 \
+            --phase inputs --board "${{ matrix.board }}" --cix-release "" \
             --report .cache/edk2-cix/qualification/bootloader1-validation.json
+          python3 scripts/validate_firmware_chain.py --worktree "${FIRMWARE_WORKTREE}" \
+            --phase inputs --board "${{ matrix.board }}" --cix-release "" \
+            --report .cache/edk2-cix/qualification/firmware-chain-validation.json
           make -C "${FIRMWARE_WORKTREE}" buildbox-firmware-stage V=1 \
             ARTEFACT_MODE=custom \
-            CIX_RELEASE=v1.2 \
+            CIX_RELEASE= \
+            DEBUG_VERBOSE=false DEBUG_PRINT_ERROR_LEVEL="${{ matrix.debug_mask }}" \
+            ENABLE_EXPERIMENTAL_UEFI_SETTINGS="${{ matrix.experimental }}" \
+            FIRMWARE_REBUILD_RELEASE="${FIRMWARE_REBUILD_RELEASE}" \
+            FIRMWARE_REBUILD_BUILD_COMMIT="$(git rev-parse HEAD)" \
             ENABLE_FIRMWARE_FIXES="${{ matrix.firmware_fixes }}" \
             FIRMWARE_BOARD="${{ matrix.board }}" \
             FIRMWARE_PRODUCT="${{ matrix.product }}" \
@@ -176,17 +205,26 @@ jobs:
             FIRMWARE_VALIDATION_PROFILE="${validation_profile}-${FIRMWARE_DISTRO}"
           python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
             --phase outputs --build-target buildbox-firmware-stage \
-            --board "${{ matrix.board }}" --cix-release v1.2 \
+            --board "${{ matrix.board }}" --cix-release "" \
             --report .cache/edk2-cix/qualification/bootloader1-validation.json
+          python3 scripts/validate_firmware_chain.py --worktree "${FIRMWARE_WORKTREE}" \
+            --phase outputs --build-target buildbox-firmware-stage \
+            --board "${{ matrix.board }}" --cix-release "" \
+            --report .cache/edk2-cix/qualification/firmware-chain-validation.json
 
       - name: Validate embedded Secure Boot payloads
         shell: bash
         run: |
           set -euo pipefail
           validation_profile="current-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"
+          validation_profile+="-experimental-${{ matrix.experimental }}"
           make -C "${FIRMWARE_WORKTREE}" buildbox-validate-secure-boot-defaults V=1 \
             ARTEFACT_MODE=custom \
-            CIX_RELEASE=v1.2 \
+            CIX_RELEASE= \
+            DEBUG_VERBOSE=false DEBUG_PRINT_ERROR_LEVEL="${{ matrix.debug_mask }}" \
+            ENABLE_EXPERIMENTAL_UEFI_SETTINGS="${{ matrix.experimental }}" \
+            FIRMWARE_REBUILD_RELEASE="${FIRMWARE_REBUILD_RELEASE}" \
+            FIRMWARE_REBUILD_BUILD_COMMIT="$(git rev-parse HEAD)" \
             ENABLE_FIRMWARE_FIXES="${{ matrix.firmware_fixes }}" \
             FIRMWARE_BOARD="${{ matrix.board }}" \
             FIRMWARE_PRODUCT="${{ matrix.product }}" \
@@ -201,6 +239,17 @@ jobs:
             FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation" \
             FIRMWARE_VALIDATION_PROFILE="${validation_profile}-${FIRMWARE_DISTRO}"
 
+      - name: Compile curated TF-A and OP-TEE and reject their untrusted FIP
+        if: matrix.board == 'O6' && matrix.firmware_fixes == true && matrix.experimental == false
+        shell: bash
+        env:
+          BUILDBOX_PLATFORM: linux/amd64
+        run: |
+          set -euo pipefail
+          python3 scripts/qualify_source_trusted_firmware.py \
+            --worktree "${FIRMWARE_WORKTREE}" \
+            --report .cache/edk2-cix/qualification/trusted-source-rejection.json
+
       - name: Collect Secure Boot reports
         if: always()
         shell: bash
@@ -212,9 +261,16 @@ jobs:
             exit 0
           fi
           artifact_root="${RUNNER_TEMP}/ci-artifacts/${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}"
+          artifact_root+="-experimental-${{ matrix.experimental }}"
           mkdir -p "${artifact_root}"
           if [[ -f .cache/edk2-cix/qualification/bootloader1-validation.json ]]; then
             cp .cache/edk2-cix/qualification/bootloader1-validation.json "${artifact_root}/"
+          fi
+          if [[ -f .cache/edk2-cix/qualification/firmware-chain-validation.json ]]; then
+            cp .cache/edk2-cix/qualification/firmware-chain-validation.json "${artifact_root}/"
+          fi
+          if [[ -f .cache/edk2-cix/qualification/trusted-source-rejection.json ]]; then
+            cp .cache/edk2-cix/qualification/trusted-source-rejection.json "${artifact_root}/"
           fi
           if [[ -d "${FIRMWARE_CACHE}/build-validation" ]]; then
             cp -a "${FIRMWARE_CACHE}/build-validation" "${artifact_root}/build-validation"
@@ -232,5 +288,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           if-no-files-found: warn
-          name: current-source-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}
+          name: >-
+            current-${{ matrix.board }}-fixes-${{ matrix.firmware_fixes }}-experimental-${{ matrix.experimental }}
           path: ${{ runner.temp }}/ci-artifacts/**

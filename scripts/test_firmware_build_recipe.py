@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""Check the experimental HII recipe and repeated-build provenance changes."""
+import json
+import os
+from pathlib import Path
+import shlex
+import subprocess
+import tempfile
+import types
+import unittest
+
+from test_firmware_reconfiguration import FirmwareReconfigurationTests
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def source(relative):
+    if os.environ.get('SOURCE_TEST_ROOT'):
+        return (Path(os.environ['SOURCE_TEST_ROOT']) / relative).read_text()
+    return subprocess.check_output(['git', '-C', str(ROOT), 'show',
+                                   os.environ.get('SOURCE_TEST_REF', 'source/unofficial/1.3/current') + ':' + relative], text=True)
+
+
+class RecipeTests(unittest.TestCase):
+    def setUp(self):
+        self.module = types.ModuleType('generate_build_recipe')
+        exec(compile(source('src/scripts/generate_build_recipe.py'), 'generate_build_recipe.py', 'exec'), self.module.__dict__)
+        self.config = {'ARTEFACT_MODE': 'custom', 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS': 'TRUE',
+                       'ENABLE_FIRMWARE_FIXES': 'TRUE', 'CIX_RELEASE': '', 'UEFI_TARGET': 'RELEASE',
+                       'DEBUG_VERBOSE': 'FALSE', 'DEBUG_PRINT_ERROR_LEVEL': '0x80000040',
+                       'BUILD_DATE': '2026-09-21T00:00:00Z'}
+
+    def test_every_build_option_including_empty_cix_is_explicit(self):
+        lines = self.module.recipe(self.config, 'edk2-202605/radxa-1.3.1/unofficial', 'O6', 'orion-o6', 'trixie')
+        values = dict(word.split('=', 1) for word in shlex.split(' '.join(lines))[2:])
+        self.assertEqual(set(values), {
+            'RELEASE', 'ARTEFACT_MODE', 'FIRMWARE_BOARD', 'FIRMWARE_PRODUCT',
+            'FIRMWARE_TARGET', 'FIRMWARE_DISTRO', 'ENABLE_FIRMWARE_FIXES', 'ENABLE_CORE_ORDER',
+            'CIX_RELEASE', 'ENABLE_TF_A_FIXES', 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS',
+            'DEBUG_ON_UART3', 'UART3_ENABLE', 'DEBUG_VERBOSE', 'DEBUG_PRINT_ERROR_LEVEL', 'BUILD_DATE',
+        })
+        self.assertEqual(values['CIX_RELEASE'], '')
+        self.assertEqual(values['DEBUG_VERBOSE'], 'false')
+        self.assertEqual(values['DEBUG_PRINT_ERROR_LEVEL'], '0x80000040')
+
+    def test_generation_replaces_stale_strings_and_preserves_source_links(self):
+        with tempfile.TemporaryDirectory(prefix='recipe-') as tmp:
+            root = Path(tmp)
+            overlay = root / 'original'
+            module = overlay / self.module.MODULE
+            module.mkdir(parents=True)
+            (root/'upstream.c').write_text('upstream')
+            (module/'input.c').symlink_to(root/'upstream.c')
+            (module/'BuildRecipe.uni').write_text('template')
+            output = root/'generated'
+            for cix in ('1.2', ''):
+                self.config['CIX_RELEASE'] = cix
+                self.module.generate(overlay, output, self.config, 'release', 'O6N', 'orion-o6n', 'trixie', 'a'*40)
+                text = (output/self.module.MODULE/'BuildRecipe.uni').read_text()
+                receipt = json.loads((output/'firmware-rebuild.json').read_text())
+                self.assertIn('CIX_RELEASE=' + shlex.quote(cix), text)
+                self.assertEqual(receipt['config']['CIX_RELEASE'], cix)
+                self.assertEqual((output/self.module.MODULE/'input.c').read_text(), 'upstream')
+                self.assertFalse((output/self.module.MODULE/'input.c').is_symlink())
+            self.assertNotIn('CIX_RELEASE=1.2', text)
+            self.assertEqual((module/'BuildRecipe.uni').read_text(), 'template')
+            self.assertTrue((module/'input.c').is_symlink())
+
+    def test_upstream_or_nonexperimental_build_cannot_generate_menu(self):
+        for changes in ({'ARTEFACT_MODE': 'upstream'}, {'ENABLE_EXPERIMENTAL_UEFI_SETTINGS': 'FALSE'}):
+            with self.assertRaises(ValueError):
+                self.module.recipe({**self.config, **changes}, 'release', 'O6', 'orion-o6', 'trixie')
+
+    def test_uefi_and_shell_quoting_preserve_values(self):
+        value = 'a "quoted" \\ tag'
+        config = {**self.config, 'O6_SMBIOS_BASEBOARD_ASSET_TAG': value}
+        lines = self.module.recipe(config, 'release', 'O6', 'orion-o6', 'trixie')
+        self.assertIn('O6_SMBIOS_BASEBOARD_ASSET_TAG=' + value, shlex.split(' '.join(lines)))
+        self.assertIn('\\"', self.module.uni_string(value))
+        with self.assertRaises(ValueError):
+            self.module.uni_string('bad\nline')
+
+
+class RecipeReconfigurationTests(FirmwareReconfigurationTests):
+    def test_recipe_identity_changes_invalidate_cached_build_outputs(self):
+        initial = {'ENABLE_EXPERIMENTAL_UEFI_SETTINGS': 'true', 'FIRMWARE_REBUILD_RELEASE': 'release',
+                   'FIRMWARE_REBUILD_BUILD_COMMIT': 'a'*40, 'FIRMWARE_DISTRO': 'trixie', 'FIRMWARE_PRODUCT': 'orion-o6'}
+        for key, value in [('FIRMWARE_REBUILD_RELEASE', 'other-release'), ('FIRMWARE_REBUILD_BUILD_COMMIT', 'b'*40),
+                           ('FIRMWARE_DISTRO', 'bookworm'), ('FIRMWARE_PRODUCT', 'orion-o6n')]:
+            output, _ = self.configure(initial)
+            stale = output/'stale.bin'
+            stale.write_bytes(b'old')
+            _, config = self.configure({**initial, key: value})
+            self.assertFalse(stale.exists(), key)
+            self.assertEqual(config[key], value)
+
+
+if __name__ == '__main__':
+    unittest.main()

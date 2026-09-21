@@ -6,11 +6,43 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from check_source_build_inputs import BUILD_FIXES, missing_build_fixes, missing_configuration_manager_types, missing_lto_library, missing_module_infs, missing_package_declarations, missing_platform_inputs, missing_smbios_cache_types, missing_toolchain, source_input_problems
+from check_source_build_inputs import BUILD_FIXES, missing_board_table_inputs, missing_build_fixes, missing_configuration_manager_types, missing_lto_library, missing_module_infs, missing_package_declarations, missing_platform_inputs, missing_smbios_cache_types, missing_toolchain, missing_wrapper_dependencies, source_input_problems, unbalanced_asl_conditionals
 from test_support import commit_all, git, write_file
 
 
 class SourceBuildInputsTests(unittest.TestCase):
+    def test_included_custom_source_keeps_its_dependencies_in_experimental_wrapper(self) -> None:
+        infs = {"custom/overlay/Hook/Hook.inf": "[Guids]\ngEfiEventReadyToBootGuid\n",
+                "custom/experimental/Hook/Hook.inf": "[Guids]\n"}
+        sources = {"custom/experimental/Hook/Wrapper.c": '#include "../../overlay/Hook/Hook.c"'}
+        self.assertEqual(len(missing_wrapper_dependencies(infs, sources)), 1)
+        infs["custom/experimental/Hook/Hook.inf"] += "gEfiEventReadyToBootGuid\n"
+        self.assertEqual(missing_wrapper_dependencies(infs, sources), [])
+
+    def test_imported_setup_pcds_are_present_in_experimental_ui(self) -> None:
+        module = "edk2-platforms/Platform/Board/PlatformConfigDxe/PlatformConfigDxe.inf"
+        infs = {"src/" + module: "[FixedPcd]\ngCixTokenSpaceGuid.PcdSPEEn\n",
+                "custom/overlay-experimental-uefi-settings/" + module: "[FixedPcd]\n"}
+        self.assertEqual(len(missing_wrapper_dependencies(infs, {})), 1)
+        infs["custom/overlay-experimental-uefi-settings/" + module] += "gCixTokenSpaceGuid.PcdSPEEn\n"
+        self.assertEqual(missing_wrapper_dependencies(infs, {}), [])
+
+    def test_conditional_replay_damage_is_rejected_before_compilation(self) -> None:
+        self.assertEqual(unbalanced_asl_conditionals("#ifndef FIXES\nlegacy\n#endif\n"), [])
+        self.assertEqual(len(unbalanced_asl_conditionals("#ifndef FIXES\nlegacy\n")), 1)
+        self.assertEqual(len(unbalanced_asl_conditionals("#endif\n")), 1)
+        self.assertEqual(len(unbalanced_asl_conditionals("#if A\n#else\n#elif B\n#endif\n")), 1)
+        self.assertEqual(unbalanced_asl_conditionals("/*\n#if unused\n*/\n#if A\n#if B\n#endif\n#else\n#endif\n"), [])
+
+    def test_board_overlay_tracks_release_specific_asl_inputs(self) -> None:
+        directory = "edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/"
+        paths = {"src/" + directory + "40Pin-I2s.asl"}
+        self.assertEqual(missing_board_table_inputs(paths), [])
+        paths.add("custom/overlay/" + directory + "AcpiPlatfomTables.inf")
+        self.assertEqual(len(missing_board_table_inputs(paths)), 1)
+        paths.add("custom/overlay/" + directory + "40Pin-I2s.asl")
+        self.assertEqual(missing_board_table_inputs(paths), [])
+
     def test_lto_link_path_requires_the_matching_support_archive(self) -> None:
         old = {"src/edk2/ArmPkg/Library/GccLto/liblto-aarch64.a"}
         new = {"src/edk2/BaseTools/Bin/GccLto/liblto-aarch64.a"}

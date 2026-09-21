@@ -4,12 +4,16 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        bison \
         ca-certificates \
         flake8 \
+        gcc \
         git \
         jq \
+        libc6-dev \
         make \
         markdownlint \
+        openssl \
         python3 \
         shellcheck \
         yamllint \

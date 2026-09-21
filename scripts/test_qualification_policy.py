@@ -50,12 +50,18 @@ class QualificationPolicyTests(unittest.TestCase):
 
         self.assertIn("workflow_call:", current)
         self.assertIn("workflow_call:", replay)
-        self.assertEqual(current.count("board: O6\n"), 2)
-        self.assertEqual(current.count("board: O6N\n"), 2)
+        self.assertEqual(current.count("board: O6\n"), 3)
+        self.assertEqual(current.count("board: O6N\n"), 3)
         self.assertIn("firmware_fixes: false", current)
         self.assertIn("firmware_fixes: true", current)
         self.assertIn("ARTEFACT_MODE=custom", current)
-        self.assertIn("CIX_RELEASE=v1.2", current)
+        self.assertIn("CIX_RELEASE=", current)
+        self.assertEqual(current.count("experimental: true"), 2)
+        self.assertIn('ENABLE_EXPERIMENTAL_UEFI_SETTINGS="${{ matrix.experimental }}"', current)
+        self.assertIn('FIRMWARE_REBUILD_RELEASE="${FIRMWARE_REBUILD_RELEASE}"', current)
+        self.assertIn("qualify_source_trusted_firmware.py", current)
+        self.assertIn("validate_firmware_chain.py", current)
+        self.assertNotIn("validate_firmware_chain.py", replay)
         self.assertIn("edk2-202208/radxa-1.3.1", replay)
         self.assertIn(
             "REPLAY_VERSION: ${{ inputs.replay_version || '1.3.1' }}",
