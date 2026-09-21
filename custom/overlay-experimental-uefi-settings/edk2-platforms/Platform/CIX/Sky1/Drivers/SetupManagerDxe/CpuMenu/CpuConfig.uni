@@ -35,3 +35,5 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #string STR_CPU_CPPC_HELP                     #language en-US "Select the ACPI CPPC transport. Default: Fast Channel."
 #string STR_CPU_CPPC_FAST_CHANNEL             #language en-US "Fast Channel"
 #string STR_CPU_CPPC_PCC                      #language en-US "PCC"
+
+#string STR_CPU_SPE_ENABLE_PROMPT #language en-US "SPE Enable"
