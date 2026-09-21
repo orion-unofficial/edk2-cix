@@ -1,0 +1,186 @@
+{
+  "package_path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/",
+  "purpose": "Pinned vendor reference chains and BL1/FIP pairs; board fuse and live rollback state are not observed. UEFI OEM authority derives from the vendor-signed NonTrustedWorldPK extension.",
+  "references": [
+    {
+      "bl1_sha256": "ccacd8a8a80ab983958a0b0a0fe08f562cc6b9b8a7b8a8e892123b9b2d8e168a",
+      "provenance": [
+        {
+          "commit": "1270744166bac1bbe690145fff5a44a8e78e10fb",
+          "ref": "source/vendor/radxa/0.2.0-1/edk2-stable202208"
+        },
+        {
+          "commit": "5a9243a02b5292c7e6023362a5b3c575d012eb73",
+          "ref": "source/vendor/radxa/0.2.1-1/edk2-stable202208"
+        }
+      ],
+      "reboot_scratch_layout": 1,
+      "trusted_counter": 31,
+      "trusted_fip_sha256": "5607881aa284b44fcefb9f110347fd4b7b0efe2c73ebb3f0be7ca737b5578ba5",
+      "trusted_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4",
+      "uefi_certificate_sha256": "4803998fd944fa95a1e1cdac239c53510601015047b1add1cd123fe7c3f8407e",
+      "uefi_counter": 223,
+      "uefi_oem_spki_sha256": "27d49f04bf1cc4ccfc53b6e88c58624bd6e4c4e625d6e98ec9765a0f8cab07fd",
+      "uefi_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4"
+    },
+    {
+      "bl1_sha256": "8bde9f3999c413bdda6e2b1f742367f9398227e4bfa11596a0257c9f50034a82",
+      "provenance": [
+        {
+          "commit": "91798c4778f1b0a3c8c71856b03b96175e194c4d",
+          "ref": "source/vendor/radxa/0.2.2-1/edk2-stable202208"
+        }
+      ],
+      "reboot_scratch_layout": 1,
+      "trusted_counter": 31,
+      "trusted_fip_sha256": "b426b28f2c9b0ac0d51167793e928fc4e53279fdeca7aca75d3af62a8b43d445",
+      "trusted_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4",
+      "uefi_certificate_sha256": "4803998fd944fa95a1e1cdac239c53510601015047b1add1cd123fe7c3f8407e",
+      "uefi_counter": 223,
+      "uefi_oem_spki_sha256": "27d49f04bf1cc4ccfc53b6e88c58624bd6e4c4e625d6e98ec9765a0f8cab07fd",
+      "uefi_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4"
+    },
+    {
+      "bl1_sha256": "5fd15f794f3e17979df7d005ca4e9a1d851cbf4b53383cf200b6c216b0b43168",
+      "provenance": [
+        {
+          "commit": "3570c1d8f008c8981d339639a0e35e40c4547bbb",
+          "ref": "source/vendor/radxa/0.3.0-1/edk2-stable202208"
+        },
+        {
+          "commit": "421021d036e523f2955c8dcfcb8c583ae0434460",
+          "ref": "source/vendor/radxa/0.3.1-1/edk2-stable202208"
+        }
+      ],
+      "reboot_scratch_layout": 1,
+      "trusted_counter": 31,
+      "trusted_fip_sha256": "2cb7c546c49fdccfd9147a6fd7d94a07dad959c8c97820ba8509af92866322f2",
+      "trusted_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4",
+      "uefi_certificate_sha256": "4803998fd944fa95a1e1cdac239c53510601015047b1add1cd123fe7c3f8407e",
+      "uefi_counter": 223,
+      "uefi_oem_spki_sha256": "27d49f04bf1cc4ccfc53b6e88c58624bd6e4c4e625d6e98ec9765a0f8cab07fd",
+      "uefi_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4"
+    },
+    {
+      "bl1_sha256": "6f9578eb9f8f860158c5f5d39405ac5209d2296449feaf691b8799ba66893c34",
+      "provenance": [
+        {
+          "commit": "7c8e36acd15635c0b7e36308223cbfccb8e014e4",
+          "ref": "source/vendor/radxa/1.0.0-1/edk2-stable202208"
+        }
+      ],
+      "reboot_scratch_layout": 1,
+      "trusted_counter": 31,
+      "trusted_fip_sha256": "50e6104e0d27b5f8986dd5cf26e720ef2c038c9a76ab2d526cd7f39e81ee4620",
+      "trusted_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4",
+      "uefi_certificate_sha256": "6a940e725afbee75543a9c6d9012429b5bcb2692426760e3eb8370bf49c178c8",
+      "uefi_counter": 223,
+      "uefi_oem_spki_sha256": "27d49f04bf1cc4ccfc53b6e88c58624bd6e4c4e625d6e98ec9765a0f8cab07fd",
+      "uefi_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4"
+    },
+    {
+      "bl1_sha256": "cc68df7cf762fe86b50dd16c3f88f95caec340e15d6090884392e2d1645c8615",
+      "provenance": [
+        {
+          "commit": "0d97bea0efbb20e23765b7fa6d5efb20f5e95e1e",
+          "ref": "source/vendor/radxa/1.0.0-2/edk2-stable202208"
+        },
+        {
+          "commit": "671c7508719ab17873cdb27ca0538a79cdebf099",
+          "ref": "source/vendor/radxa/1.0.0-3/edk2-stable202208"
+        },
+        {
+          "commit": "51c4f94c316da510c22d44bc4358b9d768b1d0cf",
+          "ref": "source/vendor/radxa/1.0.0-4/edk2-stable202208"
+        },
+        {
+          "commit": "1b94ee47ec8a1630de2ae19251505856bf5d7336",
+          "ref": "source/vendor/radxa/1.0.0-5/edk2-stable202208"
+        },
+        {
+          "commit": "56c220c652f3ffe3a9de1b3447299bf32d11fa92",
+          "ref": "source/vendor/radxa/1.0.0-6/edk2-stable202208"
+        },
+        {
+          "commit": "d0c2711a586c95817e7e1eb7a06190bde12e6f8e",
+          "ref": "source/vendor/radxa/1.0.0-7/edk2-stable202208"
+        },
+        {
+          "commit": "936ca7ddc9f4463bf0eca09bc5e2712e9c92df60",
+          "ref": "source/vendor/radxa/1.0.0-8/edk2-stable202208"
+        },
+        {
+          "commit": "66e36390513c4991aac826390470f0cc3665dd64",
+          "ref": "source/vendor/radxa/1.1.0-1/edk2-stable202208"
+        },
+        {
+          "commit": "1db151524899c5c7631ceeb69bfde7010dad3da0",
+          "ref": "source/vendor/radxa/1.1.0-2/edk2-stable202208"
+        }
+      ],
+      "reboot_scratch_layout": 1,
+      "trusted_counter": 31,
+      "trusted_fip_sha256": "089fc67cf58b3e6e5103d9daa50e6d701ae6a434e47e030b717def47b9308920",
+      "trusted_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4",
+      "uefi_certificate_sha256": "6a940e725afbee75543a9c6d9012429b5bcb2692426760e3eb8370bf49c178c8",
+      "uefi_counter": 223,
+      "uefi_oem_spki_sha256": "27d49f04bf1cc4ccfc53b6e88c58624bd6e4c4e625d6e98ec9765a0f8cab07fd",
+      "uefi_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4"
+    },
+    {
+      "bl1_sha256": "92fe13e4aee7fe5d18e3cc8a7f693c7d02d0b2d62739c2c031e31b9f1bb6eb5d",
+      "provenance": [
+        {
+          "commit": "a28a879a938a76512c1e5e1ff45e7ac2e6dce074",
+          "ref": "source/vendor/radxa/1.2.0-1/edk2-stable202208"
+        },
+        {
+          "commit": "28fe053174551017054a67772a42bf7ae51837de",
+          "ref": "source/vendor/radxa/1.2.1/edk2-stable202208"
+        },
+        {
+          "commit": "7f6dccb62c7014429a99e3b21eb8c9fc6a180937",
+          "ref": "source/vendor/radxa/1.2.2/edk2-stable202208"
+        },
+        {
+          "commit": "d9bbcbf806fa531057a4d79436dc384d42547996",
+          "ref": "source/vendor/radxa/1.2.3/edk2-stable202208"
+        },
+        {
+          "commit": "6cacc6c1278be56a40d50ba7084aa029567720b9",
+          "ref": "source/vendor/radxa/1.2.4/edk2-stable202208"
+        }
+      ],
+      "reboot_scratch_layout": 1,
+      "trusted_counter": 31,
+      "trusted_fip_sha256": "bc9cd4a3b595f909bf4662291beababad1c7b29c8cf94322f112ece3513aac98",
+      "trusted_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4",
+      "uefi_certificate_sha256": "2a25ee2b9dfc8d44eacc904dcf8bad07ebc40e73d026e9974c321282d80cd5c1",
+      "uefi_counter": 223,
+      "uefi_oem_spki_sha256": "27d49f04bf1cc4ccfc53b6e88c58624bd6e4c4e625d6e98ec9765a0f8cab07fd",
+      "uefi_root_spki_sha256": "0d99921361b20d2d51ea5de116c7b8c475ad3a3294cf5fcbc48190a3f5d42cad"
+    },
+    {
+      "bl1_sha256": "fcddd093649e243b16e0b9f92ec3bec7e68e03fe78fed2c594952f0eefd72f15",
+      "provenance": [
+        {
+          "commit": "a0e4dd10e320e9e8e5de10cc353b7226b32d886f",
+          "ref": "source/vendor/radxa/1.3.0/edk2-stable202208"
+        },
+        {
+          "commit": "8628b567985a6943897faf23aa2e392329bfb4b6",
+          "ref": "source/vendor/radxa/1.3.1/edk2-stable202208"
+        }
+      ],
+      "reboot_scratch_layout": 2,
+      "trusted_counter": 31,
+      "trusted_fip_sha256": "7ff0c68c436ca1a02bc109aeb330ace2698761bdb3b8750bd3c3fd62885dface",
+      "trusted_root_spki_sha256": "33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4",
+      "uefi_certificate_sha256": "2a25ee2b9dfc8d44eacc904dcf8bad07ebc40e73d026e9974c321282d80cd5c1",
+      "uefi_counter": 223,
+      "uefi_oem_spki_sha256": "27d49f04bf1cc4ccfc53b6e88c58624bd6e4c4e625d6e98ec9765a0f8cab07fd",
+      "uefi_root_spki_sha256": "0d99921361b20d2d51ea5de116c7b8c475ad3a3294cf5fcbc48190a3f5d42cad"
+    }
+  ],
+  "schema_version": 1
+}
