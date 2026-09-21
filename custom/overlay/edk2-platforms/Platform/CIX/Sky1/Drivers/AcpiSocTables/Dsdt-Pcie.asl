@@ -98,6 +98,27 @@ Device (PCI0)
 
       // PCI memory space
       //  Memory32Fixed (ReadWrite, 0x60000000, 0x20000000, )
+#ifdef ENABLE_FIRMWARE_FIXES
+      DWordIO ( // Translated 32-bit I/O BAR window from the DTB/CIXH2020 model
+        ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange,
+        0x00000000,               // Granularity
+        0x00000000,               // Range Minimum
+        0x000FFFFF,               // Range Maximum
+        0x60100000,               // Translation Offset
+        0x00100000,               // Length
+        ,, , TypeStatic, DenseTranslation
+      )
+      DWordMemory ( // 32-bit BAR Windows
+        ResourceProducer, PosDecode,
+        MinFixed, MaxFixed,
+        Cacheable, ReadWrite,
+        0x00000000,               // Granularity
+        0x60200000,               // Min Base Address
+        0x7FFFFFFF,               // Max Base Address
+        0x00000000,               // Translate
+        0x1FE00000                // Length 510M
+      )
+#else
       DWordMemory ( // 32-bit BAR Windows
         ResourceProducer, PosDecode,
         MinFixed, MaxFixed,
@@ -108,6 +129,7 @@ Device (PCI0)
         0x00000000,               // Translate
         0x20000000                // Length 512M
       )
+#endif
 
       QWordMemory ( // 64-bit BAR Windows
         ResourceProducer, PosDecode,
@@ -169,6 +191,27 @@ Device (PCI1)
         32)               // RangeLength - Number of Bus
 
       // PCI memory space
+#ifdef ENABLE_FIRMWARE_FIXES
+      DWordIO ( // Translated 32-bit I/O BAR window from the DTB/CIXH2020 model
+        ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange,
+        0x00000000,               // Granularity
+        0x00000000,               // Range Minimum
+        0x000FFFFF,               // Range Maximum
+        0x50100000,               // Translation Offset
+        0x00100000,               // Length
+        ,, , TypeStatic, DenseTranslation
+      )
+      DWordMemory ( // 32-bit BAR Windows
+        ResourceProducer, PosDecode,
+        MinFixed, MaxFixed,
+        Cacheable, ReadWrite,
+        0x00000000,               // Granularity
+        0x50200000,               // Min Base Address
+        0x5FFFFFFF,               // Max Base Address
+        0x00000000,               // Translate
+        0x0FE00000                // Length 254M
+      )
+#else
       DWordMemory ( // 32-bit BAR Windows
         ResourceProducer, PosDecode,
         MinFixed, MaxFixed,
@@ -179,6 +222,7 @@ Device (PCI1)
         0x00000000,               // Translate
         0x10000000                // Length 256M
       )
+#endif
 
       QWordMemory ( // 64-bit BAR Windows
         ResourceProducer, PosDecode,
@@ -240,6 +284,27 @@ Device (PCI2)
 
       // PCI memory space
       //  Memory32Fixed (ReadWrite, 0x40000000, 0x10000000, )
+#ifdef ENABLE_FIRMWARE_FIXES
+      DWordIO ( // Translated 32-bit I/O BAR window from the DTB/CIXH2020 model
+        ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange,
+        0x00000000,               // Granularity
+        0x00000000,               // Range Minimum
+        0x000FFFFF,               // Range Maximum
+        0x40100000,               // Translation Offset
+        0x00100000,               // Length
+        ,, , TypeStatic, DenseTranslation
+      )
+      DWordMemory ( // 32-bit BAR Windows
+        ResourceProducer, PosDecode,
+        MinFixed, MaxFixed,
+        Cacheable, ReadWrite,
+        0x00000000,               // Granularity
+        0x40200000,               // Min Base Address
+        0x4FFFFFFF,               // Max Base Address
+        0x00000000,               // Translate
+        0x0FE00000                // Length 254M
+      )
+#else
       DWordMemory ( // 32-bit BAR Windows
         ResourceProducer, PosDecode,
         MinFixed, MaxFixed,
@@ -250,6 +315,7 @@ Device (PCI2)
         0x00000000,               // Translate
         0x10000000                // Length 256M
       )
+#endif
 
       QWordMemory ( // 64-bit BAR Windows
         ResourceProducer, PosDecode,
@@ -312,6 +378,27 @@ Device (PCI3)
 
       // PCI memory space
       //  Memory32Fixed (ReadWrite, 0x38000000, 0x08000000, )
+#ifdef ENABLE_FIRMWARE_FIXES
+      DWordIO ( // Translated 32-bit I/O BAR window from the DTB/CIXH2020 model
+        ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange,
+        0x00000000,               // Granularity
+        0x00000000,               // Range Minimum
+        0x000FFFFF,               // Range Maximum
+        0x38100000,               // Translation Offset
+        0x00100000,               // Length
+        ,, , TypeStatic, DenseTranslation
+      )
+      DWordMemory ( // 32-bit BAR Windows
+        ResourceProducer, PosDecode,
+        MinFixed, MaxFixed,
+        Cacheable, ReadWrite,
+        0x00000000,               // Granularity
+        0x38200000,               // Min Base Address
+        0x3FFFFFFF,               // Max Base Address
+        0x00000000,               // Translate
+        0x07E00000                // Length 126M
+      )
+#else
       DWordMemory ( // 32-bit BAR Windows
         ResourceProducer, PosDecode,
         MinFixed, MaxFixed,
@@ -322,6 +409,7 @@ Device (PCI3)
         0x00000000,               // Translate
         0x08000000                // Length 128M
       )
+#endif
 
       QWordMemory ( // 64-bit BAR Windows
         ResourceProducer, PosDecode,
@@ -383,6 +471,27 @@ Device (PCI4)
         32)               // RangeLength - Number of Bus
 
       // PCI memory space
+#ifdef ENABLE_FIRMWARE_FIXES
+      DWordIO ( // Translated 32-bit I/O BAR window from the DTB/CIXH2020 model
+        ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange,
+        0x00000000,               // Granularity
+        0x00000000,               // Range Minimum
+        0x000FFFFF,               // Range Maximum
+        0x30100000,               // Translation Offset
+        0x00100000,               // Length
+        ,, , TypeStatic, DenseTranslation
+      )
+      DWordMemory ( // 32-bit BAR Windows
+        ResourceProducer, PosDecode,
+        MinFixed, MaxFixed,
+        Cacheable, ReadWrite,
+        0x00000000,               // Granularity
+        0x30200000,               // Min Base Address
+        0x37FFFFFF,               // Max Base Address
+        0x00000000,               // Translate
+        0x07E00000                // Length 126M
+      )
+#else
       DWordMemory ( // 32-bit BAR Windows
         ResourceProducer, PosDecode,
         MinFixed, MaxFixed,
@@ -393,6 +502,7 @@ Device (PCI4)
         0x00000000,               // Translate
         0x08000000                // Length 128M
       )
+#endif
 
       QWordMemory ( // 64-bit BAR Windows
         ResourceProducer, PosDecode,
@@ -429,6 +539,31 @@ Device (RES0)
 {
   Name (_HID, EISAID ("PNP0C02"))
   Name (_UID, 0)
+#ifdef ENABLE_FIRMWARE_FIXES
+  Name (_STA, 0x0F)
+  Name (_CRS, ResourceTemplate () {
+    Memory32Fixed (ReadWrite,
+      0x20000000,  // Address Base
+      0x02000000,  // Address Length
+      )
+    Memory32Fixed (ReadWrite,
+      0x23000000,  // Address Base
+      0x02000000,  // Address Length
+      )
+    Memory32Fixed (ReadWrite,
+      0x26000000,  // Address Base
+      0x02000000,  // Address Length
+      )
+    Memory32Fixed (ReadWrite,
+      0x29000000,  // Address Base
+      0x02000000,  // Address Length
+      )
+    Memory32Fixed (ReadWrite,
+      0x2C000000,  // Address Base
+      0x04000000,  // Address Length
+      )
+  })
+#else
   Name (_CRS, ResourceTemplate () {
     QWordMemory (ResourceConsumer, PosDecode, MinFixed, MaxFixed, Cacheable, ReadWrite,
       0x0,         // Granularity
@@ -438,4 +573,5 @@ Device (RES0)
       0x10000000,  // Length
       ,,)
   })
+#endif
 }
