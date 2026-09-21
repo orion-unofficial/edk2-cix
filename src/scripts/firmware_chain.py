@@ -199,7 +199,7 @@ def parse_fip(data: bytes) -> dict[str, bytes]:
         key, offset, length, flags = struct.unpack_from("<16sQQQ", data, pos)
         pos += 40
         if key == bytes(16):
-            require(length == 0 and flags == 0 and offset <= len(data), "invalid FIP terminator")
+            require(length == 0 and flags == 0 and offset == len(data), "invalid FIP terminator")
             break
         require(key in UUID_NAMES, "unsupported FIP entry")
         name = UUID_NAMES[key]
