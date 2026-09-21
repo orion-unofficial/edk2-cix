@@ -350,6 +350,7 @@ run "$ACTIVE_CERT_CREATE_BIN" \
 	--soc-fw "$ACTIVE_BL31_BIN" \
 	--tos-fw "$ACTIVE_TEE_BIN"
 
+printf '[cix-release] DEVELOPMENT ONLY: OEM signatures are not accepted by the vendor trusted-firmware root; this FIP must not be flashed.\n' >&2
 printf '[cix-release] Packaging bootloader2.img\n'
 mkdir -p "$(dirname "$OUTPUT")"
 rm -f "$OUTPUT"
