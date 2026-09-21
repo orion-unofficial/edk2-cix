@@ -7,8 +7,6 @@
 
 **/
 
-#include <AcpiGraph.h>
-
 #define DP_USBC_CON_DSD(Name) \
         ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),\
         Package () { \
@@ -44,7 +42,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", CIX_GRAPH_REMOTE3(DevRefUsbRole, "port@0", "endpoint@0", EP00) },\
+                Package () { "remote-endpoint", Package() { DevRefUsbRole, "port@0", "endpoint@0" } },\
             }\
   }) \
   Name (PRT1, Package() {\
@@ -61,7 +59,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", CIX_GRAPH_REMOTE3(DevRefUsbOriSwitch, "port@0", "endpoint@0", EP00) },\
+                Package () { "remote-endpoint", Package() { DevRefUsbOriSwitch, "port@0", "endpoint@0" } },\
             }\
   }) \
   Name (PRT2, Package() {\
@@ -78,7 +76,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 1 }, \
-                Package () { "remote-endpoint", CIX_GRAPH_REMOTE3(DevRefDpAltMux, "port@0", "endpoint@1", EP01) },\
+                Package () { "remote-endpoint", Package() { DevRefDpAltMux, "port@0", "endpoint@1" } },\
             }\
   })
 
@@ -105,11 +103,7 @@ Scope (\_SB.I2C1)
                       ,
                       Exclusive
                       ,)
-#ifdef ENABLE_FIRMWARE_FIXES
-      GpioInt(Level, ActiveLow, Shared, PullUp, , "\\_SB.GPI4") { 8 }
-#else
       GpioInt(Level, ActiveLow, Exclusive, PullUp, , "\\_SB.GPI4") { 8 }
-#endif
     })
     Name (_DSD, Package () {
           ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
@@ -136,11 +130,7 @@ Scope (\_SB.I2C1)
                       ,
                       Exclusive
                       ,)
-#ifdef ENABLE_FIRMWARE_FIXES
-      GpioInt(Level, ActiveLow, Shared, PullUp, , "\\_SB.GPI4") { 8 }
-#else
       GpioInt(Level, ActiveLow, Exclusive, PullUp, , "\\_SB.GPI4") { 8 }
-#endif
     })
     Name (_DSD, Package () {
           ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
