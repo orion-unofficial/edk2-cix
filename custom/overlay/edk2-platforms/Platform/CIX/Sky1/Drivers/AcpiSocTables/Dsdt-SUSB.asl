@@ -6,6 +6,8 @@
 
 **/
 
+#include <AcpiGraph.h>
+
 #ifdef ENABLE_FIRMWARE_FIXES
 #define USB_CIX_DEVICE_STA(PresentExpr) \
   If (LEqual (USDM, 1)) { \
@@ -47,7 +49,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", Package() { DevRef, UsbcCon, PortRole, EptRole } },\
+                Package () { "remote-endpoint", CIX_GRAPH_REMOTE4(DevRef, UsbcCon, PortRole, EptRole, EP00) },\
             }\
   })
 
@@ -78,14 +80,14 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", Package() { DevRef, UsbcCon, PortOrienSw, EptOrienSw } },\
+                Package () { "remote-endpoint", CIX_GRAPH_REMOTE4(DevRef, UsbcCon, PortOrienSw, EptOrienSw, EP01) },\
             }\
   }) \
   Name (EP01, Package() {\
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 1 }, \
-                Package () { "remote-endpoint", Package() { DevRef, PortAltmodeMux, EptAltmodeMux } },\
+                Package () { "remote-endpoint", CIX_GRAPH_REMOTE3(DevRef, PortAltmodeMux, EptAltmodeMux, EP02) },\
             }\
   })
 

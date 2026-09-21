@@ -70,13 +70,14 @@ class FirmwareLayoutTests(unittest.TestCase):
     def test_iter_build_all_variants_has_expected_count(self) -> None:
         variants = firmware_layout.iter_build_all_variants()
 
-        self.assertEqual(len(variants), 31)
+        self.assertEqual(len(variants), 16)
         self.assertEqual(variants[0].artefact_mode, "upstream")
         self.assertEqual(variants[0].firmware_target, "RELEASE")
         leaf_paths = {variant.leaf_path().as_posix() for variant in variants}
-        self.assertIn("custom/cix/debug/fixes/core_order/conventional", leaf_paths)
-        self.assertIn("custom/cix/debug/experimental", leaf_paths)
-        self.assertIn("custom/cix/debug/uart3/uart3_debug", leaf_paths)
+        self.assertIn("custom/debug/fixes/core_order/conventional", leaf_paths)
+        self.assertTrue(all(not variant.cix_release for variant in variants))
+        self.assertIn("custom/debug/experimental", leaf_paths)
+        self.assertIn("custom/debug/uart3/uart3_debug", leaf_paths)
 
     def test_validate_debian_version_uses_upstream_component(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir_text:
