@@ -135,11 +135,6 @@
   Platform/CIX/Sky1/Drivers/SystemFirmwareUpdate/SystemFirmwareReportDxe.inf
 !endif
 
-[BuildOptions]
-!if $(DEBUG_VERBOSE) == TRUE
-  GCC:RELEASE_*_*_CC_FLAGS    = -UMDEPKG_NDEBUG -UNDEBUG
-!endif
-
 [PcdsFixedAtBuild]
 !if $(TARGET) == RELEASE && $(DEBUG_VERBOSE) == TRUE
   # Compile out levels excluded by the requested diagnostic mask.
@@ -148,6 +143,6 @@
 
 [PcdsFixedAtBuild]
 !if $(TARGET) == RELEASE && $(DEBUG_VERBOSE) == TRUE
-  # RELEASE diagnostics enable prints without assertion traps or DEBUG_CODE.
+  # RELEASE logging keeps NDEBUG gates and enables only debug prints.
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x02
 !endif
