@@ -236,9 +236,7 @@ Device (I2S5) {
     Memory32Fixed (ReadWrite, AUDIO_I2S5_BASE, AUDIO_I2S5_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC5A_INTERRUPT_ID }
     FixedDMA (42, 255, Width32Bit, )  // 10 + CSRT_AUD_REQUEST_BASE(32)
-#ifndef ENABLE_FIRMWARE_FIXES
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s5_dbg", ResourceConsumer,)
-#endif
   })
 
   Name (_DSD, Package () {
@@ -283,9 +281,7 @@ Device (I2S6) {
     Memory32Fixed (ReadWrite, AUDIO_I2S6_BASE, AUDIO_I2S6_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC5B_INTERRUPT_ID }
     FixedDMA (44, 255, Width32Bit, )  // 12 + CSRT_AUD_REQUEST_BASE(32)
-#ifndef ENABLE_FIRMWARE_FIXES
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s6_dbg", ResourceConsumer,)
-#endif
   })
 
   Name (_DSD, Package () {
@@ -330,9 +326,7 @@ Device (I2S7) {
     Memory32Fixed (ReadWrite, AUDIO_I2S7_BASE, AUDIO_I2S7_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC5C_INTERRUPT_ID }
     FixedDMA (46, 255, Width32Bit, )  // 14 + CSRT_AUD_REQUEST_BASE(32)
-#ifndef ENABLE_FIRMWARE_FIXES
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s7_dbg", ResourceConsumer,)
-#endif
   })
 
   Name (_DSD, Package () {
@@ -377,9 +371,7 @@ Device (I2S8) {
     Memory32Fixed (ReadWrite, AUDIO_I2S8_BASE, AUDIO_I2S8_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC5D_INTERRUPT_ID }
     FixedDMA (48, 255, Width32Bit, )  // 16 + CSRT_AUD_REQUEST_BASE(32)
-#ifndef ENABLE_FIRMWARE_FIXES
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s8_dbg", ResourceConsumer,)
-#endif
   })
 
   Name (_DSD, Package () {
@@ -424,9 +416,7 @@ Device (I2S9) {
     Memory32Fixed (ReadWrite, AUDIO_I2S9_BASE, AUDIO_I2S9_SIZE)
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_I2S_MC5E_INTERRUPT_ID }
     FixedDMA (50, 255, Width32Bit, )  // 18 + CSRT_AUD_REQUEST_BASE(32)
-#ifndef ENABLE_FIRMWARE_FIXES
     PinGroupFunction(Exclusive, 0x0, "\\_SB.MUX0", 0, "pinctrl_substrate_i2s9_dbg", ResourceConsumer,)
-#endif
   })
 
   Name (_DSD, Package () {
