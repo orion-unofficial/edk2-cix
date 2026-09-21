@@ -73,6 +73,7 @@ IASL_RELEASE ?= $(if $(filter upstream,$(ARTEFACT_MODE)),20200925,20260408)
 FIRMWARE_VALIDATION_PROFILE ?= upstream-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(abspath ../build-validation)
 CUSTOM_OVERLAY_ROOT ?= $(abspath ../custom/overlay)
+CUSTOM_RELEASE_LOGGING_INCLUDE := $(abspath ../custom/release-logging)
 EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT ?= $(abspath ../custom/overlay-experimental-uefi-settings)
 CUSTOM_EDK2_WORKSPACE_KEY := $(strip $(shell printf '%s' '$(REPO_ROOT)' | cksum | awk '{print $$1}'))
 CUSTOM_EDK2_WORKSPACE_ROOT ?= $(PREFERRED_TMP_ROOT)/edk2-cix-custom-workspace-$(CUSTOM_EDK2_WORKSPACE_KEY)
@@ -330,6 +331,7 @@ CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platfor
 CUSTOM_RADXA_SE_CONFIG_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SeConfigUpdateDxe)
 CUSTOM_BASETOOLS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2/BaseTools)
 CUSTOM_BASETOOLS_VFR_OVERLAY := $(CUSTOM_BASETOOLS_OVERLAY_DIR)/Source/C/VfrCompile/VfrSyntax.g
+CUSTOM_RELEASE_LOGGING_SOURCES := $(CUSTOM_RELEASE_LOGGING_INCLUDE)/Library/DebugLib.h $(abspath scripts/prepare_release_logging.py)
 CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.fdf.inc) \
@@ -423,7 +425,7 @@ PATCHED_EDK2_SOURCE_INPUTS := \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Library/Acpi/CIX/AcpiPpttLibCIX/PpttGenerator.c) \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Library/MemoryInitPeiLib/MemoryInitPeiLib.c) \
 	$(abspath edk2-platforms/Platform/Radxa/Drivers/AcpiPlatformDxe/AcpiPlatformDxe.c)
-CUSTOM_EDK2_BUILD_INPUTS := \
+CUSTOM_EDK2_BUILD_INPUTS := $(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_RELEASE_LOGGING_SOURCES)) \
 	$(if $(filter custom,$(ARTEFACT_MODE)),$(ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES) $(CUSTOM_EDK2_OVERLAY_SOURCES) $(MICROSOFT_SECURE_BOOT_PAYLOADS))
 CUSTOM_EDK2_ORDER_ONLY_PREREQS := \
 	$(if $(filter custom,$(ARTEFACT_MODE)),check-microsoft-secure-boot-release)
@@ -819,7 +821,7 @@ preflight-inputs:
 		echo "[config] DEBUG_ON_UART3=true implies UART3_ENABLE=true"; \
 	fi; \
 	if [ -n "$(strip $(DEBUG_VERBOSE_NORMALIZED))" ] && [ "$(DEBUG_VERBOSE_NORMALIZED)" = "TRUE" ] && [ "$(FIRMWARE_TARGET)" = "RELEASE" ]; then \
-		echo "[config] DEBUG_VERBOSE=true re-enables DEBUG() logging on RELEASE builds"; \
+		echo "[config] DEBUG_VERBOSE=true enables RELEASE logging only; assertions and debug-only code stay disabled"; \
 	fi; \
 	if [ -n "$(strip $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE))" ]; then \
 		echo "[config] $$(python3 "$(MAKE_INPUT_VALIDATOR)" describe-debug-print-error-level --value "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)")"; \
@@ -1417,6 +1419,10 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 		if [[ "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" == "TRUE" ]]; then \
 			python3 scripts/generate_build_recipe.py --overlay "$(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)" --output "$$WORKSPACE/rebuild-overlay" --config "$(call BUILD_CONFIG_STAMP,$*)" --release "$(FIRMWARE_REBUILD_RELEASE)" --board "$*" --product "$(FIRMWARE_PRODUCT)" --distro "$(FIRMWARE_DISTRO)" --build-commit "$(FIRMWARE_REBUILD_BUILD_COMMIT)"; \
 			export PACKAGES_PATH="$$WORKSPACE/rebuild-overlay/edk2-platforms:$$PACKAGES_PATH"; \
+		fi; \
+		if [[ "$(UEFI_TARGET)" == "RELEASE" && "$(DEBUG_VERBOSE_NORMALIZED)" == "TRUE" ]]; then \
+			python3 scripts/prepare_release_logging.py --package "$(abspath edk2/MdePkg)" --extension "$(CUSTOM_RELEASE_LOGGING_INCLUDE)/Library/DebugLib.h" --output "$$WORKSPACE/logging-overlay"; \
+			export PACKAGES_PATH="$$WORKSPACE/logging-overlay:$$PACKAGES_PATH"; \
 		fi; \
 		export CONF_PATH="$$WORKSPACE/Conf"; \
 		mkdir -p "$$CONF_PATH"; \
