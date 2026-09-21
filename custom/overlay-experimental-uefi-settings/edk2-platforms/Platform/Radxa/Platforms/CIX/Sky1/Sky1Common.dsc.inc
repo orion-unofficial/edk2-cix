@@ -154,8 +154,8 @@
 !endif
 
 [BuildOptions]
-!if $(DEBUG_VERBOSE) == TRUE
-  GCC:RELEASE_*_*_CC_FLAGS    = -UMDEPKG_NDEBUG -UNDEBUG
+!if $(TARGET) == RELEASE && $(DEBUG_VERBOSE) == TRUE
+  GCC:RELEASE_*_*_CC_FLAGS    = -DMDEPKG_NDEBUG -DNDEBUG -I$(CIX_RELEASE_LOGGING_INCLUDE)
 !endif
 
 [PcdsFixedAtBuild]
@@ -166,7 +166,7 @@
 
 [PcdsFixedAtBuild]
 !if $(TARGET) == RELEASE && $(DEBUG_VERBOSE) == TRUE
-  # RELEASE diagnostics enable prints without assertion traps or DEBUG_CODE.
+  # RELEASE logging keeps NDEBUG gates and enables only debug prints.
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x02
 !endif
 
