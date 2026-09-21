@@ -31,7 +31,7 @@ DIRECTORY_OVERLAYS: tuple[OverlayDirectory, ...] = (
         overlay_root="custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables",
         source_root="src/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables",
         module_inf="AcpiSocTables.inf",
-        allowed_extra_files=("Dsdt-BusPerf.asl",),
+        allowed_extra_files=("Dsdt-BusPerf.asl", "Dsdt-RebootReason.asl"),
     ),
     OverlayDirectory(
         label="O6 ACPI platform tables overlay",
