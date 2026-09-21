@@ -50,7 +50,11 @@ def reference(package: Path, catalog: list[dict]) -> dict:
     matches = [r for r in catalog if (r["bl1_sha256"], r["trusted_fip_sha256"], r["uefi_certificate_sha256"])
                == (sha256(bl1), sha256(fip), sha256(cert_data))]
     require(len(matches) == 1, "firmware source inputs do not match a pinned vendor BL1/FIP/certificate reference")
-    selected = matches[0]
+    selected = dict(matches[0])
+    layout_hash = sha256(read(package / "spi_flash_config_all.json"))
+    layouts = [item for item in selected["flash_layouts"] if item["config_sha256"] == layout_hash]
+    require(len(layouts) == 1, "flash layout does not match the selected vendor reference")
+    selected["flash_layout"] = layouts[0]
     validate_fip(fip, "trusted", selected["trusted_root_spki_sha256"], selected["trusted_counter"])
     cert = Certificate(cert_data)
     require(sha256(cert.public_key) == selected["uefi_root_spki_sha256"], "vendor UEFI trust anchor differs")
@@ -106,11 +110,12 @@ def check_payloads(directory: Path, selected: dict) -> dict:
     }
 
 
-def flash_entries(data: bytes) -> dict[int, bytes]:
+def flash_entries(data: bytes, layout: dict) -> dict[int, bytes]:
     headers = [offset for offset in (0x100000, 0x200000) if data[offset:offset + 4] == b"\xaa\x55\xaa\x55"]
     require(len(data) == 8 * 1024 * 1024, "full flash image must be exactly 8 MiB")
     require(len(headers) == 1, "expected exactly one full-flash header")
     offset = headers[0]
+    require(offset == layout["header"] and len(data) == layout["size"], "flash header or size differs from vendor layout")
     require(offset + 16 <= len(data), "truncated flash header")
     _, version, count, flags = struct.unpack_from("<4I", data, offset)
     end = offset + 16 * (count + 1)
@@ -118,22 +123,37 @@ def flash_entries(data: bytes) -> dict[int, bytes]:
     entries = {}
     intervals = [(offset, end)]
     for index in range(count):
-        kind, address, length, _ = struct.unpack_from("<4I", data, offset + 16 * (index + 1))
+        kind, address, length, entry_flags = struct.unpack_from("<4I", data, offset + 16 * (index + 1))
         require(kind not in entries and address + length <= len(data), "duplicate/out-of-bounds flash entry")
         if length:
             require(all(address >= stop or address + length <= start for start, stop in intervals), "overlapping flash entries")
             intervals.append((address, address + length))
+        slot = layout["entries"].get(str(kind))
+        require(slot is not None and address == slot["address"] and length <= slot["size"] and entry_flags == 0,
+                "flash entry differs from vendor address or reserved size")
         entries[kind] = data[address:address + length]
-    require({1, 2, 7} <= entries.keys(), "flash image lacks BL1, trusted FIP or UEFI FIP")
+    require(set(map(str, entries)) == set(layout["entries"]), "flash image lacks required vendor entries")
     return entries
 
 
 def check_flash(data: bytes, selected: dict) -> dict:
-    entries = flash_entries(data)
+    entries = flash_entries(data, selected["flash_layout"])
     require(sha256(entries[1]) == selected["bl1_sha256"], "flash BL1 differs from qualified vendor pairing")
     return {"image_sha256": sha256(data),
             "trusted": validate_fip(entries[2], "trusted", selected["trusted_root_spki_sha256"], selected["trusted_counter"]),
             "uefi": validate_uefi(entries[7], selected)}
+
+
+def check_ota(data: bytes, selected: dict) -> dict:
+    require(32 <= len(data) <= MAX_IMAGE_SIZE, "invalid OTA image size")
+    magic, version, count, flags, kind, address, length, entry_flags = struct.unpack_from("<8I", data)
+    require((magic, version, count, flags, kind, entry_flags) == (0x55aa55aa, 1, 1, 0x80000000, 7, 0),
+            "unsupported OTA header or payload selection")
+    slot = selected["flash_layout"]["entries"]["7"]
+    require(address == slot["address"] and 0 < length <= slot["size"] and 32 + length <= len(data),
+            "OTA payload differs from vendor address or reserved size")
+    require(not any(data[32 + length:]), "unexpected OTA trailing bytes")
+    return {"image_sha256": sha256(data), "uefi": validate_uefi(data[32:32 + length], selected)}
 
 
 def check_archive(path: Path, selected: dict) -> list[dict]:
@@ -143,22 +163,23 @@ def check_archive(path: Path, selected: dict) -> list[dict]:
         require(0 < size <= MAX_IMAGE_SIZE, "oversized firmware archive member")
         data = stream.read(MAX_IMAGE_SIZE + 1)
         require(len(data) == size, "truncated firmware archive member")
-        records.append({"path": f"{path}:{name}", **check_flash(data, selected)})
+        check = check_ota if Path(name).name == "cix_flash_ota.bin" else check_flash
+        records.append({"path": f"{path}:{name}", **check(data, selected)})
 
     if path.suffix == ".zip":
         with zipfile.ZipFile(path) as archive:
             for info in archive.infolist():
-                if Path(info.filename).name == "cix_flash_all.bin":
+                if Path(info.filename).name in {"cix_flash_all.bin", "cix_flash_ota.bin"}:
                     with archive.open(info) as stream:
                         member(info.filename, info.file_size, stream)
     else:
         with tarfile.open(path, "r:gz") as archive:
             for info in archive:
-                if Path(info.name).name == "cix_flash_all.bin":
+                if Path(info.name).name in {"cix_flash_all.bin", "cix_flash_ota.bin"}:
                     require(info.isfile(), "firmware archive image is not a regular file")
                     with archive.extractfile(info) as stream:
                         member(info.name, info.size, stream)
-    require(bool(records), "firmware archive contains no full flash image")
+    require(any(r["path"].endswith("cix_flash_all.bin") for r in records), "firmware archive contains no full flash image")
     return records
 
 
@@ -171,10 +192,15 @@ def check_outputs(worktree: Path, selected: dict, board: str, target: str, build
     for root in roots:
         path = root / "cix_flash_all.bin"
         records.append({"path": str(path), **check_flash(read(path), selected)})
+        ota = root / "cix_flash_ota.bin"
+        if ota.exists():
+            records.append({"path": str(ota), **check_ota(read(ota), selected)})
     if build_target in {"build-all", "buildbox-zip", "buildbox-targz", "buildbox-firmware-stage"}:
         for path in sorted((worktree / "dist").rglob("*")):
             if path.is_file() and path.name == "cix_flash_all.bin":
                 records.append({"path": str(path), **check_flash(read(path), selected)})
+            elif path.is_file() and path.name == "cix_flash_ota.bin":
+                records.append({"path": str(path), **check_ota(read(path), selected)})
             elif path.is_file() and path.name.endswith((".zip", ".tgz", ".tar.gz")):
                 records.extend(check_archive(path, selected))
     require(bool(records), "no full firmware output found for certificate-chain verification")
@@ -189,6 +215,7 @@ def main() -> int:
     selection.add_argument("--worktree", type=Path)
     selection.add_argument("--payload-dir", type=Path)
     selection.add_argument("--flash-image", type=Path)
+    selection.add_argument("--ota-image", type=Path)
     parser.add_argument("--phase", choices=("inputs", "outputs"), default="inputs")
     parser.add_argument("--cix-release", default="")
     parser.add_argument("--artefact-mode", default="custom")
@@ -216,6 +243,8 @@ def main() -> int:
             report["images"] = [check_payloads(args.payload_dir, selected)]
         elif args.flash_image:
             report["images"] = [check_flash(read(args.flash_image), selected)]
+        elif args.ota_image:
+            report["images"] = [check_ota(read(args.ota_image), selected)]
         elif args.phase == "outputs":
             report["images"] = check_outputs(args.worktree, selected, args.board, args.firmware_target, args.build_target)
         report["status"] = "verified" if "images" in report else "inputs-verified"
