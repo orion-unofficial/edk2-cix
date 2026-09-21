@@ -70,6 +70,10 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdSrIovSupport
 
 [FixedPcd]
+  gCixTokenSpaceGuid.PcdUsb3Control0DataRole
+  gCixTokenSpaceGuid.PcdSPEEn
+  gCixTokenSpaceGuid.PcdAcpiSmmuEnable
+  gCixPlatformTokenSpaceGuid.PcdRegisterFastBootSupport
   gCixPlatformTokenSpaceGuid.PcdEcAcpiI2cEn
   gRadxaTokenSpaceGuid.PcdUFSPowerMode
 
