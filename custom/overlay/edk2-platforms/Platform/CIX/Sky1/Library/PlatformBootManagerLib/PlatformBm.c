@@ -1037,13 +1037,17 @@ BootDiscoveryPolicyHandler (
     return Status;
   }
 
+  DEBUG ((DEBUG_INFO, "[BDS] ConnectDeviceClass begin\n"));
   Status = BMPolicy->ConnectDeviceClass (BMPolicy, Class);
+  DEBUG ((DEBUG_INFO, "[BDS] ConnectDeviceClass completed: %r\n", Status));
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a - ConnectDeviceClass returns - %r\n", __FUNCTION__, Status));
     return Status;
   }
 
+  DEBUG ((DEBUG_INFO, "[BDS] RefreshAllBootOption begin\n"));
   EfiBootManagerRefreshAllBootOption ();
+  DEBUG ((DEBUG_INFO, "[BDS] RefreshAllBootOption completed\n"));
 
   return EFI_SUCCESS;
 }
@@ -1077,7 +1081,9 @@ PlatformBootManagerAfterConsole (
   //
   // Show the splash screen.
   //
+  DEBUG ((DEBUG_INFO, "[BDS] BootLogoEnableLogo begin\n"));
   Status = BootLogoEnableLogo ();
+  DEBUG ((DEBUG_INFO, "[BDS] BootLogoEnableLogo completed: %r\n", Status));
   if (EFI_ERROR (Status)) {
     if (FirmwareVerLength > 0) {
       Print (
@@ -1120,7 +1126,9 @@ PlatformBootManagerAfterConsole (
   // Connect device specified by BootDiscoverPolicy variable and
   // refresh Boot order for newly discovered boot devices
   //
-  BootDiscoveryPolicyHandler ();
+  DEBUG ((DEBUG_INFO, "[BDS] BootDiscoveryPolicyHandler begin\n"));
+  Status = BootDiscoveryPolicyHandler ();
+  DEBUG ((DEBUG_INFO, "[BDS] BootDiscoveryPolicyHandler completed: %r\n", Status));
 
   //
   // On ARM, there is currently no reason to use the phased capsule
@@ -1129,7 +1137,9 @@ PlatformBootManagerAfterConsole (
   // when the console is up and we can actually give the user some
   // feedback about what is going on.
   //
+  DEBUG ((DEBUG_INFO, "[BDS] HandleCapsules begin\n"));
   HandleCapsules ();
+  DEBUG ((DEBUG_INFO, "[BDS] HandleCapsules completed\n"));
 
   //
   // Register UEFI Shell

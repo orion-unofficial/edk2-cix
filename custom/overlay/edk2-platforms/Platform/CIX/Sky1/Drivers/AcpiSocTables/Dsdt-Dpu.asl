@@ -6,8 +6,14 @@
 
 **/
 
+#include <AcpiGraph.h>
+
 #define EMPTY_STR ""
 
+#ifdef ENABLE_FIRMWARE_FIXES
+// Disabled virtual displays must not contribute dangling graph edges.
+#define VDP_PORT_INIT(RemoteDeviceReference,RemotePipeline,RemotePort,RemoteEndPoint)
+#else
 #define VDP_PORT_INIT(RemoteDeviceReference,RemotePipeline,RemotePort,RemoteEndPoint) \
  Name (_DSD, Package () { \
             ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),\
@@ -32,6 +38,8 @@
                 Package () { "remote-endpoint", Package() { RemoteDeviceReference, RemotePipeline, RemotePort, RemoteEndPoint } },\
             }\
   })
+
+#endif
 
 #ifdef ENABLE_FIRMWARE_FIXES
 #define DP_PORT_INIT(RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0, \
@@ -66,7 +74,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", Package() { RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0 } },\
+                Package () { "remote-endpoint", CIX_GRAPH_REMOTE4(RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0, EP00) },\
             }\
   })\
   Name (PRT1, Package() {\
@@ -83,7 +91,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", Package() { RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1 } },\
+                Package () { "remote-endpoint", CIX_GRAPH_REMOTE4(RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1, EP10) },\
             }\
   })
 
@@ -120,7 +128,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", Package() { RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0 } },\
+                Package () { "remote-endpoint", CIX_GRAPH_REMOTE4(RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0, EP00) },\
             }\
   })\
   Name (PRT1, Package() {\
@@ -137,7 +145,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", Package() { RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1 } },\
+                Package () { "remote-endpoint", CIX_GRAPH_REMOTE4(RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1, EP10) },\
             }\
   })
 #else
@@ -175,7 +183,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", Package() { RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0 } },\
+                Package () { "remote-endpoint", CIX_GRAPH_REMOTE4(RemoteDeviceReference0, RemotePipeline0, RemotePort0, RemoteEndPoint0, EP00) },\
             }\
   })\
   Name (PRT1, Package() {\
@@ -192,7 +200,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", Package() { RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1 } },\
+                Package () { "remote-endpoint", CIX_GRAPH_REMOTE4(RemoteDeviceReference1, RemotePipeline1, RemotePort1, RemoteEndPoint1, EP10) },\
             }\
   })
 #endif
@@ -252,7 +260,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", Package () { RemoteDeviceReference1, RemotePort1, RemoteEndPoint1 } },\
+                Package () { "remote-endpoint", CIX_GRAPH_REMOTE3(RemoteDeviceReference1, RemotePort1, RemoteEndPoint1, EP00) },\
             }\
         })\
         Name (PIP1, Package() {\
@@ -279,7 +287,7 @@
             ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),\
             Package () {\
                 Package () { "reg", 0 }, \
-                Package () { "remote-endpoint", Package () {RemoteDeviceReference2, RemotePort2, RemoteEndPoint2 } },\
+                Package () { "remote-endpoint", CIX_GRAPH_REMOTE3(RemoteDeviceReference2, RemotePort2, RemoteEndPoint2, EP01) },\
             }\
         })
 

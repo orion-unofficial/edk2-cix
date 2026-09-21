@@ -74,7 +74,11 @@ Device (ADSS) {
         Package() {CLK_MCLK2, "mclk2", \_SB.SNDC},
         Package() {CLK_MCLK3, "mclk3", \_SB.SNDC},
         Package() {CLK_MCLK4, "mclk4", \_SB.SNDC},
+        #ifdef ENABLE_FIRMWARE_FIXES
+        Package() {CLK_DMAC_AXI, "axiclk", \_SB.DMA1},
+#else
         Package() {CLK_DMAC_AXI, "", \_SB.DMA1},
+#endif
         Package() {CLK_HDA_SYS, "sysclk", \_SB.HDA},
         Package() {CLK_HDA_HDA, "clk48m", \_SB.HDA},
         Package() {CLK_DSP_CLK, "clk", \_SB.DSP},

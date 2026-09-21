@@ -44,6 +44,7 @@ DefinitionBlock("DsdtTable.aml", "DSDT", 2, "CIXTEK", "SKY1EDK2", 1) {
     include("Dsdt-ScmiMailbox.asl")
 #ifdef ENABLE_FIRMWARE_FIXES
     include("Dsdt-BusPerf.asl")
+    include("Dsdt-RebootReason.asl")
 #endif
     include("Dsdt-Audss.asl")
     include("Dsdt-Gpio.asl")
