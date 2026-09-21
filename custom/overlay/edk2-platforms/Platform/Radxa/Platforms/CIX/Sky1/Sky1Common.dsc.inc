@@ -140,7 +140,14 @@
   GCC:RELEASE_*_*_CC_FLAGS    = -UMDEPKG_NDEBUG -UNDEBUG
 !endif
 
-[PcdsPatchableInModule]
+[PcdsFixedAtBuild]
 !if $(TARGET) == RELEASE && $(DEBUG_VERBOSE) == TRUE
-  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x06
+  # Compile out levels excluded by the requested diagnostic mask.
+  gEfiMdePkgTokenSpaceGuid.PcdFixedDebugPrintErrorLevel|$(DEBUG_PRINT_ERROR_LEVEL)
+!endif
+
+[PcdsFixedAtBuild]
+!if $(TARGET) == RELEASE && $(DEBUG_VERBOSE) == TRUE
+  # RELEASE diagnostics enable prints without assertion traps or DEBUG_CODE.
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x02
 !endif
