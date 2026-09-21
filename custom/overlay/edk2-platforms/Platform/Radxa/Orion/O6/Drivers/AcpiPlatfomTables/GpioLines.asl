@@ -145,8 +145,14 @@ Scope (\_SB.GPI3)
     "GPIO151",
     "GPIO152",
     "GPIO153",
+#ifdef ENABLE_FIRMWARE_FIXES
+    // GPIO3 lines 15/16: IoConfig.h BITMAP_DP2_BLON/DIGON.
+    "DP2_BLON",
+    "DP2_DIGON"
+#else
     "DP2_DIGON",
     "DP2_BLON"
+#endif
   })
 }
 
