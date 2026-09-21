@@ -30,6 +30,8 @@ BUILD_FIXES = (
     ("57c8f42fe3", "scripts/firmware_metadata_audit.py", b'[A-Za-z0-9_][A-Za-z0-9_.-]*', False),
     ("052459dd2b/strict-bison", "scripts/ensure_iasl.sh", b"'YFLAGS=-y -Werror -Wno-yacc' NOWERROR=FALSE >&2", True),
     ("stored-version-header", "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionDxe.c", b"STR (UEFI_FW_VERSION),", False),
+    ("release-logging-only", "custom/release-logging/Library/DebugLib.h", b"#error Custom RELEASE logging requires MDEPKG_NDEBUG and NDEBUG", False),
+    ("release-logging-include", "src/Makefile", b'export PACKAGES_PATH="$$WORKSPACE/logging-overlay:$$PACKAGES_PATH"', False),
 )
 
 
@@ -242,7 +244,7 @@ def missing_platform_inputs(paths: set[str], descriptors: dict[str, str], overla
 
 
 def source_input_problems(repo: Path, ref: str) -> list[str]:
-    entries = tree_entries(repo, ref, ("src", "scripts", *OVERLAYS))
+    entries = tree_entries(repo, ref, ("src", "scripts", "custom/release-logging", *OVERLAYS))
     paths = set(entries)
     infs = {path: entry for path, entry in entries.items() if path.startswith("src/edk2") and path.lower().endswith(".inf")}
     inf_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in infs.values()))
@@ -331,6 +333,7 @@ def main() -> None:
             for source, caller in (("src/scripts/firmware_chain.py", "scripts/firmware_chain.py"),
                                    ("src/scripts/validate_firmware_chain.py", "scripts/validate_firmware_chain.py"),
                                    ("src/scripts/check_release_debug.py", "scripts/check_release_debug.py"),
+                                   ("src/scripts/prepare_release_logging.py", "scripts/prepare_release_logging.py"),
                                    ("src/scripts/firmware-trust.json", "config/firmware-trust.json")):
                 entry = entries.get(source)
                 if entry is None:

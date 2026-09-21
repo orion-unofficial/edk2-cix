@@ -31,14 +31,32 @@ For O6 and O6N, the practical combinations are:
   `ARTEFACT_MODE=custom FIRMWARE_TARGET=DEBUG` and
   `DEBUG_PRINT_ERROR_LEVEL=0x8000004f`.
 - `ARTEFACT_MODE=custom FIRMWARE_TARGET=RELEASE DEBUG_VERBOSE=true`: RELEASE
-  builds re-enable `DEBUG()` logging with a narrow debug-property mask while
-  leaving asserts and related low-level debug behaviour disabled.
+  builds re-enable `DEBUG()` logging while retaining `MDEPKG_NDEBUG` and
+  `NDEBUG`. Assertions, `DEBUG_CODE` blocks, debug memory filling, and other
+  source guarded by those definitions remain disabled. Logs inside those
+  excluded blocks are also omitted. Full `FIRMWARE_TARGET=DEBUG` semantics
+  remain unchanged.
 
 The custom path defaults `DEBUG_PRINT_ERROR_LEVEL` to `0x80000040`
 (`DEBUG_INFO|DEBUG_ERROR`). If `DEBUG_VERBOSE=true` is set without an explicit
 `DEBUG_PRINT_ERROR_LEVEL`, the build enables all available `DEBUG_*` message
 levels by default. Run `make help-debug` for the derived bit list from
 `DebugLib.h`.
+
+Logging still adds format strings, argument calculations, and print calls.
+Keeping the other RELEASE gates reduces that cost but does not guarantee that
+the compressed firmware fits its reserved flash region. The normal size and
+signature checks still apply. For compact BDS and setup-migration diagnostics,
+use `DEBUG_VERBOSE=false DEBUG_PRINT_ERROR_LEVEL=0x80000001`.
+
+In the September 2026 O6 qualification using EDK2 202605, Radxa 1.3.1,
+firmware fixes, and the experimental menus, logging-only RELEASE with
+`DEBUG_PRINT_ERROR_LEVEL=0x80000040` compiled cleanly but required a compressed
+FV of `0x201510` bytes. Its reservation was `0x1f2000`, so the build correctly
+failed with a 62,736-byte overflow. Compiled BDS output contained INFO messages,
+and its compiler dependencies confirmed selection of the logging header while
+retaining both RELEASE definitions. Removing other debug code is therefore
+not sufficient to make the INFO/error mask fit this configuration.
 
 `DEBUG_ON_UART3`, `UART3_ENABLE`, `DEBUG_VERBOSE`, and
 `DEBUG_PRINT_ERROR_LEVEL` are only honored on the custom overlay path. When
