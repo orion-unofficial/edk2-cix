@@ -228,7 +228,15 @@
 ###################################################################################################
 [BuildOptions]
   GCC:DEBUG_*_*_CC_FLAGS          = -DDEBUG_MODE
+!ifdef $(DEBUG_VERBOSE)
+!if $(DEBUG_VERBOSE) == TRUE
+  GCC:RELEASE_*_*_CC_FLAGS        = -UMDEPKG_NDEBUG -UNDEBUG
+!else
   GCC:RELEASE_*_*_CC_FLAGS        = -DMDEPKG_NDEBUG -DNDEBUG
+!endif
+!else
+  GCC:RELEASE_*_*_CC_FLAGS        = -DMDEPKG_NDEBUG -DNDEBUG
+!endif
 
 !if $(COMPILE_FASTBOOT_LOAD) == nvme
   GCC:*_*_*_CC_FLAGS          = -DFASTBOOT_NVME
