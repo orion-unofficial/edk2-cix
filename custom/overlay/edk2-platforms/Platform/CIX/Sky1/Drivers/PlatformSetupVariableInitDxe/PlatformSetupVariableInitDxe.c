@@ -138,13 +138,13 @@ ApplyCustomFirmwareSetupMigrations (
   if (Status != EFI_NOT_FOUND) {
     // Do not reset a user's choice after a transient read failure or an
     // unknown marker format. An optional migration must not block boot.
-    DEBUG ((DEBUG_ERROR, "%a: skipping LPI migration: marker status=%r size=%u\n", __FUNCTION__, Status, (UINT32)VarSize));
+    DebugPrint (DEBUG_ERROR, "%a: skipping LPI migration: marker status=%r size=%u\n", __FUNCTION__, Status, (UINT32)VarSize);
     return EFI_SUCCESS;
   }
 
   DefaultLpiState = FixedPcdGet8 (PcdAcpiCpuLpiState);
   if ((PlatformSetupVar->CpuLpiState == 0) && (DefaultLpiState != 0)) {
-    DEBUG ((DEBUG_INFO, "%a: saving CPU LPI default %u\n", __FUNCTION__, DefaultLpiState));
+    DebugPrint (DEBUG_INIT, "%a: saving CPU LPI default %u\n", __FUNCTION__, DefaultLpiState);
     PlatformSetupVar->CpuLpiState = DefaultLpiState;
     Status = gRT->SetVariable (
                     PLATFORM_SETUP_VAR,
@@ -153,18 +153,18 @@ ApplyCustomFirmwareSetupMigrations (
                     sizeof (PLATFORM_SETUP_DATA),
                     PlatformSetupVar
                     );
-    DEBUG ((DEBUG_INFO, "%a: CPU LPI setup write completed: %r\n", __FUNCTION__, Status));
+    DebugPrint (DEBUG_INIT, "%a: CPU LPI setup write completed: %r\n", __FUNCTION__, Status);
     if (EFI_ERROR (Status)) {
       // The setup value must be durable before the marker can be committed.
       // Preserve the usable previous setting and retry on a later boot.
       PlatformSetupVar->CpuLpiState = 0;
-      DEBUG ((DEBUG_ERROR, "%a: LPI migration deferred: setup write failed: %r\n", __FUNCTION__, Status));
+      DebugPrint (DEBUG_ERROR, "%a: LPI migration deferred: setup write failed: %r\n", __FUNCTION__, Status);
       return EFI_SUCCESS;
     }
   }
 
   Migrated = 1;
-  DEBUG ((DEBUG_INFO, "%a: recording completed LPI migration\n", __FUNCTION__));
+  DebugPrint (DEBUG_INIT, "%a: recording completed LPI migration\n", __FUNCTION__);
   Status = gRT->SetVariable (
                   CUSTOM_LPI_DEFAULT_MIGRATION_VAR,
                   &gCixGlobalVariableGuid,
@@ -172,9 +172,9 @@ ApplyCustomFirmwareSetupMigrations (
                   sizeof (Migrated),
                   &Migrated
                   );
-  DEBUG ((DEBUG_INFO, "%a: LPI migration marker write completed: %r\n", __FUNCTION__, Status));
+  DebugPrint (DEBUG_INIT, "%a: LPI migration marker write completed: %r\n", __FUNCTION__, Status);
   if (EFI_ERROR (Status)) {
-    DEBUG ((DEBUG_ERROR, "%a: LPI migration marker not saved; retry next boot: %r\n", __FUNCTION__, Status));
+    DebugPrint (DEBUG_ERROR, "%a: LPI migration marker not saved; retry next boot: %r\n", __FUNCTION__, Status);
   }
 
   return EFI_SUCCESS;
@@ -638,7 +638,7 @@ PlatformSetupVariableInit (
   if (EFI_ERROR (Status) || (VarSize != sizeof (PlatformSetupVar)) || IsRtcPowerfailure ()) {
     // GetVariable may increase VarSize on EFI_BUFFER_TOO_SMALL. Never use
     // that returned size to clear this fixed-size stack object.
-    DEBUG ((DEBUG_INFO, "%a: constructing setup defaults: status=%r size=%u\n", __FUNCTION__, Status, (UINT32)VarSize));
+    DebugPrint (DEBUG_INIT, "%a: constructing setup defaults: status=%r size=%u\n", __FUNCTION__, Status, (UINT32)VarSize);
     ZeroMem (&PlatformSetupVar, sizeof (PlatformSetupVar));
     ConstructSetupVariable (&PlatformSetupVar);
 
