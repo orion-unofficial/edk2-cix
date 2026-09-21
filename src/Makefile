@@ -994,6 +994,7 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 			echo "[build/$*] Expected OTA image $$tmp_ota was not created" >&2; \
 			exit 1; \
 		fi && \
+		python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --ota-image "$$tmp_ota" --reference-dir "$(abspath $(PACKAGE_TOOL))" && \
 		mv -f "$$tmp_ota" "./cix_flash_ota.bin" \
 	) && \
 	cp -f "$$stage_dir/cix_flash_ota.bin" "$@" && \
