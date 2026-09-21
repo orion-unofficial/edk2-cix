@@ -1,7 +1,7 @@
 /** @file
   Custom RELEASE logging without enabling assertion or diagnostic-only code.
 
-  This GCC-family include wrapper is selected only for custom RELEASE builds
+  This header extension is selected only for custom RELEASE builds
   with DEBUG_VERBOSE=true. Keep the version-matched upstream header and all
   RELEASE preprocessor gates; override only printing and disable debug helpers
   at compile time. Do not expose this directory to imported upstream builds.
@@ -10,8 +10,6 @@
 **/
 #ifndef CIX_RELEASE_LOGGING_DEBUG_LIB_H_
 #define CIX_RELEASE_LOGGING_DEBUG_LIB_H_
-
-#include_next <Library/DebugLib.h>
 
 #if !defined (MDEPKG_NDEBUG) || !defined (NDEBUG)
 #error Custom RELEASE logging requires MDEPKG_NDEBUG and NDEBUG

@@ -153,12 +153,6 @@
   Platform/CIX/Sky1/Drivers/SystemFirmwareUpdate/SystemFirmwareReportDxe.inf
 !endif
 
-[BuildOptions]
-!if $(TARGET) == RELEASE && $(DEBUG_VERBOSE) == TRUE
-  # Pass the include directly: AutoGen appends ordinary -I after MdePkg.
-  GCC:RELEASE_*_*_CC_FLAGS    = -DMDEPKG_NDEBUG -DNDEBUG -Wp,-I,$(CIX_RELEASE_LOGGING_INCLUDE)
-!endif
-
 [PcdsFixedAtBuild]
 !if $(TARGET) == RELEASE && $(DEBUG_VERBOSE) == TRUE
   # Compile out levels excluded by the requested diagnostic mask.

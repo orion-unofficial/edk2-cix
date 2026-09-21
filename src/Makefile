@@ -330,7 +330,7 @@ CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platfor
 CUSTOM_RADXA_SE_CONFIG_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SeConfigUpdateDxe)
 CUSTOM_BASETOOLS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2/BaseTools)
 CUSTOM_BASETOOLS_VFR_OVERLAY := $(CUSTOM_BASETOOLS_OVERLAY_DIR)/Source/C/VfrCompile/VfrSyntax.g
-CUSTOM_RELEASE_LOGGING_SOURCES := $(CUSTOM_RELEASE_LOGGING_INCLUDE)/Library/DebugLib.h
+CUSTOM_RELEASE_LOGGING_SOURCES := $(CUSTOM_RELEASE_LOGGING_INCLUDE)/Library/DebugLib.h $(abspath scripts/prepare_release_logging.py)
 CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.fdf.inc) \
@@ -1415,6 +1415,10 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 			python3 scripts/generate_build_recipe.py --overlay "$(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)" --output "$$WORKSPACE/rebuild-overlay" --config "$(call BUILD_CONFIG_STAMP,$*)" --release "$(FIRMWARE_REBUILD_RELEASE)" --board "$*" --product "$(FIRMWARE_PRODUCT)" --distro "$(FIRMWARE_DISTRO)" --build-commit "$(FIRMWARE_REBUILD_BUILD_COMMIT)"; \
 			export PACKAGES_PATH="$$WORKSPACE/rebuild-overlay/edk2-platforms:$$PACKAGES_PATH"; \
 		fi; \
+		if [[ "$(UEFI_TARGET)" == "RELEASE" && "$(DEBUG_VERBOSE_NORMALIZED)" == "TRUE" ]]; then \
+			python3 scripts/prepare_release_logging.py --package "$(abspath edk2/MdePkg)" --extension "$(CUSTOM_RELEASE_LOGGING_INCLUDE)/Library/DebugLib.h" --output "$$WORKSPACE/logging-overlay"; \
+			export PACKAGES_PATH="$$WORKSPACE/logging-overlay:$$PACKAGES_PATH"; \
+		fi; \
 		export CONF_PATH="$$WORKSPACE/Conf"; \
 		mkdir -p "$$CONF_PATH"; \
 		export EDK_TOOLS_PATH="$(CUSTOM_BASETOOLS_DIR)"; \
@@ -1561,9 +1565,6 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 	fi; \
 	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_VERBOSE_NORMALIZED)" ]]; then \
 		build_extra_defines+=(-D DEBUG_VERBOSE=$(DEBUG_VERBOSE_NORMALIZED)); \
-		if [[ "$(UEFI_TARGET)" == "RELEASE" && "$(DEBUG_VERBOSE_NORMALIZED)" == "TRUE" ]]; then \
-			build_extra_defines+=(-D "CIX_RELEASE_LOGGING_INCLUDE=$(CUSTOM_RELEASE_LOGGING_INCLUDE)"); \
-		fi; \
 	fi; \
 		if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)" ]]; then \
 			build_extra_defines+=(-D DEBUG_PRINT_ERROR_LEVEL=$(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE)); \
