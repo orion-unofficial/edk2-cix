@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 from check_release_debug import BDS_MARKERS, check
+from reconstruction_common import show_file
 
 
 class ReleaseDebugTests(unittest.TestCase):
@@ -17,7 +18,7 @@ class ReleaseDebugTests(unittest.TestCase):
         for ref, toolchain in (("source/unofficial/edk2-stable202208", "GCC5"),
                                ("source/unofficial/1.3/current", "GCC")):
             with self.subTest(ref=ref), tempfile.TemporaryDirectory(prefix="debug-build-hook-") as directory:
-                makefile = subprocess.check_output(["git", "-C", str(repo), "show", ref + ":src/Makefile"], text=True)
+                makefile = show_file(repo, ref, "src/Makefile").decode()
                 command = re.search(r'python3 "\$\(REPO_ROOT\)/src/scripts/check_release_debug.py".*?;', makefile, re.S).group()
                 command = command.replace("$(REPO_ROOT)/src/scripts", str(repo / "scripts"))
                 command = command.replace("$(or $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE),0x80000040)", "0x80000001")

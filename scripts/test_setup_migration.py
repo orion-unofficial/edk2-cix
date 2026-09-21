@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 import unittest
 
+from reconstruction_common import show_file
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = 'custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/PlatformSetupVariableInitDxe/PlatformSetupVariableInitDxe.c'
 
@@ -13,8 +15,8 @@ SOURCE = 'custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/PlatformSetupV
 class SetupMigrationTests(unittest.TestCase):
     def test_variable_failure_ordering_and_bounds(self):
         source_root = os.environ.get('SOURCE_TEST_ROOT')
-        text = (Path(source_root) / SOURCE).read_text() if source_root else subprocess.check_output(
-            ['git', '-C', str(ROOT), 'show', os.environ.get('SOURCE_TEST_REF', 'source/unofficial/1.3/current') + ':' + SOURCE], text=True)
+        text = (Path(source_root) / SOURCE).read_text() if source_root else show_file(
+            ROOT, os.environ.get('SOURCE_TEST_REF', 'source/unofficial/1.3/current'), SOURCE).decode()
         migration = text[text.index('STATIC\nEFI_STATUS\nApplyCustomFirmwareSetupMigrations'):text.index('\nVOID\nEFIAPI\nUpdateConfigParams')]
         setup = text[text.index('EFI_STATUS\nPlatformSetupVariableInit ('):text.index('EFI_STATUS\nNetworkStackVariableInit (')]
         harness = r'''

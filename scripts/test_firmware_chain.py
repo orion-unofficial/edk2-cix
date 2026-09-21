@@ -17,6 +17,7 @@ import zipfile
 
 import firmware_chain as chain
 import validate_firmware_chain as packaging
+from reconstruction_common import show_file
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,10 +25,7 @@ PACKAGE = "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/"
 
 
 def vendor(version, path):
-    return subprocess.check_output([
-        "git", "-C", str(ROOT), "show",
-        f"source/vendor/radxa/{version}/edk2-stable202208:{PACKAGE}{path}",
-    ])
+    return show_file(ROOT, f"source/vendor/radxa/{version}/edk2-stable202208", PACKAGE + path)
 
 
 def replace_entry(data, name, payload):

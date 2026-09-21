@@ -9,6 +9,8 @@ import subprocess
 import tempfile
 import unittest
 
+from reconstruction_common import resolve_ref
+
 ROOT = Path(__file__).resolve().parents[1]
 PREFIX = 'custom/overlay/edk2-platforms/Platform/CIX/Sky1/'
 
@@ -21,7 +23,7 @@ def repo_source(path):
     local = os.environ.get('SOURCE_TEST_ROOT')
     if local:
         return (Path(local) / path).read_text()
-    ref = os.environ.get('SOURCE_TEST_REF', 'source/unofficial/1.3/current')
+    ref = resolve_ref(ROOT, os.environ.get('SOURCE_TEST_REF', 'source/unofficial/1.3/current'))
     for _ in range(8):
         entry = subprocess.check_output(['git', '-C', str(ROOT), 'ls-tree',
                                          ref, '--', path], text=True)
