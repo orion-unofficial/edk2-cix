@@ -47,6 +47,7 @@
   CixSipLib
 
 [Guids]
+  gEfiEventReadyToBootGuid
   gCixI2cDevicePathGuid
   gEfiNetworkStackSetupGuid
   gPlatformSetupVariableGuid

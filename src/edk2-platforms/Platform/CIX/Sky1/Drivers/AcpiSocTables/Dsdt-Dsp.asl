@@ -50,13 +50,8 @@ Device (DSP) {
     ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
     Package () {
       Package () { "firmware-name", "dsp_fw.bin" },
-#ifdef ENABLE_FIRMWARE_FIXES
-      Package () { "mbox-names", Package () {"tx0", "rx0", "txdb", "rxdb"}},
-      Package () { "mboxes", Package (8) { MBX5, 9, MBX4, 9, MBX5, 8, MBX4, 8}},
-#else
       Package () { "mbox-names", Package () {"tx0", "rx0"}},
       Package () { "mboxes", Package (4) { MBX5, 9, MBX4, 9}},
-#endif
       Package () { "cix,dsp-ctrl", DCRU },
     }
   })
