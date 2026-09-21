@@ -26,20 +26,12 @@ EDK2_ENV_RE = re.compile(
 EDK2_META_RE = re.compile(
     r"^[.]*\s*(Processing meta-data|Architecture\(s\)\s*=|Build target\s*=|Toolchain\s*=|Active Platform\s*=)"
 )
-PLATFORMCONFIG_DEFAULT_RE = re.compile(r"PlatformConfigHii\.i\(\d+\): WARNING: default")
-PLATFORMCONFIG_CONTINUATION_RE = re.compile(r"^\s*: default value re-defined")
-RWX_WARNING_RE = re.compile(r"LOAD segment with RWX permissions")
-LTO_SERIAL_WARNING_RE = re.compile(r"^lto-wrapper: warning: using serial compilation")
-LTO_SERIAL_NOTE_RE = re.compile(r"^lto-wrapper: note: see the .-flto. option documentation")
-VFR_AMBIGUITY_RE = re.compile(r"^VfrSyntax\.g(?:, line \d+)?: warning: .*ambiguous upon ")
 BUILDING_RE = re.compile(r"^Building \.\.\. (.+) \[([^\]]+)\]$")
 SRC_PREFIX_RE = re.compile(r"^.*?/src/")
 PROGRESS_LINE_RE = re.compile(r"^[.#]+(?: done!)?$")
 
-ARTEFACT_MODE = os.environ.get("ARTEFACT_MODE", "custom")
 VERBOSE = os.environ.get("V", os.environ.get("EDK2_CIX_VERBOSE", "0")) == "1"
 QUIET_FILTERING = not VERBOSE
-SUPPRESS_WARNINGS = ARTEFACT_MODE == "upstream" and not VERBOSE
 
 
 def should_drop_line(line: str) -> bool:
@@ -116,10 +108,6 @@ def prefers_no_blank_before(line: str) -> bool:
     )
 
 
-def is_warning_line(line: str) -> bool:
-    return "warning:" in line or "WARNING:" in line or "Warnings," in line
-
-
 def main() -> int:
     if not QUIET_FILTERING:
         for raw_line in sys.stdin:
@@ -127,7 +115,6 @@ def main() -> int:
         return 0
 
     buffered_iasl: list[str] = []
-    suppress_platformconfig_continuation = False
     pending_blank = False
 
     def flush_buffer() -> None:
@@ -148,11 +135,6 @@ def main() -> int:
     for raw_line in sys.stdin:
         line = raw_line.rstrip("\n")
 
-        if suppress_platformconfig_continuation:
-            suppress_platformconfig_continuation = False
-            if PLATFORMCONFIG_CONTINUATION_RE.match(line):
-                continue
-
         if buffered_iasl:
             buffered_iasl.append(line)
             summary_match = IASL_SUMMARY_RE.match(line)
@@ -162,8 +144,6 @@ def main() -> int:
                 remarks = int(summary_match.group(3))
                 if errors != 0:
                     flush_buffer()
-                elif SUPPRESS_WARNINGS:
-                    buffered_iasl.clear()
                 elif warnings != 0 or remarks != 0:
                     flush_buffer()
                 else:
@@ -174,19 +154,6 @@ def main() -> int:
         if IASL_LOC_RE.search(line):
             buffered_iasl.append(line)
             continue
-
-        if SUPPRESS_WARNINGS:
-            if PLATFORMCONFIG_DEFAULT_RE.search(line):
-                suppress_platformconfig_continuation = True
-                continue
-            if (
-                RWX_WARNING_RE.search(line)
-                or LTO_SERIAL_WARNING_RE.search(line)
-                or LTO_SERIAL_NOTE_RE.search(line)
-                or VFR_AMBIGUITY_RE.search(line)
-                or is_warning_line(line)
-            ):
-                continue
 
         if should_drop_line(line):
             continue
