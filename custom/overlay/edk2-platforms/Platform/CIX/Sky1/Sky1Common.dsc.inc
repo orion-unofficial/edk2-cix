@@ -592,7 +592,17 @@
 [PcdsPatchableInModule]
   gEfiMdeModulePkgTokenSpaceGuid.PcdSerialClockRate|500000000
 !if $(TARGET) == RELEASE
+!ifdef $(DEBUG_VERBOSE)
+!if $(DEBUG_VERBOSE) == TRUE
+[PcdsFixedAtBuild]
+  # Log from RELEASE without retaining assertion traps or DEBUG_CODE blocks.
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x02
+!else
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x25
+!endif
+!else
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x25
+!endif
 !else
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x2f
 !endif
@@ -859,7 +869,7 @@
 
 !if $(SOC_USB_DEVICE_ENABLE) == TRUE
   Platform/CIX/Sky1/Drivers/UsbDeviceControlDxe/UsbDeviceControlDxe.inf
-  Platform/CIX/Sky1/Application/Fastboot/Fastboot.inf 
+  Platform/CIX/Sky1/Application/Fastboot/Fastboot.inf
   !if $(SOC_CDNSP_ENABLE) == TRUE
     Silicon/CIX/Sky1/Drivers/CdnspDxe/CdnspDxe.inf
   !endif
@@ -1007,9 +1017,9 @@ ShellPkg/DynamicCommand/HttpDynamicCommand/HttpDynamicCommand.inf {
   MdeModulePkg/Application/VariableInfo/VariableInfo.inf
 !endif
 !if $(COMPILE_SYSTEM_LOADER) == android
-  Platform/CIX/Sky1/Application/LinuxLoader/LinuxLoader.inf 
-  Platform/CIX/Sky1/Application/ABSelect/ABSelect.inf 
-  Platform/CIX/Sky1/Drivers/AndroidConfigDxe/AndroidConfigDxe.inf 
+  Platform/CIX/Sky1/Application/LinuxLoader/LinuxLoader.inf
+  Platform/CIX/Sky1/Application/ABSelect/ABSelect.inf
+  Platform/CIX/Sky1/Drivers/AndroidConfigDxe/AndroidConfigDxe.inf
 !endif
 
 !if $(PD_FW_UPDATE_ENABLE) == TRUE
