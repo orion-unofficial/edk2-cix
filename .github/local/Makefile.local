@@ -1,3 +1,8 @@
+# Source-built trusted firmware lacks a vendor-authorized signing key.
+ifneq ($(strip $(CIX_RELEASE)),)
+$(error CIX_RELEASE must be empty: source-built TF-A/OP-TEE cannot be signed with a vendor-trusted key. Leave it unset or use CIX_RELEASE=)
+endif
+
 LOCAL_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
 REPO_ROOT ?= $(patsubst %/,%,$(abspath $(dir $(LOCAL_MAKEFILE))/../..))
 REPO_NAME ?= $(notdir $(REPO_ROOT))
@@ -265,8 +270,6 @@ define PRINT_TOP_LEVEL_CACHE_USER_VARIABLES
 endef
 
 define PRINT_TOP_LEVEL_CUSTOM_USER_VARIABLES
-	print_help_line '  CIX_RELEASE=v1.2' 'Use public CIX BIOS V1.2 bootloader1 payload with TF-A and OP-TEE sources for bootloader2.\nDefault: unset.'; \
-	print_help_line '  ENABLE_TF_A_FIXES=true|false' 'Enable custom TF-A fixes when CIX_RELEASE=v1.2 source-builds bootloader2. Without CIX_RELEASE set this emits a warning and has no effect.\nDefault: false.'; \
 	print_help_line '  ENABLE_FIRMWARE_FIXES=true|false' 'Enable the opt-in firmware fixes for O6/O6N. This changes firmware metadata and setup behavior; see FIXES.md for the details.\nDefault: false.'; \
 	print_help_line '  ENABLE_CORE_ORDER=cix|conventional|performance' 'Choose how the firmware numbers CPUs it exposes to the OS. '\''cix'\'' keeps the vendor order; '\''conventional'\'' puts the A520 cores before the A720 cores; '\''performance'\'' puts the A720 cores first, starting with the highest-performance pair.\nDefault: unset, which behaves like '\''cix'\''.\nRequires ENABLE_FIRMWARE_FIXES=true for '\''conventional'\'' and '\''performance'\''.'; \
 	print_help_line '  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Enable the experimental Radxa settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
@@ -277,8 +280,7 @@ define PRINT_TOP_LEVEL_CUSTOM_USER_VARIABLES
 endef
 
 define PRINT_TOP_LEVEL_DEV_VARIABLES_EXECUTION
-	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
-	print_help_line '  CIX_RELEASE_CACHE_ROOT=<path>' 'Directory used for cached curated CIX BL31, OP-TEE, and cert_create intermediates.\nDefault: '\''$$(REPO_ROOT)/build-cache/cix-release'\'''
+	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'
 endef
 
 define PRINT_TOP_LEVEL_DEV_VARIABLES_BUILDBOX
