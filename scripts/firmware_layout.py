@@ -347,7 +347,8 @@ def validate_debian_version(repo_root: Path) -> tuple[str, str]:
 
 def _iter_custom_target_variants(target: str) -> list[FirmwareLayout]:
     generated: list[FirmwareLayout] = []
-    cix_releases = ("", "1.2")
+    # Only vendor-signed trusted firmware qualifies for distribution.
+    cix_releases = ("",)
     presets = [
         {},
         {"enable_firmware_fixes": True},
