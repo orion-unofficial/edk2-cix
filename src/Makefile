@@ -1598,7 +1598,7 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 		fi; \
 		if [[ "$(UEFI_TARGET)" == "RELEASE" ]]; then \
 			python3 "$(REPO_ROOT)/src/scripts/check_release_debug.py" \
-				--build-dir "Build/$*/$(UEFI_TARGET)_GCC" --error-level "$(or $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE),0x80000040)"; \
+				--build-dir "$$(dirname "$$build_options_path")" --error-level "$(or $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE),0x80000040)"; \
 		fi; \
 		python3 ../scripts/normalize_build_options.py \
 			--build-options "$$build_options_path" \
