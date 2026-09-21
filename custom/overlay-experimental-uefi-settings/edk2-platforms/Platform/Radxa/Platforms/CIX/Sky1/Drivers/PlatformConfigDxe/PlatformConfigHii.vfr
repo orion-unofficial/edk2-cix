@@ -116,10 +116,6 @@ endif;
     endif;
 
 #if (EXPERIMENTAL_UEFI_SETTINGS_UI_ENABLE == TRUE)
-    goto 0x2402,
-      prompt = STRING_TOKEN(STR_BUILD_RECIPE_TITLE),
-      help = STRING_TOKEN(STR_BUILD_RECIPE_HELP);
-
     oneof varid   = PlatformSetupVar.RtcWakeup,
       prompt      = STRING_TOKEN(STR_EXPERIMENTAL_RTC_WAKEUP_PROMPT),
       help        = STRING_TOKEN(STR_EXPERIMENTAL_RTC_WAKEUP_PROMPT_HELP),
@@ -238,7 +234,6 @@ endif;
   endform;
 
 #include "ExperimentalUefiSettings.hfr"
-#include "BuildRecipe.hfr"
 #include "MemoryConfig.hfr"
 #include "PcieConfig.hfr"
 #include "UsbConfig.hfr"
