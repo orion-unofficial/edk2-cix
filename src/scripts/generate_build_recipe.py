@@ -66,13 +66,13 @@ def generate(overlay: Path, output: Path, config: dict[str, str], release: str,
     uni = ['#langdef en-US "English"',
            '#string STR_BUILD_RECIPE_TITLE #language en-US ' + uni_string(title),
            '#string STR_BUILD_RECIPE_HELP #language en-US ' + uni_string(help_text)]
-    hfr = ['#if (EXPERIMENTAL_UEFI_SETTINGS_UI_ENABLE == TRUE)',
-           'subtitle text = STRING_TOKEN(STR_BUILD_RECIPE_TITLE);']
+    # recipe() and the private-overlay selection enforce both custom and
+    # experimental gates. This inline fragment needs no vendor CPP macros.
+    hfr = ['subtitle text = STRING_TOKEN(STR_BUILD_RECIPE_TITLE);']
     for index, line in enumerate(display):
         token = f'STR_BUILD_RECIPE_{index:02d}'
         uni.append(f'#string {token} #language en-US ' + uni_string(line))
         hfr.append(f'  text help = STRING_TOKEN(STR_BUILD_RECIPE_HELP), text = STRING_TOKEN({token});')
-    hfr.append('#endif')
     (module / 'BuildRecipe.uni').write_text('\n'.join(uni) + '\n')
     (module / 'BuildRecipe.hfr').write_text('\n'.join(hfr) + '\n')
     command = ' \\\n  '.join(lines) + '\n'
