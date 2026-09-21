@@ -109,6 +109,16 @@ ordinary changes on `build`.
 
 ## Regression gates
 
+Custom RELEASE logging uses a generated, version-matched `MdePkg` overlay.
+The source-tree Makefile selects it only for `DEBUG_VERBOSE=true`; ordinary
+RELEASE, full DEBUG, and upstream builds retain their normal headers. Keeping
+`NDEBUG` and `MDEPKG_NDEBUG` defined prevents verbosity from enabling unrelated
+debug code. This operation must run inside the rendered source tree, so its
+helper and header extension are retained across all Unofficial checkpoints.
+Compiler regressions exercise every distinct retained header version, without
+LTO and with optimization both disabled and enabled, checking that logging
+works while assertions and debug-only helpers have no callable references.
+
 `scripts/check_source_build_inputs.py` checks every retained Unofficial source
 tree, including checkpoints not selected by the current default. It rejects
 missing sibling module INFs, broken overlay symlinks, and loss of the focused

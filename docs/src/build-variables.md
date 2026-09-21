@@ -402,18 +402,21 @@ full `DEBUG` build, set this variable.
 When enabled on the custom path:
 
 - `RELEASE` builds emit firmware `DEBUG()` logs again
+- `MDEPKG_NDEBUG` and `NDEBUG` remain defined: assertions and source guarded
+  by those definitions keep their normal RELEASE behavior
+- `DEBUG_CODE` blocks and debug memory filling are compiled out; logging
+  inside an excluded debug block remains excluded too
 - if `DEBUG_PRINT_ERROR_LEVEL` is left unset, the build uses the full known
   `DEBUG_*` message mask by default
 
-This gives you substantially more firmware logging without switching the whole
-image to a `DEBUG` build.
+This enables logging without the other code normally enabled by a `DEBUG`
+build. It does not change `FIRMWARE_TARGET=DEBUG`, optimization settings, or
+the flash layout. Log strings, argument calculations, and print calls still
+consume space, so logging-only builds can still exceed the firmware limit.
 
 For targeted setup-migration and BDS diagnostics, use `DEBUG_VERBOSE=false`
-with `DEBUG_PRINT_ERROR_LEVEL=0x80000001`. Global RELEASE logging exceeded the
-reserved firmware volume in the tested 202605/1.3.1 candidate, including with
-initialization/error and INFO/error masks. Oversized images fail the build.
-Diagnostic RELEASE builds retain normal RELEASE behaviour for assertion traps
-and `DEBUG_CODE` blocks.
+with `DEBUG_PRINT_ERROR_LEVEL=0x80000001`. Oversized images fail the build;
+`DEBUG_VERBOSE=true` is not a guarantee that every message mask fits.
 
 This setting is only valid with:
 
