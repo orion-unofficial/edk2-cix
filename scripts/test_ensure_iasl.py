@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import os
 import pathlib
+import re
+import shlex
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -29,7 +33,31 @@ def write_fake_iasl(path: pathlib.Path, version: str) -> None:
 class EnsureIaslTests(unittest.TestCase):
     def test_provisioning_keeps_stdout_machine_readable(self) -> None:
         script = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('make -C "${source_root}/generate/unix" iasl >&2', script)
+        self.assertRegex(script, r'make -C "\$\{source_root\}/generate/unix" iasl \\\n.*NOWERROR=FALSE >&2')
+
+    @unittest.skipUnless(sys.platform.startswith("linux") and shutil.which("bison"),
+                         "Provisioning uses Bison from the Linux buildbox")
+    def test_bison_extension_is_allowed_but_other_warnings_fail(self) -> None:
+        script = SCRIPT.read_text(encoding="utf-8")
+        match = re.search(r"'YFLAGS=([^']+)'", script)
+        self.assertIsNotNone(match)
+        flags = shlex.split(match.group(1))
+        with tempfile.TemporaryDirectory() as tempdir:
+            grammar = pathlib.Path(tempdir) / "parser.y"
+            grammar.write_text("%expect 0\n%%\nstart: 'x';\n", encoding="utf-8")
+            command = ["bison", *flags, "-d", str(grammar)]
+            result = subprocess.run(command, cwd=tempdir, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stderr, "")
+            self.assertTrue((pathlib.Path(tempdir) / "y.tab.c").is_file())
+            self.assertTrue((pathlib.Path(tempdir) / "y.tab.h").is_file())
+            grammar.write_text(
+                "%expect 0\n%%\nstart: 'x';\nunused: 'y';\n", encoding="utf-8",
+            )
+            result = subprocess.run(command, cwd=tempdir, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn("error", result.stderr)
+            self.assertIn("useless", result.stderr)
 
     def test_accepts_the_pinned_2026_release(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
