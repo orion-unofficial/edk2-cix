@@ -243,7 +243,9 @@ Leave `CIX_RELEASE` unset or empty. Any nonblank value is rejected immediately
 by Make, before source rendering, downloads, compilation or output changes.
 Available keys cannot sign modified BL31/TF-A or OP-TEE payloads under the
 vendor's trusted-world certificate chain. These builds retain the selected
-vendor trusted payloads.
+vendor trusted payloads. A `/cix-1.2/` segment in `RELEASE` identifies imported
+source lineage; it does not enable this runtime build option or replace the
+signed BL31/OP-TEE payloads. Those source targets remain supported.
 
 The source inputs and development helper remain available for compilation and
 certificate-rejection testing; they cannot produce a qualified flash image.

@@ -86,7 +86,9 @@ class RecipeTests(unittest.TestCase):
             self.assertNotIn('form formid', hfr)
             self.assertNotIn('endform', hfr)
             self.assertNotIn('goto', hfr)
-            self.assertIn('EXPERIMENTAL_UEFI_SETTINGS_UI_ENABLE == TRUE', hfr)
+            # Generation itself enforces both gates; undefined vendor macros
+            # must not hide rows in SystemInfo's different preprocessor context.
+            self.assertNotIn('#if', hfr)
 
     def test_upstream_or_nonexperimental_build_cannot_generate_menu(self):
         for changes in ({'ARTEFACT_MODE': 'upstream'}, {'ENABLE_EXPERIMENTAL_UEFI_SETTINGS': 'FALSE'}):
