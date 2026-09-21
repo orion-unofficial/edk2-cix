@@ -17,10 +17,7 @@ Device (REST) { /* resource table */
   // reserved memory lookup table
   Name (RSVL, Package() {
     // format: <base>, <size>, <type,"no-map"/"reusable">, <dev,ref>
-#ifdef ENABLE_FIRMWARE_FIXES
-    Package() {0xd0000000, 0xc00000, "no-map", \_SB.DMA1},
-    Package() {0xd0c00000, 0x200000, "no-map", \_SB.HDA},
-#else
+#ifndef ENABLE_FIRMWARE_FIXES
     Package() {0xd0000000, 0x700000, "no-map", \_SB.DMA1},
     Package() {0xd0700000, 0x700000, "no-map", \_SB.HDA},
 #endif
