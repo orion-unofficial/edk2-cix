@@ -224,8 +224,8 @@ CI, and maintainer validation, see [`MAINTENANCE.md`](MAINTENANCE.md).
 
 The build verifies BL1 provenance and the trusted/UEFI FIP certificate chains,
 payload digests, delegation and reference counters before publishing images.
-`CIX_RELEASE=1.2` is rejected for flash builds: its development helper uses a
-UEFI OEM key that is not authorised to sign trusted-world firmware. Leave
+Every nonblank `CIX_RELEASE` value is rejected immediately by Make: available
+keys cannot sign modified trusted-world firmware under the vendor chain. Leave
 `CIX_RELEASE=` to retain the vendor BL31/OP-TEE payloads. The `latest` profile
 and distributable bundles use this qualified path. Curated component source
 compilation and rejection of its incompatible signature are tested separately.

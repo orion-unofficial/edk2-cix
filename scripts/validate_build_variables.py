@@ -7,7 +7,7 @@ import argparse
 import os
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, available_cix_releases, main_wrapper, release_entry, repo_root
+from reconstruction_common import ReconstructionError, main_wrapper, release_entry, repo_root
 
 
 VALID_ARTEFACT_MODES = {"custom", "upstream"}
@@ -85,7 +85,6 @@ def validate_feature_relationships(repo: Path, problems: list[str]) -> None:
     artefact_mode = env("ARTEFACT_MODE") or "custom"
     firmware_fixes = env("ENABLE_FIRMWARE_FIXES").lower()
     core_order = env("ENABLE_CORE_ORDER").lower()
-    cix_release = env("CIX_RELEASE").lower().lstrip("v")
 
     custom_only_booleans = (
         "DEBUG_ON_UART3",
@@ -105,14 +104,13 @@ def validate_feature_relationships(repo: Path, problems: list[str]) -> None:
     if core_order and core_order != "cix" and firmware_fixes not in TRUE_TOKENS:
         problems.append(f"ENABLE_CORE_ORDER={core_order} requires ENABLE_FIRMWARE_FIXES=true")
 
-    if cix_release:
-        require_choice("CIX_RELEASE", cix_release, set(available_cix_releases(repo)), problems)
-
 
 def validate() -> None:
     args = parser().parse_args()
     repo = args.repo_root.resolve() if args.repo_root else repo_root(Path(__file__).resolve())
     problems: list[str] = []
+    if env("CIX_RELEASE"):
+        problems.append("CIX_RELEASE must be empty: source-built TF-A/OP-TEE cannot be signed with a vendor-trusted key")
 
     require_choice("V", env("V") or "0", {"0", "1"}, problems)
     require_boolean("DEBUG", env("DEBUG") or "0", problems)

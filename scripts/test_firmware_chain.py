@@ -310,9 +310,9 @@ class PackagingTests(unittest.TestCase):
             result = subprocess.run(command + ["CIX_RELEASE=1.2"], cwd=ROOT, env=env,
                                     capture_output=True, text=True, timeout=120)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("UEFI OEM key", result.stderr)
+            self.assertIn("CIX_RELEASE must be empty", result.stderr)
             self.assertFalse((wt / "compilation-reached").exists())
-            self.assertEqual(json.loads(report.read_text())["status"], "failed")
+            self.assertFalse(report.exists())
             image, end = self.flash_fixture()
             (wt / "fixture-output.bin").write_bytes(image)
             result = subprocess.run(command + ["CIX_RELEASE="], cwd=ROOT, env=env,
@@ -320,16 +320,17 @@ class PackagingTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             published = next((root / "dist").rglob("cix_flash_all.bin"))
             self.assertEqual(published.read_bytes(), image)
+            previous_report = report.read_bytes()
             # A valid previous Stage 2 output must not allow a later Stage 3
             # request to report success, even when all old files still exist.
             (wt / "compilation-reached").unlink()
             result = subprocess.run(command + ["CIX_RELEASE=1.2", "DEBUG_VERBOSE=true"],
                                     cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("UEFI OEM key", result.stderr)
+            self.assertIn("CIX_RELEASE must be empty", result.stderr)
             self.assertFalse((wt / "compilation-reached").exists())
             self.assertEqual(published.read_bytes(), image)
-            self.assertEqual(json.loads(report.read_text())["status"], "failed")
+            self.assertEqual(report.read_bytes(), previous_report)
             image[end - 1] ^= 1
             (wt / "fixture-output.bin").write_bytes(image)
             result = subprocess.run(command + ["CIX_RELEASE="], cwd=ROOT, env=env,

@@ -1,3 +1,8 @@
+# Source-built trusted firmware lacks a vendor-authorized signing key.
+ifneq ($(strip $(CIX_RELEASE)),)
+$(error CIX_RELEASE must be empty: source-built TF-A/OP-TEE cannot be signed with a vendor-trusted key. Leave it unset or use CIX_RELEASE=)
+endif
+
 SHELL := /bin/sh
 .DEFAULT_GOAL := firmware
 
@@ -184,7 +189,6 @@ help-vars:
 	print_help_line 'FIRMWARE_DISTRO=trixie|bookworm' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected source-target policy default.'; \
 	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds. See README.md, "What does a bare make build?", for the difference.\nDefault for explicit source-build targets: custom.'; \
 	print_section 'Custom Build Gates'; \
-	print_help_line 'CIX_RELEASE=v1.2' 'Use the public CIX v1.2 early-boot replacement: a recorded bootloader1 payload plus TF-A and OP-TEE sources for bootloader2.\nDefault: unset.'; \
 	print_help_line 'ENABLE_FIRMWARE_FIXES=true|false' 'Enable opt-in custom firmware fixes for O6/O6N. This changes firmware metadata and setup behavior; see FIXES.md in the rendered source target for details.\nDefault: false.'; \
 	print_help_line 'ENABLE_CORE_ORDER=cix|conventional|performance' 'Choose how custom firmware numbers CPUs exposed to the OS. cix keeps vendor order; conventional puts A520 cores before A720 cores; performance puts A720 cores first.\nDefault: unset, which behaves like cix.\nRequires ENABLE_FIRMWARE_FIXES=true for conventional and performance.'; \
 	print_help_line 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Enable the experimental Radxa settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
@@ -293,7 +297,6 @@ help-dev-source:
 	print_help_variable 'RESOLVED_REF_STAGE=auto|source|overlay|final' 'For promote-unofficial-release. Resume stage represented by RESOLVED_REF; use final only for a reviewed complete tree.\nDefault: auto.'; \
 	print_help_variable 'MAKE_DEFAULT=0|1' 'For uplift-radxa-release. Select the updated line as the default source target.'; \
 	print_help_note 'After validating an existing line, use make select-unofficial-line LINE=<major.minor> [WRITE=1] to promote it without replaying the uplift.'; \
-	print_help_variable 'CIX_RELEASE=<release>' 'For uplift-edk2-release. CIX early-boot bundle release to use in the rendered source target.\nDefault: config/policies.json current_cix_release.'; \
 	print_help_variable 'RADXA_SOURCE=auto|vendor|port' 'Select whether a Radxa integration is a vendor-published source tree or this project'\''s port to an EDK2 base.\nDefault: auto.'; \
 	print_help_variable 'RADXA_REF=<ref>' 'For uplift-edk2-release. Resolved Radxa source-port commit from a conflict handoff.'; \
 	print_help_variable 'UNOFFICIAL_REF=<ref>' 'For EDK2 or Radxa uplift. Resolved Unofficial source-port commit from a conflict handoff.'; \
