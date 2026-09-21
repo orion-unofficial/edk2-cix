@@ -15,6 +15,7 @@ class OverlayDirectory:
     overlay_root: str
     source_root: str
     module_inf: str
+    allowed_extra_files: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ DIRECTORY_OVERLAYS: tuple[OverlayDirectory, ...] = (
         overlay_root="custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables",
         source_root="src/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables",
         module_inf="AcpiSocTables.inf",
+        allowed_extra_files=("Dsdt-BusPerf.asl", "Dsdt-RebootReason.asl"),
     ),
     OverlayDirectory(
         label="O6 ACPI platform tables overlay",
@@ -44,6 +46,11 @@ FILE_OVERLAYS: tuple[OverlayFile, ...] = (
         label="O6 Linux ACPI config header overlay",
         overlay_path="custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/LinuxAcpiConfig.h",
         source_path="src/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/LinuxAcpiConfig.h",
+    ),
+    OverlayFile(
+        label="O6N Linux ACPI config header overlay",
+        overlay_path="custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/LinuxAcpiConfig.h",
+        source_path="src/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/LinuxAcpiConfig.h",
     ),
 )
 
@@ -90,8 +97,9 @@ def compare_directory_overlay(
         )
     overlay_files = list_files(overlay_root)
     source_files = list_files(source_root)
+    allowed_extra_files = {Path(path) for path in overlay.allowed_extra_files}
     missing_in_overlay = sorted(source_files - overlay_files)
-    missing_in_source = sorted(overlay_files - source_files)
+    missing_in_source = sorted(overlay_files - source_files - allowed_extra_files)
     if missing_in_overlay:
         problems.extend(
             f"{overlay.label}: overlay is missing mirrored file {overlay.overlay_root}/{path.as_posix()}"
