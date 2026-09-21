@@ -1,0 +1,1 @@
+../../../../../../../../../src/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/AcpiPlatfomTables/40Pin-I2s.asl
