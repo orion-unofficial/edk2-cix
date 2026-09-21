@@ -588,7 +588,17 @@
 [PcdsPatchableInModule]
   gEfiMdeModulePkgTokenSpaceGuid.PcdSerialClockRate|500000000
 !if $(TARGET) == RELEASE
+!ifdef $(DEBUG_VERBOSE)
+!if $(DEBUG_VERBOSE) == TRUE
+[PcdsFixedAtBuild]
+  # Log from RELEASE without retaining assertion traps or DEBUG_CODE blocks.
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x02
+!else
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x25
+!endif
+!else
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x25
+!endif
 !else
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x2f
 !endif
