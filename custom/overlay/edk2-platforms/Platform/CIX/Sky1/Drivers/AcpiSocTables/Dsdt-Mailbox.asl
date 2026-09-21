@@ -181,8 +181,13 @@ Device (MBX6) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (
       ReadWrite,
+#ifdef ENABLE_FIRMWARE_FIXES
+      0x06590080,
+      0x0ff80
+#else
       0x06590000,
       0x10000
+#endif
       )
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) {
       CSU_PM_INT_CALLER_MAILBOX0_INTERRUPT_ID
@@ -206,8 +211,13 @@ Device (MBX7) {
   Name (_CRS, ResourceTemplate () {
     Memory32Fixed (
       ReadWrite,
+#ifdef ENABLE_FIRMWARE_FIXES
+      0x065a0080,
+      0x0ff80
+#else
       0x065a0000,
       0x10000
+#endif
       )
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) {
       CSU_PM_INT_CALLEE_MAILBOX1_INTERRUPT_ID
