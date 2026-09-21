@@ -142,11 +142,15 @@ EOF
     printf '%s  %s\n' "$source_sha256" "$archive" | sha256sum --check --status
     tar -xzf "$archive" -C "$build_root"
     source_root="${build_root}/acpica-unix-${acpica_release}"
-    # ACPICA requires Bison's %expect extension, but -y is needed for its
-    # y.tab.c/y.tab.h output names. Exempt only that POSIX portability warning;
-    # every other Bison warning and the upstream C warning set remain fatal.
-    make -C "${source_root}/generate/unix" iasl \
-        'YFLAGS=-y -Werror -Wno-yacc' NOWERROR=FALSE >&2
+    if [[ "${ARTEFACT_MODE:-custom}" == "custom" ]]; then
+        # ACPICA requires Bison's %expect extension, but -y is needed for its
+        # y.tab.c/y.tab.h output names. Exempt only that POSIX portability warning;
+        # every other Bison warning and the upstream C warning set remain fatal.
+        make -C "${source_root}/generate/unix" iasl \
+            'YFLAGS=-y -Werror -Wno-yacc' NOWERROR=FALSE >&2
+    else
+        make -C "${source_root}/generate/unix" iasl >&2
+    fi
     verify_iasl "${source_root}/generate/unix/bin/iasl"
 
     mkdir -p "${install_root}/bin"
