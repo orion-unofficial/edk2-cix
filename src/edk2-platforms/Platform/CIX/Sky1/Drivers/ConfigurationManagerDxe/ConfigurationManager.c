@@ -422,7 +422,6 @@ InitializeCmArmGiccInfo (
 {
   EFI_STATUS                     Status;
   SKY1_PLATFORM_REPOSITORY_INFO  *PlatformRepo;
-#if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
   UINT8                          ClusterIndex, CoreIndex, CpuCoreNum;
 #if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
   UINT32                         UidIndex;
