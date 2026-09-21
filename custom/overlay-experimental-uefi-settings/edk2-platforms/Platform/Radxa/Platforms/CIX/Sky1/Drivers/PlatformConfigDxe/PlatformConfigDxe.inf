@@ -22,6 +22,8 @@
   Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigHii.uni
   ExperimentalUefiSettings.hfr
   ExperimentalUefiSettings.uni
+  BuildRecipe.hfr
+  BuildRecipe.uni
   Platform/CIX/Sky1/Drivers/SetupManagerDxe/MemMenu/MemoryConfig.hfr
   Platform/CIX/Sky1/Drivers/SetupManagerDxe/MemMenu/MemoryConfig.uni
   Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.hfr
