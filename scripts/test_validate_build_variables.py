@@ -13,7 +13,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 class ValidateBuildVariableTests(unittest.TestCase):
     def problems_for(self, **values: str) -> list[str]:
-        with patch.dict(os.environ, values, clear=True):
+        # Exercise relationship rules with a known available release. Clearing
+        # the environment also removes Docker's Git safe-directory settings;
+        # repository discovery is covered by the source/matrix integration tests.
+        with patch.dict(os.environ, values, clear=True), patch(
+            "validate_build_variables.available_cix_releases", return_value=["1.2"]
+        ):
             problems: list[str] = []
             validate_feature_relationships(REPO_ROOT, problems)
             return problems
