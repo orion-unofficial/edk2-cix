@@ -578,6 +578,10 @@ Device(ECFP)
 }
 
 ThermalZone(ECTZ) {
+#ifdef ENABLE_FIRMWARE_FIXES
+  Name (_STR, Unicode ("EC"))
+  Name (_CRT, 0x0E80) // 98 degrees C, matching the maintained ACPI upgrade.
+#endif
   Name (_TZD, Package () { \_SB} ) //Thermal Zone Devices
 #ifdef ENABLE_FIRMWARE_FIXES
   Method(_CRT, 0, NotSerialized) { Return(0x0EC6) } // Critical trip point: 105°C
