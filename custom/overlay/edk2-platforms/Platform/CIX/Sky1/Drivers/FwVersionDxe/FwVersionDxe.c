@@ -254,7 +254,8 @@ GLOBAL_REMOVE_IF_UNREFERENCED CIX_FW_VERSION_PROTOCOL  CixFwVerProtocol = {
   {
     STR (FW_HEADER_SIG),
     FW_PROTOCOL_VERSION,
-    "",
+    // Keep the version available to image readers before DXE initialisation.
+    STR (UEFI_FW_VERSION),
   },
   GetFwVersion,
 };
