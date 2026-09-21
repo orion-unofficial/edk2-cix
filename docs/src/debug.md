@@ -58,6 +58,18 @@ and its compiler dependencies confirmed selection of the logging header while
 retaining both RELEASE definitions. Removing other debug code is therefore
 not sufficient to make the INFO/error mask fit this configuration.
 
+The preceding implementation, built with the same options and fixed build
+date, required `0x212358` bytes: the logging-only change saved 69,192 bytes
+(about 67.6 KiB, or 3.2%). Source-revision metadata necessarily differs between
+the two builds.
+
+The same configuration with `DEBUG_VERBOSE=true` and
+`DEBUG_PRINT_ERROR_LEVEL=0x00000001` passed full-flash and OTA packaging and
+certificate-chain validation. Its compressed FV used `0x1f1bb8` bytes, leaving
+1,096 bytes spare. This mask enables initialization messages only and excludes
+error messages; the available space is specific to this tested configuration.
+This was build qualification, without testing on hardware.
+
 `DEBUG_ON_UART3`, `UART3_ENABLE`, `DEBUG_VERBOSE`, and
 `DEBUG_PRINT_ERROR_LEVEL` are only honored on the custom overlay path. When
 UART3 is enabled it consumes 40-pin header GPIO105 and GPIO106, so those lines

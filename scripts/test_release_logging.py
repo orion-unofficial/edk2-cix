@@ -111,14 +111,14 @@ class ReleaseLoggingTests(unittest.TestCase):
     def test_logging_only_compiles_against_every_retained_header_version(self):
         compiler = shutil.which("cc")
         self.assertIsNotNone(compiler, "a C compiler is required for RELEASE logging qualification")
-        selected = os.environ.get("SOURCE_TEST_REF", "source/unofficial/1.3/current")
-        wrapper = show_file(ROOT, selected, WRAPPER)
+        selected = os.environ.get("SOURCE_TEST_REF")
         arch = "AArch64" if platform.machine().lower() in ("arm64", "aarch64") else "X64"
         seen = set()
         for ref in for_each_ref(ROOT, "source/unofficial/"):
+            wrapper = show_file(ROOT, selected or ref, WRAPPER)
             headers = {name: show_file(ROOT, ref, "src/edk2/MdePkg/Include/" + name)
                        for name in ("Base.h", f"{arch}/ProcessorBind.h", "Library/DebugLib.h")}
-            fingerprint = tuple(headers.values())
+            fingerprint = tuple(headers.values()) + (wrapper,)
             if fingerprint in seen:
                 continue
             seen.add(fingerprint)
