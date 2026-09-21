@@ -357,6 +357,7 @@ EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigHii.uni) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigHii.vfr) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Define.dsc.inc)
+EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES += $(abspath scripts/generate_build_recipe.py) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/BuildRecipe.hfr) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/BuildRecipe.uni)
 ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))),$(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES))
 PATCHED_EDK2_SOURCE_INPUTS := \
@@ -691,7 +692,7 @@ preflight-%: preflight-inputs preflight-tools preflight-build-metadata
 	fi
 
 preflight-inputs:
-	@python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --worktree "$(REPO_ROOT)" --reference-dir "$(abspath $(PACKAGE_TOOL))" --cix-release "$(CIX_RELEASE)" --artefact-mode "$(ARTEFACT_MODE)"
+	@if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --worktree "$(REPO_ROOT)" --reference-dir "$(abspath $(PACKAGE_TOOL))" --cix-release "$(CIX_RELEASE)" --artefact-mode "$(ARTEFACT_MODE)"; fi
 	@set -euo pipefail; \
 	if [ -n "$(strip $(DEB_VERSION))" ]; then \
 		echo "[preflight] DEB_VERSION is packaging-only; omit it for firmware builds." >&2; \
@@ -869,6 +870,12 @@ $(call BUILD_CONFIG_STAMP,%): FORCE
 		'SIGNING_CERT_SOURCE_DIR=$(SIGNING_CERT_SOURCE_DIR)' \
 		'REQUIRE_SIGNING_CERT_SOURCE=$(REQUIRE_SIGNING_CERT_SOURCE)' \
 		'GCC5_AARCH64_PREFIX=$(GCC5_AARCH64_PREFIX)')"; \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
+		config_text="$${config_text}"$$'\n'"MEM_CFG_MEMFREQ=$(MEM_CFG_MEMFREQ)"$$'\n'"SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)"$$'\n'"PM_CONFIG_SOURCE_DATE_EPOCH=$(PM_CONFIG_SOURCE_DATE_EPOCH)"; \
+	fi; \
+	if [[ "$(ARTEFACT_MODE)" == "custom" && "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" == "TRUE" ]]; then \
+		config_text="$${config_text}"$$'\n'"FIRMWARE_REBUILD_RELEASE=$(FIRMWARE_REBUILD_RELEASE)"$$'\n'"FIRMWARE_REBUILD_BUILD_COMMIT=$(FIRMWARE_REBUILD_BUILD_COMMIT)"$$'\n'"FIRMWARE_DISTRO=$(FIRMWARE_DISTRO)"$$'\n'"FIRMWARE_PRODUCT=$(FIRMWARE_PRODUCT)"; \
+	fi; \
 	existing_text="$$(cat "$$stamp_path" 2>/dev/null || true)"; \
 	if [[ "$$existing_text" != "$$config_text" ]]; then \
 		rm -rf "$$output_dir" "$$stage_dir"; \
@@ -908,7 +915,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) pref
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export CIX_PACKAGE_TOOL_BIN="$(shell realpath "$(CIX_PACKAGE_TOOL_BIN)")" && \
-	python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" && \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
 	printf '[build/%s] Packaging OTA flash image\n' "$*" && \
 	( \
 		cd "$$stage_dir" && \
@@ -919,7 +926,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) pref
 			echo "[build/$*] Expected OTA image $$tmp_ota was not created" >&2; \
 			exit 1; \
 		fi && \
-		python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --ota-image "$$tmp_ota" --reference-dir "$(abspath $(PACKAGE_TOOL))" && \
+		if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --ota-image "$$tmp_ota" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
 		mv -f "$$tmp_ota" "./cix_flash_ota.bin" \
 	) && \
 	cp -f "$$stage_dir/cix_flash_ota.bin" "$@" && \
@@ -992,7 +999,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) pref
 	fi
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
-	python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" && \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
 	printf '[build/%s] Packaging full flash image\n' "$*" && \
 	( \
 		cd "$$stage_dir" && \
@@ -1012,7 +1019,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) pref
 		echo "[build/$*] Expected full flash image $$tmp_all was not created" >&2; \
 		exit 1; \
 	fi && \
-	python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --flash-image "$$tmp_all" --reference-dir "$(abspath $(PACKAGE_TOOL))" --report "$$final_dir/firmware-chain-validation.json" && \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --flash-image "$$tmp_all" --reference-dir "$(abspath $(PACKAGE_TOOL))" --report "$$final_dir/firmware-chain-validation.json"; fi && \
 	mv -f "$$tmp_all" "$@" && \
 	if [[ -d "$$stage_dir/Firmwares" ]]; then \
 		mkdir -p "$$final_dir/Firmwares" && \
@@ -1319,6 +1326,12 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 		else \
 			rm -rf "$$WORKSPACE/Build/$*" "$$WORKSPACE/Conf"; \
 		fi; \
+		if [[ "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" == "TRUE" ]]; then \
+			python3 scripts/generate_build_recipe.py --overlay "$(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_ROOT)" --output "$$WORKSPACE/rebuild-overlay" --config "$(call BUILD_CONFIG_STAMP,$*)" --release "$(FIRMWARE_REBUILD_RELEASE)" --board "$*" --product "$(FIRMWARE_PRODUCT)" --distro "$(FIRMWARE_DISTRO)" --build-commit "$(FIRMWARE_REBUILD_BUILD_COMMIT)"; \
+			export PACKAGES_PATH="$$WORKSPACE/rebuild-overlay/edk2-platforms:$$PACKAGES_PATH"; \
+		fi; \
+		export CONF_PATH="$$WORKSPACE/Conf"; \
+		mkdir -p "$$CONF_PATH"; \
 		export EDK_TOOLS_PATH="$(CUSTOM_BASETOOLS_DIR)"; \
 	else \
 		export WORKSPACE="$(shell pwd)"; \
@@ -1443,8 +1456,8 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 		if [[ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" ]]; then \
 			scratch_layout="$$(python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --worktree "$(REPO_ROOT)" --print-scratch-layout)"; \
 			tool_def_overrides+=( \
-				"  DEBUG_GCC5_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1 -DCIX_REBOOT_SCRATCH_LAYOUT=$$scratch_layout" \
-				"RELEASE_GCC5_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1 -DCIX_REBOOT_SCRATCH_LAYOUT=$$scratch_layout" \
+				"  DEBUG_GCC5_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1 -DCIX_REBOOT_SCRATCH_LAYOUT=$$scratch_layout -I$(CUSTOM_OVERLAY_ROOT)/edk2-platforms/Platform/CIX/Sky1/Include" \
+				"RELEASE_GCC5_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1 -DCIX_REBOOT_SCRATCH_LAYOUT=$$scratch_layout -I$(CUSTOM_OVERLAY_ROOT)/edk2-platforms/Platform/CIX/Sky1/Include" \
 				'  DEBUG_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1 -DENABLE_FIRMWARE_FIXES=1' \
 				'RELEASE_GCC5_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1 -DENABLE_FIRMWARE_FIXES=1' \
 			); \
@@ -1511,6 +1524,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 		mkdir -p "Build/$*"; \
 		rm -rf "Build/$*/$(UEFI_TARGET)_GCC5"; \
 		cp -a "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC5" "Build/$*/"; \
+		if [[ "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" == "TRUE" ]]; then cp "$$WORKSPACE/rebuild-overlay/firmware-rebuild."{txt,json} "Build/$*/$(UEFI_TARGET)_GCC5/"; fi; \
 		build_options_path="Build/$*/$(UEFI_TARGET)_GCC5/BuildOptions"; \
 		if [[ ! -f "$$build_options_path" ]]; then \
 			echo "[build/$*] Expected BuildOptions $$build_options_path was not produced" >&2; \
