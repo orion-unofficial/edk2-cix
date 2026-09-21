@@ -1,1 +1,0 @@
-../../../../../../../../src/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/Dsdt-RebootReason.asl
