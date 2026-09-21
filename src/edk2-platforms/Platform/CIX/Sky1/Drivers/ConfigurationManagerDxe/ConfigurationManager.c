@@ -424,10 +424,10 @@ InitializeCmArmGiccInfo (
   SKY1_PLATFORM_REPOSITORY_INFO  *PlatformRepo;
 #if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
   UINT8                          ClusterIndex, CoreIndex, CpuCoreNum;
+#if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
   UINT32                         UidIndex;
-#endif
-#if !defined (ENABLE_CORE_ORDER_CONVENTIONAL) && !defined (ENABLE_CORE_ORDER_PERFORMANCE)
-  UINT8                          ClusterIndex, CoreIndex, GicCIndex, CpuCoreNum;
+#else
+  UINT8                          GicCIndex;
 #endif
   CIX_CLUSTER_TOPO               *ClusterTopo;
   CIX_CPU_CORE                   *CpuCore;
@@ -444,7 +444,9 @@ InitializeCmArmGiccInfo (
 
   ZeroMem (PlatformRepo->GicCInfo, CpuCoreNum*sizeof (CM_ARM_GICC_INFO));
 
+#if !defined (ENABLE_CORE_ORDER_CONVENTIONAL) && !defined (ENABLE_CORE_ORDER_PERFORMANCE)
   GicCIndex = 0;
+#endif
 
   for (ClusterIndex = 0; ClusterIndex < PlatformRepo->CpuTopoInfo->ClusterNumber; ClusterIndex++) {
     ClusterTopo = &PlatformRepo->CpuTopoInfo->ClusterTopo[ClusterIndex];
