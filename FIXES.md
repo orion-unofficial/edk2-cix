@@ -21,30 +21,24 @@ builds.
 
 ## Included Fixes
 
-### Audio DMA Reserved-Memory Alignment
+### Audio DMA and reserved memory
 
-Stock ACPI tables describe several audio and DMA buffers as reserved, but PEI
-(Pre-EFI Initialization, the early firmware phase that discovers memory and
-hands it to later stages) did not reserve those same ranges.
+Fixed firmware reserves the complete legacy HiFi5 aperture at
+`[0xcde00000, 0xd0000000)` (34 MiB) on 1.2-based sources. The larger native
+1.3 reservation `[0xcde00000, 0xd1000000)` (50 MiB) remains authoritative.
+It does not add overlapping narrow DSP/DMA1/HDA allocation HOBs.
 
-Stock ACPI also split the audio DMA/HDA area into two `7 MiB` windows that do
-not match the vendor Device Tree shared-dma-pool layout.
+DMA1 and HDA use standard ACPI `_DMA` translation and normal DMA allocation;
+their private fixed-pool `RSVL` entries are removed. DMA1's device aperture is
+`0x30000000..0xffffffff`, translated by `+0x90000000` to CPU addresses.
+HDA's different aperture remains `0..0x7fffffff`, translated by `+0x90000000`.
+DMA1 names its audio AXI clock `axiclk`; hardware registers supply the DMA
+channel/request dimensions and the unused atomic-clock hint is omitted.
 
-With `ENABLE_FIRMWARE_FIXES=true`, PEI reserves the DSP, DMA1, and HDA audio
-buffers so that the runtime memory map matches the vendor Device Tree
-carveouts. The DMA1 reserved-memory lookup entry is also aligned with the
-vendor Device Tree layout: `12 MiB` for DMA1 at `0xd0000000`.
-
-The audio DMA350 clock lookup is also corrected so the DMA1 controller consumes
-the audio DMAC AXI clock directly instead of pointing its tree-clock lookup at
-the unrelated FCH DMA controller.
-
-Custom firmware also publishes the HDA controller's standard ACPI `_DMA`
-translation. This describes the full HDA DMA aperture, where device DMA
-addresses `0x00000000`-`0x7fffffff` translate to CPU physical
-`0x90000000`-`0x10fffffff`. Fixed firmware no longer publishes the HDA `RSVL`
-lookup entry, so Linux should use the standard ACPI DMA range instead of a
-private coherent DMA pool.
+DSP metadata exposes XAF FIFO channel 9 and SOF doorbell channel 8 separately.
+This describes the interfaces; the kernel must still choose one DSP owner.
+Internal display-audio codecs I2S5–I2S9 do not request external debug pins.
+O6 retains its GPIO144 HDA `pdb0` output mask; O6N has no such sound-card pin.
 
 ### PCIe Capability Handoff (`_OSC`)
 
@@ -70,9 +64,9 @@ own ECAM range through the normal MCFG/host-bridge path.
 
 With `ENABLE_FIRMWARE_FIXES=true`, the standard PCIe root bridges gain the
 missing `DWordIO` apertures and their adjacent 32-bit memory windows are
-tightened so the ranges do not overlap. The aggregate `PNP0C02` ECAM
-reservation is hidden on the custom path, leaving the per-root ECAM
-description as the authority.
+tightened so the ranges do not overlap. The `PNP0C02` reservation exposes five exact ECAM windows, leaving their
+intervening holes available. Kernels must recognise exact duplicate ownership
+by the host bridges (the maintained kernel includes this handling).
 
 ### PCIe Device-Model Selector
 
@@ -120,15 +114,12 @@ keep the leading `0x80` bytes. This keeps the original mailbox-window end
 addresses unchanged while matching the CIX mailbox driver's shared-memory
 offset model.
 
-### GPU Cache-Coherency Metadata
+### GPU cache coherency
 
-Vendor/upstream ACPI marks the `CIXH5000` GPU as cache-coherent. Linux
-investigation against the vendor stack showed that Sky1 GPU DMA must instead
-be treated as non-coherent.
-
-With `ENABLE_FIRMWARE_FIXES=true`, custom firmware publishes `_CCA = 0` for
-`CIXH5000` directly in ACPI. That lets kernels consume the custom firmware
-metadata instead of carrying a runtime ACPI scan quirk to override it.
+The GPU retains its native `_CCA=1` coherency contract, matching the maintained
+ACPI Table Upgrade profiles. The previous forced non-coherent declaration has
+been removed. Kernel and GPU workload qualification remains separate from
+successful ACPI compilation.
 
 ### SCMI Bus Performance Domains
 
@@ -379,3 +370,38 @@ make buildbox-firmware-build \
 
 For the broader explanation of those `make` variables and how they interact,
 see [`docs/build-variables.md`](docs/build-variables.md).
+
+## ACPI Table Upgrade coverage
+
+Custom firmware must include every maintained ACPI Table Upgrade improvement
+or a documented better firmware implementation. Equal AML bytes are not the
+contract: firmware can also repair early memory ownership and persistent setup.
+The latest comparison baselines are Radxa 1.2.4 and 1.3.1 shipped tables.
+
+Active display/Type-C graphs use complete endpoint namespace paths. Disabled
+virtual displays publish no graph. SCMI `PEGM` derives its mapping from the
+actual processor UID/physical-core topology, including alternate core orders;
+`PEGA` exposes the performance protocol's power-unit attributes with bounded
+mailbox polling. NTC temperature reads retry zero samples at most three times,
+then report unavailable. Reboot-reason metadata uses the selected vendor
+boot-chain's scratch encoding, rather than a user-supplied version label.
+
+The CPU LPI migration commits setup before its completion marker, retries a
+failed write on a later boot, and never makes an optional migration failure a
+boot blocker. Malformed markers preserve the current setting. Existing valid
+markers preserve subsequent user changes. UART logging brackets both writes.
+This fixes ordering/error handling; it does not establish the cause of the
+reported one-time BDS hang. Ramoops cannot capture a pre-kernel BDS stall.
+
+Ramoops has one reserved HOB; the shared-runtime HOB is split around it. The
+HiFi5 reservation is likewise complete and non-overlapping. These changes are
+examples of repairs available to firmware before an initrd override can run.
+
+## Trusted component packaging
+
+Curated TF-A/OP-TEE sources remain compilable for development. Their helper
+currently signs with the UEFI OEM key, which is not the vendor trusted-world
+root. `CIX_RELEASE=1.2` therefore cannot produce qualified flash firmware and
+fails at the public build and direct packaging boundaries. Use `CIX_RELEASE=`
+to retain the vendor BL31/OP-TEE chain. Successful source compilation does not
+supply the absent trusted-world signing authority.

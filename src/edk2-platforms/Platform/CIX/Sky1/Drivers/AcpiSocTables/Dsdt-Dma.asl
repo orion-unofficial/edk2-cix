@@ -49,12 +49,24 @@ Device (DMA1) {
     Interrupt (ResourceConsumer, Level, ActiveHigh, Exclusive) { AUDIO_IRQ_O_AP_DMA_INTERRUPT_ID }
   })
 
+#ifdef ENABLE_FIRMWARE_FIXES
+  // DMA1 device 0x30000000 maps to CPU 0xc0000000. Keep the producer
+  // descriptor so Linux retains the translation in its DMA range map.
+  Name (_DMA, ResourceTemplate () {
+    QWordMemory (ResourceProducer, PosDecode, MinFixed, MaxFixed, NonCacheable, ReadWrite,
+      0x0, 0x30000000, 0xFFFFFFFF, 0x90000000, 0xD0000000,
+      ,, , AddressRangeMemory, TypeStatic)
+  })
+#endif
+
   Name (_DSD, Package () {
     ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
     Package () {
+#ifndef ENABLE_FIRMWARE_FIXES
       Package () { "dma-channels", 8 },
       Package () { "dma-requests", 20 },
       Package () { "arm,clk-enable-atomic", 0 },
+#endif
       Package () { "arm,reg-map", Package () { 0x07010000, 0x20000000 } },
       Package () { "arm,ram-map", Package () { 0xc0000000, 0x30000000 } },
       Package () { "arm,remote-ctrl", \_SB.ACRU },
@@ -63,7 +75,7 @@ Device (DMA1) {
 
   Name (CLKT, Package() {
 #ifdef ENABLE_FIRMWARE_FIXES
-    Package() {CLK_DMAC_AXI, "", \_SB.DMA1},
+    Package() {CLK_DMAC_AXI, "axiclk", \_SB.DMA1},
 #else
     Package() {CLK_TREE_FCH_DMA_ACLK, "", \_SB.DMA0},
 #endif
