@@ -212,3 +212,220 @@ ThermalZone(TZGT) {
   Method(_SCP, 1, Serialized) {}      // Set Cooling Policy
   Method(_TZP) { Return(10) }         // Polling Interval: 1000ms
 }
+
+
+#ifdef ENABLE_FIRMWARE_FIXES
+// Additional DTB/MemoryMap-backed SoC thermal monitor zones.
+ThermalZone(TZVP) {
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
+  Method(_TMP, 0, Serialized) {
+    Store(\_SB.PMMX.SENG(VPU_TEMP_SENSOR_ID, 0), Local0)
+    CreateDWordField(Local0, 0x00, STAT)
+    If (STAT == SCMI_SUCCESS) {
+      CreateQWordField(Local0, 0x04, TEMP)
+      TEMP = ToInteger(TEMP)
+      Return(C2DK(TEMP))
+    } Else {
+      Return (0xFFFFFFFFFFFFFFFF)
+    }
+  }
+  Method(_TZP) { Return(10) }
+  Name (_STR, Unicode ("VPU"))
+}
+
+ThermalZone(TZGB) {
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
+  Name(_TZD, Package (){ \_SB.GPU })
+  Method(_TMP, 0, Serialized) {
+    Store(\_SB.PMMX.SENG(GPU_BOTTOM_TEMP_SENSOR_ID, 0), Local0)
+    CreateDWordField(Local0, 0x00, STAT)
+    If (STAT == SCMI_SUCCESS) {
+      CreateQWordField(Local0, 0x04, TEMP)
+      TEMP = ToInteger(TEMP)
+      Return(C2DK(TEMP))
+    } Else {
+      Return (0xFFFFFFFFFFFFFFFF)
+    }
+  }
+  Method(_TZP) { Return(10) }
+  Name (_STR, Unicode ("GPU Bottom"))
+}
+
+ThermalZone(TZGP) {
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
+  Name(_TZD, Package (){ \_SB.GPU })
+  Method(_TMP, 0, Serialized) {
+    Store(\_SB.PMMX.SENG(GPU_TOP_TEMP_SENSOR_ID, 0), Local0)
+    CreateDWordField(Local0, 0x00, STAT)
+    If (STAT == SCMI_SUCCESS) {
+      CreateQWordField(Local0, 0x04, TEMP)
+      TEMP = ToInteger(TEMP)
+      Return(C2DK(TEMP))
+    } Else {
+      Return (0xFFFFFFFFFFFFFFFF)
+    }
+  }
+  Method(_TZP) { Return(10) }
+  Name (_STR, Unicode ("GPU Top"))
+}
+
+ThermalZone(TZBR) {
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
+  Method(_TMP, 0, Serialized) {
+    Store(\_SB.PMMX.SENG(SOC_BRC_TEMP_SENSOR_ID, 0), Local0)
+    CreateDWordField(Local0, 0x00, STAT)
+    If (STAT == SCMI_SUCCESS) {
+      CreateQWordField(Local0, 0x04, TEMP)
+      TEMP = ToInteger(TEMP)
+      Return(C2DK(TEMP))
+    } Else {
+      Return (0xFFFFFFFFFFFFFFFF)
+    }
+  }
+  Method(_TZP) { Return(10) }
+  Name (_STR, Unicode ("SoC Bridge"))
+}
+
+ThermalZone(TZD0) {
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
+  Method(_TMP, 0, Serialized) {
+    Store(\_SB.PMMX.SENG(DDR_BOTTOM4_TEMP_SENSOR_ID, 0), Local0)
+    CreateDWordField(Local0, 0x00, STAT)
+    If (STAT == SCMI_SUCCESS) {
+      CreateQWordField(Local0, 0x04, TEMP)
+      TEMP = ToInteger(TEMP)
+      Return(C2DK(TEMP))
+    } Else {
+      Return (0xFFFFFFFFFFFFFFFF)
+    }
+  }
+  Method(_TZP) { Return(10) }
+  Name (_STR, Unicode ("DDR Bottom"))
+}
+
+ThermalZone(TZD1) {
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
+  Method(_TMP, 0, Serialized) {
+    Store(\_SB.PMMX.SENG(DDR_TOP_TEMP_SENSOR_ID, 0), Local0)
+    CreateDWordField(Local0, 0x00, STAT)
+    If (STAT == SCMI_SUCCESS) {
+      CreateQWordField(Local0, 0x04, TEMP)
+      TEMP = ToInteger(TEMP)
+      Return(C2DK(TEMP))
+    } Else {
+      Return (0xFFFFFFFFFFFFFFFF)
+    }
+  }
+  Method(_TZP) { Return(10) }
+  Name (_STR, Unicode ("DDR Top"))
+}
+
+ThermalZone(TZCI) {
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
+  Method(_TMP, 0, Serialized) {
+    Store(\_SB.PMMX.SENG(CI700_TEMP_SENSOR_ID, 0), Local0)
+    CreateDWordField(Local0, 0x00, STAT)
+    If (STAT == SCMI_SUCCESS) {
+      CreateQWordField(Local0, 0x04, TEMP)
+      TEMP = ToInteger(TEMP)
+      Return(C2DK(TEMP))
+    } Else {
+      Return (0xFFFFFFFFFFFFFFFF)
+    }
+  }
+  Method(_TZP) { Return(10) }
+  Name (_STR, Unicode ("CI700 Interconnect"))
+}
+
+ThermalZone(TZNP) {
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
+  Method(_TMP, 0, Serialized) {
+    Store(\_SB.PMMX.SENG(NPU_TEMP_SENSOR_ID, 0), Local0)
+    CreateDWordField(Local0, 0x00, STAT)
+    If (STAT == SCMI_SUCCESS) {
+      CreateQWordField(Local0, 0x04, TEMP)
+      TEMP = ToInteger(TEMP)
+      Return(C2DK(TEMP))
+    } Else {
+      Return (0xFFFFFFFFFFFFFFFF)
+    }
+  }
+  Method(_TZP) { Return(10) }
+  Name (_STR, Unicode ("NPU"))
+}
+
+ThermalZone(TZTR) {
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
+  Method(_TMP, 0, Serialized) {
+    Store(\_SB.PMMX.SENG(SOC_TRC_TEMP_SENSOR_ID, 0), Local0)
+    CreateDWordField(Local0, 0x00, STAT)
+    If (STAT == SCMI_SUCCESS) {
+      CreateQWordField(Local0, 0x04, TEMP)
+      TEMP = ToInteger(TEMP)
+      Return(C2DK(TEMP))
+    } Else {
+      Return (0xFFFFFFFFFFFFFFFF)
+    }
+  }
+  Method(_TZP) { Return(10) }
+  Name (_STR, Unicode ("SoC Trace"))
+}
+
+ThermalZone(TZN0) {
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
+  Method(RTMP, 0, Serialized) {
+    Store(\_SB.PMMX.SENG(NTC0_TEMP_SENSOR_ID, 0), Local0)
+    CreateDWordField(Local0, 0x00, STAT)
+    If (STAT == SCMI_SUCCESS) {
+      CreateQWordField(Local0, 0x04, TEMP)
+      TEMP = ToInteger(TEMP)
+      If (TEMP == Zero) { Return (Zero) }
+      Return(C2DK(TEMP))
+    } Else {
+      Return (0xFFFFFFFFFFFFFFFF)
+    }
+  }
+  // At most three re-reads for the firmware's transient zero sample.
+  Method(_TMP, 0, Serialized) {
+    Local0 = RTMP ()
+    Local1 = 3
+    While ((Local0 == Zero) && (Local1 > Zero)) {
+      Local0 = RTMP ()
+      Local1--
+    }
+    If (Local0 == Zero) { Return (Ones) }
+    Return (Local0)
+  }
+  Method(_TZP) { Return(10) }
+  Name (_STR, Unicode ("Board NTC 0"))
+}
+
+ThermalZone(TZN1) {
+  Method(_CRT) { Return(0x0E80) }       // Critical trip point: 98°C
+  Method(RTMP, 0, Serialized) {
+    Store(\_SB.PMMX.SENG(NTC1_TEMP_SENSOR_ID, 0), Local0)
+    CreateDWordField(Local0, 0x00, STAT)
+    If (STAT == SCMI_SUCCESS) {
+      CreateQWordField(Local0, 0x04, TEMP)
+      TEMP = ToInteger(TEMP)
+      If (TEMP == Zero) { Return (Zero) }
+      Return(C2DK(TEMP))
+    } Else {
+      Return (0xFFFFFFFFFFFFFFFF)
+    }
+  }
+  // At most three re-reads for the firmware's transient zero sample.
+  Method(_TMP, 0, Serialized) {
+    Local0 = RTMP ()
+    Local1 = 3
+    While ((Local0 == Zero) && (Local1 > Zero)) {
+      Local0 = RTMP ()
+      Local1--
+    }
+    If (Local0 == Zero) { Return (Ones) }
+    Return (Local0)
+  }
+  Method(_TZP) { Return(10) }
+  Name (_STR, Unicode ("Board NTC 1"))
+}
+#endif
