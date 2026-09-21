@@ -20,7 +20,7 @@
       "latest": {
         "artefact_mode": "custom",
         "build_kind": "source-build",
-        "cix_early_boot_release": "1.2",
+        "cix_early_boot_release": null,
         "description": "Build the latest maintained EDK2/Radxa source combination without opinionated firmware fixes unless they are explicitly enabled.",
         "enable_firmware_fixes": false,
         "release": "unofficial-policy-default"

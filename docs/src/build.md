@@ -32,10 +32,11 @@ make PROFILE=latest
 make PROFILE=latest ENABLE_FIRMWARE_FIXES=true
 ```
 
-The current `latest` stack uses EDK2 `202608`, Radxa `1.3.1`, and the CIX v1.2
-early-boot replacement. That CIX input means a recorded `bootloader1.img`
-payload plus CIX TF-A and OP-TEE sources used to build `bootloader2.img`; it is
-not a general label for all CIX firmware source.
+The current `latest` stack uses EDK2 `202608` and Radxa `1.3.1`, retaining
+the matching vendor-signed BL1, BL31 and OP-TEE. Curated CIX V1.2 component
+sources remain available for development, but their OEM-signed trusted FIP is
+not authorised by the vendor trust root and cannot be packaged as qualified
+flash firmware. See [certificate-chain validation](firmware-chain-validation.md).
 
 For a lower-level source build, choose the board and target explicitly:
 
@@ -83,6 +84,56 @@ bundle of all supported firmware build variants for one board and source
 target. Here, a firmware build variant is one output selected by the rendered
 firmware tree's own build matrix, not a different EDK2/CIX/Radxa source
 combination. It is broader than most single-user builds.
+
+### Identify the image that was tested
+
+Keep the exact invocation, repository commit, output filename, SHA-256 digest
+and flashing method with a report from a test on hardware. Hash both the build
+output and the file actually copied beside `startup.nsh`; keep the complete
+updater and UART logs. When an existing SPI readback is available, compare it
+with the intended image while accounting for known mutable regions. A stated
+command, version label or successful boot alone does not prove which file was
+built or written. The default O6 OTA
+image (`cix_flash_ota.bin`) contains only `bootloader3.img` (UEFI). It does not
+replace BL1 or BL2. A successful boot after an OTA update therefore does not
+qualify a different BL1, TF-A or OP-TEE payload produced by the same build.
+
+`BuildOptions` records EDK2's command-line defines, but does not record every
+packaging option, including `CIX_RELEASE`. The firmware's version display also
+does not expose a complete build configuration. Neither is sufficient by
+itself to identify all components of the running firmware.
+
+The custom firmware version header is populated at compile time as well as at
+runtime. Leaving its stored string empty previously allowed the running firmware
+to report a version while image-inspection tools displayed a blank new version.
+A regression compiles the actual header initializer with consecutive version
+selections and checks the bytes before any firmware initialization runs.
+
+Changing supported firmware configuration switches in the same build directory
+invalidates the selected board/target's previous outputs and staging files.
+Regression tests toggle the switches in both directions using the source
+Makefile's configuration rule and check argument forwarding through the build
+wrappers. Cached compiler results and downloaded sources can still be reused.
+Only use an image from a successful invocation; a failed build can leave an
+older image in the mirrored output directory. Custom builds print the final
+full-flash image's exact path and SHA-256 digest to identify that invocation's
+output.
+
+### Compiler warnings
+
+EDK2's GCC compilation already uses `-Werror`. Existing upstream and platform
+exceptions remain in the tool definitions and module INF files; for example,
+OpenSSL demotes selected `maybe-uninitialized`, `unused-but-set-variable` and
+format diagnostics. This is not a claim that every warning category is enabled
+or fatal, and successful compilation is not a substitute for image validation.
+
+In custom mode the pinned ACPICA host compiler is built with its fatal
+C-warning policy. Bison also uses `-Werror`, with only the POSIX Yacc compatibility category
+disabled: ACPICA needs Bison's `%expect` extension and uses `-y` for the expected
+generated filenames. Other grammar warnings fail provisioning. Regression
+tests exercise both cases. Custom build output preserves warnings. Upstream mode retains its existing
+warning-filtering behaviour. The ASL compiler's final warning count does not
+describe warnings emitted earlier while building the host tools.
 
 ## Install A Built Payload
 

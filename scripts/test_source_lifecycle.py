@@ -151,6 +151,33 @@ def test_deleted_non_mirror_overlay_is_an_error() -> None:
         shutil.rmtree(repo)
 
 
+def test_replay_keeps_new_source_and_mirror_but_drops_missing_counterpart() -> None:
+    repo = make_repo()
+    try:
+        source = "src/component/new.h"
+        overlay = "custom/overlay/component/new.h"
+        write_file(repo, source, "new interface\n")
+        symlink(repo, "../../../src/component/new.h", overlay)
+        commit_all(repo, "current")
+        switch_orphan(repo, "older")
+        write_file(repo, "README.md", "older\n")
+        commit_all(repo, "older")
+        git(repo, "checkout", "current", "--", source, overlay)
+        projections = normalise_overlay_lifecycle(
+            repo, source_repo=repo, from_ref="current", to_ref="older", paths=[overlay], mode="exact",
+        )
+        require(projections[0].action == "keep", str(projections))
+        require((repo / overlay).read_text() == "new interface\n", "new source mirror was removed")
+        git(repo, "rm", "-f", source)
+        projections = normalise_overlay_lifecycle(
+            repo, source_repo=repo, from_ref="current", to_ref="older", paths=[overlay], mode="exact",
+        )
+        require(projections[0].action == "drop-mirror", str(projections))
+        require(not (repo / overlay).is_symlink(), "orphaned mirror was retained")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_custom_only_overlay_file_is_kept() -> None:
     repo = make_repo()
     try:
@@ -309,6 +336,7 @@ def main() -> None:
     test_exact_rename_projection_renames_overlay_path()
     test_ambiguous_exact_rename_is_an_error()
     test_deleted_mirror_symlink_can_be_dropped()
+    test_replay_keeps_new_source_and_mirror_but_drops_missing_counterpart()
     test_deleted_non_mirror_overlay_is_an_error()
     test_custom_only_overlay_file_is_kept()
     test_broken_mirror_symlink_is_an_error()

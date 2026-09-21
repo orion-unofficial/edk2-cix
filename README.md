@@ -6,8 +6,8 @@ model combines:
 
 - upstream bases such as EDK2, TF-A, and OP-TEE
 - Radxa firmware source layers
-- the optional CIX v1.2 early-boot replacement: a recorded `bootloader1.img`
-  payload plus CIX TF-A and OP-TEE sources used to build `bootloader2.img`
+- recorded CIX v1.2 BL1, TF-A and OP-TEE development inputs; source-built
+  trusted components cannot be packaged for locked boards without vendor signing authority
 - unofficial project changes
 - generated materialised firmware worktrees that are ready to build
 
@@ -61,8 +61,8 @@ make PROFILE=latest
 make PROFILE=latest FIRMWARE_BOARD=O6N
 ```
 
-This currently selects EDK2 `202608`, Radxa `1.3.1`, and the CIX v1.2
-early-boot replacement. It uses the project's custom-capable build path, but
+This currently selects EDK2 `202608` and Radxa `1.3.1`, retaining the
+matching vendor-signed BL1, BL31 and OP-TEE payloads. It uses the project's custom-capable build path, but
 keeps `ENABLE_FIRMWARE_FIXES=false`; the result is an uplifted current-source
 build and is not expected to match the published 202208-based Radxa image
 byte-for-byte. Enable the opinionated fixes separately:
@@ -219,3 +219,15 @@ The complete flash image is `cix_flash_all.bin`. Neither command flashes a devic
 For persistent materialised branches, source-model internals, firmware-source
 development, upstream integration and uplift, coordinated ref publication,
 CI, and maintainer validation, see [`MAINTENANCE.md`](MAINTENANCE.md).
+
+### Trusted firmware qualification
+
+The build verifies BL1 provenance and the trusted/UEFI FIP certificate chains,
+payload digests, delegation and reference counters before publishing images.
+`CIX_RELEASE=1.2` is rejected for flash builds: its development helper uses a
+UEFI OEM key that is not authorised to sign trusted-world firmware. Leave
+`CIX_RELEASE=` to retain the vendor BL31/OP-TEE payloads. The `latest` profile
+and distributable bundles use this qualified path. Curated component source
+compilation and rejection of its incompatible signature are tested separately.
+See [firmware chain validation](docs/src/firmware-chain-validation.md) for the
+scope of these checks and their limits.

@@ -175,6 +175,7 @@ class BuildBoundaryTests(unittest.TestCase):
     def test_public_make_build_gates_inputs_and_outputs_before_mirroring(self):
         # Substitute only rendering and compilation. The public Makefile,
         # argument validation, BL1 checks, and mirroring all execute for real.
+        # Certificate-chain boundary behavior has separate signed-FIP fixtures.
         cached_report = bl1.bootloader1_report_path(bl1.ROOT, self.worktree, "O6", "RELEASE")
         self.addCleanup(shutil.rmtree, cached_report.parent, True)
         proxy = self.root / "python-proxy.py"
@@ -182,6 +183,7 @@ class BuildBoundaryTests(unittest.TestCase):
             "import os,sys\n"
             "if sys.argv[1].endswith('render_release_branch.py'):\n"
             f" print({str(self.worktree)!r})\n"
+            "elif sys.argv[1].endswith('validate_firmware_chain.py'):\n pass\n"
             "else:\n os.execv(sys.executable,[sys.executable,*sys.argv[1:]])\n"
         )
         (self.worktree / "Makefile").write_text(

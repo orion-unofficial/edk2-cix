@@ -29,7 +29,7 @@ class BuildProfileTests(unittest.TestCase):
         self.assertIn("edk2-202608/cix-1.2/radxa-1.3.1/unofficial", profile["release"])
         self.assertEqual(profile["artefact_mode"], "custom")
         self.assertEqual(profile["enable_firmware_fixes"], "false")
-        self.assertEqual(profile["cix_early_boot_release"], "1.2")
+        self.assertEqual(profile["cix_early_boot_release"], "")
 
     def test_latest_profile_allows_explicit_fixes(self) -> None:
         profile = resolve_profile(

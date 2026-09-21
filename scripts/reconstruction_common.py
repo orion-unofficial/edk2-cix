@@ -79,6 +79,11 @@ def bootloader1_report_path(repo: Path, worktree: Path, board: str, firmware_tar
     return repo / ".cache/edk2-cix/bootloader1-validation" / key / "bootloader1-validation.json"
 
 
+def firmware_chain_report_path(repo: Path, worktree: Path, board: str, firmware_target: str) -> Path:
+    """Use the same host-owned report identity as BL1 validation."""
+    return bootloader1_report_path(repo, worktree, board, firmware_target).with_name("firmware-chain-validation.json")
+
+
 def load_json(repo: Path, relative: str) -> dict[str, Any]:
     path = repo / relative
     with path.open("r", encoding="utf-8") as f:

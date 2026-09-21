@@ -486,12 +486,12 @@ firmware:
 	else \
 		printf '%s\n' \
 			"[profile] Latest source build: $$PROFILE_RELEASE" \
-			"[profile] CIX early-boot replacement: v$$PROFILE_CIX_EARLY_BOOT_RELEASE; firmware fixes: $$PROFILE_ENABLE_FIRMWARE_FIXES." \
+			"[profile] CIX early-boot replacement: $${PROFILE_CIX_EARLY_BOOT_RELEASE:-vendor payloads}; firmware fixes: $$PROFILE_ENABLE_FIRMWARE_FIXES." \
 			'[profile] This is a current-source build and is not expected to be byte-identical to a published Radxa image.' >&2; \
 		$(MAKE) --no-print-directory build \
 			RELEASE="$$PROFILE_RELEASE" \
 			ARTEFACT_MODE="$$PROFILE_ARTEFACT_MODE" \
-			CIX_RELEASE="v$$PROFILE_CIX_EARLY_BOOT_RELEASE" \
+			CIX_RELEASE="$$PROFILE_CIX_EARLY_BOOT_RELEASE" \
 			ENABLE_FIRMWARE_FIXES="$$PROFILE_ENABLE_FIRMWARE_FIXES"; \
 		printf '[profile] Latest source build succeeded for %s; firmware fixes: %s.\n' \
 			"$(FIRMWARE_BOARD)" "$$PROFILE_ENABLE_FIRMWARE_FIXES" >&2; \
@@ -499,10 +499,14 @@ firmware:
 
 BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
 
-DELEGATED_BUILD_ARGS = V="$(V)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)"
+DELEGATED_BUILD_ARGS = $(if $(filter custom,$(or $(ARTEFACT_MODE),custom)),FIRMWARE_REBUILD_RELEASE="$$release_label" FIRMWARE_REBUILD_BUILD_COMMIT="$(shell git rev-parse HEAD)") V="$(V)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)"
 
 define check_bootloader1
 $(PYTHON) scripts/validate_bootloader1.py --worktree "$$wt" --phase "$(1)" --build-target "$(2)" --artefact-mode "$(3)" --cix-release "$(4)" --board "$(FIRMWARE_BOARD)" --firmware-target "$(FIRMWARE_TARGET)"
+endef
+
+define check_firmware_chain
+$(if $(filter custom,$(3)),$(PYTHON) scripts/validate_firmware_chain.py --worktree "$$wt" --phase "$(1)" --build-target "$(2)" --artefact-mode "$(3)" --cix-release "$(4)" --board "$(FIRMWARE_BOARD)" --firmware-target "$(FIRMWARE_TARGET)",:)
 endef
 
 define run_release_make
@@ -515,6 +519,7 @@ define run_release_make
 	$(BUILD_VARIABLE_ENV) $(PYTHON) scripts/validate_build_variables.py --target "$(1)"; \
 	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
 	$(call check_bootloader1,inputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
+	$(call check_firmware_chain,inputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
 	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
 	container_cache_root="/hosttmp"; \
@@ -531,6 +536,7 @@ define run_release_make
 		BUILD_LOG_ROOT="$$cache_root/build-logs" \
 		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"; \
 	$(call check_bootloader1,outputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
+	$(call check_firmware_chain,outputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
 		--repo-root "$(CURDIR)" \
 		--worktree "$$wt" \
@@ -631,6 +637,7 @@ install:
 	$(BUILD_VARIABLE_ENV) $(PYTHON) scripts/validate_build_variables.py --target "install"; \
 	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
 	$(call check_bootloader1,inputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
+	$(call check_firmware_chain,inputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
 	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
 	container_cache_root="/hosttmp"; \
@@ -647,6 +654,7 @@ install:
 		BUILD_LOG_ROOT="$$cache_root/build-logs" \
 		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"; \
 	$(call check_bootloader1,outputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
+	$(call check_firmware_chain,outputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
 		--repo-root "$(CURDIR)" \
 		--worktree "$$wt" \

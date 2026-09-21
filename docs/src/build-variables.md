@@ -21,7 +21,7 @@ Select the high-level behavior of a targetless `make`.
    - reject active custom firmware options
 - `PROFILE=latest`
    - build the latest maintained EDK2/Radxa source combination
-   - use the CIX v1.2 early-boot replacement selected by current policy
+   - preserve the matching signed vendor early-boot payloads
    - leave `ENABLE_FIRMWARE_FIXES=false` unless explicitly enabled
    - produce a current-source build, not a byte-identical Radxa reconstruction
 
@@ -80,8 +80,34 @@ Select the underlying EDK2 build target.
    - intended for bring-up and firmware debugging
    - enables the broader EDK2 debug/assert behaviour expected from a DEBUG
      build
+   - does not imply that the result fits the vendor flash layout
 
 Default: `RELEASE`
+
+The O6 custom FDF allocates `0x400000` bytes (4 MiB) for the DEBUG UEFI
+image. For the Radxa 1.3.1 checkpoint, RELEASE allocates `0x1f0000` bytes,
+and the flash layout reserves `0x1f9000` bytes for `bootloader3.img`, including
+its FIP header and certificates. A padded 4 MiB DEBUG FD cannot fit that slot.
+The original Radxa 1.3.1 FDF instead uses `0x1f0000` for both build targets.
+These sizes are release-specific; do not infer them from the target name alone.
+
+`FVMAIN` already uses LZMA compression inside `FVMAIN_COMPACT`, including its
+debug strings. There is no separate supported switch to compress log strings
+further. Selective diagnostic messages in a RELEASE build are the tested way
+to preserve the existing flash layout. Increasing only the FDF or JSON size
+does not qualify a larger image for flashing.
+
+The slot begins at `0x406000` in an 8 MiB flash image. A 4 MiB payload starting
+there would already extend beyond the end of the chip, before adding its FIP
+metadata. A different layout would need loader, update-path, memory-map and
+recovery qualification; it is not a supported build-size override.
+
+The original Radxa 1.3.1 AArch64 packager rejects oversized full-flash payloads
+but accepts oversized OTA payloads, even one byte over the reserved UEFI slot.
+Its original OTA Make target also reports success. The source replacement
+checks both formats, and the independent final-image validator checks the
+vendor slot bounds again. Successful certificate validation alone is not a
+size/layout check.
 
 ### `FIRMWARE_DISTRO=bookworm|trixie`
 
@@ -215,19 +241,14 @@ Default: `ccache`
 
 ### `CIX_RELEASE=v1.2`
 
-Set this on the custom build path to select the curated CIX early-boot
-replacement. It does not select general CIX firmware source.
+**Flash packaging rejects this selection.** The source helper uses the UEFI OEM
+key for trusted-world signing; that key is not accepted by the retained vendor
+trusted root. Leave `CIX_RELEASE=` to retain vendor BL31/OP-TEE. The descriptions
+below document the development component path, not a qualified flash image.
+See [certificate-chain validation](firmware-chain-validation.md).
 
-Example:
-
-```bash
-make buildbox-firmware-build \
-  ARTEFACT_MODE=custom \
-  FIRMWARE_BOARD=O6 \
-  CIX_RELEASE=v1.2
-```
-
-When you enable it, the build:
+The development component target selects curated CIX inputs; it does not
+select general CIX firmware source. That component path:
 
 - imports the public CIX BIOS V1.2 TF-A and OP-TEE source set used to build
   `bootloader2.img`
@@ -408,6 +429,13 @@ When enabled on the custom path:
 This gives you substantially more firmware logging without switching the whole
 image to a `DEBUG` build.
 
+For targeted setup-migration and BDS diagnostics, use `DEBUG_VERBOSE=false`
+with `DEBUG_PRINT_ERROR_LEVEL=0x80000001`. Global RELEASE logging exceeded the
+reserved firmware volume in the tested 202605/1.3.1 candidate, including with
+initialization/error and INFO/error masks. Oversized images fail the build.
+Diagnostic RELEASE builds retain normal RELEASE behaviour for assertion traps
+and `DEBUG_CODE` blocks.
+
 This setting is only valid with:
 
 - `ARTEFACT_MODE=custom`
@@ -561,21 +589,21 @@ make buildbox-firmware-build \
 ### Custom build with the experimental setup overlay as well
 
 ```bash
-make buildbox-firmware-build \
+make build \
+  RELEASE=edk2-202605/radxa-1.3.1/unofficial \
   ARTEFACT_MODE=custom \
   FIRMWARE_BOARD=O6 \
   ENABLE_FIRMWARE_FIXES=true \
   ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true
 ```
 
-### Custom build using the curated CIX V1.2 early-boot path
+### Curated CIX trusted-component development
 
-```bash
-make buildbox-firmware-build \
-  ARTEFACT_MODE=custom \
-  FIRMWARE_BOARD=O6 \
-  CIX_RELEASE=v1.2
-```
+`CIX_RELEASE=v1.2` is rejected by flash-build entry points. CI uses
+`scripts/qualify_source_trusted_firmware.py` to compile only the development
+component target and confirm that its output fails vendor-chain qualification.
+Do not flash this development output. See
+[certificate-chain validation](firmware-chain-validation.md).
 
 ### RELEASE build with verbose firmware logs on UART3
 
@@ -586,3 +614,47 @@ make buildbox-firmware-build \
   DEBUG_VERBOSE=true \
   DEBUG_ON_UART3=true
 ```
+
+## Rebuild recipe in the experimental menu
+
+Custom builds with `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true` include **Rebuild
+running firmware** under Platform Configuration. The page records the source
+release, build checkout, board, product, target, distribution, firmware fixes,
+core order, CIX selection, TF-A fixes, experimental settings, UART routing,
+verbose logging, debug mask and nonempty metadata overrides. Empty values are
+shown explicitly, including `CIX_RELEASE=''`. These are compile-time values;
+changing setup variables does not alter the recipe.
+
+The same command and configuration are saved as `firmware-rebuild.txt` and
+`firmware-rebuild.json` beside the output firmware. Preserve the recorded build
+checkout and required source refs. Matching arguments reconstruct the build
+configuration; certificate timestamps and host-tool differences can still affect
+byte identity. The generated HII files live in the private custom workspace and
+never overwrite imported source files. This facility does not run in upstream
+mode. Direct source-tree builds must supply `FIRMWARE_REBUILD_RELEASE` with their
+source-target label; public build commands supply it automatically.
+
+### DEBUG size and tokenized logging
+
+The inspected Radxa 1.3.1 DEBUG configuration enables its serial debug library
+and debug code, subject to its `0x80000040` print mask and per-module library
+bindings. It does not enable every message category. No separate vendor method
+for fitting unrestricted DEBUG output in the production flash layout has been
+identified. DEBUG increases code and assertion data as well as message strings.
+The compressed firmware volume already uses LZMA.
+
+The modern custom DEBUG FD allowance of 4 MiB is not a change to the BL3 flash
+slot. On the inspected 1.3.1 layout that slot remains `0x1f9000` bytes, including
+FIP metadata and certificates. Increasing the FD alone cannot make an oversized
+FIP fit. The modern custom experimental RELEASE overlay uses a `0x1f2000` FD,
+8 KiB above its previous allowance, within that same unchanged slot. Older
+releases with larger existing volumes retain their allocations. Final packaging
+still checks the actual signed image against the selected vendor layout.
+
+Replacing debug formats with token IDs and an external dictionary is feasible,
+but is not implemented here. A useful implementation must encode argument types
+and values, handle EDK2-specific formats such as `%r`, `%g`, `%a` and `%s`, retain
+a dictionary for the exact build, and work before allocation services exist.
+Assertions, dynamic strings and early-boot failure paths need separate treatment.
+Measure the final compressed size before relying on tokenization to make DEBUG
+flashable; message text is not its only additional cost.

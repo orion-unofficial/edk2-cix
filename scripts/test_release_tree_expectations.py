@@ -9,7 +9,6 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
-import struct
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -26,6 +25,7 @@ from reconstruction_common import (
 )
 from render_release_branch import apply_release_metadata, ensure_worktree, render_from_plan, validate_release_metadata
 from test_support import commit_all, git, run, write_file
+from test_firmware_chain import SignedFirmwareFixture
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +33,12 @@ PREFIX = "source/cache/release/custom/"
 
 
 class ReleaseTreeExpectationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.signed_tmp = tempfile.TemporaryDirectory(prefix="render-signed-fixture-")
+        cls.addClassCleanup(cls.signed_tmp.cleanup)
+        cls.signed = SignedFirmwareFixture(cls.signed_tmp.name)
+
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="edk2-cix-tree-expectations.")
         self.addCleanup(self.temp.cleanup)
@@ -45,19 +51,17 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
         write_file(self.repo, "debian/changelog", "edk2-cix (1.2.1) main; urgency=medium\n")
         write_file(self.repo, "debian/control", "preserve packaging\n")
         write_file(self.repo, "src/payload", "preserve firmware\n")
-        # Approved bytes and a bounded flash table let the real BL1 gate run
-        # even though this fixture substitutes compilation and vendor signing.
-        bl1 = b"fixture vendor BL1"
-        for path in ("src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img",
-                     "src/cix-v1.2/release-payloads/bootloader1-2026q1.img"):
-            target = self.repo / path
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(bl1)
-        flash = bytearray(0x188000 + len(bl1))
-        struct.pack_into("<4I", flash, 0x100000, 0x55AA55AA, 1, 1, 0)
-        struct.pack_into("<4I", flash, 0x100010, 1, 0x188000, len(bl1), 0)
-        flash[0x188000:] = bl1
-        (self.repo / "fixture-flash.bin").write_bytes(flash)
+        # Exercise both real cryptographic gates at the public Make boundary.
+        # Only compilation is replaced by a small signed fixture executable.
+        package = self.repo / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool"
+        shutil.copytree(self.signed.package, package)
+        bl1 = (package / "Firmwares/bootloader1.img").read_bytes()
+        curated = self.repo / "src/cix-v1.2/release-payloads/bootloader1-2026q1.img"
+        curated.parent.mkdir(parents=True, exist_ok=True)
+        curated.write_bytes(bl1)
+        (self.repo / "fixture-flash.bin").write_bytes(self.signed.flash_fixture()[0])
+        (self.repo / "config").mkdir(exist_ok=True)
+        shutil.copy2(ROOT / "config/firmware-trust.json", self.repo / "config/firmware-trust.json")
         write_file(self.repo, "config/bootloader1-payloads.json", json.dumps({
             "schema_version": 1, "vendor_tool": {"sha256": "0" * 64},
             "payloads": [{"sha256": hashlib.sha256(bl1).hexdigest(), "size": len(bl1),
