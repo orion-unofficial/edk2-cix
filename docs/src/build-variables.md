@@ -237,40 +237,17 @@ is resolved inside the buildbox container.
 
 Default: `ccache`
 
-## Curated CIX Inputs
+## Vendor trusted firmware
 
-### `CIX_RELEASE=v1.2`
+Leave `CIX_RELEASE` unset or empty. Any nonblank value is rejected immediately
+by Make, before source rendering, downloads, compilation or output changes.
+Available keys cannot sign modified BL31/TF-A or OP-TEE payloads under the
+vendor's trusted-world certificate chain. These builds retain the selected
+vendor trusted payloads.
 
-**Flash packaging rejects this selection.** The source helper uses the UEFI OEM
-key for trusted-world signing; that key is not accepted by the retained vendor
-trusted root. Leave `CIX_RELEASE=` to retain vendor BL31/OP-TEE. The descriptions
-below document the development component path, not a qualified flash image.
+The source inputs and development helper remain available for compilation and
+certificate-rejection testing; they cannot produce a qualified flash image.
 See [certificate-chain validation](firmware-chain-validation.md).
-
-The development component target selects curated CIX inputs; it does not
-select general CIX firmware source. That component path:
-
-- imports the public CIX BIOS V1.2 TF-A and OP-TEE source set used to build
-  `bootloader2.img`
-- stages the later public CIX community-release `bootloader1.img` payload that
-  matches community hardware logs
-- source-builds `bootloader2.img` during the packaging step
-
-This is intentionally a curated mode, not an exact historical replay of one
-public superproject commit. The public CIX source and release lineage is
-useful, but it is not represented by one clean public tag or repo snapshot.
-
-This setting is only valid with:
-
-- `ARTEFACT_MODE=custom`
-- `FIRMWARE_BOARD=O6` or `FIRMWARE_BOARD=O6N`
-
-It can coexist with:
-
-- `ENABLE_FIRMWARE_FIXES=true`
-- `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true`
-
-Default: unset
 
 ## Opt-In Firmware Behaviour Changes
 
@@ -514,12 +491,8 @@ To change build verbosity, set this variable.
    - the default
    - keeps the higher-level progress output without dumping every raw EDK2
     command
-   - the curated `CIX_RELEASE=v1.2` helper also keeps its TF-A and OP-TEE
-    sub-build output quiet on success in this mode
 - `V=1`
    - show raw EDK2 command lines
-   - pass through the raw vendor sub-build output for the curated CIX V1.2
-    helper as well
 
 Default: `0`
 
@@ -531,7 +504,7 @@ The most important compatibility rules are:
   feature variables; explicit false boolean gates are harmless
 - `ENABLE_CORE_ORDER=...` requires `ENABLE_FIRMWARE_FIXES=true`
 - `DEBUG_ON_UART3=true` implies `UART3_ENABLE=true`
-- `CIX_RELEASE=v1.2` is custom-only and board-limited to `O6` / `O6N`
+- `CIX_RELEASE` must be unset or empty
 - the `O6_SMBIOS_*` asset-tag variables are custom-only and board-limited to
   `O6`
 - `ENABLE_FIRMWARE_FIXES=true` and `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true` are
@@ -599,9 +572,11 @@ make build \
 
 ### Curated CIX trusted-component development
 
-`CIX_RELEASE=v1.2` is rejected by flash-build entry points. CI uses
-`scripts/qualify_source_trusted_firmware.py` to compile only the development
-component target and confirm that its output fails vendor-chain qualification.
+Nonblank `CIX_RELEASE` is rejected by all Make entry points. CI uses
+`scripts/qualify_source_trusted_firmware.py` to invoke the retained development
+helper directly and confirm that its output fails vendor-chain qualification.
+Its files stay under `build-cache/untrusted-component-qualification/`, separate
+from firmware output directories.
 Do not flash this development output. See
 [certificate-chain validation](firmware-chain-validation.md).
 
@@ -615,10 +590,11 @@ make buildbox-firmware-build \
   DEBUG_ON_UART3=true
 ```
 
-## Rebuild recipe in the experimental menu
+## Rebuild recipe in System Information
 
-Custom builds with `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true` include **Rebuild
-running firmware** under Platform Configuration. The page records the source
+Custom builds with `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true` append **Rebuild
+running firmware** to the existing **System Information** page, below its
+component versions and source revisions. No separate menu is added. It records the source
 release, build checkout, board, product, target, distribution, firmware fixes,
 core order, CIX selection, TF-A fixes, experimental settings, UART routing,
 verbose logging, debug mask and nonempty metadata overrides. Empty values are

@@ -60,13 +60,19 @@ The tester's BL2 image 7 error identifies the Trusted Key Certificate. Image 13
 is the BL31 content certificate; image 3 is BL31 itself. Parent authentication
 failure can therefore produce the reported failure to load image 3.
 
-`CIX_RELEASE=1.2` now fails qualified flash builds with this explanation.
+Any nonblank `CIX_RELEASE` now fails immediately while Make parses its input,
+before source preparation or output changes. An invalid invocation leaves
+previous artifacts and their reports untouched; it never reports build success.
 Leave `CIX_RELEASE=` to retain the selected vendor BL31/OP-TEE. The `latest`
 profile and `build-all` distribution use qualified vendor trusted payloads.
 The full EDK2/Radxa/board/firmware-fixes qualification matrix remains intact.
 CI separately compiles both curated TF-A fix configurations with OP-TEE, then
 requires the resulting FIPs to fail the vendor-root check. Development
-compilation is preserved without labelling those FIPs flashable.
+compilation is preserved without labelling those FIPs flashable. The qualifier
+invokes `src/scripts/build_cix_release_bootloader2.sh` directly, with outputs
+isolated under `build-cache/untrusted-component-qualification/`; it does not
+bypass the Make guard or write into the normal firmware output directory.
+The imported CIX sources and the helper remain available for development.
 
 The bundled OEM key can sign UEFI through the vendor's non-trusted delegation.
 Both the retained vendor certificate and the OEM certificate presentation used

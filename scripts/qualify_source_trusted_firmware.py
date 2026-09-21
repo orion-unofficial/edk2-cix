@@ -14,6 +14,37 @@ from firmware_chain import ChainError, validate_fip
 from validate_firmware_chain import PACKAGE, load_catalog, preflight, reference
 
 
+# This command executes in the rendered buildbox. Keep compilation coverage of
+# the unavailable signing path without bypassing any public packaging guard.
+DEVELOPMENT_ROOT = Path('build-cache/untrusted-component-qualification')
+DEVELOPMENT_BUILD = r'''
+build_root="$PWD/build-cache/untrusted-component-qualification/$1"
+package="$PWD/src/edk2-non-osi/Platform/CIX/Sky1/PackageTool"
+mkdir -p "$build_root"
+for directory in Keys certs Firmwares; do
+    cp -a "$package/$directory" "$build_root/"
+done
+host_arch="$(uname -m)"
+cross_compile=
+if [[ "$host_arch" != aarch64 ]]; then
+    cross_compile=aarch64-linux-gnu-
+fi
+make --no-print-directory -C src/tools/arm-trusted-firmware-fiptool HOST_ARCH="$host_arch" all
+fix_args=()
+if [[ "$1" == true ]]; then
+    fix_args+=(--enable-tf-a-fixes)
+fi
+bash src/scripts/build_cix_release_bootloader2.sh \
+    --tfa-dir "$PWD/src/cix-v1.2/tf-a" \
+    --tee-dir "$PWD/src/cix-v1.2/tee" \
+    --build-root "$build_root" \
+    --fiptool "$PWD/src/tools/arm-trusted-firmware-fiptool/build/$host_arch/fiptool" \
+    --output "$build_root/bootloader2-untrusted.img" \
+    --cross-compile "$cross_compile" --jobs "$(nproc)" \
+    --cache-root "$PWD/build-cache/cix-release" "${fix_args[@]}"
+'''
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--worktree', type=Path, required=True)
@@ -31,18 +62,15 @@ def main():
         raise RuntimeError('expected incompatible Stage 3 signing policy was not rejected')
     records = []
     for fixes in ('false', 'true'):
-        # Invoke the development component target only. Full-flash/OTA and
-        # public build entry points independently reject this selection.
+        # Invoke the retained helper directly, outside every firmware Make target.
+        # Its private output directory is never mirrored as usable firmware.
         subprocess.run([str(worktree / 'scripts/run_in_buildbox.sh'),
-                        'make', '--no-print-directory', '-C', 'src',
-                        'Build/O6/RELEASE_GCC/Firmwares/bootloader2.img',
-                        'ARTEFACT_MODE=custom', 'CIX_RELEASE=1.2',
-                        'FIRMWARE_BOARD=O6', 'FIRMWARE_TARGET=RELEASE',
-                        'ENABLE_TF_A_FIXES=' + fixes],
+                        'bash', '-euc', DEVELOPMENT_BUILD, 'trusted-component-check', fixes],
                        cwd=worktree, env=dict(os.environ,
+                                              CIX_RELEASE='',
                                               EDK2_CIX_BUILDBOX_PLATFORM=os.environ.get('BUILDBOX_PLATFORM', 'linux/amd64'),
                                               EDK2_CIX_HOST_TMPDIR=os.environ.get('EDK2_CIX_HOST_TMPDIR', str(worktree / '.cache/edk2-cix/firmware/buildbox/tmp'))), check=True)
-        image = worktree / 'src/Build/O6/RELEASE_GCC/Firmwares/bootloader2.img'
+        image = worktree / DEVELOPMENT_ROOT / fixes / 'bootloader2-untrusted.img'
         try:
             validate_fip(image.read_bytes(), 'trusted', selected['trusted_root_spki_sha256'], selected['trusted_counter'])
         except ChainError as exc:

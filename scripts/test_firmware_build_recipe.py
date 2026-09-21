@@ -52,18 +52,41 @@ class RecipeTests(unittest.TestCase):
             (module/'input.c').symlink_to(root/'upstream.c')
             (module/'BuildRecipe.uni').write_text('template')
             output = root/'generated'
-            for cix in ('1.2', ''):
-                self.config['CIX_RELEASE'] = cix
+            for verbose in ('TRUE', 'FALSE'):
+                self.config['DEBUG_VERBOSE'] = verbose
                 self.module.generate(overlay, output, self.config, 'release', 'O6N', 'orion-o6n', 'trixie', 'a'*40)
                 text = (output/self.module.MODULE/'BuildRecipe.uni').read_text()
                 receipt = json.loads((output/'firmware-rebuild.json').read_text())
-                self.assertIn('CIX_RELEASE=' + shlex.quote(cix), text)
-                self.assertEqual(receipt['config']['CIX_RELEASE'], cix)
+                self.assertIn('DEBUG_VERBOSE=' + verbose.lower(), text)
+                self.assertEqual(receipt['config']['DEBUG_VERBOSE'], verbose)
                 self.assertEqual((output/self.module.MODULE/'input.c').read_text(), 'upstream')
                 self.assertFalse((output/self.module.MODULE/'input.c').is_symlink())
-            self.assertNotIn('CIX_RELEASE=1.2', text)
+            self.assertNotIn('DEBUG_VERBOSE=true', text)
             self.assertEqual((module/'BuildRecipe.uni').read_text(), 'template')
             self.assertTrue((module/'input.c').is_symlink())
+
+    def test_recipe_is_inline_in_existing_component_version_form(self):
+        module = str(self.module.MODULE)
+        self.assertTrue(module.endswith('/SystemInfoDxe'))
+        overlay = 'custom/overlay-experimental-uefi-settings/'
+        vfr = source(overlay + module + '/SystemInfoHii.vfr')
+        self.assertEqual(vfr.count('form formid'), 1)
+        self.assertLess(vfr.index('STR_FIRMWARE_INFO'), vfr.index('#include "BuildRecipe.hfr"'))
+        self.assertLess(vfr.index('#include "BuildRecipe.hfr"'), vfr.index('endform;'))
+        old = module.replace('/SystemInfoDxe', '/PlatformConfigDxe')
+        self.assertNotIn('BuildRecipe', source(overlay + old + '/PlatformConfigHii.vfr'))
+        self.assertNotIn('BuildRecipe', source(overlay + old + '/PlatformConfigDxe.inf'))
+        with tempfile.TemporaryDirectory(prefix='inline-recipe-') as tmp:
+            root = Path(tmp)
+            (root/'overlay'/self.module.MODULE).mkdir(parents=True)
+            self.module.generate(root/'overlay', root/'out', self.config,
+                                 'release', 'O6', 'orion-o6', 'trixie', 'a'*40)
+            hfr = (root/'out'/self.module.MODULE/'BuildRecipe.hfr').read_text()
+            self.assertIn('subtitle text', hfr)
+            self.assertNotIn('form formid', hfr)
+            self.assertNotIn('endform', hfr)
+            self.assertNotIn('goto', hfr)
+            self.assertIn('EXPERIMENTAL_UEFI_SETTINGS_UI_ENABLE == TRUE', hfr)
 
     def test_upstream_or_nonexperimental_build_cannot_generate_menu(self):
         for changes in ({'ARTEFACT_MODE': 'upstream'}, {'ENABLE_EXPERIMENTAL_UEFI_SETTINGS': 'FALSE'}):

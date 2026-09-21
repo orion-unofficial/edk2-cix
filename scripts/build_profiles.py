@@ -55,6 +55,8 @@ def resolve_profile(
     cix_release_override: str = "",
     custom_options: list[str] | None = None,
 ) -> dict[str, str]:
+    if cix_release_override.strip():
+        raise ReconstructionError("CIX_RELEASE must be empty: source-built TF-A/OP-TEE cannot be signed with a vendor-trusted key")
     policy = load_json(repo, "config/policies.json").get("firmware_profile_policy", {})
     profiles = policy.get("profiles", {})
     selected = requested_profile.strip() or str(policy.get("default_profile", "")).strip()
@@ -100,11 +102,6 @@ def resolve_profile(
             result["enable_firmware_fixes"] = "true"
     elif fixes in FALSE_TOKENS:
         result["enable_firmware_fixes"] = "false"
-
-    cix_release = cix_release_override.strip().lower().lstrip("v")
-    if cix_release and cix_release != result["cix_early_boot_release"]:
-        expected = result["cix_early_boot_release"] or "no CIX early-boot replacement"
-        problems.append(f"PROFILE={selected} requires {expected}; got CIX_RELEASE={cix_release_override.strip()}")
 
     if result["artefact_mode"] != "custom":
         active_options = []

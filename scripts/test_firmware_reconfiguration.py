@@ -77,7 +77,6 @@ class FirmwareReconfigurationTests(unittest.TestCase):
             "DEBUG_ON_UART3": ("true", "TRUE"),
             "UART3_ENABLE": ("true", "TRUE"),
             "DEBUG_PRINT_ERROR_LEVEL": ("2147483649", "0x80000001"),
-            "CIX_RELEASE": ("v1.2", "1.2"),
             "ENABLE_TF_A_FIXES": ("true", "TRUE"),
         }
         for key, (argument, expected) in cases.items():
@@ -113,7 +112,7 @@ class FirmwareReconfigurationTests(unittest.TestCase):
             "ENABLE_FIRMWARE_FIXES": "false", "ENABLE_CORE_ORDER": "performance",
             "ENABLE_EXPERIMENTAL_UEFI_SETTINGS": "true", "DEBUG_VERBOSE": "true",
             "DEBUG_ON_UART3": "true", "UART3_ENABLE": "true",
-            "DEBUG_PRINT_ERROR_LEVEL": "0x80000001", "CIX_RELEASE": "1.2",
+            "DEBUG_PRINT_ERROR_LEVEL": "0x80000001", "CIX_RELEASE": "",
         }
         for changes in ({}, changed, {}):
             settings = {**self.base, "FIRMWARE_BOARD": "O6", "FIRMWARE_DISTRO": "trixie", **changes}

@@ -156,7 +156,7 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn("scripts/build_profiles.py --profile latest --field release", firmware)
         self.assertNotIn("artefact_mode:", firmware)
         self.assertIn('"ARTEFACT_MODE=custom"', firmware)
-        self.assertIn('"CIX_RELEASE=v1.2"', firmware)
+        self.assertNotIn('"CIX_RELEASE=v1.2"', firmware)
         self.assertIn('"ENABLE_FIRMWARE_FIXES=${ENABLE_FIRMWARE_FIXES_INPUT}"', firmware)
         self.assertIn("default: false\n        description: Enable the project's opinionated firmware fixes", firmware)
         self.assertEqual(

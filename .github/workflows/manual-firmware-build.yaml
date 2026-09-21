@@ -101,7 +101,6 @@ jobs:
             "FIRMWARE_DISTRO=${FIRMWARE_DISTRO_INPUT}" \
             "FIRMWARE_TARGET=${FIRMWARE_TARGET_INPUT}" \
             "ARTEFACT_MODE=custom" \
-            "CIX_RELEASE=v1.2" \
             "ENABLE_FIRMWARE_FIXES=${ENABLE_FIRMWARE_FIXES_INPUT}" \
             "V=1" \
             "${release_arg[@]}"
