@@ -137,7 +137,8 @@
 
 [BuildOptions]
 !if $(TARGET) == RELEASE && $(DEBUG_VERBOSE) == TRUE
-  GCC:RELEASE_*_*_CC_FLAGS    = -DMDEPKG_NDEBUG -DNDEBUG -I$(CIX_RELEASE_LOGGING_INCLUDE)
+  # Pass the include directly: AutoGen appends ordinary -I after MdePkg.
+  GCC:RELEASE_*_*_CC_FLAGS    = -DMDEPKG_NDEBUG -DNDEBUG -Wp,-I,$(CIX_RELEASE_LOGGING_INCLUDE)
 !endif
 
 [PcdsFixedAtBuild]
