@@ -32,6 +32,19 @@ Device (HDA) {
 #endif
   })
 
+#ifdef ENABLE_FIRMWARE_FIXES
+  Name (_DMA, ResourceTemplate ()
+  {
+    QWordMemory (ResourceProducer, PosDecode, MinFixed, MaxFixed, NonCacheable, ReadWrite,
+      0x0000000000000000, // Granularity
+      0x0000000000000000, // Range Minimum
+      0x000000007FFFFFFF, // Range Maximum
+      0x0000000090000000, // Translation Offset
+      0x0000000080000000, // Length
+      ,, , AddressRangeMemory, TypeStatic)
+  })
+#endif
+
   Name (_DSD, Package () {
     ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
     Package () {
