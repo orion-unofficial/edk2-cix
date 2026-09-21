@@ -48,6 +48,7 @@
   gEfiEventExitBootServicesGuid
 
 [FixedPcd]
+  gCixTokenSpaceGuid.PcdCustomFirmwareFixesEnable
 
 [Pcd]
 
