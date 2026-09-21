@@ -15,14 +15,15 @@ BDS_MARKERS = (
 
 
 def check(build_dir, error_level):
-    # These progress markers use DEBUG_INFO. A narrower user-selected mask is
-    # allowed to omit them; the standard diagnostic mask is 0x80000040.
-    if not error_level & 0x40:
-        return
+    # These targeted progress markers use DEBUG_INIT. A narrower user-selected mask is
+    # allowed to omit them; the compact diagnostic mask is 0x80000001.
+    if not error_level & 0x01:
+        return False
     image = (build_dir / "AARCH64/BdsDxe.efi").read_bytes()
     missing = [marker.decode() for marker in BDS_MARKERS if marker not in image]
     if missing:
         raise ValueError("RELEASE diagnostics were compiled out: " + ", ".join(missing))
+    return True
 
 
 def main():
@@ -31,10 +32,11 @@ def main():
     parser.add_argument("--error-level", type=lambda value: int(value, 0), required=True)
     args = parser.parse_args()
     try:
-        check(args.build_dir, args.error_level)
+        verified = check(args.build_dir, args.error_level)
     except (OSError, ValueError) as exc:
         parser.exit(1, f"[release-debug] {exc}\n")
-    print("[release-debug] Requested BDS diagnostics verified in the compiled EFI")
+    if verified:
+        print("[release-debug] Requested BDS diagnostics verified in the compiled EFI")
 
 
 if __name__ == "__main__":
