@@ -267,6 +267,7 @@ CERT_UEFI_CREATE_RSA_SOURCE_INPUTS := \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/Makefile \
 	$(CERT_UEFI_CREATE_RSA_SOURCE_DIR)/cert_uefi_create_rsa.c
 CERT_VALIDATOR := scripts/validate_cix_fip_certs.py
+FIRMWARE_CHAIN_VALIDATOR := $(abspath scripts/validate_firmware_chain.py)
 CUSTOM_ACPI_OVERLAY_CHECK := $(abspath ../scripts/check_custom_acpi_overlays.py)
 MICROSOFT_SECURE_BOOT_OUTPUT_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/SecureBootDefaults/Microsoft)
 MICROSOFT_SECURE_BOOT_MANIFEST := $(MICROSOFT_SECURE_BOOT_OUTPUT_DIR)/manifest.lock.json
@@ -748,6 +749,7 @@ preflight-%: preflight-inputs preflight-tools preflight-build-metadata
 	fi
 
 preflight-inputs:
+	@python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --worktree "$(REPO_ROOT)" --reference-dir "$(abspath $(PACKAGE_TOOL))" --cix-release "$(CIX_RELEASE)" --artefact-mode "$(ARTEFACT_MODE)"
 	@set -euo pipefail; \
 	if [ -n "$(strip $(DEB_VERSION))" ]; then \
 		echo "[preflight] DEB_VERSION is packaging-only; omit it for firmware builds." >&2; \
@@ -981,6 +983,7 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export CIX_PACKAGE_TOOL_BIN="$(shell realpath "$(CIX_PACKAGE_TOOL_BIN)")" && \
+	python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" && \
 	printf '[build/%s] Packaging OTA flash image\n' "$*" && \
 	( \
 		cd "$$stage_dir" && \
@@ -1063,6 +1066,7 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 	fi
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
+	python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" && \
 	printf '[build/%s] Packaging full flash image\n' "$*" && \
 	( \
 		cd "$$stage_dir" && \
@@ -1082,6 +1086,7 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 		echo "[build/$*] Expected full flash image $$tmp_all was not created" >&2; \
 		exit 1; \
 	fi && \
+	python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --flash-image "$$tmp_all" --reference-dir "$(abspath $(PACKAGE_TOOL))" --report "$$final_dir/firmware-chain-validation.json" && \
 	mv -f "$$tmp_all" "$@" && \
 	if [[ -d "$$stage_dir/Firmwares" ]]; then \
 		mkdir -p "$$final_dir/Firmwares" && \
@@ -1487,6 +1492,13 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 	esac; \
 	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
 		lto_flag='-flto=auto'; \
+		core_order_flags=''; \
+		if [[ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" ]]; then \
+			case "$(ENABLE_CORE_ORDER_NORMALIZED)" in \
+				conventional) core_order_flags='-DENABLE_CORE_ORDER_CONVENTIONAL=1' ;; \
+				performance) core_order_flags='-DENABLE_CORE_ORDER_PERFORMANCE=1' ;; \
+			esac; \
+		fi; \
 		rwx_warning_flag=''; \
 		if [[ "$(V)" != "1" ]]; then \
 			tool_def_overrides+=( \
@@ -1496,17 +1508,18 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 			rwx_warning_flag=' -Wl,--no-warn-rwx-segments'; \
 		fi; \
 		tool_def_overrides+=( \
-			"  DEBUG_GCC_AARCH64_CC_FLAGS    = DEF(GCC_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
+			"  DEBUG_GCC_AARCH64_CC_FLAGS    = DEF(GCC_AARCH64_CC_FLAGS) $$lto_flag $$core_order_flags -Wno-unused-but-set-variable -Wno-unused-const-variable" \
 			"  DEBUG_GCC_AARCH64_DLINK_FLAGS = DEF(GCC_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/BaseTools/Bin/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
 			'  DEBUG_GCC_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1' \
-			"RELEASE_GCC_AARCH64_CC_FLAGS    = DEF(GCC_AARCH64_CC_FLAGS) $$lto_flag -Wno-unused-but-set-variable -Wno-unused-const-variable" \
+			"RELEASE_GCC_AARCH64_CC_FLAGS    = DEF(GCC_AARCH64_CC_FLAGS) $$lto_flag $$core_order_flags -Wno-unused-but-set-variable -Wno-unused-const-variable" \
 			"RELEASE_GCC_AARCH64_DLINK_FLAGS = DEF(GCC_AARCH64_DLINK_FLAGS) $$lto_flag -Os -L\$$(WORKSPACE)/BaseTools/Bin/GccLto -llto-aarch64 -Wl,-plugin-opt=-pass-through=-llto-aarch64 -Wno-lto-type-mismatch$$rwx_warning_flag" \
 			'RELEASE_GCC_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1' \
 		); \
 		if [[ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" ]]; then \
+			scratch_layout="$$(python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --worktree "$(REPO_ROOT)" --print-scratch-layout)"; \
 			tool_def_overrides+=( \
-				'  DEBUG_GCC_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
-				'RELEASE_GCC_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1' \
+				"  DEBUG_GCC_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1 -DCIX_REBOOT_SCRATCH_LAYOUT=$$scratch_layout" \
+				"RELEASE_GCC_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1 -DCIX_REBOOT_SCRATCH_LAYOUT=$$scratch_layout" \
 				'  DEBUG_GCC_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1 -DENABLE_FIRMWARE_FIXES=1' \
 				'RELEASE_GCC_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1 -DENABLE_FIRMWARE_FIXES=1' \
 			); \

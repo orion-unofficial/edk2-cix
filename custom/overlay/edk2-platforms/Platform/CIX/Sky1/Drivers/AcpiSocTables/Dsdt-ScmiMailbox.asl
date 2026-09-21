@@ -228,6 +228,108 @@ Device(PMMX){
   CreateDWordField(BUFF, 0x08, DAT2)
   CreateDWordField(BUFF, 0x0c, DAT3)
 
+#ifdef ENABLE_FIRMWARE_FIXES
+  // The CPU SSDT supplies these from the actual UID-to-physical-core map.
+  // This remains correct when CPU order is changed or cores are harvested.
+  External (\_SB.PMMX.D000, IntObj)
+  External (\_SB.PMMX.D001, IntObj)
+  External (\_SB.PMMX.D002, IntObj)
+  External (\_SB.PMMX.D003, IntObj)
+  External (\_SB.PMMX.D004, IntObj)
+  External (\_SB.PMMX.D005, IntObj)
+  External (\_SB.PMMX.D006, IntObj)
+  External (\_SB.PMMX.D007, IntObj)
+  External (\_SB.PMMX.D008, IntObj)
+  External (\_SB.PMMX.D009, IntObj)
+  External (\_SB.PMMX.D00A, IntObj)
+  External (\_SB.PMMX.D00B, IntObj)
+  Method (PEGM, 1, NotSerialized) {
+    If (Arg0 == 0) { Return (D000) }
+    If (Arg0 == 1) { Return (D001) }
+    If (Arg0 == 2) { Return (D002) }
+    If (Arg0 == 3) { Return (D003) }
+    If (Arg0 == 4) { Return (D004) }
+    If (Arg0 == 5) { Return (D005) }
+    If (Arg0 == 6) { Return (D006) }
+    If (Arg0 == 7) { Return (D007) }
+    If (Arg0 == 8) { Return (D008) }
+    If (Arg0 == 9) { Return (D009) }
+    If (Arg0 == 10) { Return (D00A) }
+    If (Arg0 == 11) { Return (D00B) }
+    Return (Ones)
+  }
+
+  Method (PEGA, 0, Serialized)
+  {
+      If (Acquire (\_SB.MBXM, 0xFFFF))
+      {
+          Return (Buffer (0x04)
+          {
+              0x06
+          })
+      }
+
+      CERR = Zero
+      If ((CFRE == Zero))
+      {
+          Local0 = 0x0190
+          While ((Local0 > Zero))
+          {
+              If ((CFRE == One))
+              {
+                  Break
+              }
+
+              Sleep (One)
+              Local0--
+          }
+
+          If ((Local0 == Zero))
+          {
+              Release (\_SB.MBXM)
+              Return (Buffer (0x04)
+              {
+                  0x06
+              })
+          }
+      }
+
+      SIGN = 0x50434303
+      FLAG = Zero
+      LENG = 0x04
+      MSID = One
+      PRID = 0x13
+      MSGP = BUFF
+      CFRE = Zero
+      BEEL = One
+      Local0 = 0x0190
+      While ((Local0 > Zero))
+      {
+          If ((CFRE == One))
+          {
+              Break
+          }
+
+          Sleep (One)
+          Local0--
+      }
+
+      If ((Local0 == Zero))
+      {
+          Debug = "ASL Debug: SCMI Timeout\n"
+          Release (\_SB.MBXM)
+          Return (Buffer (0x04)
+          {
+              0x0B
+          })
+      }
+
+      Local1 = MSGP
+      Release (\_SB.MBXM)
+      Return (Local1)
+  }
+#endif
+
   //Set power state,Arg0=power domain id, Arg1=Flag
   Method(PRSS,2,Serialized){
     MAILBOX_SCMI_BEGIN
