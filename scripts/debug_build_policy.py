@@ -43,7 +43,8 @@ def fd_size(fdf: str, target: str) -> int:
 
 
 def preflight(read: Callable[[str], str], *, board: str, target: str,
-              verbose: str = "", mask: str = "", force: str = "") -> dict:
+              verbose: str = "", mask: str = "", force: str = "",
+              fdf_override: str | None = None) -> dict:
     if force not in {"", "0", "1"}:
         raise ValueError("FORCE_DEBUG_BUILD must be 0 or 1")
     bits = debug_bits(read(HEADER))
@@ -55,7 +56,7 @@ def preflight(read: Callable[[str], str], *, board: str, target: str,
     if effective < 0 or effective > 0xFFFFFFFF or effective & ~maximum:
         raise ValueError(f"DEBUG_PRINT_ERROR_LEVEL contains invalid bits; accepted category mask is 0x{maximum:08X}")
     fdf = f"src/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.fdf"
-    size = fd_size(read(fdf), target)
+    size = fd_size(fdf_override if fdf_override is not None else read(fdf), target)
     slots = []
     for name in ("all", "ota"):
         layout = json.loads(read(PACKAGE + f"spi_flash_config_{name}.json"))
@@ -69,8 +70,9 @@ def preflight(read: Callable[[str], str], *, board: str, target: str,
     if target == "RELEASE" and logging and effective:
         reasons.append(
             "logging-enabled RELEASE has no qualified deployable default; "
-            "202608 O6/1.3.1 measurements exceeded FV space by 6,488 bytes with INIT "
-            "and 70,048 bytes with INFO|ERROR (other inputs may differ)"
+            "prior 202608 O6/1.3.1 measurements with a 0x1F2000 FV exceeded space by "
+            "6,488 bytes with INIT and 70,048 bytes with INFO|ERROR "
+            "(the selected layout/source may differ)"
         )
     if reasons and force != "1":
         raise ValueError("; ".join(reasons) + ". Use FORCE_DEBUG_BUILD=1 only for an experimental build; "
