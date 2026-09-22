@@ -1496,7 +1496,7 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 		case "$(ARTEFACT_MODE)" in \
 			custom) \
 				tool_def_overrides+=('RELEASE_*_*_GENFW_FLAGS          = --zero'); \
-				build_extra_defines=(-D REPRODUCIBLE_BUILD_METADATA=TRUE); \
+				build_extra_defines+=(-D REPRODUCIBLE_BUILD_METADATA=TRUE); \
 				;; \
 			upstream) \
 				;; \
