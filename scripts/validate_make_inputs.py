@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import sys
 
-from debug_build_policy import preflight
+from debug_build_policy import fdf_paths, preflight
 
 
 SCRIPT_PATH = pathlib.Path(__file__).resolve()
@@ -449,12 +449,14 @@ def run_validate(args: argparse.Namespace) -> int:
 
         if artefact_mode == "custom" and args.firmware_target:
             board = args.firmware_board or "O6"
-            fdf = args.repo_root / f"custom/overlay/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.fdf"
+            experimental = normalize_bool(args.enable_experimental_uefi_settings or "false") == "TRUE"
+            layouts = (args.repo_root / path for path in fdf_paths(board, experimental))
+            fdf = next((path for path in layouts if path.is_file()), None)
             preflight(lambda path: (args.repo_root / path).read_text(),
                       board=args.firmware_board or "O6", target=args.firmware_target,
                       verbose=args.debug_verbose or "", mask=args.debug_print_error_level or "",
                       force=args.force_debug_build,
-                      fdf_override=fdf.read_text() if fdf.is_file() else None)
+                      fdf_override=fdf.read_text() if fdf else None)
 
         if (
             args.enable_firmware_fixes is not None
