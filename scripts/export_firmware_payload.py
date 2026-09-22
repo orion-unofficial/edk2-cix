@@ -292,7 +292,7 @@ def payload_mapping(
             flash_tool_dir / "FlashUpdate.efi",
             pathlib.Path("FlashUpdate.efi"),
         ),
-        (repo_root / "src" / "scripts" / "startup.nsh", pathlib.Path("startup.nsh")),
+        (repo_root / ("custom" if artefact_mode == "custom" else "src") / "scripts" / "startup.nsh", pathlib.Path("startup.nsh")),
     ]
     if should_stage_load_op_rom(board, artefact_mode):
         payload.append(
