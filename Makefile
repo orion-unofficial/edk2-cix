@@ -194,11 +194,12 @@ help-vars:
 	print_help_line 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Enable the experimental Radxa settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
 	print_help_line 'UART3_ENABLE=true|false' 'Expose UART3 to ACPI and mux its header pins as UART instead of GPIO. This consumes header GPIO105/GPIO106 while enabled.\nDefault: false.'; \
 	print_help_line 'DEBUG_ON_UART3=true|false' 'Route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
-	print_help_line 'DEBUG_VERBOSE=true|false' 'On RELEASE builds, re-enable DEBUG() logging without switching the whole firmware image to DEBUG. If DEBUG_PRINT_ERROR_LEVEL is unset, the rendered source build uses its verbose debug mask default.\nDefault: false.'; \
-	print_help_line 'DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Override the firmware debug message mask with a decimal or 0x-prefixed 32-bit value.\nDefault: unset; rendered source builds use their normal default, or their verbose default when DEBUG_VERBOSE=true.'; \
+	print_help_line 'DEBUG_VERBOSE=true|false' 'Re-enable RELEASE logging while retaining other RELEASE code gates. Verbose experiments require FORCE_DEBUG_BUILD=1 until a deployable default is qualified.\nDefault: false; ordinary RELEASE logging gates remain in effect.'; \
+	print_help_line 'DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Select defined DEBUG_* category bits; undefined bits are rejected. make help-debug RELEASE=... lists the selected source categories.\nDefault with DEBUG_VERBOSE=false: 0x80000040; with true: all defined bits (0x83FB55FF on 202608).'; \
+	print_help_line 'FORCE_DEBUG_BUILD=0|1' 'Permit an unqualified logging or conflicting DEBUG-layout experiment. Final size and signing checks remain mandatory.\nDefault: 0.'; \
 	print_section 'Generic Build Controls'; \
 	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
-	print_help_line 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
+	print_help_line 'DEBUG=0|1' 'Show tooling tracebacks and unfiltered EDK2 diagnostics; does not enable firmware DEBUG logging.\nDefault: 0.'; \
 	print_section 'Build Output Locations'; \
 	print_help_line 'BUILD_DIST_ROOT=<path>' 'Directory where build-branch builds mirror rendered worktree archives, staged payloads, and key raw firmware images.\nDefault: ./dist.'; \
 	print_help_line 'FIRMWARE_CACHE_ROOT=<path>' 'Persistent build-branch firmware cache root shared by rendered worktree builds, including ccache, buildbox temporary state, and CIX release caches.\nDefault: ./.cache/edk2-cix/firmware.'; \
@@ -225,7 +226,8 @@ help-dev:
 	print_help_line 'make help-dev-maintenance' 'Show minimised-repository, cache/reporting, local CI, documentation, and quality targets.'; \
 	print_section 'Common Variables'; \
 	print_help_variable 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
-	print_help_variable 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
+	print_help_variable 'FORCE_DEBUG_BUILD=0|1' 'Allow unqualified logging or a conflicting DEBUG layout to compile as an experiment. Final size and signing checks still apply. Default: 0.'; \
+	print_help_variable 'DEBUG=0|1' 'Show tooling tracebacks and unfiltered EDK2 diagnostics; does not enable firmware DEBUG logging.\nDefault: 0.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make help-source-targets' 'Show configured firmware source targets.'; \
 	printf '\n'; \
@@ -446,13 +448,18 @@ help-dev-maintenance:
 	print_help_variable 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
 	print_section 'Common Variables'; \
 	print_help_variable 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
-	print_help_variable 'DEBUG=0|1' 'Show Python tracebacks for unexpected tooling failures.\nDefault: 0.'; \
+	print_help_variable 'FORCE_DEBUG_BUILD=0|1' 'Allow unqualified logging or a conflicting DEBUG layout to compile as an experiment. Final size and signing checks still apply. Default: 0.'; \
+	print_help_variable 'DEBUG=0|1' 'Show tooling tracebacks and unfiltered EDK2 diagnostics; does not enable firmware DEBUG logging.\nDefault: 0.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make create-minimised-clone-help' 'Show create-minimised-clone arguments.'; \
 	print_help_line 'make verify-minimised-clone-help' 'Show verify-minimised-clone arguments.'; \
 	print_help_line 'make prune-help' 'Show prune arguments.'; \
 	print_help_line 'make ref-report-help' 'Show ref-report arguments.'; \
 	print_help_line 'make cleanup-report-help' 'Show cleanup-report arguments.'
+
+.PHONY: help-debug
+help-debug:
+	@RELEASE="$(RELEASE)" DEBUG="$(DEBUG)" $(PYTHON) scripts/help_debug.py
 
 help-source-targets:
 	@DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-source-targets
@@ -500,9 +507,9 @@ firmware:
 			"$(FIRMWARE_BOARD)" "$$PROFILE_ENABLE_FIRMWARE_FIXES" >&2; \
 	fi
 
-BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
+BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" FORCE_DEBUG_BUILD="$(FORCE_DEBUG_BUILD)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
 
-DELEGATED_BUILD_ARGS = $(if $(filter custom,$(or $(ARTEFACT_MODE),custom)),FIRMWARE_REBUILD_RELEASE="$$release_label" FIRMWARE_REBUILD_BUILD_COMMIT="$(shell git rev-parse HEAD)") V="$(V)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" CIX_RELEASE="$(CIX_RELEASE)"
+DELEGATED_BUILD_ARGS = $(if $(filter custom,$(or $(ARTEFACT_MODE),custom)),FIRMWARE_REBUILD_RELEASE="$$release_label" FIRMWARE_REBUILD_BUILD_COMMIT="$(shell git rev-parse HEAD)") V="$(V)" DEBUG="$(DEBUG)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" FORCE_DEBUG_BUILD="$(FORCE_DEBUG_BUILD)" CIX_RELEASE="$(CIX_RELEASE)"
 
 define check_bootloader1
 $(PYTHON) scripts/validate_bootloader1.py --worktree "$$wt" --phase "$(1)" --build-target "$(2)" --artefact-mode "$(3)" --cix-release "$(4)" --board "$(FIRMWARE_BOARD)" --firmware-target "$(FIRMWARE_TARGET)"

@@ -32,6 +32,7 @@ class SetupMigrationTests(unittest.TestCase):
 #define EFI_NOT_FOUND 1
 #define EFI_BUFFER_TOO_SMALL 2
 #define EFI_DEVICE_ERROR 3
+#define EFI_COMPROMISED_DATA 4
 #define EFI_ERROR(x) ((x) != 0)
 #define EFI_VARIABLE_NON_VOLATILE 1
 #define EFI_VARIABLE_BOOTSERVICE_ACCESS 2
@@ -49,6 +50,7 @@ typedef unsigned long UINTN;
 typedef unsigned int UINT32;
 typedef unsigned char UINT8;
 typedef int EFI_STATUS;
+typedef int BOOLEAN;
 typedef struct { UINT8 CpuLpiState; UINT8 reserved[15]; } PLATFORM_SETUP_DATA;
 static int gCixGlobalVariableGuid, gPlatformSetupVariableGuid;
 static int fixes, default_lpi, marker_status, marker_value, setting_read, setting_fail, marker_fail;
@@ -93,8 +95,9 @@ int main(void) {
   reset(); marker_status=EFI_SUCCESS;marker_size=0;assert(!PlatformSetupVariableInit());assert(write_count==0);
   reset(); marker_status=EFI_SUCCESS;marker_value=9;assert(!PlatformSetupVariableInit());assert(write_count==0);
   reset(); fixes=0;assert(!PlatformSetupVariableInit());assert(write_count==0);
-  reset(); setting_read=EFI_BUFFER_TOO_SMALL;setting_size=100000;assert(!PlatformSetupVariableInit());assert(write_count==2 && stored.CpuLpiState==2);
-  reset(); setting_size=1;assert(!PlatformSetupVariableInit());assert(write_count==2 && stored.CpuLpiState==2);
+  reset(); setting_read=EFI_BUFFER_TOO_SMALL;setting_size=100000;assert(PlatformSetupVariableInit()==EFI_BUFFER_TOO_SMALL);assert(write_count==0);
+  reset(); setting_size=1;assert(!PlatformSetupVariableInit());assert(write_count==3 && stored.CpuLpiState==2);
+  reset(); setting_read=EFI_DEVICE_ERROR;assert(PlatformSetupVariableInit()==EFI_DEVICE_ERROR);assert(write_count==0);
   reset(); setting_read=EFI_NOT_FOUND;setting_fail=EFI_DEVICE_ERROR;assert(PlatformSetupVariableInit()==EFI_DEVICE_ERROR);assert(write_count==1);
   return 0;
 }
@@ -103,7 +106,8 @@ int main(void) {
             path = Path(tmp)
             (path/'test.c').write_text(harness)
             subprocess.run(['cc', '-std=c11', '-Wall', '-Wextra', '-Werror', str(path/'test.c'), '-o', str(path/'test')], check=True, capture_output=True)
-            subprocess.run([str(path/'test')], check=True, capture_output=True)
+            result = subprocess.run([str(path/'test')], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == '__main__':

@@ -38,6 +38,7 @@ class SourceWarningPolicyTests(unittest.TestCase):
                 path.chmod(0o755)
             regressions = {
                 "test_ensure_iasl.py": "test_bison_extension_is_allowed_but_other_warnings_fail",
+                "test_filter_edk2_build_output.py": "test_drops_debuglink_noop_output",
             }
             for name, method in regressions.items():
                 self.assertIn("def " + method + "(", (root / "scripts" / name).read_text())
@@ -46,8 +47,7 @@ class SourceWarningPolicyTests(unittest.TestCase):
                     capture_output=True, text=True,
                 )
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            # Custom diagnostics stay visible; upstream quiet-mode policy is
-            # intentionally preserved for vendor replay.
+            # Unknown diagnostics must stay visible in both modes.
             warning = "module.c:10: warning: an unexpected compiler warning\n"
             for mode in ("custom", "upstream"):
                 result = subprocess.run(
@@ -56,7 +56,27 @@ class SourceWarningPolicyTests(unittest.TestCase):
                     env={**os.environ, "ARTEFACT_MODE": mode, "V": "0"},
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(result.stdout, warning if mode == "custom" else "")
+                self.assertEqual(result.stdout, warning)
+
+            known = "/work/src/edk2-platforms/Platform/CIX/Sky1/Sky1Common.dsc.inc(199): warning: /work/src/edk2-non-osi/Silicon/CIX/Sky1/Drivers/DpuDxe/DpuDxe.inf does not support LIBRARY_CLASS DpuDxe\n"
+            for mode, verbose, debug in (("upstream", "0", "0"), ("upstream", "1", "0"),
+                                         ("upstream", "0", "1"), ("custom", "0", "0")):
+                text = known + known.replace("LIBRARY_CLASS DpuDxe", "LIBRARY_CLASS NewClass") + warning
+                result = subprocess.run(
+                    [sys.executable, str(root / "src/scripts/filter_edk2_build_output.py")],
+                    input=text, capture_output=True, text=True,
+                    env={**os.environ, "ARTEFACT_MODE": mode, "V": verbose, "DEBUG": debug},
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, text[len(known):] if (mode, verbose, debug) == ("upstream", "0", "0") else text)
+
+            failure = "ld: error: cannot fix LOAD segment with RWX permissions\n"
+            result = subprocess.run(
+                [sys.executable, str(root / "src/scripts/filter_edk2_build_output.py")],
+                input=failure, capture_output=True, text=True,
+                env={**os.environ, "ARTEFACT_MODE": "upstream", "V": "0", "DEBUG": "0"},
+            )
+            self.assertEqual(result.stdout, failure)
 
 
 if __name__ == "__main__":

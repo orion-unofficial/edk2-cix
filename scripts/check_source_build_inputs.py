@@ -31,6 +31,7 @@ BUILD_FIXES = (
     ("052459dd2b/strict-bison", "scripts/ensure_iasl.sh", b"'YFLAGS=-y -Werror -Wno-yacc' NOWERROR=FALSE >&2", True),
     ("stored-version-header", "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/FwVersionDxe.c", b"STR (UEFI_FW_VERSION),", False),
     ("release-logging-only", "custom/release-logging/Library/DebugLib.h", b"#error Custom RELEASE logging requires MDEPKG_NDEBUG and NDEBUG", False),
+    ("autogen-warnings-fatal", "src/Makefile", b"build_extra_defines+=(-w)", False),
     ("release-logging-include", "src/Makefile", b'export PACKAGES_PATH="$$WORKSPACE/logging-overlay:$$PACKAGES_PATH"', False),
 )
 
@@ -38,6 +39,19 @@ BUILD_FIXES = (
 def missing_build_fixes(contents: dict[str, bytes]) -> list[str]:
     return [f"missing build fix {commit} in {path}" for commit, path, marker, optional in BUILD_FIXES
             if not (optional and path not in contents) and marker not in contents.get(path, b"")]
+
+
+def autogen_library_problems(imported: bytes, custom: bytes, descriptor: bytes) -> list[str]:
+    expected = re.sub(rb"(LIBRARY_CLASS\s*=\s*)NULL\b", rb"\1LzmaDecompressLib",
+                      imported.replace(b"\r\n", b"\n"))
+    problems = []
+    if custom.replace(b"\r\n", b"\n").strip() != expected.strip():
+        problems.append("custom LZMA INF must change only the selected source library class")
+    if not re.search(rb"CONSTRUCTOR\s*=\s*LzmaDecompressLibConstructor", custom):
+        problems.append("custom LZMA INF must retain its decompressor constructor")
+    if re.search(rb"(?m)^\s*DpuDxe\s*\|", descriptor):
+        problems.append("DpuDxe is a driver, not a library-class implementation")
+    return problems
 
 
 def missing_toolchain(makefile: bytes, tools_definition: bytes) -> list[str]:
@@ -260,6 +274,14 @@ def source_input_problems(repo: Path, ref: str) -> list[str]:
     fix_entries = {path: entries[path] for _, path, _, _ in BUILD_FIXES if path in entries}
     fix_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in fix_entries.values()))
     problems.extend(missing_build_fixes({path: fix_blobs[entry.object_id] for path, entry in fix_entries.items()}))
+    lzma = "edk2/MdeModulePkg/Library/LzmaCustomDecompressLib/LzmaCustomDecompressLib.inf"
+    contracts = ("src/" + lzma, "custom/overlay/" + lzma,
+                 "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Sky1Common.dsc.inc")
+    if all(path in entries for path in contracts):
+        values = git_blob_bytes_batch(repo, (entries[path].object_id for path in contracts))
+        problems.extend(autogen_library_problems(*(values[entries[path].object_id] for path in contracts)))
+    else:
+        problems.append("missing custom AutoGen library repair inputs")
     tool_paths = ("src/Makefile", "src/edk2/BaseTools/Conf/tools_def.template")
     if all(path in entries for path in tool_paths):
         tool_blobs = git_blob_bytes_batch(repo, (entries[path].object_id for path in tool_paths))
@@ -327,10 +349,11 @@ def main() -> None:
         tree = tree_id(ROOT, ref)
         if tree not in checked:
             checked[tree] = source_input_problems(ROOT, ref)
-            entries = tree_entries(ROOT, ref, ("src/scripts",))
+            entries = tree_entries(ROOT, ref, ("src/scripts", "scripts/debug_build_policy.py"))
             # Packaging executes inside rendered trees as well as from build.
             # Every retained checkpoint must carry the same mandatory verifier.
-            for source, caller in (("src/scripts/firmware_chain.py", "scripts/firmware_chain.py"),
+            for source, caller in (("scripts/debug_build_policy.py", "scripts/debug_build_policy.py"),
+                                   ("src/scripts/firmware_chain.py", "scripts/firmware_chain.py"),
                                    ("src/scripts/validate_firmware_chain.py", "scripts/validate_firmware_chain.py"),
                                    ("src/scripts/check_release_debug.py", "scripts/check_release_debug.py"),
                                    ("src/scripts/prepare_release_logging.py", "scripts/prepare_release_logging.py"),

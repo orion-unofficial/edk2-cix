@@ -22,10 +22,11 @@ from reconstruction_common import (
     rev_parse,
     synthesise_release_entry,
     tree_id,
+    show_file,
 )
 from render_release_branch import apply_release_metadata, ensure_worktree, render_from_plan, validate_release_metadata
 from test_support import commit_all, git, run, write_file
-from test_firmware_chain import SignedFirmwareFixture
+from test_firmware_chain import SignedFirmwareFixture, vendor
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -55,6 +56,16 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
         # Only compilation is replaced by a small signed fixture executable.
         package = self.repo / "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool"
         shutil.copytree(self.signed.package, package)
+        # The structural preflight inspects actual headers/layouts and all
+        # selected vendor runtime payloads, even when compilation is substituted.
+        for name in ('sfh_fw.bin', 'ec_fw.bin', 'se_config.bin', 'trustzone_config.bin'):
+            (package / 'Firmwares' / name).write_bytes(vendor('1.3.1', 'Firmwares/' + name))
+        (package / 'spi_flash_config_ota.json').write_bytes(vendor('1.3.1', 'spi_flash_config_ota.json'))
+        for relative in ('src/edk2/MdePkg/Include/Library/DebugLib.h',
+                         'src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf'):
+            dest = self.repo / relative
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(show_file(ROOT, 'source/unofficial/1.3/current', relative))
         bl1 = (package / "Firmwares/bootloader1.img").read_bytes()
         curated = self.repo / "src/cix-v1.2/release-payloads/bootloader1-2026q1.img"
         curated.parent.mkdir(parents=True, exist_ok=True)
@@ -86,8 +97,14 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
             git(self.repo, "branch", f"source/vendor/cix/1.2/{component}", self.source)
         for radxa in ("1.2.4", "1.3.1"):
             write_file(self.repo, "debian/changelog", f"edk2-cix ({radxa}) main; urgency=medium\n")
-            vendor = commit_all(self.repo, f"Radxa {radxa} metadata")
-            git(self.repo, "branch", f"source/vendor/radxa/{radxa}/edk2-stable202208", vendor)
+            vendor_commit = commit_all(self.repo, f"Radxa {radxa} metadata")
+            git(self.repo, "branch", f"source/vendor/radxa/{radxa}/edk2-stable202208", vendor_commit)
+        write_file(self.repo, 'config/refs-unofficial.json', json.dumps({'refs': [
+            {'ref': f'source/unofficial/{radxa}/edk2-stable{edk2}',
+             'radxa_release': radxa, 'type': 'unofficial-release-checkpoint',
+             'object_id': self.source, 'tree_id': tree_id(self.repo, self.source)}
+            for edk2 in ('202605', '202608') for radxa in ('1.2.4', '1.3.1')
+        ]}))
         write_file(self.repo, "config/policies.json", "{}\n")
         write_file(self.repo, "config/refs-source-target-cache.json", '{"refs": []}\n')
         clear_metadata_caches()
@@ -174,6 +191,11 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
             }},
         }
         write_file(self.repo, "config/policies.json", json.dumps(policy))
+        manifest = json.loads((self.repo / 'config/refs-unofficial.json').read_text())
+        manifest['refs'].append({'ref': 'source/unofficial/1.3/current', 'radxa_release': '1.3.1',
+                                 'type': 'unofficial-line-tip', 'object_id': self.source,
+                                 'tree_id': tree_id(self.repo, self.source)})
+        write_file(self.repo, 'config/refs-unofficial.json', json.dumps(manifest))
         shutil.copy2(ROOT / "Makefile", self.repo / "Makefile")
         shutil.copytree(ROOT / "scripts", self.repo / "scripts", dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__"))
         commit_all(self.repo, "real profile orchestration")

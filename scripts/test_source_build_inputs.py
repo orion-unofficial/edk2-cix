@@ -7,10 +7,20 @@ import tempfile
 import unittest
 
 from check_source_build_inputs import BUILD_FIXES, missing_board_table_inputs, missing_build_fixes, missing_configuration_manager_types, missing_lto_library, missing_module_infs, missing_package_declarations, missing_platform_inputs, missing_smbios_cache_types, missing_toolchain, missing_wrapper_dependencies, source_input_problems, unbalanced_asl_conditionals
+from check_source_build_inputs import autogen_library_problems
 from test_support import commit_all, git, write_file
 
 
 class SourceBuildInputsTests(unittest.TestCase):
+    def test_autogen_repair_preserves_constructor_and_selected_library_sources(self) -> None:
+        imported = b"LIBRARY_CLASS = NULL\r\nCONSTRUCTOR = LzmaDecompressLibConstructor\r\n[Sources]\r\nLzma.c\r\n"
+        custom = imported.replace(b"NULL", b"LzmaDecompressLib")
+        self.assertEqual(autogen_library_problems(imported, custom, b""), [])
+        for broken in (custom.replace(b"CONSTRUCTOR", b"#CONSTRUCTOR_REMOVED"),
+                       custom.replace(b"Lzma.c", b"WrongSdk.c")):
+            self.assertTrue(autogen_library_problems(imported, broken, b""))
+        self.assertTrue(autogen_library_problems(imported, custom, b"DpuDxe|Vendor/Driver.inf"))
+
     def test_included_custom_source_keeps_its_dependencies_in_experimental_wrapper(self) -> None:
         infs = {"custom/overlay/Hook/Hook.inf": "[Guids]\ngEfiEventReadyToBootGuid\n",
                 "custom/experimental/Hook/Hook.inf": "[Guids]\n"}

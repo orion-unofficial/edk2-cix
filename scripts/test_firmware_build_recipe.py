@@ -59,6 +59,10 @@ class RecipeTests(unittest.TestCase):
                 receipt = json.loads((output/'firmware-rebuild.json').read_text())
                 self.assertIn('DEBUG_VERBOSE=' + verbose.lower(), text)
                 self.assertEqual(receipt['config']['DEBUG_VERBOSE'], verbose)
+                if verbose == 'TRUE':
+                    self.assertIn('FORCE_DEBUG_BUILD=1', text)
+                self.assertIn('Build checkout: ' + 'a'*40, text)
+                self.assertNotIn('Platforms: ', text)
                 self.assertEqual((output/self.module.MODULE/'input.c').read_text(), 'upstream')
                 self.assertFalse((output/self.module.MODULE/'input.c').is_symlink())
             self.assertNotIn('DEBUG_VERBOSE=true', text)
@@ -73,6 +77,10 @@ class RecipeTests(unittest.TestCase):
         self.assertEqual(vfr.count('form formid'), 1)
         self.assertLess(vfr.index('STR_FIRMWARE_INFO'), vfr.index('#include "BuildRecipe.hfr"'))
         self.assertLess(vfr.index('#include "BuildRecipe.hfr"'), vfr.index('endform;'))
+        # These component rows already exist in the same form; the recipe
+        # retains the command and build checkout without duplicating them.
+        for token in ('EDK2_CIX', 'EDK2', 'EDK2_NON_OSI', 'EDK2_PLATFORMS'):
+            self.assertIn('STR_SOURCE_CODE_' + token + '_VALUE', vfr)
         old = module.replace('/SystemInfoDxe', '/PlatformConfigDxe')
         self.assertNotIn('BuildRecipe', source(overlay + old + '/PlatformConfigHii.vfr'))
         self.assertNotIn('BuildRecipe', source(overlay + old + '/PlatformConfigDxe.inf'))
