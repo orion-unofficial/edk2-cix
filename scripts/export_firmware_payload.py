@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import pathlib
 import shutil
@@ -307,6 +308,13 @@ def payload_mapping(
                 pathlib.Path("tools") / "LoadOpRom.efi",
             )
         )
+    if artefact_mode == "custom":
+        layout_report = build_dir / "bl33-layout.json"
+        if layout_report.is_file():
+            layout = json.loads(layout_report.read_text())
+            if layout.get("full_image_only"):
+                payload = [(source, dest) for source, dest in payload if dest.name != "cix_flash_ota.bin"]
+            payload.append((layout_report, pathlib.Path("bl33-layout.json")))
     return payload
 
 
