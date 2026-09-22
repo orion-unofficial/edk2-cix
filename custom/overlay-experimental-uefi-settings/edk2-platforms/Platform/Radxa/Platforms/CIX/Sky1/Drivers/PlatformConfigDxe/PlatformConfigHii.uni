@@ -60,5 +60,5 @@
 #string STR_UFS_POWER_ALWAYS_ON          #language en-US "Always On"
 #string STR_UFS_POWER_ALWAYS_OFF         #language en-US "Always Off"
 
-#string STR_ENABLE_SMMU_PROMPT #language en-US "ACPI SMMU exposure (all SMMUs)"
-#string STR_ENABLE_SMMU_PROMPT_HELP #language en-US "Expose enabled SMMUs to the OS, including PCIe when firmware fixes are enabled. Disabling exposes the vendor no-SMMU IORT. This is a global control, not a PCIe-only switch. Reboot required."
+#string STR_ENABLE_SMMU_PROMPT #language en-US "ACPI SMMUs"
+#string STR_ENABLE_SMMU_PROMPT_HELP #language en-US "All SMMUs, including PCIe with firmware fixes. Reboot required."
