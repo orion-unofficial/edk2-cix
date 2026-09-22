@@ -624,8 +624,11 @@ PlatformSetupVariableInit (
 {
   EFI_STATUS           Status = EFI_SUCCESS;
   UINTN                VarSize;
+  BOOLEAN              ResetDefaults;
   PLATFORM_SETUP_DATA  PlatformSetupVar;
 
+  ZeroMem (&PlatformSetupVar, sizeof (PlatformSetupVar));
+  ConstructSetupVariable (&PlatformSetupVar);
   VarSize = sizeof (PLATFORM_SETUP_DATA);
 
   Status = gRT->GetVariable (
@@ -635,12 +638,21 @@ PlatformSetupVariableInit (
                   &VarSize,
                   &PlatformSetupVar
                   );
-  if (EFI_ERROR (Status) || (VarSize != sizeof (PlatformSetupVar)) || IsRtcPowerfailure ()) {
+  if ((Status != EFI_NOT_FOUND) && EFI_ERROR (Status)) {
+    return Status;
+  }
+  if ((Status == EFI_SUCCESS) && (VarSize == 0)) {
+    return EFI_COMPROMISED_DATA;
+  }
+  ResetDefaults = (Status == EFI_NOT_FOUND) || IsRtcPowerfailure ();
+  if (ResetDefaults || (VarSize < sizeof (PlatformSetupVar))) {
     // GetVariable may increase VarSize on EFI_BUFFER_TOO_SMALL. Never use
     // that returned size to clear this fixed-size stack object.
     DebugPrint (DEBUG_INIT, "%a: constructing setup defaults: status=%r size=%u\n", __FUNCTION__, Status, (UINT32)VarSize);
-    ZeroMem (&PlatformSetupVar, sizeof (PlatformSetupVar));
-    ConstructSetupVariable (&PlatformSetupVar);
+    if (ResetDefaults) {
+      ZeroMem (&PlatformSetupVar, sizeof (PlatformSetupVar));
+      ConstructSetupVariable (&PlatformSetupVar);
+    }
 
     Status = gRT->SetVariable (
                     PLATFORM_SETUP_VAR,
@@ -670,8 +682,15 @@ NetworkStackVariableInit (
 {
   EFI_STATUS     Status = EFI_SUCCESS;
   UINTN          VarSize;
+  BOOLEAN        ResetDefaults;
   NETWORK_STACK  NetworkStack;
 
+  ZeroMem (&NetworkStack, sizeof (NetworkStack));
+  NetworkStack.Enable   = FixedPcdGet8 (PcdNetworkStackSupport);
+  NetworkStack.Ipv4Pxe  = FixedPcdGet8 (PcdIPv4PXESupport);
+  NetworkStack.Ipv6Pxe  = FixedPcdGet8 (PcdIPv6PXESupport);
+  NetworkStack.Ipv4Http = FixedPcdGet8 (PcdIPv4HttpSupport);
+  NetworkStack.Ipv6Http = FixedPcdGet8 (PcdIPv6HttpSupport);
   VarSize = sizeof (NETWORK_STACK);
 
   Status = gRT->GetVariable (
@@ -681,16 +700,22 @@ NetworkStackVariableInit (
                   &VarSize,
                   &NetworkStack
                   );
-  if (EFI_ERROR (Status) || IsRtcPowerfailure ()) {
-    ZeroMem (&NetworkStack, VarSize);
-    //
-    // Variable does not exist yet - create it
-    //
-    NetworkStack.Enable   = FixedPcdGet8 (PcdNetworkStackSupport);
-    NetworkStack.Ipv4Pxe  = FixedPcdGet8 (PcdIPv4PXESupport);
-    NetworkStack.Ipv6Pxe  = FixedPcdGet8 (PcdIPv6PXESupport);
-    NetworkStack.Ipv4Http = FixedPcdGet8 (PcdIPv4HttpSupport);
-    NetworkStack.Ipv6Http = FixedPcdGet8 (PcdIPv6HttpSupport);
+  if ((Status != EFI_NOT_FOUND) && EFI_ERROR (Status)) {
+    return Status;
+  }
+  if ((Status == EFI_SUCCESS) && (VarSize == 0)) {
+    return EFI_COMPROMISED_DATA;
+  }
+  ResetDefaults = (Status == EFI_NOT_FOUND) || IsRtcPowerfailure ();
+  if (ResetDefaults || (VarSize < sizeof (NetworkStack))) {
+    if (ResetDefaults) {
+      ZeroMem (&NetworkStack, sizeof (NetworkStack));
+      NetworkStack.Enable   = FixedPcdGet8 (PcdNetworkStackSupport);
+      NetworkStack.Ipv4Pxe  = FixedPcdGet8 (PcdIPv4PXESupport);
+      NetworkStack.Ipv6Pxe  = FixedPcdGet8 (PcdIPv6PXESupport);
+      NetworkStack.Ipv4Http = FixedPcdGet8 (PcdIPv4HttpSupport);
+      NetworkStack.Ipv6Http = FixedPcdGet8 (PcdIPv6HttpSupport);
+    }
     Status                = gRT->SetVariable (
                                    NETWORK_STACK_VAR,
                                    &gEfiNetworkStackSetupGuid,
@@ -717,6 +742,7 @@ SystemTableVariableInit (
   UINTN         VarSize;
   SYSTEM_TABLE  SystemTableVar;
 
+  ZeroMem (&SystemTableVar, sizeof (SystemTableVar));
   VarSize = sizeof (SYSTEM_TABLE);
 
   Status = gRT->GetVariable (
@@ -727,7 +753,13 @@ SystemTableVariableInit (
                   &SystemTableVar
                   );
 
-  if (EFI_ERROR (Status) || IsRtcPowerfailure ()) {
+  if ((Status != EFI_NOT_FOUND) && EFI_ERROR (Status)) {
+    return Status;
+  }
+  if ((Status == EFI_SUCCESS) && (VarSize != sizeof (SystemTableVar))) {
+    return EFI_COMPROMISED_DATA;
+  }
+  if ((Status == EFI_NOT_FOUND) || IsRtcPowerfailure ()) {
     //
     // Variable does not exist yet - create it
     //
@@ -736,7 +768,7 @@ SystemTableVariableInit (
                                               SYSTEM_TABLE_VAR,
                                               &gCixGlobalVariableGuid,
                                               EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
-                                              VarSize,
+                                              sizeof (SystemTableVar),
                                               &SystemTableVar
                                               );
     if (EFI_ERROR (Status)) {
