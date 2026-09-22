@@ -416,7 +416,8 @@ consume space, so logging-only builds can still exceed the firmware limit.
 
 For targeted setup-migration and BDS diagnostics, use `DEBUG_VERBOSE=false`
 with `DEBUG_PRINT_ERROR_LEVEL=0x80000001`. Oversized images fail the build;
-`DEBUG_VERBOSE=true` is not a guarantee that every message mask fits.
+`DEBUG_VERBOSE=true` requires `FORCE_DEBUG_BUILD=1` while no deployable verbose
+default is qualified. The override does not bypass final size/signature checks.
 
 This setting is only valid with:
 
@@ -443,6 +444,16 @@ This setting is only valid with:
 - `ARTEFACT_MODE=custom`
 
 Default: unset
+
+### `FORCE_DEBUG_BUILD=0|1`
+
+Custom builds reject undefined debug-mask bits without an override. Known
+FD/flash-slot conflicts and unqualified verbose RELEASE logging require
+`FORCE_DEBUG_BUILD=1` to attempt compilation. Final volume-size, packaging and
+certificate-chain checks still apply. This never permits an invalid deployable
+image. See [Debug](debug.md) for measured failures and effective defaults.
+
+Default: `0`
 
 ### `O6_SMBIOS_ASSET_TAG=<text>`
 
@@ -498,6 +509,15 @@ To change build verbosity, set this variable.
     command
 - `V=1`
    - show raw EDK2 command lines
+
+Default: `0`
+
+### `DEBUG=0|1`
+
+Tooling diagnostics: enable Python tracebacks for unexpected tool failures and
+unfiltered EDK2 diagnostic output. This does not select `FIRMWARE_TARGET=DEBUG`
+or turn on firmware `DEBUG_VERBOSE` logging. `V=1` additionally requests raw
+build commands. See the [warning policy](platform-policy-review-20260922.md).
 
 Default: `0`
 
@@ -585,13 +605,16 @@ from firmware output directories.
 Do not flash this development output. See
 [certificate-chain validation](firmware-chain-validation.md).
 
-### RELEASE build with verbose firmware logs on UART3
+### Experimental RELEASE build with verbose firmware logs on UART3
+
+This is an unqualified size experiment; final packaging may reject it.
 
 ```bash
 make buildbox-firmware-build \
   ARTEFACT_MODE=custom \
   FIRMWARE_BOARD=O6 \
   DEBUG_VERBOSE=true \
+  FORCE_DEBUG_BUILD=1 \
   DEBUG_ON_UART3=true
 ```
 

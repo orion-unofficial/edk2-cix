@@ -13,7 +13,10 @@ from reconstruction_common import show_file
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ("src/Makefile", ".github/local/Makefile.local",
          "scripts/validate_make_inputs.py", "scripts/firmware_layout.py",
-         "src/edk2/MdePkg/Include/Library/DebugLib.h")
+         "scripts/debug_build_policy.py",
+         "src/edk2/MdePkg/Include/Library/DebugLib.h",
+         *(f"src/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.fdf" for board in ("O6", "O6N")),
+         *(f"src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/spi_flash_config_{kind}.json" for kind in ("all", "ota")))
 
 
 class FirmwareReconfigurationTests(unittest.TestCase):
@@ -29,7 +32,7 @@ class FirmwareReconfigurationTests(unittest.TestCase):
             dest = self.root / relative
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(data)
-        (self.root / "src/edk2-platforms/Platform/Radxa").mkdir(parents=True)
+        (self.root / "src/edk2-platforms/Platform/Radxa").mkdir(parents=True, exist_ok=True)
         self.make = shutil.which("gmake") or shutil.which("make")
         self.base = {
             "ARTEFACT_MODE": "custom", "FIRMWARE_TARGET": "RELEASE",
@@ -37,6 +40,7 @@ class FirmwareReconfigurationTests(unittest.TestCase):
             "ENABLE_EXPERIMENTAL_UEFI_SETTINGS": "false", "DEBUG_VERBOSE": "false",
             "DEBUG_ON_UART3": "false", "UART3_ENABLE": "false",
             "DEBUG_PRINT_ERROR_LEVEL": "0x80000040", "CIX_RELEASE": "",
+            "FORCE_DEBUG_BUILD": "1",  # Exercise invalidation even for size experiments.
             "ENABLE_TF_A_FIXES": "false", "EDK2_CIX_REPO_LOCK_HELD": "1",
             "BUILD_METADATA_SCRIPT": "true", "BUILD_DATE": "2026-09-17T00:00:00Z",
             "SOURCE_COMMIT_HASH": "source", "EDK2_COMMIT_HASH": "edk2",

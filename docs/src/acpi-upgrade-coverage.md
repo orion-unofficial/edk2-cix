@@ -75,6 +75,12 @@ similarly reports `NULL platform data` and `-EINVAL`. Those paths fit the
 reported failures; the exact Ubuntu source and backports still require checking.
 Firmware reservation fixes do not supply the missing kernel property parser.
 
+The [September 2026 review](qualification-review-20260922.md#fixed-regulator-errors)
+also checks Linux 6.18 and the current Gentoo ebuild policy. The former still
+expects platform data outside Device Tree; the latter quarantines CIX's unsafe
+regulator ACPI patch. A newer kernel version or an absence of errors alone
+therefore does not establish working regulator support.
+
 The reported `_DSM` identifier `e8c3a8d2-694b-004f-82bd-fe8607803aa7` matches
 the [Realtek rtw89 Wi-Fi interface](https://github.com/torvalds/linux/blob/v6.11/drivers/net/wireless/realtek/rtw89/acpi.c).
 Obtain its function number and adjacent driver messages before adding firmware
@@ -94,7 +100,7 @@ the vendor trusted firmware:
 
 ```bash
 make build \
-  RELEASE=edk2-202605/radxa-1.3.1/unofficial \
+  RELEASE=edk2-202608/radxa-1.3.1/unofficial \
   ARTEFACT_MODE=custom \
   FIRMWARE_BOARD=O6 \
   FIRMWARE_TARGET=RELEASE \

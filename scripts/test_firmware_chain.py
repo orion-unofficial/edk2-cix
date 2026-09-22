@@ -230,6 +230,14 @@ class PackagingTests(unittest.TestCase):
         with self.assertRaisesRegex(chain.ChainError, "reserved size"):
             packaging.check_ota(data, self.selected)
 
+    def test_custom_release_fd_with_certificates_fits_unchanged_vendor_slots(self):
+        with tempfile.TemporaryDirectory(prefix="expanded-release-uefi-") as tmp:
+            fixture = SignedFirmwareFixture(tmp, payload=bytes(0x1F4000))
+            self.assertLess(len(fixture.uefi), fixture.selected["flash_layout"]["entries"]["7"]["size"])
+            packaging.check_ota(fixture.ota_fixture(), fixture.selected)
+            image, _ = fixture.flash_fixture()
+            packaging.check_flash(image, fixture.selected)
+
     def test_validly_signed_four_mib_debug_uefi_is_not_flashable(self):
         # A valid certificate chain cannot make a 4 MiB DEBUG FD fit the
         # vendor's roughly 2 MiB BL33 slot. Check both package formats.

@@ -7,7 +7,9 @@ import argparse
 import os
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, main_wrapper, release_entry, repo_root
+from reconstruction_common import ReconstructionError, main_wrapper, release_entry, repo_root, show_file
+from debug_build_policy import preflight
+from validate_release_inputs import source_fdf, validate_inputs
 
 
 VALID_ARTEFACT_MODES = {"custom", "upstream"}
@@ -61,8 +63,15 @@ def require_uint32(name: str, value: str, problems: list[str]) -> None:
 def validate_release(repo: Path, problems: list[str]) -> None:
     selected = env("RELEASE")
     try:
-        release_entry(repo, selected or None)
-    except ReconstructionError as exc:
+        _branch, entry = release_entry(repo, selected or None)
+        if (env("ARTEFACT_MODE") or "custom") == "custom":
+            validate_inputs(repo, entry)
+            preflight(lambda path: show_file(repo, entry["source_ref"], path).decode(),
+                      board=env("FIRMWARE_BOARD") or "O6", target=env("FIRMWARE_TARGET") or "RELEASE",
+                      verbose=env("DEBUG_VERBOSE"), mask=env("DEBUG_PRINT_ERROR_LEVEL"),
+                      force=env("FORCE_DEBUG_BUILD"),
+                      fdf_override=source_fdf(repo, entry["source_ref"], env("FIRMWARE_BOARD") or "O6"))
+    except (ReconstructionError, ValueError) as exc:
         problems.append(str(exc))
 
 
@@ -114,6 +123,7 @@ def validate() -> None:
 
     require_choice("V", env("V") or "0", {"0", "1"}, problems)
     require_boolean("DEBUG", env("DEBUG") or "0", problems)
+    require_choice("FORCE_DEBUG_BUILD", env("FORCE_DEBUG_BUILD"), {"0", "1"}, problems)
     require_choice("ARTEFACT_MODE", env("ARTEFACT_MODE") or "custom", VALID_ARTEFACT_MODES, problems)
     require_choice("FIRMWARE_TARGET", env("FIRMWARE_TARGET") or "RELEASE", VALID_FIRMWARE_TARGETS, problems)
     require_choice("FIRMWARE_BOARD", env("FIRMWARE_BOARD") or "O6", VALID_BOARDS, problems)
