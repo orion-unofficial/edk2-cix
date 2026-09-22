@@ -68,6 +68,33 @@ make build \
   FIRMWARE_TARGET=RELEASE
 ```
 
+### Maintained release families
+
+Stock upstream support covers the six published Radxa releases 1.2.1, 1.2.2,
+1.2.3, 1.2.4, 1.3.0 and 1.3.1 on their original EDK2 202208 base. Each uses its
+own `source/vendor/radxa/<version>/edk2-stable202208` input. The replay workflow
+rebuilds and byte-compares all six for both O6 and O6N. Select an older stock
+release explicitly, for example:
+
+```bash
+make deterministic-replay REPLAY_VERSION=1.2.4 FIRMWARE_BOARD=O6
+```
+
+The four primary custom targets are
+`edk2-{202208,202608}/radxa-{1.2.4,1.3.1}/unofficial`. On 202208 these apply our
+changes directly to the named Radxa release. The newer EDK2 targets additionally
+uplift that release. The `/unofficial` source suffix does not itself enable
+optional fixes: select `ENABLE_FIRMWARE_FIXES=true` for those.
+
+Qualification retains the 202208 and Radxa 1.2.4 baselines and follows the
+intentionally selected current EDK2/Radxa stack in `unofficial_source_policy`.
+It includes both fixes and experimental-menu states: 16 O6 builds and 16 O6N
+builds, separate from the 12 stock replays. Only O6 is currently available for
+testing on hardware. Retained historical targets outside these families do not
+inherit this qualification claim. See [Maintenance and CI](maintenance-and-ci.md).
+
+### Stage or package an image
+
 To stage a payload under `dist/firmware/`, use:
 
 ```bash

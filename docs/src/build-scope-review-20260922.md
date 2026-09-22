@@ -120,7 +120,7 @@ passed the initial release-binding/vendor-payload checks. Passing those checks
 still requires a source-delta audit to prove complete named-release fidelity.
 Compiling the incorrectly bound aliases does not repair their inputs.
 
-The adopted primary scope is now
+The adopted primary **custom** scope is now
 `edk2-{202208,202608}/radxa-{1.2.4,1.3.1}/unofficial`. This supersedes the
 initial suggestion to retain 202605 in routine qualification: 202208 represents
 the vendor baseline and 202608 the current uplift. The two 202208 targets now
@@ -134,6 +134,19 @@ checkpoint. Both fixes and experimental-menu states are included:
   options, compressed FV size and packaging result recorded.
 - Source/render/dependency checks still cover retained source checkpoints.
   Upstream reproducibility remains a separate gate.
+
+Maintained **stock upstream** support also includes every recorded Radxa release
+from 1.2.1 through 1.3.1: 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0 and 1.3.1. These
+use their matching vendor refs on EDK2 202208 and are not relegated to legacy
+support. CI now requires all six exact replays on both boards (12 builds).
+The custom baseline pairs track 202208 and Radxa 1.2.4 plus the deliberately
+promoted current EDK2/Radxa stack. Existing stock coverage remains when the
+current custom stack advances.
+
+The 202208 custom integrations do not require an EDK2 uplift: they apply the
+project delta to the correct named Radxa source. The former wrong aliases were
+caused by selecting a generic older checkpoint, not by absence of the stock
+Radxa releases. The new 1.2.4/1.3.1 checkpoints remove that selection error.
 
 A concrete incorrect historical alias is
 `edk2-202211/radxa-1.3.1/unofficial`: its generic source checkpoint is based on

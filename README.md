@@ -172,6 +172,31 @@ Matching vendor-signed early-boot payloads are retained. Use
 make help-source-targets
 ```
 
+The minimum maintained scope is:
+
+| Build mode | EDK2 | Radxa |
+| --- | --- | --- |
+| Stock upstream / exact replay | 202208 | 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.3.1 |
+| Custom `/unofficial` | 202208 and latest maintained (currently 202608) | 1.2.4 and current maintained (currently 1.3.1) |
+
+Each stock target uses the matching `source/vendor/radxa/<version>/edk2-stable202208`
+ref. Its 202208 `/unofficial` counterpart adds our source changes to that exact
+Radxa release; no EDK2 uplift is involved. Optional firmware fixes still require
+`ENABLE_FIRMWARE_FIXES=true`. Custom output is not a byte-identical stock replay,
+even with optional fixes disabled.
+
+The custom qualification matrix follows deliberate promotion of the maintained
+EDK2/Radxa stack, keeping 202208 and Radxa 1.2.4 as fixed baselines. Merely
+discovering a newer upstream tag does not change it. Older stock releases remain
+in replay coverage when the current release advances. Other historical source
+targets are retained, with their qualification limits shown separately in help.
+
+For example, rebuild and byte-compare stock Radxa 1.2.4 with:
+
+```bash
+make deterministic-replay REPLAY_VERSION=1.2.4 FIRMWARE_BOARD=O6
+```
+
 Use the `RELEASE` variable to select one of those combinations. The documented
 form is the prefixless source-target name shown by `make help-source-targets`:
 
