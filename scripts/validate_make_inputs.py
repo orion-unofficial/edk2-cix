@@ -449,10 +449,13 @@ def run_validate(args: argparse.Namespace) -> int:
                 )
 
         if artefact_mode == "custom" and args.firmware_target:
+            board = args.firmware_board or "O6"
+            fdf = args.repo_root / f"custom/overlay/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.fdf"
             preflight(lambda path: (args.repo_root / path).read_text(),
                       board=args.firmware_board or "O6", target=args.firmware_target,
                       verbose=args.debug_verbose or "", mask=args.debug_print_error_level or "",
-                      force=args.force_debug_build)
+                      force=args.force_debug_build,
+                      fdf_override=fdf.read_text() if fdf.is_file() else None)
 
         if (
             args.enable_firmware_fixes is not None
