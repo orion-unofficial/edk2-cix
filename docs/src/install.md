@@ -160,6 +160,12 @@ fs0:\edk2\radxa\orion-o6\1.3.1\startup.nsh
 Use `orion-o6n` instead when flashing the O6N payload.
 
 ```admonish info
+Custom packages use a guarded `startup.nsh`: it stops on missing input files
+or a nonzero `FlashUpdate.efi` return status, without claiming success or
+shutting down. A zero return means the updater reported success; the script
+does not independently verify flash readback. Use the script shipped beside
+the selected image. The upstream-mode vendor script remains unchanged.
+
 Before `0.3.0-1`, `startup.nsh` was called `setup.nsh`.
 ```
 

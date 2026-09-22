@@ -16,3 +16,4 @@
 - [ACPI Table Upgrade coverage](acpi-upgrade-coverage.md)
 - [September 2026 qualification review](qualification-review-20260922.md)
 - [Platform and build-policy review](platform-policy-review-20260922.md)
+- [Build scope, memory and line-ending review](build-scope-review-20260922.md)
