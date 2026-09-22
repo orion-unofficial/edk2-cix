@@ -197,7 +197,6 @@
   NetLib|NetworkPkg/Library/DxeNetLib/DxeNetLib.inf
 
 !if $(SOC_GOP_ENABLE) == TRUE
-  DpuDxe|Silicon/CIX/Sky1/Drivers/DpuDxe/DpuDxe.inf
   DisplayLib|Silicon/CIX/Sky1/Library/DisplayLib/DisplayLib.inf
 !endif
 
