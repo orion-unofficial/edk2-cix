@@ -40,7 +40,8 @@ ACPI_REGRESSION_AUDIT_SCRIPT := $(abspath ../scripts/audit_acpi_regression.py)
 ACPI_REGRESSION_AUDIT_BASELINE := $(abspath ../validation/acpi-audit-baselines.json)
 MAX_DEBUG_PRINT_ERROR_LEVEL := $(shell python3 "$(MAKE_INPUT_VALIDATOR)" max-debug-print-error-level 2>/dev/null || printf '%s' 0x807B55FF)
 V ?= 0
-export DEBUG FORCE_DEBUG_BUILD
+DEBUG_ALLOW_LARGE_IMAGE ?= 0
+export DEBUG FORCE_DEBUG_BUILD DEBUG_ALLOW_LARGE_IMAGE
 ifeq ($(V),1)
 Q :=
 PRINT_HOST_TOOL = @:
@@ -328,6 +329,7 @@ CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platfor
 CUSTOM_RADXA_SE_CONFIG_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SeConfigUpdateDxe)
 CUSTOM_BASETOOLS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2/BaseTools)
 CUSTOM_BASETOOLS_VFR_OVERLAY := $(CUSTOM_BASETOOLS_OVERLAY_DIR)/Source/C/VfrCompile/VfrSyntax.g
+CUSTOM_BL33_SOURCES := $(addprefix $(abspath scripts)/,build_bl33.py bl33_layout.py debug_build_policy.py warn_debug_categories.py validate_firmware_chain.py firmware_chain.py)
 CUSTOM_RELEASE_LOGGING_SOURCES := $(CUSTOM_RELEASE_LOGGING_INCLUDE)/Library/DebugLib.h $(abspath scripts/prepare_release_logging.py)
 CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
@@ -419,7 +421,7 @@ PATCHED_EDK2_SOURCE_INPUTS := \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Library/Acpi/CIX/AcpiPpttLibCIX/PpttGenerator.c) \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Library/MemoryInitPeiLib/MemoryInitPeiLib.c) \
 	$(abspath edk2-platforms/Platform/Radxa/Drivers/AcpiPlatformDxe/AcpiPlatformDxe.c)
-CUSTOM_EDK2_BUILD_INPUTS := $(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_RELEASE_LOGGING_SOURCES)) \
+CUSTOM_EDK2_BUILD_INPUTS := $(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_RELEASE_LOGGING_SOURCES) $(CUSTOM_BL33_SOURCES)) \
 	$(if $(filter custom,$(ARTEFACT_MODE)),$(ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES) $(CUSTOM_EDK2_OVERLAY_SOURCES) $(MICROSOFT_SECURE_BOOT_PAYLOADS))
 CUSTOM_EDK2_ORDER_ONLY_PREREQS := \
 	$(if $(filter custom,$(ARTEFACT_MODE)),check-microsoft-secure-boot-release)
@@ -754,7 +756,7 @@ preflight-%: preflight-inputs preflight-tools preflight-build-metadata
 	fi
 
 preflight-inputs:
-	@if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --worktree "$(REPO_ROOT)" --reference-dir "$(abspath $(PACKAGE_TOOL))" --cix-release "$(CIX_RELEASE)" --artefact-mode "$(ARTEFACT_MODE)"; fi
+	@if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --worktree "$(REPO_ROOT)" --reference-dir "$(abspath $(PACKAGE_TOOL))" --cix-release "$(CIX_RELEASE)" --artefact-mode "$(ARTEFACT_MODE)"; fi
 	@set -euo pipefail; \
 	if [ -n "$(strip $(DEB_VERSION))" ]; then \
 		echo "[preflight] DEB_VERSION is packaging-only; omit it for firmware builds." >&2; \
@@ -944,7 +946,7 @@ $(call BUILD_CONFIG_STAMP,%): FORCE
 		'REQUIRE_SIGNING_CERT_SOURCE=$(REQUIRE_SIGNING_CERT_SOURCE)' \
 		'GCC_AARCH64_PREFIX=$(GCC_AARCH64_PREFIX)')"; \
 	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
-		config_text="$${config_text}"$$'\n'"MEM_CFG_MEMFREQ=$(MEM_CFG_MEMFREQ)"$$'\n'"SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)"$$'\n'"PM_CONFIG_SOURCE_DATE_EPOCH=$(PM_CONFIG_SOURCE_DATE_EPOCH)"; \
+		config_text="$${config_text}"$$'\n'"DEBUG_ALLOW_LARGE_IMAGE=$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)"$$'\n'"MEM_CFG_MEMFREQ=$(MEM_CFG_MEMFREQ)"$$'\n'"SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)"$$'\n'"PM_CONFIG_SOURCE_DATE_EPOCH=$(PM_CONFIG_SOURCE_DATE_EPOCH)"; \
 	fi; \
 	if [[ "$(ARTEFACT_MODE)" == "custom" && "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" == "TRUE" ]]; then \
 		config_text="$${config_text}"$$'\n'"FIRMWARE_REBUILD_RELEASE=$(FIRMWARE_REBUILD_RELEASE)"$$'\n'"FIRMWARE_REBUILD_BUILD_COMMIT=$(FIRMWARE_REBUILD_BUILD_COMMIT)"$$'\n'"FIRMWARE_DISTRO=$(FIRMWARE_DISTRO)"$$'\n'"FIRMWARE_PRODUCT=$(FIRMWARE_PRODUCT)"; \
@@ -988,7 +990,16 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export CIX_PACKAGE_TOOL_BIN="$(shell realpath "$(CIX_PACKAGE_TOOL_BIN)")" && \
-	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
+		python3 "$(REPO_ROOT)/src/scripts/bl33_layout.py" --stage "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" --allow-large "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)"; \
+		cp "$$stage_dir/bl33-layout.json" "$$final_dir/"; \
+		if [[ "$@" == */cix_flash_ota.bin && -f "$$stage_dir/bl33-full-image-only" ]]; then \
+			rm -f "$@" "$$stage_dir/cix_flash_ota.bin"; \
+			printf '[bl33-layout] Enlarged layout requires cix_flash_all.bin; OTA image omitted\n'; \
+			exit 0; \
+		fi; \
+	fi && \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
 	printf '[build/%s] Packaging OTA flash image\n' "$*" && \
 	( \
 		cd "$$stage_dir" && \
@@ -999,7 +1010,7 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 			echo "[build/$*] Expected OTA image $$tmp_ota was not created" >&2; \
 			exit 1; \
 		fi && \
-		if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --ota-image "$$tmp_ota" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
+		if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --ota-image "$$tmp_ota" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
 		mv -f "$$tmp_ota" "./cix_flash_ota.bin" \
 	) && \
 	cp -f "$$stage_dir/cix_flash_ota.bin" "$@" && \
@@ -1072,7 +1083,16 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 	fi
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
-	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
+		python3 "$(REPO_ROOT)/src/scripts/bl33_layout.py" --stage "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" --allow-large "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)"; \
+		cp "$$stage_dir/bl33-layout.json" "$$final_dir/"; \
+		if [[ "$@" == */cix_flash_ota.bin && -f "$$stage_dir/bl33-full-image-only" ]]; then \
+			rm -f "$@" "$$stage_dir/cix_flash_ota.bin"; \
+			printf '[bl33-layout] Enlarged layout requires cix_flash_all.bin; OTA image omitted\n'; \
+			exit 0; \
+		fi; \
+	fi && \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
 	printf '[build/%s] Packaging full flash image\n' "$*" && \
 	( \
 		cd "$$stage_dir" && \
@@ -1092,7 +1112,7 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 		echo "[build/$*] Expected full flash image $$tmp_all was not created" >&2; \
 		exit 1; \
 	fi && \
-	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --flash-image "$$tmp_all" --reference-dir "$(abspath $(PACKAGE_TOOL))" --report "$$final_dir/firmware-chain-validation.json"; fi && \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --flash-image "$$tmp_all" --reference-dir "$(abspath $(PACKAGE_TOOL))" --report "$$final_dir/firmware-chain-validation.json"; fi && \
 	mv -f "$$tmp_all" "$@" && \
 	if [[ -d "$$stage_dir/Firmwares" ]]; then \
 		mkdir -p "$$final_dir/Firmwares" && \
@@ -1535,7 +1555,7 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 			'RELEASE_GCC_AARCH64_VFRPP_FLAGS   = $$(ARCHCC_FLAGS) $$(PLATFORM_FLAGS) DEF(GCC_VFRPP_FLAGS) -DEDK2_CIX_CUSTOM_BUILD=1' \
 		); \
 		if [[ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" ]]; then \
-			scratch_layout="$$(python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --worktree "$(REPO_ROOT)" --print-scratch-layout)"; \
+			scratch_layout="$$(python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --worktree "$(REPO_ROOT)" --print-scratch-layout)"; \
 			tool_def_overrides+=( \
 				"  DEBUG_GCC_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1 -DCIX_REBOOT_SCRATCH_LAYOUT=$$scratch_layout -I$(CUSTOM_OVERLAY_ROOT)/edk2-platforms/Platform/CIX/Sky1/Include" \
 				"RELEASE_GCC_AARCH64_ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -DENABLE_FIRMWARE_FIXES=1 -DCIX_REBOOT_SCRATCH_LAYOUT=$$scratch_layout -I$(CUSTOM_OVERLAY_ROOT)/edk2-platforms/Platform/CIX/Sky1/Include" \
@@ -1578,8 +1598,10 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 				build_extra_defines+=("-D" "O6_SMBIOS_CHASSIS_ASSET_TAG=$(O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL)"); \
 			fi; \
 			run_edk2_build() { \
+		build_runner=(); \
+		if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then build_runner=(python3 "$(REPO_ROOT)/src/scripts/build_bl33.py" --board "$*" --target "$(UEFI_TARGET)" --reference-dir "$(abspath $(PACKAGE_TOOL))" --); fi; \
 		export EDK2_CIX_QUIET_PREBUILD="$(if $(filter 1,$(V)),0,1)"; \
-		build -a AARCH64 -t GCC -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
+		"$${build_runner[@]}" build -a AARCH64 -t GCC -p "$(subst edk2-platforms/,,$(filter %/$*.dsc,$(DSC)))" \
 			$(if $(strip $(EDK2_BUILD_JOBS)),-n $(EDK2_BUILD_JOBS)) \
 			$(EDK2_GENFDS_MULTI_THREAD_FLAG) \
 			$(EDK2_BUILD_SILENT_FLAG) \
@@ -1604,6 +1626,9 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 		fi; \
 		mkdir -p "Build/$*"; \
 		rm -rf "Build/$*/$(UEFI_TARGET)_GCC"; \
+		if [[ "$(UEFI_TARGET)" == "DEBUG" || "$(DEBUG_VERBOSE_NORMALIZED)" == "TRUE" ]]; then \
+			python3 "$(REPO_ROOT)/src/scripts/warn_debug_categories.py" --build-dir "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC" --header "$(abspath edk2/MdePkg/Include/Library/DebugLib.h)" --mask "$(or $(DEBUG_PRINT_ERROR_LEVEL_EFFECTIVE),0x80000040)" --report "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC/debug-category-audit.json"; \
+		fi; \
 		cp -a "$$WORKSPACE/Build/$*/$(UEFI_TARGET)_GCC" "Build/$*/"; \
 		if [[ "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" == "TRUE" ]]; then cp "$$WORKSPACE/rebuild-overlay/firmware-rebuild."{txt,json} "Build/$*/$(UEFI_TARGET)_GCC/"; fi; \
 		build_options_path="Build/$*/$(UEFI_TARGET)_GCC/BuildOptions"; \
