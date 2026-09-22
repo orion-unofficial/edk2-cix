@@ -4,3 +4,12 @@ execute_before_dh_auto_build:
 override_dh_auto_install:
 	@mkdir -p debian/tmp
 	@printf '%s\n' 'Skipping top-level make install during Debian packaging; dh_install stages files from the build tree.'
+
+# Keep the vendor script byte-identical in upstream packages. dh_install copies
+# it first; replace only the custom package copies, never the source file.
+ifeq ($(or $(ARTEFACT_MODE),custom),custom)
+execute_after_dh_install:
+	@set -e; for product in orion-o6 orion-o6n; do \
+		install -m 0644 custom/scripts/startup.nsh "debian/edk2-cix/usr/share/edk2/radxa/$$product/startup.nsh"; \
+	done
+endif
