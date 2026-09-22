@@ -32,8 +32,7 @@ def recipe(config: dict[str, str], release: str, board: str, product: str,
                 'O6_SMBIOS_CHASSIS_ASSET_TAG', 'SIGNING_CERT_SOURCE_DIR', 'REQUIRE_SIGNING_CERT_SOURCE'):
         if config.get(key):
             args[key] = config[key]
-    if config['UEFI_TARGET'] == 'DEBUG' or config.get('DEBUG_VERBOSE') == 'TRUE':
-        args['FORCE_DEBUG_BUILD'] = '1'
+    args['DEBUG_ALLOW_LARGE_IMAGE'] = config.get('DEBUG_ALLOW_LARGE_IMAGE') or '0'
     return ['make build'] + [key + '=' + shlex.quote(value) for key, value in args.items()]
 
 
