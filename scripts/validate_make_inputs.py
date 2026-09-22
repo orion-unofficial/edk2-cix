@@ -99,6 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--debug-on-uart3")
     validate.add_argument("--uart3-enable")
     validate.add_argument("--debug-verbose")
+    validate.add_argument("--debug-allow-large-image", default=os.environ.get("DEBUG_ALLOW_LARGE_IMAGE", ""))
     validate.add_argument("--force-debug-build", default=os.environ.get("FORCE_DEBUG_BUILD", ""))
     validate.add_argument("--debug-print-error-level")
     validate.add_argument("--enable-firmware-fixes")
@@ -432,6 +433,11 @@ def run_validate(args: argparse.Namespace) -> int:
                     "UART3_ENABLE is only supported with ARTEFACT_MODE=custom"
                 )
 
+        if args.debug_allow_large_image not in ("", "0", "1"):
+            raise ValueError("DEBUG_ALLOW_LARGE_IMAGE must be 0 or 1")
+        if args.debug_allow_large_image == "1" and artefact_mode != "custom":
+            raise ValueError("DEBUG_ALLOW_LARGE_IMAGE is only supported with ARTEFACT_MODE=custom")
+
         if args.debug_verbose is not None and args.debug_verbose != "":
             normalize_bool(args.debug_verbose)
             if artefact_mode and artefact_mode != "custom":
@@ -456,7 +462,7 @@ def run_validate(args: argparse.Namespace) -> int:
             preflight(lambda path: (args.repo_root / path).read_text(),
                       board=args.firmware_board or "O6", target=args.firmware_target,
                       verbose=args.debug_verbose or "", mask=args.debug_print_error_level or "",
-                      force=args.force_debug_build,
+                      force=args.force_debug_build, allow_large=args.debug_allow_large_image,
                       fdf_override=fdf.read_text() if fdf else None)
 
         if (
