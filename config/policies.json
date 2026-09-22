@@ -12,7 +12,29 @@
     }
   },
   "firmware_qualification_policy": {
-    "radxa_releases": ["1.2.4", "1.3.1"]
+    "edk2_releases": [
+      "202208",
+      "202608"
+    ],
+    "radxa_releases": [
+      "1.2.4",
+      "1.3.1"
+    ],
+    "boards": [
+      "O6",
+      "O6N"
+    ],
+    "firmware_fixes": [
+      false,
+      true
+    ],
+    "experimental_uefi_settings": [
+      false,
+      true
+    ],
+    "hardware_qualification_boards": [
+      "O6"
+    ]
   },
   "firmware_profile_policy": {
     "default_profile": "upstream",
@@ -113,7 +135,7 @@
     "default_line": "1.3",
     "lines": {
       "1.3": {
-        "current_cix_release": "1.2",
+        "current_cix_release": "",
         "current_edk2_release": "202608",
         "current_radxa_release": "1.3.1",
         "current_ref": "source/unofficial/1.3/current"

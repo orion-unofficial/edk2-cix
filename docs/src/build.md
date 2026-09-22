@@ -47,8 +47,10 @@ make build FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
 
 `FIRMWARE_BOARD=O6|O6N` selects the board. `FIRMWARE_TARGET=RELEASE|DEBUG`
 selects the EDK2 build target. The defaults are `O6` and `RELEASE`.
-`FIRMWARE_PRODUCT` defaults to `orion-o6` for O6 and `orion-o6n` for O6N so
-the boards cannot overwrite each other's staged payloads or archives.
+The output product is derived from the board: `orion-o6` or `orion-o6n`.
+Select only `FIRMWARE_BOARD`; there is no supported cross-board product
+combination. Matching legacy `FIRMWARE_PRODUCT` arguments are accepted for
+compatibility; mismatched values fail before building.
 
 Builds check that BL1 retains the selected vendor's exact bytes and attempt
 vendor signature verification. Verification rejection fails the build;
@@ -61,7 +63,7 @@ targets listed by `make help-source-targets`:
 
 ```bash
 make build \
-  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
+  RELEASE=edk2-202608/radxa-1.3.1/unofficial \
   FIRMWARE_BOARD=O6N \
   FIRMWARE_TARGET=RELEASE
 ```

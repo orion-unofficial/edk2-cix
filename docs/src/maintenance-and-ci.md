@@ -15,9 +15,10 @@ classifier; unknown or firmware-affecting paths run all of these gates:
 - source-model tests, lint, and minimised-clone reconstruction;
 - overlay, symlink, and required build-fix checks across every retained
   Unofficial checkpoint;
-- every valid `edk2-*/radxa-1.2.4/unofficial` and
-  `edk2-*/radxa-1.3.1/unofficial` target through public `make build`, for both
-  boards with fixes off/on (RELEASE, Trixie, CIX replacement disabled);
+- the primary `edk2-{202208,202608}/radxa-{1.2.4,1.3.1}/unofficial`
+  targets through public `make build`, with fixes off/on and experimental
+  menus off/on (RELEASE, Trixie, vendor early-boot payloads retained): 16 O6
+  builds and 16 O6N builds;
 - current-source Trixie builds for O6 and O6N, both with firmware fixes disabled
   and enabled; and
 - exact Radxa 1.3.1 replay on its historical EDK2 `202208` base for O6 and O6N.
@@ -42,6 +43,13 @@ no concurrency group is also allowed to finish independently.
 `Build documentation` runs when its inputs change and deploys Pages only from a
 push to `build`. Pull requests, merge-queue candidates, reusable calls, and
 local `act` runs build and archive the site without deploying it.
+
+The primary matrix keeps the stock firmware's 202208 base and current 202608
+base. The 202605 base is superseded for routine qualification. Historical source
+refs remain available, but mismatched custom aliases are excluded from public
+help and fail the provenance guard. Passing compilation does not establish
+boot behavior: only O6 is currently available for qualification on hardware;
+O6N remains covered by CI builds.
 
 ## Build-branch qualification
 

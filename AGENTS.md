@@ -165,3 +165,12 @@ git rev-parse --show-toplevel --git-dir --git-common-dir
 If the common Git directory belongs to another checkout, deleting a branch or
 tag will affect that checkout too. In that case, do not prune refs unless the
 user has explicitly authorised pruning the shared repository state.
+
+## Line Endings
+
+Preserve exact imported/vendor files, byte-sensitive replay fixtures and unchanged
+mirror symlinks. Use LF for repository-owned scripts, documentation and new text.
+Do not introduce incidental whole-file line-ending churn in upstream-derived
+files; use normalized comparison views for audits. A deliberate normalization
+migration requires separate review and replay/build checks. Do not blindly
+normalize binary, UTF-16, cryptographic or OpenSSL fixture data.

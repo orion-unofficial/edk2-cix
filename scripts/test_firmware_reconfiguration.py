@@ -2,6 +2,7 @@
 """Exercise repeated configuration changes through the real firmware Makefile."""
 
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -35,6 +36,10 @@ class FirmwareReconfigurationTests(unittest.TestCase):
             dest.write_bytes(data)
         (self.root / "src/edk2-platforms/Platform/Radxa").mkdir(parents=True, exist_ok=True)
         self.make = shutil.which("gmake") or shutil.which("make")
+        self.toolchain = re.search(
+            r"build\s+-a\s+AARCH64\s+-t\s+(\w+)",
+            (self.root / 'src/Makefile').read_text(),
+        ).group(1)
         self.base = {
             "ARTEFACT_MODE": "custom", "FIRMWARE_TARGET": "RELEASE",
             "ENABLE_FIRMWARE_FIXES": "true", "ENABLE_CORE_ORDER": "cix",
@@ -82,7 +87,7 @@ class FirmwareReconfigurationTests(unittest.TestCase):
 
     def configure(self, changes=None, board="O6"):
         settings = {**self.base, **(changes or {})}
-        output = self.root / "src/Build" / board / (settings["FIRMWARE_TARGET"] + "_GCC")
+        output = self.root / "src/Build" / board / (settings["FIRMWARE_TARGET"] + "_" + self.toolchain)
         stamp = output / ".edk2-cix-build-config"
         result = subprocess.run(
             [self.make, "--no-print-directory", str(stamp.relative_to(self.root / "src")),

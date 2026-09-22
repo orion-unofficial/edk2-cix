@@ -168,3 +168,57 @@ as `maintenance_base_object_id`; no development line is moved by this command.
 Refresh affected generated caches and manifests, run the qualification gates,
 and publish source refs together with the build metadata using the documented
 coordinated publication workflow.
+
+## Primary qualification scope (September 22 follow-up)
+
+The primary build matrix now follows the explicit policy in
+`config/policies.json`: EDK2 202208 and 202608, Radxa 1.2.4 and 1.3.1, both
+fix states and both experimental-menu states. This is 16 builds per board.
+CI covers O6 and O6N; qualification on hardware is currently limited to O6.
+This supersedes the earlier all-EDK2 full-compilation scope above. Structural
+source checks still cover every retained checkpoint, and no source refs are
+removed. Incorrect historical release aliases cannot pass the provenance gate.
+
+### Board selector and 202208 baseline integration
+
+`FIRMWARE_BOARD` is the sole public board selector. The rendered source wrapper
+still needs an internal product label for output paths and packaging; it derives
+that label from the board and rejects contradictory legacy product arguments.
+The firmware build itself generates the experimental HII rebuild recipe, so that
+source-side generator also omits the redundant product argument. These two
+operations must execute inside rendered source trees and therefore require
+focused propagation through retained Unofficial refs; the outer build caller
+cannot own the entire change.
+
+The new 202208/1.2.4 and 202208/1.3.1 checkpoints retain their named vendor
+baselines and signed payloads. Compatibility adaptations retain old ArmPkg and
+GCC5 paths, the 202208 SMBIOS cache representation, and PcdUgaConsumeSupport.
+Generic GCC preprocessor macros remain generic even when the toolchain tag is
+GCC5; structural validation checks every generated `DEF(...)` reference against
+the selected tools template. Current Python warnings in both baselines'
+BaseTools are repaired through custom-only overlays. Regression checks require
+identical Python syntax trees and reject warnings in the repaired copies.
+The MPAM table uses an exact copy of the newer EDK2 header as a custom-only
+compatibility header. Tests compare its contents and table body with 202608,
+and execute the ACPI overlay preflight to verify that this declared addition
+passes while an undeclared file still fails.
+The console preference driver uses the older equivalent libfdt entry points.
+The 1.2.4 tables retain the older equivalent ACPI address macros, and their
+imported FADT/DBG2/SPCR files match the vendor bytes. Structural checks cover
+literal FDF dependencies as well as DSC dependencies and ACPI table headers.
+
+The 1.2.4 experimental FDF overlays had inadvertently reduced the RELEASE
+volume from the vendor's 2 MiB to `0x1f2000`. They now retain 2 MiB on both
+boards across the retained 1.2.4 checkpoints. This changes only custom menu
+overlays; vendor flash partitions, signed payloads and upstream replay sources
+are unchanged. Regression coverage compares normal and experimental capacities
+and checks their shared slot limits.
+
+The custom ASL include directory is required with fixes disabled as well as
+enabled: the graph helper supplies both vendor-compatible and corrected forms.
+The firmware Makefile therefore adds that include path inside the custom-mode
+block, before the conditional fix definitions. This executes while constructing
+EDK2's private tools configuration and cannot be owned by the outer caller.
+The focused two-line repair is propagated to retained source checkpoints.
+Tests execute each retained Makefile's actual flag recipe, preprocess the graph
+header for both fix states, and require no added overrides in upstream mode.

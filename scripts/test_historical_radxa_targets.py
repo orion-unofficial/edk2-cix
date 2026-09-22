@@ -259,6 +259,36 @@ def test_unofficial_source_policy_requires_selected_exact_checkpoint() -> None:
         shutil.rmtree(repo)
 
 
+def test_unofficial_policy_accepts_vendor_payloads_without_cix_source_selector() -> None:
+    repo = make_repo()
+    try:
+        create_branch(repo, "source/unofficial/1.2.1/edk2-stable202602",
+                      {"src.txt": "exact 1.2.1 checkpoint\n"}, "exact checkpoint")
+        git(repo, "switch", "build")
+        clear_metadata_caches()
+        write_unofficial_source_policy(repo)
+        path = repo / "config/policies.json"
+        data = json.loads(path.read_text())
+        for selector in ("", None):
+            record = data["unofficial_source_policy"]["lines"]["1.2"]
+            if selector is None:
+                record.pop("current_cix_release", None)
+            else:
+                record["current_cix_release"] = selector
+            path.write_text(json.dumps(data))
+            clear_metadata_caches()
+            branches, _aliases = matrix_release_branches(repo)
+            problems = require_unofficial_source_policy(repo, branches)
+            require(not problems, "vendor-payload policy was rejected: " + "\n".join(problems))
+            require("/cix-" not in default_release(repo), "default still selects CIX source replacement")
+            canonical = f"{CACHE_RELEASE_PREFIX}custom/edk2-202602/radxa-1.2.1/unofficial"
+            problems = require_unofficial_source_policy(repo, branches - {canonical})
+            require(any("selects unavailable source target" in problem for problem in problems),
+                    "missing non-CIX target was accepted")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_source_delta_porting_replays_only_project_delta() -> None:
     repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-test."))
     try:
@@ -1251,6 +1281,7 @@ def main() -> None:
     test_default_source_target_follows_unofficial_source_policy()
     test_unofficial_cache_aliases_are_coupled_for_persistent_refresh()
     test_unofficial_source_policy_requires_selected_exact_checkpoint()
+    test_unofficial_policy_accepts_vendor_payloads_without_cix_source_selector()
     test_source_delta_porting_replays_only_project_delta()
     test_source_delta_porting_canonicalises_merge_preimages()
     test_source_delta_porting_ignores_deletes_already_absent_upstream()

@@ -96,32 +96,26 @@ jobs:
         include:
           - board: O6
             firmware_fixes: false
-            product: orion-o6
             experimental: false
             debug_mask: "0x80000001"
           - board: O6
             firmware_fixes: true
-            product: orion-o6
             experimental: false
             debug_mask: "0x80000001"
           - board: O6N
             firmware_fixes: false
-            product: orion-o6n
             experimental: false
             debug_mask: "0x80000001"
           - board: O6N
             firmware_fixes: true
-            product: orion-o6n
             experimental: false
             debug_mask: "0x80000001"
           - board: O6
             firmware_fixes: true
-            product: orion-o6
             experimental: true
             debug_mask: "0x80000040"
           - board: O6N
             firmware_fixes: true
-            product: orion-o6n
             experimental: true
             debug_mask: "0x80000040"
 
@@ -192,7 +186,6 @@ jobs:
             FIRMWARE_REBUILD_BUILD_COMMIT="$(git rev-parse HEAD)" \
             ENABLE_FIRMWARE_FIXES="${{ matrix.firmware_fixes }}" \
             FIRMWARE_BOARD="${{ matrix.board }}" \
-            FIRMWARE_PRODUCT="${{ matrix.product }}" \
             FIRMWARE_TARGET=RELEASE \
             FIRMWARE_DISTRO="${FIRMWARE_DISTRO}" \
             BUILDBOX_PLATFORM=linux/amd64 \
@@ -227,7 +220,6 @@ jobs:
             FIRMWARE_REBUILD_BUILD_COMMIT="$(git rev-parse HEAD)" \
             ENABLE_FIRMWARE_FIXES="${{ matrix.firmware_fixes }}" \
             FIRMWARE_BOARD="${{ matrix.board }}" \
-            FIRMWARE_PRODUCT="${{ matrix.product }}" \
             FIRMWARE_TARGET=RELEASE \
             FIRMWARE_DISTRO="${FIRMWARE_DISTRO}" \
             BUILDBOX_PLATFORM=linux/amd64 \
