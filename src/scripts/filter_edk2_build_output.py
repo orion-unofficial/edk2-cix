@@ -28,7 +28,7 @@ EDK2_META_RE = re.compile(
 )
 PLATFORMCONFIG_DEFAULT_RE = re.compile(r"PlatformConfigHii\.i\(\d+\): WARNING: default")
 PLATFORMCONFIG_CONTINUATION_RE = re.compile(r"^\s*: default value re-defined")
-RWX_WARNING_RE = re.compile(r"LOAD segment with RWX permissions")
+RWX_WARNING_RE = re.compile(r"^[^\n]*: warning: [^\n]*has a LOAD segment with RWX permissions$")
 LTO_SERIAL_WARNING_RE = re.compile(r"^lto-wrapper: warning: using serial compilation")
 LTO_SERIAL_NOTE_RE = re.compile(r"^lto-wrapper: note: see the .-flto. option documentation")
 VFR_AMBIGUITY_RE = re.compile(r"^VfrSyntax\.g(?:, line \d+)?: warning: .*ambiguous upon ")
