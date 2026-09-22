@@ -32,26 +32,41 @@ PLATFORM_SETUP_DATA_INFO_TABLE  mPlatformSetupDataInfoTable = {
 
 #define CUSTOM_LPI_DEFAULT_MIGRATION_VAR  L"CustomLpiDefaultMigrated"
 
+STATIC
+EFI_STATUS
+ReadPlatformSetupVariable (
+  OUT PLATFORM_SETUP_DATA  *Data
+  )
+{
+  EFI_STATUS  Status;
+  UINTN       Size;
+
+  Size = sizeof (*Data);
+  Status = gRT->GetVariable (
+                  PLATFORM_SETUP_VAR,
+                  &gPlatformSetupVariableGuid,
+                  NULL,
+                  &Size,
+                  Data
+                  );
+  if (!EFI_ERROR (Status) && (Size != sizeof (*Data))) {
+    return EFI_COMPROMISED_DATA;
+  }
+
+  return Status;
+}
+
 EFI_STATUS
 EFIAPI
 CheckCpuShareInfo (
   )
 {
   EFI_STATUS           Status = EFI_SUCCESS;
-  UINTN                VarSize;
   PLATFORM_SETUP_DATA  PlatformSetupVar;
   UINT32               CpuShareInfo;
   UINT8                CpuCoreNum;
 
-  VarSize = sizeof (PLATFORM_SETUP_DATA);
-
-  Status = gRT->GetVariable (
-                  PLATFORM_SETUP_VAR,
-                  &gPlatformSetupVariableGuid,
-                  NULL,
-                  &VarSize,
-                  &PlatformSetupVar
-                  );
+  Status = ReadPlatformSetupVariable (&PlatformSetupVar);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a EfiGetVariable failed: %r\n", __FUNCTION__, Status));
     return Status;
@@ -187,18 +202,9 @@ UpdateConfigParams (
   )
 {
   EFI_STATUS           Status;
-  UINTN                VarSize;
   PLATFORM_SETUP_DATA  PlatformSetupVar;
 
-  VarSize = sizeof (PLATFORM_SETUP_DATA);
-
-  Status = gRT->GetVariable (
-                  PLATFORM_SETUP_VAR,
-                  &gPlatformSetupVariableGuid,
-                  NULL,
-                  &VarSize,
-                  &PlatformSetupVar
-                  );
+  Status = ReadPlatformSetupVariable (&PlatformSetupVar);
   if (!EFI_ERROR (Status) && !IsRtcPowerfailure ()) {
     for (UINT8 i = 0; i < MAX_PCIE_PORT_NUM; i++) {
       ConfigData->Pcie.PcieRpEnable[i]        = PlatformSetupVar.PcieRpEnable[i];
@@ -321,20 +327,11 @@ UpdatePlatformConfigParams (
   )
 {
   EFI_STATUS           Status;
-  UINTN                VarSize;
   PLATFORM_SETUP_DATA  PlatformSetupVar;
   SYSTEM_TABLE         SystemTableVar;
   UINTN                SystemTableVarSize;
 
-  VarSize = sizeof (PLATFORM_SETUP_DATA);
-
-  Status = gRT->GetVariable (
-                  PLATFORM_SETUP_VAR,
-                  &gPlatformSetupVariableGuid,
-                  NULL,
-                  &VarSize,
-                  &PlatformSetupVar
-                  );
+  Status = ReadPlatformSetupVariable (&PlatformSetupVar);
   if (!EFI_ERROR (Status) && !IsRtcPowerfailure ()) {
     ConfigData->DtbMenuEntry     = PlatformSetupVar.DtbMenuEntry;
     ConfigData->GfxPower         = PlatformSetupVar.GfxPower;
@@ -366,7 +363,7 @@ UpdatePlatformConfigParams (
                   &SystemTableVarSize,
                   &SystemTableVar
                   );
-  if (!EFI_ERROR (Status) && !IsRtcPowerfailure ()) {
+  if (!EFI_ERROR (Status) && (SystemTableVarSize == sizeof (SystemTableVar)) && !IsRtcPowerfailure ()) {
     ConfigData->SystemTableSelect = SystemTableVar.SystemTableSelect;
   }
 }
@@ -867,6 +864,10 @@ PlatformSetupVariableInitDxeEntry (
   }
 
   PlatformSetupDataInfoProtocol          = AllocateZeroPool (sizeof (CIX_PLATFORM_SETUP_DATA_INFO_PROTOCOL));
+  if (PlatformSetupDataInfoProtocol == NULL) {
+    return EFI_OUT_OF_RESOURCES;
+  }
+
   PlatformSetupDataInfoProtocol->Version = CIX_PLATFORM_SETUP_DATA_INFO_PROTOCOL_VERSION;
   CopyMem (&PlatformSetupDataInfoProtocol->Table, &mPlatformSetupDataInfoTable, sizeof (PLATFORM_SETUP_DATA_INFO_TABLE));
 
@@ -876,6 +877,11 @@ PlatformSetupVariableInitDxeEntry (
                   EFI_NATIVE_INTERFACE,
                   PlatformSetupDataInfoProtocol
                   );
+
+  if (EFI_ERROR (Status)) {
+    FreePool (PlatformSetupDataInfoProtocol);
+    return Status;
+  }
 
   Handle = NULL;
   Status = gBS->InstallProtocolInterface (
