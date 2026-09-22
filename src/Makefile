@@ -40,6 +40,7 @@ ACPI_REGRESSION_AUDIT_SCRIPT := $(abspath ../scripts/audit_acpi_regression.py)
 ACPI_REGRESSION_AUDIT_BASELINE := $(abspath ../validation/acpi-audit-baselines.json)
 MAX_DEBUG_PRINT_ERROR_LEVEL := $(shell python3 "$(MAKE_INPUT_VALIDATOR)" max-debug-print-error-level 2>/dev/null || printf '%s' 0x807B55FF)
 V ?= 0
+export DEBUG FORCE_DEBUG_BUILD
 ifeq ($(V),1)
 Q :=
 PRINT_HOST_TOOL = @:
@@ -520,7 +521,7 @@ help-debug:
 '0x-prefixed 32-bit value to choose which DEBUG() message classes are '\
 'printed. Combine entries by ORing or summing their values. Default: '\
 '0x80000040 (DEBUG_INFO|DEBUG_ERROR). If DEBUG_VERBOSE=true and you do '\
-'not set DEBUG_PRINT_ERROR_LEVEL explicitly, the build uses 0x807B55FF, '\
+'not set DEBUG_PRINT_ERROR_LEVEL explicitly, the build uses $(MAX_DEBUG_PRINT_ERROR_LEVEL), '\
 'which enables all available DEBUG_* message levels by default. Requires '\
 'ARTEFACT_MODE=custom.' | fold -s -w 78 | sed 's/^/  /'; \
 	printf '\n'; \
