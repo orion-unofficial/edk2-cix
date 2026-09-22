@@ -61,8 +61,8 @@ AcpiHookFunctionOnReadyToBoot (
   DEBUG ((DEBUG_INFO, "Enter %a\n", __func__));
 
   VarSize = sizeof (RADXA_SETUP_DATA);
+  ZeroMem (&RadxaSetupVar, sizeof (RadxaSetupVar));
   if (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
-    ZeroMem (&RadxaSetupVar, sizeof (RadxaSetupVar));
     ApplyBoardDeviceModelDefaults (&RadxaSetupVar);
   }
   Status = gRT->GetVariable (
@@ -72,10 +72,15 @@ AcpiHookFunctionOnReadyToBoot (
                   &VarSize,
                   &RadxaSetupVar
                   );
-  if (EFI_ERROR (Status)) {
+  if (EFI_ERROR (Status) || (VarSize < OFFSET_OF (RADXA_SETUP_DATA, PcieDeviceModel))) {
+    ZeroMem (&RadxaSetupVar, sizeof (RadxaSetupVar));
+    if (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
+      ApplyBoardDeviceModelDefaults (&RadxaSetupVar);
+    }
     DEBUG ((DEBUG_ERROR, "%a: EfiGetVariable failed for gRadxaSetupVariableGuid - %r\n", __FUNCTION__, Status));
   }
 
+  PlatformConfigManage = NULL;
   Status = gBS->LocateProtocol (&gCixPlatformConfigParamsManageProtocolGuid, NULL, (VOID **)&PlatformConfigManage);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a: LocateProtocol failed: %r\n", __FUNCTION__, Status));
@@ -83,7 +88,8 @@ AcpiHookFunctionOnReadyToBoot (
 
   SystemProductName = (CHAR16 *)FixedPcdGetPtr (PcdSystemProductName);
 
-  if (!StrCmp (L"Radxa Orion O6", SystemProductName)) {
+  if (!EFI_ERROR (Status) && (PlatformConfigManage != NULL) &&
+      (PlatformConfigManage->Data != NULL) && !StrCmp (L"Radxa Orion O6", SystemProductName)) {
     Status = UpdateSsdtNameAslCode ((UINT8 *)SsdtTableId, AsciiStrLen (SsdtTableId), SIGNATURE_32 ('E', 'C', 'F', 'M'), &(PlatformConfigManage->Data->EcFanMode), sizeof (PlatformConfigManage->Data->EcFanMode));
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "%a: Update ECFM failed, Status=%r\n", __FUNCTION__, Status));
