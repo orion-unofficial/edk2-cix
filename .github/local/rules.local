@@ -7,7 +7,7 @@ override_dh_auto_install:
 
 # Keep the vendor script byte-identical in upstream packages. dh_install copies
 # it first; replace only the custom package copies, never the source file.
-ifeq ($(or $(ARTEFACT_MODE),custom),custom)
+ifeq ($(ARTEFACT_MODE),custom)
 execute_after_dh_install:
 	@set -e; for product in orion-o6 orion-o6n; do \
 		install -m 0644 custom/scripts/startup.nsh "debian/edk2-cix/usr/share/edk2/radxa/$$product/startup.nsh"; \
