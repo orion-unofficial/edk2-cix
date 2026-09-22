@@ -792,7 +792,7 @@ HandleCapsules (
   BOOLEAN                   NeedReset;
   EFI_STATUS                Status;
 
-  DEBUG ((DEBUG_INFO, "%a: processing capsules ...\n", __FUNCTION__));
+  DEBUG ((DEBUG_INFO | DEBUG_BM, "%a: processing capsules ...\n", __FUNCTION__));
 
   Status = gBS->LocateProtocol (
                   &gEsrtManagementProtocolGuid,
@@ -900,7 +900,7 @@ BootDiscoveryPolicyHandler (
       break;
     default:
       DEBUG ((
-        DEBUG_INFO,
+        DEBUG_INFO | DEBUG_BM,
         "%a - Unexpected DiscoveryPolicy (0x%x). Run Minimal Discovery Policy\n",
         __FUNCTION__,
         DiscoveryPolicy
@@ -915,7 +915,7 @@ BootDiscoveryPolicyHandler (
                   );
   if (EFI_ERROR (Status)) {
     DEBUG ((
-      DEBUG_INFO,
+      DEBUG_INFO | DEBUG_BM,
       "%a - Failed to locate gEfiBootManagerPolicyProtocolGuid."
       "Driver connect will be skipped.\n",
       __FUNCTION__
@@ -923,17 +923,17 @@ BootDiscoveryPolicyHandler (
     return Status;
   }
 
-  DebugPrint (DEBUG_INIT, "[BDS] ConnectDeviceClass begin\n");
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] ConnectDeviceClass begin\n");
   Status = BMPolicy->ConnectDeviceClass (BMPolicy, Class);
-  DebugPrint (DEBUG_INIT, "[BDS] ConnectDeviceClass completed: %r\n", Status);
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] ConnectDeviceClass completed: %r\n", Status);
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a - ConnectDeviceClass returns - %r\n", __FUNCTION__, Status));
     return Status;
   }
 
-  DebugPrint (DEBUG_INIT, "[BDS] RefreshAllBootOption begin\n");
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] RefreshAllBootOption begin\n");
   EfiBootManagerRefreshAllBootOption ();
-  DebugPrint (DEBUG_INIT, "[BDS] RefreshAllBootOption completed\n");
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] RefreshAllBootOption completed\n");
 
   return EFI_SUCCESS;
 }
@@ -967,9 +967,9 @@ PlatformBootManagerAfterConsole (
   //
   // Show the splash screen.
   //
-  DebugPrint (DEBUG_INIT, "[BDS] BootLogoEnableLogo begin\n");
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] BootLogoEnableLogo begin\n");
   Status = BootLogoEnableLogo ();
-  DebugPrint (DEBUG_INIT, "[BDS] BootLogoEnableLogo completed: %r\n", Status);
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] BootLogoEnableLogo completed: %r\n", Status);
   if (EFI_ERROR (Status)) {
     if (FirmwareVerLength > 0) {
       Print (
@@ -1006,9 +1006,9 @@ PlatformBootManagerAfterConsole (
   // Connect device specified by BootDiscoverPolicy variable and
   // refresh Boot order for newly discovered boot devices
   //
-  DebugPrint (DEBUG_INIT, "[BDS] BootDiscoveryPolicyHandler begin\n");
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] BootDiscoveryPolicyHandler begin\n");
   Status = BootDiscoveryPolicyHandler ();
-  DebugPrint (DEBUG_INIT, "[BDS] BootDiscoveryPolicyHandler completed: %r\n", Status);
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] BootDiscoveryPolicyHandler completed: %r\n", Status);
 
   //
   // On ARM, there is currently no reason to use the phased capsule
@@ -1017,9 +1017,9 @@ PlatformBootManagerAfterConsole (
   // when the console is up and we can actually give the user some
   // feedback about what is going on.
   //
-  DebugPrint (DEBUG_INIT, "[BDS] HandleCapsules begin\n");
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] HandleCapsules begin\n");
   HandleCapsules ();
-  DebugPrint (DEBUG_INIT, "[BDS] HandleCapsules completed\n");
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] HandleCapsules completed\n");
 
   //
   // Register UEFI Shell
@@ -1110,9 +1110,9 @@ PlatformBootManagerUnableToBoot (
   // Connect all devices, and regenerate all boot options
   //
   EfiBootManagerConnectAll ();
-  DebugPrint (DEBUG_INIT, "[BDS] RefreshAllBootOption begin\n");
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] RefreshAllBootOption begin\n");
   EfiBootManagerRefreshAllBootOption ();
-  DebugPrint (DEBUG_INIT, "[BDS] RefreshAllBootOption completed\n");
+  DebugPrint (DEBUG_INIT | DEBUG_BM, "[BDS] RefreshAllBootOption completed\n");
 
   //
   // Record the updated number of boot configured boot options
