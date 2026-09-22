@@ -66,6 +66,7 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
             b"loadoprom",
         )
         self.write_text(root / "src" / "scripts" / "startup.nsh", "echo update\n")
+        self.write_text(root / "custom" / "scripts" / "startup.nsh", "echo custom update\n")
 
         self.write_text(
             root / "src" / "edk2-platforms" / "Platform" / "Radxa" / "Orion" / board / f"{board}.dsc",
@@ -76,6 +77,23 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
             "# fdf\n",
         )
         self.write_text(root / "VERSION", "1.2.1\n")
+
+    def test_startup_selection_is_mode_specific_and_missing_custom_script_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.create_repo(root, "O6")
+            destination = root / "staged-startup.nsh"
+            for mode, expected in (("custom", b"echo custom update\n"),
+                                   ("upstream", b"echo update\n"),
+                                   ("custom", b"echo custom update\n")):
+                source = next(source for source, relative in
+                              export_firmware_payload.payload_mapping(root, "O6", "RELEASE_GCC", mode)
+                              if relative == Path("startup.nsh"))
+                export_firmware_payload.copy_required_file(source, destination)
+                self.assertEqual(destination.read_bytes(), expected)
+            (root / "custom/scripts/startup.nsh").unlink()
+            with self.assertRaises(FileNotFoundError):
+                export_firmware_payload.copy_required_file(source, destination)
 
     def test_detect_version_reads_repo_version_file(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir_text:
