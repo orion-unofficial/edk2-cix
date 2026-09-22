@@ -31,7 +31,9 @@ DIRECTORY_OVERLAYS: tuple[OverlayDirectory, ...] = (
         overlay_root="custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables",
         source_root="src/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables",
         module_inf="AcpiSocTables.inf",
-        allowed_extra_files=("Dsdt-BusPerf.asl", "Dsdt-RebootReason.asl"),
+        # EDK2 202208 predates the upstream MPAM header. The custom-only
+        # backport retains its exact newer definitions beside the table.
+        allowed_extra_files=("Dsdt-BusPerf.asl", "Dsdt-RebootReason.asl", "MpamCompat.h"),
     ),
     OverlayDirectory(
         label="O6 ACPI platform tables overlay",
