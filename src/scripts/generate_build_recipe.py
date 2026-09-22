@@ -18,7 +18,7 @@ def recipe(config: dict[str, str], release: str, board: str, product: str,
     if config['ARTEFACT_MODE'] != 'custom' or config['ENABLE_EXPERIMENTAL_UEFI_SETTINGS'] != 'TRUE':
         raise ValueError('the rebuild menu is exclusive to custom experimental firmware')
     args = {'RELEASE': release, 'ARTEFACT_MODE': 'custom', 'FIRMWARE_BOARD': board,
-            'FIRMWARE_PRODUCT': product, 'FIRMWARE_TARGET': config['UEFI_TARGET'],
+            'FIRMWARE_TARGET': config['UEFI_TARGET'],
             'FIRMWARE_DISTRO': distro}
     for key in ('ENABLE_FIRMWARE_FIXES', 'ENABLE_CORE_ORDER', 'CIX_RELEASE',
                 'ENABLE_TF_A_FIXES', 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS',
