@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import unittest
 
-from debug_build_policy import preflight
+from debug_build_policy import preflight, fd_size
 from reconstruction_common import for_each_ref, show_file
 from validate_release_inputs import source_fdf
 
@@ -54,6 +54,19 @@ class DebugPreflightTests(unittest.TestCase):
             self.check(verbose="true")
         self.assertEqual(self.check(verbose="true", force="1")["effective_mask"], "0x83FB55FF")
         self.assertEqual(self.check(mask="0x80000001")["experimental_reasons"], [])
+
+    def test_124_experimental_menus_retain_the_vendor_volume_capacity(self):
+        for edk2 in ("202208", "202605", "202608"):
+            ref = f"source/unofficial/1.2.4/edk2-stable{edk2}"
+            for board in ("O6", "O6N"):
+                with self.subTest(edk2=edk2, board=board):
+                    imported = show_file(ROOT, ref,
+                                         f"src/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.fdf").decode()
+                    self.assertEqual(fd_size(imported, "RELEASE"), 0x200000)
+                    self.assertEqual(fd_size(source_fdf(ROOT, ref, board, True), "RELEASE"),
+                                     fd_size(imported, "RELEASE"))
+                    self.assertEqual(self.check(ref, board=board, experimental=True)["bootloader3_slot"],
+                                     self.check(ref, board=board)["bootloader3_slot"])
 
     def test_public_make_rejects_before_rendering_or_downloading(self):
         for value in ("DEBUG_PRINT_ERROR_LEVEL=0x200", "FIRMWARE_TARGET=DEBUG", "DEBUG_VERBOSE=true"):

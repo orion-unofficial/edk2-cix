@@ -113,12 +113,23 @@ def print_help(repo: Path) -> None:
     release_branches, _aliases = matrix_release_branches(repo)
     default = source_target_name(default_release(repo))
     branches, alias_versions = canonical_branches(release_branches)
+    # Keep historical refs reconstructible, but do not advertise source aliases
+    # which the public custom build provenance gate rejects.
+    from reconstruction_common import release_entries, load_json
+    from validate_release_inputs import input_problems
+    entries = release_entries(repo)
+    branches = [branch for branch in branches if '/cix-' not in branch and
+                ('/unofficial' not in branch or not input_problems(repo, entries[branch]))]
+    qualification = load_json(repo, 'config/policies.json').get('firmware_qualification_policy', {})
+    primary = {f'edk2-{edk2}/radxa-{radxa}/unofficial'
+               for edk2 in qualification.get('edk2_releases', [])
+               for radxa in qualification.get('radxa_releases', [])}
 
     print("Configured Firmware Source Targets")
     print()
     paragraph(
-        "A source target is the chosen combination of EDK2, Radxa, CIX, "
-        "and unofficial project sources used to construct the firmware tree."
+        "A source target selects EDK2, Radxa and unofficial project sources. "
+        "Builds retain matching vendor-signed early-boot payloads."
     )
     print()
     paragraph(
@@ -141,7 +152,6 @@ def print_help(repo: Path) -> None:
     print("Name components:")
     print("  edk2-YYYYMM[.NN]    selects the upstream EDK2 release")
     print("  radxa-X.Y.Z[-R]     adds the Radxa EDK2 vendor layer")
-    print("  cix-X.Y             adds CIX TF-A and OP-TEE component sources")
     print("  unofficial[-X.Y.Z]  adds this project's unofficial firmware changes")
     if alias_versions:
         indented(
@@ -150,8 +160,12 @@ def print_help(repo: Path) -> None:
             indent="                      ",
         )
     print()
-    print("Available source targets:")
-    print_source_target_list(branches)
+    print("Primary custom qualification targets:")
+    print_source_target_list([branch for branch in branches if source_target_name(branch) in primary])
+    print()
+    paragraph("Other provenance-compatible source targets remain available for legacy or "
+              "upstream workflows. They are outside the primary custom qualification matrix.")
+    print_source_target_list([branch for branch in branches if source_target_name(branch) not in primary])
     print()
     print("Default source target:")
     print(f"  {default}")

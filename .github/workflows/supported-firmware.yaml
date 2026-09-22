@@ -22,7 +22,7 @@ jobs:
         run: |
           git fetch --force --no-tags origin '+refs/heads/source/*:refs/heads/source/*'
           git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
-      - name: Derive every supported completion
+      - name: Derive primary qualification matrix
         id: matrix
         shell: bash
         run: |
@@ -31,7 +31,9 @@ jobs:
           echo "builds=${builds}" >>"${GITHUB_OUTPUT}"
 
   firmware:
-    name: ${{ matrix.release }} / ${{ matrix.board }} / fixes ${{ matrix.firmware_fixes }}
+    name: >-
+      ${{ matrix.release }} / ${{ matrix.board }} /
+      fixes ${{ matrix.firmware_fixes }} / settings ${{ matrix.experimental }}
     needs: matrix
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -56,6 +58,7 @@ jobs:
           RELEASE: ${{ matrix.release }}
           FIRMWARE_BOARD: ${{ matrix.board }}
           ENABLE_FIRMWARE_FIXES: ${{ matrix.firmware_fixes }}
+          ENABLE_EXPERIMENTAL_UEFI_SETTINGS: ${{ matrix.experimental }}
           EDK2_CIX_WORKTREE_NAMESPACE: ${{ matrix.key }}
         shell: bash
         run: |
@@ -69,7 +72,7 @@ jobs:
             FIRMWARE_DISTRO=trixie \
             ENABLE_FIRMWARE_FIXES="${ENABLE_FIRMWARE_FIXES}" \
             ENABLE_CORE_ORDER=cix \
-            ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false \
+            ENABLE_EXPERIMENTAL_UEFI_SETTINGS="${ENABLE_EXPERIMENTAL_UEFI_SETTINGS}" \
             DEBUG_VERBOSE=false \
             CIX_RELEASE= \
             2>&1 | tee .cache/edk2-cix/qualification/build.log

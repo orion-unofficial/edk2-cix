@@ -33,6 +33,7 @@ BUILD_FIXES = (
     ("release-logging-only", "custom/release-logging/Library/DebugLib.h", b"#error Custom RELEASE logging requires MDEPKG_NDEBUG and NDEBUG", False),
     ("autogen-warnings-fatal", "src/Makefile", b"build_extra_defines+=(-w)", False),
     ("release-logging-include", "src/Makefile", b'export PACKAGES_PATH="$$WORKSPACE/logging-overlay:$$PACKAGES_PATH"', False),
+    ("custom-asl-without-fixes", "src/Makefile", b'ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -I$(CUSTOM_OVERLAY_ROOT)', False),
 )
 
 
@@ -56,9 +57,35 @@ def autogen_library_problems(imported: bytes, custom: bytes, descriptor: bytes) 
 
 def missing_toolchain(makefile: bytes, tools_definition: bytes) -> list[str]:
     selected = set(re.findall(rb"build\s+-a\s+AARCH64\s+-t\s+(\w+)", makefile))
-    return [f"selected toolchain {tag.decode()} has no AARCH64 compiler flags in tools_def.template"
+    return [f"selected toolchain {tag.decode()} has no AARCH64 compiler path in tools_def.template"
             for tag in sorted(selected)
-            if not re.search(rb"(?m)^DEFINE\s+" + re.escape(tag) + rb"_AARCH64_CC_FLAGS\s*=", tools_definition)]
+            if not re.search(rb"(?m)^\s*\*_" + re.escape(tag) + rb"_AARCH64_CC_PATH\s*=", tools_definition)]
+
+
+def missing_tool_definitions(makefile: bytes, tools_definition: bytes) -> list[str]:
+    """Check generated overrides, including generic macros shared by GCC tags."""
+    required = set(re.findall(rb"\bDEF\((\w+)\)", makefile))
+    defined = set(re.findall(rb"(?m)^\s*DEFINE\s+(\w+)\s*=", tools_definition))
+    return [f"generated tools_def override references undefined macro {name.decode()}"
+            for name in sorted(required - defined)]
+
+
+def missing_acpi_headers(paths: set[str], tables: dict[str, str]) -> list[str]:
+    """Custom tables must not silently assume headers from a newer EDK2."""
+    headers = {path.split('/Include/', 1)[1] for path in paths if '/Include/' in path}
+    # Vendor package DEC files also expose their root for Include/Foo.h forms.
+    headers.update('Include/' + header for header in tuple(headers))
+    return [f"{path}: missing ACPI table header {header}"
+            for path, source in sorted(tables.items())
+            for header in sorted(set(re.findall(r'^\s*#include\s+<([^>]+)>', source, re.M)) - headers)
+            if posixpath.normpath(posixpath.join(posixpath.dirname(path), header)) not in paths]
+
+
+def flattened_overlay_mirrors(contents: dict[str, bytes]) -> list[str]:
+    """A Git symlink blob must never become a regular source file."""
+    return [f"regular overlay contains symlink target text instead of source: {path}"
+            for path, content in sorted(contents.items())
+            if re.fullmatch(rb'(?:\.\./)+[A-Za-z0-9_./-]+', content.strip())]
 
 
 def missing_smbios_cache_types(overlay: bytes, header: bytes) -> list[str]:
@@ -228,6 +255,8 @@ def missing_platform_inputs(paths: set[str], descriptors: dict[str, str], overla
         return next((f"{root}/{name}" for root in roots if f"{root}/{name}" in paths), None)
 
     pending = [f"Platform/Radxa/Orion/{board}/{board}.dsc" for board in ("O6", "O6N")]
+    pending.extend(f"Platform/Radxa/Orion/{board}/{board}.fdf" for board in ("O6", "O6N")
+                   if resolve(f"Platform/Radxa/Orion/{board}/{board}.fdf") is not None)
     visited = set()
     problems = []
     while pending:
@@ -260,10 +289,17 @@ def missing_platform_inputs(paths: set[str], descriptors: dict[str, str], overla
 def source_input_problems(repo: Path, ref: str) -> list[str]:
     entries = tree_entries(repo, ref, ("src", "scripts", "custom/release-logging", *OVERLAYS))
     paths = set(entries)
+    regular_overlays = {path: entry for path, entry in entries.items()
+                        if path.startswith('custom/') and entry.mode != '120000'
+                        and path.endswith(('.c', '.h', '.aslc', '.inf', '.dsc', '.dsc.inc', '.fdf', '.fdf.inc'))}
+    overlay_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in regular_overlays.values()))
     infs = {path: entry for path, entry in entries.items() if path.startswith("src/edk2") and path.lower().endswith(".inf")}
     inf_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in infs.values()))
     libraries = {path for path, entry in infs.items() if re.search(rb"(?m)^\s*LIBRARY_CLASS\s*=", inf_blobs[entry.object_id])}
     problems = [f"missing overlay module: {path}" for overlay in OVERLAYS for path in missing_module_infs(paths, overlay, libraries)]
+    problems.extend(flattened_overlay_mirrors({
+        path: overlay_blobs[entry.object_id] for path, entry in regular_overlays.items()
+    }))
     problems.extend(missing_board_table_inputs(paths))
     asl_entries = {path: entry for path, entry in entries.items()
                    if entry.mode != "120000" and path.endswith((".asl", ".asl.template"))
@@ -286,6 +322,7 @@ def source_input_problems(repo: Path, ref: str) -> list[str]:
     if all(path in entries for path in tool_paths):
         tool_blobs = git_blob_bytes_batch(repo, (entries[path].object_id for path in tool_paths))
         problems.extend(missing_toolchain(*(tool_blobs[entries[path].object_id] for path in tool_paths)))
+        problems.extend(missing_tool_definitions(*(tool_blobs[entries[path].object_id] for path in tool_paths)))
         problems.extend(missing_lto_library(paths, tool_blobs[entries["src/Makefile"].object_id]))
     if all(path in entries for path in (SMBIOS_OVERLAY, SMBIOS_HEADER)):
         smbios_blobs = git_blob_bytes_batch(repo, (entries[path].object_id for path in (SMBIOS_OVERLAY, SMBIOS_HEADER)))
@@ -315,9 +352,16 @@ def source_input_problems(repo: Path, ref: str) -> list[str]:
             resolved_links[path] = target
     descriptor_entries = {
         path: entries[resolved_links.get(path, path)] for path in paths
-        if path.endswith((".dsc", ".dsc.inc"))
+        if path.endswith((".dsc", ".dsc.inc", ".fdf", ".fdf.inc"))
         and (entries[path].mode != "120000" or resolved_links.get(path) in entries)
     }
+    tables = {path: entries[resolved_links.get(path, path)] for path in paths
+              if path.startswith('custom/') and path.endswith('.aslc')
+              and (entries[path].mode != '120000' or resolved_links.get(path) in entries)}
+    table_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in tables.values()))
+    problems.extend(missing_acpi_headers(paths, {
+        path: table_blobs[entry.object_id].decode('utf-8-sig') for path, entry in tables.items()
+    }))
     descriptor_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in descriptor_entries.values()))
     descriptors = {path: descriptor_blobs[entry.object_id].decode("utf-8-sig") for path, entry in descriptor_entries.items()}
     for overlays in (OVERLAYS[:1], OVERLAYS):

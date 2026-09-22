@@ -377,7 +377,6 @@ def require_unofficial_source_policy(repo: Path, expected_releases: set[str]) ->
                         ("current_ref", current_ref),
                         ("current_edk2_release", edk2),
                         ("current_radxa_release", radxa),
-                        ("current_cix_release", cix),
                     )
                     if not value
                 ]
@@ -405,8 +404,11 @@ def require_unofficial_source_policy(repo: Path, expected_releases: set[str]) ->
                     problems.append(f"unofficial line {line} current ref is missing: {current_ref}")
                 if not ref_exists(repo, checkpoint):
                     problems.append(f"unofficial line {line} checkpoint is missing: {checkpoint}")
+                # A blank/omitted CIX selector retains the signed vendor
+                # payloads, just as preferred_unofficial_source_target does.
+                cix_component = f"cix-{cix}/" if cix else ""
                 target = (
-                    f"{CACHE_RELEASE_PREFIX}custom/edk2-{edk2}/cix-{cix}/"
+                    f"{CACHE_RELEASE_PREFIX}custom/edk2-{edk2}/{cix_component}"
                     f"radxa-{radxa}/unofficial"
                 )
                 if target not in expected_releases:

@@ -37,7 +37,15 @@ REPACK ?= 1
 KEEP ?= 0
 ARTEFACT_MODE ?= custom
 FIRMWARE_BOARD ?= O6
-FIRMWARE_PRODUCT ?= $(if $(filter O6N,$(FIRMWARE_BOARD)),orion-o6n,orion-o6)
+# Product paths follow the board. Accept matching old invocations, but never
+# permit an O6 image to be staged under the O6N product name (or vice versa).
+FIRMWARE_PRODUCT_EXPECTED := $(if $(filter O6N,$(FIRMWARE_BOARD)),orion-o6n,orion-o6)
+ifneq ($(strip $(FIRMWARE_PRODUCT)),)
+ifneq ($(FIRMWARE_PRODUCT),$(FIRMWARE_PRODUCT_EXPECTED))
+$(error FIRMWARE_PRODUCT is derived from FIRMWARE_BOARD=$(FIRMWARE_BOARD); expected $(FIRMWARE_PRODUCT_EXPECTED). Select only FIRMWARE_BOARD)
+endif
+endif
+override FIRMWARE_PRODUCT := $(FIRMWARE_PRODUCT_EXPECTED)
 FIRMWARE_TARGET ?= RELEASE
 FIRMWARE_DISTRO ?=
 FIRMWARE_VALIDATE_ON_BUILD ?= 0
@@ -181,10 +189,9 @@ help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Common Build Variables'; \
 	print_help_line 'PROFILE=upstream|latest' 'Select the high-level behavior of a targetless make invocation. upstream performs an exact replay of the latest published Radxa release; latest builds the latest maintained source stack with firmware fixes disabled by default.\nDefault: upstream.'; \
-	print_help_line 'RELEASE=<source-target>' "Select a configured firmware source target.\nUse names from 'make help-source-targets' or a full source/cache/release/... branch name.\nSource: latest available EDK2, CIX early-boot, Radxa, and unofficial refs."; \
+	print_help_line 'RELEASE=<source-target>' "Select a configured firmware source target.\nUse names from 'make help-source-targets' or a full source/cache/release/... branch name.\nSource: selected EDK2 and Radxa release, plus custom changes. Matching vendor-signed early-boot payloads are retained."; \
 	print_help_note 'See make help-source-targets for the available and default source targets.'; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
-	print_help_line 'FIRMWARE_PRODUCT=<name>' 'Set the output product name.\nDefault: orion-o6 for O6 and orion-o6n for O6N.'; \
 	print_help_line 'FIRMWARE_TARGET=RELEASE|DEBUG' 'Select the firmware build target.\nDefault: RELEASE.'; \
 	print_help_line 'FIRMWARE_DISTRO=trixie|bookworm' 'Select the buildbox distro when the rendered firmware branch supports an override. Leave unset for the selected source-target policy default.'; \
 	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds. See README.md, "What does a bare make build?", for the difference.\nDefault for explicit source-build targets: custom.'; \
@@ -496,7 +503,7 @@ firmware:
 	else \
 		printf '%s\n' \
 			"[profile] Latest source build: $$PROFILE_RELEASE" \
-			"[profile] CIX early-boot replacement: $${PROFILE_CIX_EARLY_BOOT_RELEASE:-vendor payloads}; firmware fixes: $$PROFILE_ENABLE_FIRMWARE_FIXES." \
+			"[profile] Matching vendor-signed early-boot payloads retained; firmware fixes: $$PROFILE_ENABLE_FIRMWARE_FIXES." \
 			'[profile] This is a current-source build and is not expected to be byte-identical to a published Radxa image.' >&2; \
 		$(MAKE) --no-print-directory build \
 			RELEASE="$$PROFILE_RELEASE" \

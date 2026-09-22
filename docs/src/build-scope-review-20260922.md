@@ -1,7 +1,8 @@
 # Debug masks, supported scope, memory and line endings
 
-Measured against build commit `5560573973` and its recorded source refs on
-September 22, 2026. The custom updater fix described below follows that audit.
+The initial audit used build commit `5560573973` on September 22, 2026.
+Subsequent integration and build results are distinguished below, with exact
+source identities recorded for the logging experiment.
 
 ## Debug-mask search space
 
@@ -22,9 +23,9 @@ Ordinary `DEBUG_VERBOSE=false` defaults to `0x80000040`; the exact recent O6
 202608/1.3.1 fixes-plus-menu build passed with 7,824 bytes spare in its FV.
 That result does not qualify every board, menu or source combination.
 
-Start with **five builds** on the 202608 comparison base: zero, ERROR, INIT,
+The **five builds** below use the 202608 comparison base: zero, ERROR, INIT,
 INFO, and ERROR|INFO, all with logging enabled. This directly separates the
-categories implicated by previous size failures. Expand only if useful.
+categories implicated by previous size failures.
 
 A systematic first pass is **24 builds**: zero, each of the 22 singleton
 bits, and all defined bits. Add roughly four to eight useful combinations,
@@ -54,47 +55,104 @@ against exact build inputs, and invalidate them when those inputs change.
 
 The historical INIT-only failure was 6,488 bytes over the **old** `0x1f2000`
 FV. The current selected layout is `0x1f4000`, 8 KiB larger, and the code has
-also changed. It must be rebuilt before classifying it as still oversized.
+also changed. The new measurement below supersedes that historical failure.
 The previous INFO|ERROR verbose result exceeded even the newer capacity by
 61,856 bytes, but remains an older-source measurement.
 
+## Five-mask build results
+
+The five requested logging builds used the same 202608/1.3.1 source checkpoint
+`33402d97a52db15ac3d6f992c2ed53c5697818ea`, O6, custom RELEASE, fixes enabled,
+CIX core order, experimental settings disabled, blank `CIX_RELEASE`, trixie
+and Linux arm64 build containers. `BUILD_DATE` was fixed at
+`2026-09-22T12:00:00+00:00`. The compressed FV capacity was 2,048,000 bytes
+(`0x1f4000`).
+
+| Debug mask | Categories | Compressed FV bytes required | Result |
+| --- | --- | ---: | --- |
+| `0x00000000` | None (control) | 2,027,488 | Packaged; 20,512 bytes free |
+| `0x80000000` | ERROR | 2,102,936 | Rejected; 54,936 bytes over |
+| `0x00000001` | INIT | 2,043,664 | Packaged; 4,336 bytes free |
+| `0x00000040` | INFO | 2,093,384 | Rejected; 45,384 bytes over |
+| `0x80000040` | ERROR and INFO | 2,107,688 | Rejected; 59,688 bytes over |
+
+Both successful full-flash images are 8 MiB and passed vendor BL1 and
+certificate-chain validation. Neither result establishes a successful boot on
+hardware. The zero mask emits no category messages; INIT is the only nonzero
+mask in this sample which fits, with little remaining space. These measurements
+apply to the stated inputs, not to every menu, fixes, board or source variant.
+Nonzero masks remain behind the explicit experimental build gate.
+
+Repeat the INIT experiment with:
+
+```bash
+make build \
+  RELEASE=edk2-202608/radxa-1.3.1/unofficial \
+  ARTEFACT_MODE=custom \
+  FIRMWARE_BOARD=O6 \
+  FIRMWARE_TARGET=RELEASE \
+  FIRMWARE_DISTRO=trixie \
+  ENABLE_FIRMWARE_FIXES=true \
+  ENABLE_CORE_ORDER=cix \
+  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false \
+  CIX_RELEASE= \
+  DEBUG_VERBOSE=true \
+  DEBUG_PRINT_ERROR_LEVEL=0x00000001 \
+  FORCE_DEBUG_BUILD=1 \
+  BUILDBOX_PLATFORM=linux/arm64 \
+  BUILD_DATE=2026-09-22T12:00:00+00:00
+```
+
+The ordinary output path is
+`dist/build/edk2-202608/radxa-1.3.1/unofficial/custom+fixes/O6/RELEASE_GCC/cix_flash_all.bin`.
+An overridden `BUILD_DIST_ROOT` changes the root of that path. Size guards still
+run when `FORCE_DEBUG_BUILD=1`; it does not permit oversized images to package.
+
+The measured image SHA-256 values were:
+
+- Zero: `657b9c008072951b404ce241905149b102676baccf3376471a102302d14fb25a`.
+- INIT: `d75300e0d2a07339bd3ed999b63f29f4d550416e18d7a172a2c28f08e9170f5c`.
+
 ## Practical supported scope
 
-The measured gap is **336**, not 366: 360 non-CIX custom pairs, of which 24
-pass the initial release-binding/vendor-payload checks. Passing those checks
+The initial measured gap was **336**, not 366: 360 non-CIX custom pairs, of which 24
+passed the initial release-binding/vendor-payload checks. Passing those checks
 still requires a source-delta audit to prove complete named-release fidelity.
 Compiling the incorrectly bound aliases does not repair their inputs.
 
-Recommended routine catalog, subject to an explicit support-policy decision:
+The adopted primary scope is now
+`edk2-{202208,202608}/radxa-{1.2.4,1.3.1}/unofficial`. This supersedes the
+initial suggestion to retain 202605 in routine qualification: 202208 represents
+the vendor baseline and 202608 the current uplift. The two 202208 targets now
+have separate release-correct checkpoints instead of using the generic 1.2.1
+checkpoint. Both fixes and experimental-menu states are included:
 
-- Keep `edk2-{202605,202608}/radxa-{1.2.4,1.3.1}/unofficial`: four explicit
-  release-specific checkpoints. Prefer 202608; retain 202605 for continuity
-  with testing on hardware.
-- Hide/deactivate all 336 mismatched historical aliases with a diagnostic
-  identifying the mismatch and nearest supported target.
-- Keep the other 20 initially valid pairs as clearly labelled legacy,
-  opt-in targets: the 16 older EDK2/Radxa 1.2.1 pairs, plus 202605 with Radxa
-  1.2.1, 1.2.2, 1.2.3 and 1.3.0. Do not advertise them as newly qualified.
-- Preserve every required source ref, tag and historical manifest. This is
-  selector/support policy, not deletion of source history.
+- O6: four release pairs × two fixes states × two menu states = **16 builds**.
+- O6N: the same **16 CI builds**; testing on hardware is currently available
+  only for O6.
+- Logging-enabled experiments are measured separately, with their exact mask,
+  options, compressed FV size and packaging result recorded.
+- Source/render/dependency checks still cover retained source checkpoints.
+  Upstream reproducibility remains a separate gate.
 
-The four primary pairs times O6/O6N times fixes off/on need **16 full builds**,
-an 89% reduction from 144 and a 99% reduction from 1,440. Add a small separately
-identified feature sample (experimental menus/core order/host tooling), and
-keep source/render/dependency checks over every retained source. Eight jobs
-would cover only 202608 with the two firmware releases; 16 is the preferable
-continuity baseline. Covering all 24 initially valid pairs fully would be 96
-jobs. Representative jobs give indicative coverage, not certification of all
-omitted configurations. Upstream reproducibility checks remain a separate gate.
+A concrete incorrect historical alias is
+`edk2-202211/radxa-1.3.1/unofficial`: its generic source checkpoint is based on
+Radxa 1.2.1, and its BL1, BL2 and TrustZone configuration differ from the
+requested 1.3.1 vendor payloads. A version-label edit cannot supply the missing
+vendor source changes. Public builds reject it with those reasons; public help
+omits it. Required refs and historical manifests are preserved.
 
-To retain every older EDK2/latest-two-Radxa combination, **32 missing pairs**
-need real integration: 16 older EDK2 releases times two Radxa releases. Audit
-and classify the Radxa deltas once per firmware line, replay them onto the
-retained EDK2 bases, check exact source/payload binding and resolve compatibility
-failures at the affected release boundaries. This shares review and tooling,
-but does not eliminate the need to prove each generated checkpoint. Do this
-on demand after the four current checkpoints receive a deeper content audit.
-No aliases, matrices or refs were hidden/deleted by this follow-up.
+After the two new integrations and explicit 202208 checkpoint selection, the
+canonical non-CIX inventory contains 341 pairs: 26 pass the initial input
+binding checks and 315 are rejected. The 22 compatible pairs outside the
+primary four remain labelled as legacy, without implying full qualification.
+Nineteen other incorrectly bound 202208 aliases are no longer derived from the
+generic fallback. This is a selector-policy change, not source-ref deletion.
+
+Supporting further EDK2/Radxa pairs requires real source integration and
+release-specific compatibility checks; successful compilation alone cannot
+establish named-release fidelity. Add those checkpoints on demand after the
+primary matrix, rather than relabelling a generic historical source tree.
 
 ## O6 memory speed and Auto
 

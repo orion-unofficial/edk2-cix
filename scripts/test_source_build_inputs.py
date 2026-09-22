@@ -2,16 +2,183 @@
 """Regression coverage for sibling modules hidden by partial overlays."""
 
 import os
+import ast
+import warnings
+import posixpath
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
 
 from check_source_build_inputs import BUILD_FIXES, missing_board_table_inputs, missing_build_fixes, missing_configuration_manager_types, missing_lto_library, missing_module_infs, missing_package_declarations, missing_platform_inputs, missing_smbios_cache_types, missing_toolchain, missing_wrapper_dependencies, source_input_problems, unbalanced_asl_conditionals
-from check_source_build_inputs import autogen_library_problems
+from check_source_build_inputs import autogen_library_problems, missing_tool_definitions, missing_acpi_headers, flattened_overlay_mirrors
 from test_support import commit_all, git, write_file
+from source_lifecycle import tree_entries
+from source_porting import git_blob_bytes_batch
+from reconstruction_common import show_file
 
 
 class SourceBuildInputsTests(unittest.TestCase):
+    def test_regular_overlay_cannot_contain_a_symlink_blob_as_source(self):
+        path = 'custom/overlay/Spcr.aslc'
+        self.assertIn(path, flattened_overlay_mirrors({path: b'../../src/Spcr.aslc'})[0])
+        self.assertEqual(flattened_overlay_mirrors({path: b'#include <IndustryStandard/Acpi.h>\n'}), [])
+
+    def test_124_202208_acpi_tables_retain_vendor_bytes_and_equivalent_macros(self):
+        repo = Path(__file__).resolve().parents[1]
+        old = 'source/unofficial/1.2.4/edk2-stable202208'
+        new = 'source/unofficial/1.2.4/edk2-stable202608'
+
+        def read(ref, path):
+            for _ in range(8):
+                entry = tree_entries(repo, ref, (path,))[path]
+                text = show_file(repo, ref, path).decode().replace('\r\n', '\n')
+                if entry.mode != '120000':
+                    return text
+                path = posixpath.normpath(posixpath.join(posixpath.dirname(path), text))
+            self.fail('unresolvable ACPI table mirror')
+
+        for name in ('Fadt', 'Dbg2', 'Spcr'):
+            with self.subTest(table=name):
+                path = f'edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/{name}.aslc'
+                self.assertEqual(show_file(repo, old, 'src/' + path),
+                                 show_file(repo, 'source/vendor/radxa/1.2.4/edk2-stable202208', 'src/' + path))
+                overlay = 'custom/overlay/' + path
+                self.assertEqual(tree_entries(repo, old, (overlay,))[overlay].mode,
+                                 tree_entries(repo, new, (overlay,))[overlay].mode)
+                modern = read(new, overlay)
+                expected = (modern.replace('#include <AcpiHelperMacros.h>\n', '')
+                            .replace('ACPI_NULL_GAS', 'NULL_GAS').replace('ACPI_GAS32', 'ARM_GAS32'))
+                self.assertEqual(read(old, overlay), expected)
+        old_header = show_file(repo, old, 'src/edk2/EmbeddedPkg/Include/Library/AcpiLib.h').decode()
+        new_header = show_file(repo, new, 'src/edk2/MdeModulePkg/Include/AcpiHelperMacros.h').decode()
+        for before, after in (('NULL_GAS', 'ACPI_NULL_GAS'), ('ARM_GAS32', 'ACPI_GAS32')):
+            old_macro = next(line.strip() for line in old_header.splitlines() if line.startswith('#define ' + before))
+            new_macro = next(line.strip() for line in new_header.splitlines() if line.startswith('#define ' + after))
+            self.assertEqual(old_macro, new_macro.replace(after, before))
+
+    def test_202208_console_backport_only_adapts_the_fdt_interface(self):
+        repo = Path(__file__).resolve().parents[1]
+        path = 'custom/overlay-experimental-uefi-settings/edk2/EmbeddedPkg/Drivers/ConsolePrefDxe/ConsolePrefDxe.c'
+        for radxa in ('1.2.4', '1.3.1'):
+            with self.subTest(radxa=radxa):
+                old = f'source/unofficial/{radxa}/edk2-stable202208'
+                new = f'source/unofficial/{radxa}/edk2-stable202608'
+                expected = show_file(repo, new, path).decode()
+                for before, after in (('<Library/FdtLib.h>', '<libfdt.h>'),
+                                      ('FdtPathOffset', 'fdt_path_offset'),
+                                      ('FdtDelProp', 'fdt_delprop'), ('FdtStrerror', 'fdt_strerror')):
+                    expected = expected.replace(before, after)
+                self.assertEqual(show_file(repo, old, path).decode(), expected)
+                header = show_file(repo, old, 'src/edk2/EmbeddedPkg/Include/libfdt.h').decode()
+                for function in ('fdt_path_offset', 'fdt_delprop', 'fdt_strerror'):
+                    self.assertRegex(header, function + r'\s*\(')
+
+    def test_primary_202208_acpi_preflight_accepts_only_declared_custom_files(self):
+        repo = Path(__file__).resolve().parents[1]
+        directories = (
+            'edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables',
+            'edk2-platforms/Platform/Radxa/Orion/O6/Drivers/AcpiPlatfomTables',
+            'edk2-platforms/Platform/Radxa/Orion/O6/Drivers/LinuxAcpiConfig.h',
+            'edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/LinuxAcpiConfig.h',
+        )
+        helper = 'scripts/check_custom_acpi_overlays.py'
+        paths = (helper,) + tuple(prefix + path for prefix in ('src/', 'custom/overlay/')
+                                  for path in directories)
+        for radxa in ('1.2.4', '1.3.1'):
+            ref = f'source/unofficial/{radxa}/edk2-stable202208'
+            entries = tree_entries(repo, ref, paths)
+            blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in entries.values()))
+            with self.subTest(radxa=radxa), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                for path, entry in entries.items():
+                    target = root / path
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    content = blobs[entry.object_id]
+                    if entry.mode == '120000':
+                        target.symlink_to(content.decode())
+                    else:
+                        target.write_bytes(content)
+                command = [os.sys.executable, str(root / helper), '--repo-root', str(root)]
+                result = subprocess.run(command, text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                unexpected = root / 'custom/overlay' / directories[0] / 'Unexpected.h'
+                unexpected.write_text('/* not a declared custom addition */\n')
+                result = subprocess.run(command, text=True, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('no imported counterpart', result.stdout)
+                self.assertIn('Unexpected.h', result.stdout)
+
+    def test_primary_202208_mpam_backport_keeps_current_table_contents(self):
+        repo = Path(__file__).resolve().parents[1]
+        directory = 'custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/'
+
+        def read(ref, path):
+            for _ in range(8):
+                entry = tree_entries(repo, ref, (path,))[path]
+                text = show_file(repo, ref, path).decode().replace('\r\n', '\n')
+                if entry.mode != '120000':
+                    return text
+                path = posixpath.normpath(posixpath.join(posixpath.dirname(path), text))
+            self.fail('unresolvable MPAM table mirror')
+
+        for radxa in ('1.2.4', '1.3.1'):
+            old = f'source/unofficial/{radxa}/edk2-stable202208'
+            new = f'source/unofficial/{radxa}/edk2-stable202608'
+            with self.subTest(radxa=radxa):
+                compatibility = read(old, directory + 'Mpam.aslc')
+                compatibility = compatibility.replace(
+                    '#include <IndustryStandard/Acpi.h>\n#include "MpamCompat.h"',
+                    '#include <IndustryStandard/Acpi65.h>\n#include <IndustryStandard/Mpam.h>',
+                ).replace("SIGNATURE_32 ('M', 'P', 'A', 'M')",
+                          'EFI_ACPI_MEMORY_SYSTEM_RESOURCE_PARTITIONING_AND_MONITORING_TABLE_SIGNATURE')
+                self.assertEqual(compatibility, read(new, directory + 'Mpam.aslc'))
+                self.assertEqual(read(old, directory + 'MpamCompat.h'),
+                                 read(new, 'src/edk2/MdePkg/Include/IndustryStandard/Mpam.h'))
+
+    def test_acpi_tables_cannot_require_headers_missing_from_older_edk2(self):
+        tables = {'custom/overlay/Mpam.aslc': '#include <IndustryStandard/Acpi65.h>\n#include <IndustryStandard/Mpam.h>\n'}
+        paths = {'src/edk2/MdePkg/Include/IndustryStandard/Acpi64.h'}
+        self.assertEqual(len(missing_acpi_headers(paths, tables)), 2)
+        paths.update({'src/edk2/MdePkg/Include/IndustryStandard/Acpi65.h',
+                      'src/edk2/MdePkg/Include/IndustryStandard/Mpam.h'})
+        self.assertEqual(missing_acpi_headers(paths, tables), [])
+        tables['custom/overlay/Fadt.aslc'] = '#include <AcpiHelperMacros.h>\n#include <Include/AcpiPlatform.h>\n'
+        paths.add('custom/overlay/Include/AcpiPlatform.h')
+        self.assertEqual(missing_acpi_headers(paths, tables),
+                         ['custom/overlay/Fadt.aslc: missing ACPI table header AcpiHelperMacros.h'])
+
+    def test_202208_python_warning_repairs_preserve_imported_behavior(self) -> None:
+        repo = Path(__file__).resolve().parents[1]
+        refs = ([os.environ['SOURCE_PYTHON_TEST_REF']] if os.environ.get('SOURCE_PYTHON_TEST_REF') else
+                [f'source/unofficial/{radxa}/edk2-stable202208' for radxa in ('1.2.4', '1.3.1')])
+        for ref in refs:
+            prefix = 'custom/overlay/edk2/BaseTools/Source/Python/'
+            entries = tree_entries(repo, ref, ('src/edk2/BaseTools/Source/Python', prefix))
+            overlays = [path for path in entries if path.startswith(prefix) and path.endswith('.py')]
+            self.assertTrue(overlays, 'the 202208 baseline requires custom Python compatibility overlays')
+            paths = overlays + [path.replace('custom/overlay/', 'src/', 1) for path in overlays]
+            blobs = git_blob_bytes_batch(repo, (entries[path].object_id for path in paths))
+            for path in overlays:
+                with self.subTest(path=path):
+                    imported = blobs[entries[path.replace('custom/overlay/', 'src/', 1)].object_id]
+                    custom = blobs[entries[path].object_id]
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore')
+                        before = ast.dump(ast.parse(imported), include_attributes=False)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('error')
+                        after = ast.dump(ast.parse(custom), include_attributes=False)
+                    self.assertEqual(before, after)
+
+    def test_toolchain_specific_overrides_keep_generic_preprocessor_macros(self) -> None:
+        definitions = b"DEFINE GCC5_AARCH64_CC_FLAGS = flags\r\nDEFINE GCC_VFRPP_FLAGS = flags\r\n"
+        valid = b"RELEASE_GCC5_AARCH64_CC_FLAGS = DEF(GCC5_AARCH64_CC_FLAGS)\nRELEASE_GCC5_AARCH64_VFRPP_FLAGS = DEF(GCC_VFRPP_FLAGS)"
+        self.assertEqual(missing_tool_definitions(valid, definitions), [])
+        errors = missing_tool_definitions(valid.replace(b"DEF(GCC_VFRPP_FLAGS)", b"DEF(GCC5_VFRPP_FLAGS)"), definitions)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("GCC5_VFRPP_FLAGS", errors[0])
+
     def test_autogen_repair_preserves_constructor_and_selected_library_sources(self) -> None:
         imported = b"LIBRARY_CLASS = NULL\r\nCONSTRUCTOR = LzmaDecompressLibConstructor\r\n[Sources]\r\nLzma.c\r\n"
         custom = imported.replace(b"NULL", b"LzmaDecompressLib")
@@ -87,11 +254,14 @@ class SourceBuildInputsTests(unittest.TestCase):
 
     def test_removed_toolchain_is_rejected_but_historical_toolchains_are_valid(self) -> None:
         old_make = b"build -a AARCH64 -t GCC5 -p board.dsc"
-        old_tools = b"DEFINE GCC5_AARCH64_CC_FLAGS = flags\r\n"
-        new_tools = b"DEFINE GCC_AARCH64_CC_FLAGS = flags\r\n"
+        # Old templates also define generic GCC flags; that does not create a
+        # toolchain called GCC. Only an actual compiler-path rule does.
+        old_tools = b"DEFINE GCC_AARCH64_CC_FLAGS = flags\r\n*_GCC5_AARCH64_CC_PATH = gcc\r\n"
+        new_tools = b"DEFINE GCC_AARCH64_CC_FLAGS = flags\r\n*_GCC_AARCH64_CC_PATH = gcc\r\n"
         self.assertEqual(missing_toolchain(old_make, old_tools), [])
         self.assertEqual(len(missing_toolchain(old_make, new_tools)), 1)
         self.assertEqual(missing_toolchain(old_make.replace(b"GCC5", b"GCC"), new_tools), [])
+        self.assertEqual(len(missing_toolchain(old_make.replace(b"GCC5", b"GCC"), old_tools)), 1)
 
     def test_platform_include_chain_rejects_removed_library(self) -> None:
         descriptors = {
@@ -108,6 +278,19 @@ class SourceBuildInputsTests(unittest.TestCase):
         self.assertIn("ArmExceptionLib.inf", problems[0])
         paths.add("src/edk2/ArmPkg/Library/ArmExceptionLib/ArmExceptionLib.inf")
         self.assertEqual(missing_platform_inputs(paths, descriptors, ()), [])
+
+    def test_flash_layout_checks_release_specific_module_paths(self) -> None:
+        descriptors = {f"src/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.dsc": ""
+                       for board in ("O6", "O6N")}
+        layout = "custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf"
+        descriptors[layout] = "INF ArmPkg/Drivers/ArmGicDxe/ArmGicDxe.inf\n"
+        paths = set(descriptors) | {"src/edk2/ArmPkg/Drivers/ArmGic/ArmGicDxe.inf"}
+        overlays = ("custom/overlay-experimental-uefi-settings",)
+        problems = missing_platform_inputs(paths, descriptors, overlays)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("ArmPkg/Drivers/ArmGicDxe/ArmGicDxe.inf", problems[0])
+        descriptors[layout] = "INF ArmPkg/Drivers/ArmGic/ArmGicDxe.inf\n"
+        self.assertEqual(missing_platform_inputs(paths, descriptors, overlays), [])
 
     def test_platform_inputs_honor_overlay_precedence(self) -> None:
         base = {f"src/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.dsc": "!include Platform/Common.dsc.inc" for board in ("O6", "O6N")}

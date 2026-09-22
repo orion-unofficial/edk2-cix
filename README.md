@@ -87,8 +87,8 @@ make build FIRMWARE_BOARD=O6N FIRMWARE_TARGET=RELEASE
 Common variables are:
 
 - `FIRMWARE_BOARD=O6|O6N` selects the board. The default is `O6`.
-- `FIRMWARE_PRODUCT=<name>` selects the output product path and archive name.
-  It defaults to `orion-o6` for O6 and `orion-o6n` for O6N.
+  Product paths and archive names follow this selection: `orion-o6` or
+  `orion-o6n`. No separate product argument is needed.
 - `FIRMWARE_TARGET=RELEASE|DEBUG` selects a release or debug firmware image.
   The default is `RELEASE`.
 - `RELEASE=<source-target>` selects a configured source target. Leave this
@@ -162,10 +162,10 @@ and validation-profile data for Radxa `1.2.1`, `1.2.2`, `1.2.3`, `1.2.4`,
 trusted-key certificate is shared across those releases because its SHA-256 is
 identical, while release- and board-specific certificate data remains distinct.
 
-## How do I choose EDK2/CIX early-boot/Radxa source versions?
+## How do I choose EDK2 and Radxa source versions?
 
-A source target selects the combination of EDK2, the optional CIX early-boot
-replacement, Radxa, and unofficial project sources to build. Use
+A source target selects EDK2, Radxa, and unofficial project sources to build.
+Matching vendor-signed early-boot payloads are retained. Use
 `make help-source-targets` to list the configured combinations.
 
 ```bash
@@ -177,7 +177,7 @@ form is the prefixless source-target name shown by `make help-source-targets`:
 
 ```bash
 make build \
-  RELEASE=edk2-202608/cix-1.2/radxa-1.3.1/unofficial \
+  RELEASE=edk2-202608/radxa-1.3.1/unofficial \
   FIRMWARE_BOARD=O6N \
   FIRMWARE_TARGET=RELEASE
 ```

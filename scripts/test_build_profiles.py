@@ -26,7 +26,7 @@ class BuildProfileTests(unittest.TestCase):
         profile = resolve_profile(REPO_ROOT, requested_profile="latest")
 
         self.assertEqual(profile["build_kind"], "source-build")
-        self.assertIn("edk2-202608/cix-1.2/radxa-1.3.1/unofficial", profile["release"])
+        self.assertIn("edk2-202608/radxa-1.3.1/unofficial", profile["release"])
         self.assertEqual(profile["artefact_mode"], "custom")
         self.assertEqual(profile["enable_firmware_fixes"], "false")
         self.assertEqual(profile["cix_early_boot_release"], "")
