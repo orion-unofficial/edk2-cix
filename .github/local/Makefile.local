@@ -26,6 +26,11 @@ BUILDBOX_WORKSPACE_ROOT ?= $(BUILDBOX_WORKSPACE_PARENT)/$(PROJECT)
 BUILDBOX_HOST_TMPDIR ?= $(REPO_ROOT)/.buildbox/tmp
 BUILDBOX_CONTAINER_TMPDIR ?= /hosttmp
 ARTEFACT_MODE ?= custom
+# debuild sanitizes the environment; explicitly retain custom mode for the
+# custom-only package-copy hook. Upstream's command line stays unchanged.
+ifeq ($(ARTEFACT_MODE),custom)
+override CUSTOM_DEBUILD_ARG += --set-envvar=ARTEFACT_MODE=custom
+endif
 FIRMWARE_DISTRO ?=
 FIRMWARE_DISTRO_EFFECTIVE := $(if $(strip $(FIRMWARE_DISTRO)),$(FIRMWARE_DISTRO),trixie)
 REPLAY_FIRMWARE_DISTRO_EFFECTIVE := $(if $(strip $(FIRMWARE_DISTRO)),$(FIRMWARE_DISTRO),trixie)
