@@ -1490,6 +1490,7 @@ Build/%/$(UEFI_TARGET)_GCC/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $(
 	unset MAKEFLAGS; \
 	run_edksetup; \
 	build_extra_defines=(); \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then build_extra_defines+=(-w); fi; \
 	tool_def_overrides=(); \
 	tools_def_file="$${CONF_PATH:-edk2/Conf}/tools_def.txt"; \
 	if [[ ! -f "$$tools_def_file" ]]; then \
