@@ -197,18 +197,29 @@ that revision. It does not establish a 6500 rating for all O6 boards. No 6500
 option is added without exact part/board identification and a supported vendor
 training/rate encoding. Manufacturer identity alone would be an inadequate gate.
 
-## Proposed startup.nsh change
+## Custom startup.nsh status handling
 
-The vendor script runs `FlashUpdate.efi`, then prints success and shuts down
-without checking its exit status. Proposed custom-only behavior is to capture
-and check `%lasterror%` immediately, stop on failure, and avoid a false success
-message or automatic shutdown after an error. The upstream script must stay
-byte-identical. A host-side receipt should name the selected image and hash.
+Implemented in the September 22 follow-up. Custom staging, installation,
+archives and Debian package copies select `custom/scripts/startup.nsh`.
+Upstream retains `src/scripts/startup.nsh` byte-for-byte. The wrapper checks
+both input files, captures `%lasterror%` immediately after the updater, and
+returns its nonzero status without claiming success or shutting down. The
+success branch retains the vendor power-cycle instructions and explicitly says
+that the script does not independently verify flash readback.
 
-This proposal is not implemented in this change: the opaque updater's actual
-exit-status/readback contract still needs verification. A zero exit status
-cannot prove that the intended image was fully written. The wrapper must not
-promise readback verification that the updater does not provide.
+The exact script passed seven AArch64 QEMU/UEFI Shell cases using harmless
+EFI stubs: zero, EFI device/security errors, a nonzero warning, missing image,
+missing updater and invalid updater executable. Packaging regressions exercise
+mode changes in both directions and require the custom script to exist.
+The opaque vendor updater's complete return/readback contract remains unknown;
+a zero status is not proof of a correct write. No physical flash was accessed.
+
+Source propagation is needed here: the exporter executes inside the rendered
+source tree and also serves direct source-tree make invocations. Debian's
+local rules run inside that tree too. A build-branch output-copy fix would miss
+those paths. Only those packaging files, their source regression, and the new
+custom script changed across the 28 retained refs; all `src/` and `debian/`
+blobs were checked unchanged. The build-branch regression stays on `build`.
 
 ## Regulators and line endings
 

@@ -248,7 +248,7 @@ new work.
 | High-value build work | Debug preflight implemented; extend sequential-build checks to interrupted runs, export receipts and copied-file provenance. |
 | Implemented warning repair | Corrected both AutoGen library mappings on the custom path; added warning-as-error and constructor-preservation coverage. |
 | Reviewed DMA policy | Physical gap and actual UEFI memory map are preserved. Allocation below the scalar bound cannot allocate holes; the high bank remains conservatively excluded from this DMA path. Do not widen the bound without device addressability evidence. |
-| Confirmed update-wrapper follow-up | `src/scripts/startup.nsh` prints completion and proceeds to shutdown without checking `FlashUpdate.efi` status. Add custom-only status handling and verify the opaque updater's return/readback contract. |
+| Implemented update wrapper | Custom packaging selects a script which stops on missing inputs/nonzero updater status. Seven emulated Shell cases passed. The opaque updater's readback/return contract is still unproven; upstream script bytes remain unchanged. |
 | Kernel/firmware coordination | Defer regulators unless reproduced on the custom kernel; keep ramoops parser support separate from firmware reservations. Collect the unresolved Wi-Fi `_DSM` function and PCI error details. |
 | Reviewed setup policy | Retained the legacy SCMI child-device default; repaired four initializer/read paths, hostile variable sizes and unavailable configuration protocol handling. Other variable consumers remain an audit surface. |
 | Experimental menu restored | Restored the existing global SMMU control on the four source refs with its vendor IORT consumer. Independent PCIe-only policy remains a separate feature. |
