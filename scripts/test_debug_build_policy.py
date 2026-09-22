@@ -15,17 +15,19 @@ ROOT = Path(__file__).resolve().parents[1]
 class DebugPreflightTests(unittest.TestCase):
     def check(self, ref="source/unofficial/1.3/current", **values):
         board = values.pop("board", "O6")
+        experimental = values.pop("experimental", False)
         return preflight(lambda p: show_file(ROOT, ref, p).decode(),
                          board=board, target=values.pop("target", "RELEASE"),
-                         fdf_override=source_fdf(ROOT, ref, board), **values)
+                         fdf_override=source_fdf(ROOT, ref, board, experimental), **values)
 
     def test_all_retained_layouts_and_default_masks(self):
         for ref in for_each_ref(ROOT, "source/unofficial/"):
             for board in ("O6", "O6N"):
-                with self.subTest(ref=ref, board=board):
-                    report = self.check(ref, board=board)
-                    self.assertEqual(report["effective_mask"], "0x80000040")
-                    self.assertLessEqual(report["fd_size"], report["bootloader3_slot"])
+                for experimental in (False, True):
+                    with self.subTest(ref=ref, board=board, experimental=experimental):
+                        report = self.check(ref, board=board, experimental=experimental)
+                        self.assertEqual(report["effective_mask"], "0x80000040")
+                        self.assertLessEqual(report["fd_size"], report["bootloader3_slot"])
 
     def test_force_is_not_a_mask_validation_bypass(self):
         for mask in ("0x200", "0xFFFFFFFF", "-1", "0x100000000"):
@@ -41,6 +43,8 @@ class DebugPreflightTests(unittest.TestCase):
             report = self.check(ref, board=board)
             self.assertEqual(report["fd_size"], 0x1F4000)
             self.assertEqual(report["bootloader3_slot"], 0x1F9000)
+            self.assertEqual(source_fdf(ROOT, ref, board, True), source_fdf(ROOT, ref, board))
+            self.assertEqual(self.check(ref, board=board, experimental=True)["fd_size"], 0x1F4000)
 
     def test_layout_and_logging_consent_are_distinct_from_packaging(self):
         with self.assertRaisesRegex(ValueError, "FD size.*bootloader3.img"):

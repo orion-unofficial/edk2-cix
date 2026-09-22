@@ -12,6 +12,15 @@ PACKAGE = "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/"
 TRUE = {"1", "true", "on", "yes"}
 
 
+def fdf_paths(board: str, experimental: bool = False) -> list[str]:
+    """Mirror the custom build's package-path precedence for board FDFs."""
+    prefixes = ["custom/overlay", "src"]
+    if experimental:
+        prefixes.insert(0, "custom/overlay-experimental-uefi-settings")
+    return [f"{prefix}/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.fdf"
+            for prefix in prefixes]
+
+
 def debug_bits(header: str) -> dict[str, int]:
     section = header.split("Declare bits for PcdDebugPrintErrorLevel", 1)[-1]
     section = section.split("Aliases of debug message mask bits", 1)[0]

@@ -2,7 +2,7 @@
 
 Baseline: EDK2 202608, Radxa 1.3.1, custom O6 firmware. This review distinguishes
 source checks, actual builds and behavior still requiring testing on hardware.
-The original repository's `main-monorepo-meta` was checked at `b127942e38`.
+The original repository's legacy metadata branch was checked at `b127942e38`.
 
 ## Warnings and verbosity
 
@@ -56,7 +56,9 @@ flash slot. Other firmware baselines retain their existing volume budgets.
 
 This is room for the normal safety checks and experimental menu, not a claim
 that verbose RELEASE masks now fit. Preflight reads the effective custom FDF,
-including mirrors. Further verbose qualification remains deferred. The final
+including experimental-overlay precedence and mirrors. The experimental
+202608/1.3.1 FDF now mirrors the normal custom FDF instead of carrying a
+second capacity definition. Further verbose qualification remains deferred. The final
 firmware still needs testing on hardware, including update and boot behavior.
 
 ## Structural release identity

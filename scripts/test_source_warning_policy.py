@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-from reconstruction_common import show_file
+from reconstruction_common import for_each_ref, show_file
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = (
@@ -22,6 +22,33 @@ FILES = (
 
 
 class SourceWarningPolicyTests(unittest.TestCase):
+    def test_effective_autogen_warning_arguments_survive_release_setup(self):
+        selected = os.environ.get("SOURCE_TEST_REF")
+        local = os.environ.get("SOURCE_TEST_ROOT")
+        refs = [selected] if selected else for_each_ref(ROOT, "source/unofficial/")
+        if local:
+            refs = ["local"]
+        with tempfile.TemporaryDirectory(prefix="autogen-arguments-") as tmp:
+            (Path(tmp) / "tools_def.txt").write_text("# test configuration\n")
+            for ref in refs:
+                source = (Path(local) / "src/Makefile").read_text() if local else show_file(ROOT, ref, "src/Makefile").decode()
+                start = source.index("\tbuild_extra_defines=();")
+                recipe = source[start:source.index("\tbuild_version_defines=();", start)]
+                recipe = recipe.replace("\\\n", "\n").replace("$$", "$")
+                for mode in ("custom", "upstream"):
+                    for target in ("RELEASE", "DEBUG"):
+                        with self.subTest(ref=ref, mode=mode, target=target):
+                            script = recipe.replace("$(ARTEFACT_MODE)", mode).replace("$(UEFI_TARGET)", target)
+                            self.assertNotIn("$(", script)
+                            script += '\nprintf "%s\\n" "${build_extra_defines[@]}"\n'
+                            result = subprocess.run(["bash", "-eu", "-c", script],
+                                                    env={**os.environ, "CONF_PATH": tmp}, capture_output=True, text=True)
+                            self.assertEqual(result.returncode, 0, result.stderr)
+                            arguments = result.stdout.splitlines()
+                            self.assertEqual("-w" in arguments, mode == "custom")
+                            self.assertEqual("REPRODUCIBLE_BUILD_METADATA=TRUE" in arguments,
+                                             mode == "custom" and target == "RELEASE")
+
     def test_real_source_warning_regressions(self):
         with tempfile.TemporaryDirectory(prefix="source-warning-policy-") as tmp:
             root = Path(tmp)
