@@ -28,7 +28,7 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
         path.write_text(data, encoding="utf-8")
 
     def create_repo(self, root: Path, board: str) -> None:
-        target = "RELEASE_GCC"
+        target = "RELEASE_GCC5"
         build_dir = root / "src" / "Build" / board / target
         active_platform = f"src/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.dsc"
         flash_definition = f"src/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.fdf"
@@ -87,7 +87,7 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
                                    ("upstream", b"echo update\n"),
                                    ("custom", b"echo custom update\n")):
                 source = next(source for source, relative in
-                              export_firmware_payload.payload_mapping(root, "O6", "RELEASE_GCC", mode)
+                              export_firmware_payload.payload_mapping(root, "O6", "RELEASE_GCC5", mode)
                               if relative == Path("startup.nsh"))
                 export_firmware_payload.copy_required_file(source, destination)
                 self.assertEqual(destination.read_bytes(), expected)
@@ -134,7 +134,7 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
         mapping = export_firmware_payload.payload_mapping(
             Path("/repo"),
             "O6",
-            "RELEASE_GCC",
+            "RELEASE_GCC5",
             "custom",
         )
         destinations = [destination.as_posix() for _, destination in mapping]
@@ -150,7 +150,7 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
                 mapping = export_firmware_payload.payload_mapping(
                     Path("/repo"),
                     board,
-                    "RELEASE_GCC",
+                    "RELEASE_GCC5",
                     artefact_mode,
                 )
                 destinations = [destination.as_posix() for _, destination in mapping]
@@ -181,7 +181,7 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
                     repo_root,
                     "O6",
                     "orion-o6",
-                    "RELEASE_GCC",
+                    "RELEASE_GCC5",
                     "custom",
                     output_dir,
                 )
@@ -221,7 +221,7 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
                     repo_root,
                     "O6",
                     "orion-o6",
-                    "RELEASE_GCC",
+                    "RELEASE_GCC5",
                     "custom",
                     output_dir,
                 )
@@ -272,12 +272,12 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
                     stage_root,
                     build_dir,
                     "O6",
-                    "RELEASE_GCC",
+                    "RELEASE_GCC5",
                 )
 
             target_names = [name for name, _ in captured["targets"]]
             self.assertIn("tools/LoadOpRom.efi", target_names)
-            self.assertIn("Build/O6/RELEASE_GCC/Firmwares/bootloader3.img", target_names)
+            self.assertIn("Build/O6/RELEASE_GCC5/Firmwares/bootloader3.img", target_names)
 
     def test_audit_custom_payload_skips_debug_targets(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir_text:
@@ -292,7 +292,7 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
                     stage_root,
                     build_dir,
                     "O6",
-                    "DEBUG_GCC",
+                    "DEBUG_GCC5",
                 )
 
             audit_targets.assert_not_called()
@@ -328,7 +328,7 @@ class ExportFirmwarePayloadTests(unittest.TestCase):
                     repo_root,
                     "O6",
                     "orion-o6",
-                    "RELEASE_GCC",
+                    "RELEASE_GCC5",
                     "custom",
                     output_path,
                     "1.2.1",

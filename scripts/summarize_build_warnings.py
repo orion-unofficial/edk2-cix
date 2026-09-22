@@ -84,7 +84,7 @@ WARNING_CLASSES = (
         pattern=re.compile(r"lto-wrapper: warning: using serial compilation"),
         disposition="informational",
         note=(
-            "Performance warning from GCC LTO job scheduling. This is not a "
+            "Performance warning from GCC5 LTO job scheduling. This is not a "
             "correctness failure."
         ),
     ),

@@ -56,16 +56,16 @@ class CustomTogglePcdsTest(unittest.TestCase):
         ):
             with self.subTest(path=relative_path):
                 content = read_repo_text(relative_path)
-                self.assertNotIn("GCC:*_*_*_CC_FLAGS          = -DUART3_ENABLE=1", content)
-                self.assertNotIn("GCC:*_*_*_CC_FLAGS          = -DDEBUG_ON_UART3=1", content)
-                self.assertNotIn("GCC:*_*_*_ASLPP_FLAGS       = -DDEBUG_ON_UART3=1", content)
-                self.assertNotIn("GCC:*_*_*_CC_FLAGS          = -UUART3_ENABLE", content)
-                self.assertNotIn("GCC:*_*_*_CC_FLAGS          = -UDEBUG_ON_UART3", content)
-                self.assertNotIn("GCC:*_*_*_ASLPP_FLAGS       = -UDEBUG_ON_UART3", content)
+                self.assertNotIn("GCC5:*_*_*_CC_FLAGS          = -DUART3_ENABLE=1", content)
+                self.assertNotIn("GCC5:*_*_*_CC_FLAGS          = -DDEBUG_ON_UART3=1", content)
+                self.assertNotIn("GCC5:*_*_*_ASLPP_FLAGS       = -DDEBUG_ON_UART3=1", content)
+                self.assertNotIn("GCC5:*_*_*_CC_FLAGS          = -UUART3_ENABLE", content)
+                self.assertNotIn("GCC5:*_*_*_CC_FLAGS          = -UDEBUG_ON_UART3", content)
+                self.assertNotIn("GCC5:*_*_*_ASLPP_FLAGS       = -UDEBUG_ON_UART3", content)
                 self.assertIn("gCixTokenSpaceGuid.PcdCustomFirmwareFixesEnable|TRUE", content)
                 self.assertIn("gCixTokenSpaceGuid.PcdCustomFirmwareFixesEnable|FALSE", content)
-                self.assertNotIn("GCC:*_*_*_CC_FLAGS          = -DENABLE_FIRMWARE_FIXES=1", content)
-                self.assertNotIn("GCC:*_*_*_CC_FLAGS          = -UENABLE_FIRMWARE_FIXES", content)
+                self.assertNotIn("GCC5:*_*_*_CC_FLAGS          = -DENABLE_FIRMWARE_FIXES=1", content)
+                self.assertNotIn("GCC5:*_*_*_CC_FLAGS          = -UENABLE_FIRMWARE_FIXES", content)
 
     def test_custom_platform_env_hooks_use_uart3_pcd(self) -> None:
         for relative_path in (
@@ -217,13 +217,13 @@ class CustomTogglePcdsTest(unittest.TestCase):
 
         makefile = read_repo_text("src/Makefile")
         self.assertIn(
-            "DEBUG_GCC_AARCH64_ASLCC_FLAGS   = "
-            "DEF(GCC_ASLCC_FLAGS) -DENABLE_FIRMWARE_FIXES=1",
+            "DEBUG_GCC5_AARCH64_ASLCC_FLAGS   = "
+            "DEF(GCC5_ASLCC_FLAGS) -DENABLE_FIRMWARE_FIXES=1",
             makefile,
         )
         self.assertIn(
-            "RELEASE_GCC_AARCH64_ASLCC_FLAGS   = "
-            "DEF(GCC_ASLCC_FLAGS) -DENABLE_FIRMWARE_FIXES=1",
+            "RELEASE_GCC5_AARCH64_ASLCC_FLAGS   = "
+            "DEF(GCC5_ASLCC_FLAGS) -DENABLE_FIRMWARE_FIXES=1",
             makefile,
         )
 
