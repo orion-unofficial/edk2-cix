@@ -116,14 +116,17 @@ def print_help(repo: Path) -> None:
     # Keep historical refs reconstructible, but do not advertise source aliases
     # which the public custom build provenance gate rejects.
     from reconstruction_common import release_entries, load_json
+    from firmware_ci_matrix import qualification_releases, stock_matrix
     from validate_release_inputs import input_problems
     entries = release_entries(repo)
     branches = [branch for branch in branches if '/cix-' not in branch and
                 ('/unofficial' not in branch or not input_problems(repo, entries[branch]))]
-    qualification = load_json(repo, 'config/policies.json').get('firmware_qualification_policy', {})
+    policy = load_json(repo, 'config/policies.json')
+    edk2_releases, radxa_releases = qualification_releases(policy)
     primary = {f'edk2-{edk2}/radxa-{radxa}/unofficial'
-               for edk2 in qualification.get('edk2_releases', [])
-               for radxa in qualification.get('radxa_releases', [])}
+               for edk2 in edk2_releases for radxa in radxa_releases}
+    stock = {row['release'] for row in
+             stock_matrix([source_target_name(branch) for branch in branches], policy)['include']}
 
     print("Configured Firmware Source Targets")
     print()
@@ -160,12 +163,24 @@ def print_help(repo: Path) -> None:
             indent="                      ",
         )
     print()
+    print("Maintained stock Radxa targets (ARTEFACT_MODE=upstream):")
+    print_source_target_list([branch for branch in branches if source_target_name(branch) in stock])
+    print()
+    paragraph("These use each named Radxa vendor release on its original EDK2 202208 "
+              "base. Use make deterministic-replay REPLAY_VERSION=<Radxa version> "
+              "for a byte-identical rebuild and comparison with the published image.")
+    print()
     print("Primary custom qualification targets:")
     print_source_target_list([branch for branch in branches if source_target_name(branch) in primary])
     print()
+    paragraph("The 202208 custom targets apply this project's changes to the named "
+              "stock release. The current EDK2 targets additionally uplift that "
+              "release. Qualification retains Radxa 1.2.4 and follows the deliberately "
+              "selected current EDK2/Radxa stack; optional fixes remain selectable.")
+    print()
     paragraph("Other provenance-compatible source targets remain available for legacy or "
-              "upstream workflows. They are outside the primary custom qualification matrix.")
-    print_source_target_list([branch for branch in branches if source_target_name(branch) not in primary])
+              "development workflows. They are outside the maintained qualification matrices.")
+    print_source_target_list([branch for branch in branches if source_target_name(branch) not in primary | stock])
     print()
     print("Default source target:")
     print(f"  {default}")

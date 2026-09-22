@@ -21,7 +21,23 @@ classifier; unknown or firmware-affecting paths run all of these gates:
   builds and 16 O6N builds;
 - current-source Trixie builds for O6 and O6N, both with firmware fixes disabled
   and enabled; and
-- exact Radxa 1.3.1 replay on its historical EDK2 `202208` base for O6 and O6N.
+- exact replay of stock Radxa 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0 and 1.3.1 on
+  EDK2 `202208` for O6 and O6N: **12 stock replay builds**.
+
+`firmware_qualification_policy` keeps EDK2 202208 and Radxa 1.2.4 as fixed custom
+baselines. The other custom axis values come from the deliberately selected
+`unofficial_source_policy` line, currently EDK2 202608 and Radxa 1.3.1. Promotion
+therefore changes the required four pairs together; missing source integrations
+fail matrix enumeration. It does not automatically promote discovered tags.
+The stock replay list is cumulative: add the promoted Radxa release and its
+replay inputs while retaining earlier supported releases. Enumeration rejects a
+current custom Radxa version missing from stock coverage, or a stock target
+whose base is not its exact vendor ref.
+
+The stock workflow keeps the existing upstream build and byte-comparison path.
+Expanding its callers does not change vendor source bytes, warning policy,
+compiler options or packaging. The new twelve-build coverage must pass CI before
+claiming that all stock replays have been requalified at a candidate commit.
 
 The stable `Qualification summary` job reports the result of every gate and
 fails if any required gate failed. Branch protection should require that job,

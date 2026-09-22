@@ -58,10 +58,10 @@ class GitHubWorkflowTests(unittest.TestCase):
 
         self.assertIn("source-coherence:", text)
         self.assertIn("make check-remote-source-coherence REMOTE=origin", text)
-        self.assertEqual(text.count("      - source-coherence"), 5)
+        self.assertEqual(text.count("      - source-coherence"), 6)
         self.assertEqual(
             text.count("needs:\n      - classify\n      - source-coherence"),
-            5,
+            6,
         )
         source_model = text[
             text.index("  source-model:") : text.index("\n  current-source:")

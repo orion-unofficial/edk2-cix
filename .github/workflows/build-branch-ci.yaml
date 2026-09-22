@@ -191,16 +191,47 @@ jobs:
     if: ${{ needs.classify.outputs.build_affecting == 'true' }}
     uses: ./.github/workflows/supported-firmware.yaml
 
-  upstream-replay:
-    name: Exact upstream replay matrix
+  replay-matrix:
+    name: Enumerate maintained stock releases
     needs:
       - classify
       - source-coherence
     if: ${{ needs.classify.outputs.build_affecting == 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      releases: ${{ steps.matrix.outputs.releases }}
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Fetch required source refs
+        run: |
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/heads/source/*'
+          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
+      - name: Derive stock replay matrix
+        id: matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          releases="$(python3 scripts/firmware_ci_matrix.py --stock)"
+          echo "releases=${releases}" >>"${GITHUB_OUTPUT}"
+
+  upstream-replay:
+    name: Exact upstream replay / ${{ matrix.version }}
+    needs:
+      - classify
+      - source-coherence
+      - replay-matrix
+    if: ${{ needs.classify.outputs.build_affecting == 'true' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.replay-matrix.outputs.releases) }}
     uses: ./.github/workflows/deterministic-replay.yaml
     with:
-      replay_source_target: edk2-202208/radxa-1.3.1
-      replay_version: 1.3.1
+      replay_source_target: ${{ matrix.release }}
+      replay_version: ${{ matrix.version }}
       upstream_repository: radxa-pkg/edk2-cix
 
   qualification:
@@ -212,6 +243,7 @@ jobs:
       - source-model
       - current-source
       - supported-source
+      - replay-matrix
       - upstream-replay
     runs-on: ubuntu-latest
 
@@ -225,6 +257,7 @@ jobs:
           SOURCE_COHERENCE_RESULT: ${{ needs.source-coherence.result }}
           SOURCE_MODEL_RESULT: ${{ needs.source-model.result }}
           SUPPORTED_SOURCE_RESULT: ${{ needs.supported-source.result }}
+          REPLAY_MATRIX_RESULT: ${{ needs.replay-matrix.result }}
           UPSTREAM_REPLAY_RESULT: ${{ needs.upstream-replay.result }}
         shell: bash
         run: |
@@ -241,7 +274,8 @@ jobs:
             echo "| Source model | ${SOURCE_MODEL_RESULT} |"
             echo "| Current-source O6/O6N, fixes off/on | ${CURRENT_SOURCE_RESULT} |"
             echo "| Supported EDK2 / Radxa release builds | ${SUPPORTED_SOURCE_RESULT} |"
-            echo "| Radxa 1.3.1 exact replay, O6/O6N | ${UPSTREAM_REPLAY_RESULT} |"
+            echo "| Maintained stock release enumeration | ${REPLAY_MATRIX_RESULT} |"
+            echo "| Maintained Radxa exact replays, O6/O6N | ${UPSTREAM_REPLAY_RESULT} |"
           } >>"${GITHUB_STEP_SUMMARY}"
           [[ "${CLASSIFY_RESULT}" == success ]]
           if [[ "${BUILD_AFFECTING}" == true ]]; then
@@ -249,5 +283,6 @@ jobs:
             [[ "${SOURCE_MODEL_RESULT}" == success ]]
             [[ "${CURRENT_SOURCE_RESULT}" == success ]]
             [[ "${SUPPORTED_SOURCE_RESULT}" == success ]]
+            [[ "${REPLAY_MATRIX_RESULT}" == success ]]
             [[ "${UPSTREAM_REPLAY_RESULT}" == success ]]
           fi

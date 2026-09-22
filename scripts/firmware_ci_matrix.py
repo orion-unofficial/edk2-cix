@@ -3,16 +3,59 @@
 
 from __future__ import annotations
 
+import argparse
 import json
-import re
 from pathlib import Path
 
-from reconstruction_common import matrix_release_branches, source_target_name, release_entries
+from reconstruction_common import (
+    ReconstructionError, main_wrapper, matrix_release_branches, source_target_name,
+    release_entries, unofficial_line_policies,
+)
 from validate_release_inputs import validate_inputs
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CUSTOM_TARGET = re.compile(r"edk2-(?P<edk2>[^/]+)/radxa-(?P<radxa>[^/]+)/unofficial$")
+
+
+def qualification_releases(policy: dict) -> tuple[list[str], list[str]]:
+    """Keep the vendor baseline and 1.2.4 while following the maintained stack.
+
+    Discovery of a new upstream tag does not promote it. Updating the selected
+    Unofficial line deliberately advances both CI and the advertised scope.
+    """
+    qualification = policy["firmware_qualification_policy"]
+    line, lines = unofficial_line_policies(policy["unofficial_source_policy"])
+    current = lines[line]
+    edk2 = [qualification["baseline_edk2_release"], current["current_edk2_release"]]
+    radxa = [qualification["retained_custom_radxa_release"], current["current_radxa_release"]]
+    return list(dict.fromkeys(edk2)), list(dict.fromkeys(radxa))
+
+
+def stock_matrix(targets: list[str], policy: dict) -> dict:
+    """Enumerate exact vendor replays; each reusable workflow covers both boards."""
+    qualification = policy["firmware_qualification_policy"]
+    baseline = qualification["baseline_edk2_release"]
+    versions = qualification["stock_radxa_releases"]
+    _, custom_radxa = qualification_releases(policy)
+    if not versions or len(set(versions)) != len(versions):
+        raise ValueError("stock replay releases must be nonempty and unique")
+    if not set(custom_radxa).issubset(versions):
+        raise ValueError("maintained custom Radxa releases must also have stock replay coverage")
+    requested = {f"edk2-{baseline}/radxa-{version}" for version in versions}
+    missing = requested - set(targets)
+    if missing:
+        raise ValueError("missing maintained stock source targets: " + ", ".join(sorted(missing)))
+    return {"include": [{"release": f"edk2-{baseline}/radxa-{version}", "version": version}
+                        for version in versions]}
+
+
+def validate_stock_entry(entry: dict, baseline: str, version: str) -> None:
+    """A stock alias must select its exact vendor release, never a port or custom tree."""
+    expected = f"source/vendor/radxa/{version}/edk2-stable{baseline}"
+    if (entry["source_ref"] != expected or entry["render"]["base"]["ref"] != expected
+            or entry["unofficial_delta"] or entry["radxa_release"] != version
+            or entry["edk2_release"] != f"edk2-stable{baseline}"):
+        raise ReconstructionError(f"stock replay must use the exact vendor source: {expected}")
 
 
 def firmware_matrix(targets: list[str], radxa_releases: list[str],
@@ -43,18 +86,25 @@ def firmware_matrix(targets: list[str], radxa_releases: list[str],
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--stock", action="store_true", help="Enumerate maintained vendor replays")
+    args = parser.parse_args()
     policy = json.loads((ROOT / "config/policies.json").read_text())
     qualification = policy["firmware_qualification_policy"]
     branches, _ = matrix_release_branches(ROOT)
-    matrix = firmware_matrix(
-        [source_target_name(branch) for branch in branches],
-        qualification["radxa_releases"], qualification["edk2_releases"], qualification["boards"],
-    )
+    targets = [source_target_name(branch) for branch in branches]
+    edk2, radxa = qualification_releases(policy)
+    matrix = (stock_matrix(targets, policy) if args.stock else
+              firmware_matrix(targets, radxa, edk2, qualification["boards"]))
     entries = {source_target_name(branch): entry for branch, entry in release_entries(ROOT).items()}
-    for release in sorted({row["release"] for row in matrix["include"]}):
-        validate_inputs(ROOT, entries[release])
+    if args.stock:
+        for row in matrix["include"]:
+            validate_stock_entry(entries[row["release"]], qualification["baseline_edk2_release"], row["version"])
+    else:
+        for release in sorted({row["release"] for row in matrix["include"]}):
+            validate_inputs(ROOT, entries[release])
     print(json.dumps(matrix))
 
 
 if __name__ == "__main__":
-    main()
+    main_wrapper(main)
