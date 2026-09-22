@@ -15,6 +15,7 @@ import tarfile
 import zipfile
 
 from firmware_chain import Certificate, ChainError, MAX_IMAGE_SIZE, require, validate_fip
+from bl33_layout import select as select_bl33_layout, validation_layout
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -103,10 +104,13 @@ def validate_uefi(data: bytes, selected: dict) -> dict:
 def check_payloads(directory: Path, selected: dict) -> dict:
     require(sha256(read(directory / "Firmwares/bootloader1.img")) == selected["bl1_sha256"],
             "BL1 does not match the qualified vendor boot-chain pairing")
+    bl33 = read(directory / "Firmwares/bootloader3.img")
+    allocation = select_bl33_layout(selected, len(bl33), selected.get("allow_large_bl33", False))
     return {
         "trusted": validate_fip(read(directory / "Firmwares/bootloader2.img"), "trusted",
                                 selected["trusted_root_spki_sha256"], selected["trusted_counter"]),
-        "uefi": validate_uefi(read(directory / "Firmwares/bootloader3.img"), selected),
+        "uefi": validate_uefi(bl33, selected),
+        "bl33_layout": allocation,
     }
 
 
@@ -137,9 +141,14 @@ def flash_entries(data: bytes, layout: dict) -> dict[int, bytes]:
 
 
 def check_flash(data: bytes, selected: dict) -> dict:
-    entries = flash_entries(data, selected["flash_layout"])
+    allowed = selected.get("allow_large_bl33", False)
+    entries = flash_entries(data, validation_layout(selected, allowed))
+    allocation = select_bl33_layout(selected, len(entries[7]), allowed)
+    if allocation["full_image_only"]:
+        require(all(value == 0xFF for value in data[allocation["address"] + len(entries[7]):]),
+                "unexpected data after enlarged BL33 payload")
     require(sha256(entries[1]) == selected["bl1_sha256"], "flash BL1 differs from qualified vendor pairing")
-    return {"image_sha256": sha256(data),
+    return {"image_sha256": sha256(data), "bl33_layout": allocation,
             "trusted": validate_fip(entries[2], "trusted", selected["trusted_root_spki_sha256"], selected["trusted_counter"]),
             "uefi": validate_uefi(entries[7], selected)}
 
@@ -224,6 +233,7 @@ def main() -> int:
     parser.add_argument("--build-target", default="buildbox-firmware-build")
     parser.add_argument("--report", type=Path)
     parser.add_argument("--print-scratch-layout", action="store_true")
+    parser.add_argument("--allow-large-bl33", choices=("0", "1"), default="0")
     args = parser.parse_args()
     if args.worktree and args.report is None and not args.print_scratch_layout and (ROOT / "config").is_dir():
         from reconstruction_common import firmware_chain_report_path
@@ -233,6 +243,9 @@ def main() -> int:
         package = args.reference_dir or (args.worktree / PACKAGE if args.worktree else None)
         require(package is not None, "--reference-dir is required without --worktree")
         selected = reference(package, load_catalog(args.catalog))
+        require(args.allow_large_bl33 == "0" or args.artefact_mode == "custom",
+                "large BL33 layout is exclusive to custom images")
+        selected["allow_large_bl33"] = args.allow_large_bl33 == "1"
         if args.print_scratch_layout:
             require(selected.get("reboot_scratch_layout") in (1, 2), "unknown vendor reboot scratch layout")
             print(selected["reboot_scratch_layout"])
