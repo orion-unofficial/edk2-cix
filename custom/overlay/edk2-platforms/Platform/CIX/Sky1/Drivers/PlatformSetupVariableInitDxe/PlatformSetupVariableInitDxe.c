@@ -612,6 +612,8 @@ PlatformSetupVariableInit (
   UINTN                VarSize;
   PLATFORM_SETUP_DATA  PlatformSetupVar;
 
+  ZeroMem (&PlatformSetupVar, sizeof (PlatformSetupVar));
+  ConstructSetupVariable (&PlatformSetupVar);
   VarSize = sizeof (PLATFORM_SETUP_DATA);
 
   Status = gRT->GetVariable (
@@ -621,12 +623,20 @@ PlatformSetupVariableInit (
                   &VarSize,
                   &PlatformSetupVar
                   );
-  if (EFI_ERROR (Status) || (VarSize != sizeof (PlatformSetupVar))) {
+  if ((Status != EFI_NOT_FOUND) && EFI_ERROR (Status)) {
+    return Status;
+  }
+  if ((Status == EFI_SUCCESS) && (VarSize == 0)) {
+    return EFI_COMPROMISED_DATA;
+  }
+  if ((Status == EFI_NOT_FOUND) || (VarSize < sizeof (PlatformSetupVar))) {
     // GetVariable may increase VarSize on EFI_BUFFER_TOO_SMALL. Never use
     // that returned size to clear this fixed-size stack object.
     DebugPrint (DEBUG_INIT, "%a: constructing setup defaults: status=%r size=%u\n", __FUNCTION__, Status, (UINT32)VarSize);
-    ZeroMem (&PlatformSetupVar, sizeof (PlatformSetupVar));
-    ConstructSetupVariable (&PlatformSetupVar);
+    if (Status == EFI_NOT_FOUND) {
+      ZeroMem (&PlatformSetupVar, sizeof (PlatformSetupVar));
+      ConstructSetupVariable (&PlatformSetupVar);
+    }
 
     Status = gRT->SetVariable (
                     PLATFORM_SETUP_VAR,
@@ -658,6 +668,12 @@ NetworkStackVariableInit (
   UINTN          VarSize;
   NETWORK_STACK  NetworkStack;
 
+  ZeroMem (&NetworkStack, sizeof (NetworkStack));
+  NetworkStack.Enable   = FixedPcdGet8 (PcdNetworkStackSupport);
+  NetworkStack.Ipv4Pxe  = FixedPcdGet8 (PcdIPv4PXESupport);
+  NetworkStack.Ipv6Pxe  = FixedPcdGet8 (PcdIPv6PXESupport);
+  NetworkStack.Ipv4Http = FixedPcdGet8 (PcdIPv4HttpSupport);
+  NetworkStack.Ipv6Http = FixedPcdGet8 (PcdIPv6HttpSupport);
   VarSize = sizeof (NETWORK_STACK);
 
   Status = gRT->GetVariable (
@@ -667,16 +683,13 @@ NetworkStackVariableInit (
                   &VarSize,
                   &NetworkStack
                   );
-  if (EFI_ERROR (Status)) {
-    ZeroMem (&NetworkStack, VarSize);
-    //
-    // Variable does not exist yet - create it
-    //
-    NetworkStack.Enable   = FixedPcdGet8 (PcdNetworkStackSupport);
-    NetworkStack.Ipv4Pxe  = FixedPcdGet8 (PcdIPv4PXESupport);
-    NetworkStack.Ipv6Pxe  = FixedPcdGet8 (PcdIPv6PXESupport);
-    NetworkStack.Ipv4Http = FixedPcdGet8 (PcdIPv4HttpSupport);
-    NetworkStack.Ipv6Http = FixedPcdGet8 (PcdIPv6HttpSupport);
+  if ((Status != EFI_NOT_FOUND) && EFI_ERROR (Status)) {
+    return Status;
+  }
+  if ((Status == EFI_SUCCESS) && (VarSize == 0)) {
+    return EFI_COMPROMISED_DATA;
+  }
+  if ((Status == EFI_NOT_FOUND) || (VarSize < sizeof (NetworkStack))) {
     Status                = gRT->SetVariable (
                                    NETWORK_STACK_VAR,
                                    &gEfiNetworkStackSetupGuid,
@@ -703,6 +716,7 @@ SystemTableVariableInit (
   UINTN         VarSize;
   SYSTEM_TABLE  SystemTableVar;
 
+  ZeroMem (&SystemTableVar, sizeof (SystemTableVar));
   VarSize = sizeof (SYSTEM_TABLE);
 
   Status = gRT->GetVariable (
@@ -713,7 +727,13 @@ SystemTableVariableInit (
                   &SystemTableVar
                   );
 
-  if (EFI_ERROR (Status)) {
+  if ((Status != EFI_NOT_FOUND) && EFI_ERROR (Status)) {
+    return Status;
+  }
+  if ((Status == EFI_SUCCESS) && (VarSize != sizeof (SystemTableVar))) {
+    return EFI_COMPROMISED_DATA;
+  }
+  if (Status == EFI_NOT_FOUND) {
     //
     // Variable does not exist yet - create it
     //
@@ -722,7 +742,7 @@ SystemTableVariableInit (
                                               SYSTEM_TABLE_VAR,
                                               &gCixGlobalVariableGuid,
                                               EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS,
-                                              VarSize,
+                                              sizeof (SystemTableVar),
                                               &SystemTableVar
                                               );
     if (EFI_ERROR (Status)) {
