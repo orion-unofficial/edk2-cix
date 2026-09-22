@@ -1,0 +1,13 @@
+cflags-y += -Wno-strict-aliasing
+cflags-y += -Wno-unused-parameter
+cflags-y += -Wno-switch-default
+cflags-y += -Wno-stringop-overflow
+srcs-y += qlib.c
+srcs-y += qlib_cfg.c
+srcs-y += qlib_cmd_proc.c
+srcs-y += qlib_crypto.c
+srcs-y += qlib_common.c
+srcs-y += qlib_key_mngr.c
+srcs-y += qlib_sec.c
+srcs-y += qlib_std.c
+srcs-y += qlib_tm.c

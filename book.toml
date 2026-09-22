@@ -1,0 +1,23 @@
+[book]
+authors = ["Radxa Limited"]
+description = ""
+language = "en"
+src = "docs"
+text-direction = "ltr"
+title = "edk2-cix"
+
+[output.linkcheck2]
+
+[output.html]
+git-repository-url = "https://github.com/orion-unofficial/edk2-cix/tree/source/unofficial/1.2/current"
+edit-url-template = "https://github.com/orion-unofficial/edk2-cix/edit/source/unofficial/1.2/current/{path}"
+additional-css = ["./theme/css/mdbook-admonish.css"]
+
+[preprocessor.admonish]
+command = "scripts/mdbook-admonish.py"
+
+[preprocessor.toc]
+command = "scripts/mdbook-toc.sh"
+renderer = ["html"]
+
+[preprocessor.cmdrun]

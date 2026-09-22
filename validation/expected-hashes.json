@@ -1,0 +1,296 @@
+{
+  "profiles": {
+    "upstream-1.2.1-bookworm": {
+      "description": "Qualification profile for reproducing the published 1.2.1 upstream release builds in the Bookworm buildboxes when reusing the extracted release cert bundle.",
+      "boards": {
+        "O6": {
+          "target": "RELEASE_GCC",
+          "artefacts": {
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "abff6d823593a2259c449d626052ca94a2575be1913d7b85f19df52064c4426c",
+              "size": 617
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "7a694123308c5463837c613092cd1894cc7d7d7e89043dde2806f7c7a658e4e4",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "230aecda7a9079808c45eeabe38aa4b6f94d0a6b8ecb749c0be98f9b2d60b05c",
+              "size": 2101982
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "fec26d52ca7e9a9285914e052ab0d2aa34d9ed4aa8aeecb6b5a4d8ee131de9a5",
+              "size": 4096
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "566fb4c143a1c8e6c072464399702418c7fe4341bffb65706cf5e00465166ed6",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "d49cc6b60181a922e9f48d2ec1191f0afeb1039721c7bd8ffac0902c807aa800",
+              "size": 16384
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "e80c71fa7ce82c66046b98b71f68436a680d99f067dfeadfd76469203affbf00",
+              "size": 20480
+            }
+          },
+          "build_options": {
+            "gCommandLineDefines": {
+              "BUILD_DATE": "2026-03-19T10:41:29+00:00",
+              "SMP_ENABLE": "1",
+              "ACPI_BOOT_ENABLE": "1",
+              "VARIABLE_TYPE": "SPI",
+              "STANDARD_MM": "TRUE",
+              "COMMIT_HASH": "dadc5b1",
+              "EDK2_COMMIT_HASH": "898a41ed09",
+              "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
+              "EDK2_PLATFORMS_COMMIT_HASH": "918cb36f",
+              "DEB_VERSION": "1.2.1",
+              "ARCH": "AARCH64"
+            },
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf"
+          },
+          "pe_sections": {
+            "AARCH64/Shell.efi": [
+              {
+                "name": ".text",
+                "size": 540672
+              },
+              {
+                "name": ".data",
+                "size": 417792
+              },
+              {
+                "name": ".reloc",
+                "size": 12288
+              }
+            ],
+            "AARCH64/VariableInfo.efi": [
+              {
+                "name": ".text",
+                "size": 8192
+              },
+              {
+                "name": ".data",
+                "size": 4096
+              }
+            ],
+            "AARCH64/EnrollFromDefaultKeysApp.efi": [
+              {
+                "name": ".text",
+                "size": 12288
+              },
+              {
+                "name": ".data",
+                "size": 4096
+              }
+            ]
+          }
+        },
+        "O6N": {
+          "target": "RELEASE_GCC",
+          "artefacts": {
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "0ae03239c43956a966f7e4f1832aa0cf33d0197387948f270eb6ebb44a108deb",
+              "size": 621
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "7c6ed9ea2ff7f2a1e91735e14a65e38a779ee2d18bbf836726fe0e5a8864b097",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "db9a74c768f48e02e7cafb794549ed07cd9a571279f826ae750b3b28a14c6150",
+              "size": 2101982
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "f8bfd1fe69bdf908c69e5458c98153be8ef6136258145d248eb2524993dcef7a",
+              "size": 4096
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "761fb5b0c7d91aa1579fb7eb9b7d115dbb76d6974add463216d0002ad20aa76b",
+              "size": 974848
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "dab0cdcc572e9d2614efa202379a24c7722c455706d322ff75931a6b41c19dbb",
+              "size": 16384
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "ff48233e96659fe5fb9a4268b09d97f4fb0164c9cb903dafc86164994f6b1623",
+              "size": 20480
+            }
+          },
+          "build_options": {
+            "gCommandLineDefines": {
+              "BUILD_DATE": "2026-03-19T10:39:31+00:00",
+              "SMP_ENABLE": "1",
+              "ACPI_BOOT_ENABLE": "1",
+              "VARIABLE_TYPE": "SPI",
+              "STANDARD_MM": "TRUE",
+              "COMMIT_HASH": "dadc5b1",
+              "EDK2_COMMIT_HASH": "898a41ed09",
+              "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
+              "EDK2_PLATFORMS_COMMIT_HASH": "918cb36f",
+              "DEB_VERSION": "1.2.1",
+              "ARCH": "AARCH64",
+              "FASTBOOT_LOAD": "",
+              "BOARD_NAME": "",
+              "PCD_DYNAMIC_AS_DYNAMICEX": "TRUE"
+            },
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf"
+          },
+          "pe_sections": {
+            "AARCH64/Shell.efi": [
+              {
+                "name": ".text",
+                "size": 540672
+              },
+              {
+                "name": ".data",
+                "size": 417792
+              },
+              {
+                "name": ".reloc",
+                "size": 12288
+              }
+            ],
+            "AARCH64/VariableInfo.efi": [
+              {
+                "name": ".text",
+                "size": 8192
+              },
+              {
+                "name": ".data",
+                "size": 4096
+              }
+            ],
+            "AARCH64/EnrollFromDefaultKeysApp.efi": [
+              {
+                "name": ".text",
+                "size": 12288
+              },
+              {
+                "name": ".data",
+                "size": 4096
+              }
+            ]
+          }
+        }
+      }
+    },
+    "upstream-1.2.1-trixie": {
+      "description": "Reproducibility profile from an amd64 Trixie build of upstream main, used to confirm matching amd64 and arm64 Trixie builds on source/unofficial/edk2-stable202208 when they reuse the same cert bundle and injected timestamps.",
+      "boards": {
+        "O6": {
+          "target": "RELEASE_GCC",
+          "artefacts": {
+            "BuildOptions": {
+              "path": "BuildOptions",
+              "sha256": "3321daaaaa4a33226ff12f45f6df81d334910699ba925eba4aa2b8d4fe8addeb",
+              "size": 620
+            },
+            "cix_flash_all.bin": {
+              "path": "cix_flash_all.bin",
+              "sha256": "0ac7814c02d54c87f660d21a8eb67a624b3a59f1c2a2e0713496d1dd79e9da5c",
+              "size": 8388608
+            },
+            "cix_flash_ota.bin": {
+              "path": "cix_flash_ota.bin",
+              "sha256": "dfa49e9e8b86e49d15024ddd020687af3315b4a5a9444f2991b78d4486173cea",
+              "size": 2101982
+            },
+            "Firmwares/csu_pm_config.bin": {
+              "path": "Firmwares/csu_pm_config.bin",
+              "sha256": "739c145ae54de955cd78954120af0395d1bfe147468b52d3600323f869f47d87",
+              "size": 4096
+            },
+            "AARCH64/Shell.efi": {
+              "path": "AARCH64/Shell.efi",
+              "sha256": "4db200f143ea067731d7813402a68ee3d7ad5760a78ff84f7c46ec5d07fb3fbc",
+              "size": 978944
+            },
+            "AARCH64/VariableInfo.efi": {
+              "path": "AARCH64/VariableInfo.efi",
+              "sha256": "486181a5207f93af9ca92f63573203ddedb80a603c22badc75f2efd644e29734",
+              "size": 16384
+            },
+            "AARCH64/EnrollFromDefaultKeysApp.efi": {
+              "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+              "sha256": "393d263c9a8da71f228c1c26fe337a6098de33e97302c9b52ce3a584e6fc316f",
+              "size": 20480
+            }
+          },
+          "build_options": {
+            "gCommandLineDefines": {
+              "BUILD_DATE": "2026-03-30T07:57:08+00:00",
+              "SMP_ENABLE": "1",
+              "ACPI_BOOT_ENABLE": "1",
+              "VARIABLE_TYPE": "SPI",
+              "STANDARD_MM": "TRUE",
+              "COMMIT_HASH": "dadc5b14b1",
+              "EDK2_COMMIT_HASH": "898a41ed09",
+              "EDK2_NON_OSI_COMMIT_HASH": "50f168f",
+              "EDK2_PLATFORMS_COMMIT_HASH": "918cb36f",
+              "DEB_VERSION": "1.2.1",
+              "ARCH": "AARCH64"
+            },
+            "active_platform_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.dsc",
+            "flash_definition_suffix": "src/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf"
+          },
+          "pe_sections": {
+            "AARCH64/Shell.efi": [
+              {
+                "name": ".text",
+                "size": 544768
+              },
+              {
+                "name": ".data",
+                "size": 417792
+              },
+              {
+                "name": ".reloc",
+                "size": 12288
+              }
+            ],
+            "AARCH64/VariableInfo.efi": [
+              {
+                "name": ".text",
+                "size": 8192
+              },
+              {
+                "name": ".data",
+                "size": 4096
+              }
+            ],
+            "AARCH64/EnrollFromDefaultKeysApp.efi": [
+              {
+                "name": ".text",
+                "size": 12288
+              },
+              {
+                "name": ".data",
+                "size": 4096
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+bison=2:3.8.2+dfsg-1+b1
+build-essential=12.9
+ca-certificates=20230311+deb12u1
+crossbuild-essential-arm64=12.9
+flex=2.6.4-8.2
+git=1:2.39.5-0+deb12u3
+libssl-dev=3.0.18-1~deb12u2
+nasm=2.16.01-1
+openssl=3.0.18-1~deb12u2
+perl=5.36.0-7+deb12u3
+pkg-config=1.8.1-1
+python3=3.11.2-1+b1
+uuid-dev=2.38.1-5+deb12u3
