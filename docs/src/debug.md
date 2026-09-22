@@ -53,6 +53,15 @@ still apply, including for forced builds. Full DEBUG on the 202608 layout has a
 resolve that structural conflict. For compact BDS and setup-migration diagnostics,
 use `DEBUG_VERBOSE=false DEBUG_PRINT_ERROR_LEVEL=0x80000001`.
 
+### Qualified compact 202608 default
+
+The normal `DEBUG_VERBOSE=false` default (`0x80000040`) passed the public O6
+202608/1.3.1 build with firmware fixes and experimental menus enabled. The
+compressed FV has 7,824 bytes spare after the custom capacity adjustment;
+full-flash and OTA package/chain checks passed. See the
+[exact qualification inputs and limits](platform-policy-review-20260922.md#final-local-qualification).
+No deployable `DEBUG_VERBOSE=true` default is qualified yet.
+
 ### Historical 202608 measurements before the capacity adjustment
 
 The comparison baseline is **EDK2 202608**. Custom 202608/1.3.1 now allocates

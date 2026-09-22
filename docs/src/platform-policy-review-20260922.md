@@ -61,6 +61,33 @@ including experimental-overlay precedence and mirrors. The experimental
 second capacity definition. Further verbose qualification remains deferred. The final
 firmware still needs testing on hardware, including update and boot behavior.
 
+## Final local qualification
+
+Build commit `01a2ea816db239883546649161027f6c96112b2e` passed the complete
+minimised fresh-clone check, including 367 regression tests, all retained source
+contracts, manifest/lifecycle checks and identity validation. This is local
+qualification, not a completed GitHub Actions firmware matrix.
+
+The public `make build` path completed for 202608/1.3.1 O6, custom RELEASE,
+Trixie/Arm64, firmware fixes, CIX core order and experimental menus, with
+`CIX_RELEASE=` and `DEBUG_VERBOSE=false`. The unset debug-mask override
+resolved to `0x80000040` in the compiled AutoGen header. The live build process
+retained AutoGen's `-w` option. Compilation emitted no warning/error diagnostics;
+IASL reported zero errors and warnings, with 22 remarks.
+
+The compressed FV used `0x1f2170` of `0x1f4000`, leaving **7,824 bytes**.
+The signed `bootloader3.img` was `0x1f52d3`, leaving **15,661 bytes** in the
+unchanged `0x1f9000` slot. Both full-flash and OTA packaging passed chain and
+layout validation; the vendor BL1 signatures were verified through Docker.
+The generated PrePi code retains the LZMA decompressor constructor call.
+
+Rendered source commit: `fdf61cfc6ee3a27ac610f83224457b70a9baebb4`.
+The 8 MiB full-flash image's SHA-256 is
+`a92b19b1386b49f4082fdd550c972d4e0462fb374df9d586c444f707f509108a`.
+Its fixed build date was `2026-09-22T12:00:00+00:00`. These exact-input
+measurements do not qualify verbose logging, every board/release combination,
+board fuse/rollback state or runtime behavior. No testing on hardware occurred.
+
 ## Structural release identity
 
 The initial guard checks the selected Unofficial checkpoint's recorded Radxa
