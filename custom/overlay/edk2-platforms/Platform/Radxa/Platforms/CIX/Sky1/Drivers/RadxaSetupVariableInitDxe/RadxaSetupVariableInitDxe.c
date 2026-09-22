@@ -60,7 +60,15 @@ RadxaSetupVariableInitDxeEntry (
                   &VarSize,
                   &RadxaSetupVar
                   );
-  if (EFI_ERROR (Status)) {
+  if ((Status != EFI_NOT_FOUND) && EFI_ERROR (Status)) {
+    // A future larger schema or a read failure is not an absent variable.
+    // Preserve it: rewriting here would destroy the user's saved settings.
+    return Status;
+  }
+
+  if (Status == EFI_NOT_FOUND) {
+    ZeroMem (&RadxaSetupVar, sizeof (RadxaSetupVar));
+    ApplyBoardDeviceModelDefaults (&RadxaSetupVar);
     //
     // Variable does not exist yet - create it
     //
@@ -76,6 +84,10 @@ RadxaSetupVariableInitDxeEntry (
       return Status;
     }
   } else {
+    if (VarSize < OFFSET_OF (RADXA_SETUP_DATA, PcieDeviceModel)) {
+      return EFI_COMPROMISED_DATA;
+    }
+
     if (VarSize < sizeof (RADXA_SETUP_DATA)) {
       NeedsRewrite = TRUE;
     }
