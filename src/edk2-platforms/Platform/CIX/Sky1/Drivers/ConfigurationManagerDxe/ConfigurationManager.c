@@ -58,7 +58,11 @@ SKY1_PLATFORM_REPOSITORY_INFO  Sky1PlatformRepositoryInfo = {
     // PPTT Table
     {
       EFI_ACPI_6_3_PROCESSOR_PROPERTIES_TOPOLOGY_TABLE_STRUCTURE_SIGNATURE,
+#ifdef ENABLE_FIRMWARE_FIXES
+      EFI_ACPI_6_4_PROCESSOR_PROPERTIES_TOPOLOGY_TABLE_REVISION,
+#else
       EFI_ACPI_6_3_PROCESSOR_PROPERTIES_TOPOLOGY_TABLE_REVISION,
+#endif
       CREATE_STD_ACPI_TABLE_GEN_ID (EStdAcpiTableIdPptt),
       NULL,
       EFI_ACPI_OEM_TABLE_ID,
@@ -420,12 +424,9 @@ InitializeCmArmGiccInfo (
 {
   EFI_STATUS                     Status;
   SKY1_PLATFORM_REPOSITORY_INFO  *PlatformRepo;
-#if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
-  UINT8                          ClusterIndex, CoreIndex, CpuCoreNum;
-  UINT32                         UidIndex;
-#endif
-#if !defined (ENABLE_CORE_ORDER_CONVENTIONAL) && !defined (ENABLE_CORE_ORDER_PERFORMANCE)
   UINT8                          ClusterIndex, CoreIndex, GicCIndex, CpuCoreNum;
+#if defined (ENABLE_CORE_ORDER_CONVENTIONAL) || defined (ENABLE_CORE_ORDER_PERFORMANCE)
+  UINT32                         UidIndex;
 #endif
   CIX_CLUSTER_TOPO               *ClusterTopo;
   CIX_CPU_CORE                   *CpuCore;
@@ -455,6 +456,7 @@ InitializeCmArmGiccInfo (
       PlatformRepo->GicCInfo[UidIndex]                    = DefalutGicCInfo[CpuCore->Coreid];
       PlatformRepo->GicCInfo[UidIndex].CPUInterfaceNumber = 0;
       PlatformRepo->GicCInfo[UidIndex].AcpiProcessorUid   = CpuCore->Uid;
+      PlatformRepo->GicCInfo[UidIndex].CpcToken           = CppcEnable ? (CM_OBJECT_TOKEN)&PlatformRepo->CpuCpcInfo[CpuCore->Coreid] : CM_NULL_TOKEN;
       if (!CpuCore->Enable) {
         PlatformRepo->GicCInfo[UidIndex].Flags &= ~EFI_ACPI_6_2_GIC_ENABLED;
       }

@@ -225,7 +225,6 @@ if [[ "$dep_profile" == "replay" ]]; then
     done <"$replay_manifest"
 
     if (( ${#replay_missing_specs[@]} == 0 )) && (( ${#replay_wrong_specs[@]} == 0 )); then
-        "${script_dir}/ensure_iasl.sh" --print-path >/dev/null
         status "Build dependencies already installed for profile: ${dep_profile}."
         exit 0
     fi

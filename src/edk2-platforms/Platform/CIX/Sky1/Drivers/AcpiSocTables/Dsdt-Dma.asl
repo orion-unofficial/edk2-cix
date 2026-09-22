@@ -6,6 +6,8 @@
 
 **/
 
+#include <Protocol/sky1-audss.h>
+
 Device (DMA0) {
   Name (_HID, "CIXHA014")
   Name (_UID, 0x0)
@@ -60,7 +62,11 @@ Device (DMA1) {
   })
 
   Name (CLKT, Package() {
+#ifdef ENABLE_FIRMWARE_FIXES
+    Package() {CLK_DMAC_AXI, "", \_SB.DMA1},
+#else
     Package() {CLK_TREE_FCH_DMA_ACLK, "", \_SB.DMA0},
+#endif
   })
   Name (RSTL, Package() {
     Package() {\_SB.ADSS.ARST, AUDSS_DMAC_SW_RST_N ,\_SB.DMA1, "dma_reset"},

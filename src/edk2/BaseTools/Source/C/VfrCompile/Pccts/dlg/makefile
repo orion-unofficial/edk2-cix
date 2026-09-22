@@ -114,19 +114,6 @@ PCCTS_H=../h
 #
 #   UNIX
 #
-V ?= 0
-ifeq ($(V),1)
-Q :=
-define PRINT_STATUS
-@:
-endef
-else
-Q := @
-define PRINT_STATUS
-@printf '  %-7s %s\n' '$(1)' '$(2)'
-endef
-endif
-
 ifeq ($(CXX), llvm)
 BUILD_CC?=$(CLANG_BIN)clang
 else
@@ -143,8 +130,7 @@ OBJ = dlg_p.o dlg_a.o main.o err.o set.o support.o output.o \
         relabel.o automata.o
 
 $(BIN_DIR)/dlg : $(OBJ) $(SRC)
-	$(call PRINT_STATUS,LD,$@)
-	$(Q)$(BUILD_CC) $(BUILD_CFLAGS) -o $(BIN_DIR)/dlg $(OBJ)
+		$(BUILD_CC) $(BUILD_CFLAGS) -o $(BIN_DIR)/dlg $(OBJ)
 
 SRC = dlg_p.c dlg_a.c main.c err.c $(SET)/set.c support.c output.c \
         relabel.c automata.c
@@ -156,29 +142,23 @@ SRC = dlg_p.c dlg_a.c main.c err.c $(SET)/set.c support.c output.c \
 #	$(DLG) -C2 parser.dlg dlg_a.c
 
 dlg_p.$(OBJ_EXT) : dlg_p.c dlg.h tokens.h mode.h
-	$(call PRINT_STATUS,CC,$@)
-	$(Q)$(BUILD_CC) $(BUILD_CFLAGS) -c dlg_p.c
+	$(BUILD_CC) $(BUILD_CFLAGS) -c dlg_p.c
 
 dlg_a.$(OBJ_EXT) : dlg_a.c dlg.h tokens.h mode.h
-	$(call PRINT_STATUS,CC,$@)
-	$(Q)$(BUILD_CC) $(BUILD_CFLAGS) -c dlg_a.c
+	$(BUILD_CC) $(BUILD_CFLAGS) -c dlg_a.c
 
 main.$(OBJ_EXT) : main.c dlg.h
-	$(call PRINT_STATUS,CC,$@)
-	$(Q)$(BUILD_CC) $(BUILD_CFLAGS) -c main.c
+	$(BUILD_CC) $(BUILD_CFLAGS) -c main.c
 
 set.$(OBJ_EXT) : $(SET)/set.c
-	$(call PRINT_STATUS,CC,$@)
-	$(Q)$(BUILD_CC) -c $(BUILD_CFLAGS) $(SET)/set.c
+	$(BUILD_CC) -c $(BUILD_CFLAGS) $(SET)/set.c
 
-%.o : %.c
-	$(call PRINT_STATUS,CC,$@)
-	$(Q)$(BUILD_CC) -c $(BUILD_CFLAGS) $(BUILD_CPPFLAGS) $< -o $@
+%.o : %.c 
+	$(BUILD_CC) -c $(BUILD_CFLAGS) $(BUILD_CPPFLAGS) $< -o $@
 
 lint:
 	lint *.c
 
 #clean up all the intermediate files
 clean:
-	$(call PRINT_STATUS,CLEAN,$(BIN_DIR)/dlg)
-	$(Q)rm -f $(BIN_DIR)/dlg *.$(OBJ_EXT) core
+	rm -f $(BIN_DIR)/dlg *.$(OBJ_EXT) core

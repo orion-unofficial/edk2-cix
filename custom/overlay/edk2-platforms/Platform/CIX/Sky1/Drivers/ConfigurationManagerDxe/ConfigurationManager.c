@@ -458,6 +458,7 @@ InitializeCmArmGiccInfo (
       PlatformRepo->GicCInfo[UidIndex]                    = DefalutGicCInfo[CpuCore->Coreid];
       PlatformRepo->GicCInfo[UidIndex].CPUInterfaceNumber = 0;
       PlatformRepo->GicCInfo[UidIndex].AcpiProcessorUid   = CpuCore->Uid;
+      PlatformRepo->GicCInfo[UidIndex].CpcToken           = CppcEnable ? (CM_OBJECT_TOKEN)&PlatformRepo->CpuCpcInfo[CpuCore->Coreid] : CM_NULL_TOKEN;
       if (!CpuCore->Enable) {
         PlatformRepo->GicCInfo[UidIndex].Flags &= ~EFI_ACPI_6_2_GIC_ENABLED;
       }

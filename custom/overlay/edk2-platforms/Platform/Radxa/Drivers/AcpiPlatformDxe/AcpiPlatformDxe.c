@@ -36,6 +36,7 @@ ApplyBoardDeviceModelDefaults (
   RadxaSetupVar->UsbGenericXhciVisible[1] = 0;
   RadxaSetupVar->UsbGenericXhciVisible[2] = 1;
   RadxaSetupVar->UsbGenericXhciVisible[3] = 0;
+  RadxaSetupVar->ThermalPowerModel = RADXA_SETUP_THERMAL_POWER_MODEL_VENDOR_ACPI;
 
   SystemProductName = (CHAR16 *)FixedPcdGetPtr (PcdSystemProductName);
   if (!StrCmp (L"Radxa Orion O6N", SystemProductName)) {
@@ -129,6 +130,11 @@ AcpiHookFunctionOnReadyToBoot (
     Status = UpdateNameAslCode (SIGNATURE_32 ('U', 'G', 'V', '3'), &(RadxaSetupVar.UsbGenericXhciVisible[3]), sizeof (RadxaSetupVar.UsbGenericXhciVisible[3]));
     if (EFI_ERROR (Status)) {
       DEBUG ((DEBUG_ERROR, "%a: Update UGV3 failed, Status=%r\n", __FUNCTION__, Status));
+    }
+
+    Status = UpdateNameAslCode (SIGNATURE_32 ('T', 'P', 'D', 'M'), &(RadxaSetupVar.ThermalPowerModel), sizeof (RadxaSetupVar.ThermalPowerModel));
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a: Update TPDM failed, Status=%r\n", __FUNCTION__, Status));
     }
   }
 

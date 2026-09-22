@@ -788,13 +788,19 @@ def collect_cros_ec_devices() -> list[dict[str, Any]]:
     return devices
 
 
-def collect_thermal_zones() -> list[dict[str, Any]]:
+def collect_thermal_zones(
+    root: Path = Path("/sys/class/thermal"),
+) -> list[dict[str, Any]]:
     zones: list[dict[str, Any]] = []
-    root = Path("/sys/class/thermal")
     if not root.exists():
         return zones
 
     for entry in sorted(root.glob("thermal_zone*")):
+        trip_points = {
+            child.name: read_text(child)
+            for child in sorted(entry.glob("trip_point_*"))
+            if child.is_file()
+        }
         zones.append(
             {
                 "name": entry.name,
@@ -803,11 +809,9 @@ def collect_thermal_zones() -> list[dict[str, Any]]:
                 "mode": read_text(entry / "mode"),
                 "policy": read_text(entry / "policy"),
                 "device": str((entry / "device").resolve()) if (entry / "device").exists() else None,
-                "trip_points": {
-                    child.name: read_text(child)
-                    for child in sorted(entry.glob("trip_point_*"))
-                    if child.is_file()
-                },
+                "trip_point_source": "sysfs",
+                "trip_point_count": len(trip_points),
+                "trip_points": trip_points,
             }
         )
     return zones
@@ -1300,8 +1304,11 @@ def run_scan_sysfs(args: argparse.Namespace) -> int:
             if zone["trip_points"]:
                 for key, value in sorted(zone["trip_points"].items()):
                     print(f"    {key}={value}")
+            else:
+                print("    trip_points=none")
     else:
         print("  none")
+    print("  Note: trip points are reported only from sysfs; this probe does not infer SCMI/DVFS policy.")
 
     print("")
     print("Cooling devices:")

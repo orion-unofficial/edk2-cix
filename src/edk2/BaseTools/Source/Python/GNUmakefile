@@ -5,15 +5,8 @@
 # SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
-V ?= 0
-ifeq ($(V),1)
-Q :=
-else
-Q := @
-endif
-
 all:
 
 clean:
-	$(Q)find . -name '*.pyc' -exec rm '{}' ';'
+	find . -name '*.pyc' -exec rm '{}' ';'
 

@@ -98,6 +98,34 @@ class CixReleaseCacheTests(unittest.TestCase):
         self.assertEqual(release.tee_key, debug.tee_key)
         self.assertNotEqual(release.bl31_key, debug.bl31_key)
 
+
+    def test_cache_plan_changes_when_tf_a_fixes_toggle_changes(self) -> None:
+        baseline = cix_release_cache.build_cache_plan(
+            cert_create_tree_fingerprint="cert-tree",
+            tfa_tree_fingerprint="tfa-tree",
+            tee_tree_fingerprint="tee-tree",
+            helper_fingerprint="helper",
+            host_compiler_fingerprint="host-cc",
+            cross_compiler_fingerprint="cross-cc",
+            mode="release",
+            stmm_fingerprint="stmm",
+        )
+        fixed = cix_release_cache.build_cache_plan(
+            cert_create_tree_fingerprint="cert-tree",
+            tfa_tree_fingerprint="tfa-tree",
+            tee_tree_fingerprint="tee-tree",
+            helper_fingerprint="helper",
+            host_compiler_fingerprint="host-cc",
+            cross_compiler_fingerprint="cross-cc",
+            mode="release",
+            stmm_fingerprint="stmm",
+            enable_tf_a_fixes=True,
+        )
+
+        self.assertEqual(baseline.cert_create_key, fixed.cert_create_key)
+        self.assertEqual(baseline.tee_key, fixed.tee_key)
+        self.assertNotEqual(baseline.bl31_key, fixed.bl31_key)
+
     def test_shell_assignments_match_expected_layout(self) -> None:
         plan = cix_release_cache.CachePlan(
             cert_create_key="cert",

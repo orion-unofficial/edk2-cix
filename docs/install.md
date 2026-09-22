@@ -15,13 +15,13 @@ over serial.
 ## Where to find releases?
 
 You can find all released Debian packages on this repo's GitHub
-[Releases](https://github.com/radxa-pkg/edk2-cix/releases) page.
+[Releases](https://github.com/orion-unofficial/edk2-cix/releases) page.
 
 Similar to the upstream firmware packaging flow, each release contains the main
 binary package as well as small metapackages.
 
 Taking release
-[`1.2.1`](https://github.com/radxa-pkg/edk2-cix/releases/tag/1.2.1) as an
+[`1.2.1`](https://github.com/orion-unofficial/edk2-cix/releases/tag/1.2.1) as an
 example, you can expect:
 
 - `edk2-cix_1.2.1_all.deb`: main binary package
@@ -41,7 +41,7 @@ To prepare a BIOS update disk, first, download and extract the package:
 ```bash
 mkdir extract
 cd extract
-wget https://github.com/radxa-pkg/edk2-cix/releases/download/1.2.1/edk2-cix_1.2.1_all.deb
+wget https://github.com/orion-unofficial/edk2-cix/releases/download/1.2.1/edk2-cix_1.2.1_all.deb
 ar vx *.deb
 tar xvf data.tar.xz
 ```

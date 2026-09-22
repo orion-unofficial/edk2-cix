@@ -15,7 +15,9 @@ intended to stand on its own.
 
 To stay on the upstream vendor path instead, set `ARTEFACT_MODE=upstream` and
 leave `ENABLE_FIRMWARE_FIXES` unset. The fixes below only apply on the custom
-build path.
+build path. TF-A source fixes are controlled separately with
+`ENABLE_TF_A_FIXES=true` and currently only affect custom `CIX_RELEASE=v1.2`
+builds.
 
 ## Included Fixes
 
@@ -119,6 +121,27 @@ ACPI Table Upgrade profiles. The previous forced non-coherent declaration has
 been removed. Kernel and GPU workload qualification remains separate from
 successful ACPI compilation.
 
+### SCMI Bus Performance Domains
+
+The Sky1 vendor Device Tree describes CI700 and NI700/MMHUB bus performance
+controls backed by SCMI DVFS domains, but vendor/upstream ACPI does not expose
+equivalent bus-performance devices.
+
+With `ENABLE_FIRMWARE_FIXES=true`, custom firmware publishes ACPI devices for
+the CI700 and MMHUB fabric DVFS domains. This lets Linux bind the ACPI-capable
+`CIX_BUS_PERF` driver and pin those fabric domains to the highest advertised
+OPP during bring-up.
+
+### eDP Backlight Level Table
+
+The Orion O6 vendor Device Tree describes the DP2/eDP backlight brightness
+levels as the full integer range `0..255`. Stock ACPI describes the same
+backlight device and default brightness, but the ACPI brightness table stops at
+`254`.
+
+With `ENABLE_FIRMWARE_FIXES=true`, custom firmware adds the missing final
+`255` entry so the ACPI backlight metadata matches the vendor Device Tree.
+
 ### USB Device-Model Selector
 
 With `ENABLE_FIRMWARE_FIXES=true`, custom firmware can expose one USB ACPI
@@ -149,10 +172,48 @@ Control). They describe CPU performance levels to the operating system.
 Stock firmware treats SCMI (System Control and Management Interface)
 performance levels as if they were already expressed in MHz. With
 `ENABLE_FIRMWARE_FIXES=true`, the firmware derives the CPPC frequency scaling
-from the SCMI domain attributes instead.
+from the SCMI domain attributes instead. It also derives `_CPC`
+`ReferencePerformance` from the repaired nominal performance/frequency tuple
+and the architectural timer frequency, rather than advertising the stock
+fixed value for every CPU.
 
 That keeps the static ACPI CPU-performance view aligned with the same SCMI
 performance model the firmware is already using underneath.
+
+### Experimental CPU Thermal Power Model Selector
+
+Stock ACPI and the vendor Device Tree disagree about the CPU thermal zones'
+non-standard `SSTP` sustainable-power values. Current Linux ACPI thermal-zone
+drivers do not appear to consume these values, but keeping the selector in
+firmware lets test builds compare both models without changing the default
+ACPI table.
+
+With `ENABLE_FIRMWARE_FIXES=true` and
+`ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true`, the experimental UEFI setup menu
+adds a `CPU Thermal Power Model` option:
+
+- `Vendor ACPI`
+  - preserves the stock ACPI sustainable-power values and remains the default
+- `DTB-derived`
+  - uses the CPU thermal-zone sustainable-power values observed in the vendor
+    Device Tree
+
+This selector only changes the custom-path ACPI `SSTP` values patched at boot.
+It does not enable any new thermal policy by itself.
+
+### SoC and EC Thermal Metadata
+
+The vendor Device Tree and platform memory-map headers identify additional SCMI
+thermal sensors for VPU, GPU, SoC bridge, DDR, CI700, NPU, SoC trace, and board
+NTC monitoring. Stock ACPI exposes only the CPU clusters, GPU-average zone, and
+EC board zone, and the EC zone lacks a valid critical trip point.
+
+With `ENABLE_FIRMWARE_FIXES=true`, custom firmware gives the CPU zones clearer
+cluster descriptions, adds DTB/MemoryMap-backed monitoring zones for the extra
+SCMI thermal sensors, associates GPU thermal zones with the GPU device, and
+adds the EC board thermal-zone critical trip point derived from Radxa platform
+configuration. These additions are metadata and trip-point repairs; they do not
+turn on a new DVFS policy.
 
 ### CPU Idle Default Migration (`_LPI`)
 
@@ -242,7 +303,24 @@ derived from public platform documentation, SMBIOS, and runtime investigation:
 - shared `12 MiB` L3
 
 The A520 L2 arrangement is still not fully confirmed, so the current model does
-not describe an A520 L2 cache.
+not describe an A520 L2 cache. The shared L3 is assigned PPTT Cache ID `1` so
+other ACPI tables and Linux cache-topology code can refer to the same physical
+cache consistently.
+
+### DSU Cache Allocation Description (MPAM)
+
+With `ENABLE_FIRMWARE_FIXES=true`, firmware publishes an MPAM table for the
+live-identified DSU-120 cache-allocation controller at `0x0f010000`. The table
+links the controller to PPTT Cache ID `1`, describes its `64 KiB` MMIO window,
+and deliberately omits the optional error interrupt until that path has been
+qualified.
+
+The table is inert on kernels without Arm MPAM support. On a suitably enabled
+Linux 7.1 kernel, it is expected to expose six two-way allocation portions of
+the shared `12 MiB` cache through resctrl. The table does not claim cache
+monitoring, CI-700 partitioning, device-DMA partitioning, or proportional
+bandwidth control. Allocation remains an opt-in feature whose functional
+behavior must be validated on target hardware before production use.
 
 ### eDP Panel Property Cleanup
 

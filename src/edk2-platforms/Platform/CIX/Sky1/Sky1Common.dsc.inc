@@ -232,8 +232,6 @@
 !endif
   EdkiiSystemCapsuleLib|Platform/CIX/Sky1/Library/EdkiiSystemCapsuleLib/EdkiiSystemCapsuleLib.inf
   FmpAuthenticationLib|SecurityPkg/Library/FmpAuthenticationLibPkcs7/FmpAuthenticationLibPkcs7.inf
-  IniParsingLib|SignedCapsulePkg/Library/IniParsingLib/IniParsingLib.inf
-  PlatformFlashAccessLib|SignedCapsulePkg/Library/PlatformFlashAccessLibNull/PlatformFlashAccessLibNull.inf
 #  PlatformFlashAccessLib|Platform/RaspberryPi/Library/PlatformFlashAccessLib/PlatformFlashAccessLib.inf
   DisplayUpdateProgressLib|MdeModulePkg/Library/DisplayUpdateProgressLibGraphics/DisplayUpdateProgressLibGraphics.inf
 !endif
@@ -797,6 +795,9 @@
   MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
   MdeModulePkg/Universal/Acpi/AcpiPlatformDxe/AcpiPlatformDxe.inf
   Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables.inf
+!if $(ENABLE_FIRMWARE_FIXES) == TRUE
+  Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiMpamTables.inf
+!endif
   Platform/CIX/Sky1/Drivers/AcpiSocDxe/AcpiSocDxe.inf
 
   DynamicTablesPkg/Drivers/DynamicTableFactoryDxe/DynamicTableFactoryDxe.inf {
@@ -863,7 +864,7 @@
 
 !if $(SOC_USB_DEVICE_ENABLE) == TRUE
   Platform/CIX/Sky1/Drivers/UsbDeviceControlDxe/UsbDeviceControlDxe.inf
-  Platform/CIX/Sky1/Application/Fastboot/Fastboot.inf 
+  Platform/CIX/Sky1/Application/Fastboot/Fastboot.inf
   !if $(SOC_CDNSP_ENABLE) == TRUE
     Silicon/CIX/Sky1/Drivers/CdnspDxe/CdnspDxe.inf
   !endif
@@ -1011,9 +1012,9 @@ ShellPkg/DynamicCommand/HttpDynamicCommand/HttpDynamicCommand.inf {
   MdeModulePkg/Application/VariableInfo/VariableInfo.inf
 !endif
 !if $(COMPILE_SYSTEM_LOADER) == android
-  Platform/CIX/Sky1/Application/LinuxLoader/LinuxLoader.inf 
-  Platform/CIX/Sky1/Application/ABSelect/ABSelect.inf 
-  Platform/CIX/Sky1/Drivers/AndroidConfigDxe/AndroidConfigDxe.inf 
+  Platform/CIX/Sky1/Application/LinuxLoader/LinuxLoader.inf
+  Platform/CIX/Sky1/Application/ABSelect/ABSelect.inf
+  Platform/CIX/Sky1/Drivers/AndroidConfigDxe/AndroidConfigDxe.inf
 !endif
 
 !if $(PD_FW_UPDATE_ENABLE) == TRUE

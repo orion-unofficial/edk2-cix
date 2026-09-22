@@ -23,12 +23,13 @@ from typing import Iterable
 SCRIPT_PATH = pathlib.Path(__file__).resolve()
 SRC_DIR = SCRIPT_PATH.parent.parent
 REPO_ROOT = SRC_DIR.parent
+BUILD_METADATA_SCRIPT = SRC_DIR / "scripts" / "resolve_build_metadata.sh"
 PACKAGE_TOOL_DIR = SRC_DIR / "edk2-non-osi" / "Platform" / "CIX" / "Sky1" / "PackageTool"
 FIPTOOL_SOURCE_DIR = SRC_DIR / "tools" / "arm-trusted-firmware-fiptool"
 FLASH_CONFIG_ALL = PACKAGE_TOOL_DIR / "spi_flash_config_all.json"
 PACKAGE_TOOL_SOURCE = SRC_DIR / "tools" / "cix_package_tool" / "cix_package_tool.py"
 DEFAULT_TMP_ROOT = pathlib.Path(
-    os.environ.get("EDK2_CIX_HOST_TMPDIR", REPO_ROOT / ".buildbox" / "replay-extract")
+    os.environ.get("EDK2_CIX_HOST_TMPDIR", tempfile.gettempdir())
 ).resolve()
 DEFAULT_CONTAINER_TMPDIR = pathlib.PurePosixPath(
     os.environ.get("EDK2_CIX_CONTAINER_TMPDIR", "/hosttmp")
@@ -56,6 +57,20 @@ BOARD_CONFIG = {
         "product": "orion-o6n",
         "pm_config_dir": SRC_DIR / "edk2-platforms" / "Platform" / "Radxa" / "Orion" / "O6N" / "pm_config",
     },
+}
+
+COMMIT_DEFINE_TO_ENV = {
+    "COMMIT_HASH": "SOURCE_COMMIT",
+    "EDK2_COMMIT_HASH": "EDK2_SOURCE_COMMIT",
+    "EDK2_NON_OSI_COMMIT_HASH": "EDK2_NON_OSI_SOURCE_COMMIT",
+    "EDK2_PLATFORMS_COMMIT_HASH": "EDK2_PLATFORMS_SOURCE_COMMIT",
+}
+
+COMMIT_DEFINE_TO_HISTORY_COMMAND = {
+    "COMMIT_HASH": ("source-commit",),
+    "EDK2_COMMIT_HASH": ("component-commit", "edk2"),
+    "EDK2_NON_OSI_COMMIT_HASH": ("component-commit", "edk2-non-osi"),
+    "EDK2_PLATFORMS_COMMIT_HASH": ("component-commit", "edk2-platforms"),
 }
 
 
@@ -118,6 +133,22 @@ def require_file(path: pathlib.Path) -> pathlib.Path:
 def ensure_clean_dir(path: pathlib.Path) -> pathlib.Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def resolve_history_commit(*command: str) -> str:
+    result = subprocess.run(
+        [str(BUILD_METADATA_SCRIPT), *command],
+        cwd=SRC_DIR,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    value = result.stdout.strip()
+    if not value:
+        raise RuntimeError(
+            f"{BUILD_METADATA_SCRIPT.name} {' '.join(command)} returned no commit"
+        )
+    return value
 
 
 def sha256(path: pathlib.Path) -> str:
@@ -314,24 +345,6 @@ def copy_reference_files(
     return reference_dir
 
 
-def collect_release_payload_files(release_dir: pathlib.Path) -> dict[str, pathlib.Path]:
-    return {
-        relative_name: release_dir / relative_name
-        for relative_name in (
-            "cix_flash_all.bin",
-            "cix_flash_ota.bin",
-            "BuildOptions",
-            "BurnImage.efi",
-            "EnrollFromDefaultKeysApp.efi",
-            "FlashUpdate.efi",
-            "Shell.efi",
-            "VariableInfo.efi",
-            "startup.nsh",
-        )
-        if (release_dir / relative_name).is_file()
-    }
-
-
 def write_env_file(env_path: pathlib.Path, env_values: dict[str, str]) -> None:
     lines = [f"{key}={value}" for key, value in env_values.items()]
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -344,6 +357,7 @@ def write_rebuild_wrapper(
 ) -> None:
     quoted_targets = " ".join(shlex.quote(target) for target in build_targets)
     make_vars = [
+        f"FIRMWARE_BOARD={shlex.quote(env_values['FIRMWARE_BOARD'])}",
         f"BUILD_DATE={shlex.quote(env_values['BUILD_DATE'])}",
         "ARTEFACT_MODE=upstream",
         f"SOURCE_DATE_EPOCH={shlex.quote(env_values['SOURCE_DATE_EPOCH'])}",
@@ -351,10 +365,14 @@ def write_rebuild_wrapper(
         f"SIGNING_CERT_SOURCE_DIR={shlex.quote(env_values['SIGNING_CERT_SOURCE_DIR'])}",
     ]
     for key in (
-        "SOURCE_COMMIT_HASH",
-        "EDK2_COMMIT_HASH",
-        "EDK2_NON_OSI_COMMIT_HASH",
-        "EDK2_PLATFORMS_COMMIT_HASH",
+        "SOURCE_COMMIT",
+        "SOURCE_COMMIT_HASH_LENGTH",
+        "EDK2_SOURCE_COMMIT",
+        "EDK2_COMMIT_HASH_LENGTH",
+        "EDK2_NON_OSI_SOURCE_COMMIT",
+        "EDK2_NON_OSI_COMMIT_HASH_LENGTH",
+        "EDK2_PLATFORMS_SOURCE_COMMIT",
+        "EDK2_PLATFORMS_COMMIT_HASH_LENGTH",
     ):
         if key in env_values:
             make_vars.append(f"{key}={shlex.quote(env_values[key])}")
@@ -380,6 +398,7 @@ def write_docker_rebuild_wrapper(
     cert_dir_hosttmp = to_container_tmp_path(cert_dir, host_tmp_root, container_tmp_root)
     quoted_targets = " ".join(shlex.quote(target) for target in build_targets)
     make_vars = [
+        f"FIRMWARE_BOARD={shlex.quote(env_values['FIRMWARE_BOARD'])}",
         f"BUILD_DATE={shlex.quote(env_values['BUILD_DATE'])}",
         "ARTEFACT_MODE=upstream",
         f"SOURCE_DATE_EPOCH={shlex.quote(env_values['SOURCE_DATE_EPOCH'])}",
@@ -387,10 +406,14 @@ def write_docker_rebuild_wrapper(
         f"SIGNING_CERT_SOURCE_DIR={shlex.quote(cert_dir_hosttmp)}",
     ]
     for key in (
-        "SOURCE_COMMIT_HASH",
-        "EDK2_COMMIT_HASH",
-        "EDK2_NON_OSI_COMMIT_HASH",
-        "EDK2_PLATFORMS_COMMIT_HASH",
+        "SOURCE_COMMIT",
+        "SOURCE_COMMIT_HASH_LENGTH",
+        "EDK2_SOURCE_COMMIT",
+        "EDK2_COMMIT_HASH_LENGTH",
+        "EDK2_NON_OSI_SOURCE_COMMIT",
+        "EDK2_NON_OSI_COMMIT_HASH_LENGTH",
+        "EDK2_PLATFORMS_SOURCE_COMMIT",
+        "EDK2_PLATFORMS_COMMIT_HASH_LENGTH",
     ):
         if key in env_values:
             make_vars.append(f"{key}={shlex.quote(env_values[key])}")
@@ -450,15 +473,12 @@ def main() -> int:
     input_kind = detect_input_kind(input_path)
     board_config = BOARD_CONFIG[args.board]
 
-    if args.output_dir:
-        output_dir = pathlib.Path(args.output_dir).resolve()
-    else:
-        ensure_clean_dir(DEFAULT_TMP_ROOT)
-        output_dir = pathlib.Path(
-            tempfile.mkdtemp(prefix="o6-replay-", dir=str(DEFAULT_TMP_ROOT))
-        )
+    output_dir = (
+        pathlib.Path(args.output_dir).resolve()
+        if args.output_dir
+        else pathlib.Path(tempfile.mkdtemp(prefix="o6-replay-", dir=str(DEFAULT_TMP_ROOT)))
+    )
     ensure_clean_dir(output_dir)
-    ensure_clean_dir(DEFAULT_TMP_ROOT)
 
     work_dir_obj: tempfile.TemporaryDirectory[str] | None = None
     if args.keep_workdir:
@@ -477,16 +497,6 @@ def main() -> int:
         reference_files["cix_flash_all.bin"] = require_file(release_dir / "cix_flash_all.bin")
         reference_files["cix_flash_ota.bin"] = require_file(release_dir / "cix_flash_ota.bin")
         reference_files["BuildOptions"] = require_file(release_dir / "BuildOptions")
-        for name in (
-            "BurnImage.efi",
-            "EnrollFromDefaultKeysApp.efi",
-            "FlashUpdate.efi",
-            "Shell.efi",
-            "VariableInfo.efi",
-        ):
-            candidate = release_dir / name
-            if candidate.is_file():
-                reference_files[f"AARCH64/{name}"] = candidate
         pm_config_path = release_dir / "Firmwares" / "csu_pm_config.bin"
         if pm_config_path.is_file():
             reference_files["Firmwares/csu_pm_config.bin"] = pm_config_path
@@ -508,13 +518,6 @@ def main() -> int:
             reference_files["BuildOptions"] = pathlib.Path(args.build_options).resolve()
             build_defines = parse_build_options(reference_files["BuildOptions"])
 
-    if input_kind in {"deb", "dir"}:
-        release_payload_dir = release_dir if input_kind == "deb" else input_path
-        published_payload_files = collect_release_payload_files(release_payload_dir)
-        reference_files.update(published_payload_files)
-        for relative_name in published_payload_files:
-            reference_files.pop(f"AARCH64/{relative_name}", None)
-
     build_date = build_defines.get("BUILD_DATE")
     if build_date is None and args.build_date:
         build_date = args.build_date
@@ -525,32 +528,34 @@ def main() -> int:
     pm_config_source_date_epoch, flash_dir = extract_flash_details(
         reference_files["cix_flash_all.bin"], work_dir, board_config["pm_config_dir"]
     )
-    extracted_pm_config = flash_dir / "unpack" / "csu_pm_config.bin"
+    extracted_pm_config = flash_dir / "csu_pm_config.bin"
     if extracted_pm_config.is_file():
         reference_files.setdefault("Firmwares/csu_pm_config.bin", extracted_pm_config)
-    reference_files["FV/SKY1_BL33_UEFI.fd"] = require_file(flash_dir / "nt-fw.bin")
     cert_dir = copy_cert_bundle(flash_dir, output_dir)
     reference_dir = copy_reference_files(reference_files, output_dir)
 
     env_values = {
         "ARTEFACT_MODE": "upstream",
+        "FIRMWARE_BOARD": args.board,
         "SOURCE_DATE_EPOCH": str(source_date_epoch),
         "PM_CONFIG_SOURCE_DATE_EPOCH": str(pm_config_source_date_epoch),
         "SIGNING_CERT_SOURCE_DIR": str(cert_dir),
     }
     if build_date is not None:
         env_values["BUILD_DATE"] = build_date
-    for key in (
-        "COMMIT_HASH",
-        "EDK2_COMMIT_HASH",
-        "EDK2_NON_OSI_COMMIT_HASH",
-        "EDK2_PLATFORMS_COMMIT_HASH",
-    ):
+    for key, env_key in COMMIT_DEFINE_TO_ENV.items():
         value = build_defines.get(key)
-        if not value:
+        try:
+            env_values[env_key] = resolve_history_commit(*COMMIT_DEFINE_TO_HISTORY_COMMAND[key])
+        except (subprocess.CalledProcessError, RuntimeError):
             continue
-        env_key = "SOURCE_COMMIT_HASH" if key == "COMMIT_HASH" else key
-        env_values[env_key] = value
+        if value:
+            if env_key == "SOURCE_COMMIT":
+                env_values["SOURCE_COMMIT_HASH_LENGTH"] = str(len(value))
+            else:
+                env_values[env_key.replace("_SOURCE_COMMIT", "_COMMIT_HASH_LENGTH")] = str(
+                    len(value)
+                )
 
     env_path = output_dir / "replay.env"
     write_env_file(env_path, env_values)
@@ -582,7 +587,14 @@ def main() -> int:
         "input_path": str(input_path),
         "output_dir": str(output_dir),
         "build_date": build_date,
-        "source_commit": build_defines.get("COMMIT_HASH"),
+        "source_commit": env_values.get("SOURCE_COMMIT"),
+        "source_commit_hash_length": env_values.get("SOURCE_COMMIT_HASH_LENGTH"),
+        "edk2_source_commit": env_values.get("EDK2_SOURCE_COMMIT"),
+        "edk2_commit_hash_length": env_values.get("EDK2_COMMIT_HASH_LENGTH"),
+        "edk2_non_osi_source_commit": env_values.get("EDK2_NON_OSI_SOURCE_COMMIT"),
+        "edk2_non_osi_commit_hash_length": env_values.get("EDK2_NON_OSI_COMMIT_HASH_LENGTH"),
+        "edk2_platforms_source_commit": env_values.get("EDK2_PLATFORMS_SOURCE_COMMIT"),
+        "edk2_platforms_commit_hash_length": env_values.get("EDK2_PLATFORMS_COMMIT_HASH_LENGTH"),
         "compile_build_date": compile_date,
         "compile_build_time": compile_time,
         "source_date_epoch": source_date_epoch,
@@ -617,8 +629,8 @@ def main() -> int:
         print(f"Host rebuild wrapper: {wrapper_path}")
         if docker_wrapper_path is not None:
             print(f"Container rebuild wrapper: {docker_wrapper_path}")
-    if build_defines.get("COMMIT_HASH"):
-        print(f"Upstream source commit: {build_defines['COMMIT_HASH']}")
+    if "SOURCE_COMMIT" in env_values:
+        print(f"Upstream source commit: {env_values['SOURCE_COMMIT']}")
     print(f"Compiler timestamp recovered from flash image: {compile_date} {compile_time}")
 
     if args.run_build:

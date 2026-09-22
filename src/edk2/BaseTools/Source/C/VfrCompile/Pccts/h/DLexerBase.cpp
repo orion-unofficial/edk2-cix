@@ -83,7 +83,7 @@ DLGLexerBase(DLGInputStream *in,
     this->lexErrCount=0;                        // MR11
 }
 
-// MR19  THM
+// MR19  THM 
 
 void DLGLexerBase::reset()
 {
@@ -193,7 +193,7 @@ replchar(DLGChar c)
 void DLGLexerBase::
 replstr(const DLGChar *s) /* MR20 const */
 {
-	DLGChar *l= &_lextext[_bufsize -1];
+	register DLGChar *l= &_lextext[_bufsize -1];
 
 	nextpos = _begexpr;
 	if (s){

@@ -6,6 +6,8 @@
 
 **/
 
+#include <Protocol/sky1-audss.h>
+
 Device (DMA0) {
   Name (_HID, "CIXHA014")
   Name (_UID, 0x0)

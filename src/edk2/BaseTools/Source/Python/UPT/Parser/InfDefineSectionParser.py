@@ -40,7 +40,7 @@ def GetValidateArchList(LineContent):
 
         TempArch = GetSplitValueList(TempArch, '(', 1)[0]
 
-        ArchList = re.split(r'\s+', TempArch)
+        ArchList = re.split('\s+', TempArch)
         NewArchList = []
         for Arch in ArchList:
             if IsValidArch(Arch):

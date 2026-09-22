@@ -41,20 +41,6 @@ ifndef HOST_ARCH
   $(info Detected HOST_ARCH of $(HOST_ARCH) using uname.)
 endif
 
-V ?= 0
-
-ifeq ($(V),1)
-Q :=
-define PRINT_STATUS
-@:
-endef
-else
-Q := @
-define PRINT_STATUS
-@printf '  %-7s %s\n' '$(1)' '$(2)'
-endef
-endif
-
 CYGWIN:=$(findstring CYGWIN, $(shell uname -s))
 LINUX:=$(findstring Linux, $(shell uname -s))
 DARWIN:=$(findstring Darwin, $(shell uname -s))
@@ -151,9 +137,7 @@ BUILD_LFLAGS += $(EXTRA_LDFLAGS)
 all:
 
 $(MAKEROOT)/libs:
-	$(call PRINT_STATUS,MKDIR,$@)
-	$(Q)mkdir -p $(MAKEROOT)/libs
+	mkdir $(MAKEROOT)/libs
 
 $(MAKEROOT)/bin:
-	$(call PRINT_STATUS,MKDIR,$@)
-	$(Q)mkdir -p $(MAKEROOT)/bin
+	mkdir $(MAKEROOT)/bin

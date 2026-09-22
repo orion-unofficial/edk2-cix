@@ -15,9 +15,10 @@ This is the highest-level build-mode switch.
 
 - `ARTEFACT_MODE=upstream`
   - keep the upstream vendor build path
-  - this is the right choice for qualification, comparison against a
-    published vendor release, or byte-identical replay with the published
-    replay inputs
+  - this is the right choice for closest-to-upstream diagnostics on
+    `source/unofficial/<line>/current`
+  - byte-identical replay of the published 202208-based vendor releases belongs
+    on `source/unofficial/edk2-stable202208`, not on the rebased EDK2 branch
   - custom-only feature switches are rejected in this mode
 - `ARTEFACT_MODE=custom`
   - keep the same overall build flow, but allow the local overlays, source
@@ -28,9 +29,9 @@ This is the highest-level build-mode switch.
 Default: `custom`
 
 `ARTEFACT_MODE=upstream` is the mode that follows the upstream vendor build
-path. When you also provide the extracted certs, timestamps, and other replay
-inputs described in [`build.md`](build.md), this repo can use that mode to
-rebuild the published vendor images byte-for-byte.
+path. On `source/unofficial/<line>/current`, this path uses the rebased upstream EDK2
+implementation, so it deliberately does not claim byte-for-byte equivalence
+with the older published vendor images.
 
 ### `FIRMWARE_BOARD=O6|O6N`
 
@@ -67,19 +68,22 @@ Default: `RELEASE`
 ### `FIRMWARE_DISTRO=bookworm|trixie`
 
 Select the default distro family used by the buildbox helpers and
-deterministic replay wrappers.
+buildbox helpers. This is an advanced override; it is intentionally not shown in
+the short `make help-vars` output on `source/unofficial/<line>/current`.
 
 - `bookworm`
-  - the default for `ARTEFACT_MODE=upstream`
-  - also the default for deterministic replay when you do not override it
+  - still supported for compatibility checks
+  - emits a warning in buildbox preflight because it is no longer the branch
+    default
 - `trixie`
-  - the default for `ARTEFACT_MODE=custom`
-  - the newer Debian/toolchain family for local feature work
+  - the default for all `source/unofficial/<line>/current` buildbox firmware builds,
+    including `ARTEFACT_MODE=upstream`
+  - the preferred Debian/toolchain family for the rebased EDK2 implementation
 
 This does not change the firmware feature set directly. It changes the build
 environment used by the wrapper targets.
 
-Default: `bookworm` for upstream and deterministic replay; `trixie` for custom
+Default: `trixie`
 
 ## Build Cache Variables
 
@@ -149,9 +153,34 @@ This setting is only valid with:
 It can coexist with:
 
 - `ENABLE_FIRMWARE_FIXES=true`
+- `ENABLE_TF_A_FIXES=true`
 - `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true`
 
 Default: unset
+
+### `ENABLE_TF_A_FIXES=true|false`
+
+Set this with `CIX_RELEASE=v1.2` on the custom build path to compile custom
+fixes into the source-built TF-A BL31 image. The current fix suppresses the
+noisy TF-A mailbox `NOTICE` emitted for `FFA_GET_FUSE_BY_ID` commands while
+leaving notices for other mailbox commands intact.
+
+Example:
+
+```bash
+make buildbox-firmware-build \
+  ARTEFACT_MODE=custom \
+  FIRMWARE_BOARD=O6 \
+  CIX_RELEASE=v1.2 \
+  ENABLE_TF_A_FIXES=true
+```
+
+This setting is only valid with `ARTEFACT_MODE=custom`. If you set
+`ENABLE_TF_A_FIXES=true` without `CIX_RELEASE=v1.2`, the build emits a
+non-fatal warning and the setting has no effect because TF-A is not
+source-built in that configuration.
+
+Default: `false`
 
 ## Opt-In Firmware Behavior Changes
 
@@ -176,9 +205,11 @@ ways. This is not just a cosmetic tweak. The current scope includes:
 
 - ACPI and reserved-memory fixes
 - PCIe `_OSC` cleanup
+- PCIe resource-window and ECAM-reservation repairs
 - the PCIe device-model selector
 - the USB device-model selector
 - GPU cache-coherency metadata correction
+- thermal-zone metadata and EC critical-trip repairs
 - visible MTE capacity warnings
 - DSU PMU exposure
 - SMBIOS and PPTT improvements
@@ -410,6 +441,8 @@ The most important compatibility rules are:
 - `ENABLE_CORE_ORDER=...` requires `ENABLE_FIRMWARE_FIXES=true`
 - `DEBUG_ON_UART3=true` implies `UART3_ENABLE=true`
 - `CIX_RELEASE=v1.2` is custom-only and board-limited to `O6` / `O6N`
+- `ENABLE_TF_A_FIXES=true` is custom-only and only affects builds that also
+  set `CIX_RELEASE=v1.2`
 - the `O6_SMBIOS_*` asset-tag variables are custom-only and board-limited to
   `O6`
 - `ENABLE_FIRMWARE_FIXES=true` and
@@ -417,7 +450,7 @@ The most important compatibility rules are:
 
 ## Common Recipes
 
-### Closest-to-upstream replay build
+### Closest-to-upstream build
 
 ```bash
 make buildbox-firmware-build \

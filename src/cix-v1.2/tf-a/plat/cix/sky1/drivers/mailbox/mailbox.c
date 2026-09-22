@@ -161,7 +161,10 @@ int mbox_send_cmd_sync(enum mbox_cmd cmd_id, void *para, uint32_t para_size, str
 	int ret;
 	int i;
 
-	NOTICE("Send CMD: 0x%x\n", cmd_id);
+#if ENABLE_TF_A_FIXES
+	if (cmd_id != FFA_GET_FUSE_BY_ID)
+#endif
+		NOTICE("Send CMD: 0x%x\n", cmd_id);
 
 	if (!mbox_ctx->is_initialized)
 		return -1;

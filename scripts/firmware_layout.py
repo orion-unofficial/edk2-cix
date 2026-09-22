@@ -89,6 +89,7 @@ class FirmwareLayout:
     enable_firmware_fixes: bool = False
     enable_core_order: str = ""
     cix_release: str = ""
+    enable_tf_a_fixes: bool = False
     enable_experimental_uefi_settings: bool = False
     debug_on_uart3: bool = False
     uart3_enable: bool = False
@@ -115,6 +116,7 @@ class FirmwareLayout:
                     self.enable_firmware_fixes,
                     bool(enable_core_order),
                     bool(cix_release),
+                    self.enable_tf_a_fixes,
                     self.enable_experimental_uefi_settings,
                     self.debug_on_uart3,
                     self.uart3_enable,
@@ -149,6 +151,8 @@ class FirmwareLayout:
         parts = ["custom"]
         if self.cix_release:
             parts.append("cix")
+            if self.enable_tf_a_fixes:
+                parts.append("tf_a_fixes")
         if self.firmware_target == "DEBUG":
             parts.append("debug")
         if self.enable_firmware_fixes:
@@ -177,6 +181,8 @@ class FirmwareLayout:
             tokens.append("custom")
         if self.cix_release:
             tokens.append("cix")
+            if self.enable_tf_a_fixes:
+                tokens.append("tf_a_fixes")
         if self.firmware_target == "DEBUG":
             tokens.append("debug")
         if self.enable_firmware_fixes:
@@ -202,6 +208,8 @@ class FirmwareLayout:
         tokens: list[str] = []
         if self.cix_release:
             tokens.append("cix")
+            if self.enable_tf_a_fixes:
+                tokens.append("tf_a_fixes")
         if self.enable_firmware_fixes:
             tokens.append("fixes")
             if self.effective_core_order == "conventional":
@@ -246,6 +254,7 @@ def archive_root_path(product: str, version: str, layout: FirmwareLayout) -> Pat
 def _shorten_token(token: str, phase: int) -> str:
     phase_one = {
         "cix": "cix",
+        "tf_a_fixes": "tfa_fixes",
         "uart3_debug": "u3_dbg",
         "uart3": "u3",
         "verbose": "verb",
@@ -257,6 +266,7 @@ def _shorten_token(token: str, phase: int) -> str:
     }
     phase_two = {
         "cix": "cix",
+        "tf_a_fixes": "tfaf",
         "uart3_debug": "u3d",
         "uart3": "u3",
         "verbose": "v",
@@ -347,8 +357,10 @@ def validate_debian_version(repo_root: Path) -> tuple[str, str]:
 
 def _iter_custom_target_variants(target: str) -> list[FirmwareLayout]:
     generated: list[FirmwareLayout] = []
-    # Only vendor-signed trusted firmware qualifies for distribution.
-    cix_releases = ("",)
+    # Only vendor-signed trusted payloads are qualified for locked boards.
+    # Curated TF-A/OP-TEE source compilation is checked separately; its OEM
+    # development signatures cannot authorise a distributable flash image.
+    cix_release_options = (("", False),)
     presets = [
         {},
         {"enable_firmware_fixes": True},
@@ -364,12 +376,13 @@ def _iter_custom_target_variants(target: str) -> list[FirmwareLayout]:
     # Keep broad compile invalidators ahead of the UART/debug leaves, then flip
     # the narrower curated-CIX path inside each preset bucket.
     for preset in presets:
-        for cix_release in cix_releases:
+        for cix_release, enable_tf_a_fixes in cix_release_options:
             generated.append(
                 FirmwareLayout(
                     artefact_mode="custom",
                     firmware_target=target,
                     cix_release=cix_release,
+                    enable_tf_a_fixes=enable_tf_a_fixes,
                     **preset,
                 )
             )
@@ -390,6 +403,7 @@ def parse_layout_args(args: argparse.Namespace) -> FirmwareLayout:
         enable_firmware_fixes=_parse_bool(getattr(args, "enable_firmware_fixes", None)),
         enable_core_order=getattr(args, "enable_core_order", ""),
         cix_release=getattr(args, "cix_release", ""),
+        enable_tf_a_fixes=_parse_bool(getattr(args, "enable_tf_a_fixes", None)),
         enable_experimental_uefi_settings=_parse_bool(
             getattr(args, "enable_experimental_uefi_settings", None)
         ),
@@ -406,6 +420,7 @@ def add_layout_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--enable-firmware-fixes")
     parser.add_argument("--enable-core-order")
     parser.add_argument("--cix-release")
+    parser.add_argument("--enable-tf-a-fixes")
     parser.add_argument("--enable-experimental-uefi-settings")
     parser.add_argument("--debug-on-uart3")
     parser.add_argument("--uart3-enable")

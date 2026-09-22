@@ -402,7 +402,11 @@
 
   gCixPlatformTokenSpaceGuid.PcdEcAcpiI2cEn|TRUE
   gCixPlatformTokenSpaceGuid.PcdAcpiGpio0IoMask|0x20000000 # vbus for usb port6-7
+!if $(ENABLE_FIRMWARE_FIXES) == TRUE
+  gCixPlatformTokenSpaceGuid.PcdAcpiGpio3IoMask|0x00018020 # HDA pdb0 and pwm/edp enable outputs
+!else
   gCixPlatformTokenSpaceGuid.PcdAcpiGpio3IoMask|0x00018000 # pwm/edp en pin output
+!endif
 
 # Platform specific defaults
   # Set SMBIOS product name

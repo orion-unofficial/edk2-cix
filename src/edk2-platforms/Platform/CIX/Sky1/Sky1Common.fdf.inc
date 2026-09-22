@@ -263,6 +263,9 @@
 !if $(ACPI_ENABLE) == TRUE
   INF MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
   INF RuleOverride = ACPITABLE Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiSocTables.inf
+!if $(ENABLE_FIRMWARE_FIXES) == TRUE
+  INF RuleOverride = ACPITABLE Platform/CIX/Sky1/Drivers/AcpiSocTables/AcpiMpamTables.inf
+!endif
   INF Platform/CIX/Sky1/Drivers/AcpiSocDxe/AcpiSocDxe.inf
 
   INF Platform/CIX/Sky1/Drivers/ConfigurationManagerDxe/ConfigurationManagerDxe.inf

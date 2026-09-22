@@ -40,4 +40,20 @@
 #endif
 
   endform;
+
+#ifdef ENABLE_FIRMWARE_FIXES
+  form formid = EXPERIMENTAL_ACPI_CONTROL_FORM_ID,
+    title  = STRING_TOKEN(STR_EXPERIMENTAL_ACPI_FORM_TITLE);
+    subtitle text = STRING_TOKEN(STR_EMPTY_STRING);
+
+    oneof varid   = RadxaSetupVar.ThermalPowerModel,
+      prompt      = STRING_TOKEN(STR_EXPERIMENTAL_THERMAL_POWER_MODEL_PROMPT),
+      help        = STRING_TOKEN(STR_EXPERIMENTAL_THERMAL_POWER_MODEL_HELP),
+      default     = 0,
+      option text = STRING_TOKEN(STR_EXPERIMENTAL_THERMAL_POWER_MODEL_VENDOR_ACPI), value = 0, flags = RESET_REQUIRED;
+      option text = STRING_TOKEN(STR_EXPERIMENTAL_THERMAL_POWER_MODEL_DTB),         value = 1, flags = RESET_REQUIRED;
+    endoneof;
+
+  endform;
+#endif
 #endif

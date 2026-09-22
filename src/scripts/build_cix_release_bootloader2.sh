@@ -16,6 +16,7 @@ Optional:
   --cross-compile <pref>  AArch64 cross compiler prefix
   --jobs <n>              Parallel make jobs (default: 1)
   --mode <release|debug>  Build mode for TF-A (default: release)
+  --enable-tf-a-fixes     Build BL31 with custom TF-A fixes enabled
   --cache-root <path>     Persistent cache root for cert_create, BL31, and tee-raw.bin
   --verbose               Stream tool output directly
 EOF
@@ -58,6 +59,7 @@ OUTPUT=
 CROSS_COMPILE=
 JOBS=1
 MODE=release
+ENABLE_TF_A_FIXES=0
 VERBOSE=0
 CACHE_ROOT=
 
@@ -106,6 +108,10 @@ while [[ $# -gt 0 ]]; do
 		--cache-root)
 			CACHE_ROOT="$2"
 			shift 2
+			;;
+		--enable-tf-a-fixes)
+			ENABLE_TF_A_FIXES=1
+			shift
 			;;
 		--verbose)
 			VERBOSE=1
@@ -207,6 +213,9 @@ load_cache_plan() {
 		--host-compiler "$HOST_CC"
 		--shell
 	)
+	if [[ "$ENABLE_TF_A_FIXES" == "1" ]]; then
+		cache_cmd+=(--enable-tf-a-fixes)
+	fi
 	if [[ -f "$STMM_PATH" ]]; then
 		cache_cmd+=(--stmm-path "$STMM_PATH")
 	fi
@@ -252,6 +261,7 @@ ensure_bl31() {
 			SMP=1 \
 			TRUSTED_BOARD_BOOT=1 \
 			ENABLE_FEAT_HCX=1 \
+			ENABLE_TF_A_FIXES="$ENABLE_TF_A_FIXES" \
 			ARM_ROTPK_LOCATION=devel_rsa \
 			ROT_KEY=plat/arm/board/common/rotpk/arm_rotprivk_rsa.pem \
 			bl31

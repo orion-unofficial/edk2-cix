@@ -1,6 +1,6 @@
 # edk2-cix
 
-[![Release](https://github.com/radxa-pkg/edk2-cix/actions/workflows/release.yaml/badge.svg)](https://github.com/radxa-pkg/edk2-cix/actions/workflows/release.yaml)
+[![Release](https://github.com/orion-unofficial/edk2-cix/actions/workflows/release.yaml/badge.svg)](https://github.com/orion-unofficial/edk2-cix/actions/workflows/release.yaml)
 
 This repo is a fork of the upstream Radxa Orion O6/O6N firmware tree. That
 Radxa tree is itself built on CIX-published forks and payloads around
@@ -11,7 +11,8 @@ available, with a cleaner and more flexible build system; and let you build
 custom firmware with targeted improvements that are intentionally kept off that
 upstream vendor path.
 
-Key custom additions on `source/unofficial/edk2-stable202208` include:
+Key custom additions on the maintained `source/unofficial/<line>/current`
+branches include:
 
 - source-built replacements for several vendor helper binaries
 - reproducible replay and validation tooling around the published O6/O6N
@@ -24,15 +25,35 @@ Key custom additions on `source/unofficial/edk2-stable202208` include:
 
 ## Build
 
-1. `git clone -b source/unofficial/edk2-stable202208 https://github.com/radxa-pkg/edk2-cix.git`
-2. Choose one of the supported build paths below
-3. Run the top-level `make` target you need
+1. `git clone -b source/unofficial/1.3/current https://github.com/orion-unofficial/edk2-cix.git`
+2. Use `source/unofficial/1.2/current` instead when you need the maintained
+   `1.2.x` line
+3. Choose one of the supported build paths below
+4. Run the top-level `make` target you need
 
 To see the common end-user targets first, run:
 
 ```bash
 make help
 ```
+
+This is a rendered firmware source branch. Maintainer source-model work, such
+as carrying a maintained line to a newer Radxa firmware or upstream EDK2 stable
+release, is driven from the repository's `build` branch rather than from this
+firmware tree. The build-branch README documents the complete dry-run,
+conflict-resume, qualification, and promotion process:
+
+```bash
+git switch build
+make uplift-radxa-release-help
+make uplift-edk2-release \
+  EDK2_BASE=edk2-stableYYYYMM \
+  FROM_EDK2_BASE=edk2-stableYYYYMM
+```
+
+Run `make source-uplift-help` on this branch for the short pointer, or
+`make uplift-radxa-release-help` or `make uplift-edk2-release-help` on `build`
+for the full set of resume and override variables.
 
 For the build-variable reference, including which switches are custom-only,
 which ones can be combined, and what they change on the board, see
@@ -77,12 +98,12 @@ integration.
 On a supported Debian host:
 
 - `x86_64`: prefer Debian `bookworm`
-- `arm64` / `aarch64` on `source/unofficial/edk2-stable202208`: use Debian `bookworm` by default,
+- `arm64` / `aarch64` on `source/unofficial/<line>/current`: use Debian `bookworm` by default,
   or Debian `trixie` for the newer distro/toolchain family
 
 The untouched upstream repo contents still need Debian `trixie` for native
 `arm64` / `aarch64` builds because they shipped closed-source helper binaries.
-`source/unofficial/edk2-stable202208` replaces those helpers with source implementations, so native
+The Unofficial line branches replace those helpers with source implementations, so native
 `arm64` / `aarch64` builds can now use the same default Debian `bookworm` base
 as `x86_64` builds.
 
@@ -172,7 +193,13 @@ and then run:
 make deb
 ```
 
-`source/unofficial/edk2-stable202208` only supports Linux build hosts now. The old vendor
+For reproducible metadata, rendered release branches use their recorded
+Source-Base trailer as the default source identity. Direct builds from
+`source/unofficial/<line>/current` use the active branch tip unless `UPSTREAM_EDK2_REF`
+is set. You can inspect the resolved values with
+`make -C src print-build-metadata`.
+
+The Unofficial line branches only support Linux build hosts now. The old vendor
 `WinBuildTool` tree and its Windows-only helper makefiles were removed from
 this branch, so the supported local host environments are:
 
@@ -185,7 +212,8 @@ expected package-tool binaries or cross-compiler are missing.
 The short `make help-vars` output is meant to be a quick reminder. For the
 more detailed “what does this actually change?” explanation of variables such
 as `ARTEFACT_MODE`, `ENABLE_FIRMWARE_FIXES`, `ENABLE_EXPERIMENTAL_UEFI_SETTINGS`,
-`ENABLE_CORE_ORDER`, `CIX_RELEASE`, `UART3_ENABLE`, and the `DEBUG_*` switches,
+`ENABLE_CORE_ORDER`, `CIX_RELEASE`, `ENABLE_TF_A_FIXES`, `UART3_ENABLE`, and
+the `DEBUG_*` switches,
 use [`docs/build-variables.md`](docs/build-variables.md).
 
 For the firmware build itself, the repo now defaults the underlying EDK2 build
@@ -199,29 +227,23 @@ To capture a full build transcript plus a warning summary under `build-logs/`,
 use `make buildbox-firmware-log` or wrap any command with
 `./scripts/capture_build_log.sh build-logs <command ...>`.
 
-For reproducible metadata on `source/unofficial/edk2-stable202208`, the build uses the nearest
-mapped upstream `main` commit as its default source identity. In the default
-`ARTEFACT_MODE=custom`, that commit identity also supplies the default
-timestamp used for reproducible metadata. You can inspect the resolved values
-with `make -C src print-build-metadata`.
-
-For exact replay of a published O6 or O6N image, `source/unofficial/edk2-stable202208` can also
-reuse an extracted FIP cert bundle via `SIGNING_CERT_SOURCE_DIR=<path>`. The
-directory may contain either the build-tree filenames `trusted_key_no.crt`,
-`nt_fw_cert.crt`, and `nt_fw_key.crt` or the extracted FIP filenames
-`trusted-key-cert.bin`, `nt-fw-cert.bin`, and `nt-fw-key-cert.bin`.
-
-When `ARTEFACT_MODE=upstream` is combined with
-`SIGNING_CERT_SOURCE_DIR=<path>`, that cert bundle is treated as required
-replay input and the build now fails immediately if the directory is missing
-or does not provide all three cert blobs.
+For exact replay of a published O6 or O6N image,
+`source/unofficial/<line>/current` can also reuse an extracted FIP cert bundle via
+`SIGNING_CERT_SOURCE_DIR=<path>`. The directory may contain either
+the build-tree filenames `trusted_key_no.crt`, `nt_fw_cert.crt`, and
+`nt_fw_key.crt` or the extracted FIP filenames `trusted-key-cert.bin`,
+`nt-fw-cert.bin`, and `nt-fw-key-cert.bin`. When
+`ARTEFACT_MODE=upstream` is combined with
+`SIGNING_CERT_SOURCE_DIR=<path>`, that cert bundle is treated as
+required replay input and the build now fails immediately if the
+directory is missing or does not provide all three cert blobs.
 
 Replay-compatible builds can also override the three historical timestamp
 inputs independently:
 
 - `BUILD_DATE=<iso8601>` for the displayed firmware build timestamp
-- `SOURCE_DATE_EPOCH=<unix-seconds>` for compiler-provided `__DATE__` and
-  `__TIME__` uses
+- `SOURCE_DATE_EPOCH=<unix-seconds>` for compiler-provided `__DATE__`
+  and `__TIME__` uses
 - `PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>` for `csu_pm_config.bin`
 
 When those explicit replay inputs are provided, the build no longer needs a
@@ -236,8 +258,8 @@ generate ready-to-run replay wrappers, use:
 python3 src/scripts/replay_o6_release.py <edk2-cix_*.deb>
 ```
 
-If you only have `cix_flash_all.bin`, pair it with `BuildOptions` when
-available:
+If you only have `cix_flash_all.bin`, pair it with `BuildOptions`
+when available:
 
 ```bash
 python3 src/scripts/replay_o6_release.py \
@@ -248,8 +270,9 @@ python3 src/scripts/replay_o6_release.py \
 The generated `rebuild-o6-docker.sh` wrapper recreates the upstream
 `/workspaces/edk2-cix` path layout so that `ARTEFACT_MODE=upstream` can
 reproduce the vendor release payloads byte-for-byte. By default it writes its
-helper directory under `.buildbox/replay-extract/` in the repository. To stage
-those helper files somewhere else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
+helper directory under the current system temp root and mounts that directory
+into the build container automatically. To stage those helper files somewhere
+else, set `EDK2_CIX_HOST_TMPDIR` and, if needed,
 `EDK2_CIX_CONTAINER_TMPDIR` when running the wrapper.
 
 For the common qualification/replay flow, you can drive the same process from
@@ -263,30 +286,28 @@ make deterministic-replay \
 That target defaults to `FIRMWARE_BOARD=O6` and
 `FIRMWARE_DISTRO=bookworm`, seeds or reuses a cached replay-input directory
 under `.buildbox/replay/<profile>/`, rebuilds in the matching buildbox image,
-and then runs strict validation against the checked-in replay profile. When no
-input or cache is supplied, it uses the recorded timestamps and certificate
-payloads under `validation/replay-inputs/<version>/<board>/`. Strict validation
-includes the source-built BL33, final images, and exported EFI applications; a
-published BL33 is never fed back into packaging to make the comparison pass.
+and then runs strict validation against the checked-in replay profile. When the
+input is the published `1.2.1` release plus its extracted cert bundle, this is
+the qualification path that proves the Bookworm build can still reproduce the
+published payloads byte-for-byte.
 
 You can also switch to `FIRMWARE_DISTRO=trixie` for a same-input Trixie
 replay. In that mode the goal is matching `amd64` and `arm64` outputs
 against the same cert bundle and injected timestamps, not comparison with a
 published upstream release.
 
-If the selected release has checked-in replay inputs, or if you already
-populated `.buildbox/replay/<profile>/`, later runs can omit
-`REPLAY_INPUT=...`. The checked-in bundle is preferred only when no cache is
-present. When the replay input is only `cix_flash_all.bin`, also pass
+If you already populated `.buildbox/replay/<profile>/` once, later reruns can
+omit `REPLAY_INPUT=...` and will reuse the cached `replay.env` plus cert
+bundle. When the replay input is only `cix_flash_all.bin`, also pass
 `REPLAY_BUILD_OPTIONS=/path/to/BuildOptions` when available so the helper can
 recover `BUILD_DATE`.
 
-Without explicit replay inputs, both `ARTEFACT_MODE=custom` and ordinary
-`ARTEFACT_MODE=upstream` builds resolve `SOURCE_COMMIT_HASH`,
-`SOURCE_DATE_EPOCH`, `PM_CONFIG_SOURCE_DATE_EPOCH`, and `BUILD_DATE` from the
-mapped upstream source commit in Git history. On the custom path, that keeps
-the displayed build metadata tied to the upstream tag or commit being built
-rather than the local overlay commit.
+Without explicit replay inputs, ordinary `ARTEFACT_MODE=upstream` builds
+resolve `SOURCE_COMMIT`, the component source commits, `SOURCE_DATE_EPOCH`,
+`PM_CONFIG_SOURCE_DATE_EPOCH`, and `BUILD_DATE` from the mapped upstream
+source commit history. On the custom path, the displayed hashes instead follow
+the last monorepo change across the active source trees while the timestamp
+still tracks the mapped upstream commit.
 
 Despite the retained filename, the local helper scripts prefer a working Docker
 engine first when they can positively distinguish it from Podman. Otherwise
@@ -311,8 +332,8 @@ The preferred distribution for local `x86_64` builds remains Debian
 
 In the original upstream tree, native `arm64` / `aarch64` builds needed the
 `trixie` buildbox because the shipped closed-source helpers were not portable
-enough for the Bookworm arm64 path. On `source/unofficial/edk2-stable202208`, those helpers are now
-reimplemented from source, so both `amd64` and native `arm64` can use
+enough for the Bookworm arm64 path. On the Unofficial line branches, those
+helpers are reimplemented from source, so both `amd64` and native `arm64` can use
 Bookworm for exact replay and Trixie for the default custom build path.
 
 To pick the buildbox distro family explicitly, set either:
@@ -363,8 +384,8 @@ different purposes:
   - same-input Trixie reproducibility profile
   - currently records the checked O6 Trixie baseline under the shared profile
     naming scheme
-  - used to confirm matching `amd64` and `arm64` Trixie builds on
-    `source/unofficial/edk2-stable202208`
+  - used to confirm matching `amd64` and `arm64` Trixie builds on maintained
+    Unofficial line branches
   - not a published upstream-release baseline
 
 Freshly generated certs are compatible but not byte-identical because they
@@ -396,7 +417,8 @@ make validate-firmware \
 
 The same file also carries the `upstream-1.2.1-trixie` reproducibility profile,
 intended for matching amd64 or arm64 Trixie O6 replays on
-`source/unofficial/edk2-stable202208` when they reuse the same cert bundle and replay timestamps:
+`source/unofficial/<line>/current` when they reuse the same cert bundle and
+replay timestamps:
 
 ```bash
 make validate-firmware \

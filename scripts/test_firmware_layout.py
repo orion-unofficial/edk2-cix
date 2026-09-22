@@ -21,6 +21,7 @@ class FirmwareLayoutTests(unittest.TestCase):
             enable_firmware_fixes=True,
             enable_core_order="performance",
             cix_release="1.2",
+            enable_tf_a_fixes=True,
             enable_experimental_uefi_settings=True,
             uart3_enable=True,
             debug_verbose=True,
@@ -28,7 +29,7 @@ class FirmwareLayoutTests(unittest.TestCase):
 
         self.assertEqual(
             layout.leaf_path().as_posix(),
-            "custom/cix/fixes/core_order/performance/experimental/uart3/verbose",
+            "custom/cix/tf_a_fixes/fixes/core_order/performance/experimental/uart3/verbose",
         )
 
     def test_custom_debug_display_version_stays_within_budget(self) -> None:
@@ -38,6 +39,7 @@ class FirmwareLayoutTests(unittest.TestCase):
             enable_firmware_fixes=True,
             enable_core_order="performance",
             cix_release="1.2",
+            enable_tf_a_fixes=True,
             enable_experimental_uefi_settings=True,
             debug_on_uart3=True,
         )
@@ -110,10 +112,13 @@ class FirmwareLayoutTests(unittest.TestCase):
         self.assertIn('-D DEB_VERSION=$(FIRMWARE_VERSION)', src_makefile)
         self.assertIn('-D UEFI_FW_VERSION=$(UEFI_FW_VERSION)', src_makefile)
         self.assertIn('--cix-release "$(CIX_RELEASE_NORMALIZED)"', src_makefile)
+        self.assertIn('--enable-tf-a-fixes TRUE', src_makefile)
         self.assertIn(".edk2-cix-build-config", src_makefile)
         self.assertIn('--cix-release "$(CIX_RELEASE_NORMALIZED)"', wrapper_makefile)
+        self.assertIn('--enable-tf-a-fixes TRUE', wrapper_makefile)
         self.assertIn('EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE="$(EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE)"', wrapper_makefile)
         self.assertIn('EDK2_CIX_SUPPRESS_BUILD_BANNER="$(EDK2_CIX_SUPPRESS_BUILD_BANNER)"', wrapper_makefile)
+        self.assertIn('ENABLE_TF_A_FIXES="$(ENABLE_TF_A_FIXES_NORMALIZED)"', wrapper_makefile)
         self.assertIn("FIRMWARE_VARIANT_OPTIONS_LABEL", wrapper_makefile)
         self.assertIn("[build] Building firmware: %s (%s, %s)", wrapper_makefile)
         self.assertIn('EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE ?= 0', src_makefile)

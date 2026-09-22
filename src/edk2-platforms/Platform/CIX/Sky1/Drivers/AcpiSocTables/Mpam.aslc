@@ -1,0 +1,73 @@
+/** @file
+
+  CIX Sky1 DSU-120 MPAM allocation controller table.
+
+  Copyright 2026 Orion Unofficial.
+
+  SPDX-License-Identifier: BSD-2-Clause-Patent
+
+**/
+
+#include <IndustryStandard/Acpi65.h>
+#include <IndustryStandard/Mpam.h>
+#include <Include/AcpiPlatform.h>
+
+#define SKY1_MPAM_TABLE_REVISION  2
+#define SKY1_MPAM_MSC_ID          1
+#define SKY1_MPAM_MSC_BASE        0x0F010000ULL
+#define SKY1_MPAM_MSC_SIZE        0x00010000U
+#define SKY1_MPAM_RESOURCE_ID     1
+#define SKY1_MPAM_SHARED_L3_ID    1
+
+#pragma pack(1)
+
+typedef struct {
+  EFI_ACPI_DESCRIPTION_HEADER    Header;
+  EFI_ACPI_MPAM_MSC_NODE         Msc;
+  EFI_ACPI_MPAM_MSC_RESOURCE     Resource;
+} SKY1_MPAM_TABLE;
+
+#pragma pack()
+
+STATIC SKY1_MPAM_TABLE  Mpam = {
+  ARM_ACPI_HEADER (
+    EFI_ACPI_MEMORY_SYSTEM_RESOURCE_PARTITIONING_AND_MONITORING_TABLE_SIGNATURE,
+    SKY1_MPAM_TABLE,
+    SKY1_MPAM_TABLE_REVISION
+    ),
+  {
+    sizeof (EFI_ACPI_MPAM_MSC_NODE) + sizeof (EFI_ACPI_MPAM_MSC_RESOURCE),
+    EFI_ACPI_MPAM_INTERFACE_MMIO,
+    0,
+    SKY1_MPAM_MSC_ID,
+    SKY1_MPAM_MSC_BASE,
+    SKY1_MPAM_MSC_SIZE,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1
+  },
+  {
+    SKY1_MPAM_RESOURCE_ID,
+    0,
+    0,
+    EFI_ACPI_MPAM_LOCATION_PROCESSOR_CACHE,
+    {
+      {
+        SKY1_MPAM_SHARED_L3_ID,
+        0
+      }
+    },
+    0
+  }
+};
+
+VOID  *CONST  ReferenceAcpiTable = &Mpam;

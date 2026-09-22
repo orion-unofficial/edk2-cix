@@ -244,11 +244,12 @@ MemoryPeim (
 #ifdef ENABLE_FIRMWARE_FIXES
   //
   // Match the ACPI RSVL no-map buffers for the DSP, DMA1, and HDA audio
-  // engines so Linux keeps them out of the general allocator.
+  // engines so Linux keeps them out of the general allocator. The audio
+  // DMA and HDA ranges mirror the vendor Device Tree shared-dma-pool layout.
   //
   BuildMemoryAllocationHob (0xCDE08000, 0x00100000, EfiReservedMemoryType);
-  BuildMemoryAllocationHob (0xD0000000, 0x00700000, EfiReservedMemoryType);
-  BuildMemoryAllocationHob (0xD0700000, 0x00700000, EfiReservedMemoryType);
+  BuildMemoryAllocationHob (0xD0000000, 0x00C00000, EfiReservedMemoryType);
+  BuildMemoryAllocationHob (0xD0C00000, 0x00200000, EfiReservedMemoryType);
 #endif
 
  #ifdef ANDROID_BOOT

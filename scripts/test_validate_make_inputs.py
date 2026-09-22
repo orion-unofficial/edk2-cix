@@ -46,6 +46,28 @@ class ValidateMakeInputsTests(unittest.TestCase):
         )
         self.assertEqual(run_validate(args), 2)
 
+    def test_custom_allows_tf_a_fixes_without_cix_release(self) -> None:
+        args = self.parse(
+            "--artefact-mode",
+            "custom",
+            "--firmware-board",
+            "O6",
+            "--enable-tf-a-fixes",
+            "TRUE",
+        )
+        self.assertEqual(run_validate(args), 0)
+
+    def test_upstream_rejects_tf_a_fixes(self) -> None:
+        args = self.parse(
+            "--artefact-mode",
+            "upstream",
+            "--firmware-board",
+            "O6",
+            "--enable-tf-a-fixes",
+            "TRUE",
+        )
+        self.assertEqual(run_validate(args), 2)
+
     def test_custom_o6_allows_shared_o6_smbios_asset_tag(self) -> None:
         args = self.parse(
             "--artefact-mode",

@@ -103,7 +103,11 @@ Scope (\_SB.I2C1)
                       ,
                       Exclusive
                       ,)
+#ifdef ENABLE_FIRMWARE_FIXES
+      GpioInt(Level, ActiveLow, Shared, PullUp, , "\\_SB.GPI4") { 8 }
+#else
       GpioInt(Level, ActiveLow, Exclusive, PullUp, , "\\_SB.GPI4") { 8 }
+#endif
     })
     Name (_DSD, Package () {
           ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
@@ -130,7 +134,11 @@ Scope (\_SB.I2C1)
                       ,
                       Exclusive
                       ,)
+#ifdef ENABLE_FIRMWARE_FIXES
+      GpioInt(Level, ActiveLow, Shared, PullUp, , "\\_SB.GPI4") { 8 }
+#else
       GpioInt(Level, ActiveLow, Exclusive, PullUp, , "\\_SB.GPI4") { 8 }
+#endif
     })
     Name (_DSD, Package () {
           ToUUID ("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),

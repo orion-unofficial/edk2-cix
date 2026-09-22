@@ -156,6 +156,7 @@ def build_cache_plan(
     cross_compiler_fingerprint: str,
     mode: str,
     stmm_fingerprint: str,
+    enable_tf_a_fixes: bool = False,
 ) -> CachePlan:
     cert_create_key = _key_payload_hash(
         {
@@ -172,6 +173,7 @@ def build_cache_plan(
             "kind": "bl31",
             "helper": helper_fingerprint,
             "mode": mode,
+            "enable_tf_a_fixes": "1" if enable_tf_a_fixes else "0",
             "cross_compiler": cross_compiler_fingerprint,
             "tfa_tree": tfa_tree_fingerprint,
         }
@@ -202,6 +204,7 @@ def compute_cache_plan(
     cross_compiler: str,
     host_compiler: str,
     stmm_path: Path | None,
+    enable_tf_a_fixes: bool = False,
 ) -> CachePlan:
     cert_create_dir = tfa_dir / "tools" / "cert_create"
     cert_create_tree_fingerprint = tree_fingerprint(
@@ -231,6 +234,7 @@ def compute_cache_plan(
         cross_compiler_fingerprint=compiler_fingerprint(cross_compiler),
         mode=mode,
         stmm_fingerprint=optional_file_fingerprint(stmm_path),
+        enable_tf_a_fixes=enable_tf_a_fixes,
     )
 
 
@@ -260,6 +264,7 @@ def main() -> int:
     parser.add_argument("--cross-compiler", required=True)
     parser.add_argument("--host-compiler", default="cc")
     parser.add_argument("--stmm-path")
+    parser.add_argument("--enable-tf-a-fixes", action="store_true")
     parser.add_argument("--shell", action="store_true")
     args = parser.parse_args()
 
@@ -271,6 +276,7 @@ def main() -> int:
         cross_compiler=args.cross_compiler,
         host_compiler=args.host_compiler,
         stmm_path=Path(args.stmm_path) if args.stmm_path else None,
+        enable_tf_a_fixes=args.enable_tf_a_fixes,
     )
 
     cache_root = Path(args.cache_root)

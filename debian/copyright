@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: edk2-cix
-Source: https://github.com/radxa-pkg/edk2-cix
+Source: https://github.com/orion-unofficial/edk2-cix
 
 Files: src/edk2/** src/edk2-non-osi/** src/edk2-platforms/**
 License: External Code

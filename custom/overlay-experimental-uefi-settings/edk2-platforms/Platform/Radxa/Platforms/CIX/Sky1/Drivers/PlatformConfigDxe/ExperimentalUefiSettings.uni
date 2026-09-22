@@ -6,6 +6,14 @@
 #string STR_EXPERIMENTAL_DEVICE_POWER_FORM_TITLE        #language en-US "Device Power Control"
 #string STR_EXPERIMENTAL_DEVICE_POWER_FORM_TITLE_HELP   #language en-US "Press <Enter> to configure device power settings. Defaults are shown in each item help."
 
+#string STR_EXPERIMENTAL_ACPI_FORM_TITLE                #language en-US "ACPI Model Controls"
+#string STR_EXPERIMENTAL_ACPI_FORM_TITLE_HELP           #language en-US "Press <Enter> to configure experimental ACPI model settings."
+
+#string STR_EXPERIMENTAL_THERMAL_POWER_MODEL_PROMPT     #language en-US "CPU Thermal Power Model"
+#string STR_EXPERIMENTAL_THERMAL_POWER_MODEL_HELP       #language en-US "Select the non-standard ACPI SSTP sustainable-power values reported for CPU thermal zones. Current Linux kernels may ignore these values. Default: vendor ACPI."
+#string STR_EXPERIMENTAL_THERMAL_POWER_MODEL_VENDOR_ACPI #language en-US "Vendor ACPI"
+#string STR_EXPERIMENTAL_THERMAL_POWER_MODEL_DTB        #language en-US "DTB-derived"
+
 #string STR_EXPERIMENTAL_GFX_POWER_PROMPT               #language en-US "Graphics Slot Power"
 #string STR_EXPERIMENTAL_GFX_POWER_PROMPT_HELP          #language en-US "Enable or disable power to the PCIe graphics slot. Default: enabled."
 

@@ -21,12 +21,17 @@ HOST_OS ?= $(if $(EDK2_CIX_HOST_OS),$(EDK2_CIX_HOST_OS),$(shell uname -s))
 HOST_ARCH := $(if $(filter arm64,$(UNAME)),aarch64,$(UNAME))
 EMPTY :=
 SPACE := $(EMPTY) $(EMPTY)
-UPSTREAM_SOURCE_REF ?= refs/upstream-source/main
+UPSTREAM_EDK2_REF ?=
 BUILD_METADATA_SCRIPT := scripts/resolve_build_metadata.sh
+MONOREPO_EDK2_COMMIT_HASH ?= 971cfbc5fa
+MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= c051ce622f
+MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 971cfbc5fa
 FIRMWARE_LAYOUT_SCRIPT := $(abspath ../scripts/firmware_layout.py)
 EDK2_BUILD_OUTPUT_FILTER := scripts/filter_edk2_build_output.py
 MAKE_INPUT_VALIDATOR := $(abspath ../scripts/validate_make_inputs.py)
 IASL_RESOLVER := $(abspath ../scripts/ensure_iasl.sh)
+MPAM_BUILD_VALIDATOR := $(abspath ../scripts/validate_mpam_build.py)
+EDK2_REBASED_DETERMINISTIC_GUARD := $(abspath ../scripts/fail_rebased_edk2_deterministic.sh)
 CUSTOM_OVERLAY_SHADOW_CHECK := $(abspath ../scripts/check_custom_overlay_shadowing.py)
 CUSTOM_OVERLAY_INF_SYNC_CHECK := $(abspath ../scripts/check_custom_overlay_inf_sync.py)
 OFFLINE_AUDIT_BASELINE_CHECK := $(abspath ../scripts/test_offline_audit_baselines.py)
@@ -55,9 +60,6 @@ fi
 endef
 REPO_ROOT := $(abspath ..)
 PREFERRED_TMP_ROOT ?= $(strip $(shell "$(REPO_ROOT)/scripts/resolve_temp_root.sh"))
-MONOREPO_EDK2_COMMIT_HASH ?= 898a41ed09
-MONOREPO_EDK2_NON_OSI_COMMIT_HASH ?= 50f168f
-MONOREPO_EDK2_PLATFORMS_COMMIT_HASH ?= 918cb36f
 CCACHE_BIN ?= ccache
 CCACHE_DIR ?= $(abspath ../build-cache/ccache)
 CCACHE_WRAPPER_ROOT ?= $(abspath ../build-cache/ccache-toolchain)
@@ -67,7 +69,6 @@ CCACHE_BIN_RESOLVED := $(if $(CCACHE_DISABLED_EFFECTIVE),,$(strip $(shell comman
 CCACHE_ENABLED_EFFECTIVE := $(if $(CCACHE_BIN_RESOLVED),TRUE,)
 CIX_RELEASE_CACHE_ROOT ?= $(abspath ../build-cache/cix-release)
 ARTEFACT_MODE ?= custom
-IASL_RELEASE ?= $(if $(filter upstream,$(ARTEFACT_MODE)),20200925,20260408)
 FIRMWARE_VALIDATION_PROFILE ?= upstream-1.2.1-bookworm
 FIRMWARE_VALIDATION_REPORT_ROOT ?= $(abspath ../build-validation)
 CUSTOM_OVERLAY_ROOT ?= $(abspath ../custom/overlay)
@@ -94,9 +95,12 @@ ENABLE_FIRMWARE_FIXES_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_FIRMWARE_
 ENABLE_CORE_ORDER ?=
 ENABLE_CORE_ORDER_NORMALIZED := $(if $(strip $(ENABLE_CORE_ORDER)),$(shell printf '%s' '$(ENABLE_CORE_ORDER)' | tr '[:upper:]' '[:lower:]'),)
 CIX_RELEASE ?=
+ENABLE_TF_A_FIXES ?=
 CIX_RELEASE_VALIDATION_VALUE := $(if $(strip $(CIX_RELEASE)),$(shell printf '%s' '$(CIX_RELEASE)' | tr '[:upper:]' '[:lower:]'),)
 CIX_RELEASE_NORMALIZED_RAW := $(if $(strip $(CIX_RELEASE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-cix-release --value "$(CIX_RELEASE)" 2>/dev/null || printf '%s' __INVALID__),)
 CIX_RELEASE_NORMALIZED := $(if $(filter __INVALID__,$(CIX_RELEASE_NORMALIZED_RAW)),,$(CIX_RELEASE_NORMALIZED_RAW))
+ENABLE_TF_A_FIXES_NORMALIZED_RAW := $(if $(strip $(ENABLE_TF_A_FIXES)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_TF_A_FIXES)" 2>/dev/null || printf '%s' __INVALID__),)
+ENABLE_TF_A_FIXES_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_TF_A_FIXES_NORMALIZED_RAW)),,$(ENABLE_TF_A_FIXES_NORMALIZED_RAW))
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW := $(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" normalize-bool --value "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" 2>/dev/null || printf '%s' __INVALID__),)
 ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED := $(if $(filter __INVALID__,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW)),,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED_RAW))
 O6_SMBIOS_ASSET_TAG ?=
@@ -114,6 +118,7 @@ FIRMWARE_LAYOUT_QUERY_ARGS = \
 	$(if $(filter TRUE,$(ENABLE_FIRMWARE_FIXES_NORMALIZED)),--enable-firmware-fixes TRUE) \
 	$(if $(strip $(ENABLE_CORE_ORDER_NORMALIZED)),--enable-core-order "$(ENABLE_CORE_ORDER_NORMALIZED)") \
 	$(if $(strip $(CIX_RELEASE_NORMALIZED)),--cix-release "$(CIX_RELEASE_NORMALIZED)") \
+	$(if $(filter TRUE,$(ENABLE_TF_A_FIXES_NORMALIZED)),--enable-tf-a-fixes TRUE) \
 	$(if $(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)),--enable-experimental-uefi-settings TRUE) \
 	$(if $(filter TRUE,$(DEBUG_ON_UART3_NORMALIZED)),--debug-on-uart3 TRUE) \
 	$(if $(filter TRUE,$(UART3_ENABLE_NORMALIZED)),--uart3-enable TRUE) \
@@ -156,15 +161,56 @@ PLATFORM_SEARCH_ROOTS := \
 	edk2-non-osi/Platform
 EDK2_BUILD_SILENT_FLAG := $(if $(filter 1,$(V)),,-s)
 
-# The firmware UI historically displayed the abbreviated hashes emitted by the
-# original upstream superproject and its submodule repos. Recomputing
-# `git rev-parse --short` inside the monorepo can produce different lengths, so
-# keep the recorded upstream abbreviations unless the caller overrides them.
-EDK2_COMMIT_HASH ?= $(MONOREPO_EDK2_COMMIT_HASH)
-EDK2_NON_OSI_COMMIT_HASH ?= $(MONOREPO_EDK2_NON_OSI_COMMIT_HASH)
-EDK2_PLATFORMS_COMMIT_HASH ?= $(MONOREPO_EDK2_PLATFORMS_COMMIT_HASH)
-SOURCE_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit-short 2>/dev/null || true))
+# The firmware UI uses a fixed-width custom-path display derived from the
+# source tree's current default `git rev-parse --short` width, while upstream-path
+# replay rebuilds keep the profile-recorded widths for the vendor output.
+METADATA_BOARD := $(if $(strip $(FIRMWARE_BOARD)),$(strip $(FIRMWARE_BOARD)),O6)
+CUSTOM_SHORT_HASH_LENGTH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) default-short-hash-length 2>/dev/null || true))
+UPSTREAM_SOURCE_COMMIT_HASH_LENGTH_DEFAULT := $(strip $(shell $(BUILD_METADATA_SCRIPT) profile-build-define-length "$(FIRMWARE_VALIDATION_PROFILE)" "$(METADATA_BOARD)" COMMIT_HASH 2>/dev/null || true))
+UPSTREAM_EDK2_COMMIT_HASH_LENGTH_DEFAULT := $(strip $(shell $(BUILD_METADATA_SCRIPT) profile-build-define-length "$(FIRMWARE_VALIDATION_PROFILE)" "$(METADATA_BOARD)" EDK2_COMMIT_HASH 2>/dev/null || true))
+UPSTREAM_EDK2_NON_OSI_COMMIT_HASH_LENGTH_DEFAULT := $(strip $(shell $(BUILD_METADATA_SCRIPT) profile-build-define-length "$(FIRMWARE_VALIDATION_PROFILE)" "$(METADATA_BOARD)" EDK2_NON_OSI_COMMIT_HASH 2>/dev/null || true))
+UPSTREAM_EDK2_PLATFORMS_COMMIT_HASH_LENGTH_DEFAULT := $(strip $(shell $(BUILD_METADATA_SCRIPT) profile-build-define-length "$(FIRMWARE_VALIDATION_PROFILE)" "$(METADATA_BOARD)" EDK2_PLATFORMS_COMMIT_HASH 2>/dev/null || true))
+CUSTOM_EFFECTIVE_EDK2_PATHS := \
+	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)),$(wildcard $(REPO_ROOT)/custom/overlay-experimental-uefi-settings/edk2)),custom/overlay-experimental-uefi-settings/edk2) \
+	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(wildcard $(REPO_ROOT)/custom/overlay/edk2)),custom/overlay/edk2) \
+	src/edk2
+CUSTOM_EFFECTIVE_EDK2_NON_OSI_PATHS := \
+	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)),$(wildcard $(REPO_ROOT)/custom/overlay-experimental-uefi-settings/edk2-non-osi)),custom/overlay-experimental-uefi-settings/edk2-non-osi) \
+	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(wildcard $(REPO_ROOT)/custom/overlay/edk2-non-osi)),custom/overlay/edk2-non-osi) \
+	src/edk2-non-osi
+CUSTOM_EFFECTIVE_EDK2_PLATFORMS_PATHS := \
+	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)),$(wildcard $(REPO_ROOT)/custom/overlay-experimental-uefi-settings/edk2-platforms)),custom/overlay-experimental-uefi-settings/edk2-platforms) \
+	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(wildcard $(REPO_ROOT)/custom/overlay/edk2-platforms)),custom/overlay/edk2-platforms) \
+	src/edk2-platforms
+CUSTOM_EFFECTIVE_SOURCE_PATHS := \
+	$(sort $(CUSTOM_EFFECTIVE_EDK2_PATHS) $(CUSTOM_EFFECTIVE_EDK2_NON_OSI_PATHS) $(CUSTOM_EFFECTIVE_EDK2_PLATFORMS_PATHS))
+ifeq ($(ARTEFACT_MODE),custom)
+SOURCE_COMMIT_HASH_LENGTH ?= $(CUSTOM_SHORT_HASH_LENGTH)
+EDK2_COMMIT_HASH_LENGTH ?= $(CUSTOM_SHORT_HASH_LENGTH)
+EDK2_NON_OSI_COMMIT_HASH_LENGTH ?= $(CUSTOM_SHORT_HASH_LENGTH)
+EDK2_PLATFORMS_COMMIT_HASH_LENGTH ?= $(CUSTOM_SHORT_HASH_LENGTH)
+SOURCE_COMMIT ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) path-last-change -- $(CUSTOM_EFFECTIVE_SOURCE_PATHS) 2>/dev/null || true))
+EDK2_SOURCE_COMMIT ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) path-last-change -- $(CUSTOM_EFFECTIVE_EDK2_PATHS) 2>/dev/null || true))
+EDK2_NON_OSI_SOURCE_COMMIT ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) path-last-change -- $(CUSTOM_EFFECTIVE_EDK2_NON_OSI_PATHS) 2>/dev/null || true))
+EDK2_PLATFORMS_SOURCE_COMMIT ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) path-last-change -- $(CUSTOM_EFFECTIVE_EDK2_PLATFORMS_PATHS) 2>/dev/null || true))
+SOURCE_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) abbreviate-commit "$(SOURCE_COMMIT)" "$(SOURCE_COMMIT_HASH_LENGTH)" 2>/dev/null || true))
+EDK2_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) abbreviate-commit "$(EDK2_SOURCE_COMMIT)" "$(EDK2_COMMIT_HASH_LENGTH)" 2>/dev/null || true))
+EDK2_NON_OSI_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) abbreviate-commit "$(EDK2_NON_OSI_SOURCE_COMMIT)" "$(EDK2_NON_OSI_COMMIT_HASH_LENGTH)" 2>/dev/null || true))
+EDK2_PLATFORMS_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) abbreviate-commit "$(EDK2_PLATFORMS_SOURCE_COMMIT)" "$(EDK2_PLATFORMS_COMMIT_HASH_LENGTH)" 2>/dev/null || true))
+else
+SOURCE_COMMIT_HASH_LENGTH ?= $(UPSTREAM_SOURCE_COMMIT_HASH_LENGTH_DEFAULT)
+EDK2_COMMIT_HASH_LENGTH ?= $(UPSTREAM_EDK2_COMMIT_HASH_LENGTH_DEFAULT)
+EDK2_NON_OSI_COMMIT_HASH_LENGTH ?= $(UPSTREAM_EDK2_NON_OSI_COMMIT_HASH_LENGTH_DEFAULT)
+EDK2_PLATFORMS_COMMIT_HASH_LENGTH ?= $(UPSTREAM_EDK2_PLATFORMS_COMMIT_HASH_LENGTH_DEFAULT)
 SOURCE_COMMIT ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-commit 2>/dev/null || true))
+EDK2_SOURCE_COMMIT ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) component-commit edk2 2>/dev/null || true))
+EDK2_NON_OSI_SOURCE_COMMIT ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) component-commit edk2-non-osi 2>/dev/null || true))
+EDK2_PLATFORMS_SOURCE_COMMIT ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) component-commit edk2-platforms 2>/dev/null || true))
+SOURCE_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) abbreviate-commit "$(SOURCE_COMMIT)" "$(SOURCE_COMMIT_HASH_LENGTH)" 2>/dev/null || true))
+EDK2_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) abbreviate-commit "$(EDK2_SOURCE_COMMIT)" "$(EDK2_COMMIT_HASH_LENGTH)" 2>/dev/null || true))
+EDK2_NON_OSI_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) abbreviate-commit "$(EDK2_NON_OSI_SOURCE_COMMIT)" "$(EDK2_NON_OSI_COMMIT_HASH_LENGTH)" 2>/dev/null || true))
+EDK2_PLATFORMS_COMMIT_HASH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) abbreviate-commit "$(EDK2_PLATFORMS_SOURCE_COMMIT)" "$(EDK2_PLATFORMS_COMMIT_HASH_LENGTH)" 2>/dev/null || true))
+endif
 SOURCE_DATE_EPOCH ?= $(strip $(shell $(BUILD_METADATA_SCRIPT) source-date-epoch 2>/dev/null || true))
 PM_CONFIG_SOURCE_DATE_EPOCH ?= $(SOURCE_DATE_EPOCH)
 BUILD_DATE ?= $(strip $(shell SOURCE_DATE_EPOCH="$(SOURCE_DATE_EPOCH)" $(BUILD_METADATA_SCRIPT) source-date-iso 2>/dev/null || true))
@@ -277,6 +323,7 @@ CUSTOM_MERAK_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/
 CUSTOM_EDGE_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/CIX/Sky1/Edge/Library/PlatformEnvHookLib)
 CUSTOM_O6_ENV_HOOK_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Library/PlatformEnvHookLib)
 CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/PlatformSmbios)
+CUSTOM_O6N_DRIVERS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers)
 CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Drivers/PlatformSmbios)
 CUSTOM_ACPI_PLATFORM_DXE_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Drivers/AcpiPlatformDxe)
 CUSTOM_RADXA_SYSTEM_INFO_OVERLAY_DIR := $(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe)
@@ -313,6 +360,7 @@ CUSTOM_EDK2_OVERLAY_SOURCES := \
 	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.c) \
 	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.h) \
 	$(wildcard $(CUSTOM_O6_PLATFORM_SMBIOS_OVERLAY_DIR)/*.inf) \
+	$(abspath $(CUSTOM_O6N_DRIVERS_OVERLAY_DIR)/LinuxAcpiConfig.h) \
 	$(wildcard $(CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR)/*.c) \
 	$(wildcard $(CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR)/*.h) \
 	$(wildcard $(CUSTOM_O6N_PLATFORM_SMBIOS_OVERLAY_DIR)/*.inf) \
@@ -363,12 +411,13 @@ EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigHii.uni) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/PlatformConfigDxe/PlatformConfigHii.vfr) \
 	$(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Define.dsc.inc)
-EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES += $(abspath scripts/generate_build_recipe.py) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe/BuildRecipe.hfr) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe/BuildRecipe.uni)
+EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES += $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Orion/O6N/O6N.fdf) $(abspath scripts/generate_build_recipe.py) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe/BuildRecipe.hfr) $(abspath ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe/BuildRecipe.uni)
 EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES += $(wildcard ../custom/overlay-experimental-uefi-settings/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Drivers/SystemInfoDxe/*)
 ACTIVE_EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES := \
 	$(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter TRUE,$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))),$(EXPERIMENTAL_UEFI_SETTINGS_OVERLAY_SOURCES))
 PATCHED_EDK2_SOURCE_INPUTS := \
 	$(IASL_RESOLVER) \
+	$(MPAM_BUILD_VALIDATOR) \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.hfr) \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu/PcieConfig.uni) \
 	$(abspath edk2-platforms/Platform/CIX/Sky1/Library/Acpi/CIX/AcpiPpttLibCIX/PpttGenerator.c) \
@@ -472,10 +521,7 @@ endef
 
 define PRINT_SRC_LOCAL_VARIABLES
 	print_help_line '  V=0|1' 'Set V=1 to show raw EDK2 command lines.\nDefault: 0.'; \
-	print_help_line '  FIRMWARE_VALIDATION_PROFILE=<name>' 'Validation profile name shared with the top-level qualification checks.\nDefault: '\''upstream-1.2.1-bookworm'\'''; \
-	print_help_line '  FIRMWARE_VALIDATION_REPORT_ROOT=<path>' 'Directory where raw-build audit and validation reports are written.\nDefault: '\''$$(REPO_ROOT)/build-validation'\'''; \
 	print_help_line '  GCC5_AARCH64_PREFIX=<prefix>' 'Cross-compiler prefix for the AArch64 toolchain.\nDefault: aarch64-linux-gnu- on x86_64; empty on aarch64.'; \
-	print_help_line '  SIGNING_CERT_SOURCE_DIR=<dir>' 'Path to extracted or built cert blobs for exact replay.\nDefault: unset.'; \
 	print_help_line '  SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the compiler-facing reproducible timestamp.\nDefault: resolved from mapped upstream source metadata.'; \
 	print_help_line '  PM_CONFIG_SOURCE_DATE_EPOCH=<unix-seconds>' 'Override the PM-config timestamp.\nDefault: SOURCE_DATE_EPOCH.'
 endef
@@ -494,10 +540,6 @@ help:
 	print_help_line '  prepare-basetools-c' 'Build or refresh the EDK2 BaseTools C helpers'; \
 	print_help_line '  check-custom-module-overlays' 'Verify custom module overlay INFs keep the imported source dependencies'; \
 	print_help_line '  check-custom-acpi-overlays' 'Verify the custom ACPI module overlays still mirror the imported source tree cleanly'; \
-	print_help_line '  check-offline-audit-baselines' 'Validate the checked-in offline audit baseline JSON structure'; \
-	print_help_line '  audit-final-image-manifest-{O6|O6N}' 'Check the final BL33 firmware composition against the stored baseline for the selected board'; \
-	print_help_line '  audit-acpi-regression-{O6|O6N}' 'Check final ACPI tables and IASL diagnostics against the stored baseline for the selected board'; \
-	print_help_line '  refresh-offline-audit-baselines-{O6|O6N}' 'Refresh both offline audit baseline files from the selected board build'; \
 	print_help_line '  check-microsoft-secure-boot-release' 'Advisory check for a newer pinned Microsoft Secure Boot firmware release'; \
 	print_help_line '  host-fiptool' 'Build the vendored TF-A fiptool from source'; \
 	print_help_line '  host-cert-uefi-create-rsa' 'Build the source non-trusted cert helper'; \
@@ -512,9 +554,9 @@ help:
 help-vars:
 	@$(PRINT_SRC_HELP_SHELL_PROLOGUE); \
 	printf '%s\n\n' 'Raw Build Variables'; \
-	printf '%s\n' 'See make help-vars for common options such as ARTEFACT_MODE, FIRMWARE_BOARD, FIRMWARE_TARGET, CCACHE_DISABLE, ENABLE_FIRMWARE_FIXES, CIX_RELEASE, and the DEBUG_* switches.' | fold -s -w 78 | sed 's/^/  /'; \
+	printf '%s\n' 'See make help-vars for common options such as ARTEFACT_MODE, FIRMWARE_BOARD, FIRMWARE_TARGET, CCACHE_DISABLE, ENABLE_FIRMWARE_FIXES and the DEBUG_* switches.' | fold -s -w 78 | sed 's/^/  /'; \
 	printf '\n'; \
-	printf '%s\n' 'The following options are specific to the raw make -C src flow, covering host toolchains, validation outputs, and exact replay inputs.' | fold -s -w 78 | sed 's/^/  /'; \
+	printf '%s\n' 'The following options are specific to the raw make -C src flow, covering host toolchains and reproducible metadata overrides.' | fold -s -w 78 | sed 's/^/  /'; \
 	printf '\n'; \
 	$(PRINT_SRC_LOCAL_VARIABLES); \
 	printf '\n%s\n' 'For the fuller user-facing explanation of the build variables, see: docs/build-variables.md'; \
@@ -573,12 +615,19 @@ print-build-metadata: preflight-build-metadata
 	echo "CCACHE_WRAPPER_ROOT=$(CCACHE_WRAPPER_ROOT)"
 	echo "SOURCE_COMMIT=$(SOURCE_COMMIT)"
 	echo "SOURCE_COMMIT_HASH=$(SOURCE_COMMIT_HASH)"
+	echo "SOURCE_COMMIT_HASH_LENGTH=$(SOURCE_COMMIT_HASH_LENGTH)"
 	echo "SOURCE_DATE_EPOCH=$(SOURCE_DATE_EPOCH)"
 	echo "PM_CONFIG_SOURCE_DATE_EPOCH=$(PM_CONFIG_SOURCE_DATE_EPOCH)"
 	echo "BUILD_DATE=$(BUILD_DATE)"
+	echo "EDK2_SOURCE_COMMIT=$(EDK2_SOURCE_COMMIT)"
 	echo "EDK2_COMMIT_HASH=$(EDK2_COMMIT_HASH)"
+	echo "EDK2_COMMIT_HASH_LENGTH=$(EDK2_COMMIT_HASH_LENGTH)"
+	echo "EDK2_NON_OSI_SOURCE_COMMIT=$(EDK2_NON_OSI_SOURCE_COMMIT)"
 	echo "EDK2_NON_OSI_COMMIT_HASH=$(EDK2_NON_OSI_COMMIT_HASH)"
+	echo "EDK2_NON_OSI_COMMIT_HASH_LENGTH=$(EDK2_NON_OSI_COMMIT_HASH_LENGTH)"
+	echo "EDK2_PLATFORMS_SOURCE_COMMIT=$(EDK2_PLATFORMS_SOURCE_COMMIT)"
 	echo "EDK2_PLATFORMS_COMMIT_HASH=$(EDK2_PLATFORMS_COMMIT_HASH)"
+	echo "EDK2_PLATFORMS_COMMIT_HASH_LENGTH=$(EDK2_PLATFORMS_COMMIT_HASH_LENGTH)"
 
 preflight-build-metadata:
 	@{ \
@@ -612,8 +661,11 @@ preflight-build-metadata:
 		if [[ "$$missing" -ne 0 ]]; then \
 			echo "[preflight/metadata] Refusing to continue with incomplete or invalid build metadata." >&2; \
 			if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
-				echo "[preflight/metadata] In ARTEFACT_MODE=custom these values should resolve from the mapped upstream source commit in Git history." >&2; \
-				echo "[preflight/metadata] Ensure the checkout is a usable Git repository inside the current environment, or pass explicit BUILD_DATE, SOURCE_DATE_EPOCH, PM_CONFIG_SOURCE_DATE_EPOCH, SOURCE_COMMIT, and SOURCE_COMMIT_HASH overrides." >&2; \
+					echo "[preflight/metadata] In ARTEFACT_MODE=custom these values should resolve from the last source changes across the active source paths." >&2; \
+				echo "[preflight/metadata] Ensure the checkout is a usable Git repository inside the current environment, or pass explicit BUILD_DATE, SOURCE_DATE_EPOCH, PM_CONFIG_SOURCE_DATE_EPOCH, SOURCE_COMMIT, and component commit overrides." >&2; \
+			else \
+				echo "[preflight/metadata] In ARTEFACT_MODE=upstream these values should resolve from Origin-Commit trailers plus the validation-profile hash widths." >&2; \
+				echo "[preflight/metadata] Ensure the checkout is a usable Git repository inside the current environment, or pass explicit BUILD_DATE, SOURCE_DATE_EPOCH, PM_CONFIG_SOURCE_DATE_EPOCH, SOURCE_COMMIT, component commit, and hash-length overrides." >&2; \
 			fi; \
 			exit 1; \
 		fi; \
@@ -665,6 +717,8 @@ prepare-basetools-c:
 			rm -rf "$$base_tools_dir"; \
 			mkdir -p "$$(dirname "$$base_tools_dir")"; \
 			cp -a "$(IMPORTED_BASETOOLS_DIR)" "$$(dirname "$$base_tools_dir")/"; \
+			rm -rf "$$(dirname "$$base_tools_dir")/MdePkg"; \
+			ln -s "$(abspath edk2/MdePkg)" "$$(dirname "$$base_tools_dir")/MdePkg"; \
 			if [[ -d "$(CUSTOM_BASETOOLS_OVERLAY_DIR)" ]]; then \
 				while IFS= read -r -d '' overlay_src; do \
 					rel_path="$${overlay_src#$(CUSTOM_BASETOOLS_OVERLAY_DIR)/}"; \
@@ -730,6 +784,9 @@ preflight-inputs:
 	if [ -n "$(strip $(CIX_RELEASE_VALIDATION_VALUE))" ]; then \
 		validate_cmd+=(--cix-release "$(strip $(CIX_RELEASE_VALIDATION_VALUE))"); \
 	fi; \
+	if [ -n "$(strip $(ENABLE_TF_A_FIXES_NORMALIZED))" ]; then \
+		validate_cmd+=(--enable-tf-a-fixes "$(strip $(ENABLE_TF_A_FIXES_NORMALIZED))"); \
+	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ]; then \
 		validate_cmd+=(--enable-experimental-uefi-settings "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))"); \
 	fi; \
@@ -773,6 +830,13 @@ preflight-inputs:
 	if [ -n "$(strip $(CIX_RELEASE_NORMALIZED))" ]; then \
 		echo "[config] CIX_RELEASE=$(CIX_RELEASE_NORMALIZED) enables the curated CIX V1.2 source-and-payload path"; \
 	fi; \
+	if [ -n "$(strip $(ENABLE_TF_A_FIXES_NORMALIZED))" ] && [ "$(ENABLE_TF_A_FIXES_NORMALIZED)" = "TRUE" ]; then \
+		if [ -z "$(strip $(CIX_RELEASE_NORMALIZED))" ]; then \
+			echo "[config] warning: ENABLE_TF_A_FIXES=true has no effect unless CIX_RELEASE=v1.2 selects the source-built TF-A path." >&2; \
+		else \
+			echo "[config] ENABLE_TF_A_FIXES=true enables custom TF-A fixes"; \
+		fi; \
+	fi; \
 	if [ -n "$(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED))" ] && [ "$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)" = "TRUE" ]; then \
 		echo "[config] ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true enables the experimental Radxa UI overlay"; \
 	fi; \
@@ -808,7 +872,7 @@ preflight-tools:
 			missing=1; \
 		fi; \
 	done; \
-	if ! iasl_path="$$(EDK2_CIX_IASL_RELEASE="$(IASL_RELEASE)" "$(IASL_RESOLVER)" --print-path)"; then \
+	if ! iasl_path="$$("$(IASL_RESOLVER)" --print-path)"; then \
 		echo "[preflight] The required ACPICA iasl compiler could not be resolved" >&2; \
 		missing=1; \
 	else \
@@ -878,6 +942,7 @@ $(call BUILD_CONFIG_STAMP,%): FORCE
 		'ENABLE_FIRMWARE_FIXES=$(ENABLE_FIRMWARE_FIXES_NORMALIZED)' \
 		'ENABLE_CORE_ORDER=$(ENABLE_CORE_ORDER_NORMALIZED)' \
 		'CIX_RELEASE=$(CIX_RELEASE_NORMALIZED)' \
+		'ENABLE_TF_A_FIXES=$(ENABLE_TF_A_FIXES_NORMALIZED)' \
 		'ENABLE_EXPERIMENTAL_UEFI_SETTINGS=$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)' \
 		'UART3_ENABLE=$(UART3_ENABLE_EFFECTIVE)' \
 		'DEBUG_ON_UART3=$(DEBUG_ON_UART3_NORMALIZED)' \
@@ -1085,6 +1150,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 		--cross-compile "$(GCC5_AARCH64_PREFIX)" \
 		--jobs "$(HELPER_BUILD_JOBS)" \
 		--mode "$(shell printf '%s' '$(FIRMWARE_TARGET)' | tr '[:upper:]' '[:lower:]')" \
+		$(if $(filter TRUE,$(ENABLE_TF_A_FIXES_NORMALIZED)),--enable-tf-a-fixes,) \
 		$(if $(strip $(CIX_RELEASE_CACHE_ROOT)),--cache-root "$(abspath $(CIX_RELEASE_CACHE_ROOT))") \
 		$(if $(filter 1,$(V)),--verbose,) && \
 	if [[ ! -s "$$tmp_output" ]]; then \
@@ -1141,7 +1207,6 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 	reused_trusted_key_cert=0; \
 	reused_nt_fw_certs=0; \
 	validator_extra_args=(); \
-	nt_fw_input="$(shell realpath "$<")"; \
 	stage_dir="$(call BUILD_STAGE_DIR,$*)" && \
 	mkdir -p "$$stage_dir/Keys" && \
 	cp -a $(PACKAGE_TOOL)/Keys/. "$$stage_dir/Keys/" && \
@@ -1204,7 +1269,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 			--nt-fw-key-cert "$$stage_dir/certs/nt_fw_key.crt" \
 			--nt-fw-key "$$stage_dir/Keys/oem_privatekey.pem" \
 			--non-trusted-world-key "$$stage_dir/Keys/oem_privatekey.pem" \
-			--nt-fw "$$nt_fw_input"; \
+			--nt-fw "$(shell realpath "$<")"; \
 	fi && \
 	run_success_only python3 "$(CERT_VALIDATOR)" \
 		--trusted-key-cert "$$stage_dir/certs/trusted_key_no.crt" \
@@ -1214,7 +1279,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 		--trusted-sign-key "$$stage_dir/Keys/oem_privatekey.pem" \
 		--nt-fw-key "$$stage_dir/Keys/oem_privatekey.pem" \
 		--non-trusted-world-key "$$stage_dir/Keys/oem_privatekey.pem" \
-		--nt-fw "$$nt_fw_input" \
+		--nt-fw "$(shell realpath "$<")" \
 		--ntfw-nvctr 223 \
 		--fiptool "$(FIPTOOL_BIN)" \
 		"$${validator_extra_args[@]}" && \
@@ -1222,7 +1287,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
 		--trusted-key-cert "$$stage_dir/certs/trusted_key_no.crt" \
 		--nt-fw-key-cert "$$stage_dir/certs/nt_fw_key.crt" \
 		--nt-fw-cert "$$stage_dir/certs/nt_fw_cert.crt" \
-		--nt-fw "$$nt_fw_input" \
+		--nt-fw "$(shell realpath "$<")" \
 		$@ && \
 	if [[ ! -s "$@" ]]; then \
 		echo "[build/$*] Expected bootloader image $@ was not created" >&2; \
@@ -1386,7 +1451,7 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 	else \
 		export GCC5_AARCH64_PREFIX="$(GCC5_AARCH64_REAL_PREFIX)"; \
 	fi; \
-	iasl_path="$$(EDK2_CIX_IASL_RELEASE="$(IASL_RELEASE)" "$(IASL_RESOLVER)" --print-path)"; \
+	iasl_path="$$("$(IASL_RESOLVER)" --print-path)"; \
 	export IASL="$$iasl_path"; \
 	export IASL_PREFIX="$$(dirname "$$iasl_path")/"; \
 	run_edksetup() { \
@@ -1562,6 +1627,9 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 			--build-options "$$build_options_path" \
 			--active-platform "src/$(filter %/$*.dsc,$(DSC))" \
 			--flash-definition "src/$(patsubst %.dsc,%.fdf,$(filter %/$*.dsc,$(DSC)))"; \
+		python3 "$(MPAM_BUILD_VALIDATOR)" \
+			--build-dir "Build/$*/$(UEFI_TARGET)_GCC5" \
+			--expect "$(if $(filter TRUE,$(ENABLE_FIRMWARE_FIXES_NORMALIZED)),present,absent)"; \
 	fi; \
 	if [[ ! -s "$@" ]]; then \
 		echo "[build/$*] Expected firmware image $@ was not produced" >&2; \
@@ -1588,14 +1656,21 @@ check-custom-module-overlays:
 check-custom-acpi-overlays:
 	@python3 "$(CUSTOM_ACPI_OVERLAY_CHECK)" --repo-root "$(abspath ..)"
 
-.PHONY: check-offline-audit-baselines
+.PHONY: check-offline-audit-baselines __check-offline-audit-baselines
 check-offline-audit-baselines:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
+
+__check-offline-audit-baselines:
 	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
 
-.PHONY: audit-final-image-manifest audit-final-image-manifest-%
-audit-final-image-manifest: $(foreach board,$(FIRMWARE_BOARDS),audit-final-image-manifest-$(board))
+.PHONY: audit-final-image-manifest audit-final-image-manifest-% __audit-final-image-manifest-%
+audit-final-image-manifest:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
 
-audit-final-image-manifest-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
+audit-final-image-manifest-%:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
+
+__audit-final-image-manifest-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
 	@python3 "$(FINAL_IMAGE_MANIFEST_AUDIT_SCRIPT)" \
@@ -1606,10 +1681,14 @@ audit-final-image-manifest-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
 		--baseline-file "$(FINAL_IMAGE_MANIFEST_BASELINE)" \
 		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$*-$(UEFI_TARGET)_GCC5-$(FIRMWARE_VALIDATION_PROFILE)-manifest-audit.json"
 
-.PHONY: audit-acpi-regression audit-acpi-regression-%
-audit-acpi-regression: $(foreach board,$(FIRMWARE_BOARDS),audit-acpi-regression-$(board))
+.PHONY: audit-acpi-regression audit-acpi-regression-% __audit-acpi-regression-%
+audit-acpi-regression:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
 
-audit-acpi-regression-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
+audit-acpi-regression-%:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
+
+__audit-acpi-regression-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
 	@python3 "$(ACPI_REGRESSION_AUDIT_SCRIPT)" \
@@ -1620,10 +1699,14 @@ audit-acpi-regression-%: Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd
 		--baseline-file "$(ACPI_REGRESSION_AUDIT_BASELINE)" \
 		--report-json "$(FIRMWARE_VALIDATION_REPORT_ROOT)/$*-$(UEFI_TARGET)_GCC5-$(FIRMWARE_VALIDATION_PROFILE)-acpi-audit.json"
 
-.PHONY: refresh-offline-audit-baselines refresh-offline-audit-baselines-%
-refresh-offline-audit-baselines: $(foreach board,$(FIRMWARE_BOARDS),refresh-offline-audit-baselines-$(board))
+.PHONY: refresh-offline-audit-baselines refresh-offline-audit-baselines-% __refresh-offline-audit-baselines-%
+refresh-offline-audit-baselines:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
 
 refresh-offline-audit-baselines-%:
+	@"$(EDK2_REBASED_DETERMINISTIC_GUARD)"
+
+__refresh-offline-audit-baselines-%:
 	@mkdir -p "$(FIRMWARE_VALIDATION_REPORT_ROOT)"
 	@python3 "$(OFFLINE_AUDIT_BASELINE_CHECK)"
 	@python3 "$(OFFLINE_AUDIT_BASELINE_REFRESH)" \

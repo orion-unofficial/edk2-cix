@@ -19,7 +19,7 @@ import firmware_layout
 SCRIPT_PATH = Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parent.parent
 CUSTOM_DISTRO = "trixie"
-UPSTREAM_DISTRO = "bookworm"
+UPSTREAM_DISTRO = "trixie"
 
 
 def parse_args() -> argparse.Namespace:
@@ -59,6 +59,8 @@ def phase_label(layout: firmware_layout.FirmwareLayout) -> str:
     parts = ["custom"]
     if layout.cix_release:
         parts.append("cix")
+        if layout.enable_tf_a_fixes:
+            parts.append("tf_a_fixes")
     if layout.firmware_target == "DEBUG":
         parts.append("debug")
     return "/".join(parts)
@@ -110,6 +112,7 @@ def variant_make_args(
         f"ENABLE_FIRMWARE_FIXES={'TRUE' if layout.enable_firmware_fixes else ''}",
         f"ENABLE_CORE_ORDER={layout.effective_core_order or ''}",
         f"CIX_RELEASE={layout.cix_release or ''}",
+        f"ENABLE_TF_A_FIXES={'TRUE' if layout.enable_tf_a_fixes else ''}",
         f"ENABLE_EXPERIMENTAL_UEFI_SETTINGS={'TRUE' if layout.enable_experimental_uefi_settings else ''}",
         f"DEBUG_ON_UART3={'TRUE' if layout.debug_on_uart3 else ''}",
         f"UART3_ENABLE={'TRUE' if layout.effective_uart3_enable else ''}",

@@ -50,14 +50,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--emit-baseline", type=pathlib.Path)
     parser.add_argument("--emit-profile-name")
     parser.add_argument("--iasl", type=pathlib.Path)
-    parser.add_argument(
-        "--semantic-only",
-        action="store_true",
-        help=(
-            "Require the baseline table/source set and successful IASL compilation, "
-            "but allow byte and diagnostic-count changes caused by a compiler upgrade."
-        ),
-    )
     return parser.parse_args()
 
 
@@ -171,9 +163,7 @@ def resolve_iasl(explicit_path: pathlib.Path | None = None) -> pathlib.Path:
         command.extend(["--verify", str(explicit_path)])
     result = subprocess.run(command, check=False, capture_output=True, text=True)
     if result.returncode != 0:
-        raise RuntimeError(
-            result.stderr.strip() or "unable to resolve the pinned iasl compiler"
-        )
+        raise RuntimeError(result.stderr.strip() or "unable to resolve the pinned iasl compiler")
     return pathlib.Path(result.stdout.strip())
 
 
@@ -368,40 +358,6 @@ def compare_audits(expected: dict[str, Any], actual: dict[str, Any]) -> list[str
     return mismatches
 
 
-def compare_semantic_audits(
-    expected: dict[str, Any], actual: dict[str, Any]
-) -> list[str]:
-    mismatches: list[str] = []
-    expected_tables = set(expected.get("tables", {}))
-    actual_tables = set(actual.get("tables", {}))
-    missing_tables = sorted(expected_tables - actual_tables)
-    unexpected_tables = sorted(actual_tables - expected_tables)
-    if missing_tables:
-        mismatches.append(f"Missing ACPI tables: {', '.join(missing_tables)}")
-    if unexpected_tables:
-        mismatches.append(f"Unexpected ACPI tables: {', '.join(unexpected_tables)}")
-
-    expected_iasl = set(expected.get("iasl", {}))
-    actual_iasl = set(actual.get("iasl", {}))
-    missing_iasl = sorted(expected_iasl - actual_iasl)
-    unexpected_iasl = sorted(actual_iasl - expected_iasl)
-    if missing_iasl:
-        mismatches.append(f"Missing IASL audits: {', '.join(missing_iasl)}")
-    if unexpected_iasl:
-        mismatches.append(f"Unexpected IASL audits: {', '.join(unexpected_iasl)}")
-
-    failed_iasl = sorted(
-        name
-        for name in expected_iasl & actual_iasl
-        if actual["iasl"][name].get("status") != "match"
-        or actual["iasl"][name].get("summary", {}).get("errors", 0) != 0
-        or actual["iasl"][name].get("error_codes")
-    )
-    if failed_iasl:
-        mismatches.append(f"Failed IASL audits: {', '.join(failed_iasl)}")
-    return mismatches
-
-
 def emit_baseline(
     path: pathlib.Path,
     profile_name: str,
@@ -467,11 +423,7 @@ def main() -> int:
         )
         return 2
 
-    mismatches = (
-        compare_semantic_audits(expected_audit, audit)
-        if args.semantic_only
-        else compare_audits(expected_audit, audit)
-    )
+    mismatches = compare_audits(expected_audit, audit)
     report = {
         "profile": args.profile,
         "description": profile_meta.get("description"),
@@ -479,7 +431,6 @@ def main() -> int:
         "target": args.target,
         "build_dir": str(build_dir),
         "status": "match" if not mismatches else "mismatch",
-        "comparison": "semantic" if args.semantic_only else "exact",
         "mismatches": mismatches,
         "acpi": audit,
     }

@@ -65,9 +65,9 @@ mode( int m )
 ANTLRTokenType DLGLexer::
 nextTokenType(void)
 {
-	int state, newstate;
+	register int state, newstate;
 	/* last space reserved for the null char */
-	DLGChar *lastpos;
+	register DLGChar *lastpos;
 	ANTLRTokenType tk;
 
 skip:

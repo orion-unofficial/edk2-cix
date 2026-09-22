@@ -6,18 +6,13 @@
 #  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 
-MAKEFLAGS += --no-print-directory
-V ?= 0
-
 ifndef HOST_ARCH
   #
   # If HOST_ARCH is not defined, then we use 'uname -m' to attempt
   # try to figure out the appropriate HOST_ARCH.
   #
   uname_m = $(shell uname -m)
-  ifeq ($(V),1)
-    $(info Attempting to detect HOST_ARCH from 'uname -m': $(uname_m))
-  endif
+  $(info Attempting to detect HOST_ARCH from 'uname -m': $(uname_m))
   ifneq (,$(strip $(filter $(uname_m), x86_64 amd64)))
     HOST_ARCH=X64
   endif
@@ -38,14 +33,10 @@ ifndef HOST_ARCH
     HOST_ARCH=LOONGARCH64
   endif
   ifndef HOST_ARCH
-    ifeq ($(V),1)
-      $(info Could not detected HOST_ARCH from uname results)
-    endif
+    $(info Could not detected HOST_ARCH from uname results)
     $(error HOST_ARCH is not defined!)
   endif
-  ifeq ($(V),1)
-    $(info Detected HOST_ARCH of $(HOST_ARCH) using uname.)
-  endif
+  $(info Detected HOST_ARCH of $(HOST_ARCH) using uname.)
 endif
 
 export HOST_ARCH
@@ -80,33 +71,26 @@ $(APPLICATIONS): $(LIBRARIES) $(MAKEROOT)/bin $(VFRAUTOGEN)
 
 .PHONY: outputdirs
 makerootdir:
-	$(call PRINT_STATUS,MKDIR,$(MAKEROOT))
-	$(Q)-mkdir -p $(MAKEROOT)
+	-mkdir -p $(MAKEROOT)
 
 .PHONY: subdirs $(SUBDIRS)
 subdirs: $(SUBDIRS)
 $(SUBDIRS):
-	$(call PRINT_STATUS,MAKE,$@)
-	$(Q)$(MAKE) -C $@
+	$(MAKE) -C $@
 
 .PHONY: $(patsubst %,%-clean,$(sort $(SUBDIRS)))
 $(patsubst %,%-clean,$(sort $(SUBDIRS))):
-	$(call PRINT_STATUS,CLEAN,$(@:-clean=))
-	$(Q)-$(MAKE) -C $(@:-clean=) clean
+	-$(MAKE) -C $(@:-clean=) clean
 
 $(VFRAUTOGEN): VfrCompile/VfrSyntax.g
-	$(call PRINT_STATUS,GEN,$@)
-	$(Q)$(MAKE) -C VfrCompile VfrLexer.h
+	$(MAKE) -C VfrCompile VfrLexer.h
 
 clean:  $(patsubst %,%-clean,$(sort $(SUBDIRS)))
 
 clean: localClean
 
 localClean:
-	$(call PRINT_STATUS,CLEAN,$(MAKEROOT)/bin)
-	$(Q)rm -f $(MAKEROOT)/bin/*
-	@if [ -d "$(MAKEROOT)/libs" ] || [ -d "$(MAKEROOT)/bin" ]; then \
-		rmdir $(MAKEROOT)/libs $(MAKEROOT)/bin 2>/dev/null || true; \
-	fi
+	rm -f $(MAKEROOT)/bin/*
+	-rmdir $(MAKEROOT)/libs $(MAKEROOT)/bin
 
 include Makefiles/footer.makefile

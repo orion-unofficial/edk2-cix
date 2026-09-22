@@ -530,7 +530,7 @@ Device (SUB2)
           },
       USB_REMOTE_PD_DSD("usb-role-switch")
     })
-    USB_REMOTE_PD(USBC2_PD_DEVICE, "usbc_con0", "port@0", "endpoint@0")
+    USB_REMOTE_PD(USBC2_PD_DEVICE, "usbc_con2", "port@0", "endpoint@0")
 #else
     Name (_DSD, Package () {
       ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
@@ -592,7 +592,7 @@ Device (UCP2) //USB 3.0 PHY0
         },
     USB_PHY_REMOTE_PD_DSD("orientation-switch", "mode-switch"),
   })
-  USB_PHY_REMOTE_PD(USBC2_PD_DEVICE, "usbc_con0", "port@1", "endpoint@0", "port@2", "endpoint@0")
+  USB_PHY_REMOTE_PD(USBC2_PD_DEVICE, "usbc_con2", "port@1", "endpoint@0", "port@2", "endpoint@0")
 #else
   Name (_DSD, Package () {
     ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),

@@ -8,6 +8,7 @@
 **/
 
 #include "AcpiSocDxe.h"
+#include <Library/ArmGenericTimerCounterLib.h>
 #include <Library/CpuInfoLib.h>
 #include <Library/PcdLib.h>
 #include <Protocol/ArmScmiPerformanceProtocol.h>
@@ -29,9 +30,11 @@
 #define CPC_NOMINAL_PERFORMANCE_OFFSET           3
 #define CPC_LOWEST_NONLINEAR_PERFORMANCE_OFFSET  4
 #define CPC_LOWEST_PERFORMANCE_OFFSET            5
+#define CPC_REFERENCE_PERFORMANCE_OFFSET         20
 #define CPC_LOWEST_FREQUENCY_OFFSET              21
 #define CPC_NOMINAL_FREQUENCY_OFFSET             22
 #define CPC_GRANULARITYMHZ                       1
+#define CPC_HZ_PER_MHZ                           1000000U
 
 CHAR8   *mCixAcpiDevId[]              = { "ACPI0007" };
 UINT32  mCpuUIDFastChannelMapping[12] = { 2, 2, 2, 2, 5, 5, 6, 6, 3, 3, 4, 4 };
@@ -177,6 +180,9 @@ UpdatePerfInOption (
   UINTN               PerfData;
   BOOLEAN             UseFirmwareFixes;
   UINT32              CpcGranularity;
+  UINTN               NominalFrequency;
+  UINTN               ReferencePerf;
+  UINT64              ReferenceCounterHz;
   BOOLEAN             UpdatePerf;
 
   // Get NumEntries from package
@@ -207,11 +213,25 @@ UpdatePerfInOption (
   }
 
   UseFirmwareFixes = FixedPcdGetBool (PcdCustomFirmwareFixesEnable);
-  CpcGranularity   = CPC_GRANULARITYMHZ * 1000000U;
+  CpcGranularity   = CPC_GRANULARITYMHZ * CPC_HZ_PER_MHZ;
   if (UseFirmwareFixes) {
     Status = GetCpcGranularity (CpuUid, &CpcGranularity);
     if (EFI_ERROR (Status)) {
       return Status;
+    }
+  }
+
+  NominalFrequency = (UINTN)ROUND_DIVISION ((UINT64)NominalPerf * CpcGranularity, CPC_HZ_PER_MHZ);
+  ReferencePerf    = 0;
+  if (UseFirmwareFixes) {
+    ReferenceCounterHz = ArmGenericTimerGetTimerFreq ();
+    if ((ReferenceCounterHz != 0) && (NominalFrequency != 0)) {
+      ReferencePerf = (UINTN)(
+                       ((UINT64)NominalPerf * ReferenceCounterHz) /
+                       ((UINT64)NominalFrequency * CPC_HZ_PER_MHZ)
+                       );
+    } else {
+      DEBUG ((EFI_D_ERROR, "CPU%d CPPC reference performance unavailable\n", CpuUid));
     }
   }
 
@@ -239,12 +259,16 @@ UpdatePerfInOption (
         PerfData   = LowestPerf;
         UpdatePerf = TRUE;
         break;
+      case CPC_REFERENCE_PERFORMANCE_OFFSET:
+        PerfData   = ReferencePerf;
+        UpdatePerf = UseFirmwareFixes && (ReferencePerf != 0);
+        break;
       case CPC_LOWEST_FREQUENCY_OFFSET:
-        PerfData   = ROUND_DIVISION (LowestPerf * CpcGranularity, 1000000);
+        PerfData   = ROUND_DIVISION ((UINT64)LowestPerf * CpcGranularity, CPC_HZ_PER_MHZ);
         UpdatePerf = TRUE;
         break;
       case CPC_NOMINAL_FREQUENCY_OFFSET:
-        PerfData   = ROUND_DIVISION (NominalPerf * CpcGranularity, 1000000);
+        PerfData   = NominalFrequency;
         UpdatePerf = TRUE;
         break;
       default:

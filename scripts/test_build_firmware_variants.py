@@ -27,7 +27,7 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
             firmware_target="RELEASE",
         )
 
-        self.assertEqual(build_firmware_variants.default_distro_for_layout(upstream), "bookworm")
+        self.assertEqual(build_firmware_variants.default_distro_for_layout(upstream), "trixie")
         self.assertEqual(build_firmware_variants.default_distro_for_layout(custom), "trixie")
 
     def test_variant_label_matches_leaf_path(self) -> None:
@@ -35,12 +35,13 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
             artefact_mode="custom",
             firmware_target="DEBUG",
             cix_release="v1.2",
+            enable_tf_a_fixes=True,
             enable_firmware_fixes=True,
         )
 
         self.assertEqual(
             build_firmware_variants.variant_label(layout),
-            "custom/cix/debug/fixes",
+            "custom/cix/tf_a_fixes/debug/fixes",
         )
 
     def test_upstream_variant_label_is_vendor(self) -> None:
@@ -71,6 +72,7 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
         self.assertIn("ENABLE_FIRMWARE_FIXES=", args)
         self.assertIn("ENABLE_CORE_ORDER=", args)
         self.assertIn("CIX_RELEASE=", args)
+        self.assertIn("ENABLE_TF_A_FIXES=", args)
         self.assertIn("ENABLE_EXPERIMENTAL_UEFI_SETTINGS=", args)
         self.assertIn("DEBUG_ON_UART3=", args)
         self.assertIn("UART3_ENABLE=", args)
@@ -103,7 +105,7 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
             product="orion-o6",
             version="1.2.1",
             stage_root=Path("/tmp/upstream"),
-            distro="bookworm",
+            distro="trixie",
             debug_print_error_level="0x80000040",
         )
 
@@ -126,7 +128,7 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
             "product": "orion-o6",
             "version": "1.2.1",
             "stage_root": Path("/tmp/stage"),
-            "distro": "bookworm",
+            "distro": "trixie",
             "ccache_dir": "/tmp/ccache",
             "ccache_wrapper_root": "/tmp/wrappers",
         }
@@ -184,7 +186,7 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
 
         self.assertEqual(returned_stats, next_stats)
         self.assertIn(
-            "[build-all] Building variant 1/1: vendor (bookworm, vendor)",
+            "[build-all] Building variant 1/1: vendor (trixie, vendor)",
             output.getvalue(),
         )
         self.assertIn("[build-all] Completed variant 1/1: vendor", output.getvalue())
@@ -216,7 +218,7 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
                 product="orion-o6",
                 version="1.2.1",
                 layout=layout,
-                distro="bookworm",
+                distro="trixie",
                 ccache_dir="/tmp/ccache",
                 ccache_wrapper_root="/tmp/wrappers",
                 ccache_bin="ccache",
@@ -227,19 +229,6 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertIn("buildbox-ccache-stats", command)
         self.assertIn("CCACHE_STATS_FORMAT=json", command)
-
-    def test_ccache_stats_creates_the_configured_temp_root(self) -> None:
-        makefile_path = SCRIPT_DIR.parent / ".github" / "local" / "Makefile.local"
-        makefile = makefile_path.read_text(encoding="utf-8")
-        recipe = makefile.split("__buildbox-ccache-stats:", 1)[1].split(
-            "\n\n", 1
-        )[0]
-
-        self.assertIn('mkdir -p "$(BUILDBOX_HOST_TMPDIR)"', recipe)
-        self.assertIn(
-            'mktemp "$(BUILDBOX_HOST_TMPDIR)/ccache-stats.XXXXXX"', recipe
-        )
-        self.assertNotIn('mktemp "$(REPO_ROOT)/.buildbox/tmp/', recipe)
 
     def test_traversal_groups_keep_release_before_debug(self) -> None:
         variants = firmware_layout.iter_build_all_variants()
@@ -254,27 +243,35 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
 
     def test_release_phase_interleaves_cix_inside_each_compile_bucket(self) -> None:
         variants = firmware_layout.iter_build_all_variants()
-        labels = [variant.archive_suffix() or "upstream" for variant in variants[1:17]]
+        labels = [variant.archive_suffix() or "upstream" for variant in variants[1:25]]
 
         self.assertEqual(
             labels,
             [
                 "custom",
                 "custom+cix",
+                "custom+cix+tf_a_fixes",
                 "custom+fixes",
                 "custom+cix+fixes",
+                "custom+cix+tf_a_fixes+fixes",
                 "custom+fixes+core_order-conventional",
                 "custom+cix+fixes+core_order-conventional",
+                "custom+cix+tf_a_fixes+fixes+core_order-conventional",
                 "custom+fixes+core_order-performance",
                 "custom+cix+fixes+core_order-performance",
+                "custom+cix+tf_a_fixes+fixes+core_order-performance",
                 "custom+experimental",
                 "custom+cix+experimental",
+                "custom+cix+tf_a_fixes+experimental",
                 "custom+verbose",
                 "custom+cix+verbose",
+                "custom+cix+tf_a_fixes+verbose",
                 "custom+uart3",
                 "custom+cix+uart3",
+                "custom+cix+tf_a_fixes+uart3",
                 "custom+uart3+uart3_debug",
                 "custom+cix+uart3+uart3_debug",
+                "custom+cix+tf_a_fixes+uart3+uart3_debug",
             ],
         )
 

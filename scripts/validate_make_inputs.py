@@ -104,6 +104,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--enable-firmware-fixes")
     validate.add_argument("--enable-core-order")
     validate.add_argument("--cix-release")
+    validate.add_argument("--enable-tf-a-fixes")
     validate.add_argument("--enable-experimental-uefi-settings")
     validate.add_argument("--o6-smbios-asset-tag")
     validate.add_argument("--o6-smbios-baseboard-asset-tag")
@@ -509,6 +510,21 @@ def run_validate(args: argparse.Namespace) -> int:
             ):
                 raise ValueError(
                     "CIX_RELEASE is only supported for FIRMWARE_BOARD=O6 or O6N"
+                )
+
+        if args.enable_tf_a_fixes is not None and args.enable_tf_a_fixes != "":
+            tf_a_fixes = normalize_bool(args.enable_tf_a_fixes)
+            if artefact_mode and artefact_mode != "custom":
+                raise ValueError(
+                    "ENABLE_TF_A_FIXES is only supported with ARTEFACT_MODE=custom"
+                )
+            if (
+                tf_a_fixes == "TRUE"
+                and args.firmware_board is not None
+                and args.firmware_board not in VALID_BOARDS
+            ):
+                raise ValueError(
+                    "ENABLE_TF_A_FIXES is only supported for FIRMWARE_BOARD=O6 or O6N"
                 )
 
         if (

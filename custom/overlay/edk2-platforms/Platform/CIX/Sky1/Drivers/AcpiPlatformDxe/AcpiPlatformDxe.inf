@@ -44,6 +44,7 @@
   DevicePathLib
   PciHostBridgeLib
   AcpiLib
+  ArmGenericTimerCounterLib
   ConfigParamsDataBlockLib
   SocInitLib
   PL011UartClockLib

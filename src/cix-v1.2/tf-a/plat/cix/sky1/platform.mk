@@ -203,6 +203,11 @@ ifeq (${SMP}, 1)
 $(eval $(call add_define,CIX_ARCH_SMP))
 endif
 
+ENABLE_TF_A_FIXES ?= 0
+ifeq (${ENABLE_TF_A_FIXES}, 1)
+$(eval $(call add_define,ENABLE_TF_A_FIXES))
+endif
+
 ifeq (${BUILD_MODE}, debug)
 $(eval $(call add_define,CONFIG_CIX_DEBUG))
 endif

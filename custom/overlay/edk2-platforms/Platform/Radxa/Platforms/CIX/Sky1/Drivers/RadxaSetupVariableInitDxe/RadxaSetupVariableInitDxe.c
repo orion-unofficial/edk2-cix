@@ -28,6 +28,7 @@ ApplyBoardDeviceModelDefaults (
   RadxaSetupVar->UsbGenericXhciVisible[1] = 0;
   RadxaSetupVar->UsbGenericXhciVisible[2] = 1;
   RadxaSetupVar->UsbGenericXhciVisible[3] = 0;
+  RadxaSetupVar->ThermalPowerModel = RADXA_SETUP_THERMAL_POWER_MODEL_VENDOR_ACPI;
 
   SystemProductName = (CHAR16 *)FixedPcdGetPtr (PcdSystemProductName);
   if (!StrCmp (L"Radxa Orion O6N", SystemProductName)) {
