@@ -5,11 +5,14 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import pathlib
 import re
 import shutil
 import subprocess
 import sys
+
+from debug_build_policy import preflight
 
 
 SCRIPT_PATH = pathlib.Path(__file__).resolve()
@@ -96,6 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--debug-on-uart3")
     validate.add_argument("--uart3-enable")
     validate.add_argument("--debug-verbose")
+    validate.add_argument("--force-debug-build", default=os.environ.get("FORCE_DEBUG_BUILD", ""))
     validate.add_argument("--debug-print-error-level")
     validate.add_argument("--enable-firmware-fixes")
     validate.add_argument("--enable-core-order")
@@ -442,6 +446,12 @@ def run_validate(args: argparse.Namespace) -> int:
                 raise ValueError(
                     "DEBUG_PRINT_ERROR_LEVEL is only supported with ARTEFACT_MODE=custom"
                 )
+
+        if artefact_mode == "custom" and args.firmware_target:
+            preflight(lambda path: (args.repo_root / path).read_text(),
+                      board=args.firmware_board or "O6", target=args.firmware_target,
+                      verbose=args.debug_verbose or "", mask=args.debug_print_error_level or "",
+                      force=args.force_debug_build)
 
         if (
             args.enable_firmware_fixes is not None

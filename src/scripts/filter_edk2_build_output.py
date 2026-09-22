@@ -35,8 +35,9 @@ PROGRESS_LINE_RE = re.compile(r"^[.#]+(?: done!)?$")
 
 ARTEFACT_MODE = os.environ.get("ARTEFACT_MODE", "custom")
 VERBOSE = os.environ.get("V", os.environ.get("EDK2_CIX_VERBOSE", "0")) == "1"
-QUIET_FILTERING = not VERBOSE
-SUPPRESS_WARNINGS = ARTEFACT_MODE == "upstream" and not VERBOSE
+DEBUG = os.environ.get("DEBUG", "0").lower() in {"1", "true", "yes", "on"}
+QUIET_FILTERING = not (VERBOSE or DEBUG)
+SUPPRESS_WARNINGS = ARTEFACT_MODE == "upstream" and QUIET_FILTERING
 
 
 def should_drop_line(line: str) -> bool:
@@ -111,8 +112,15 @@ def prefers_no_blank_before(line: str) -> bool:
     )
 
 
-def is_warning_line(line: str) -> bool:
-    return "warning:" in line or "WARNING:" in line or "Warnings," in line
+def known_autogen_warning(line: str) -> bool:
+    # Exact vendor DSC/INF mismatch pairs. Never silence a class of AutoGen
+    # warnings: different libraries or changed diagnostic text must be visible.
+    prefix = r"^.*[/\\]Platform[/\\]CIX[/\\]Sky1[/\\]Sky1Common\.dsc\.inc\(\d+\): warning: .*[/\\]"
+    pairs = (
+        r"(?:edk2-non-osi|edk2-platforms)/Silicon/CIX/Sky1/Drivers/DpuDxe/DpuDxe\.inf does not support LIBRARY_CLASS DpuDxe",
+        r"edk2/MdeModulePkg/Library/LzmaCustomDecompressLib/LzmaCustomDecompressLib\.inf does not support LIBRARY_CLASS LzmaDecompressLib",
+    )
+    return any(re.fullmatch(prefix + pair, line) for pair in pairs)
 
 
 def main() -> int:
@@ -157,8 +165,6 @@ def main() -> int:
                 remarks = int(summary_match.group(3))
                 if errors != 0:
                     flush_buffer()
-                elif SUPPRESS_WARNINGS:
-                    buffered_iasl.clear()
                 elif warnings != 0 or remarks != 0:
                     flush_buffer()
                 else:
@@ -179,7 +185,7 @@ def main() -> int:
                 or LTO_SERIAL_WARNING_RE.search(line)
                 or LTO_SERIAL_NOTE_RE.search(line)
                 or VFR_AMBIGUITY_RE.search(line)
-                or is_warning_line(line)
+                or known_autogen_warning(line)
             ):
                 continue
 
