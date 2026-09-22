@@ -32,6 +32,8 @@ def recipe(config: dict[str, str], release: str, board: str, product: str,
                 'O6_SMBIOS_CHASSIS_ASSET_TAG', 'SIGNING_CERT_SOURCE_DIR', 'REQUIRE_SIGNING_CERT_SOURCE'):
         if config.get(key):
             args[key] = config[key]
+    if config['UEFI_TARGET'] == 'DEBUG' or config.get('DEBUG_VERBOSE') == 'TRUE':
+        args['FORCE_DEBUG_BUILD'] = '1'
     return ['make build'] + [key + '=' + shlex.quote(value) for key, value in args.items()]
 
 
@@ -56,13 +58,11 @@ def generate(overlay: Path, output: Path, config: dict[str, str], release: str,
     if (overlay / includes).is_dir():
         shutil.copytree(overlay / includes, output / includes, symlinks=False)
     title = 'Rebuild running firmware'
-    help_text = ('Compile-time arguments; setup changes do not change this recipe. '
-                 'Use the recorded build checkout and source refs. Signing timestamps and host tools may change bytes.')
-    display = lines + ['Build checkout: ' + (build_commit or 'direct source build; see source identity'),
-                       'Source: ' + config.get('SOURCE_COMMIT_HASH', ''),
-                       'EDK2: ' + config.get('EDK2_COMMIT_HASH', ''),
-                       'Platforms: ' + config.get('EDK2_PLATFORMS_COMMIT_HASH', ''),
-                       'Non-OSI: ' + config.get('EDK2_NON_OSI_COMMIT_HASH', '')]
+    help_text = ('Build settings, not saved setup values. Use this build checkout and its '
+                 'source refs. Host tools and timestamps can change bytes.')
+    # Component identities already appear in this same System Information form.
+    # Keep the complete command and orchestration checkout, avoiding duplicate rows.
+    display = lines + ['Build checkout: ' + (build_commit or 'direct source build')]
     uni = ['#langdef en-US "English"',
            '#string STR_BUILD_RECIPE_TITLE #language en-US ' + uni_string(title),
            '#string STR_BUILD_RECIPE_HELP #language en-US ' + uni_string(help_text)]
