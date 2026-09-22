@@ -70,7 +70,8 @@ def validate_release(repo: Path, problems: list[str]) -> None:
                       board=env("FIRMWARE_BOARD") or "O6", target=env("FIRMWARE_TARGET") or "RELEASE",
                       verbose=env("DEBUG_VERBOSE"), mask=env("DEBUG_PRINT_ERROR_LEVEL"),
                       force=env("FORCE_DEBUG_BUILD"),
-                      fdf_override=source_fdf(repo, entry["source_ref"], env("FIRMWARE_BOARD") or "O6"))
+                      fdf_override=source_fdf(repo, entry["source_ref"], env("FIRMWARE_BOARD") or "O6",
+                                              env("ENABLE_EXPERIMENTAL_UEFI_SETTINGS").lower() in TRUE_TOKENS))
     except (ReconstructionError, ValueError) as exc:
         problems.append(str(exc))
 

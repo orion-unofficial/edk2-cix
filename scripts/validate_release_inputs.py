@@ -13,6 +13,7 @@ from reconstruction_common import (
     release_metadata_ref, show_file, source_target_name, load_ref_records,
 )
 from source_lifecycle import tree_entries
+from debug_build_policy import fdf_paths
 
 ROOT = Path(__file__).resolve().parents[1]
 FIRMWARES = "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/"
@@ -22,12 +23,13 @@ LOCKED_PAYLOADS = ("bootloader1.img", "bootloader2.img", "sfh_fw.bin",
                    "ec_fw.bin", "se_config.bin", "trustzone_config.bin")
 
 
-def source_fdf(repo: Path, ref: str, board: str) -> str:
+def source_fdf(repo: Path, ref: str, board: str, experimental: bool = False) -> str:
     """Read the effective custom board layout, including tracked mirror links."""
-    relative = f"edk2-platforms/Platform/Radxa/Orion/{board}/{board}.fdf"
-    path = "custom/overlay/" + relative
-    if path not in tree_entries(repo, ref, (path,)):
-        path = "src/" + relative
+    for path in fdf_paths(board, experimental):
+        if path in tree_entries(repo, ref, (path,)):
+            break
+    else:
+        raise ReconstructionError(f"missing board layout: {ref}:{board}")
     for _ in range(16):
         entry = tree_entries(repo, ref, (path,)).get(path)
         if entry is None:

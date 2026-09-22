@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -48,6 +49,26 @@ class FirmwareReconfigurationTests(unittest.TestCase):
             "FIRMWARE_VERSION": "1.3.1", "UEFI_FW_VERSION": "1.3.1+fixes",
             "PREFERRED_TMP_ROOT": str(self.root / "tmp"),
         }
+
+    def test_raw_preflight_uses_the_selected_experimental_fdf(self):
+        relative = "edk2-platforms/Platform/Radxa/Orion/O6/O6.fdf"
+        for prefix, size in (("overlay", "0x1f4000"),
+                             ("overlay-experimental-uefi-settings", "0x400000")):
+            path = self.root / "custom" / prefix / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(f"Size = {size}|gArmTokenSpaceGuid.PcdFdSize\n")
+        for enabled in ("false", "true"):
+            result = subprocess.run([
+                sys.executable, str(self.root / "scripts/validate_make_inputs.py"), "validate",
+                "--repo-root", str(self.root), "--artefact-mode", "custom",
+                "--firmware-board", "O6", "--firmware-target", "RELEASE",
+                "--enable-experimental-uefi-settings", enabled, "--force-debug-build", "0",
+            ], capture_output=True, text=True)
+            if enabled == "false":
+                self.assertEqual(result.returncode, 0, result.stderr)
+            else:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("FD size 0x400000 exceeds bootloader3.img", result.stderr)
 
     def test_custom_payload_metadata_changes_invalidate_cached_images(self):
         for key, value in (("MEM_CFG_MEMFREQ", "2750"), ("SOURCE_DATE_EPOCH", "1700000000"),

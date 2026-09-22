@@ -5,7 +5,7 @@ firmware baselines. Earlier 202605 measurements remain historical evidence;
 they are not size qualifications for 202608.
 
 The reviewed build-branch baseline is `defa6833bf`. The original repository's
-`main-monorepo-meta` documentation was inspected at `b127942e38`. This is a
+legacy metadata branch documentation was inspected at `b127942e38`. This is a
 reconciliation and audit plan, not a claim that every historical source change
 has received a fresh semantic review.
 
