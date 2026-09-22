@@ -24,15 +24,15 @@
 #
 ################################################################################
 
-# Custom experimental RELEASE volume: use 8 KiB of the existing BL3 slot
-# headroom. Full-flash and OTA validators still enforce vendor slot limits.
+# Retain this Radxa 1.2.4 board's vendor RELEASE volume size.
+# Full-flash and OTA validators still enforce the unchanged vendor slot limits.
 [Defines]
 !if $(TARGET) == DEBUG
   DEFINE SKY1_BL33_UEFI_FD_SIZE   = 0x00400000
   DEFINE SKY1_BL33_UEFI_FD_BLOCKS = 0x400
 !else
-  DEFINE SKY1_BL33_UEFI_FD_SIZE   = 0x001f2000
-  DEFINE SKY1_BL33_UEFI_FD_BLOCKS = 0x1f2
+  DEFINE SKY1_BL33_UEFI_FD_SIZE   = 0x00200000
+  DEFINE SKY1_BL33_UEFI_FD_BLOCKS = 0x200
 !endif
 
 [FD.SKY1_BL33_UEFI]
