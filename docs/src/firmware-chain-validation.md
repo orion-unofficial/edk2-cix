@@ -24,8 +24,9 @@ The validator checks:
 - trusted-world and UEFI key delegation against the pinned vendor reference;
 - signed hashes of BL31, OP-TEE, UEFI and any optional configuration payloads;
 - consistent rollback counters at least as high as the reference;
-- complete 8 MiB flash images, pinned vendor addresses and reserved sizes,
-  table bounds and payload overlap;
+- complete 8 MiB flash images, pinned vendor addresses and allowed reserved
+  sizes, table bounds and payload overlap; the audited custom BL33 extension
+  additionally requires [large-image consent](debug-layout.md);
 - full-flash and OTA members of supported ZIP and tar archives, including
   OTA destinations and signed UEFI contents.
 
@@ -38,7 +39,7 @@ verified payloads and counters. Host reports use the host-owned cache alongside
 BL1 reports, avoiding container ownership problems. They are copied beside
 published raw images. A failed check replaces any earlier successful report.
 
-## Why Stage 3 is rejected
+## Why source-built trusted firmware is rejected
 
 The curated CIX V1.2 helper signs its trusted FIP using `oem_privatekey.pem`.
 That key is authorised for the non-trusted/UEFI branch, not the vendor
@@ -56,16 +57,17 @@ an available delegated content-signing key therefore does not provide an
 alternative for these packages; the required content-signing private key is
 also unavailable in the examined sources.
 
-The tester's BL2 image 7 error identifies the Trusted Key Certificate. Image 13
-is the BL31 content certificate; image 3 is BL31 itself. Parent authentication
-failure can therefore produce the reported failure to load image 3.
+In the inspected vendor BL2, image 7 identifies the Trusted Key Certificate.
+Image 13 is the BL31 content certificate; image 3 is BL31 itself. Parent
+authentication failure can therefore produce a failure to load image 3.
 
 Any nonblank `CIX_RELEASE` now fails immediately while Make parses its input,
 before source preparation or output changes. An invalid invocation leaves
 previous artifacts and their reports untouched; it never reports build success.
 Leave `CIX_RELEASE=` to retain the selected vendor BL31/OP-TEE. The `latest`
 profile and `build-all` distribution use qualified vendor trusted payloads.
-The full EDK2/Radxa/board/firmware-fixes qualification matrix remains intact.
+The [maintained qualification matrix](maintenance-and-ci.md) retains vendor
+trusted payloads.
 CI separately compiles both curated TF-A fix configurations with OP-TEE, then
 requires the resulting FIPs to fail the vendor-root check. Development
 compilation is preserved without labelling those FIPs flashable. The qualifier
@@ -87,10 +89,11 @@ the board's fused identity, current monotonic counters or boot policy, nor prove
 runtime compatibility. Reports explicitly mark board fuse acceptance as
 `not-tested` and rollback state as `not-observed`.
 
-Compare the tester's saved Stage 3 flash readback with the original built image
-and working Stage 2 image offline. Retain their SHA-256 hashes, build commit,
-manifest and complete UART log. No repeat Stage 3 flash is needed. NVRAM-bearing
-dumps may contain private settings and should remain private.
+When diagnosing a failed image, compare an existing flash readback with the
+original build and a known-working image offline. Retain SHA-256 hashes, the
+build commit, manifest and complete UART log. Do not repeat a known-invalid
+flash merely to collect the same authentication failure. NVRAM-bearing dumps
+may contain private settings and should remain private.
 
 The source-tree packaging guard is deliberately retained in Unofficial source
 refs: direct `make -C src` runs inside those trees. A build-branch post-check

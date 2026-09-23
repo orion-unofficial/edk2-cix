@@ -10,13 +10,10 @@ The comparison baselines are the tables shipped with Radxa O6/O6N 1.2.4 and
 `sys-kernel/cix-sources/files/acpi-table-upgrade/`. A shipped-table extraction is
 not a capture of runtime-generated tables from a booted board.
 
-The release-specific 202605 and 202608 checkpoints provide the 1.2.4 and 1.3.1
-source baselines used for this comparison. Older generic EDK2 targets still
-apply release metadata to a shared Unofficial source tree. Porting these ACPI
-fixes to those trees does not establish that every older release-labelled
-target contains the corresponding vendor release's complete source changes.
-That existing source-provenance limitation needs a separate correction; a
-successful build or matching version string does not resolve it.
+The primary 202208 and 202608 custom checkpoints provide release-specific
+1.2.4 and 1.3.1 baselines. Historical aliases must pass the same source-binding
+and vendor-payload guards; a matching version string does not establish that
+all named-release changes are present. See [checkpoint maintenance](source-checkpoint-maintenance.md).
 
 ## Coverage with `ENABLE_FIRMWARE_FIXES=true`
 
@@ -51,40 +48,21 @@ and a disabled-core case.
 The PCIe SMMU switch in the inspected source controls table generation. It is
 therefore too strong to claim that an initrd IORT replacement cannot expose the
 same node. Boot and DMA qualification are still required for that kernel path.
-The tester's successful Stage 2 boot and SMMU enumeration do not establish all
-PCIe, suspend or GPU workloads.
+Successful booting and SMMU enumeration do not establish correct behavior across
+all PCIe, suspend or GPU workloads.
 
 The ramoops and fixed-regulator warnings can also depend on kernel support for
 ACPI firmware-node properties. Correct tables and reserved memory cannot replace
 missing driver support. Collect the actual kernel version, full device errors
 and live tables before changing rail policy or suppressing devices.
 
-The O6 report describing tests on 20 September 2026 names Ubuntu `6.11.0-29`
-and build commit `5fc8d7bb524878d61bf763e69c5988b5956165eb`. It corrects an
-earlier comparison: the reporter now counts eleven fixed-regulator errors on
-every variant. It also reports that resource-11 conflicts and HTTU override
-warnings disappeared with fixes enabled, and the PCIe SMMU node returned.
-These observations agree with the inspected source, but the original complete
-logs and failing image/readback pair were not supplied. They do not independently
-establish build-to-flash provenance or qualify the full board/kernel combination.
-
-Upstream Linux 6.11's [fixed-regulator driver](https://github.com/torvalds/linux/blob/v6.11/drivers/regulator/fixed.c)
-returns `-ENOMEM` when a non-Device-Tree device has no platform configuration.
-Its [ramoops driver](https://github.com/torvalds/linux/blob/v6.11/fs/pstore/ram.c)
-similarly reports `NULL platform data` and `-EINVAL`. Those paths fit the
-reported failures; the exact Ubuntu source and backports still require checking.
-Firmware reservation fixes do not supply the missing kernel property parser.
-
-The [September 2026 review](qualification-review-20260922.md#fixed-regulator-errors)
-also checks Linux 6.18 and the current Gentoo ebuild policy. The former still
-expects platform data outside Device Tree; the latter quarantines CIX's unsafe
-regulator ACPI patch. A newer kernel version or an absence of errors alone
-therefore does not establish working regulator support.
-
-The reported `_DSM` identifier `e8c3a8d2-694b-004f-82bd-fe8607803aa7` matches
-the [Realtek rtw89 Wi-Fi interface](https://github.com/torvalds/linux/blob/v6.11/drivers/net/wireless/realtek/rtw89/acpi.c).
-Obtain its function number and adjacent driver messages before adding firmware
-methods. Radio policy values must not be invented just to remove a warning.
+The reported regulator errors have not been reproduced on the maintained
+custom kernel. That investigation is deferred; no firmware rail-policy workaround
+is being added. Driver matching through ACPI properties does not itself prove
+that a driver can parse those properties. Likewise, correct ramoops reservations
+do not supply missing kernel configuration support. If reproduced, retain the
+exact kernel source/configuration, bound drivers and live tables before changing
+firmware.
 
 ## Intermittent BDS hang
 
@@ -117,8 +95,9 @@ The board's RELEASE compiler flags now respect `DEBUG_VERBOSE`; previously they
 could disable logging after the custom include enabled it. Targeted setup/BDS prints also work
 with `DEBUG_VERBOSE=false` when the `DEBUG_INIT` mask bit is selected. A build
 requesting those diagnostics checks that the BDS markers survived in the EFI.
-Global RELEASE logging exceeded the fixed volume even with a narrower mask;
-the command above therefore retains ordinary RELEASE compilation.
+The command above retains ordinary RELEASE compilation. For broader logs,
+[logging-only RELEASE](debug.md) can enable selected categories;
+[adaptive sizing](debug-layout.md) checks whether a larger BL33 slot is needed.
 
 For another occurrence, retain uninterrupted UART output from reset, the exact
 image/build manifest and the previous boot's success/failure history. The last

@@ -2,6 +2,7 @@
 /.buildbox/
 /.devenv/
 /.worktrees/
+/.agent-work/
 /book/
 /build-cache/
 /build-logs/

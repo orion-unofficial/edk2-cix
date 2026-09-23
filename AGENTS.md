@@ -174,3 +174,20 @@ Do not introduce incidental whole-file line-ending churn in upstream-derived
 files; use normalized comparison views for audits. A deliberate normalization
 migration requires separate review and replay/build checks. Do not blindly
 normalize binary, UTF-16, cryptographic or OpenSSL fixture data.
+
+## Documentation And Tool Placement
+
+Keep `docs/src/` for maintained user and maintainer documentation. Describe
+current behavior and supported procedures; put durable constraints and useful
+qualification limits there, not session transcripts or superseded plans.
+Keep `scripts/` for supported commands, their shared modules, source-propagated
+build helpers and regression tests. A helper need not have a direct Make target;
+document its caller or supported command instead of adding a redundant wrapper.
+
+Put agent ledgers, one-off audit scripts, historical investigation notes and
+local qualification data under ignored `.agent-work/session-<session-id>/`.
+Use `.worktrees/` for execution checkouts and resumable build state as described
+above. Do not link published documentation to ignored local evidence. Before
+archiving a ledger, preserve any still-current user instructions or engineering
+constraints in the maintained documentation. Archive only owned task material;
+do not move required source refs or source manifests into scratch storage.

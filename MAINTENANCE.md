@@ -1103,7 +1103,7 @@ entry points live there with the implementation they exercise:
 - `Supported firmware release matrix` derives its targets from the public
   source model and `firmware_qualification_policy` in `config/policies.json`.
   It compiles and packages each selected target; it also retains failure logs.
-  The [checkpoint audit](docs/src/source-checkpoint-maintenance.md) records
+  The [checkpoint guide](docs/src/source-checkpoint-maintenance.md) records
   source-input regression checks and the distinction between structural
   validation and completed compilation.
 - `Manual firmware build` renders and builds one selected current source target
