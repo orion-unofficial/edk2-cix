@@ -37,6 +37,7 @@ class RecipeTests(unittest.TestCase):
             'FIRMWARE_TARGET', 'FIRMWARE_DISTRO', 'ENABLE_FIRMWARE_FIXES', 'ENABLE_CORE_ORDER',
             'CIX_RELEASE', 'ENABLE_TF_A_FIXES', 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS',
             'DEBUG_ON_UART3', 'UART3_ENABLE', 'DEBUG_VERBOSE', 'DEBUG_PRINT_ERROR_LEVEL', 'BUILD_DATE',
+            'DEBUG_ALLOW_LARGE_IMAGE',
         })
         self.assertEqual(values['CIX_RELEASE'], '')
         self.assertEqual(values['DEBUG_VERBOSE'], 'false')
@@ -59,8 +60,8 @@ class RecipeTests(unittest.TestCase):
                 receipt = json.loads((output/'firmware-rebuild.json').read_text())
                 self.assertIn('DEBUG_VERBOSE=' + verbose.lower(), text)
                 self.assertEqual(receipt['config']['DEBUG_VERBOSE'], verbose)
-                if verbose == 'TRUE':
-                    self.assertIn('FORCE_DEBUG_BUILD=1', text)
+                self.assertIn('DEBUG_ALLOW_LARGE_IMAGE=0', text)
+                self.assertNotIn('FORCE_DEBUG_BUILD=', text)
                 self.assertIn('Build checkout: ' + 'a'*40, text)
                 self.assertNotIn('Platforms: ', text)
                 self.assertEqual((output/self.module.MODULE/'input.c').read_text(), 'upstream')

@@ -70,6 +70,7 @@ def validate_release(repo: Path, problems: list[str]) -> None:
                       board=env("FIRMWARE_BOARD") or "O6", target=env("FIRMWARE_TARGET") or "RELEASE",
                       verbose=env("DEBUG_VERBOSE"), mask=env("DEBUG_PRINT_ERROR_LEVEL"),
                       force=env("FORCE_DEBUG_BUILD"),
+                      allow_large=env("DEBUG_ALLOW_LARGE_IMAGE"),
                       fdf_override=source_fdf(repo, entry["source_ref"], env("FIRMWARE_BOARD") or "O6",
                                               env("ENABLE_EXPERIMENTAL_UEFI_SETTINGS").lower() in TRUE_TOKENS))
     except (ReconstructionError, ValueError) as exc:
@@ -104,6 +105,8 @@ def validate_feature_relationships(repo: Path, problems: list[str]) -> None:
         "ENABLE_EXPERIMENTAL_UEFI_SETTINGS",
     )
     if artefact_mode != "custom":
+        if env("DEBUG_ALLOW_LARGE_IMAGE") == "1":
+            problems.append("DEBUG_ALLOW_LARGE_IMAGE is only supported with ARTEFACT_MODE=custom")
         for name in custom_only_booleans:
             if env(name).lower() in TRUE_TOKENS:
                 problems.append(f"{name} is only supported with ARTEFACT_MODE=custom")
@@ -125,6 +128,7 @@ def validate() -> None:
     require_choice("V", env("V") or "0", {"0", "1"}, problems)
     require_boolean("DEBUG", env("DEBUG") or "0", problems)
     require_choice("FORCE_DEBUG_BUILD", env("FORCE_DEBUG_BUILD"), {"0", "1"}, problems)
+    require_choice("DEBUG_ALLOW_LARGE_IMAGE", env("DEBUG_ALLOW_LARGE_IMAGE"), {"0", "1"}, problems)
     require_choice("ARTEFACT_MODE", env("ARTEFACT_MODE") or "custom", VALID_ARTEFACT_MODES, problems)
     require_choice("FIRMWARE_TARGET", env("FIRMWARE_TARGET") or "RELEASE", VALID_FIRMWARE_TARGETS, problems)
     require_choice("FIRMWARE_BOARD", env("FIRMWARE_BOARD") or "O6", VALID_BOARDS, problems)

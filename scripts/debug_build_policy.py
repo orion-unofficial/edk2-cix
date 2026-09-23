@@ -53,9 +53,12 @@ def fd_size(fdf: str, target: str) -> int:
 
 def preflight(read: Callable[[str], str], *, board: str, target: str,
               verbose: str = "", mask: str = "", force: str = "",
+              allow_large: str = "",
               fdf_override: str | None = None) -> dict:
     if force not in {"", "0", "1"}:
         raise ValueError("FORCE_DEBUG_BUILD must be 0 or 1")
+    if allow_large not in {"", "0", "1"}:
+        raise ValueError("DEBUG_ALLOW_LARGE_IMAGE must be 0 or 1")
     bits = debug_bits(read(HEADER))
     maximum = 0
     for bit in bits.values():
@@ -73,18 +76,9 @@ def preflight(read: Callable[[str], str], *, board: str, target: str,
                      if item["image_type"] == 7)
     if len(slots) != 2:
         raise ValueError("expected one bootloader3.img slot in each flash layout")
-    reasons = []
-    if size > min(slots):
-        reasons.append(f"{target} FD size 0x{size:X} exceeds bootloader3.img slot 0x{min(slots):X} before certificate overhead")
-    if target == "RELEASE" and logging and effective:
-        reasons.append(
-            "logging-enabled RELEASE has no qualified deployable default; "
-            "prior 202608 O6/1.3.1 measurements with a 0x1F2000 FV exceeded space by "
-            "6,488 bytes with INIT and 70,048 bytes with INFO|ERROR "
-            "(the selected layout/source may differ)"
-        )
-    if reasons and force != "1":
-        raise ValueError("; ".join(reasons) + ". Use FORCE_DEBUG_BUILD=1 only for an experimental build; "
-                         "final size, packaging and signature checks remain mandatory.")
+    # FD capacity is now measured and adjusted inside the custom build. Consent
+    # is enforced against the actual signed FIP; masks are not size predictions.
+    # Keep FORCE_DEBUG_BUILD as a compatibility input, never a guard bypass.
     return {"effective_mask": f"0x{effective:08X}", "accepted_mask": f"0x{maximum:08X}",
-            "fd_size": size, "bootloader3_slot": min(slots), "experimental_reasons": reasons}
+            "fd_size": size, "bootloader3_slot": min(slots), "experimental_reasons": [],
+            "allow_large": allow_large == "1"}

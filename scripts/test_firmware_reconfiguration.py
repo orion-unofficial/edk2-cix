@@ -47,6 +47,7 @@ class FirmwareReconfigurationTests(unittest.TestCase):
             "DEBUG_ON_UART3": "false", "UART3_ENABLE": "false",
             "DEBUG_PRINT_ERROR_LEVEL": "0x80000040", "CIX_RELEASE": "",
             "FORCE_DEBUG_BUILD": "1",  # Exercise invalidation even for size experiments.
+            "DEBUG_ALLOW_LARGE_IMAGE": "0",
             "ENABLE_TF_A_FIXES": "false", "EDK2_CIX_REPO_LOCK_HELD": "1",
             "BUILD_METADATA_SCRIPT": "true", "BUILD_DATE": "2026-09-17T00:00:00Z",
             "SOURCE_COMMIT_HASH": "source", "EDK2_COMMIT_HASH": "edk2",
@@ -69,11 +70,62 @@ class FirmwareReconfigurationTests(unittest.TestCase):
                 "--firmware-board", "O6", "--firmware-target", "RELEASE",
                 "--enable-experimental-uefi-settings", enabled, "--force-debug-build", "0",
             ], capture_output=True, text=True)
-            if enabled == "false":
-                self.assertEqual(result.returncode, 0, result.stderr)
-            else:
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn("FD size 0x400000 exceeds bootloader3.img", result.stderr)
+            # Static FD padding no longer predicts the signed image's size.
+            # The real custom builder measures and adjusts its selected FDF.
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_buildbox_host_preflight_accepts_custom_large_image_consent(self):
+        # This is the real wrapper target, which validates host/container
+        # settings without selecting firmware-target or artefact-mode itself.
+        for allow in ("0", "1"):
+            result = subprocess.run([
+                self.make, "--no-print-directory", "-f", str(self.root / ".github/local/Makefile.local"),
+                "preflight-wrapper-buildbox", "ARTEFACT_MODE=custom",
+                "DEBUG_ALLOW_LARGE_IMAGE=" + allow, "FIRMWARE_DISTRO=trixie",
+                "BUILDBOX_PLATFORM=linux/arm64", "CIX_RELEASE=",
+            ], cwd=self.root, capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        # The firmware-aware check must still reject an explicit upstream mode.
+        result = subprocess.run([
+            sys.executable, str(self.root / "scripts/validate_make_inputs.py"), "validate",
+            "--repo-root", str(self.root), "--artefact-mode", "upstream",
+            "--debug-allow-large-image", "1",
+        ], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("only supported with ARTEFACT_MODE=custom", result.stderr)
+
+    def test_packaging_stops_immediately_if_layout_preparation_fails(self):
+        source = (self.root / "src/Makefile").read_text()
+        blocks = re.findall(
+            r'\tif \[\[ "\$\(ARTEFACT_MODE\)" == "custom" \]\]; then \\\n'
+            r'\t\tpython3 "\$\(REPO_ROOT\)/src/scripts/bl33_layout.py".*?\n\tfi && \\',
+            source, re.S,
+        )
+        self.assertEqual(len(blocks), 2)
+        helper = self.root / "src/scripts/bl33_layout.py"
+        helper.parent.mkdir(parents=True, exist_ok=True)
+        helper.write_text('raise SystemExit(7)\n')
+        stage, final = self.root / "stage", self.root / "final"
+        stage.mkdir()
+        final.mkdir()
+        # Stale evidence must not turn a failed guard into apparent success.
+        (stage / "bl33-layout.json").write_text('{}')
+        (stage / "bl33-full-image-only").touch()
+        for kind, block in zip(("ota", "all"), blocks):
+            probe = self.root / "guard.mk"
+            target = "Build/cix_flash_" + kind + ".bin"
+            probe.write_text(
+                'SHELL := bash\n.ONESHELL:\n.SHELLFLAGS := -eo pipefail -c\n'
+                f'REPO_ROOT := {self.root}\nPACKAGE_TOOL := {self.root}\n'
+                'ARTEFACT_MODE := custom\nDEBUG_ALLOW_LARGE_IMAGE := 0\n'
+                f'{target}:\n\tstage_dir="{stage}"; final_dir="{final}"; \\\n'
+                + block + '\n\tprintf "UNEXPECTED CONTINUATION\\n"\n'
+            )
+            result = subprocess.run([self.make, "--no-print-directory", "-f", str(probe), target],
+                                    cwd=self.root, capture_output=True, text=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn("UNEXPECTED CONTINUATION\n", result.stdout)
+            self.assertFalse((final / "bl33-layout.json").exists())
 
     def test_custom_payload_metadata_changes_invalidate_cached_images(self):
         for key, value in (("MEM_CFG_MEMFREQ", "2750"), ("SOURCE_DATE_EPOCH", "1700000000"),
@@ -104,6 +156,7 @@ class FirmwareReconfigurationTests(unittest.TestCase):
             "ENABLE_CORE_ORDER": ("performance", "performance"),
             "ENABLE_EXPERIMENTAL_UEFI_SETTINGS": ("true", "TRUE"),
             "DEBUG_VERBOSE": ("true", "TRUE"),
+            "DEBUG_ALLOW_LARGE_IMAGE": ("1", "1"),
             "DEBUG_ON_UART3": ("true", "TRUE"),
             "UART3_ENABLE": ("true", "TRUE"),
             "DEBUG_PRINT_ERROR_LEVEL": ("2147483649", "0x80000001"),
@@ -139,6 +192,7 @@ class FirmwareReconfigurationTests(unittest.TestCase):
         probe = self.root / "probe.mk"
         probe.write_text(".PHONY: capture\ncapture:\n\t@printf '%s\\n' $(CAPTURE_ARGS)\n")
         changed = {
+            "DEBUG_ALLOW_LARGE_IMAGE": "1",
             "ENABLE_FIRMWARE_FIXES": "false", "ENABLE_CORE_ORDER": "performance",
             "ENABLE_EXPERIMENTAL_UEFI_SETTINGS": "true", "DEBUG_VERBOSE": "true",
             "DEBUG_ON_UART3": "true", "UART3_ENABLE": "true",
