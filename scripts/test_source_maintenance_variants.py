@@ -13,6 +13,12 @@ from reconstruction_common import for_each_ref, show_file
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORM = 'edk2-platforms/Platform/CIX/Sky1/'
 FILES = (
+    'custom/overlay/edk2-platforms/Silicon/CIX/Sky1/Library/ConfigParamsDataBlockLib/ConfigParamsDataBlockLib.c',
+    'custom/overlay/' + PLATFORM + 'Library/PlatformConfigParamsDataBlockLib/PlatformConfigParamsDataBlockLib.c',
+    'src/edk2-platforms/Silicon/CIX/Sky1/Include/Protocol/ConfigParamsManageProtocol.h',
+    'src/' + PLATFORM + 'Include/Protocol/PlatformConfigParamsManageProtocol.h',
+    'custom/overlay/edk2-platforms/Silicon/CIX/Sky1/Drivers/ConfigParamsManageDxe/ConfigParamsManageDxe.c',
+    'custom/overlay/' + PLATFORM + 'Drivers/PlatformConfigParamsManageDxe/PlatformConfigParamsManageDxe.c',
     'custom/overlay/' + PLATFORM + 'Drivers/FirmwareUpdateDxe/FwUpdateProtocolDxe.c',
     'src/' + PLATFORM + 'Drivers/FirmwareUpdateDxe/FirmwareUpdate.h',
     'src/' + PLATFORM + 'Include/Protocol/CixFwUpdateProtocol.h',
@@ -45,7 +51,7 @@ class SourceMaintenanceVariantTests(unittest.TestCase):
             with self.subTest(refs=refs):
                 result = subprocess.run(
                     [sys.executable, '-m', 'unittest', 'test_firmware_update_safety',
-                     'test_setup_remaining_paths', 'test_pptt_cache_policy'],
+                     'test_setup_remaining_paths', 'test_pptt_cache_policy', 'test_config_protocol_bounds'],
                     cwd=ROOT / 'scripts',
                     env={**os.environ, 'SOURCE_TEST_REF': refs[0],
                          'TMPDIR': str(Path(tempfile.gettempdir()).resolve())},

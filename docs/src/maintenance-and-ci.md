@@ -79,11 +79,14 @@ The extended regression coverage includes:
 
 - atomic publication and immutable-source-ref safeguards;
 - event-driven qualification, matrix, concurrency, and documentation-deployment
-  policy; and
+  policy;
 - upstream-monitor coverage and date-coupled source selection;
 - native execution of the selected custom updater and setup callbacks with
-  allocation, I/O, malformed-variable and readback failures injected; and
-- native PPTT cache-attribute checks against the selected ACPI structures.
+  allocation, I/O, malformed-variable and readback failures injected;
+- native PPTT cache-attribute checks against the selected ACPI structures; and
+- configuration-protocol entry bounds, typed writes, allocation and installation
+  failures, including requests through copied entry descriptors, invalid parser
+  arguments and parser-buffer cleanup.
 
 The native C tests use compiler warnings as errors and address/undefined-behavior
 sanitizers. A source/header fingerprint groups identical retained variants and
@@ -93,11 +96,17 @@ of binary flash utilities or establish successful booting.
 
 ### Warnings and audit differences
 
-Custom builds treat LTO type mismatches as errors. The custom SMBIOS library uses
-the DXE module context so its alignment flags match its callers. The narrow exceptions for
-variables used only by disabled debug macros and the intermediate ELF's RWX
-segment remain explicit in the source build recipe. Upstream quiet mode may
-suppress identified vendor diagnostics to preserve reproducible source and
+Custom builds retain compiler warnings as errors and fatal AutoGen warnings,
+with the existing toolchain exceptions. The AArch64 `-Wno-lto-type-mismatch`
+exception is also present in [EDK2's tool definitions](https://github.com/tianocore/edk2/blob/edk2-stable202608/BaseTools/Conf/tools_def.template):
+mixed BASE/XIP and DXE alignment options can trigger this diagnostic for identical
+GUID and packed-data declarations. It also disables that diagnostic for genuine
+cross-object type mistakes; a passing link is not proof of LTO type correctness.
+Keep the existing module contexts and alignment rules when investigating it.
+
+Exceptions for variables used only by disabled debug macros and the intermediate
+ELF's RWX segment remain explicit in the source build recipe. Upstream quiet mode
+may suppress identified vendor diagnostics to preserve reproducible source and
 artifacts; unknown warnings and errors remain visible. `V=1` exposes command
 output, while `DEBUG=1` also exposes orchestration diagnostics.
 
