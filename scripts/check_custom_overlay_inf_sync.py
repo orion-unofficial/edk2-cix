@@ -34,6 +34,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def normalize_line(raw_line: str) -> str:
+    # Vendor INFs also contain standalone C++-style comment lines.
+    if raw_line.lstrip().startswith("//"):
+        return ""
     stripped = raw_line.split("#", 1)[0].split(";", 1)[0].strip()
     return " ".join(stripped.split())
 
