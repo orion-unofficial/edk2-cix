@@ -15,6 +15,9 @@ from firmware_chain import require
 # may use their vendor-declared slot, but cannot silently inherit this extension.
 AUDITED_BL1 = "fcddd093649e243b16e0b9f92ec3bec7e68e03fe78fed2c594952f0eefd72f15"
 FLASH_SIZE = 0x800000
+# O6/O6N FD at 0x84400000, GOP framebuffer at 0x84800000. The FIP certificates
+# are not part of the loaded FD; flash space and runtime RAM are separate bounds.
+FD_RAM_SIZE = 0x400000
 
 
 def limits(selected: dict) -> dict:
@@ -31,7 +34,8 @@ def limits(selected: dict) -> dict:
                 "BL33 extension would overlap a later vendor allocation")
         maximum = FLASH_SIZE - start
     return {"address": start, "original_slot_size": original,
-            "maximum_slot_size": maximum, "flash_size": FLASH_SIZE}
+            "maximum_slot_size": maximum, "maximum_fd_size": min(maximum, FD_RAM_SIZE),
+            "flash_size": FLASH_SIZE}
 
 
 def select(selected: dict, payload_size: int, allow_large: bool = False) -> dict:
