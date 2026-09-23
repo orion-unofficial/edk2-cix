@@ -14,6 +14,8 @@ import tempfile
 from typing import Any
 
 
+from audit_summary import changes, print_summary
+
 SCRIPT_PATH = pathlib.Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parent.parent
 DEFAULT_BASELINE_FILE = REPO_ROOT / "validation" / "acpi-audit-baselines.json"
@@ -424,6 +426,7 @@ def main() -> int:
         return 2
 
     mismatches = compare_audits(expected_audit, audit)
+    details = list(changes(expected_audit, audit, ignore=frozenset({"log"}))) if mismatches else []
     report = {
         "profile": args.profile,
         "description": profile_meta.get("description"),
@@ -432,6 +435,7 @@ def main() -> int:
         "build_dir": str(build_dir),
         "status": "match" if not mismatches else "mismatch",
         "mismatches": mismatches,
+        "changes": details,
         "acpi": audit,
     }
 
@@ -439,8 +443,7 @@ def main() -> int:
     print(f"Build directory: {build_dir}")
     if mismatches:
         print("ACPI regression audit: mismatch")
-        for mismatch in mismatches:
-            print(f"  - {mismatch}")
+        print_summary(details or mismatches)
     else:
         print("ACPI regression audit: match")
 
