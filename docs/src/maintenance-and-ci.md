@@ -80,7 +80,31 @@ The extended regression coverage includes:
 - atomic publication and immutable-source-ref safeguards;
 - event-driven qualification, matrix, concurrency, and documentation-deployment
   policy; and
-- upstream-monitor coverage and date-coupled source selection.
+- upstream-monitor coverage and date-coupled source selection;
+- native execution of the selected custom updater and setup callbacks with
+  allocation, I/O, malformed-variable and readback failures injected; and
+- native PPTT cache-attribute checks against the selected ACPI structures.
+
+The native C tests use compiler warnings as errors and address/undefined-behavior
+sanitizers. A source/header fingerprint groups identical retained variants and
+runs the checks once for each distinct interface, including the legacy FMP and
+ACPI 6.3 paths. They complement real firmware builds; they cannot prove the behavior
+of binary flash utilities or establish successful booting.
+
+### Warnings and audit differences
+
+Custom builds treat LTO type mismatches as errors. The custom SMBIOS library uses
+the DXE module context so its alignment flags match its callers. The narrow exceptions for
+variables used only by disabled debug macros and the intermediate ELF's RWX
+segment remain explicit in the source build recipe. Upstream quiet mode may
+suppress identified vendor diagnostics to preserve reproducible source and
+artifacts; unknown warnings and errors remain visible. `V=1` exposes command
+output, while `DEBUG=1` also exposes orchestration diagnostics.
+
+ACPI and final-FV audit failures print a bounded list of changed fields and
+retain the full differences in their JSON report. FFS entries are matched by
+GUID so an inserted module does not make every following module appear changed.
+These diagnostics do not relax the existing baseline comparison.
 
 The local `act` commands for each build-branch workflow are documented in the
 root guide. `make docs-build DOCS_BUILD_MODE=container` is the faster local
