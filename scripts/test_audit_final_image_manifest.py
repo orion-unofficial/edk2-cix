@@ -3,21 +3,23 @@
 from __future__ import annotations
 
 from pathlib import Path
-import sys
 import tempfile
 import unittest
 
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-sys.path.insert(0, str(SCRIPT_DIR))
-
-from audit_final_image_manifest import compare_manifests, parse_ffs_manifest
+from audit_final_image_manifest import compare_manifests, parse_ffs_manifest, normalize_path
 
 
 GUID = "12345678-1234-1234-1234-1234567890AB"
 
 
 class AuditFinalImageManifestTests(unittest.TestCase):
+    def test_checkout_beneath_src_uses_the_firmware_source_root(self) -> None:
+        root = Path("/home/test/src/firmware")
+        path = root / "src/edk2-platforms/Platform/Radxa/Test.efi"
+        self.assertEqual(normalize_path(str(path), root),
+                         "src/edk2-platforms/Platform/Radxa/Test.efi")
+
     def test_parse_ffs_manifest_supports_oi_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir_text:
             repo_root = Path(tempdir_text)
