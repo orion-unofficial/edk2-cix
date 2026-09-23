@@ -885,6 +885,8 @@ BootDiscoveryPolicyHandler (
     }
   } else if (EFI_ERROR (Status)) {
     return Status;
+  } else if (Size != sizeof (DiscoveryPolicy)) {
+    return EFI_COMPROMISED_DATA;
   }
 
   if (DiscoveryPolicy == BDP_CONNECT_MINIMAL) {
