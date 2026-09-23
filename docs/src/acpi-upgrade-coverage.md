@@ -23,7 +23,7 @@ all named-release changes are present. See [checkpoint maintenance](source-check
 | GPIO ownership | GPIO descriptors own reset, power and regulator pins; duplicate pin-group claims are removed while clock pins and rail policy are preserved. |
 | Shared Type-C interrupt | O6 PD10 and PD11 share GPI4 pin 8. |
 | SCMI mailbox | Separate mailbox/shared-memory windows, power-unit attributes and CPU-domain lookup methods. |
-| PPTT | The configured fixes PCD selects the cache-ID-capable table revision; it does not depend on an unforwarded compiler macro. |
+| PPTT | The configured fixes PCD selects the cache-ID-capable table revision; it does not depend on an unforwarded compiler macro. Instruction caches do not advertise a valid data write policy; data and unified cache attributes are preserved. |
 | CPU numbering | Runtime SSDT domain names follow actual UIDs, physical cores, disabled cores and the selected core order. Static CIX numbering is not imposed on other modes. |
 | Audio DMA | Named AXI clock, DMA1 address translation, no obsolete DMA1/HDA fixed-pool metadata or hard-coded DMA dimensions. |
 | DSP and display audio | Channel 8 doorbells alongside channel 9 messages; internal I2S5–I2S9 links do not require debug pins. The 1.3.1 I2S2 pin function remains intact. |

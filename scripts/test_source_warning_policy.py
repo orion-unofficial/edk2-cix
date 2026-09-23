@@ -32,6 +32,13 @@ class SourceWarningPolicyTests(unittest.TestCase):
             (Path(tmp) / "tools_def.txt").write_text("# test configuration\n")
             for ref in refs:
                 source = (Path(local) / "src/Makefile").read_text() if local else show_file(ROOT, ref, "src/Makefile").decode()
+                # A BASE library uses AArch64 XIP (-mstrict-align) flags, which
+                # changes GUID type alignment across the DXE LTO boundary.
+                inf_path = "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Library/SmbiosMiscLib/SmbiosMiscLib.inf"
+                inf = (Path(local) / inf_path).read_text() if local else show_file(ROOT, ref, inf_path).decode()
+                self.assertRegex(inf, r"MODULE_TYPE\s*=\s*DXE_DRIVER", ref)
+                self.assertNotIn("-Wno-lto-type-mismatch", source, ref)
+                self.assertIn("-Werror=lto-type-mismatch", source, ref)
                 start = source.index("\tbuild_extra_defines=();")
                 recipe = source[start:source.index("\tbuild_version_defines=();", start)]
                 recipe = recipe.replace("\\\n", "\n").replace("$$", "$")
