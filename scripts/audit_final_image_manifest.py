@@ -12,6 +12,8 @@ import sys
 from typing import Any
 
 
+from audit_summary import changes, print_summary
+
 SCRIPT_PATH = pathlib.Path(__file__).resolve()
 REPO_ROOT = SCRIPT_PATH.parent.parent
 DEFAULT_BASELINE_FILE = REPO_ROOT / "validation" / "final-image-manifests.json"
@@ -116,13 +118,15 @@ def normalize_path(value: str, repo_root: pathlib.Path) -> str:
             f"{match.group('suffix')}"
         )
 
-    src_match = SRC_PATH_RE.search(normalized)
-    if src_match:
-        return f"src/{src_match.group('suffix')}"
-
+    # A checkout itself may live beneath ~/src; strip the exact repository
+    # prefix before looking for the firmware source-tree marker.
     repo_root_str = repo_root.as_posix().rstrip("/")
     if normalized.startswith(repo_root_str + "/"):
         return normalized[len(repo_root_str) + 1 :]
+
+    src_match = SRC_PATH_RE.search(normalized)
+    if src_match:
+        return f"src/{src_match.group('suffix')}"
 
     return pathlib.PurePosixPath(normalized).name
 
@@ -578,6 +582,7 @@ def main() -> int:
         return 2
 
     mismatches = compare_manifests(expected_manifest, manifest, repo_root=repo_root)
+    details = list(changes(expected_manifest, manifest, ignore=frozenset({"sha256", "source"}))) if mismatches else []
     report = {
         "profile": args.profile,
         "description": profile_meta.get("description"),
@@ -586,6 +591,7 @@ def main() -> int:
         "build_dir": str(build_dir),
         "status": "match" if not mismatches else "mismatch",
         "mismatches": mismatches,
+        "changes": details,
         "manifest": manifest,
     }
 
@@ -593,8 +599,7 @@ def main() -> int:
     print(f"Build directory: {build_dir}")
     if mismatches:
         print("Final-image manifest audit: mismatch")
-        for mismatch in mismatches:
-            print(f"  - {mismatch}")
+        print_summary(details or mismatches)
     else:
         print("Final-image manifest audit: match")
 
