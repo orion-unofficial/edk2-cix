@@ -434,7 +434,9 @@ def run_validate(args: argparse.Namespace) -> int:
 
         if args.debug_allow_large_image not in ("", "0", "1"):
             raise ValueError("DEBUG_ALLOW_LARGE_IMAGE must be 0 or 1")
-        if args.debug_allow_large_image == "1" and artefact_mode != "custom":
+        # Host/container-only preflights inherit this exported flag but do
+        # not select firmware mode. Firmware-aware callers enforce the mode.
+        if args.debug_allow_large_image == "1" and artefact_mode is not None and artefact_mode != "custom":
             raise ValueError("DEBUG_ALLOW_LARGE_IMAGE is only supported with ARTEFACT_MODE=custom")
 
         if args.debug_verbose is not None and args.debug_verbose != "":
