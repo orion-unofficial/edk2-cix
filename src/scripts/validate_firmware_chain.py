@@ -15,7 +15,7 @@ import tarfile
 import zipfile
 
 from firmware_chain import Certificate, ChainError, MAX_IMAGE_SIZE, require, validate_fip
-from bl33_layout import select as select_bl33_layout, validation_layout
+from bl33_layout import FD_RAM_SIZE, select as select_bl33_layout, validation_layout
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -91,6 +91,8 @@ def validate_uefi(data: bytes, selected: dict) -> dict:
     # from an arbitrary key supplied in the image being checked.
     from firmware_chain import parse_fip
     entries = parse_fip(data)
+    require(len(entries.get("nt-fw", b"")) <= FD_RAM_SIZE,
+            "BL33 FD exceeds the reserved RAM before the GOP framebuffer")
     require("trusted-key-cert" in entries, "UEFI FIP lacks trusted-key certificate")
     root = sha256(Certificate(entries["trusted-key-cert"]).public_key)
     require(root in {selected["uefi_root_spki_sha256"], selected["uefi_oem_spki_sha256"]},
