@@ -164,6 +164,17 @@ PlatformConfigCallback (
   PLATFORM_SETUP_DATA       PlatformSetupVar;
   COMPLIANCE_VARSTORE_DATA  ComplianceVar;
 
+  if ((Action != EFI_BROWSER_ACTION_CHANGED) &&
+      (Action != EFI_BROWSER_ACTION_RETRIEVE)) {
+    return EFI_UNSUPPORTED;
+  }
+
+  if ((Value == NULL) || (ActionRequest == NULL) || (Type != EFI_IFR_TYPE_BOOLEAN)) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  *ActionRequest = EFI_BROWSER_ACTION_REQUEST_NONE;
+
   switch (QuestionId) {
     case KEY_ENABLE_NETWORK_STACK:
       DEBUG ((DEBUG_INFO, "%a:  QuestionId = KEY_ENABLE_NETWORK_STACK\n", __FUNCTION__));
@@ -171,12 +182,16 @@ PlatformConfigCallback (
         case EFI_BROWSER_ACTION_CHANGED:
           if (Value->b) {
             DEBUG ((DEBUG_INFO, "  Enable Network Stack\n"));
-            HiiGetBrowserData (&gEfiNetworkStackSetupGuid, NETWORK_STACK_VAR, sizeof (NetworkStackVar), (UINT8 *)&NetworkStackVar);
+            if (!HiiGetBrowserData (&gEfiNetworkStackSetupGuid, NETWORK_STACK_VAR, sizeof (NetworkStackVar), (UINT8 *)&NetworkStackVar)) {
+              return EFI_DEVICE_ERROR;
+            }
             NetworkStackVar.Ipv4Pxe = 1;
             NetworkStackVar.Ipv6Pxe = 1;
             NetworkStackVar.Ipv4Http = 1;
             NetworkStackVar.Ipv6Http = 1;
-            HiiSetBrowserData (&gEfiNetworkStackSetupGuid, NETWORK_STACK_VAR, sizeof (NetworkStackVar), (UINT8 *)&NetworkStackVar, NULL);
+            if (!HiiSetBrowserData (&gEfiNetworkStackSetupGuid, NETWORK_STACK_VAR, sizeof (NetworkStackVar), (UINT8 *)&NetworkStackVar, NULL)) {
+              return EFI_DEVICE_ERROR;
+            }
           }
           break;
         default:
@@ -188,18 +203,26 @@ PlatformConfigCallback (
       break;
     case KEY_DISABLE_ACPI_CPPC:
       DEBUG ((DEBUG_INFO, "%a:  QuestionId = KEY_DISABLE_ACPI_CPPC\n", __FUNCTION__));
-      HiiGetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar);
+      if (!HiiGetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar)) {
+        return EFI_DEVICE_ERROR;
+      }
       switch (Action) {
         case EFI_BROWSER_ACTION_RETRIEVE:
           Value->b = (PlatformSetupVar.CpuCppcType == 0);
-          HiiGetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar);
+          if (!HiiGetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar)) {
+            return EFI_DEVICE_ERROR;
+          }
           ComplianceVar.DisableCPPC = Value->b;
-          HiiSetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar, NULL);
+          if (!HiiSetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar, NULL)) {
+            return EFI_DEVICE_ERROR;
+          }
           break;
         case EFI_BROWSER_ACTION_CHANGED:
           DEBUG ((DEBUG_INFO, "  Adjust CpuCppcType\n"));
           PlatformSetupVar.CpuCppcType = (UINT8)(Value->b ? 0 : 1);
-          HiiSetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar, NULL);
+          if (!HiiSetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar, NULL)) {
+            return EFI_DEVICE_ERROR;
+          }
           break;
         default:
           DEBUG ((DEBUG_INFO, "%a:  Unkown Action\n", __FUNCTION__));
@@ -210,16 +233,22 @@ PlatformConfigCallback (
       break;
     case KEY_DISABLE_SMALL_CORE:
       DEBUG ((DEBUG_INFO, "%a:  QuestionId = KEY_DISABLE_SMALL_CORE\n", __FUNCTION__));
-      HiiGetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar);
+      if (!HiiGetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar)) {
+        return EFI_DEVICE_ERROR;
+      }
       switch (Action) {
         case EFI_BROWSER_ACTION_RETRIEVE:
           Value->b = (PlatformSetupVar.CpuCoreEnable[2] == 0) &&
                      (PlatformSetupVar.CpuCoreEnable[3] == 0) &&
                      (PlatformSetupVar.CpuCoreEnable[4] == 0) &&
                      (PlatformSetupVar.CpuCoreEnable[5] == 0);
-          HiiGetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar);
+          if (!HiiGetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar)) {
+            return EFI_DEVICE_ERROR;
+          }
           ComplianceVar.DisableSmallCores = Value->b;
-          HiiSetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar, NULL);
+          if (!HiiSetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar, NULL)) {
+            return EFI_DEVICE_ERROR;
+          }
           break;
         case EFI_BROWSER_ACTION_CHANGED:
           DEBUG ((DEBUG_INFO, "  Adjust CpuCoreEnable\n"));
@@ -227,7 +256,9 @@ PlatformConfigCallback (
           PlatformSetupVar.CpuCoreEnable[3] = (Value->b ? 0 : 1);
           PlatformSetupVar.CpuCoreEnable[4] = (Value->b ? 0 : 1);
           PlatformSetupVar.CpuCoreEnable[5] = (Value->b ? 0 : 1);
-          HiiSetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar, NULL);
+          if (!HiiSetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar, NULL)) {
+            return EFI_DEVICE_ERROR;
+          }
           break;
         default:
           DEBUG ((DEBUG_INFO, "%a:  Unkown Action\n", __FUNCTION__));
@@ -238,18 +269,26 @@ PlatformConfigCallback (
       break;
     case KEY_ENABLE_ACPI_LPI0:
       DEBUG ((DEBUG_INFO, "%a:  QuestionId = KEY_ENABLE_ACPI_LPI0\n", __FUNCTION__));
-      HiiGetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar);
+      if (!HiiGetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar)) {
+        return EFI_DEVICE_ERROR;
+      }
       switch (Action) {
         case EFI_BROWSER_ACTION_RETRIEVE:
           Value->b = (PlatformSetupVar.CpuLpiState == 1);
-          HiiGetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar);
+          if (!HiiGetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar)) {
+            return EFI_DEVICE_ERROR;
+          }
           ComplianceVar.EnableLPI0 = Value->b;
-          HiiSetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar, NULL);
+          if (!HiiSetBrowserData (&gPlatformConfigFormSetGuid, COMPLIANCE_VAR, sizeof (ComplianceVar), (UINT8 *)&ComplianceVar, NULL)) {
+            return EFI_DEVICE_ERROR;
+          }
           break;
         case EFI_BROWSER_ACTION_CHANGED:
           DEBUG ((DEBUG_INFO, "  Adjust CpuLpiState\n"));
           PlatformSetupVar.CpuLpiState = (UINT8)(Value->b ? 1 : FixedPcdGet8 (PcdAcpiCpuLpiState));
-          HiiSetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar, NULL);
+          if (!HiiSetBrowserData (&gPlatformSetupVariableGuid, PLATFORM_SETUP_VAR, sizeof (PlatformSetupVar), (UINT8 *)&PlatformSetupVar, NULL)) {
+            return EFI_DEVICE_ERROR;
+          }
           break;
         default:
           DEBUG ((DEBUG_INFO, "%a:  Unkown Action\n", __FUNCTION__));
