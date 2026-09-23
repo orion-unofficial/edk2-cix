@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import tempfile
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from check_custom_overlay_inf_sync import compare_overlay_inf
+from check_custom_overlay_inf_sync import compare_overlay_inf, normalize_line
 
 
 class CheckCustomOverlayInfSyncTest(unittest.TestCase):
+    def test_vendor_comment_is_not_a_pcd_dependency(self) -> None:
+        self.assertEqual(normalize_line("  // Sync with another module"), "")
+        self.assertEqual(normalize_line("  gCixTokenSpaceGuid.PcdMemFreq # comment"),
+                         "gCixTokenSpaceGuid.PcdMemFreq")
+
     def write_file(self, path: Path, contents: str) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(contents, encoding="utf-8")
