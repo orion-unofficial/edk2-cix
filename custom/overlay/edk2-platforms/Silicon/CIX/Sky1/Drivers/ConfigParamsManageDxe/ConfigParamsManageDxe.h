@@ -1,0 +1,1 @@
+../../../../../../../../src/edk2-platforms/Silicon/CIX/Sky1/Drivers/ConfigParamsManageDxe/ConfigParamsManageDxe.h
