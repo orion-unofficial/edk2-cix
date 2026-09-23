@@ -87,16 +87,6 @@ The final two rows are why the vendor verifier alone is insufficient for the
 requirement that every modified BL1 file be rejected. Whole-file preservation
 and signature verification serve different purposes.
 
-The local investigation also checked 79 retained source inputs and extracted
-BL1 from three previously compiled full flash images: EDK2 202605 with Radxa
-1.2.4 and 1.3.1 for O6, and EDK2 202608 with Radxa 1.2.4 for O6N. All passed.
-This exercised the new validator against existing build outputs; it was not
-a fresh firmware compilation or a boot test. On 2026-09-18, all 150 firmware
-jobs in CI compiled and packaged. Native x86-64 BL1 signature verification
-passed in 149; one used the approved-vendor hash fallback after a verifier
-download timed out. They then exposed a report-write permission error, now covered by an
-unprivileged Linux regression check and host-side report storage.
-
 ## Reproducing Qualification
 
 From the build-branch checkout:

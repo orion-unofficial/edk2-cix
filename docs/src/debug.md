@@ -45,68 +45,31 @@ levels by default. Run `make help-debug` for the derived bit list from
 
 Logging still adds format strings, argument calculations, and print calls.
 Keeping the other RELEASE gates reduces that cost but does not guarantee that
-the compressed firmware fits its reserved flash region. Known FD/layout conflicts and nonzero verbose RELEASE experiments require
-`FORCE_DEBUG_BUILD=1`; undefined mask bits cannot be overridden. There is no
-qualified deployable verbose default yet. The normal size and signature checks
-still apply, including for forced builds. Full DEBUG on the 202608 layout has a
-4 MiB FD but only a `0x1f9000` bootloader3 slot; lowering the print mask cannot
-resolve that structural conflict. For compact BDS and setup-migration diagnostics,
-use `DEBUG_VERBOSE=false DEBUG_PRINT_ERROR_LEVEL=0x80000001`.
+the compressed firmware fits its reserved flash region. The custom builder now
+measures compressed-FV requirements and adjusts a private FD definition before
+signing. It then checks the actual FIP, including certificates and headers.
+Undefined mask bits are rejected; categories without labelled source diagnostics
+produce a warning without removing the requested bits.
 
-### Qualified compact 202608 default
+`DEBUG_ALLOW_LARGE_IMAGE=1` permits an audited larger BL33 allocation only when
+the signed FIP exceeds the original slot. Smaller images retain the original
+layout even with this option. Enlarged images require the full-image updater;
+no OTA image is emitted. Physical bounds, earlier vendor regions and signing
+checks remain mandatory. `FORCE_DEBUG_BUILD` is retained as an inert compatibility
+input; it cannot authorise a larger slot or bypass any check. See
+[adaptive BL33 sizing and retained logging policy](debug-layout.md).
 
-The normal `DEBUG_VERBOSE=false` default (`0x80000040`) passed the public O6
-202608/1.3.1 build with firmware fixes and experimental menus enabled. The
-compressed FV has 7,824 bytes spare after the custom capacity adjustment;
-full-flash and OTA package/chain checks passed. See the
-[exact qualification inputs and limits](platform-policy-review-20260922.md#final-local-qualification).
-No deployable `DEBUG_VERBOSE=true` default is qualified yet.
+### Build qualification
 
-### Historical 202608 measurements before the capacity adjustment
+The all-category logging-only RELEASE build passed offline packaging for O6,
+EDK2 202608/Radxa 1.3.1, fixes enabled and experimental menus disabled, with
+`DEBUG_ALLOW_LARGE_IMAGE=1`. BM-only logging used the original slot. The enlarged
+layout has not yet been tested on hardware. See the
+[measured build results](debug-layout.md#qualification-on-2026-09-23).
 
-The comparison baseline is **EDK2 202608**. Custom 202608/1.3.1 now allocates
-`0x1f4000` to the compressed FD using 8 KiB of existing BL33-slot slack; no flash
-partition moves. The measurements below used the previous `0x1f2000` budget.
-They do not qualify verbose logging against the updated source and capacity.
-
-With Radxa 1.3.1, O6
-RELEASE, firmware fixes, experimental menus, Trixie and GCC 14.2, the public
-build path produced these results:
-
-| Settings | Compressed FV result against `0x1f2000` |
-| --- | --- |
-| `DEBUG_VERBOSE=true DEBUG_PRINT_ERROR_LEVEL=0x80000040` | `0x2031a0`: rejected, 70,048 bytes too large |
-| `DEBUG_VERBOSE=true DEBUG_PRINT_ERROR_LEVEL=0x00000001` | `0x1f3958`: rejected, 6,488 bytes too large |
-| `DEBUG_VERBOSE=false DEBUG_PRINT_ERROR_LEVEL=0x80000001` | `0x1f1c88`: packaging and chain checks passed, 888 bytes spare |
-
-The last option retains ordinary RELEASE gating and the targeted BDS/setup
-diagnostics. These exact-input results are not guarantees for another
-configuration or toolchain. Those measurements preceded the custom AutoGen library-class repairs. See the [qualification review](qualification-review-20260922.md)
-for provenance, accepted mask bits, the implemented size preflight and remaining
-validation work. No testing on hardware was performed.
-
-### Historical 202605 measurements
-
-In the September 2026 O6 qualification using EDK2 202605, Radxa 1.3.1,
-firmware fixes, and the experimental menus, logging-only RELEASE with
-`DEBUG_PRINT_ERROR_LEVEL=0x80000040` compiled cleanly but required a compressed
-FV of `0x201510` bytes. Its reservation was `0x1f2000`, so the build correctly
-failed with a 62,736-byte overflow. Compiled BDS output contained INFO messages,
-and its compiler dependencies confirmed selection of the logging header while
-retaining both RELEASE definitions. Removing other debug code is therefore
-not sufficient to make the INFO/error mask fit this configuration.
-
-The preceding implementation, built with the same options and fixed build
-date, required `0x212358` bytes: the logging-only change saved 69,192 bytes
-(about 67.6 KiB, or 3.2%). Source-revision metadata necessarily differs between
-the two builds.
-
-The same configuration with `DEBUG_VERBOSE=true` and
-`DEBUG_PRINT_ERROR_LEVEL=0x00000001` passed full-flash and OTA packaging and
-certificate-chain validation. Its compressed FV used `0x1f1bb8` bytes, leaving
-1,096 bytes spare. This mask enables initialization messages only and excludes
-error messages; the available space is specific to this tested configuration.
-This was build qualification, without testing on hardware.
+Use the actual signed FIP size to decide whether a mask fits. Historical
+singleton-mask measurements are not a whitelist: source, options and toolchain
+changes affect compressed size, and compression is not additive or monotonic.
 
 ### UART routing
 
@@ -146,7 +109,7 @@ After `make firmware-stage` completes, you can find the staged deployable files
 under `dist/firmware/<product>/<version>/`.
 
 For the non-`deb` staged layout and direct UEFI Shell entry points, continue in
-[Build](build.md#build).
+[Build](build.md#stage-or-package-an-image).
 
 If you enable `devenv`, then you can run `edk2-install </dev/data_partition>`
 from the project root as a faster way to copy those files to a prepared USB

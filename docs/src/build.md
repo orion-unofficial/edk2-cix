@@ -127,16 +127,13 @@ image (`cix_flash_ota.bin`) contains only `bootloader3.img` (UEFI). It does not
 replace BL1 or BL2. A successful boot after an OTA update therefore does not
 qualify a different BL1, TF-A or OP-TEE payload produced by the same build.
 
-`BuildOptions` records EDK2's command-line defines, but does not record every
-packaging option, including `CIX_RELEASE`. The firmware's version display also
-does not expose a complete build configuration. Neither is sufficient by
-itself to identify all components of the running firmware.
-
-The custom firmware version header is populated at compile time as well as at
-runtime. Leaving its stored string empty previously allowed the running firmware
-to report a version while image-inspection tools displayed a blank new version.
-A regression compiles the actual header initializer with consecutive version
-selections and checks the bytes before any firmware initialization runs.
+`BuildOptions` records EDK2's command-line defines, not every packaging option.
+Custom builds with experimental settings also show the rebuild command in
+**System Information** and save `firmware-rebuild.txt` and
+`firmware-rebuild.json` beside the output. See the
+[rebuild recipe](build-variables.md#rebuild-recipe-in-system-information).
+Neither a recipe nor a version label replaces the image hash and validation
+reports when identifying all components of the running firmware.
 
 Changing supported firmware configuration switches in the same build directory
 invalidates the selected board/target's previous outputs and staging files.
@@ -150,6 +147,13 @@ output.
 
 ### Compiler warnings
 
+Both artifact modes should resolve warnings and errors. Exact upstream replay
+must also preserve vendor artifacts byte for byte. Where fixing a known vendor
+warning would change those artifacts, a targeted exception may hide that warning
+with `V=0 DEBUG=0`. Unknown warnings and all failures remain visible. `V=1`
+shows raw build commands; `DEBUG=1` enables tooling tracebacks and unfiltered
+diagnostics. Neither selects debug firmware or changes a command's exit status.
+
 EDK2's GCC compilation already uses `-Werror`. Existing upstream and platform
 exceptions remain in the tool definitions and module INF files; for example,
 OpenSSL demotes selected `maybe-uninitialized`, `unused-but-set-variable` and
@@ -160,8 +164,10 @@ In custom mode the pinned ACPICA host compiler is built with its fatal
 C-warning policy. Bison also uses `-Werror`, with only the POSIX Yacc compatibility category
 disabled: ACPICA needs Bison's `%expect` extension and uses `-y` for the expected
 generated filenames. Other grammar warnings fail provisioning. Regression
-tests exercise both cases. Custom build output preserves warnings. Upstream mode retains its existing
-warning-filtering behaviour. The ASL compiler's final warning count does not
+tests exercise both cases. Custom AutoGen also treats warnings as errors using
+`build -w`. The custom overlays repair the DpuDxe library-class mismatch and
+LZMA library declaration while retaining the decompressor constructor.
+Upstream mode retains its targeted warning exceptions. The ASL compiler's final warning count does not
 describe warnings emitted earlier while building the host tools.
 
 ## Install A Built Payload

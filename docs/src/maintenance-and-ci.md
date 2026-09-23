@@ -36,7 +36,7 @@ whose base is not its exact vendor ref.
 
 The stock workflow keeps the existing upstream build and byte-comparison path.
 Expanding its callers does not change vendor source bytes, warning policy,
-compiler options or packaging. The new twelve-build coverage must pass CI before
+compiler options or packaging. All twelve stock replay builds must pass CI before
 claiming that all stock replays have been requalified at a candidate commit.
 
 The stable `Qualification summary` job reports the result of every gate and
@@ -45,8 +45,8 @@ not a matrix child whose displayed name may change. A run qualifies the
 candidate tip represented by that run; it is not a claim that every historical
 commit was independently built.
 
-See the [checkpoint maintenance audit](source-checkpoint-maintenance.md) for
-the regression that motivated this coverage and its precise validation limits.
+See the [checkpoint maintenance guide](source-checkpoint-maintenance.md) for
+overlay completeness, release-specific interfaces and validation limits.
 
 Pull-request runs are cancelled when superseded. Published build pushes,
 manual builds, exact replays, and current-source matrices are not cancelled by
@@ -98,3 +98,31 @@ make docs-build DOCS_BUILD_MODE=container
 
 Run the source-specific checks listed in root `MAINTENANCE.md` when a candidate
 changes source refs, render logic, manifests, or CI.
+
+## Documentation and helper scripts
+
+`docs/src/` contains maintained user and maintainer guidance. Historical agent
+ledgers, one-off audit programs and local qualification evidence belong under
+ignored `.agent-work/session-<session-id>/`; execution checkouts and build state
+belong under `.worktrees/`. Preserve useful constraints in the maintained guides
+before archiving a ledger. Published docs must not depend on those local paths.
+
+`scripts/` contains supported Make/CI entry points, standalone maintenance
+commands, imported Python modules, source-propagated build helpers and regression
+tests. Not every file needs its own Make target:
+
+- `make test` discovers `test_*.py` through `quality_checks.py`;
+  `test_support.py` provides shared test adapters.
+- `build_bl33.py`, `warn_debug_categories.py`, `prepare_release_logging.py` and
+  `check_release_debug.py` execute inside rendered firmware builds. Their
+  build-branch copies support tests and source-contract checks.
+- `qualify_bootloader1_signatures.py` and `qualify_source_trusted_firmware.py`
+  provide repeatable CI/maintainer qualification commands.
+- `release_expansion.py` is the supported standalone
+  [unattended batch command](release-expansion.md); its source-construction
+  module is not a separate end-user interface.
+
+Repository-owned scripts, docs and new text use LF. Preserve exact imported
+vendor files, unchanged mirror symlinks and byte-sensitive replay fixtures.
+Do not normalize entire upstream trees or OpenSSL fixtures as cosmetic cleanup;
+a deliberate normalization migration needs separate replay/build checks.

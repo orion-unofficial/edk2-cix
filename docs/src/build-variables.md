@@ -84,23 +84,21 @@ Select the underlying EDK2 build target.
 
 Default: `RELEASE`
 
-The O6 custom FDF allocates `0x400000` bytes (4 MiB) for the DEBUG UEFI
-image. For the Radxa 1.3.1 checkpoint, RELEASE allocates `0x1f0000` bytes,
-and the flash layout reserves `0x1f9000` bytes for `bootloader3.img`, including
-its FIP header and certificates. A padded 4 MiB DEBUG FD cannot fit that slot.
-The original Radxa 1.3.1 FDF instead uses `0x1f0000` for both build targets.
-These sizes are release-specific; do not infer them from the target name alone.
+Custom builds start with the selected RELEASE FD capacity and increase it only
+when the compressed FV requires more space. This also applies to full DEBUG
+builds: the source FDF's 4 MiB DEBUG allocation is not treated as a minimum.
+The generated FD must fit its reserved RAM, and the signed BL33 FIP must fit
+the selected flash allocation. The unchanged vendor 1.3.1 FDF uses
+`0x1f0000` for both targets; source-release layouts differ.
 
 `FVMAIN` already uses LZMA compression inside `FVMAIN_COMPACT`, including its
-debug strings. There is no separate supported switch to compress log strings
-further. Selective diagnostic messages in a RELEASE build are the tested way
-to preserve the existing flash layout. Increasing only the FDF or JSON size
-does not qualify a larger image for flashing.
-
-The slot begins at `0x406000` in an 8 MiB flash image. A 4 MiB payload starting
-there would already extend beyond the end of the chip, before adding its FIP
-metadata. A different layout would need loader, update-path, memory-map and
-recovery qualification; it is not a supported build-size override.
+debug strings. There is no separate string-dictionary compression switch.
+For the audited Radxa 1.3.1 loader, `DEBUG_ALLOW_LARGE_IMAGE=1` permits an
+actual signed FIP larger than `0x1f9000` to occupy up to `0x3fa000` bytes
+starting at `0x406000`. It does not move earlier regions or waive signing,
+physical flash or RAM limits. Enlarged layouts emit a full image only.
+See [adaptive BL33 sizing](debug-layout.md) for the checks and qualification
+limits; successful packaging still requires testing on hardware.
 
 The original Radxa 1.3.1 AArch64 packager rejects oversized full-flash payloads
 but accepts oversized OTA payloads, even one byte over the reserved UEFI slot.
@@ -245,7 +243,8 @@ Available keys cannot sign modified BL31/TF-A or OP-TEE payloads under the
 vendor's trusted-world certificate chain. These builds retain the selected
 vendor trusted payloads. A `/cix-1.2/` segment in `RELEASE` identifies imported
 source lineage; it does not enable this runtime build option or replace the
-signed BL31/OP-TEE payloads. Those source targets remain supported.
+signed BL31/OP-TEE payloads. Lineage selectors do not bypass source-provenance
+checks; use `make help-source-targets` for the available targets.
 
 The source inputs and development helper remain available for compilation and
 certificate-rejection testing; they cannot produce a qualified flash image.
@@ -309,11 +308,9 @@ enabled.
 This changes the exposed CPU numbering seen by the OS. It does not change the
 physical hardware topology itself.
 
-This setting is only valid with:
-
-- `ARTEFACT_MODE=custom`
-- `ENABLE_FIRMWARE_FIXES=true`
-- `FIRMWARE_BOARD=O6` or `FIRMWARE_BOARD=O6N`
+`conventional` and `performance` require `ARTEFACT_MODE=custom` and
+`ENABLE_FIRMWARE_FIXES=true` on O6 or O6N. An explicit `cix` is also accepted
+with fixes disabled because it preserves the default order.
 
 Default: unset, which behaves like `cix`
 
@@ -415,9 +412,11 @@ the flash layout. Log strings, argument calculations, and print calls still
 consume space, so logging-only builds can still exceed the firmware limit.
 
 For targeted setup-migration and BDS diagnostics, use `DEBUG_VERBOSE=false`
-with `DEBUG_PRINT_ERROR_LEVEL=0x80000001`. Oversized images fail the build;
-`DEBUG_VERBOSE=true` requires `FORCE_DEBUG_BUILD=1` while no deployable verbose
-default is qualified. The override does not bypass final size/signature checks.
+with `DEBUG_PRINT_ERROR_LEVEL=0x80000001`. Alternatively, verbose RELEASE can
+select individual categories, or leave the mask unset for all categories.
+The actual signed FIP determines whether the original slot suffices or
+`DEBUG_ALLOW_LARGE_IMAGE=1` is required. Final size/signature checks cannot
+be bypassed.
 
 This setting is only valid with:
 
@@ -445,15 +444,26 @@ This setting is only valid with:
 
 Default: unset
 
-### `FORCE_DEBUG_BUILD=0|1`
+### `DEBUG_ALLOW_LARGE_IMAGE=0|1`
 
-Custom builds reject undefined debug-mask bits without an override. Known
-FD/flash-slot conflicts and unqualified verbose RELEASE logging require
-`FORCE_DEBUG_BUILD=1` to attempt compilation. Final volume-size, packaging and
-certificate-chain checks still apply. This never permits an invalid deployable
-image. See [Debug](debug.md) for measured failures and effective defaults.
+Non-default `DEBUG_PRINT_ERROR_LEVEL` values can retain more logging and increase
+image size. `DEBUG_VERBOSE=true` also selects every category when no mask is
+given. If the resulting signed BL33 FIP exceeds its original slot, the build
+fails unless `DEBUG_ALLOW_LARGE_IMAGE=1` permits the audited extension.
 
-Default: `0`
+Permit the audited larger BL33 slot for a custom build whose signed FIP exceeds
+the original allocation. A small image retains its original layout even with
+this option. A large image emits `cix_flash_all.bin` and no OTA image. Images
+beyond the physical flash or FD RAM limits fail with either value.
+
+Undefined mask bits always fail. Valid selected categories without labelled
+source diagnostics produce a warning; the build retains the requested bits.
+No predictive mask-size whitelist is used. See [Debug](debug.md).
+
+Default: `0`. Only supported with `ARTEFACT_MODE=custom`.
+
+`FORCE_DEBUG_BUILD=0|1` remains accepted as an inert compatibility input. It
+neither authorises an enlarged layout nor bypasses validation.
 
 ### `O6_SMBIOS_ASSET_TAG=<text>`
 
@@ -517,7 +527,7 @@ Default: `0`
 Tooling diagnostics: enable Python tracebacks for unexpected tool failures and
 unfiltered EDK2 diagnostic output. This does not select `FIRMWARE_TARGET=DEBUG`
 or turn on firmware `DEBUG_VERBOSE` logging. `V=1` additionally requests raw
-build commands. See the [warning policy](platform-policy-review-20260922.md).
+build commands. See the [warning policy](build.md#compiler-warnings).
 
 Default: `0`
 
@@ -527,7 +537,8 @@ The most important compatibility rules are:
 
 - `PROFILE=upstream` and `ARTEFACT_MODE=upstream` reject active custom-only
   feature variables; explicit false boolean gates are harmless
-- `ENABLE_CORE_ORDER=...` requires `ENABLE_FIRMWARE_FIXES=true`
+- `ENABLE_CORE_ORDER=conventional|performance` requires `ENABLE_FIRMWARE_FIXES=true`;
+  `cix` preserves the default order and is accepted with fixes disabled
 - `DEBUG_ON_UART3=true` implies `UART3_ENABLE=true`
 - `CIX_RELEASE` must be unset or empty
 - the `O6_SMBIOS_*` asset-tag variables are custom-only and board-limited to
@@ -588,7 +599,7 @@ make buildbox-firmware-build \
 
 ```bash
 make build \
-  RELEASE=edk2-202605/radxa-1.3.1/unofficial \
+  RELEASE=edk2-202608/radxa-1.3.1/unofficial \
   ARTEFACT_MODE=custom \
   FIRMWARE_BOARD=O6 \
   ENABLE_FIRMWARE_FIXES=true \
@@ -607,14 +618,15 @@ Do not flash this development output. See
 
 ### Experimental RELEASE build with verbose firmware logs on UART3
 
-This is an unqualified size experiment; final packaging may reject it.
+This permits the audited full-image layout when needed; final bounds and
+signature checks remain mandatory, and testing on hardware remains separate.
 
 ```bash
 make buildbox-firmware-build \
   ARTEFACT_MODE=custom \
   FIRMWARE_BOARD=O6 \
   DEBUG_VERBOSE=true \
-  FORCE_DEBUG_BUILD=1 \
+  DEBUG_ALLOW_LARGE_IMAGE=1 \
   DEBUG_ON_UART3=true
 ```
 
@@ -623,9 +635,9 @@ make buildbox-firmware-build \
 Custom builds with `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true` append **Rebuild
 running firmware** to the existing **System Information** page, below its
 component versions and source revisions. No separate menu is added. It records the source
-release, build checkout, board, product, target, distribution, firmware fixes,
+release, build checkout, board, target, distribution, firmware fixes,
 core order, CIX selection, TF-A fixes, experimental settings, UART routing,
-verbose logging, debug mask and nonempty metadata overrides. Empty values are
+verbose logging, debug mask, large-image consent and nonempty metadata overrides. Empty values are
 shown explicitly, including `CIX_RELEASE=''`. These are compile-time values;
 changing setup variables does not alter the recipe.
 
@@ -647,13 +659,13 @@ for fitting unrestricted DEBUG output in the production flash layout has been
 identified. DEBUG increases code and assertion data as well as message strings.
 The compressed firmware volume already uses LZMA.
 
-The modern custom DEBUG FD allowance of 4 MiB is not a change to the BL3 flash
-slot. On the inspected 1.3.1 layout that slot remains `0x1f9000` bytes, including
-FIP metadata and certificates. Increasing the FD alone cannot make an oversized
-FIP fit. The modern custom experimental RELEASE overlay uses a `0x1f2000` FD,
-8 KiB above its previous allowance, within that same unchanged slot. Older
-releases with larger existing volumes retain their allocations. Final packaging
-still checks the actual signed image against the selected vendor layout.
+Custom builds measure the compressed FV and adjust the FD within the flash and
+RAM limits described in [BL33 sizing](debug-layout.md). This applies to both
+RELEASE and DEBUG; a source FDF's fixed 4 MiB DEBUG allowance is not evidence
+that the contents need that much space. `DEBUG_ALLOW_LARGE_IMAGE=1` can permit
+the audited 1.3.1 slot extension, but cannot waive the final signed-FIP bounds.
+Full DEBUG still includes additional code and assertions and has not inherited
+the logging-only RELEASE qualification.
 
 Replacing debug formats with token IDs and an external dictionary is feasible,
 but is not implemented here. A useful implementation must encode argument types

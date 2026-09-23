@@ -1,9 +1,10 @@
-# Secure Boot Hardware Validation
+# Secure Boot testing on hardware
 
 Use this runbook after building a `custom` firmware image that embeds the
 Microsoft Secure Boot defaults.
 
-This is the real-hardware complement to the repo-local checks:
+Run these source-tree checks from the rendered firmware checkout before testing
+on hardware:
 
 - `make -C src check-microsoft-secure-boot-defaults`
 - `make -C src validate-secure-boot-defaults-<board>`

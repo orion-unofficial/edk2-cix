@@ -1,224 +1,92 @@
-# Source checkpoint maintenance audit
+# Source checkpoint maintenance
 
-## September 2026 full-matrix follow-up
+Source checkpoints must reconstruct the named vendor release with a compatible
+EDK2 uplift and complete custom overlays. Rendering or compilation alone does
+not prove release fidelity. Keep source metadata, dependency checks and actual
+build qualification together.
 
-The first complete 144-job matrix exposed a compatibility regression in all
-eight configurations of each EDK2 release from 202211 through 202508. Their
-SMBIOS overlay used the cache-field structs introduced in 202511, while their
-headers still declared integer fields. Correct the overlay on those thirteen
-compatibility refs; keep the existing cache-size calculations and granularity
-bits. The 202208 implementation and the 202511-and-newer implementations already
-match their respective headers.
+## Source changes and orchestration
 
-Compiling the repaired 202211 source revealed two further adaptations that had
-been applied before their upstream interfaces existed. Through 202405, the
-linker needs `ArmPkg/Library/GccLto`, and ConfigurationManager needs the Arm CPC
-namespace. Restore those interfaces from the working 202208 implementation.
-The vendor PSD type is named `AML_PSD_INFO` before 202402 and
-`CIX_AML_PSD_INFO` from 202402; the latter avoids the similarly named upstream
-type with a different layout. From 202408 onward, retain the newer LTO location
-and common CPC namespace. These are focused descendant corrections to the
-affected refs, not a replay of unrelated modern firmware changes. They execute
-inside EDK2 and therefore cannot be supplied by the build-branch caller alone.
+Keep CI, source rendering, publication, host cache management, report collection
+and regression orchestration on `build`. Propagate a helper into retained
+Unofficial refs only when it executes inside the rendered firmware tree or is
+compiled into firmware. Direct source-tree builds must retain their packaging
+and signature guards; an outer output-copy check cannot replace those guards.
 
-The source-input audit now checks these header and linker-path boundaries before
-compilation. The full build matrix remains required: static dependency checks
-cannot establish that the C interfaces compile together.
+Select destination refs explicitly. Before importing a missing topic, compare
+patch equivalence and classify it as already represented, release-specific,
+obsolete, superseded or genuinely absent. Preserve imported vendor/component
+bytes, checkpoint ancestry, required refs and protected compatibility tags.
+See root `AGENTS.md` and `MAINTENANCE.md` for the ref and publication rules.
 
-The upstream replay failure had a separate cause: its recorded tree hash had
-not followed a nine-line addition to `scripts/test_custom_toggle_pcds.py` in the
-overlaid build infrastructure. Regeneration changed that test file only; the
-firmware inputs were identical. A regression test now renders the manifested
-upstream replay from its actual source refs in an isolated repository with no
-generated release cache.
+## Overlay completeness
 
-Metadata refresh also derives custom trees after applying their release metadata
-when a cache ref is absent. It previously skipped those records unless a full
-render was requested, leaving historical expectations stale after source repairs.
-An explicitly requested full refresh now regenerates retained custom snapshots
-too. Tests cover both cases and preserve the ordinary refresh policy for an
-inactive retained snapshot.
+EDK2 can resolve an INF from `src/` but select its module directory from a custom
+overlay. Every referenced module sibling must therefore exist in the selected
+overlay, including secondary application INFs and C sources. Byte-identical
+companions should be symlinks to the matching imported files.
 
-The current 1.3 line also advances its Microsoft Secure Boot source pin to
-`v1.7.0`. The updated revocation-list input changes the x64 and ia32 records;
-the generated AArch64 PK, KEK, DB, and DBX payloads remain byte-identical.
-Historical checkpoint pins are retained.
+`scripts/check_source_build_inputs.py` checks all retained Unofficial refs,
+including normal and experimental overlays. It checks sibling INFs, symlinks,
+literal DSC/FDF dependencies, package declarations, ASL headers, toolchain
+selection and retained build contracts. It does not fully evaluate EDK2
+conditionals or macro-generated paths; real compilation remains necessary.
 
-## September 2026 build failure
+## Release-specific interfaces
 
-The public `edk2-202605/radxa-1.3.1/unofficial` custom build failed because
-`FwVersionProtocolTest.inf` was missing from an existing overlay directory.
-EDK2 resolved the INF itself from `src/`, but resolved `MODULE_DIR` from the
-overlay. GenMake then made the FFS UI section depend on the nonexistent overlay
-INF. Checking that the directory contained *some* INF did not catch this.
+Preserve the selected EDK2 release's interfaces rather than copying a modern
+implementation over every historical checkpoint. The structural checks include:
 
-The failure was reproduced with GenFds multithreading enabled in a Linux
-buildbox. Adding the missing INF and C symlinks allowed that configuration to
-compile and package with the existing flash partition limits.
-
-## Focused propagation audit
-
-The retained compatibility branches already contained equivalent fixes. The
-vendor-line checkpoints and the historical `1.2/current` line had missed them.
-The correction preserves their existing ancestry and cherry-picks the relevant
-topics, with original commit IDs recorded in each commit message.
-
-| Original topic | Classification and action |
+| Interface | Compatibility boundary |
 | --- | --- |
-| `5f36bab487` | Missing fix: pull an absent buildbox image. Restore everywhere. |
-| `65f3abc664` | Missing fix: expose shared Git object stores to the buildbox. Restore everywhere. |
-| `24ef31676a` | Missing fix: complete the FwVersion overlay and avoid nested Git mounts. Restore everywhere. |
-| `57c8f42fe3` | Missing fix: avoid false PDB-path findings in binary metadata audits. Restore everywhere. |
-| `052459dd2b` | Missing fix where `ensure_iasl.sh` exists: keep its stdout machine-readable. Older checkpoints without that resolver do not need it. |
-| `0665fdef83`, `8d0b205e14`, `bd8658302f`, `88df23dd94` | Historical vendor replay and ACPI baseline support. Already represented on the compatibility branches used by upstream replay; do not import the entire replay conversion into custom checkpoints. |
-| `675827cae0`, `fee1ddbd0a`, `0f29cc276f` | Replay temporary-directory, payload-comparison, and report-ownership fixes. Same replay-specific applicability. |
-| `90f6ee3237` | Versioned Microsoft Secure Boot metadata refresh. Preserve checkpoint input versions; this is not the missing custom build-input repair. |
+| SMBIOS cache fields | Integer representation through 202508; struct representation from 202511 |
+| LTO library and CPC namespace | ArmPkg GccLto and Arm CPC through 202405; newer location/namespace from 202408 |
+| Vendor PSD type | `AML_PSD_INFO` before 202402; `CIX_AML_PSD_INFO` from 202402 |
+| ArmLib, toolchain and capsule dependencies | Follow the selected base's paths, GCC/GCC5 tag and package availability |
+| MPAM and console helpers on 202208 | Explicit custom compatibility header and older supported libfdt entry points |
 
-The corrected immutable checkpoints are `1.2.1`, `1.2.2`, `1.2.3`, `1.2.4`,
-`1.3.0`, and `1.3.1` on EDK2 `202605`, plus `1.2.4` and `1.3.1` on `202608`.
-The historical mutable `1.2/current` line receives the same focused fixes.
+The 202208/1.2.4 and 202208/1.3.1 custom checkpoints start from their matching
+Radxa sources. A generic older checkpoint plus a new version string is not a
+valid replacement. Input provenance and exact vendor-payload checks reject
+such aliases before they can produce a misleading firmware label.
 
-The expanded check also found an incomplete experimental `SetupManagerDxe`
-overlay across all retained Unofficial refs. Its INF now links to the normal
-custom overlay's INF, preserving that module's custom source list while making
-the experimental module directory complete. This focused topic is propagated
-to both current lines, every checkpoint, and every compatibility branch.
-
-An actual O6N build of `202608 / Radxa 1.2.4` then exposed incomplete EDK2
-uplift changes. The affected 1.2 line and retained 202608 compatibility branch
-now receive the exception-handler mapping, new library dependencies, ACPI helper
-macros, and AML API adaptation already present in the corrected 1.3.1 uplift.
-The dependency audit also found the old `ArmPkg` location of `ArmLib` in the
-202605 checkpoints for Radxa 1.2.1 through 1.2.4 and the retained 202605/202608
-compatibility branches. Those mappings now follow upstream's move to `MdePkg`.
-These are focused compatibility corrections, preserving vendor-specific code.
-
-The 202605 Radxa 1.2.4 build also exposed the old `GCC5` toolchain selection
-and dependencies on the removed `SignedCapsulePkg`. The four 202605 Radxa 1.2
-checkpoints and the retained 202605/202608 compatibility branches now use `GCC`
-consistently in their build commands, output paths, and validators. Their CIX
-capsule implementation uses the compatibility headers and package declarations
-already retained by the 1.2.4 202608 port. Older EDK2 branches that still provide
-`GCC5` and `SignedCapsulePkg` keep those dependencies.
-
-These source changes execute inside the rendered firmware tree: EDK2 consumes
-the overlay, and that tree invokes the container launcher, iasl resolver, and
-firmware metadata audit. They therefore belong on the retained source refs.
-Matrix enumeration, source-input verification, caching, and CI policy remain
-ordinary changes on `build`.
-
-## Regression gates
-
-Custom RELEASE logging uses a generated, version-matched `MdePkg` overlay.
-The source-tree Makefile selects it only for `DEBUG_VERBOSE=true`; ordinary
-RELEASE, full DEBUG, and upstream builds retain their normal headers. Keeping
-`NDEBUG` and `MDEPKG_NDEBUG` defined prevents verbosity from enabling unrelated
-debug code. This operation must run inside the rendered source tree, so its
-helper and header extension are retained across all Unofficial checkpoints.
-Compiler regressions exercise every distinct retained header version, without
-LTO and with optimization both disabled and enabled, checking that logging
-works while assertions and debug-only helpers have no callable references.
-
-`scripts/check_source_build_inputs.py` checks every retained Unofficial source
-tree, including checkpoints not selected by the current default. It rejects
-missing sibling module INFs, broken overlay symlinks, and loss of the focused
-build-fix contracts above. Library INFs are excluded from the FFS UI prerequisite
-check because libraries do not produce those sections. Both normal and
-experimental overlays are inspected.
-
-The check also follows unconditional literal DSC includes from both supported
-boards and verifies their INF dependencies through each overlay configuration.
-This catches removed library paths such as the incomplete 202608 uplift.
-It also checks CIX/Radxa INF package declarations and verifies that the selected
-toolchain has AARCH64 compiler definitions in that checkpoint's BaseTools.
-It does not evaluate EDK2 conditional expressions or macro-expanded paths;
-the compile jobs remain necessary to validate those and the C/ASL interfaces.
-
-The supported-firmware workflow derives all valid
-`edk2-*/radxa-1.2.4/unofficial` and `edk2-*/radxa-1.3.1/unofficial` completions
-from the same source model used by the public Makefile. Each target is compiled
-and packaged for O6 and O6N with fixes disabled and enabled. It invokes public
-`make build`, with `CIX_RELEASE=` and the tester's remaining feature settings.
-Adding another EDK2 release expands the matrix automatically. It must be
-explicitly sharded if it grows beyond GitHub's 256-job limit; it never silently
-drops releases.
-
-Source-model checks cover all allowed release tuples and aliases. These checks
-and the all-checkpoint input checks are preflight validation, not evidence that
-every possible DEBUG, distro, UART, experimental, core-order, or compiler-host
-combination has completed compilation. The full compile matrix above has a
-deliberately explicit configuration; qualification reports must preserve that
-distinction. Successful packaging also does not establish successful boot on a
-device.
-
-## Correcting an existing checkpoint
+## Correct a checkpoint
 
 Prepare and validate a descendant containing only reviewed source changes, then
-use the integration entry point:
+use the integration entry point, for example:
 
 ```bash
 make integrate-source-release \
-  TYPE=unofficial RELEASE=1.3.1 EDK2_BASE=edk2-stable202605 \
+  TYPE=unofficial RELEASE=1.3.1 EDK2_BASE=edk2-stable202608 \
   REF=<reviewed-descendant> ALLOW_REPLACE=1 WRITE=1
 ```
 
 Without `WRITE=1`, this is a dry run. Non-descendants and checked-out checkpoint
 branches are rejected. The original object remains an ancestor and is recorded
-as `maintenance_base_object_id`; no development line is moved by this command.
+as `maintenance_base_object_id`; this command does not move a development line.
 Refresh affected generated caches and manifests, run the qualification gates,
-and publish source refs together with the build metadata using the documented
-coordinated publication workflow.
+and publish matching source refs with the build metadata using the coordinated
+publication workflow in `MAINTENANCE.md`.
 
-## Primary qualification scope (September 22 follow-up)
+Rendered-tree expectations must include release-metadata transformations, even
+when a generated cache branch is absent. Hash the final rendered tree rather
+than reusing the input checkpoint's tree hash.
 
-The primary build matrix now follows the explicit policy in
-`config/policies.json`: EDK2 202208 and 202608, Radxa 1.2.4 and 1.3.1, both
-fix states and both experimental-menu states. This is 16 builds per board.
-CI covers O6 and O6N; qualification on hardware is currently limited to O6.
-This supersedes the earlier all-EDK2 full-compilation scope above. Structural
-source checks still cover every retained checkpoint, and no source refs are
-removed. Incorrect historical release aliases cannot pass the provenance gate.
+## Validation and expansion
 
-### Board selector and 202208 baseline integration
+Run `make test` and `make lint`, including all-checkpoint input checks and the
+minimised-clone reconstruction. Compiler tests cover logging-only RELEASE
+headers while keeping assertions and DEBUG-only helpers excluded. Configuration
+regressions exercise sequential builds and stale-output guards. The
+[CI policy](maintenance-and-ci.md) defines the required full build matrix;
+structural checks continue to cover every retained checkpoint.
 
-`FIRMWARE_BOARD` is the sole public board selector. The rendered source wrapper
-still needs an internal product label for output paths and packaging; it derives
-that label from the board and rejects contradictory legacy product arguments.
-The firmware build itself generates the experimental HII rebuild recipe, so that
-source-side generator also omits the redundant product argument. These two
-operations must execute inside rendered source trees and therefore require
-focused propagation through retained Unofficial refs; the outer build caller
-cannot own the entire change.
+The primary custom matrix has 16 builds per board: baseline/current EDK2,
+Radxa 1.2.4/current, fixes off/on and menus off/on. Stock replay separately
+covers the six retained Radxa releases on both boards. These gates do not
+qualify every debug mask, distro, core order or host toolchain, and packaging
+does not prove boot behavior on hardware.
 
-The new 202208/1.2.4 and 202208/1.3.1 checkpoints retain their named vendor
-baselines and signed payloads. Compatibility adaptations retain old ArmPkg and
-GCC5 paths, the 202208 SMBIOS cache representation, and PcdUgaConsumeSupport.
-Generic GCC preprocessor macros remain generic even when the toolchain tag is
-GCC5; structural validation checks every generated `DEF(...)` reference against
-the selected tools template. Current Python warnings in both baselines'
-BaseTools are repaired through custom-only overlays. Regression checks require
-identical Python syntax trees and reject warnings in the repaired copies.
-The MPAM table uses an exact copy of the newer EDK2 header as a custom-only
-compatibility header. Tests compare its contents and table body with 202608,
-and execute the ACPI overlay preflight to verify that this declared addition
-passes while an undeclared file still fails.
-The console preference driver uses the older equivalent libfdt entry points.
-The 1.2.4 tables retain the older equivalent ACPI address macros, and their
-imported FADT/DBG2/SPCR files match the vendor bytes. Structural checks cover
-literal FDF dependencies as well as DSC dependencies and ACPI table headers.
-
-The 1.2.4 experimental FDF overlays had inadvertently reduced the RELEASE
-volume from the vendor's 2 MiB to `0x1f2000`. They now retain 2 MiB on both
-boards across the retained 1.2.4 checkpoints. This changes only custom menu
-overlays; vendor flash partitions, signed payloads and upstream replay sources
-are unchanged. Regression coverage compares normal and experimental capacities
-and checks their shared slot limits.
-
-The custom ASL include directory is required with fixes disabled as well as
-enabled: the graph helper supplies both vendor-compatible and corrected forms.
-The firmware Makefile therefore adds that include path inside the custom-mode
-block, before the conditional fix definitions. This executes while constructing
-EDK2's private tools configuration and cannot be owned by the outer caller.
-The focused two-line repair is propagated to retained source checkpoints.
-Tests execute each retained Makefile's actual flag recipe, preprocess the graph
-header for both fix states, and require no added overrides in upstream mode.
+Use the [unattended release-expansion runner](release-expansion.md) to prepare
+additional source pairs and collect actual build results without changing the
+maintained policy or publishing candidates automatically.

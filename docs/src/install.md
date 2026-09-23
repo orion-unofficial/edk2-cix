@@ -18,7 +18,7 @@ This filesystem copy does not execute `BurnImage.efi`, `FlashUpdate.efi`, or
 separate manual action from the UEFI Shell, described below. Existing staged
 files are not replaced unless `FORCE=1` is supplied.
 
-## Full demo
+## Historical demonstration
 
 Below is the full process of upgrading a `0.1.0` debug build to a `0.1.1-1`
 release build.
@@ -83,6 +83,10 @@ startup.nsh
 Copy them to a USB disk formatted with a FAT filesystem, then connect it to the
 target board.
 
+An enlarged custom BL33 build emits `cix_flash_all.bin` without
+`cix_flash_ota.bin`; use its supplied full-image script. Do not substitute an
+OTA file left over from another build. See [BL33 layout](debug-layout.md).
+
 Optionally, you can use `Ventoy` to create a BIOS update disk that can also be
 used to load Linux ISOs, as long as the files stay under 4 GiB because of the
 FAT32 limit.
@@ -132,7 +136,7 @@ but when in doubt, only use the one that came with your target platform and
 only copy the EDK2 release output for that platform.
 ```
 
-## Run the vendor deployment script from UEFI Shell
+## Run the supplied deployment script from UEFI Shell
 
 Once inside the UEFI Shell, you should first see a list of available storage
 devices and their physical paths.
@@ -142,7 +146,7 @@ If you only have the USB disk connected, it should be listed as `fs0`.
 You can rescan the storage devices with the `map -r` command, which will also
 reprint the available mappings.
 
-You can now run the supplied vendor script from the UEFI Shell. It uses Windows
+You can now run the supplied script from the UEFI Shell. It uses Windows
 path conventions, so an example command for a package copied beneath `radxa`
 would be:
 

@@ -24,7 +24,7 @@ the imported source on purpose, simply to keep the module complete. Those
 unchanged mirror files must be Git symlinks to the corresponding `src/` file,
 not duplicate file copies, so that future overlay drift is easy to see.
 
-The custom ACPI overlays should follow three rules:
+The custom ACPI overlays should follow these rules:
 
 - keep the overlay scope limited to these tracked module roots and the sibling
   `LinuxAcpiConfig.h` header they require
@@ -35,12 +35,12 @@ The custom ACPI overlays should follow three rules:
 - keep byte-identical mirror files as symlinks to the corresponding `src/`
   files
 
-Today the main custom differences are:
+The overlays contain warning cleanup, custom UART routing and the opt-in
+firmware fixes. See [ACPI Table Upgrade coverage](acpi-upgrade-coverage.md) for
+the feature list and behavior controlled by `ENABLE_FIRMWARE_FIXES`.
 
-- targeted ACPICA warning/remark cleanup in the Sky1 and O6 ACPI tables
-- custom UART3 debug routing reflected in the ACPI debug-port description
-- the custom `ParseIomuxTemplate.py` helper path needed by the sparse custom
-  overlay workspace
+The commands below run from a rendered firmware source tree, not the build-branch
+checkout:
 
 Use the host-side checker to verify that the overlay modules still mirror the
 imported file lists cleanly:
