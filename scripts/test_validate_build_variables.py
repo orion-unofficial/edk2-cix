@@ -30,6 +30,11 @@ class ValidateBuildVariableTests(unittest.TestCase):
 
         self.assertEqual(problems, [])
 
+    def test_large_image_consent_is_exclusive_to_custom_builds(self) -> None:
+        self.assertEqual(self.problems_for(ARTEFACT_MODE="custom", DEBUG_ALLOW_LARGE_IMAGE="1"), [])
+        self.assertEqual(self.problems_for(ARTEFACT_MODE="upstream", DEBUG_ALLOW_LARGE_IMAGE="0"), [])
+        self.assertEqual(len(self.problems_for(ARTEFACT_MODE="upstream", DEBUG_ALLOW_LARGE_IMAGE="1")), 1)
+
     def test_upstream_mode_rejects_enabled_or_valued_custom_options(self) -> None:
         problems = self.problems_for(
             ARTEFACT_MODE="upstream",

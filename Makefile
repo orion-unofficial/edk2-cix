@@ -57,6 +57,7 @@ DEBUG_ON_UART3 ?=
 UART3_ENABLE ?=
 DEBUG_VERBOSE ?=
 DEBUG_PRINT_ERROR_LEVEL ?=
+DEBUG_ALLOW_LARGE_IMAGE ?= 0
 CIX_RELEASE ?=
 QUALITY_IMAGE ?= edk2-cix-build-quality:latest
 UPSTREAM_VERSION_MODE ?= policy
@@ -201,9 +202,9 @@ help-vars:
 	print_help_line 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Enable the experimental Radxa settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
 	print_help_line 'UART3_ENABLE=true|false' 'Expose UART3 to ACPI and mux its header pins as UART instead of GPIO. This consumes header GPIO105/GPIO106 while enabled.\nDefault: false.'; \
 	print_help_line 'DEBUG_ON_UART3=true|false' 'Route firmware DEBUG() output to UART3; implies UART3_ENABLE=true.\nDefault: unset; custom builds keep DEBUG() on UART2.'; \
-	print_help_line 'DEBUG_VERBOSE=true|false' 'Re-enable RELEASE logging while retaining other RELEASE code gates. Verbose experiments require FORCE_DEBUG_BUILD=1 until a deployable default is qualified.\nDefault: false; ordinary RELEASE logging gates remain in effect.'; \
+	print_help_line 'DEBUG_VERBOSE=true|false' 'Re-enable RELEASE logging while retaining other RELEASE code gates. The signed FIP must fit its selected allocation; category masks are not size predictions.\nDefault: false; ordinary RELEASE logging gates remain in effect.'; \
 	print_help_line 'DEBUG_PRINT_ERROR_LEVEL=<u32>' 'Select defined DEBUG_* category bits; undefined bits are rejected. make help-debug RELEASE=... lists the selected source categories.\nDefault with DEBUG_VERBOSE=false: 0x80000040; with true: all defined bits (0x83FB55FF on 202608).'; \
-	print_help_line 'FORCE_DEBUG_BUILD=0|1' 'Permit an unqualified logging or conflicting DEBUG-layout experiment. Final size and signing checks remain mandatory.\nDefault: 0.'; \
+	print_help_line 'DEBUG_ALLOW_LARGE_IMAGE=0|1' 'Custom builds only: non-default DEBUG_PRINT_ERROR_LEVEL values can increase image size and fail the build without this opt-in. DEBUG_VERBOSE=true also selects all categories by default. Permit audited extra BL33 flash space when needed; small images retain their layout, enlarged images require a full-image update.\nDefault: 0; physical size and signature checks always apply.'; \
 	print_section 'Generic Build Controls'; \
 	print_help_line 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
 	print_help_line 'DEBUG=0|1' 'Show tooling tracebacks and unfiltered EDK2 diagnostics; does not enable firmware DEBUG logging.\nDefault: 0.'; \
@@ -233,7 +234,7 @@ help-dev:
 	print_help_line 'make help-dev-maintenance' 'Show minimised-repository, cache/reporting, local CI, documentation, and quality targets.'; \
 	print_section 'Common Variables'; \
 	print_help_variable 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
-	print_help_variable 'FORCE_DEBUG_BUILD=0|1' 'Allow unqualified logging or a conflicting DEBUG layout to compile as an experiment. Final size and signing checks still apply. Default: 0.'; \
+	print_help_variable 'DEBUG_ALLOW_LARGE_IMAGE=0|1' 'Non-default DEBUG_PRINT_ERROR_LEVEL values or all-category DEBUG_VERBOSE logging can exceed the original BL33 slot and fail without this opt-in. Permit audited extra space for custom full-image updates; size and signature checks remain mandatory. Default: 0.'; \
 	print_help_variable 'DEBUG=0|1' 'Show tooling tracebacks and unfiltered EDK2 diagnostics; does not enable firmware DEBUG logging.\nDefault: 0.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make help-source-targets' 'Show configured firmware source targets.'; \
@@ -455,7 +456,7 @@ help-dev-maintenance:
 	print_help_variable 'QUALITY_IMAGE=<name>' 'Container image tag used by make test and make lint.\nDefault: edk2-cix-build-quality:latest.'; \
 	print_section 'Common Variables'; \
 	print_help_variable 'V=0|1' 'Verbosity. V=0 is concise; V=1 shows script/build detail.\nDefault: 0.'; \
-	print_help_variable 'FORCE_DEBUG_BUILD=0|1' 'Allow unqualified logging or a conflicting DEBUG layout to compile as an experiment. Final size and signing checks still apply. Default: 0.'; \
+	print_help_variable 'DEBUG_ALLOW_LARGE_IMAGE=0|1' 'Non-default DEBUG_PRINT_ERROR_LEVEL values or all-category DEBUG_VERBOSE logging can exceed the original BL33 slot and fail without this opt-in. Permit audited extra space for custom full-image updates; size and signature checks remain mandatory. Default: 0.'; \
 	print_help_variable 'DEBUG=0|1' 'Show tooling tracebacks and unfiltered EDK2 diagnostics; does not enable firmware DEBUG logging.\nDefault: 0.'; \
 	print_section 'Help Targets'; \
 	print_help_line 'make create-minimised-clone-help' 'Show create-minimised-clone arguments.'; \
@@ -514,16 +515,16 @@ firmware:
 			"$(FIRMWARE_BOARD)" "$$PROFILE_ENABLE_FIRMWARE_FIXES" >&2; \
 	fi
 
-BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" FORCE_DEBUG_BUILD="$(FORCE_DEBUG_BUILD)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
+BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" FORCE_DEBUG_BUILD="$(FORCE_DEBUG_BUILD)" DEBUG_ALLOW_LARGE_IMAGE="$(DEBUG_ALLOW_LARGE_IMAGE)" CIX_RELEASE="$(CIX_RELEASE)" FORCE="$(FORCE)"
 
-DELEGATED_BUILD_ARGS = $(if $(filter custom,$(or $(ARTEFACT_MODE),custom)),FIRMWARE_REBUILD_RELEASE="$$release_label" FIRMWARE_REBUILD_BUILD_COMMIT="$(shell git rev-parse HEAD)") V="$(V)" DEBUG="$(DEBUG)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" FORCE_DEBUG_BUILD="$(FORCE_DEBUG_BUILD)" CIX_RELEASE="$(CIX_RELEASE)"
+DELEGATED_BUILD_ARGS = $(if $(filter custom,$(or $(ARTEFACT_MODE),custom)),FIRMWARE_REBUILD_RELEASE="$$release_label" FIRMWARE_REBUILD_BUILD_COMMIT="$(shell git rev-parse HEAD)") V="$(V)" DEBUG="$(DEBUG)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" FORCE_DEBUG_BUILD="$(FORCE_DEBUG_BUILD)" DEBUG_ALLOW_LARGE_IMAGE="$(DEBUG_ALLOW_LARGE_IMAGE)" CIX_RELEASE="$(CIX_RELEASE)"
 
 define check_bootloader1
 $(PYTHON) scripts/validate_bootloader1.py --worktree "$$wt" --phase "$(1)" --build-target "$(2)" --artefact-mode "$(3)" --cix-release "$(4)" --board "$(FIRMWARE_BOARD)" --firmware-target "$(FIRMWARE_TARGET)"
 endef
 
 define check_firmware_chain
-$(if $(filter custom,$(3)),$(PYTHON) scripts/validate_firmware_chain.py --worktree "$$wt" --phase "$(1)" --build-target "$(2)" --artefact-mode "$(3)" --cix-release "$(4)" --board "$(FIRMWARE_BOARD)" --firmware-target "$(FIRMWARE_TARGET)",:)
+$(if $(filter custom,$(3)),$(PYTHON) scripts/validate_firmware_chain.py --worktree "$$wt" --phase "$(1)" --build-target "$(2)" --artefact-mode "$(3)" --cix-release "$(4)" --board "$(FIRMWARE_BOARD)" --firmware-target "$(FIRMWARE_TARGET)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)",:)
 endef
 
 define run_release_make

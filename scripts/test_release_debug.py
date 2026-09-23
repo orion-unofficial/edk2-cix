@@ -44,10 +44,13 @@ class ReleaseDebugTests(unittest.TestCase):
             image.write_bytes(b"MZ\0PlatformBootManagerAfterConsole\0")
             with self.assertRaisesRegex(ValueError, "compiled out"):
                 check(root, 0x80000001)
+            with self.assertRaisesRegex(ValueError, "compiled out"):
+                check(root, 0x400)
             # An explicitly error-only mask need not carry INIT messages.
             check(root, 0x80000000)
             image.write_bytes(b"MZ\0" + b"\0".join(BDS_MARKERS))
             check(root, 0x80000001)
+            check(root, 0x400)
             image.write_bytes(b"MZ\0" + b"\0".join(BDS_MARKERS[:-1]))
             with self.assertRaisesRegex(ValueError, "HandleCapsules"):
                 check(root, 0x80000001)

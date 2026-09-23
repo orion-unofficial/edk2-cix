@@ -32,6 +32,8 @@ after stale rendered worktrees are cleaned.
 
 RAW_OUTPUTS = (
     "BuildOptions",
+    "bl33-layout.json",
+    "debug-category-audit.json",
     "firmware-rebuild.txt",
     "firmware-rebuild.json",
     "cix_flash_all.bin",

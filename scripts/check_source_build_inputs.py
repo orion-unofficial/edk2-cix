@@ -24,6 +24,10 @@ COMMON_NAMESPACE = "src/edk2/DynamicTablesPkg/Include/ArchCommonNameSpaceObjects
 # Regression contracts for focused fixes missed by vendor-line checkpoints.
 # The audit in docs/src/source-checkpoint-maintenance.md records applicability.
 BUILD_FIXES = (
+    ("bl33-layout-fail-closed", "src/Makefile",
+     b'--allow-large "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" || exit $$?;', False),
+    ("partial-buildbox-preflight", "scripts/validate_make_inputs.py",
+     b'args.debug_allow_large_image == "1" and artefact_mode is not None and artefact_mode != "custom"', False),
     ("5f36bab487", "scripts/run_in_buildbox.sh", b'runtime pull --platform "$container_platform" "$container_image"', False),
     ("65f3abc664", "scripts/run_in_buildbox.sh", b'${git_objects}/info/alternates', False),
     ("24ef31676a", "scripts/run_in_buildbox.sh", b'"${git_common_dir_real}/"*)', False),
@@ -397,6 +401,10 @@ def main() -> None:
             # Packaging executes inside rendered trees as well as from build.
             # Every retained checkpoint must carry the same mandatory verifier.
             for source, caller in (("scripts/debug_build_policy.py", "scripts/debug_build_policy.py"),
+                                   ("src/scripts/debug_build_policy.py", "scripts/debug_build_policy.py"),
+                                   ("src/scripts/bl33_layout.py", "scripts/bl33_layout.py"),
+                                   ("src/scripts/build_bl33.py", "scripts/build_bl33.py"),
+                                   ("src/scripts/warn_debug_categories.py", "scripts/warn_debug_categories.py"),
                                    ("src/scripts/firmware_chain.py", "scripts/firmware_chain.py"),
                                    ("src/scripts/validate_firmware_chain.py", "scripts/validate_firmware_chain.py"),
                                    ("src/scripts/check_release_debug.py", "scripts/check_release_debug.py"),

@@ -24,8 +24,9 @@ extern int puts (const char *);
 
 static unsigned Prints, Effects;
 static BOOLEAN Enabled = TRUE;
+static UINTN Mask = DEBUG_ERROR;
 BOOLEAN EFIAPI DebugPrintEnabled (VOID) { return Enabled; }
-BOOLEAN EFIAPI DebugPrintLevelEnabled (UINTN Level) { return (Level & DEBUG_ERROR) != 0; }
+BOOLEAN EFIAPI DebugPrintLevelEnabled (UINTN Level) { return (Level & Mask) != 0; }
 VOID EFIAPI DebugPrint (UINTN Level, CONST CHAR8 *Format, ...) {
   (void)Level;
   ++Prints;
@@ -40,6 +41,11 @@ extern void CodeOnly (void);
 int main (void) {
   DEBUG ((DEBUG_ERROR, "logging survives", ++Effects));
   DEBUG ((DEBUG_INFO, "masked print", ++Effects));
+  Mask = DEBUG_BM;
+  DEBUG ((DEBUG_INFO | DEBUG_BM, "boot progress via BM", ++Effects));
+  Mask = DEBUG_INFO;
+  DEBUG ((DEBUG_INFO | DEBUG_BM, "boot progress via INFO", ++Effects));
+  Mask = DEBUG_ERROR;
   Enabled = FALSE;
   DEBUG ((DEBUG_ERROR, "disabled print", ++Effects));
   ASSERT (AssertOnly ());
@@ -58,7 +64,7 @@ int main (void) {
 #ifndef NDEBUG
   CodeOnly ();
 #endif
-  return Prints != 1 || Effects != 1;
+  return Prints != 3 || Effects != 3;
 }
 '''
 
@@ -152,7 +158,7 @@ class ReleaseLoggingTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                     result = subprocess.run([str(root / "probe")], capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                    self.assertEqual(result.stdout, "logging survives\n")
+                    self.assertEqual(result.stdout, "logging survives\nboot progress via BM\nboot progress via INFO\n")
 
     def test_unknown_header_shape_cannot_silently_disable_logging(self):
         with tempfile.TemporaryDirectory(prefix="release-logging-unknown-") as temp:
@@ -181,7 +187,7 @@ class ReleaseLoggingTests(unittest.TestCase):
             self.assertNotIn("-UMDEPKG_NDEBUG", common)
             self.assertIn("gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x02", common)
         makefile = show_file(ROOT, ref, "src/Makefile").decode()
-        self.assertIn("$(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_RELEASE_LOGGING_SOURCES))", makefile)
+        self.assertIn("$(if $(filter custom,$(ARTEFACT_MODE)),$(CUSTOM_RELEASE_LOGGING_SOURCES) $(CUSTOM_BL33_SOURCES))", makefile)
         self.assertIn('"$(UEFI_TARGET)" == "RELEASE" && "$(DEBUG_VERBOSE_NORMALIZED)" == "TRUE"', makefile)
         self.assertIn('export PACKAGES_PATH="$$WORKSPACE/logging-overlay:$$PACKAGES_PATH"', makefile)
 

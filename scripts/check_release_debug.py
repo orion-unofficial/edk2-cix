@@ -15,9 +15,8 @@ BDS_MARKERS = (
 
 
 def check(build_dir, error_level):
-    # These targeted progress markers use DEBUG_INIT. A narrower user-selected mask is
-    # allowed to omit them; the compact diagnostic mask is 0x80000001.
-    if not error_level & 0x01:
+    # Targeted progress markers retain INIT and also accept the boot-manager bit.
+    if not error_level & 0x401:
         return False
     image = (build_dir / "AARCH64/BdsDxe.efi").read_bytes()
     missing = [marker.decode() for marker in BDS_MARKERS if marker not in image]

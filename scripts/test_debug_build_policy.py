@@ -46,14 +46,14 @@ class DebugPreflightTests(unittest.TestCase):
             self.assertEqual(source_fdf(ROOT, ref, board, True), source_fdf(ROOT, ref, board))
             self.assertEqual(self.check(ref, board=board, experimental=True)["fd_size"], 0x1F4000)
 
-    def test_layout_and_logging_consent_are_distinct_from_packaging(self):
-        with self.assertRaisesRegex(ValueError, "FD size.*bootloader3.img"):
-            self.check(target="DEBUG")
-        self.assertTrue(self.check(target="DEBUG", force="1")["experimental_reasons"])
-        with self.assertRaisesRegex(ValueError, "no qualified deployable default"):
-            self.check(verbose="true")
-        self.assertEqual(self.check(verbose="true", force="1")["effective_mask"], "0x83FB55FF")
+    def test_masks_compile_without_size_predictions_or_force(self):
+        self.assertEqual(self.check(target="DEBUG")["experimental_reasons"], [])
+        self.assertEqual(self.check(verbose="true")["effective_mask"], "0x83FB55FF")
         self.assertEqual(self.check(mask="0x80000001")["experimental_reasons"], [])
+        self.assertFalse(self.check(force="1")["allow_large"])
+        self.assertTrue(self.check(allow_large="1")["allow_large"])
+        with self.assertRaisesRegex(ValueError, "DEBUG_ALLOW_LARGE_IMAGE"):
+            self.check(allow_large="yes")
 
     def test_124_experimental_menus_retain_the_vendor_volume_capacity(self):
         for edk2 in ("202208", "202605", "202608"):
@@ -69,7 +69,7 @@ class DebugPreflightTests(unittest.TestCase):
                                      self.check(ref, board=board)["bootloader3_slot"])
 
     def test_public_make_rejects_before_rendering_or_downloading(self):
-        for value in ("DEBUG_PRINT_ERROR_LEVEL=0x200", "FIRMWARE_TARGET=DEBUG", "DEBUG_VERBOSE=true"):
+        for value in ("DEBUG_PRINT_ERROR_LEVEL=0x200", "DEBUG_ALLOW_LARGE_IMAGE=2"):
             result = subprocess.run(["make", "build", "RELEASE=edk2-202608/radxa-1.3.1/unofficial", value],
                                     cwd=ROOT, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
                                     capture_output=True, text=True)

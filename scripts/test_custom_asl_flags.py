@@ -31,7 +31,7 @@ class CustomAslFlagsTests(unittest.TestCase):
                 source = show_file(ROOT, ref, 'src/Makefile').decode()
                 start = source.index('\tif [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \\\n\t\tlto_flag=')
                 end = source.index('\tif [[ "$${#tool_def_overrides[@]}"', start)
-                recipe = source[start:end].replace('\\\n', '\n').replace('$$', '$')
+                recipe = source[start:end]
                 header.write_bytes(show_file(ROOT, ref, HEADER))
                 tag = re.search(r'build\s+-a\s+AARCH64\s+-t\s+(\w+)', source).group(1)
                 for mode in ('custom', 'upstream'):
@@ -41,11 +41,20 @@ class CustomAslFlagsTests(unittest.TestCase):
                                           ENABLE_CORE_ORDER_NORMALIZED='cix', V='0',
                                           CUSTOM_OVERLAY_ROOT=str(root / 'custom/overlay'),
                                           FIRMWARE_CHAIN_VALIDATOR=str(validator), REPO_ROOT=str(root),
-                                          WORKSPACE=str(root), ARCHCC_FLAGS='', PLATFORM_FLAGS='')
-                            script = re.sub(r'\$\((\w+)\)', lambda m: values[m[1]], recipe)
-                            script = 'tool_def_overrides=()\n' + script
-                            script += '\nprintf "%s\\n" "${tool_def_overrides[@]}"\n'
-                            run = subprocess.run(['bash', '-eu', '-c', script], text=True, capture_output=True)
+                                          WORKSPACE=str(root), ARCHCC_FLAGS='', PLATFORM_FLAGS='',
+                                          DEBUG_ALLOW_LARGE_IMAGE='0')
+                            # Let Make expand its own functions, including the
+                            # consent default, rather than approximating them
+                            # with a regex that only understands $(NAME).
+                            probe = root / 'recipe.mk'
+                            probe.write_text(
+                                'SHELL := bash\n.ONESHELL:\n.SHELLFLAGS := -eu -c\n'
+                                + ''.join(f'{key} := {value}\n' for key, value in values.items())
+                                + '.PHONY: check\ncheck:\n\t@tool_def_overrides=(); \\\n'
+                                + recipe + '\tprintf "%s\\n" "$${tool_def_overrides[@]}"\n'
+                            )
+                            run = subprocess.run(['make', '--no-print-directory', '-f', str(probe)],
+                                                 text=True, capture_output=True)
                             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
                             flags = dict(line.strip().split(' = ', 1) for line in run.stdout.splitlines() if line.strip())
                             flags = {key.strip(): value for key, value in flags.items()}
