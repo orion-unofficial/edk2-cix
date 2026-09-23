@@ -1003,8 +1003,8 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) pref
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	export CIX_PACKAGE_TOOL_BIN="$(shell realpath "$(CIX_PACKAGE_TOOL_BIN)")" && \
 	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
-		python3 "$(REPO_ROOT)/src/scripts/bl33_layout.py" --stage "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" --allow-large "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)"; \
-		cp "$$stage_dir/bl33-layout.json" "$$final_dir/"; \
+		python3 "$(REPO_ROOT)/src/scripts/bl33_layout.py" --stage "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" --allow-large "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" || exit $$?; \
+		cp "$$stage_dir/bl33-layout.json" "$$final_dir/" || exit $$?; \
 		if [[ "$@" == */cix_flash_ota.bin && -f "$$stage_dir/bl33-full-image-only" ]]; then \
 			rm -f "$@" "$$stage_dir/cix_flash_ota.bin"; \
 			printf '[bl33-layout] Enlarged layout requires cix_flash_all.bin; OTA image omitted\n'; \
@@ -1096,8 +1096,8 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) pref
 
 	export PATH_PACKAGE_TOOL="$(shell realpath "$(PACKAGE_TOOL)")" && \
 	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \
-		python3 "$(REPO_ROOT)/src/scripts/bl33_layout.py" --stage "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" --allow-large "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)"; \
-		cp "$$stage_dir/bl33-layout.json" "$$final_dir/"; \
+		python3 "$(REPO_ROOT)/src/scripts/bl33_layout.py" --stage "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" --allow-large "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" || exit $$?; \
+		cp "$$stage_dir/bl33-layout.json" "$$final_dir/" || exit $$?; \
 		if [[ "$@" == */cix_flash_ota.bin && -f "$$stage_dir/bl33-full-image-only" ]]; then \
 			rm -f "$@" "$$stage_dir/cix_flash_ota.bin"; \
 			printf '[bl33-layout] Enlarged layout requires cix_flash_all.bin; OTA image omitted\n'; \
