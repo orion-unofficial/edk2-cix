@@ -192,7 +192,10 @@ InitCacheNode (
   CacheNode->Flags.AssociativityValid    = EFI_ACPI_6_4_PPTT_ASSOCIATIVITY_VALID;
   CacheNode->Flags.AllocationTypeValid   = EFI_ACPI_6_4_PPTT_ALLOCATION_TYPE_VALID;
   CacheNode->Flags.CacheTypeValid        = EFI_ACPI_6_4_PPTT_CACHE_TYPE_VALID;
-  CacheNode->Flags.WritePolicyValid      = EFI_ACPI_6_4_PPTT_WRITE_POLICY_VALID;
+  // Instruction caches have no data write-back/write-through policy.
+  CacheNode->Flags.WritePolicyValid      =
+    (CacheType == EFI_ACPI_6_4_CACHE_ATTRIBUTES_CACHE_TYPE_INSTRUCTION) ?
+    EFI_ACPI_6_4_PPTT_WRITE_POLICY_INVALID : EFI_ACPI_6_4_PPTT_WRITE_POLICY_VALID;
   CacheNode->Flags.LineSizeValid         = EFI_ACPI_6_4_PPTT_LINE_SIZE_VALID;
   CacheNode->Flags.CacheIdValid          = EFI_ACPI_6_4_PPTT_CACHE_ID_INVALID;
   CacheNode->NextLevelOfCache            = NextLevelOfCache;
