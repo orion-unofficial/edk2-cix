@@ -29,6 +29,9 @@ host-specific paths, generated assistant identity strings, and embedded personal
 email addresses in generated scripts, manifests, and documentation. With
 SCAN_SOURCE_REFS=1 it also checks generated source refs for stale names from the
 earlier branch model.
+
+Python regression fixtures under scripts/test_*.py may use the reserved
+example.invalid email domain. Other addresses and non-test files remain checked.
 """
 
 
@@ -78,6 +81,12 @@ def scan_files(repo: Path, verbose: bool) -> list[str]:
         text = data.decode("utf-8", errors="ignore")
         for label, pattern in patterns:
             for match in pattern.finditer(text):
+                # Reserved fixture identities are not personal email addresses.
+                if (label == "embedded email" and
+                        Path(rel).parent == Path("scripts") and
+                        Path(rel).name.startswith("test_") and Path(rel).suffix == ".py" and
+                        match.group(0).rpartition("@")[2].lower() == "example.invalid"):
+                    continue
                 line = text.count("\n", 0, match.start()) + 1
                 problems.append(f"{rel}:{line}: {label}: {match.group(0)}")
     return problems
