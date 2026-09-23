@@ -9,7 +9,7 @@
 
 #define InitPinmux ImportedInitPinmux
 #define PlatformEnvHook ImportedPlatformEnvHook
-#include "../../../../../../../../../src/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLib.c"
+#include "../../../../../../../../overlay/edk2-platforms/Platform/Radxa/Orion/O6N/Library/PlatformEnvHookLib/PlatformEnvHookLib.c"
 #undef PlatformEnvHook
 #undef InitPinmux
 
