@@ -16,7 +16,7 @@
   INF_VERSION                    = 1.29
   BASE_NAME                      = SmbiosMiscLib
   FILE_GUID                      = f19c999f-9040-4a9a-8dc9-8acff917af79
-  MODULE_TYPE                    = BASE
+  MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
   LIBRARY_CLASS                  = OemMiscLib
 
