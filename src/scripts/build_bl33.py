@@ -21,18 +21,18 @@ def resize_fdf(text: str, size: int) -> str:
     if size <= 0 or size % 0x1000:
         raise ValueError("FD size must be a positive multiple of 4096")
     result, sizes = re.subn(r"(DEFINE\s+SKY1_BL33_UEFI_FD_SIZE\s*=\s*)0x[0-9a-f]+",
-                           lambda m: m[1] + hex(size), text, flags=re.I)
+                            lambda m: m[1] + hex(size), text, flags=re.I)
     result, blocks = re.subn(r"(DEFINE\s+SKY1_BL33_UEFI_FD_BLOCKS\s*=\s*)0x[0-9a-f]+",
-                            lambda m: m[1] + hex(size // 0x1000), result, flags=re.I)
+                             lambda m: m[1] + hex(size // 0x1000), result, flags=re.I)
     if sizes == blocks == 0:
         # The retained 202208/1.2.1 board uses the same single-FV layout with
         # literal lengths instead of TARGET conditionals.
         result, sizes = re.subn(r"(?m)^(Size\s*=\s*)0x[0-9a-f]+(?=\|gArmTokenSpaceGuid.PcdFdSize)",
-                               lambda m: m[1] + hex(size), text, flags=re.I)
+                                lambda m: m[1] + hex(size), text, flags=re.I)
         result, blocks = re.subn(r"(?m)^(NumBlocks\s*=\s*)0x[0-9a-f]+(?=\s*$)",
-                                lambda m: m[1] + hex(size // 0x1000), result, count=1, flags=re.I)
+                                 lambda m: m[1] + hex(size // 0x1000), result, count=1, flags=re.I)
         result, regions = re.subn(r"(?m)^0x00000000\|0x[0-9a-f]+(?=\s*\ngArmTokenSpaceGuid.PcdFvBaseAddress)",
-                                 '0x00000000|' + hex(size), result, flags=re.I)
+                                  '0x00000000|' + hex(size), result, flags=re.I)
         if (sizes, blocks, regions) == (1, 1, 1):
             return result
     if sizes != 2 or blocks != 2:
@@ -116,7 +116,7 @@ def main() -> None:
             raise ValueError("cannot resolve the selected board FDF")
         selected = reference(args.reference_dir, load_catalog())
         sys.exit(build(command, fdf, args.target, Path(os.environ["WORKSPACE"]),
-                       limits(selected)["maximum_slot_size"]))
+                       limits(selected)["maximum_fd_size"]))
     except (ChainError, OSError, ValueError) as exc:
         parser.exit(2, f"[bl33-size] REJECTED: {exc}\n")
 
