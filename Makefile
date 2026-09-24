@@ -1,6 +1,12 @@
-# Source-built trusted firmware lacks a vendor-authorized signing key.
 ifneq ($(strip $(CIX_RELEASE)),)
-$(error CIX_RELEASE must be empty: source-built TF-A/OP-TEE cannot be signed with a vendor-trusted key. Leave it unset or use CIX_RELEASE=)
+ifeq ($(filter 1.2 v1.2 V1.2,$(strip $(CIX_RELEASE))),)
+$(error CIX_RELEASE supports only 1.2 (or v1.2))
+endif
+ifneq ($(strip $(ARTEFACT_MODE)),)
+ifneq ($(ARTEFACT_MODE),custom)
+$(error CIX_RELEASE=1.2 requires ARTEFACT_MODE=custom)
+endif
+endif
 endif
 
 ROOT_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))

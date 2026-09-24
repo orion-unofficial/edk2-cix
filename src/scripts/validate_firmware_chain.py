@@ -20,6 +20,19 @@ from bl33_layout import FD_RAM_SIZE, select as select_bl33_layout, validation_la
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool"
+CIX_SIGNING_KEYS = "custom/signing-keys/cix-1.2"
+CIX_BL1_SHA256 = "04be52c3a0df73fe4461cd5b41a5fe1be0e9d02a3b22cb0dd2514e305f102c74"
+CIX_KEY_SHA256 = {
+    "cix_privatekey.pem": "0f09cb62ae4f6e407cf2d389e5e37065968ef7f7ce144f794398123dbdb37f3e",
+    "trusted_world_privatekey.pem": "01346dc66d6867058ccd5751bff9e70517b48a5a4f9b92d5e00e09189b77331d",
+    "non_trusted_world_privatekey.pem": "ee67b84c5e156ae0f7bc21458a477eb093cf7c0c135e9d39e821627b8ec9338f",
+    "bl31_privatekey.pem": "48e057e53bddb9aca995c01cb932e371d991ba9257c0e539b3b8f435314fa045",
+    "bl32_privatekey.pem": "a3c9e8a6614e1f8810433575a8063f1eb1f1d24d301c8f50a224b02356780072",
+    "bl33_privatekey.pem": "26dfdbba3f29b56e2fc51eb3ddd6c216b465dd15e189f7031cea28bbfc95256d",
+    "oem_privatekey.pem": "675a9b4e5e02931bab05cb27f0c616c2ba4a03549dad424fd4cadfc1675e8d0d",
+    "cix_publickey.pem": "e781e96d3f982e071c1ae1672a62e036d139c7ceeb7fffb92ac6eb497401998a",
+    "oem_publickey.pem": "0ffdb8d7ef57fdda669aca686ae274dc3d693ba14914b048378932813c39cd72",
+}
 CATALOG = (ROOT / "config/firmware-trust.json" if (ROOT / "config").is_dir()
            else Path(__file__).with_name("firmware-trust.json"))
 
@@ -64,24 +77,30 @@ def reference(package: Path, catalog: list[dict]) -> dict:
     return selected
 
 
-def preflight(package: Path, selected: dict, cix_release: str, mode: str) -> None:
-    if mode == "upstream" or not cix_release.strip():
+def preflight(package: Path, selected: dict, cix_release: str, mode: str,
+              signing_keys: Path | None = None) -> None:
+    if not cix_release.strip():
         return
+    require(mode == "custom", "CIX_RELEASE is only supported with ARTEFACT_MODE=custom")
     require(cix_release.strip().lower().removeprefix("v") == "1.2", "unknown CIX trusted-firmware selection")
-    # The current source-build helper supplies this key for --rot-key and
-    # --trusted-world-key. A vendor-signed BL1 cannot make that key trusted.
+    package = package.resolve()
+    signing_keys = signing_keys or package.parents[5] / CIX_SIGNING_KEYS
+    for name, expected in CIX_KEY_SHA256.items():
+        require(sha256(read(signing_keys / name)) == expected,
+                f"CIX signing key differs from pinned upstream publication: {name}")
     try:
-        result = subprocess.run(["openssl", "pkey", "-in", str(package / "Keys/oem_privatekey.pem"),
+        result = subprocess.run(["openssl", "pkey", "-in", str(signing_keys / "cix_privatekey.pem"),
                                  "-pubout", "-outform", "DER", "-passin", "pass:"],
                                 capture_output=True, timeout=30, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise ChainError(f"cannot establish trusted-firmware signing authority: {exc}") from exc
-    require(result.returncode == 0, "cannot read the source-build signing key")
+    require(result.returncode == 0, "cannot read the pinned CIX trusted-root signing key")
     require(sha256(result.stdout) == selected["trusted_root_spki_sha256"],
-            "CIX_RELEASE=1.2 cannot produce qualified flash firmware: the helper uses the UEFI OEM key "
-            "as the trusted-firmware root, which does not match the vendor trust anchor. "
-            "Use CIX_RELEASE= to retain vendor BL31/OP-TEE. Source compilation does not confer signing authority.")
-    raise ChainError("CIX_RELEASE=1.2 has no qualified vendor BL1/trusted-FIP pairing; do not publish a flash image")
+            "CIX signing key does not match the selected vendor trusted-firmware root")
+    cix_bl1 = read(package.parents[5] / "src/cix-v1.2/release-payloads/bootloader1-2026q1.img")
+    require(sha256(cix_bl1) == CIX_BL1_SHA256,
+            "CIX_RELEASE BL1 differs from the pinned CIX 2026Q1 vendor payload")
+    selected["output_bl1_sha256"] = CIX_BL1_SHA256
 
 
 def validate_uefi(data: bytes, selected: dict) -> dict:
@@ -104,7 +123,7 @@ def validate_uefi(data: bytes, selected: dict) -> dict:
 
 
 def check_payloads(directory: Path, selected: dict) -> dict:
-    require(sha256(read(directory / "Firmwares/bootloader1.img")) == selected["bl1_sha256"],
+    require(sha256(read(directory / "Firmwares/bootloader1.img")) == selected.get("output_bl1_sha256", selected["bl1_sha256"]),
             "BL1 does not match the qualified vendor boot-chain pairing")
     bl33 = read(directory / "Firmwares/bootloader3.img")
     allocation = select_bl33_layout(selected, len(bl33), selected.get("allow_large_bl33", False))
@@ -149,7 +168,8 @@ def check_flash(data: bytes, selected: dict) -> dict:
     if allocation["full_image_only"]:
         require(all(value == 0xFF for value in data[allocation["address"] + len(entries[7]):]),
                 "unexpected data after enlarged BL33 payload")
-    require(sha256(entries[1]) == selected["bl1_sha256"], "flash BL1 differs from qualified vendor pairing")
+    require(sha256(entries[1]) == selected.get("output_bl1_sha256", selected["bl1_sha256"]),
+            "flash BL1 differs from qualified vendor pairing")
     return {"image_sha256": sha256(data), "bl33_layout": allocation,
             "trusted": validate_fip(entries[2], "trusted", selected["trusted_root_spki_sha256"], selected["trusted_counter"]),
             "uefi": validate_uefi(entries[7], selected)}
@@ -222,6 +242,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--catalog", type=Path, default=CATALOG)
     parser.add_argument("--reference-dir", type=Path)
+    parser.add_argument("--signing-keys-dir", type=Path)
     selection = parser.add_mutually_exclusive_group(required=True)
     selection.add_argument("--worktree", type=Path)
     selection.add_argument("--payload-dir", type=Path)
@@ -252,7 +273,7 @@ def main() -> int:
             require(selected.get("reboot_scratch_layout") in (1, 2), "unknown vendor reboot scratch layout")
             print(selected["reboot_scratch_layout"])
             return 0
-        preflight(package, selected, args.cix_release, args.artefact_mode)
+        preflight(package, selected, args.cix_release, args.artefact_mode, args.signing_keys_dir)
         report["reference"] = selected
         if args.payload_dir:
             report["images"] = [check_payloads(args.payload_dir, selected)]

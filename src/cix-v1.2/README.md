@@ -14,6 +14,8 @@ It intentionally combines:
   - repo: `https://github.com/cixtech/cix_opensource__release__edk2-non-osi`
   - commit: `3140811e6fd4f08fa064858168309f098381335b`
   - file: `Platform/CIX/Sky1/PackageTool/Firmwares/bootloader1.img`
+- the [CIX-published Sky1 signing-key snapshot](../../custom/signing-keys/cix-1.2/README.md)
+  used only by custom source-built TF-A/OP-TEE images.
 
 This is a curated mode, not an exact historical replay of a single public
 superproject commit. It is designed to keep the selector surface simple while
