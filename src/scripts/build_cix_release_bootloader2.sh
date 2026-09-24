@@ -9,6 +9,7 @@ Required:
   --tfa-dir <path>        Imported CIX TF-A V1.2 source tree
   --tee-dir <path>        Imported CIX OP-TEE V1.2 source tree
   --build-root <path>     Board build directory containing Keys/, certs/, Firmwares/
+  --signing-keys-dir <path>  Pinned CIX V1.2 signing keys
   --fiptool <path>        Host fiptool binary
   --output <path>         Destination bootloader2.img path
 
@@ -54,6 +55,7 @@ run() {
 TFA_DIR=
 TEE_DIR=
 BUILD_ROOT=
+SIGNING_KEYS_DIR=
 FIPTOOL=
 OUTPUT=
 CROSS_COMPILE=
@@ -83,6 +85,10 @@ while [[ $# -gt 0 ]]; do
 			;;
 		--build-root)
 			BUILD_ROOT="$2"
+			shift 2
+			;;
+		--signing-keys-dir)
+			SIGNING_KEYS_DIR="$2"
 			shift 2
 			;;
 		--fiptool)
@@ -129,7 +135,7 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-if [[ -z "$TFA_DIR" || -z "$TEE_DIR" || -z "$BUILD_ROOT" || -z "$FIPTOOL" || -z "$OUTPUT" ]]; then
+if [[ -z "$TFA_DIR" || -z "$TEE_DIR" || -z "$BUILD_ROOT" || -z "$SIGNING_KEYS_DIR" || -z "$FIPTOOL" || -z "$OUTPUT" ]]; then
 	usage >&2
 	exit 1
 fi
@@ -145,6 +151,7 @@ esac
 require_dir "$TFA_DIR"
 require_dir "$TEE_DIR"
 require_dir "$BUILD_ROOT"
+require_dir "$SIGNING_KEYS_DIR"
 require_file "$FIPTOOL"
 
 KEYS_DIR="${BUILD_ROOT}/Keys"
@@ -155,6 +162,9 @@ require_dir "$CERTS_DIR"
 require_dir "$FIRMWARE_DIR"
 require_file "${KEYS_DIR}/oem_privatekey.pem"
 require_file "${KEYS_DIR}/oem_publickey.pem"
+for signing_key in cix trusted_world non_trusted_world bl31 bl32 bl33 oem; do
+	require_file "${SIGNING_KEYS_DIR}/${signing_key}_privatekey.pem"
+done
 
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cix-release-bl2.XXXXXX")"
 TFA_BUILD_ROOT="${TEMP_ROOT}/tf-a"
@@ -293,7 +303,7 @@ ensure_tee() {
 	tee_env=(
 		"PLATFORM=cix"
 		"PLATFORM_FLAVOR=sky1"
-		"TA_SIGN_KEY=${KEYS_DIR}/oem_privatekey.pem"
+		"TA_SIGN_KEY=${SIGNING_KEYS_DIR}/oem_privatekey.pem"
 		"ARCH=arm"
 		"CROSS_COMPILE64=${CROSS_COMPILE}"
 		"CFG_ARM64_core=y"
@@ -335,13 +345,13 @@ rm -f \
 run "$ACTIVE_CERT_CREATE_BIN" \
 	--key-alg rsa --key-size 3072 \
 	--hash-alg sha256 --tfw-nvctr 31 \
-	--rot-key "${KEYS_DIR}/oem_privatekey.pem" \
-	--trusted-world-key "${KEYS_DIR}/oem_privatekey.pem" \
-	--non-trusted-world-key "${KEYS_DIR}/oem_privatekey.pem" \
-	--scp-fw-key "${KEYS_DIR}/oem_privatekey.pem" \
-	--soc-fw-key "${KEYS_DIR}/oem_privatekey.pem" \
-	--tos-fw-key "${KEYS_DIR}/oem_privatekey.pem" \
-	--nt-fw-key "${KEYS_DIR}/oem_privatekey.pem" \
+	--rot-key "${SIGNING_KEYS_DIR}/cix_privatekey.pem" \
+	--trusted-world-key "${SIGNING_KEYS_DIR}/trusted_world_privatekey.pem" \
+	--non-trusted-world-key "${SIGNING_KEYS_DIR}/non_trusted_world_privatekey.pem" \
+	--scp-fw-key "${SIGNING_KEYS_DIR}/cix_privatekey.pem" \
+	--soc-fw-key "${SIGNING_KEYS_DIR}/bl31_privatekey.pem" \
+	--tos-fw-key "${SIGNING_KEYS_DIR}/bl32_privatekey.pem" \
+	--nt-fw-key "${SIGNING_KEYS_DIR}/bl33_privatekey.pem" \
 	--trusted-key-cert "${CERTS_DIR}/trusted_key.crt" \
 	--soc-fw-key-cert "${CERTS_DIR}/bl31_fw_key.crt" \
 	--tos-fw-key-cert "${CERTS_DIR}/tos_fw_key.crt" \
@@ -350,7 +360,6 @@ run "$ACTIVE_CERT_CREATE_BIN" \
 	--soc-fw "$ACTIVE_BL31_BIN" \
 	--tos-fw "$ACTIVE_TEE_BIN"
 
-printf '[cix-release] DEVELOPMENT ONLY: OEM signatures are not accepted by the vendor trusted-firmware root; this FIP must not be flashed.\n' >&2
 printf '[cix-release] Packaging bootloader2.img\n'
 mkdir -p "$(dirname "$OUTPUT")"
 rm -f "$OUTPUT"
