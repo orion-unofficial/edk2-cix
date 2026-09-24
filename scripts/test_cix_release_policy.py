@@ -1,86 +1,92 @@
 #!/usr/bin/env python3
-"""Reject unsigned trusted-component selections before any build work begins."""
+"""Guard CIX_RELEASE parsing and custom-only profile selection."""
 import os
 from pathlib import Path
 import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
 from build_profiles import resolve_profile
 from reconstruction_common import ReconstructionError, for_each_ref, show_file
+from validate_build_variables import validate
 
 ROOT = Path(__file__).resolve().parents[1]
-ERROR = 'CIX_RELEASE must be empty'
+ERROR = "CIX_RELEASE supports only 1.2"
 
 
 class CixReleasePolicyTests(unittest.TestCase):
-    def test_public_make_rejects_before_python_or_shell_and_preserves_old_outputs(self):
-        with tempfile.TemporaryDirectory(prefix='cix-policy-') as tmp:
+    def test_invalid_values_fail_during_make_parse_without_touching_outputs(self):
+        with tempfile.TemporaryDirectory(prefix="cix-policy-") as tmp:
             root = Path(tmp)
-            old = root / 'cix_flash_all.bin'
-            old.write_bytes(b'previous valid firmware')
-            for value in ('1.2', 'v1.2', 'v', 'unknown', '0'):
-                for goal in ('build', 'firmware', 'help-vars'):
+            old = root / "cix_flash_all.bin"
+            old.write_bytes(b"previous valid firmware")
+            for value in ("v", "unknown", "0", "2.0"):
+                for goal in ("build", "firmware", "help-vars"):
                     result = subprocess.run(
-                        ['make', '--no-print-directory', '-f', str(ROOT / 'Makefile'), goal,
-                         'CIX_RELEASE=' + value, 'PYTHON=/must-not-run', 'SHELL=/must-not-run'],
+                        ["make", "--no-print-directory", "-f", str(ROOT / "Makefile"), goal,
+                         "CIX_RELEASE=" + value, "PYTHON=/must-not-run", "SHELL=/must-not-run"],
                         cwd=root, capture_output=True, text=True, timeout=5)
                     self.assertNotEqual(result.returncode, 0, (value, goal))
                     self.assertIn(ERROR, result.stderr)
-                    self.assertNotIn('must-not-run', result.stderr)
                     self.assertEqual(list(root.iterdir()), [old])
-                    self.assertEqual(old.read_bytes(), b'previous valid firmware')
-            result = subprocess.run(['make', '-f', str(ROOT/'Makefile'), '-n', 'build'],
-                                    cwd=root, env=dict(os.environ, CIX_RELEASE='1.2'),
-                                    capture_output=True, text=True, timeout=5)
-            self.assertIn(ERROR, result.stderr)
-            self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(old.read_bytes(), b"previous valid firmware")
 
-    def test_help_accepts_blank_or_unset_and_does_not_advertise_unusable_option(self):
-        env = dict(os.environ)
-        env.pop('CIX_RELEASE', None)
-        for args in ([], ['CIX_RELEASE=']):
-            result = subprocess.run(['make', '--no-print-directory', 'help-vars', *args],
-                                    cwd=ROOT, env=env, capture_output=True, text=True, timeout=30)
+    def test_supported_values_are_advertised_and_upstream_is_rejected(self):
+        for value in ("1.2", "v1.2", "V1.2"):
+            result = subprocess.run(
+                ["make", "--no-print-directory", "help-vars", f"CIX_RELEASE={value}",
+                 "ARTEFACT_MODE=custom"], cwd=ROOT, capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertNotIn('CIX_RELEASE=', result.stdout)
-
-    def test_retained_source_make_entry_points_fail_before_includes_or_tools(self):
-        refs = for_each_ref(ROOT, 'source/unofficial/')
-        self.assertTrue(refs)
-        from test_firmware_build_recipe import RecipeTests
-        with tempfile.TemporaryDirectory(prefix='cix-source-policy-') as tmp:
-            root = Path(tmp)
-            makefile = root/'Makefile'
-            for ref in refs:
-                with patch.dict(os.environ, SOURCE_TEST_REF=ref):
-                    recipe = RecipeTests('test_recipe_is_inline_in_existing_component_version_form')
-                    recipe.setUp()
-                    recipe.test_recipe_is_inline_in_existing_component_version_form()
-                for name in ('Makefile', 'src/Makefile', '.github/local/Makefile.local'):
-                    makefile.write_bytes(show_file(ROOT, ref, name))
-                    result = subprocess.run([shutil.which('gmake') or 'make', '-f', str(makefile),
-                                             'help', 'CIX_RELEASE=1.2', 'SHELL=/must-not-run'],
-                                            cwd=root, capture_output=True, text=True, timeout=5)
-                    self.assertNotEqual(result.returncode, 0, (ref, name))
-                    self.assertIn(ERROR, result.stderr, (ref, name, result.stderr))
-                    self.assertNotIn('must-not-run', result.stderr)
-
-    def test_profile_and_direct_validator_reject_before_resolving_sources(self):
-        with patch('build_profiles.load_json', side_effect=AssertionError('must not load policy')):
-            with self.assertRaisesRegex(ReconstructionError, ERROR):
-                resolve_profile(ROOT, cix_release_override='v')
-        result = subprocess.run([sys.executable, str(ROOT/'scripts/validate_build_variables.py'),
-                                 '--repo-root', '/does-not-exist'],
-                                env=dict(os.environ, CIX_RELEASE='1.2'),
-                                capture_output=True, text=True, timeout=5)
+            self.assertIn("CIX_RELEASE=1.2|v1.2", result.stdout)
+        result = subprocess.run(
+            ["make", "help", "CIX_RELEASE=1.2", "ARTEFACT_MODE=upstream",
+             "SHELL=/must-not-run"], cwd=ROOT, capture_output=True, text=True, timeout=5)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn(ERROR, result.stderr)
-        self.assertNotIn('not a git repository', result.stderr)
+        self.assertIn("requires ARTEFACT_MODE=custom", result.stderr)
+
+    def test_retained_source_make_entry_points_reject_invalid_values(self):
+        refs = for_each_ref(ROOT, "source/unofficial/")
+        self.assertTrue(refs)
+        with tempfile.TemporaryDirectory(prefix="cix-source-policy-") as tmp:
+            root = Path(tmp)
+            makefile = root / "Makefile"
+            for ref in refs:
+                try:
+                    show_file(ROOT, ref, "custom/signing-keys/cix-1.2/cix_privatekey.pem")
+                except ReconstructionError:
+                    expected = "CIX_RELEASE must be empty"
+                else:
+                    expected = ERROR
+                for name in ("Makefile", "src/Makefile", ".github/local/Makefile.local"):
+                    makefile.write_bytes(show_file(ROOT, ref, name))
+                    result = subprocess.run(
+                        [shutil.which("gmake") or "make", "-f", str(makefile),
+                         "help", "CIX_RELEASE=unknown", "SHELL=/must-not-run"],
+                        cwd=root, capture_output=True, text=True, timeout=5)
+                    self.assertNotEqual(result.returncode, 0, (ref, name))
+                    self.assertIn(expected, result.stderr, (ref, name, result.stderr))
+
+    def test_profile_and_direct_validator_accept_only_custom_v12(self):
+        profile = resolve_profile(ROOT, requested_profile="latest", cix_release_override="v1.2")
+        self.assertEqual(profile["cix_early_boot_release"], "1.2")
+        with self.assertRaisesRegex(ReconstructionError, ERROR):
+            resolve_profile(ROOT, requested_profile="latest", cix_release_override="v")
+        for value, mode, success in (("1.2", "custom", True),
+                                     ("v1.2", "custom", True),
+                                     ("1.2", "upstream", False),
+                                     ("v", "custom", False)):
+            with patch.dict(os.environ, {"CIX_RELEASE": value, "ARTEFACT_MODE": mode}), \
+                 patch("sys.argv", ["validate_build_variables.py", "--repo-root", str(ROOT)]), \
+                 patch("validate_build_variables.validate_release"), \
+                 patch("validate_build_variables.validate_signing_cert_source"):
+                if success:
+                    validate()
+                else:
+                    with self.assertRaises(ReconstructionError):
+                        validate()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

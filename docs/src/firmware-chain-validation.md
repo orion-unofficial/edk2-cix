@@ -39,48 +39,40 @@ verified payloads and counters. Host reports use the host-owned cache alongside
 BL1 reports, avoiding container ownership problems. They are copied beside
 published raw images. A failed check replaces any earlier successful report.
 
-## Why source-built trusted firmware is rejected
+## Published CIX signing keys and source-built trusted firmware
 
-The curated CIX V1.2 helper signs its trusted FIP using `oem_privatekey.pem`.
-That key is authorised for the non-trusted/UEFI branch, not the vendor
-trusted-world branch. The vendor trusted SPKI SHA-256 is
-`33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4`.
-It is unchanged across retained Radxa 0.2.0 through 1.3.1 packages. The modern
-OEM key is `27d49f04bf1cc4ccfc53b6e88c58624bd6e4c4e625d6e98ec9765a0f8cab07fd`.
-No matching trusted-world private key was found among the retained, decodable
-CIX/Radxa and development keys examined.
+CIX published the [full Sky1 PackageTool key set at commit
+`94368c7c2f254528634fdb518e21545bf6c8f0b1`](https://github.com/cixtech/edk2-non-osi/tree/94368c7c2f254528634fdb518e21545bf6c8f0b1/Platform/CIX/Sky1/PackageTool/Keys).
+The published `cix_privatekey.pem` has the same public-key SHA-256 fingerprint
+(`33d47f7435420b6216d5008fbf5ac1c2508d4326653d1550391172c68be09aa4`)
+as the trusted-world anchor pinned for the retained Radxa packages. This
+resolves the previous Stage 3 helper defect: it used the UEFI OEM key as the
+trusted-firmware root, which could never authenticate under stock BL1.
 
-The delegated trusted-world, BL31-content and OP-TEE-content keys in those
-packages have the same public-key fingerprint as the trusted root. None matches
-the 631 private-key records examined. Reusing a stock parent certificate with
-an available delegated content-signing key therefore does not provide an
-alternative for these packages; the required content-signing private key is
-also unavailable in the examined sources.
+For custom `CIX_RELEASE=1.2`, the helper now uses the published CIX root,
+trusted-world delegation, BL31 and OP-TEE content keys for their respective
+certificates. It retains the byte-identical CIX 2026Q1 BL1 image. The preflight
+pins all copied key files, confirms the root against the selected stock
+reference and confirms the CIX BL1 hash. The post-build validator independently
+verifies the FIP signatures, signed executable digests, rollback counters and
+flash layout. Source-built OP-TEE trusted-application signing uses the
+published CIX OEM key; the Radxa UEFI signing path retains its existing OEM
+key and certificate chain. `ARTEFACT_MODE=upstream` is unchanged.
 
-In the inspected vendor BL2, image 7 identifies the Trusted Key Certificate.
-Image 13 is the BL31 content certificate; image 3 is BL31 itself. Parent
-authentication failure can therefore produce a failure to load image 3.
+CI compiles and checks both curated TF-A fix configurations using
+`scripts/qualify_source_trusted_firmware.py`; its report and test images stay
+under `build-cache/trusted-component-qualification/`. The normal
+`CIX_RELEASE=1.2` Make path must also pass the image guards before it can be
+published. A `/cix-1.2/` source lineage in `RELEASE` alone does not activate
+this option.
 
-Any nonblank `CIX_RELEASE` now fails immediately while Make parses its input,
-before source preparation or output changes. An invalid invocation leaves
-previous artifacts and their reports untouched; it never reports build success.
-Leave `CIX_RELEASE=` to retain the selected vendor BL31/OP-TEE. The `latest`
-profile and `build-all` distribution use qualified vendor trusted payloads.
-The [maintained qualification matrix](maintenance-and-ci.md) retains vendor
-trusted payloads.
-CI separately compiles both curated TF-A fix configurations with OP-TEE, then
-requires the resulting FIPs to fail the vendor-root check. Development
-compilation is preserved without labelling those FIPs flashable. The qualifier
-invokes `src/scripts/build_cix_release_bootloader2.sh` directly, with outputs
-isolated under `build-cache/untrusted-component-qualification/`; it does not
-bypass the Make guard or write into the normal firmware output directory.
-The imported CIX sources and the helper remain available for development.
-
-The bundled OEM key can sign UEFI through the vendor's non-trusted delegation.
-Both the retained vendor certificate and the OEM certificate presentation used
-by working custom builds are checked against that externally pinned delegation.
-This authority does not extend to modified BL31 or OP-TEE. Reattaching stock
-certificates to changed trusted payloads fails their signed digest checks.
+These private keys are public. A valid signature from them does not prove that
+only CIX produced the code. Offline validation also does not establish a
+particular board's fuse identity, rollback state or runtime compatibility.
+The [independent O6 BL1 re-signing report](https://github.com/Neol00/edk2-cix-unlocked/issues/12#issue-5555789220)
+is encouraging hardware evidence, but it does not by itself qualify a
+particular full-image build or other boards. Preserve a known-working
+programmer recovery image for any on-board experiment.
 
 ## Limits and further evidence
 

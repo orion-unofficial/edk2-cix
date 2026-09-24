@@ -10,8 +10,9 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from check_source_build_inputs import BUILD_FIXES, missing_board_table_inputs, missing_build_fixes, missing_configuration_manager_types, missing_lto_library, missing_module_infs, missing_package_declarations, missing_platform_inputs, missing_smbios_cache_types, missing_toolchain, missing_wrapper_dependencies, source_input_problems, unbalanced_asl_conditionals
+from check_source_build_inputs import BUILD_FIXES, chain_validator_problems, missing_board_table_inputs, missing_build_fixes, missing_configuration_manager_types, missing_lto_library, missing_module_infs, missing_package_declarations, missing_platform_inputs, missing_smbios_cache_types, missing_toolchain, missing_wrapper_dependencies, source_input_problems, unbalanced_asl_conditionals
 from check_source_build_inputs import autogen_library_problems, missing_tool_definitions, missing_acpi_headers, flattened_overlay_mirrors
+from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
 from test_support import commit_all, git, write_file
 from source_lifecycle import tree_entries
 from source_porting import git_blob_bytes_batch
@@ -19,6 +20,23 @@ from reconstruction_common import show_file
 
 
 class SourceBuildInputsTests(unittest.TestCase):
+    def test_chain_validator_variants_are_pinned_to_signing_capability(self):
+        repo = Path(__file__).resolve().parents[1]
+        current = (repo / "scripts/validate_firmware_chain.py").read_bytes()
+        stock = show_file(repo, "source/unofficial/1.2.4/edk2-stable202608",
+                          "src/scripts/validate_firmware_chain.py")
+        self.assertEqual(chain_validator_problems(stock, {}, b"", current), [])
+        self.assertTrue(chain_validator_problems(stock + b"# drift\n", {}, b"", current))
+        ref = "source/unofficial/1.3.1/edk2-stable202608"
+        keys = {name: show_file(repo, ref, f"{CIX_SIGNING_KEYS}/{name}")
+                for name in CIX_KEY_SHA256}
+        helper = show_file(repo, ref, "src/scripts/build_cix_release_bootloader2.sh")
+        self.assertEqual(chain_validator_problems(current, keys, helper, current), [])
+        self.assertTrue(chain_validator_problems(stock, keys, helper, current))
+        self.assertTrue(chain_validator_problems(current, keys, helper + b"# drift\n", current))
+        keys["cix_privatekey.pem"] += b"tampered"
+        self.assertTrue(chain_validator_problems(current, keys, helper, current))
+
     def test_regular_overlay_cannot_contain_a_symlink_blob_as_source(self):
         path = 'custom/overlay/Spcr.aslc'
         self.assertIn(path, flattened_overlay_mirrors({path: b'../../src/Spcr.aslc'})[0])

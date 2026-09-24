@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise real vendor chains and reject corruption and the Stage 3 trust root."""
+"""Exercise real vendor chains and reject corruption or an untrusted root."""
 
 import hashlib
 import json
@@ -97,6 +97,40 @@ class FirmwareChainTests(unittest.TestCase):
         cert = vendor("1.3.1", "certs/trusted_key_no.crt")
         with self.assertRaisesRegex(chain.ChainError, "trust anchor"):
             self.validate(replace_entry(self.fip, "trusted-key-cert", cert))
+
+    def test_published_cix_keys_match_vendor_anchor_and_reject_tampering(self):
+        ref = "source/unofficial/1.3.1/edk2-stable202608"
+        bl1_catalogue = json.loads((ROOT / "config/bootloader1-payloads.json").read_text())
+        self.assertIn(packaging.CIX_BL1_SHA256,
+                      {row["sha256"] for row in bl1_catalogue["payloads"]})
+        with tempfile.TemporaryDirectory(prefix="cix-chain-") as tmp:
+            worktree = Path(tmp)
+            package = worktree / PACKAGE
+            for name in ("Firmwares/bootloader1.img", "Firmwares/bootloader2.img",
+                         "certs/trusted_key_no.crt", "spi_flash_config_all.json"):
+                path = package / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(vendor("1.3.1", name))
+            keys = worktree / packaging.CIX_SIGNING_KEYS
+            keys.mkdir(parents=True)
+            for name in packaging.CIX_KEY_SHA256:
+                (keys / name).write_bytes(
+                    show_file(ROOT, ref, f"custom/signing-keys/cix-1.2/{name}"))
+            cix_bl1 = worktree / "src/cix-v1.2/release-payloads/bootloader1-2026q1.img"
+            cix_bl1.parent.mkdir(parents=True)
+            cix_bl1.write_bytes(
+                show_file(ROOT, ref, "src/cix-v1.2/release-payloads/bootloader1-2026q1.img"))
+            selected = packaging.reference(package, packaging.load_catalog())
+            packaging.preflight(package, selected, "1.2", "custom")
+            self.assertEqual(selected["output_bl1_sha256"], packaging.CIX_BL1_SHA256)
+            with self.assertRaisesRegex(chain.ChainError, "BL1 does not match"):
+                packaging.check_payloads(package, selected)
+            with self.assertRaisesRegex(chain.ChainError, "only supported"):
+                packaging.preflight(package, selected, "1.2", "upstream")
+            root_key = keys / "cix_privatekey.pem"
+            root_key.write_bytes(root_key.read_bytes() + b"x")
+            with self.assertRaisesRegex(chain.ChainError, "pinned upstream"):
+                packaging.preflight(package, selected, "1.2", "custom")
 
     def test_fip_rejects_duplicate_overlapping_and_truncated_entries(self):
         variants = [self.fip[:15], self.fip[:-1], b"not a FIP"]
@@ -199,12 +233,6 @@ class PackagingTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaises(chain.ChainError):
                 packaging.validate_uefi(replace_entry(self.uefi, name, value), self.selected)
 
-    def test_stage3_signing_key_is_not_vendor_trusted(self):
-        for release in ("1.2", "v1.2", "V1.2"):
-            with self.assertRaisesRegex(chain.ChainError, "UEFI OEM key"):
-                packaging.preflight(self.package, self.selected, release, "custom")
-        packaging.preflight(self.package, self.selected, "", "custom")
-
     def flash_fixture(self):
         return self.fixture.flash_fixture()
 
@@ -282,7 +310,7 @@ class PackagingTests(unittest.TestCase):
         with self.assertRaisesRegex(chain.ChainError, "overlapping"):
             packaging.check_flash(bytes(image), self.selected)
 
-    def test_public_make_rejects_stage3_and_corrupt_outputs_without_validation_opt_out(self):
+    def test_public_make_rejects_invalid_selection_and_corrupt_outputs_without_validation_opt_out(self):
         # Actual top-level Make, input validation, certificate verification and
         # mirroring; substitute only source rendering, compilation and BL1 tool.
         with tempfile.TemporaryDirectory(prefix="chain-make-boundary-") as tmp:
@@ -315,10 +343,10 @@ class PackagingTests(unittest.TestCase):
             report = firmware_chain_report_path(ROOT, wt, "O6", "RELEASE")
             self.addCleanup(shutil.rmtree, report.parent, True)
             env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
-            result = subprocess.run(command + ["CIX_RELEASE=1.2"], cwd=ROOT, env=env,
+            result = subprocess.run(command + ["CIX_RELEASE=unknown"], cwd=ROOT, env=env,
                                     capture_output=True, text=True, timeout=120)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("CIX_RELEASE must be empty", result.stderr)
+            self.assertIn("CIX_RELEASE supports only 1.2", result.stderr)
             self.assertFalse((wt / "compilation-reached").exists())
             self.assertFalse(report.exists())
             image, end = self.flash_fixture()
@@ -329,13 +357,13 @@ class PackagingTests(unittest.TestCase):
             published = next((root / "dist").rglob("cix_flash_all.bin"))
             self.assertEqual(published.read_bytes(), image)
             previous_report = report.read_bytes()
-            # A valid previous Stage 2 output must not allow a later Stage 3
-            # request to report success, even when all old files still exist.
+            # A valid prior output must not permit an invalid selection to
+            # report success, even when all old files still exist.
             (wt / "compilation-reached").unlink()
-            result = subprocess.run(command + ["CIX_RELEASE=1.2", "DEBUG_VERBOSE=true"],
+            result = subprocess.run(command + ["CIX_RELEASE=unknown", "DEBUG_VERBOSE=true"],
                                     cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("CIX_RELEASE must be empty", result.stderr)
+            self.assertIn("CIX_RELEASE supports only 1.2", result.stderr)
             self.assertFalse((wt / "compilation-reached").exists())
             self.assertEqual(published.read_bytes(), image)
             self.assertEqual(report.read_bytes(), previous_report)
