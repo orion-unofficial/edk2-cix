@@ -514,10 +514,10 @@ def run_validate(args: argparse.Namespace) -> int:
             if (
                 normalized_cix_release == "1.2"
                 and args.firmware_board is not None
-                and args.firmware_board not in VALID_BOARDS
+                and args.firmware_board != "O6"
             ):
                 raise ValueError(
-                    "CIX_RELEASE is only supported for FIRMWARE_BOARD=O6 or O6N"
+                    "CIX_RELEASE=1.2 is qualified only for FIRMWARE_BOARD=O6"
                 )
 
         if args.enable_tf_a_fixes is not None and args.enable_tf_a_fixes != "":

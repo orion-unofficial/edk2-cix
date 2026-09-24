@@ -68,6 +68,15 @@ class ValidateMakeInputsTests(unittest.TestCase):
         )
         self.assertEqual(run_validate(args), 2)
 
+    def test_custom_cix_v12_accepts_o6_and_rejects_o6n(self) -> None:
+        for board, expected in (("O6", 0), ("O6N", 2)):
+            with self.subTest(board=board):
+                args = self.parse(
+                    "--artefact-mode", "custom", "--firmware-board", board,
+                    "--cix-release", "1.2",
+                )
+                self.assertEqual(run_validate(args), expected)
+
     def test_custom_o6_allows_shared_o6_smbios_asset_tag(self) -> None:
         args = self.parse(
             "--artefact-mode",

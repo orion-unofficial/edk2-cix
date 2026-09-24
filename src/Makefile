@@ -1,6 +1,12 @@
-# Source-built trusted firmware lacks a vendor-authorized signing key.
 ifneq ($(strip $(CIX_RELEASE)),)
-$(error CIX_RELEASE must be empty: source-built TF-A/OP-TEE cannot be signed with a vendor-trusted key. Leave it unset or use CIX_RELEASE=)
+ifeq ($(filter 1.2 v1.2 V1.2,$(strip $(CIX_RELEASE))),)
+$(error CIX_RELEASE supports only 1.2 (or v1.2))
+endif
+ifneq ($(strip $(ARTEFACT_MODE)),)
+ifneq ($(ARTEFACT_MODE),custom)
+$(error CIX_RELEASE=1.2 requires ARTEFACT_MODE=custom)
+endif
+endif
 endif
 
 FIRMWARE_TARGET ?= RELEASE
@@ -244,10 +250,12 @@ CIX_RELEASE_V12_TEE_SOURCE_DIR := $(CIX_RELEASE_SOURCE_DIR)/tee
 CIX_RELEASE_V12_PAYLOAD_DIR := $(CIX_RELEASE_SOURCE_DIR)/release-payloads
 CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD := $(CIX_RELEASE_V12_PAYLOAD_DIR)/bootloader1-2026q1.img
 CIX_RELEASE_BOOTLOADER2_HELPER := scripts/build_cix_release_bootloader2.sh
+CIX_RELEASE_SIGNING_KEYS_DIR := ../custom/signing-keys/cix-1.2
 CIX_RELEASE_V12_REQUIRED_FILES := \
 	$(CIX_RELEASE_V12_TFA_SOURCE_DIR)/Makefile \
 	$(CIX_RELEASE_V12_TEE_SOURCE_DIR)/Makefile \
 	$(CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD) \
+	$(CIX_RELEASE_SIGNING_KEYS_DIR)/cix_privatekey.pem \
 	$(CIX_RELEASE_BOOTLOADER2_HELPER)
 TOOLS_DIR := tools
 FIPTOOL_SOURCE_DIR := $(TOOLS_DIR)/arm-trusted-firmware-fiptool
@@ -1009,7 +1017,7 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 			exit 0; \
 		fi; \
 	fi && \
-	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" --cix-release "$(CIX_RELEASE)"; fi && \
 	printf '[build/%s] Packaging OTA flash image\n' "$*" && \
 	( \
 		cd "$$stage_dir" && \
@@ -1020,7 +1028,7 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_ota.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 			echo "[build/$*] Expected OTA image $$tmp_ota was not created" >&2; \
 			exit 1; \
 		fi && \
-		if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --ota-image "$$tmp_ota" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
+		if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --ota-image "$$tmp_ota" --reference-dir "$(abspath $(PACKAGE_TOOL))" --cix-release "$(CIX_RELEASE)"; fi && \
 		mv -f "$$tmp_ota" "./cix_flash_ota.bin" \
 	) && \
 	cp -f "$$stage_dir/cix_flash_ota.bin" "$@" && \
@@ -1102,7 +1110,7 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 			exit 0; \
 		fi; \
 	fi && \
-	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))"; fi && \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --payload-dir "$$stage_dir" --reference-dir "$(abspath $(PACKAGE_TOOL))" --cix-release "$(CIX_RELEASE)"; fi && \
 	printf '[build/%s] Packaging full flash image\n' "$*" && \
 	( \
 		cd "$$stage_dir" && \
@@ -1122,7 +1130,7 @@ Build/%/$(UEFI_TARGET)_GCC/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) prefl
 		echo "[build/$*] Expected full flash image $$tmp_all was not created" >&2; \
 		exit 1; \
 	fi && \
-	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --flash-image "$$tmp_all" --reference-dir "$(abspath $(PACKAGE_TOOL))" --report "$$final_dir/firmware-chain-validation.json"; fi && \
+	if [[ "$(ARTEFACT_MODE)" == "custom" ]]; then python3 "$(FIRMWARE_CHAIN_VALIDATOR)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)" --flash-image "$$tmp_all" --reference-dir "$(abspath $(PACKAGE_TOOL))" --cix-release "$(CIX_RELEASE)" --report "$$final_dir/firmware-chain-validation.json"; fi && \
 	mv -f "$$tmp_all" "$@" && \
 	if [[ -d "$$stage_dir/Firmwares" ]]; then \
 		mkdir -p "$$final_dir/Firmwares" && \
@@ -1165,6 +1173,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 		--tfa-dir "$(abspath $(CIX_RELEASE_V12_TFA_SOURCE_DIR))" \
 		--tee-dir "$(abspath $(CIX_RELEASE_V12_TEE_SOURCE_DIR))" \
 		--build-root "$(abspath $(call BUILD_STAGE_DIR,$*))" \
+		--signing-keys-dir "$(abspath $(CIX_RELEASE_SIGNING_KEYS_DIR))" \
 		--fiptool "$(abspath $(FIPTOOL_BIN))" \
 		--output "$$tmp_output" \
 		--cross-compile "$(GCC_AARCH64_PREFIX)" \
