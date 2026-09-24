@@ -237,18 +237,23 @@ Default: `ccache`
 
 ## Vendor trusted firmware
 
-Leave `CIX_RELEASE` unset or empty. Any nonblank value is rejected immediately
-by Make, before source rendering, downloads, compilation or output changes.
-Available keys cannot sign modified BL31/TF-A or OP-TEE payloads under the
-vendor's trusted-world certificate chain. These builds retain the selected
-vendor trusted payloads. A `/cix-1.2/` segment in `RELEASE` identifies imported
-source lineage; it does not enable this runtime build option or replace the
-signed BL31/OP-TEE payloads. Lineage selectors do not bypass source-provenance
-checks; use `make help-source-targets` for the available targets.
+`CIX_RELEASE=1.2` (also `v1.2`) is a custom-only opt-in. It selects the pinned
+CIX 2026Q1 BL1 and compiles BL31 and OP-TEE from the curated V1.2 sources.
+The reviewed selection currently supports O6 with Radxa 1.3.1 source
+checkpoints at EDK2 `202208`, `202605` and `202608`; other boards and source
+checkpoints fail preflight.
+The trusted FIP is signed with [CIX-published keys](firmware-chain-validation.md)
+whose root public key matches the selected stock firmware's trusted-world
+anchor. The build rejects changed keys, a bad certificate chain, changed BL1,
+rollback counters below the vendor reference, or an oversized flash payload.
 
-The source inputs and development helper remain available for compilation and
-certificate-rejection testing; they cannot produce a qualified flash image.
-See [certificate-chain validation](firmware-chain-validation.md).
+Leave `CIX_RELEASE` unset or empty to retain the selected vendor BL1, BL31
+and OP-TEE. A `/cix-1.2/` segment in `RELEASE` identifies imported source
+lineage; it does not itself enable source-built trusted components.
+`ENABLE_TF_A_FIXES=true` separately opts into the curated TF-A fixes when
+`CIX_RELEASE=1.2` is active. A certificate-valid image still needs board
+qualification; eFuse, rollback state and runtime compatibility are not
+observable by the offline validator.
 
 ## Opt-In Firmware Behaviour Changes
 
@@ -540,7 +545,7 @@ The most important compatibility rules are:
 - `ENABLE_CORE_ORDER=conventional|performance` requires `ENABLE_FIRMWARE_FIXES=true`;
   `cix` preserves the default order and is accepted with fixes disabled
 - `DEBUG_ON_UART3=true` implies `UART3_ENABLE=true`
-- `CIX_RELEASE` must be unset or empty
+- `CIX_RELEASE=1.2|v1.2` requires `ARTEFACT_MODE=custom`
 - the `O6_SMBIOS_*` asset-tag variables are custom-only and board-limited to
   `O6`
 - `ENABLE_FIRMWARE_FIXES=true` and `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true` are
@@ -606,14 +611,23 @@ make build \
   ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true
 ```
 
-### Curated CIX trusted-component development
+### Curated CIX V1.2 trusted components
 
-Nonblank `CIX_RELEASE` is rejected by all Make entry points. CI uses
-`scripts/qualify_source_trusted_firmware.py` to invoke the retained development
-helper directly and confirm that its output fails vendor-chain qualification.
-Its files stay under `build-cache/untrusted-component-qualification/`, separate
-from firmware output directories.
-Do not flash this development output. See
+```bash
+make build \
+  RELEASE=edk2-202608/radxa-1.3.1/unofficial \
+  ARTEFACT_MODE=custom \
+  FIRMWARE_BOARD=O6 \
+  FIRMWARE_TARGET=RELEASE \
+  FIRMWARE_DISTRO=trixie \
+  ENABLE_FIRMWARE_FIXES=true \
+  ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false \
+  CIX_RELEASE=1.2
+```
+
+CI compiles both TF-A fix configurations and validates their signed trusted
+FIPs. A full image must also pass the existing BL1, certificate-chain and
+flash-layout guards before publication. See
 [certificate-chain validation](firmware-chain-validation.md).
 
 ### Experimental RELEASE build with verbose firmware logs on UART3

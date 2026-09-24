@@ -16,6 +16,7 @@ FALSE_TOKENS = {"0", "false", "off", "no"}
 BOOLEAN_CUSTOM_OPTIONS = {
     "DEBUG_ON_UART3",
     "DEBUG_VERBOSE",
+    "ENABLE_TF_A_FIXES",
     "ENABLE_EXPERIMENTAL_UEFI_SETTINGS",
     "UART3_ENABLE",
 }
@@ -55,8 +56,6 @@ def resolve_profile(
     cix_release_override: str = "",
     custom_options: list[str] | None = None,
 ) -> dict[str, str]:
-    if cix_release_override.strip():
-        raise ReconstructionError("CIX_RELEASE must be empty: source-built TF-A/OP-TEE cannot be signed with a vendor-trusted key")
     policy = load_json(repo, "config/policies.json").get("firmware_profile_policy", {})
     profiles = policy.get("profiles", {})
     selected = requested_profile.strip() or str(policy.get("default_profile", "")).strip()
@@ -74,6 +73,13 @@ def resolve_profile(
         "cix_early_boot_release": str(configured.get("cix_early_boot_release") or ""),
         "replay_version": str(configured.get("replay_version", "")),
     }
+    if cix_release_override.strip():
+        choice = cix_release_override.strip().lower().removeprefix("v")
+        if choice != "1.2":
+            raise ReconstructionError("CIX_RELEASE supports only 1.2 (or v1.2)")
+        if result["artefact_mode"] != "custom":
+            raise ReconstructionError("CIX_RELEASE=1.2 requires a custom profile")
+        result["cix_early_boot_release"] = "1.2"
     if result["release"] == "unofficial-policy-default":
         result["release"] = default_release(repo)
 

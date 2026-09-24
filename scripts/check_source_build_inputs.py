@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import posixpath
+import hashlib
 import re
 from pathlib import Path
 
 from reconstruction_common import for_each_ref, main_wrapper, ReconstructionError, tree_id
 from source_lifecycle import tree_entries
 from source_porting import git_blob_bytes_batch
+from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
+from validate_build_variables import CIX_SIGNING_HELPER_SHA256
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,6 +42,28 @@ BUILD_FIXES = (
     ("release-logging-include", "src/Makefile", b'export PACKAGES_PATH="$$WORKSPACE/logging-overlay:$$PACKAGES_PATH"', False),
     ("custom-asl-without-fixes", "src/Makefile", b'ASLPP_FLAGS   = DEF(GCC_ASLPP_FLAGS) -I$(CUSTOM_OVERLAY_ROOT)', False),
 )
+
+# Older source checkpoints deliberately reject CIX_RELEASE at Make parse time.
+# Preserve their exact stock-only verifier; CIX-enabled checkpoints must carry
+# the current verifier and the complete pinned signing-key snapshot instead.
+STOCK_CHAIN_VALIDATOR_SHA256 = "834a922d27be1e5fa4111244628e9a99adeeae1b4755fb3767d594d441562387"
+
+
+def chain_validator_problems(validator: bytes, signing_keys: dict[str, bytes],
+                             helper: bytes, current_validator: bytes) -> list[str]:
+    if not signing_keys:
+        if hashlib.sha256(validator).hexdigest() != STOCK_CHAIN_VALIDATOR_SHA256:
+            return ["stock-only firmware-chain validator differs from the pinned historical version"]
+        return []
+    problems = []
+    if validator != current_validator:
+        problems.append("CIX-enabled firmware-chain validator differs from build branch")
+    if hashlib.sha256(helper).hexdigest() != CIX_SIGNING_HELPER_SHA256:
+        problems.append("CIX-enabled signing helper differs from the reviewed source")
+    for name, expected in CIX_KEY_SHA256.items():
+        if hashlib.sha256(signing_keys.get(name, b"")).hexdigest() != expected:
+            problems.append(f"CIX-enabled source lacks pinned signing key: {name}")
+    return problems
 
 
 def missing_build_fixes(contents: dict[str, bytes]) -> list[str]:
@@ -397,7 +422,7 @@ def main() -> None:
         tree = tree_id(ROOT, ref)
         if tree not in checked:
             checked[tree] = source_input_problems(ROOT, ref)
-            entries = tree_entries(ROOT, ref, ("src/scripts", "scripts/debug_build_policy.py"))
+            entries = tree_entries(ROOT, ref, ("src/scripts", "scripts/debug_build_policy.py", CIX_SIGNING_KEYS))
             # Packaging executes inside rendered trees as well as from build.
             # Every retained checkpoint must carry the same mandatory verifier.
             for source, caller in (("scripts/debug_build_policy.py", "scripts/debug_build_policy.py"),
@@ -406,7 +431,6 @@ def main() -> None:
                                    ("src/scripts/build_bl33.py", "scripts/build_bl33.py"),
                                    ("src/scripts/warn_debug_categories.py", "scripts/warn_debug_categories.py"),
                                    ("src/scripts/firmware_chain.py", "scripts/firmware_chain.py"),
-                                   ("src/scripts/validate_firmware_chain.py", "scripts/validate_firmware_chain.py"),
                                    ("src/scripts/check_release_debug.py", "scripts/check_release_debug.py"),
                                    ("src/scripts/prepare_release_logging.py", "scripts/prepare_release_logging.py"),
                                    ("src/scripts/firmware-trust.json", "config/firmware-trust.json")):
@@ -417,6 +441,22 @@ def main() -> None:
                     content = git_blob_bytes_batch(ROOT, [entry.object_id])[entry.object_id]
                     if content != (ROOT / caller).read_bytes():
                         checked[tree].append(f"build validation input differs from build branch: {source}")
+            validator_path = "src/scripts/validate_firmware_chain.py"
+            validator_entry = entries.get(validator_path)
+            if validator_entry is None:
+                checked[tree].append(f"missing mandatory build validation input: {validator_path}")
+            else:
+                key_entries = {name: entries[f"{CIX_SIGNING_KEYS}/{name}"] for name in CIX_KEY_SHA256
+                               if f"{CIX_SIGNING_KEYS}/{name}" in entries}
+                helper_entry = entries.get("src/scripts/build_cix_release_bootloader2.sh")
+                blobs = git_blob_bytes_batch(ROOT, [validator_entry.object_id, *(item.object_id for item in key_entries.values()),
+                                                    *([helper_entry.object_id] if helper_entry else [])])
+                validator = blobs[validator_entry.object_id]
+                signing_keys = {name: blobs[item.object_id] for name, item in key_entries.items()}
+                helper = blobs[helper_entry.object_id] if helper_entry else b""
+                checked[tree].extend(chain_validator_problems(
+                    validator, signing_keys, helper,
+                    (ROOT / "scripts/validate_firmware_chain.py").read_bytes()))
         problems.extend(f"{ref}: {problem}" for problem in checked[tree])
     if problems:
         raise ReconstructionError("source build-input checks failed:\n" + "\n".join(problems))

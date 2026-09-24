@@ -231,16 +231,51 @@ jobs:
             FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation" \
             FIRMWARE_VALIDATION_PROFILE="${validation_profile}-${FIRMWARE_DISTRO}"
 
-      - name: Compile curated TF-A and OP-TEE and reject their untrusted FIP
+      - name: Compile curated TF-A and OP-TEE and verify their CIX-rooted FIPs
         if: matrix.board == 'O6' && matrix.firmware_fixes == true && matrix.experimental == false
         shell: bash
         env:
           BUILDBOX_PLATFORM: linux/amd64
         run: |
           set -euo pipefail
+          if [[ ! -f "${FIRMWARE_WORKTREE}/custom/signing-keys/cix-1.2/cix_privatekey.pem" ]]; then
+            echo "Selected source checkpoint does not support CIX_RELEASE=1.2; skipping its optional qualification."
+            exit 0
+          fi
           python3 scripts/qualify_source_trusted_firmware.py \
             --worktree "${FIRMWARE_WORKTREE}" \
-            --report .cache/edk2-cix/qualification/trusted-source-rejection.json
+            --report .cache/edk2-cix/qualification/trusted-source-chain.json
+
+      - name: Build and verify the source-signed CIX image after the stock image
+        if: matrix.board == 'O6' && matrix.firmware_fixes == true && matrix.experimental == false
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f "${FIRMWARE_WORKTREE}/custom/signing-keys/cix-1.2/cix_privatekey.pem" ]]; then
+            echo "Selected source checkpoint does not support CIX_RELEASE=1.2; skipping its optional image build."
+            exit 0
+          fi
+          make -C "${FIRMWARE_WORKTREE}" buildbox-firmware-build \
+            ARTEFACT_MODE=custom CIX_RELEASE=1.2 ENABLE_TF_A_FIXES=false \
+            FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE \
+            FIRMWARE_DISTRO="${FIRMWARE_DISTRO}" BUILDBOX_PLATFORM=linux/amd64 \
+            ENABLE_FIRMWARE_FIXES=true ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false \
+            DEBUG_VERBOSE=false DEBUG_PRINT_ERROR_LEVEL="${{ matrix.debug_mask }}" \
+            FIRMWARE_REBUILD_RELEASE="${FIRMWARE_REBUILD_RELEASE}" \
+            FIRMWARE_REBUILD_BUILD_COMMIT="$(git rev-parse HEAD)" \
+            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox/tmp" \
+            CCACHE_DIR="${FIRMWARE_CACHE}/ccache" \
+            CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
+            CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
+            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro"
+          python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
+            --phase outputs --build-target buildbox-firmware-build \
+            --board O6 --cix-release 1.2 \
+            --report .cache/edk2-cix/qualification/cix-source-bl1.json
+          python3 scripts/validate_firmware_chain.py --worktree "${FIRMWARE_WORKTREE}" \
+            --phase outputs --build-target buildbox-firmware-build \
+            --board O6 --cix-release 1.2 \
+            --report .cache/edk2-cix/qualification/cix-source-chain.json
 
       - name: Collect Secure Boot reports
         if: always()
@@ -261,9 +296,14 @@ jobs:
           if [[ -f .cache/edk2-cix/qualification/firmware-chain-validation.json ]]; then
             cp .cache/edk2-cix/qualification/firmware-chain-validation.json "${artifact_root}/"
           fi
-          if [[ -f .cache/edk2-cix/qualification/trusted-source-rejection.json ]]; then
-            cp .cache/edk2-cix/qualification/trusted-source-rejection.json "${artifact_root}/"
+          if [[ -f .cache/edk2-cix/qualification/trusted-source-chain.json ]]; then
+            cp .cache/edk2-cix/qualification/trusted-source-chain.json "${artifact_root}/"
           fi
+          for report in cix-source-bl1.json cix-source-chain.json; do
+            if [[ -f ".cache/edk2-cix/qualification/${report}" ]]; then
+              cp ".cache/edk2-cix/qualification/${report}" "${artifact_root}/"
+            fi
+          done
           if [[ -d "${FIRMWARE_CACHE}/build-validation" ]]; then
             cp -a "${FIRMWARE_CACHE}/build-validation" "${artifact_root}/build-validation"
             python3 "${FIRMWARE_WORKTREE}/scripts/summarize_validation_reports.py" \

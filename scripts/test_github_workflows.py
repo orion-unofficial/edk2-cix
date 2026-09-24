@@ -163,7 +163,9 @@ class GitHubWorkflowTests(unittest.TestCase):
             secure_boot.count("scripts/build_profiles.py --profile latest --field release"),
             2,
         )
-        self.assertEqual(secure_boot.count("ARTEFACT_MODE=custom"), 2)
+        self.assertEqual(secure_boot.count("ARTEFACT_MODE=custom"), 3)
+        self.assertIn("CIX_RELEASE=1.2 ENABLE_TF_A_FIXES=false", secure_boot)
+        self.assertIn("trusted-source-chain.json", secure_boot)
 
     def test_no_firmware_workflow_depends_on_targetless_make(self) -> None:
         for name in ("deterministic-replay.yaml", "manual-firmware-build.yaml", "secure-boot-audit.yaml"):

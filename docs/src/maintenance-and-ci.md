@@ -20,7 +20,9 @@ classifier; unknown or firmware-affecting paths run all of these gates:
   menus off/on (RELEASE, Trixie, vendor early-boot payloads retained): 16 O6
   builds and 16 O6N builds;
 - current-source Trixie builds for O6 and O6N, both with firmware fixes disabled
-  and enabled; and
+  and enabled; the O6/fixes-on lane then builds a CIX V1.2 source-signed image
+  after its stock-payload image and verifies both certificates and BL1 identity;
+  and
 - exact replay of stock Radxa 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0 and 1.3.1 on
   EDK2 `202208` for O6 and O6N: **12 stock replay builds**.
 

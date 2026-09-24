@@ -6,8 +6,8 @@ model combines:
 
 - upstream bases such as EDK2, TF-A, and OP-TEE
 - Radxa firmware source layers
-- recorded CIX v1.2 BL1, TF-A and OP-TEE development inputs; source-built
-  trusted components cannot be packaged for locked boards without vendor signing authority
+- recorded CIX V1.2 BL1, TF-A, OP-TEE and published signing keys for optional
+  source-built trusted components in qualified custom O6 builds
 - unofficial project changes
 - generated materialised firmware worktrees that are ready to build
 
@@ -249,10 +249,11 @@ CI, and maintainer validation, see [`MAINTENANCE.md`](MAINTENANCE.md).
 
 The build verifies BL1 provenance and the trusted/UEFI FIP certificate chains,
 payload digests, delegation and reference counters before publishing images.
-Every nonblank `CIX_RELEASE` value is rejected immediately by Make: available
-keys cannot sign modified trusted-world firmware under the vendor chain. Leave
-`CIX_RELEASE=` to retain the vendor BL31/OP-TEE payloads. The `latest` profile
-and distributable bundles use this qualified path. Curated component source
-compilation and rejection of its incompatible signature are tested separately.
+Leave `CIX_RELEASE=` to retain the selected vendor BL1, BL31 and OP-TEE
+payloads. For custom O6 builds based on reviewed Radxa 1.3.1 checkpoints,
+`CIX_RELEASE=1.2` opts into source-built BL31 and OP-TEE signed with CIX's
+published keys. The build verifies the resulting chain against the stock
+vendor trust anchor and flash layout. Board acceptance and runtime behavior
+still require a separate boot test.
 See [firmware chain validation](docs/src/firmware-chain-validation.md) for the
 scope of these checks and their limits.
