@@ -393,8 +393,8 @@ def cleanup_rendered(state: Path, plan: dict) -> None:
             git(repo, "worktree", "remove", "--force", str(wt))
 
 
-def retire_buildbox_mount(state: Path, worktree: Path) -> None:
-    """Retire a batch-owned container before removing its bind-mounted checkout."""
+def retire_buildbox_mount(state: Path, worktree: Path | None) -> None:
+    """Retire a batch-owned container before checkout removal or a resumed run."""
     name_file = state / "cache/buildbox/buildbox-name"
     if not name_file.exists():
         return
@@ -411,14 +411,18 @@ def retire_buildbox_mount(state: Path, worktree: Path) -> None:
         sources = {entry["Source"] for entry in mounts if entry["Type"] == "bind"}
     except (IndexError, KeyError, TypeError, ValueError) as error:
         raise ValueError(f"invalid Docker mount report for {name}") from error
-    if str(worktree) not in sources:
+    namespace = state / "repo/.cache/edk2-cix/worktrees"
+    mounted_worktree = (str(worktree) in sources if worktree is not None else
+                        any(Path(source).is_relative_to(namespace) for source in sources))
+    if not mounted_worktree:
         return
     if str(state / "cache/buildbox") not in sources:
         raise ValueError(f"buildbox {name} mounts the worktree without this batch's cache")
     removed = subprocess.run(["docker", "rm", "-f", name], capture_output=True, text=True)
     if removed.returncode:
         raise ValueError(f"cannot retire batch buildbox {name}: {removed.stderr.strip()}")
-    event(state, f"RETIRED buildbox {name} before removing rendered worktree {worktree}")
+    event(state, f"RETIRED buildbox {name} with batch worktree mount before "
+          + (f"removing {worktree}" if worktree is not None else "resuming the batch"))
 
 
 def status(state: Path, details: bool = True) -> dict:
@@ -597,6 +601,8 @@ def main() -> int:
         record_validator(state, plan)
         if args.action == "revalidate":
             return revalidate(state, plan, runner)
+        if args.action == "run":
+            retire_buildbox_mount(state, None)
         selected = select_pair(plan, args.only_pair) if args.only_pair else plan
         result = runner.run(state, selected, args.action == "prepare", args.retry_failed)
         if args.only_pair:
