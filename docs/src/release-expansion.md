@@ -33,8 +33,12 @@ For O6 only, add `--boards O6` to the **first** invocation. `--edk2`, `--radxa`,
 defaults to native Linux containers for the host architecture; explicitly select
 `--platform linux/amd64` or `--platform linux/arm64` on the first invocation if
 needed. Initialization freezes the plan; use a new state directory for different
-inputs. The private snapshot continues to use its original source and scripts
-even if the calling checkout is subsequently updated.
+inputs. The private snapshot continues to use its original source-preparation
+and build runner even if the calling checkout is subsequently updated. Output
+verification and rendered-worktree cleanup use the invoking checkout's audited
+controller, so fixes to those checks can apply without changing the frozen build
+inputs or recipe. Its script hash is recorded in `validator-history.json` and
+newly accepted artifacts.
 
 Progress includes the pair index, current configuration, elapsed time, most
 recent tool output, pass/failure totals and log location. A separate terminal can
@@ -53,6 +57,7 @@ The full build matrix is not started merely by requesting `status`.
 - `plan.json`: frozen inputs, original refs, selected axes and runner hashes.
 - `progress.log`: concise append-only execution history.
 - `summary.json`: current receipts and aggregate counts.
+- `validator-history.json`: verifier revisions used with the frozen build runner.
 - `jobs/<edk2>-<radxa>/prepare.log`: integration and source-validation details.
 - `jobs/<pair>/<board>-fixes-<value>-settings-<value>/build.log`: complete build log.
 - Each job has a `receipt.json`; successful build outputs retain the 8 MiB full
@@ -84,6 +89,55 @@ child process group and retains resumable state. A disk-space stop is resumable
 after freeing space; it does not delete anything automatically to obtain space.
 Exit status is 0 when the requested stages pass, 1 when cases need review, and
 2 for a batch-level problem. Interruptions return 130.
+
+To review and retry one pair before a wider retry, keep the frozen batch plan
+and select just that pair:
+
+```bash
+python3 scripts/release_expansion.py run --state "$batch_dir" \
+  --only-pair 202208/1.2.2 --retry-failed
+```
+
+The selected command succeeds when that pair's source and all selected builds
+pass, even if other pairs still have failures. The global `summary.json` and
+status output continue to show the complete batch.
+
+### Recovering a version-verification failure
+
+The batch explicitly passes `DEBUG_PRINT_ERROR_LEVEL=0x80000001`. Its version
+therefore contains `+mask80000001` even with `DEBUG_VERBOSE=false`, for example
+`1.2.4+fixes+experimental+mask80000001` or `1.2.4+mask80000001` with both features
+disabled. Earlier runners incorrectly expected versions without this suffix.
+
+After stopping the runner with Ctrl-C or SIGTERM, invoke the corrected script
+from the build-branch checkout:
+
+```bash
+python3 scripts/release_expansion.py revalidate --state "$batch_dir"
+python3 scripts/release_expansion.py run --state "$batch_dir"
+```
+
+`revalidate` recovers only completed builds whose `make` returned zero and which
+failed the version check. It checks the frozen recipe and source, the exact
+requested mask and feature flags, image size, BL1 acceptance and the certificate
+report's image hash again. Original receipts are archived beside each recovered
+case; firmware images, source refs and the frozen plan remain unchanged. It runs
+no compilers. Genuine build failures and source conflicts remain visible and
+need separate review; its exit status describes revalidation, not the whole batch.
+
+An interrupted in-flight build still requires `--retry-failed` to compile again.
+Recovered cases are verified and skipped on resume. The same exclusive lock
+protects revalidation; do not run it concurrently with the batch or edit the
+private runner/hash records to bypass that protection.
+
+The cleanup check also compares any Git-reported modified rendered files with
+their raw indexed bytes and executable modes. Some imported CRLF files appear
+modified only because their historical bytes conflict with an `eol=lf`
+attribute; byte-identical files can be removed as generated worktrees. Real
+edits, deletions, staged changes and untracked files remain protected.
+Before removing a rendered worktree, cleanup also retires this batch's Docker
+buildbox if it bind-mounts that worktree. A later build then creates a fresh
+container against the new checkout rather than reusing a stale mount.
 
 ## Conflict resolution and ref preservation
 

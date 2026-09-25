@@ -8,10 +8,12 @@ import ast
 from collections import Counter
 import fcntl
 import hashlib
+import importlib.util
 import itertools
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import shlex
 import signal
@@ -23,6 +25,7 @@ import uuid
 ROOT = Path(__file__).resolve().parents[1]
 RUNNERS = ("release_expansion.py", "release_expansion_source.py")
 RADXA = ("1.2.1", "1.2.2", "1.2.3", "1.2.4", "1.3.0", "1.3.1")
+BATCH_DEBUG_MASK = "0x80000001"
 
 
 def save(path: Path, data: dict) -> None:
@@ -58,6 +61,27 @@ def selections(value: str, allowed: list[str]) -> list[str]:
     if not values or len(set(values)) != len(values) or set(values) - set(allowed):
         raise ValueError(f"expected all or unique comma-separated values from {allowed}: {value}")
     return values
+
+
+def select_pair(plan: dict, value: str) -> dict:
+    """Limit one invocation without changing the durable matrix or recipe."""
+    parts = value.split("/")
+    if (len(parts) != 2 or parts[0] not in plan["edk2"]
+            or parts[1] not in plan["radxa"]):
+        raise ValueError(f"--only-pair must be EDK2/RADXA from the frozen plan: {value}")
+    return dict(plan, edk2=[parts[0]], radxa=[parts[1]])
+
+
+def selected_pair_passed(state: Path, plan: dict, prepare_only: bool) -> bool:
+    job = state / "jobs" / f"{plan['edk2'][0]}-{plan['radxa'][0]}"
+    if read(job / "receipt.json").get("status") != "prepared":
+        return False
+    if prepare_only:
+        return True
+    return all(read(job / f"{board}-fixes-{fixes}-settings-{settings}" / "receipt.json")
+               .get("status") == "passed"
+               for board, fixes, settings in itertools.product(
+                   plan["boards"], plan["fixes"], plan["settings"]))
 
 
 def initialise(state: Path, args: argparse.Namespace) -> dict:
@@ -234,7 +258,7 @@ def build_command(plan: dict, edk2: str, radxa: str, board: str,
             "ARTEFACT_MODE=custom", f"FIRMWARE_BOARD={board}", "FIRMWARE_TARGET=RELEASE",
             "FIRMWARE_DISTRO=trixie", f"ENABLE_FIRMWARE_FIXES={fixes}", "ENABLE_CORE_ORDER=cix",
             f"ENABLE_EXPERIMENTAL_UEFI_SETTINGS={settings}", "DEBUG_VERBOSE=false", "CIX_RELEASE=",
-            "FORCE_DEBUG_BUILD=0", "DEBUG_PRINT_ERROR_LEVEL=0x80000001",
+            "FORCE_DEBUG_BUILD=0", f"DEBUG_PRINT_ERROR_LEVEL={BATCH_DEBUG_MASK}",
             f"BUILD_DATE={plan['build_date']}", f"BUILDBOX_PLATFORM={plan['platform']}",
             f"FIRMWARE_CACHE_ROOT={state / 'cache'}", f"BUILD_DIST_ROOT={output}"]
 
@@ -262,30 +286,139 @@ def verify_output(output: Path, board: str, fixes: str, settings: str, radxa: st
         raise ValueError("BuildOptions has no command-line defines")
     try:
         defines = ast.literal_eval(text.split("gCommandLineDefines: ", 1)[1].splitlines()[0])
-    except (SyntaxError, IndexError) as error:
+    except (SyntaxError, ValueError, IndexError) as error:
         raise ValueError("BuildOptions has invalid command-line defines") from error
+    if not isinstance(defines, dict):
+        raise ValueError("BuildOptions command-line defines must be a dictionary")
     suffix = ("+fixes" if fixes == "true" else "") + ("+experimental" if settings == "true" else "")
+    # firmware_layout.py includes every explicit mask in the display version,
+    # even with DEBUG_VERBOSE=false. The mask itself also replaces +custom
+    # when neither optional feature is enabled.
+    suffix += "+mask" + BATCH_DEBUG_MASK.removeprefix("0x")
     for name, expected in {"ENABLE_FIRMWARE_FIXES": fixes.upper(),
                            "ENABLE_EXPERIMENTAL_UEFI_SETTINGS": settings.upper(),
-                           "DEBUG_VERBOSE": "FALSE", "UEFI_FW_VERSION": radxa + (suffix or "+custom")}.items():
+                           "DEBUG_VERBOSE": "FALSE", "DEBUG_PRINT_ERROR_LEVEL": BATCH_DEBUG_MASK,
+                           "UEFI_FW_VERSION": radxa + suffix}.items():
         if defines.get(name) != expected:
             raise ValueError(f"BuildOptions mismatch: {name}={defines.get(name)!r}, expected {expected!r}")
     if f"/{board}/{board}.dsc" not in text:
         raise ValueError("BuildOptions board mismatch")
     return {"sha256": digest, "size": image.stat().st_size,
-            "image": str(image.relative_to(output)), "defines": defines}
+            "image": str(image.relative_to(output)), "defines": defines,
+            "validator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+
+
+def frozen_runner(state: Path, plan: dict):
+    """Keep the original source/build recipe; allow audited controller repairs."""
+    guard(state, plan)
+    path = state / "repo/scripts/release_expansion.py"
+    spec = importlib.util.spec_from_file_location("release_expansion_snapshot", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.verify_output = verify_output
+    module.cleanup_rendered = cleanup_rendered
+    return module
+
+
+def record_validator(state: Path, plan: dict) -> None:
+    path = state / "validator-history.json"
+    history = read(path) or {"revisions": []}
+    digest = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    revisions = history["revisions"]
+    if not revisions or revisions[-1]["sha256"] != digest:
+        revisions.append({"sha256": digest, "path": str(Path(__file__).resolve()),
+                          "time": time.time(), "frozen_runner_sha256": plan["runner_hashes"]["release_expansion.py"]})
+        save(path, history)
+        event(state, f"VALIDATOR {digest}; original source/build runner remains frozen")
+
+
+def revalidate(state: Path, plan: dict, runner) -> int:
+    """Recover only completed builds rejected by the old version expectation."""
+    recovered, rejected = 0, 0
+    for edk2, radxa, board, fixes, settings in itertools.product(
+            plan["edk2"], plan["radxa"], plan["boards"], plan["fixes"], plan["settings"]):
+        job = state / "jobs" / f"{edk2}-{radxa}"
+        case = job / f"{board}-fixes-{fixes}-settings-{settings}"
+        path = case / "receipt.json"
+        row = read(path)
+        if not (row.get("status") == "failed" and row.get("returncode") == 0
+                and row.get("error", "").startswith("BuildOptions mismatch: UEFI_FW_VERSION=")):
+            continue
+        guard(state, plan)
+        try:
+            source_receipt = read(job / "receipt.json")
+            source = source_receipt.get("source", {})
+            if source_receipt.get("status") != "prepared" or row.get("source") != source:
+                raise ValueError("build receipt no longer matches prepared source")
+            if git(state / "repo", "rev-parse", source["source_ref"]) != source["source_commit"]:
+                raise ValueError("prepared source ref changed")
+            expected = runner.build_command(plan, edk2, radxa, board, fixes, settings, state, case / "output")
+            if row.get("command") != expected:
+                raise ValueError("build receipt command differs from frozen recipe")
+            artifact = verify_output(case / "output", board, fixes, settings, radxa)
+        except ValueError as error:
+            rejected += 1
+            event(state, f"REVALIDATION FAILED {case.relative_to(state)}: {error}")
+            continue
+        # Keep the old failure as evidence; do not rebuild or rewrite firmware.
+        archive = case / ("validation-attempt-" + str(time.time_ns()))
+        archive.mkdir()
+        save(archive / "receipt.json", row)
+        row.update(status="passed", artifact=artifact, revalidated=time.time(),
+                   previous_receipt=str((archive / "receipt.json").relative_to(state)))
+        row.pop("error", None)
+        save(path, row)
+        recovered += 1
+        event(state, f"REVALIDATED {case.relative_to(state)}: passed; existing image unchanged")
+    status(state, details=False)
+    event(state, f"REVALIDATION COMPLETE recovered={recovered}, rejected={rejected}; other failures unchanged")
+    return 1 if rejected else 0
 
 
 def cleanup_rendered(state: Path, plan: dict) -> None:
+    from render_release_branch import cached_worktree_is_dirty
+
     repo = state / "repo"
     parent = repo / ".cache/edk2-cix/worktrees" / ("batch-" + plan["id"])
     for section in git(repo, "worktree", "list", "--porcelain").split("\n\n"):
         line = next((entry[9:] for entry in section.splitlines() if entry.startswith("worktree ")), "")
         if line and Path(line).is_relative_to(parent):
             wt = Path(line)
-            if git(wt, "status", "--porcelain", "--untracked-files=no"):
-                raise ValueError(f"rendered worktree has tracked edits; retained: {wt}")
+            # An imported CRLF blob can be reported modified solely because
+            # .gitattributes requests LF on checkout. Compare raw bytes and
+            # mode with the index before discarding a rendered checkout.
+            if cached_worktree_is_dirty(wt):
+                raise ValueError(f"rendered worktree has real changes; retained: {wt}")
+            retire_buildbox_mount(state, wt)
             git(repo, "worktree", "remove", "--force", str(wt))
+
+
+def retire_buildbox_mount(state: Path, worktree: Path) -> None:
+    """Retire a batch-owned container before removing its bind-mounted checkout."""
+    name_file = state / "cache/buildbox/buildbox-name"
+    if not name_file.exists():
+        return
+    name = name_file.read_text().strip()
+    if not re.fullmatch(r"edk2-cix-buildbox-[0-9a-f]{8}", name):
+        raise ValueError(f"invalid batch buildbox name in {name_file}")
+    inspected = subprocess.run(["docker", "inspect", name], capture_output=True, text=True)
+    if inspected.returncode:
+        if "no such object" in inspected.stderr.lower() or "no such container" in inspected.stderr.lower():
+            return
+        raise ValueError(f"cannot inspect batch buildbox {name}: {inspected.stderr.strip()}")
+    try:
+        mounts = json.loads(inspected.stdout)[0]["Mounts"]
+        sources = {entry["Source"] for entry in mounts if entry["Type"] == "bind"}
+    except (IndexError, KeyError, TypeError, ValueError) as error:
+        raise ValueError(f"invalid Docker mount report for {name}") from error
+    if str(worktree) not in sources:
+        return
+    if str(state / "cache/buildbox") not in sources:
+        raise ValueError(f"buildbox {name} mounts the worktree without this batch's cache")
+    removed = subprocess.run(["docker", "rm", "-f", name], capture_output=True, text=True)
+    if removed.returncode:
+        raise ValueError(f"cannot retire batch buildbox {name}: {removed.stderr.strip()}")
+    event(state, f"RETIRED buildbox {name} before removing rendered worktree {worktree}")
 
 
 def status(state: Path, details: bool = True) -> dict:
@@ -426,7 +559,7 @@ def run(state: Path, plan: dict, prepare_only: bool, retry: bool) -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("action", choices=["run", "prepare", "status"])
+    p.add_argument("action", choices=["run", "prepare", "status", "revalidate"])
     p.add_argument("--state", required=True, type=Path, help="Durable session-labelled batch directory; options freeze on first use")
     p.add_argument("--edk2", default="all")
     p.add_argument("--radxa", default="all")
@@ -436,10 +569,17 @@ def main() -> int:
     p.add_argument("--platform", choices=["linux/arm64", "linux/amd64"])
     p.add_argument("--min-free-gib", type=int, default=12)
     p.add_argument("--retry-failed", action="store_true")
+    p.add_argument("--only-pair", help="Run or prepare only one EDK2/Radxa pair from the frozen plan")
     args = p.parse_args()
+    if args.only_pair and args.action not in {"run", "prepare"}:
+        p.error("--only-pair applies only to run or prepare")
     if args.min_free_gib < 1:
         p.error("--min-free-gib must be positive")
     state = args.state.resolve()
+    if args.only_pair and not (state / "plan.json").exists():
+        p.error("--only-pair requires an existing frozen batch plan")
+    if args.action == "revalidate" and not (state / "plan.json").exists():
+        p.error("no batch plan at --state")
     if args.action == "status":
         if not (state / "plan.json").exists():
             p.error("no batch plan at --state")
@@ -453,7 +593,15 @@ def main() -> int:
         except BlockingIOError:
             p.error("this batch is already running")
         plan = initialise(state, args)
-        return run(state, plan, args.action == "prepare", args.retry_failed)
+        runner = frozen_runner(state, plan)
+        record_validator(state, plan)
+        if args.action == "revalidate":
+            return revalidate(state, plan, runner)
+        selected = select_pair(plan, args.only_pair) if args.only_pair else plan
+        result = runner.run(state, selected, args.action == "prepare", args.retry_failed)
+        if args.only_pair:
+            return 0 if selected_pair_passed(state, selected, args.action == "prepare") else 1
+        return result
 
 
 if __name__ == "__main__":
