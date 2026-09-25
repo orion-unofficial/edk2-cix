@@ -250,7 +250,7 @@ CI, and maintainer validation, see [`MAINTENANCE.md`](MAINTENANCE.md).
 The build verifies BL1 provenance and the trusted/UEFI FIP certificate chains,
 payload digests, delegation and reference counters before publishing images.
 Leave `CIX_RELEASE=` to retain the selected vendor BL1, BL31 and OP-TEE
-payloads. For custom O6 builds based on reviewed Radxa 1.3.1 checkpoints,
+payloads. For custom O6 builds based on reviewed Radxa 1.2.4 or 1.3.1 checkpoints,
 `CIX_RELEASE=1.2` opts into source-built BL31 and OP-TEE signed with CIX's
 published keys. The build verifies the resulting chain against the stock
 vendor trust anchor and flash layout. Board acceptance and runtime behavior
