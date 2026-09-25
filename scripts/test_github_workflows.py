@@ -52,6 +52,7 @@ class GitHubWorkflowTests(unittest.TestCase):
         self.assertIn("['current_edk2_release']", job)
         self.assertIn('release="edk2-${edk2_release}/radxa-1.2.4/unofficial"', job)
         self.assertIn("CIX_RELEASE=1.2", job)
+        self.assertIn("root.glob('RELEASE_GCC*/cix_flash_all.bin')", job)
         self.assertIn('assert image.stat().st_size == 0x800000', job)
         self.assertIn("['status'] == 'verified'", job)
 
