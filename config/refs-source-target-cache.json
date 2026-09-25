@@ -90,7 +90,7 @@
     },
     {
       "ref": "source/cache/release/custom/edk2-202605/cix-1.2/radxa-1.2.4/unofficial",
-      "tree_id": "4b66a120be377aafe3dd65813714c06f7452c50e",
+      "tree_id": "ff4605abc6b7d4ade8ca913a382e5d10429abedf",
       "type": "rendered-release"
     },
     {
@@ -105,7 +105,7 @@
     },
     {
       "ref": "source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.2.4/unofficial",
-      "tree_id": "0f1b06157b8288ad6ffc230d18191f75eb38f38a",
+      "tree_id": "7464e449dff0b00dcb29ae0902ef476e74d80e3e",
       "type": "rendered-release"
     },
     {

@@ -23,15 +23,19 @@ class SourceBuildInputsTests(unittest.TestCase):
     def test_chain_validator_variants_are_pinned_to_signing_capability(self):
         repo = Path(__file__).resolve().parents[1]
         current = (repo / "scripts/validate_firmware_chain.py").read_bytes()
-        stock = show_file(repo, "source/unofficial/1.2.4/edk2-stable202608",
+        stock = show_file(repo, "source/unofficial/1.2.1/edk2-stable202208",
                           "src/scripts/validate_firmware_chain.py")
         self.assertEqual(chain_validator_problems(stock, {}, b"", current), [])
         self.assertTrue(chain_validator_problems(stock + b"# drift\n", {}, b"", current))
-        ref = "source/unofficial/1.3.1/edk2-stable202608"
-        keys = {name: show_file(repo, ref, f"{CIX_SIGNING_KEYS}/{name}")
-                for name in CIX_KEY_SHA256}
-        helper = show_file(repo, ref, "src/scripts/build_cix_release_bootloader2.sh")
-        self.assertEqual(chain_validator_problems(current, keys, helper, current), [])
+        for radxa in ("1.2.4", "1.3.1"):
+            for edk2 in ("202208", "202605", "202608"):
+                with self.subTest(radxa=radxa, edk2=edk2):
+                    ref = f"source/unofficial/{radxa}/edk2-stable{edk2}"
+                    validator = show_file(repo, ref, "src/scripts/validate_firmware_chain.py")
+                    keys = {name: show_file(repo, ref, f"{CIX_SIGNING_KEYS}/{name}")
+                            for name in CIX_KEY_SHA256}
+                    helper = show_file(repo, ref, "src/scripts/build_cix_release_bootloader2.sh")
+                    self.assertEqual(chain_validator_problems(validator, keys, helper, current), [])
         self.assertTrue(chain_validator_problems(stock, keys, helper, current))
         self.assertTrue(chain_validator_problems(current, keys, helper + b"# drift\n", current))
         keys["cix_privatekey.pem"] += b"tampered"

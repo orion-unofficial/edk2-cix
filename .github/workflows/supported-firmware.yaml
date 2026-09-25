@@ -94,3 +94,81 @@ jobs:
             dist/**/cix_flash_all.bin
             dist/**/BuildOptions
             dist/**/bootloader1-validation.json
+
+  cix-signed-1-2-4:
+    name: CIX-signed ${{ matrix.track }} EDK2 / Radxa 1.2.4 / O6
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        track: [baseline, latest]
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Fetch required source refs
+        run: |
+          git fetch --force --no-tags origin '+refs/heads/source/*:refs/heads/source/*'
+          git fetch --force origin '+refs/tags/source/*:refs/tags/source/*'
+      - name: Set up QEMU for buildbox Docker platforms
+        if: ${{ env.ACT != 'true' }}
+        uses: docker/setup-qemu-action@v4
+      - name: Build and validate the CIX-signed 1.2.4 image
+        shell: bash
+        env:
+          EDK2_CIX_WORKTREE_NAMESPACE: cix-signed-radxa-1-2-4-${{ matrix.track }}
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/edk2-cix/qualification
+          edk2_release="$(python3 - '${{ matrix.track }}' <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          policy = json.loads(Path('config/policies.json').read_text())
+          if sys.argv[1] == 'baseline':
+              print(policy['firmware_qualification_policy']['baseline_edk2_release'])
+          else:
+              source = policy['unofficial_source_policy']
+              print(source['lines'][source['default_line']]['current_edk2_release'])
+          PY
+          )"
+          release="edk2-${edk2_release}/radxa-1.2.4/unofficial"
+          make build \
+            RELEASE="${release}" \
+            ARTEFACT_MODE=custom \
+            FIRMWARE_BOARD=O6 \
+            FIRMWARE_TARGET=RELEASE \
+            FIRMWARE_DISTRO=trixie \
+            ENABLE_FIRMWARE_FIXES=true \
+            ENABLE_CORE_ORDER=cix \
+            ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false \
+            DEBUG_VERBOSE=false \
+            CIX_RELEASE=1.2 \
+            2>&1 | tee .cache/edk2-cix/qualification/cix-signed-1.2.4.log
+          image="dist/build/${release}/custom+fixes/O6/RELEASE_GCC/cix_flash_all.bin"
+          report="dist/build/${release}/custom+fixes/O6/RELEASE_GCC/firmware-chain-validation.json"
+          python3 - "${image}" "${report}" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          image, report = map(Path, sys.argv[1:])
+          assert image.stat().st_size == 0x800000, image
+          assert json.loads(report.read_text())['status'] == 'verified', report
+          PY
+          shasum -a 256 "${image}"
+      - name: Upload CIX-signed 1.2.4 build evidence
+        if: ${{ always() && env.ACT != 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: cix-signed-radxa-1.2.4-o6-${{ matrix.track }}
+          retention-days: 7
+          include-hidden-files: true
+          if-no-files-found: warn
+          path: |
+            .cache/edk2-cix/qualification/cix-signed-1.2.4.log
+            dist/**/cix_flash_all.bin
+            dist/**/BuildOptions
+            dist/**/bootloader1-validation.json
+            dist/**/firmware-chain-validation.json

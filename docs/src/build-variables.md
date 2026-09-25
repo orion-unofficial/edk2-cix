@@ -239,7 +239,7 @@ Default: `ccache`
 
 `CIX_RELEASE=1.2` (also `v1.2`) is a custom-only opt-in. It selects the pinned
 CIX 2026Q1 BL1 and compiles BL31 and OP-TEE from the curated V1.2 sources.
-The reviewed selection currently supports O6 with Radxa 1.3.1 source
+The reviewed selection currently supports O6 with Radxa 1.2.4 or 1.3.1 source
 checkpoints at EDK2 `202208`, `202605` and `202608`; other boards and source
 checkpoints fail preflight.
 The trusted FIP is signed with [CIX-published keys](firmware-chain-validation.md)
