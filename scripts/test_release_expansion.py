@@ -328,7 +328,7 @@ class ExpansionTests(unittest.TestCase):
         batch.git(repo, "worktree", "remove", "--force", str(changed))
 
     def test_cleanup_retires_only_its_own_worktree_buildbox_mount(self):
-        state, _, _ = self.init()
+        state, plan, _ = self.init()
         name = "edk2-cix-buildbox-1234abcd"
         name_file = state / "cache/buildbox/buildbox-name"
         name_file.parent.mkdir(parents=True)
@@ -343,11 +343,19 @@ class ExpansionTests(unittest.TestCase):
         self.assertEqual(run.call_args_list[0].args[0], ["docker", "inspect", name])
         self.assertEqual(run.call_args_list[1].args[0], ["docker", "rm", "-f", name])
 
+        stale = state / "repo/.cache/edk2-cix/worktrees" / ("batch-" + plan["id"]) / "old"
+        mounts[0]["Source"] = str(stale)
+        inspect = subprocess.CompletedProcess([], 0, json.dumps([{"Mounts": mounts}]), "")
+        with patch.object(batch.subprocess, "run", side_effect=[inspect, removed]) as run:
+            batch.retire_buildbox_mount(state, None)
+        self.assertEqual(run.call_count, 2)
+
         foreign = subprocess.CompletedProcess([], 0, json.dumps([{"Mounts": []}]), "")
         with patch.object(batch.subprocess, "run", return_value=foreign) as run:
             batch.retire_buildbox_mount(state, worktree)
         run.assert_called_once()
 
+        mounts[0]["Source"] = str(worktree)
         mounts.pop()
         inspect = subprocess.CompletedProcess([], 0, json.dumps([{"Mounts": mounts}]), "")
         with patch.object(batch.subprocess, "run", return_value=inspect):

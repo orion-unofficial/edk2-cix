@@ -135,9 +135,10 @@ their raw indexed bytes and executable modes. Some imported CRLF files appear
 modified only because their historical bytes conflict with an `eol=lf`
 attribute; byte-identical files can be removed as generated worktrees. Real
 edits, deletions, staged changes and untracked files remain protected.
-Before removing a rendered worktree, cleanup also retires this batch's Docker
-buildbox if it bind-mounts that worktree. A later build then creates a fresh
-container against the new checkout rather than reusing a stale mount.
+Before removing a rendered worktree or resuming a build, cleanup retires this
+batch's Docker buildbox if it bind-mounts a batch worktree. The next build then
+creates a fresh container against the current checkout rather than reusing a
+stale mount.
 
 ## Conflict resolution and ref preservation
 
