@@ -19,6 +19,9 @@ classifier; unknown or firmware-affecting paths run all of these gates:
   targets through public `make build`, with fixes off/on and experimental
   menus off/on (RELEASE, Trixie, vendor early-boot payloads retained): 16 O6
   builds and 16 O6N builds;
+- additional O6 builds of the baseline and latest EDK2/Radxa 1.2.4 targets
+  with `CIX_RELEASE=1.2`, checking each packaged 8 MiB image and
+  certificate-chain report;
 - current-source Trixie builds for O6 and O6N, both with firmware fixes disabled
   and enabled; the O6/fixes-on lane then builds a CIX V1.2 source-signed image
   after its stock-payload image and verifies both certificates and BL1 identity;

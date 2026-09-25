@@ -61,11 +61,16 @@ class ValidateBuildVariableTests(unittest.TestCase):
         self.assertTrue(all("only supported with ARTEFACT_MODE=custom" in item for item in problems))
 
     def test_cix_release_requires_a_source_checkpoint_with_pinned_keys(self) -> None:
-        supported: list[str] = []
-        validate_cix_source(
-            REPO_ROOT, {"source_ref": "source/unofficial/1.3.1/edk2-stable202608"},
-            supported)
-        self.assertEqual(supported, [])
+        for radxa in ("1.2.4", "1.3.1"):
+            for edk2 in ("202208", "202605", "202608"):
+                with self.subTest(radxa=radxa, edk2=edk2):
+                    supported: list[str] = []
+                    validate_cix_source(
+                        REPO_ROOT,
+                        {"source_ref": f"source/unofficial/{radxa}/edk2-stable{edk2}"},
+                        supported,
+                    )
+                    self.assertEqual(supported, [])
         unsupported: list[str] = []
         validate_cix_source(
             REPO_ROOT, {"source_ref": "source/unofficial/1.2.1/edk2-stable202208"},
