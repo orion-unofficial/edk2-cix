@@ -147,17 +147,21 @@ jobs:
             DEBUG_VERBOSE=false \
             CIX_RELEASE=1.2 \
             2>&1 | tee .cache/edk2-cix/qualification/cix-signed-1.2.4.log
-          image="dist/build/${release}/custom+fixes/O6/RELEASE_GCC/cix_flash_all.bin"
-          report="dist/build/${release}/custom+fixes/O6/RELEASE_GCC/firmware-chain-validation.json"
-          python3 - "${image}" "${report}" <<'PY'
+          python3 - "${release}" <<'PY'
+          import hashlib
           import json
           from pathlib import Path
           import sys
-          image, report = map(Path, sys.argv[1:])
+          root = Path('dist/build') / sys.argv[1] / 'custom+fixes/O6'
+          images = list(root.glob('RELEASE_GCC*/cix_flash_all.bin'))
+          if len(images) != 1:
+              raise RuntimeError(f'Expected one packaged image under {root}, found {len(images)}')
+          image = images[0]
+          report = image.with_name('firmware-chain-validation.json')
           assert image.stat().st_size == 0x800000, image
           assert json.loads(report.read_text())['status'] == 'verified', report
+          print(f'{hashlib.sha256(image.read_bytes()).hexdigest()}  {image}')
           PY
-          shasum -a 256 "${image}"
       - name: Upload CIX-signed 1.2.4 build evidence
         if: ${{ always() && env.ACT != 'true' }}
         uses: actions/upload-artifact@v7
