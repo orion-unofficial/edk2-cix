@@ -1,0 +1,37 @@
+/**
+Copyright 2024 Cix Technology Group Co., Ltd. All Rights Reserved.
+Copyright 2025 Radxa Computer (Shenzhen) Co., Ltd. All Rights Reserved.
+
+SPDX-License-Identifier: BSD-2-Clause-Patent
+
+**/
+
+#langdef en-US  "English"
+/*
+* Compliance settings
+*/
+#string STR_COMPLIANCE_FORM_SET_TITLE           #language en-US "Compliance Configuration"
+#string STR_COMPLIANCE_FORM_SET_TITLE_HELP      #language en-US "Additional platform workarounds for compatibility testing."
+
+#string STR_COMPLIANCE_VENTOY_WARNING           #language en-US "Ventoy may cause boot loops when starting Windows ISOs.\n"
+                                                                "Use WoeUSB-ng or Microsoft's Media Creation Tool to create Windows installation media instead.\n"
+
+#string STR_COMPLIANCE_CONSOLE_PREF             #language en-US "Serial Console Handoff"
+#string STR_COMPLIANCE_CONSOLE_PREF_HELP        #language en-US "Choose whether firmware preserves or suppresses serial-console handoff metadata when graphics is active. Default: preserve serial handoff.\n"
+                                                                "If no graphics device is active, firmware continues to use the serial console."
+#string STR_COMPLIANCE_CONSOLE_PREF_GRAPHICAL   #language en-US "Suppress serial handoff when graphics is active"
+#string STR_COMPLIANCE_CONSOLE_PREF_SERIAL      #language en-US "Preserve serial handoff (Default)"
+#string STR_COMPLIANCE_CONSOLE_SIZE             #language en-US "UEFI Text Console Size"
+#string STR_COMPLIANCE_CONSOLE_SIZE_HELP        #language en-US "Choose the text-mode size used for firmware and setup screens. Default: 80 x 25.\n"
+                                                                "Changes take effect after a reset."
+#string STR_COMPLIANCE_CONSOLE_SIZE_80X25       #language en-US "80 x 25 (Default)"
+#string STR_COMPLIANCE_CONSOLE_SIZE_80X50       #language en-US "80 x 50"
+#string STR_COMPLIANCE_CONSOLE_SIZE_100X31      #language en-US "100 x 31"
+#string STR_COMPLIANCE_ACPI_LPI0                #language en-US "Set LPI Max State to LPI0"
+#string STR_COMPLIANCE_ACPI_LPI0_HELP           #language en-US "Windows 11 25H2 may fail to initialize HAL with higher LPI states."
+#string STR_COMPLIANCE_ACPI_CPPC                #language en-US "Disable ACPI CPPC"
+#string STR_COMPLIANCE_ACPI_CPPC_HELP           #language en-US "Disable ACPI CPPC (Collaborative Processor Performance Control)."
+#string STR_COMPLIANCE_DISABLE_SMALL_CORE       #language en-US "Disable Small Cores"
+#string STR_COMPLIANCE_DISABLE_SMALL_CORE_HELP  #language en-US "Windows 11 24H2 contains a regression that can prevent booting when the small cores are enabled."
+#string STR_COMPLIANCE_ACPI_SCMI                #language en-US "Enable ACPI SCMI"
+#string STR_COMPLIANCE_ACPI_SCMI_HELP           #language en-US "Earlier Radxa kernels (<= 6.6.89-3) may fail to boot when this is enabled."
