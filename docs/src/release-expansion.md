@@ -75,6 +75,12 @@ Compile/package success still does not establish successful booting on hardware
 or prove that every automatically merged firmware change is semantically correct.
 New candidates remain subject to review before promotion to maintained support.
 
+One reviewed O6 DSDT CPU-reference conflict is resolved during preparation when
+its 12 conflict groups, source inputs, stage and entire resulting file match
+recorded identities. The private batch journals the resolution commit and
+validates it again on resume. Any different DSDT input or other source conflict
+still stops that pair for review.
+
 Rerunning `run` resumes unattempted work and verifies previously passed images
 before skipping them. Failed/interrupted work stays visible without being
 repeated automatically. After examining its logs or supplying a resolution:
