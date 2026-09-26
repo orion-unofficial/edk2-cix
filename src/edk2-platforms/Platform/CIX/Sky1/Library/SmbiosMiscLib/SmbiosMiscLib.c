@@ -1,0 +1,728 @@
+/** @file
+*  OemMiscLib.c
+  Copyright 2024 Cix Technology Group Co., Ltd. All Rights Reserved
+*
+*  Copyright (c) 2024, Cix Technology Group Co., Ltd. All Rights Reserved.
+*  Copyright (c) 2022, Ampere Computing LLC. All rights reserved.
+*  Copyright (c) 2021, NUVIA Inc. All rights reserved.
+*  Copyright (c) 2018, Hisilicon Limited. All rights reserved.
+*  Copyright (c) 2018, Linaro Limited. All rights reserved.
+*
+*  SPDX-License-Identifier: BSD-2-Clause-Patent
+*
+**/
+
+#include <Uefi.h>
+#include <Guid/ZeroGuid.h>
+#include <Library/BaseMemoryLib.h>
+#include <Library/DebugLib.h>
+#include <Library/HiiLib.h>
+#include <Library/OemMiscLib.h>
+#include <Library/PcdLib.h>
+#include <Library/CpuInfoLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
+#include <Library/UefiBootServicesTableLib.h>
+#include <Library/MemoryAllocationLib.h>
+#include <Library/PrintLib.h>
+#include <Library/OpnLib.h>
+#include <Library/BaseLib.h>
+#include <Library/ConfigParamsDataBlockLib.h>
+#include <PlatformSetupVar.h>
+#include <Protocol/SocInfoProtocol.h>
+#include <Protocol/ConfigParamsManageProtocol.h>
+
+#define LITTLE_CORE_L1_CACHE_SIZE  32
+#define CPU_MAX_SPEED              0
+#define CPU_CURRENT_SPEED          0
+
+#define CACHE_SOCKETED_SHIFT        3
+#define CACHE_LOCATION_SHIFT        5
+#define CACHE_ENABLED_SHIFT         7
+#define CACHE_OPERATION_MODE_SHIFT  8
+
+typedef enum {
+  CacheModeWriteThrough = 0,  ///< Cache is write-through
+  CacheModeWriteBack,         ///< Cache is write-back
+  CacheModeVariesWithAddress, ///< Cache mode varies by address
+  CacheModeUnknown,           ///< Cache mode is unknown
+  CacheModeMax
+} CACHE_OPERATION_MODE;
+
+typedef enum {
+  CacheLocationInternal = 0, ///< Cache is internal to the processor
+  CacheLocationExternal,     ///< Cache is external to the processor
+  CacheLocationReserved,     ///< Reserved
+  CacheLocationUnknown,      ///< Cache location is unknown
+  CacheLocationMax
+} CACHE_LOCATION;
+
+
+STATIC
+UINT64
+DecodeSmbiosCacheSizeKiB (
+  IN SMBIOS_CACHE_SIZE    CacheSize16,
+  IN SMBIOS_CACHE_SIZE_2  CacheSize32
+  )
+{
+  if (CacheSize32.Size != 0) {
+    return CacheSize32.Granularity64K ? ((UINT64)CacheSize32.Size * 64) : (UINT64)CacheSize32.Size;
+  }
+
+  return CacheSize16.Granularity64K ? ((UINT64)CacheSize16.Size * 64) : (UINT64)CacheSize16.Size;
+}
+
+STATIC
+VOID
+EncodeSmbiosCacheSizeKiB (
+  IN  UINT64               CacheSizeKiB,
+  OUT SMBIOS_CACHE_SIZE    *CacheSize16,
+  OUT SMBIOS_CACHE_SIZE_2  *CacheSize32
+  )
+{
+  ASSERT (CacheSize16 != NULL);
+  ASSERT (CacheSize32 != NULL);
+
+  if (CacheSizeKiB > SMBIOS_CACHE_SIZE_MAX_SIZE_64K_GRANULARITY) {
+    CacheSize16->Size           = 0x7FFF;
+    CacheSize16->Granularity64K = 1;
+  } else if (CacheSizeKiB > SMBIOS_CACHE_SIZE_MAX_SIZE_1K_GRANULARITY) {
+    CacheSize16->Size           = (UINT16)(CacheSizeKiB / 64);
+    CacheSize16->Granularity64K = 1;
+  } else {
+    CacheSize16->Size           = (UINT16)CacheSizeKiB;
+    CacheSize16->Granularity64K = 0;
+  }
+
+  if (CacheSizeKiB > 0x7FFFFFFFULL) {
+    CacheSize32->Size           = (UINT32)(CacheSizeKiB / 64);
+    CacheSize32->Granularity64K = 1;
+  } else {
+    CacheSize32->Size           = (UINT32)CacheSizeKiB;
+    CacheSize32->Granularity64K = 0;
+  }
+}
+
+#ifdef ENABLE_FIRMWARE_FIXES
+#define CIX_LITTLE_CORE_COUNT            4U
+#define CIX_TOTAL_CORE_COUNT             12U
+#define CIX_LITTLE_CORE_L1_CACHE_SIZE    32U
+#define CIX_BIG_CORE_L1_CACHE_SIZE       64U
+#define CIX_BIG_CORE_L2_CACHE_SIZE       512U
+#define CIX_SHARED_L3_CACHE_SIZE         12288U
+
+STATIC
+EFI_STATUS
+GetEnabledCoreCounts (
+  OUT UINT8  *LittleCoreCount,
+  OUT UINT8  *BigCoreCount,
+  OUT UINT8  *EnabledLittleCoreCount,
+  OUT UINT8  *EnabledBigCoreCount
+  )
+{
+  EFI_STATUS                         Status;
+  UINT8                              CpuCoreNum;
+  UINT8                              TotalLittleCoreCount;
+  UINT8                              TotalBigCoreCount;
+  UINT32                             ConfigCpuIndex;
+  CONFIG_PARAMS_DATA_BLOCK           *ConfigData;
+  CIX_CONFIG_PARAMS_MANAGE_PROTOCOL  *ConfigManage;
+
+  if ((LittleCoreCount == NULL) ||
+      (BigCoreCount == NULL) ||
+      (EnabledLittleCoreCount == NULL) ||
+      (EnabledBigCoreCount == NULL))
+  {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  Status = gBS->LocateProtocol (
+                  &gCixConfigParamsManageProtocolGuid,
+                  NULL,
+                  (VOID **)&ConfigManage
+                  );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: config parameters invalid %r\n", __FUNCTION__, Status));
+    return Status;
+  }
+
+  ConfigData = ConfigManage->Data;
+  if (ConfigData == NULL) {
+    DEBUG ((DEBUG_ERROR, "%a: config parameters data is NULL\n", __FUNCTION__));
+    return EFI_NOT_READY;
+  }
+
+  GetValidCpuCoreNum (&CpuCoreNum);
+  if (CpuCoreNum > CIX_TOTAL_CORE_COUNT) {
+    DEBUG ((DEBUG_ERROR, "%a: unexpected core count %u\n", __FUNCTION__, CpuCoreNum));
+    return EFI_DEVICE_ERROR;
+  }
+
+  TotalLittleCoreCount = MIN (CpuCoreNum, CIX_LITTLE_CORE_COUNT);
+  TotalBigCoreCount    = CpuCoreNum - TotalLittleCoreCount;
+
+  *LittleCoreCount        = TotalLittleCoreCount;
+  *BigCoreCount           = TotalBigCoreCount;
+  *EnabledLittleCoreCount = 0;
+  *EnabledBigCoreCount    = 0;
+
+  for (ConfigCpuIndex = 0; ConfigCpuIndex < CpuCoreNum; ConfigCpuIndex++) {
+    if (ConfigData->Cpu.CoreEnable[ConfigCpuIndex] == 0) {
+      continue;
+    }
+
+    if (ConfigCpuIndex < TotalLittleCoreCount) {
+      (*EnabledLittleCoreCount)++;
+    } else {
+      (*EnabledBigCoreCount)++;
+    }
+  }
+
+  return EFI_SUCCESS;
+}
+#endif
+
+/** Gets the CPU frequency of the specified processor.
+
+  @param ProcessorIndex Index of the processor to get the frequency for.
+
+  @return               CPU frequency in Hz
+**/
+UINTN
+EFIAPI
+OemGetCpuFreq (
+  IN UINT8  ProcessorIndex
+  )
+{
+  return GetCurrentCpuFreq ();
+}
+
+/** Gets information about the specified processor and stores it in
+    the structures provided.
+
+  @param ProcessorIndex  Index of the processor to get the information for.
+  @param ProcessorStatus Processor status.
+  @param ProcessorCharacteristics Processor characteritics.
+  @param MiscProcessorData        Miscellaneous processor information.
+
+  @return  TRUE on success, FALSE on failure.
+**/
+BOOLEAN
+EFIAPI
+OemGetProcessorInformation (
+  IN UINTN                               ProcessorIndex,
+  IN OUT PROCESSOR_STATUS_DATA           *ProcessorStatus,
+  IN OUT PROCESSOR_CHARACTERISTIC_FLAGS  *ProcessorCharacteristics,
+  IN OUT OEM_MISC_PROCESSOR_DATA         *MiscProcessorData
+  )
+{
+  EFI_STATUS                         Status;
+  UINT8                              CpuCoreNum, EnabledCoreNum;
+  UINT32                             ConfigCpuIndex;
+  CONFIG_PARAMS_DATA_BLOCK           *ConfigData = NULL;
+  CIX_CONFIG_PARAMS_MANAGE_PROTOCOL  *ConfigManage;
+
+  ProcessorStatus->Bits.CpuStatus       = 1;   // CPU enabled
+  ProcessorStatus->Bits.Reserved1       = 0;
+  ProcessorStatus->Bits.SocketPopulated = 1;
+  ProcessorStatus->Bits.Reserved2       = 0;
+
+  ProcessorCharacteristics->ProcessorReserved1              = 0;
+  ProcessorCharacteristics->ProcessorUnknown                = 0;
+  ProcessorCharacteristics->Processor64BitCapable           = 1;
+  ProcessorCharacteristics->ProcessorMultiCore              = 1;
+  ProcessorCharacteristics->ProcessorHardwareThread         = 0;
+  ProcessorCharacteristics->ProcessorExecuteProtection      = 1;
+  ProcessorCharacteristics->ProcessorEnhancedVirtualization = 0;
+  ProcessorCharacteristics->ProcessorPowerPerformanceCtrl   = 1;
+  ProcessorCharacteristics->Processor128BitCapable          = 0;
+  ProcessorCharacteristics->ProcessorArm64SocId             = 0;
+  ProcessorCharacteristics->ProcessorReserved2              = 0;
+  GetValidCpuCoreNum (&CpuCoreNum);
+
+  Status = gBS->LocateProtocol (
+                                &gCixConfigParamsManageProtocolGuid,
+                                NULL,
+                                (VOID **)&ConfigManage
+                                );
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: config parameters invalid %r\n", __FUNCTION__, Status));
+#ifdef ENABLE_FIRMWARE_FIXES
+    return FALSE;
+#else
+    return Status;
+#endif
+  }
+
+  ConfigData     = ConfigManage->Data;
+
+  EnabledCoreNum = 0;
+  for (ConfigCpuIndex = 0; ConfigCpuIndex < CpuCoreNum; ConfigCpuIndex++) {
+    if (ConfigData->Cpu.CoreEnable[ConfigCpuIndex] == 1) {
+      EnabledCoreNum++;
+    }
+  }
+
+  MiscProcessorData->Voltage      = 0;
+  MiscProcessorData->CurrentSpeed = (UINT16)(ROUND_DIVISION (GetCurrentCpuFreq (), 1000000));
+  MiscProcessorData->MaxSpeed     = (UINT16)(ROUND_DIVISION (GetMaxCpuFreq (), 1000000));
+  MiscProcessorData->CoreCount    = CpuCoreNum;
+  MiscProcessorData->ThreadCount  = CpuCoreNum;
+  MiscProcessorData->CoresEnabled = EnabledCoreNum;
+  return TRUE;
+}
+
+/** Gets information about the cache at the specified cache level.
+
+  @param ProcessorIndex The processor to get information for.
+  @param CacheLevel The cache level to get information for.
+  @param DataCache  Whether the cache is a data cache.
+  @param UnifiedCache Whether the cache is a unified cache.
+  @param SmbiosCacheTable The SMBIOS Type7 cache information structure.
+
+  @return TRUE on success, FALSE on failure.
+**/
+
+BOOLEAN
+EFIAPI
+OemGetCacheInformation (
+  IN UINT8                   ProcessorIndex,
+  IN UINT8                   CacheLevel,
+  IN BOOLEAN                 DataCache,
+  IN BOOLEAN                 UnifiedCache,
+  IN OUT SMBIOS_TABLE_TYPE7  *SmbiosCacheTable
+  )
+{
+  EFI_STATUS         Status;
+  UINT64             CacheSize;
+  UINT64             MaximumCacheSize;
+  SMBIOS_CACHE_SIZE  CacheSize16;
+  SMBIOS_CACHE_SIZE  MaximumCacheSize16;
+  SMBIOS_CACHE_SIZE_2  CacheSize32;
+  SMBIOS_CACHE_SIZE_2  MaximumCacheSize32;
+#ifdef ENABLE_FIRMWARE_FIXES
+  UINT8              LittleCoreCount;
+  UINT8              BigCoreCount;
+  UINT8              EnabledLittleCoreCount;
+  UINT8              EnabledBigCoreCount;
+#else
+  UINT8                              CpuBootCoreId;
+  UINT8                              VBCoreNum = 0;
+  UINT8                              VLCoreNum = 0;
+  UINT8                              BCoreNum  = 0;
+  UINT8                              LCoreNum  = 0;
+  UINT8                              CpuCoreNum;
+  UINT64                             CacheUnitSize;
+  UINT64                             MaximumCacheUnitSize;
+  UINT32                             CpuCoreMask;
+  UINT32                             MaxCpuCoreNum;
+  UINT32                             i;
+  UINT32                             ConfigCpuIndex = 0;
+  CONFIG_PARAMS_DATA_BLOCK           *ConfigData = NULL;
+  CIX_CONFIG_PARAMS_MANAGE_PROTOCOL  *ConfigManage;
+#endif
+
+#ifdef ENABLE_FIRMWARE_FIXES
+  Status = GetEnabledCoreCounts (
+             &LittleCoreCount,
+             &BigCoreCount,
+             &EnabledLittleCoreCount,
+             &EnabledBigCoreCount
+             );
+  if (EFI_ERROR (Status)) {
+    return FALSE;
+  }
+
+  if (CacheLevel == CpuCacheL1) {
+    MaximumCacheSize = (BigCoreCount * CIX_BIG_CORE_L1_CACHE_SIZE) +
+                       (LittleCoreCount * CIX_LITTLE_CORE_L1_CACHE_SIZE);
+    CacheSize = (EnabledBigCoreCount * CIX_BIG_CORE_L1_CACHE_SIZE) +
+                (EnabledLittleCoreCount * CIX_LITTLE_CORE_L1_CACHE_SIZE);
+  } else if (CacheLevel == CpuCacheL2) {
+    MaximumCacheSize = BigCoreCount * CIX_BIG_CORE_L2_CACHE_SIZE;
+    CacheSize        = EnabledBigCoreCount * CIX_BIG_CORE_L2_CACHE_SIZE;
+  } else if (CacheLevel == CpuCacheL3) {
+    MaximumCacheSize = CIX_SHARED_L3_CACHE_SIZE;
+    CacheSize        = CIX_SHARED_L3_CACHE_SIZE;
+  } else {
+    MaximumCacheSize = DecodeSmbiosCacheSizeKiB (
+                         SmbiosCacheTable->MaximumCacheSize,
+                         SmbiosCacheTable->MaximumCacheSize2
+                         );
+    CacheSize = DecodeSmbiosCacheSizeKiB (
+                  SmbiosCacheTable->InstalledSize,
+                  SmbiosCacheTable->InstalledSize2
+                  );
+  }
+
+  EncodeSmbiosCacheSizeKiB (MaximumCacheSize, &MaximumCacheSize16, &MaximumCacheSize32);
+  EncodeSmbiosCacheSizeKiB (CacheSize, &CacheSize16, &CacheSize32);
+  SmbiosCacheTable->MaximumCacheSize  = MaximumCacheSize16;
+  SmbiosCacheTable->InstalledSize     = CacheSize16;
+  SmbiosCacheTable->MaximumCacheSize2 = MaximumCacheSize32;
+  SmbiosCacheTable->InstalledSize2    = CacheSize32;
+#else
+  GetCpuBootCoreId (&CpuBootCoreId);
+  if (CpuBootCoreId > 3) {
+    VBCoreNum++;
+    BCoreNum++;
+    Status = gBS->LocateProtocol (
+                                  &gCixConfigParamsManageProtocolGuid,
+                                  NULL,
+                                  (VOID **)&ConfigManage
+                                  );
+    if (EFI_ERROR (Status)) {
+      DEBUG ((DEBUG_ERROR, "%a: config parameters invalid %r\n", __FUNCTION__, Status));
+      return Status;
+    }
+
+    ConfigData = ConfigManage->Data;
+
+    GetValidCpuCoreNum (&CpuCoreNum);
+    GetCpuCoreMask (&CpuCoreMask, &MaxCpuCoreNum);
+    CpuCoreMask = CpuCoreMask|(1<<CpuBootCoreId);
+    for (i = 0; i < MaxCpuCoreNum; i++) {
+      if (((CpuCoreMask>>i)&BIT0) == 1) {
+        continue;
+      }
+
+      if (i < 4) {
+        LCoreNum++;
+      } else {
+        BCoreNum++;
+      }
+
+      ConfigCpuIndex++;
+      if (ConfigData->Cpu.CoreEnable[ConfigCpuIndex] == 0) {
+        continue;
+      }
+
+      if (i < 4) {
+        VLCoreNum++;
+      } else {
+        VBCoreNum++;
+      }
+    }
+
+    MaximumCacheUnitSize = DecodeSmbiosCacheSizeKiB (
+                             SmbiosCacheTable->MaximumCacheSize,
+                             SmbiosCacheTable->MaximumCacheSize2
+                             );
+    CacheUnitSize = DecodeSmbiosCacheSizeKiB (
+                      SmbiosCacheTable->InstalledSize,
+                      SmbiosCacheTable->InstalledSize2
+                      );
+
+    if (CacheLevel == 1) {
+      MaximumCacheSize = (BCoreNum * MaximumCacheUnitSize) + (LCoreNum * LITTLE_CORE_L1_CACHE_SIZE);
+      CacheSize        = (VBCoreNum * CacheUnitSize) + (VLCoreNum * LITTLE_CORE_L1_CACHE_SIZE);
+    } else if (CacheLevel == 2) {
+      MaximumCacheSize = BCoreNum * MaximumCacheUnitSize;
+      CacheSize        = VBCoreNum * CacheUnitSize;
+    } else {
+      MaximumCacheSize = MaximumCacheUnitSize;
+      CacheSize        = CacheUnitSize;
+    }
+
+    EncodeSmbiosCacheSizeKiB (MaximumCacheSize, &MaximumCacheSize16, &MaximumCacheSize32);
+    EncodeSmbiosCacheSizeKiB (CacheSize, &CacheSize16, &CacheSize32);
+    SmbiosCacheTable->MaximumCacheSize  = MaximumCacheSize16;
+    SmbiosCacheTable->InstalledSize     = CacheSize16;
+    SmbiosCacheTable->MaximumCacheSize2 = MaximumCacheSize32;
+    SmbiosCacheTable->InstalledSize2    = CacheSize32;
+  }
+#endif
+
+  SmbiosCacheTable->CacheConfiguration = (CacheModeVariesWithAddress << CACHE_OPERATION_MODE_SHIFT) |
+                                         (1 << CACHE_ENABLED_SHIFT) |
+                                         (CacheLocationInternal << CACHE_LOCATION_SHIFT) |
+                                         (0 << CACHE_SOCKETED_SHIFT) |
+                                         (CacheLevel - 1);
+  return TRUE;
+}
+
+
+/** Gets the maximum number of processors supported by the platform.
+
+  @return The maximum number of processors.
+**/
+UINT8
+EFIAPI
+OemGetMaxProcessors (
+  VOID
+  )
+{
+  return 1;
+}
+
+/** Gets the type of chassis for the system.
+
+  @retval The type of the chassis.
+**/
+MISC_CHASSIS_TYPE
+EFIAPI
+OemGetChassisType (
+  VOID
+  )
+{
+  ASSERT (FALSE);
+  return MiscChassisTypeUnknown;
+}
+
+/** Returns whether the specified processor is present or not.
+
+  @param ProcessIndex The processor index to check.
+
+  @return TRUE is the processor is present, FALSE otherwise.
+**/
+BOOLEAN
+EFIAPI
+OemIsProcessorPresent (
+  IN UINTN  ProcessorIndex
+  )
+{
+  return TRUE;
+}
+
+EFI_STATUS
+GetSerialNumStr (
+  IN OUT CHAR16  **StrSerialNum
+  )
+{
+  EFI_STATUS             Status;
+  CIX_SOC_INFO_PROTOCOL  *pSocInfoProtocol;
+  UINT32                 *pSocInfo;
+  UINT32                 SocInfoSize;
+  UINTN                  BufferSize;
+
+  Status = gBS->LocateProtocol (
+                  &gCixSocInfoProtocolGuid,
+                  NULL,
+                  (VOID **)&pSocInfoProtocol
+                  );
+
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: soc info protocol not found\n", __FUNCTION__));
+    return EFI_NOT_FOUND;
+  }
+
+  Status = pSocInfoProtocol->GetSocInfo (SerialNum, &pSocInfo, &SocInfoSize);
+  if (EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_ERROR, "%a: GetSerialNum failed\n", __FUNCTION__));
+    return EFI_NOT_FOUND;
+  }
+
+  BufferSize    = (SocInfoSize*2+1)*sizeof (CHAR16);
+  *StrSerialNum = AllocateZeroPool (BufferSize);
+  UnicodeSPrint (*StrSerialNum, BufferSize, L"%08x%08x", pSocInfo[0], pSocInfo[1]);
+  return EFI_SUCCESS;
+}
+
+EFI_STATUS
+GetProcessorVersionStr (
+  IN OUT CHAR16  **StrProcessorVersion
+  )
+{
+  EFI_STATUS  Status;
+  UINT32      StrSize;
+
+  Status = GetProcessVersion (StrProcessorVersion);
+  if (EFI_ERROR (Status)) {
+    StrSize = StrLen ((CHAR16 *)FixedPcdGetPtr (PcdCixProcessorVersion));
+    if (StrSize > 0) {
+      *StrProcessorVersion = AllocateZeroPool ((StrSize+1)*2);
+      StrCpyS (*StrProcessorVersion, (StrSize+1)*2, (CHAR16 *)FixedPcdGetPtr (PcdCixProcessorVersion));
+      return EFI_SUCCESS;
+    } else {
+      return Status;
+    }
+  }
+
+  return EFI_SUCCESS;
+}
+
+/** Updates the HII string for the specified field.
+
+  @param HiiHandle     The HII handle.
+  @param TokenToUpdate The string to update.
+  @param Field         The field to get information about.
+**/
+VOID
+EFIAPI
+OemUpdateSmbiosInfo (
+  IN EFI_HII_HANDLE                    HiiHandle,
+  IN EFI_STRING_ID                     TokenToUpdate,
+  IN OEM_MISC_SMBIOS_HII_STRING_FIELD  Field
+  )
+{
+  EFI_STATUS  Status;
+  CHAR16      *String;
+
+  switch (Field) {
+    case ProcessorSerialNumType04:
+      Status = GetSerialNumStr (&String);
+      if (EFI_ERROR (Status)) {
+        DEBUG ((DEBUG_ERROR, "Get processor serial number Fail! %r\n", Status));
+        return;
+      }
+
+      break;
+    case ProcessorVersionType04:
+      Status = GetProcessorVersionStr (&String);
+      if (EFI_ERROR (Status)) {
+        DEBUG ((DEBUG_ERROR, "Get processor version Fail! %r\n", Status));
+        return;
+      }
+
+      break;
+    default:
+      String = NULL;
+      break;
+  }
+
+  if (String != NULL) {
+    HiiSetString (HiiHandle, TokenToUpdate, String, NULL);
+    FreePool(String);
+  }
+}
+
+/** Fetches the Type 32 boot information status.
+
+  @return Boot status.
+**/
+MISC_BOOT_INFORMATION_STATUS_DATA_TYPE
+EFIAPI
+OemGetBootStatus (
+  VOID
+  )
+{
+  ASSERT (FALSE);
+  return BootInformationStatusNoError;
+}
+
+/** Fetches the chassis status when it was last booted.
+
+ @return Chassis status.
+**/
+MISC_CHASSIS_STATE
+EFIAPI
+OemGetChassisBootupState (
+  VOID
+  )
+{
+  ASSERT (FALSE);
+  return ChassisStateSafe;
+}
+
+/** Fetches the chassis power supply/supplies status when last booted.
+
+ @return Chassis power supply/supplies status.
+**/
+MISC_CHASSIS_STATE
+EFIAPI
+OemGetChassisPowerSupplyState (
+  VOID
+  )
+{
+  ASSERT (FALSE);
+  return ChassisStateSafe;
+}
+
+/** Fetches the chassis thermal status when last booted.
+
+ @return Chassis thermal status.
+**/
+MISC_CHASSIS_STATE
+EFIAPI
+OemGetChassisThermalState (
+  VOID
+  )
+{
+  ASSERT (FALSE);
+  return ChassisStateSafe;
+}
+
+/** Fetches the chassis security status when last booted.
+
+ @return Chassis security status.
+**/
+MISC_CHASSIS_SECURITY_STATE
+EFIAPI
+OemGetChassisSecurityStatus (
+  VOID
+  )
+{
+  ASSERT (FALSE);
+  return ChassisSecurityStatusNone;
+}
+
+/** Fetches the chassis height in RMUs (Rack Mount Units).
+
+  @return The height of the chassis.
+**/
+UINT8
+EFIAPI
+OemGetChassisHeight (
+  VOID
+  )
+{
+  ASSERT (FALSE);
+  return 1U;
+}
+
+/** Fetches the number of power cords.
+
+  @return The number of power cords.
+**/
+UINT8
+EFIAPI
+OemGetChassisNumPowerCords (
+  VOID
+  )
+{
+  ASSERT (FALSE);
+  return 1;
+}
+
+/**
+  Fetches the system UUID.
+
+  @param[out] SystemUuid     The pointer to the buffer to store the System UUID.
+
+**/
+VOID
+EFIAPI
+OemGetSystemUuid (
+  OUT GUID  *SystemUuid
+  )
+{
+  ASSERT (FALSE);
+  CopyGuid (SystemUuid, &gZeroGuid);
+}
+
+/** Fetches the BIOS release.
+
+  @return The BIOS release.
+**/
+UINT16
+EFIAPI
+OemGetBiosRelease (
+  VOID
+  )
+{
+  ASSERT (FALSE);
+  return PcdGet16 (PcdSystemBiosRelease);
+}
+
+/** Fetches the embedded controller firmware release.
+
+  @return The embedded controller firmware release.
+**/
+UINT16
+EFIAPI
+OemGetEmbeddedControllerFirmwareRelease (
+  VOID
+  )
+{
+  ASSERT (FALSE);
+  return PcdGet16 (PcdEmbeddedControllerFirmwareRelease);
+}
