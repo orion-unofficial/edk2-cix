@@ -214,6 +214,8 @@ def execute(state: Path, plan: dict, command: list[str], log: Path, label: str) 
 
 def archive_conflicts(state: Path, job: Path, existing: set[Path] | None = None) -> list[dict]:
     """Keep conflict commits/notes, not one multi-GB checkout for every conflict."""
+    from render_release_branch import cached_worktree_is_dirty
+
     repo = state / "repo"
     result = []
     for notes in sorted((state / "tmp").glob("port-*-conflict-*/README.md")):
@@ -222,7 +224,7 @@ def archive_conflicts(state: Path, job: Path, existing: set[Path] | None = None)
         wt = notes.parent / "worktree"
         if not wt.exists():
             continue
-        if git(wt, "status", "--porcelain"):
+        if cached_worktree_is_dirty(wt):
             result.append({"worktree": str(wt), "reason": "dirty worktree retained"})
             continue
         oid = git(wt, "rev-parse", "HEAD")
@@ -242,7 +244,7 @@ def archive_conflicts(state: Path, job: Path, existing: set[Path] | None = None)
             f"```bash\n{command}\n```\n\n" + original_notes)
         result.append({"ref": ref, "commit": oid, "notes": str(destination.relative_to(state)),
                        "paths": [line[4:] for line in original_notes.splitlines() if line.startswith("  - ")]})
-        git(repo, "worktree", "remove", str(wt))
+        git(repo, "worktree", "remove", "--force", str(wt))
         shutil.rmtree(notes.parent)
     return result
 
