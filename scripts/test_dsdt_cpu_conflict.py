@@ -27,9 +27,10 @@ class DsdtCpuConflictTests(unittest.TestCase):
         cls.raw = FIXTURE.read_bytes()
         # This is the archived 202211/1.2.2 conflict file, not a fixture
         # synthesized from the resolver's own constants.
-        assert hashlib.sha256(cls.raw).hexdigest() == (
+        if hashlib.sha256(cls.raw).hexdigest() != (
             "83dda46ef0ceb4f0b1d682fe80a89b6b70f97f5b734ff5292fa3e02ec6b68c1f"
-        )
+        ):
+            raise AssertionError("archived DSDT conflict fixture changed")
 
     def test_real_conflict_resolves_to_reviewed_whole_file(self) -> None:
         resolved = resolve_dsdt_cpu_conflict(self.raw)
