@@ -16,6 +16,7 @@ from dsdt_cpu_conflict import (
 )
 from reconstruction_common import ReconstructionError
 from release_expansion_source import resolve_dsdt_worktree, validated_dsdt_resolution
+from render_release_branch import cached_worktree_is_dirty
 
 
 FIXTURE = Path(__file__).with_name("testdata") / "dsdt_cpu_202211_1_2_2_conflict.asl"
@@ -90,7 +91,17 @@ class DsdtCpuConflictTests(unittest.TestCase):
             target = repo / DSDT_CPU_PATH
             target.parent.mkdir(parents=True)
             target.write_bytes(self.raw)
+            (repo / ".gitattributes").write_text("vendor.txt text eol=lf\n")
+            legacy_bytes = b"legacy\r\n"
+            legacy_blob = subprocess.run(
+                ["git", "-C", str(repo), "hash-object", "-w", "--stdin", "--no-filters"],
+                input=legacy_bytes, check=True, stdout=subprocess.PIPE,
+            ).stdout.decode().strip()
+            git(repo, "update-index", "--add", "--cacheinfo", "100644", legacy_blob,
+                "vendor.txt")
+            (repo / "vendor.txt").write_bytes(legacy_bytes)
             git(repo, "add", DSDT_CPU_PATH)
+            git(repo, "add", ".gitattributes")
             git(repo, "commit", "-q", "-m", "source-port: conflict tree for expansion-202211-1.2.2\n\n"
                 f"Source-Port-Input: {source_ref}\nSource-Port-New-Base: {base_ref}\n"
                 "Source-Port-Conflict-Stage: overlay\n")
@@ -99,6 +110,11 @@ class DsdtCpuConflictTests(unittest.TestCase):
             scratch.mkdir(parents=True)
             worktree = scratch / "worktree"
             git(repo, "worktree", "add", "--detach", str(worktree), conflict)
+            # Git may report an imported CRLF blob modified under eol=lf even
+            # though its raw working-tree bytes still match the indexed blob.
+            (worktree / "vendor.txt").write_bytes(legacy_bytes)
+            self.assertIn("vendor.txt", git(worktree, "status", "--short"))
+            self.assertFalse(cached_worktree_is_dirty(worktree))
             (scratch / "README.md").write_text(
                 "# Source Port Conflict: expansion-202211-1.2.2\n"
                 "Conflict stage: overlay\nConflicted paths:\n"

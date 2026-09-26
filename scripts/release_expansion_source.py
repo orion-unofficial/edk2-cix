@@ -16,7 +16,9 @@ from dsdt_cpu_conflict import (
 )
 from integrate_source_release import manifest_path_for, ported_radxa_source_snapshot, upsert_manifest
 from release_expansion import save
-from render_release_branch import render_from_plan, validate_release_metadata
+from render_release_branch import (
+    cached_worktree_is_dirty, render_from_plan, validate_release_metadata,
+)
 from reconstruction_common import (
     BUILD_INFRA_OVERLAY_PATHS, ReconstructionError, check_immutable_refs,
     clear_metadata_caches, git, load_ref_records, main_wrapper, matrix_release_values,
@@ -122,7 +124,9 @@ def resolve_dsdt_worktree(repo: Path, state: Path, edk2: str, radxa: str,
         raise ReconstructionError("DSDT resolver requires one overlay-stage DSDT conflict") from error
     if Path(git(worktree, "rev-parse", "--show-toplevel").stdout.strip()) != worktree:
         raise ReconstructionError("DSDT conflict path is not its Git worktree") from error
-    if git(worktree, "status", "--porcelain").stdout:
+    # Imported CRLF blobs can appear modified after checkout even when their
+    # raw bytes and modes match the index. Reject only actual worktree edits.
+    if cached_worktree_is_dirty(worktree):
         raise ReconstructionError("DSDT conflict worktree is dirty") from error
     conflict = git(worktree, "rev-parse", "HEAD").stdout.strip()
     if git(repo, "rev-list", "--parents", "-n", "1", conflict).stdout.split() != [conflict]:
@@ -150,7 +154,9 @@ def resolve_dsdt_worktree(repo: Path, state: Path, edk2: str, radxa: str,
                    "sha256": ACCEPTED_SHA256, "blob": ACCEPTED_GIT_BLOB,
                    "source_ref": source_ref, "base_ref": base_ref})
     validated_dsdt_resolution(repo, journal, edk2, radxa, source_ref, base_ref)
-    git(repo, "worktree", "remove", str(worktree))
+    if cached_worktree_is_dirty(worktree):
+        raise ReconstructionError("DSDT resolution worktree contains real changes")
+    git(repo, "worktree", "remove", "--force", str(worktree))
     shutil.rmtree(notes.parent)
     return resolved
 
