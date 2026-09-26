@@ -23,7 +23,8 @@ import time
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNNERS = ("release_expansion.py", "release_expansion_source.py")
+RUNNERS = ("release_expansion.py", "release_expansion_source.py",
+           "dsdt_cpu_conflict.py")
 RADXA = ("1.2.1", "1.2.2", "1.2.3", "1.2.4", "1.3.0", "1.3.1")
 BATCH_DEBUG_MASK = "0x80000001"
 

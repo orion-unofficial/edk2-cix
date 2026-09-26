@@ -6,7 +6,14 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import re
+import shutil
+import subprocess
 
+from dsdt_cpu_conflict import (
+    ACCEPTED_GIT_BLOB, ACCEPTED_SHA256, DSDT_CPU_PATH,
+    DsdtConflictError, resolve_dsdt_cpu_conflict,
+)
 from integrate_source_release import manifest_path_for, ported_radxa_source_snapshot, upsert_manifest
 from release_expansion import save
 from render_release_branch import render_from_plan, validate_release_metadata
@@ -41,6 +48,111 @@ def valid_source(repo: Path, edk2: str, radxa: str) -> str | None:
     except ReconstructionError:
         pass
     return None
+
+
+def _blob(repo: Path, commit: str) -> bytes:
+    return subprocess.run(
+        ["git", "-C", str(repo), "show", f"{commit}:{DSDT_CPU_PATH}"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    ).stdout
+
+
+def _resolution_journal(state: Path, edk2: str, radxa: str) -> Path:
+    return state / "jobs" / f"{edk2}-{radxa}" / "dsdt-resolution.json"
+
+
+def validated_dsdt_resolution(repo: Path, journal: Path, edk2: str, radxa: str,
+                              source_ref: str, base_ref: str) -> str | None:
+    """Reuse only a journal whose private commit still has the reviewed parent and blob."""
+    if not journal.exists():
+        return None
+    row = json.loads(journal.read_text())
+    conflict, resolved, ref = (row.get(key, "") for key in
+                               ("conflict_commit", "resolution_commit", "resolution_ref"))
+    if not all(re.fullmatch(r"[0-9a-f]{40}", oid) for oid in (conflict, resolved)):
+        raise ReconstructionError("DSDT resolution journal contains invalid commit identities")
+    if ref != f"refs/heads/batch/resolutions/{edk2}-{radxa}-dsdt-cpu":
+        raise ReconstructionError("DSDT resolution journal contains an unexpected ref")
+    if (row.get("path") != DSDT_CPU_PATH or row.get("stage") != "overlay" or
+            row.get("sha256") != ACCEPTED_SHA256 or row.get("blob") != ACCEPTED_GIT_BLOB or
+            row.get("source_ref") != source_ref or row.get("base_ref") != base_ref):
+        raise ReconstructionError("DSDT resolution journal metadata differs")
+    conflict_message = git(repo, "show", "-s", "--format=%B", conflict).stdout
+    if (f"source-port: conflict tree for expansion-{edk2}-{radxa}\n" not in conflict_message or
+            f"Source-Port-Input: {source_ref}\n" not in conflict_message or
+            f"Source-Port-New-Base: {base_ref}\n" not in conflict_message or
+            "Source-Port-Conflict-Stage: overlay\n" not in conflict_message):
+        raise ReconstructionError("DSDT conflict does not bind to the selected source inputs")
+    parents = git(repo, "rev-list", "--parents", "-n", "1", resolved).stdout.split()
+    if parents != [resolved, conflict]:
+        raise ReconstructionError("DSDT resolution has an unexpected parent")
+    if git(repo, "diff", "--name-only", conflict, resolved).stdout.splitlines() != [DSDT_CPU_PATH]:
+        raise ReconstructionError("DSDT resolution changed paths outside the reviewed file")
+    try:
+        expected = resolve_dsdt_cpu_conflict(_blob(repo, conflict))
+    except (DsdtConflictError, subprocess.CalledProcessError) as exc:
+        raise ReconstructionError(f"DSDT conflict preimage changed: {exc}") from exc
+    if _blob(repo, resolved) != expected:
+        raise ReconstructionError("DSDT resolution blob differs from reviewed output")
+    current = git(repo, "rev-parse", "--verify", ref, check=False)
+    if current.returncode == 0:
+        if current.stdout.strip() != resolved:
+            raise ReconstructionError("private DSDT resolution ref changed")
+    else:
+        git(repo, "update-ref", ref, resolved, "0" * 40)
+    return resolved
+
+
+def resolve_dsdt_worktree(repo: Path, state: Path, edk2: str, radxa: str,
+                          source_ref: str, base_ref: str,
+                          error: ReconstructionError) -> str:
+    """Commit one exact overlay conflict in the private batch and journal it."""
+    match = re.search(r"source-port conflict worktree preserved at: ([^\n]+)", str(error))
+    if match is None:
+        raise error
+    worktree = Path(match.group(1)).resolve()
+    if not worktree.is_relative_to((state / "tmp").resolve()) or worktree.name != "worktree":
+        raise ReconstructionError("DSDT conflict worktree is outside the private batch") from error
+    notes = worktree.parent / "README.md"
+    if not notes.is_file() or not worktree.is_dir():
+        raise ReconstructionError("DSDT conflict worktree or notes are missing") from error
+    body = notes.read_text()
+    paths = [line[4:] for line in body.splitlines() if line.startswith("  - ")]
+    if paths != [DSDT_CPU_PATH] or "Conflict stage: overlay\n" not in body:
+        raise ReconstructionError("DSDT resolver requires one overlay-stage DSDT conflict") from error
+    if Path(git(worktree, "rev-parse", "--show-toplevel").stdout.strip()) != worktree:
+        raise ReconstructionError("DSDT conflict path is not its Git worktree") from error
+    if git(worktree, "status", "--porcelain").stdout:
+        raise ReconstructionError("DSDT conflict worktree is dirty") from error
+    conflict = git(worktree, "rev-parse", "HEAD").stdout.strip()
+    if git(repo, "rev-list", "--parents", "-n", "1", conflict).stdout.split() != [conflict]:
+        raise ReconstructionError("DSDT conflict commit unexpectedly has a parent") from error
+    message = git(repo, "show", "-s", "--format=%B", conflict).stdout
+    if (f"Source Port Conflict: expansion-{edk2}-{radxa}" not in body or
+            f"Source-Port-Input: {source_ref}\n" not in message or
+            f"Source-Port-New-Base: {base_ref}\n" not in message or
+            f"Source-Port-Conflict-Stage: overlay\n" not in message):
+        raise ReconstructionError("DSDT conflict identity differs from selected pair") from error
+    try:
+        resolved_bytes = resolve_dsdt_cpu_conflict(_blob(repo, conflict))
+    except (DsdtConflictError, subprocess.CalledProcessError) as exc:
+        raise ReconstructionError(f"DSDT conflict is outside reviewed transform: {exc}") from error
+    (worktree / DSDT_CPU_PATH).write_bytes(resolved_bytes)
+    git(worktree, "add", "--", DSDT_CPU_PATH)
+    git(worktree, "-c", "commit.gpgsign=false", "commit", "-m",
+        f"Resolve {edk2} Radxa {radxa} DSDT CPU references by topology")
+    resolved = git(worktree, "rev-parse", "HEAD").stdout.strip()
+    ref = f"refs/heads/batch/resolutions/{edk2}-{radxa}-dsdt-cpu"
+    journal = _resolution_journal(state, edk2, radxa)
+    journal.parent.mkdir(parents=True, exist_ok=True)
+    save(journal, {"conflict_commit": conflict, "resolution_commit": resolved,
+                   "resolution_ref": ref, "path": DSDT_CPU_PATH, "stage": "overlay",
+                   "sha256": ACCEPTED_SHA256, "blob": ACCEPTED_GIT_BLOB,
+                   "source_ref": source_ref, "base_ref": base_ref})
+    validated_dsdt_resolution(repo, journal, edk2, radxa, source_ref, base_ref)
+    git(repo, "worktree", "remove", str(worktree))
+    shutil.rmtree(notes.parent)
+    return resolved
 
 
 def register_new(repo: Path, journal: Path, ref: str, oid: str, metadata: dict) -> None:
@@ -151,10 +263,23 @@ def prepare(repo: Path, edk2: str, radxa: str, journal: Path,
                 new_base_ref=port, label=label, resume_variable="unofficial_ref", verbose=False)
             oid = git(repo, "commit-tree", tree, "-m", message).stdout.strip()
         else:
-            oid = apply_source_delta_to_base(
-                repo, old_base_ref=old_port, source_ref=old_source, new_base_ref=port,
-                message=message, label=label, source_owned_paths=BUILD_INFRA_OVERLAY_PATHS,
-                normalise_source=True, resume_variable="unofficial_ref", verbose=False)
+            dsdt_journal = _resolution_journal(repo.parent, edk2, radxa)
+            resolved = validated_dsdt_resolution(repo, dsdt_journal,
+                                                 edk2, radxa, old_source, port)
+            if resolved is None:
+                try:
+                    oid = apply_source_delta_to_base(
+                        repo, old_base_ref=old_port, source_ref=old_source, new_base_ref=port,
+                        message=message, label=label, source_owned_paths=BUILD_INFRA_OVERLAY_PATHS,
+                        normalise_source=True, resume_variable="unofficial_ref", verbose=False)
+                except ReconstructionError as error:
+                    resolved = resolve_dsdt_worktree(
+                        repo, repo.parent, edk2, radxa, old_source, port, error)
+            if resolved is not None:
+                tree = resume_source_delta_tree(
+                    repo, resolved=resolved, stage="overlay", source_ref=old_source,
+                    new_base_ref=port, label=label, resume_variable="unofficial_ref", verbose=False)
+                oid = git(repo, "commit-tree", tree, "-m", message).stdout.strip()
         source = align_release_metadata(repo, candidate=oid, new_port_ref=port,
                                         to_release=radxa, verbose=False)
     else:
