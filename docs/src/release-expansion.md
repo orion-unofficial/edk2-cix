@@ -87,7 +87,8 @@ independent. The batch runs the structural preflight before registering a
 candidate. It catches cleanly merged overlay regressions such as references to
 removed SMBIOS providers, incorrect CPU performance groups, stale O6 FDF
 layouts, and missing PCIe SMMU build/menu hooks. It rejects release pairs
-whose layout has not yet been reviewed. The check can also be run directly:
+whose layout has not yet been reviewed. It also checks that custom O6 USB VBUS
+consumers retain matching MUX1 PinGroup producers. The check can be run directly:
 
 ```bash
 python3 scripts/validate_radxa13_source.py --repo . \
