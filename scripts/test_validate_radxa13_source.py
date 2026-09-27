@@ -58,6 +58,10 @@ class Radxa13StructuralTests(unittest.TestCase):
         self.assertEqual([], validate(
             ROOT, "source/unofficial/1.3.1/edk2-stable202208", "202208", "1.3.0"))
 
+    def test_202608_130_profile_matches_retained_131_shape(self) -> None:
+        self.assertEqual([], validate(
+            ROOT, "source/unofficial/1.3.1/edk2-stable202608", "202608", "1.3.0"))
+
     def test_old_pilot_clean_merge_failures_are_caught(self) -> None:
         source = self.reference
         smbios = f"src/{SMBIOS}/PlatformSmbios.c"
