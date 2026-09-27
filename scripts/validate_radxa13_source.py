@@ -18,6 +18,7 @@ from pathlib import Path
 
 O6 = "Platform/Radxa/Orion/O6"
 SMBIOS = f"edk2-platforms/{O6}/Drivers/PlatformSmbios"
+O6_ACPI = f"custom/overlay/edk2-platforms/{O6}/Drivers/AcpiPlatfomTables"
 CPU_ASL = "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/Dsdt-CPU.asl"
 PCIE_MENU = "edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu"
 SUPPORTED_PROFILES = {
@@ -184,6 +185,52 @@ def _smmu_hooks(tree: GitTree, problems: list[str]) -> None:
             problems.append(f"{path}: missing gated PCIe device-model UI")
 
 
+def _asl_without_comments(data: str) -> str:
+    return re.sub(r"/\*.*?\*/|//[^\n]*", "", data, flags=re.DOTALL)
+
+
+def _device_body(data: str, name: str) -> str:
+    match = re.search(rf"\bDevice\s*\(\s*{re.escape(name)}\s*\)\s*\{{", data)
+    if match is None:
+        return ""
+    depth = 1
+    for position in range(match.end(), len(data)):
+        if data[position] == "{":
+            depth += 1
+        elif data[position] == "}":
+            depth -= 1
+            if depth == 0:
+                return data[match.end():position]
+    return ""
+
+
+def _usb_mux1_pins(tree: GitTree, problems: list[str]) -> None:
+    """Every custom O6 MUX1 USB VBUS consumer needs an IOMUX producer."""
+    consumer_path = f"{O6_ACPI}/UsbPwr.asl"
+    # No custom USB power overlay means there are no overlay consumers to
+    # constrain; this check does not prescribe whether that overlay exists.
+    if consumer_path not in tree.entries:
+        return
+    consumer_data = _asl_without_comments(_required(tree, consumer_path, problems))
+    consumers = set()
+    for call in re.findall(r"\bPinGroupFunction\s*\(([^)]*)\)", consumer_data):
+        args = [part.strip() for part in call.split(",")]
+        if (len(args) >= 6 and args[2].strip('"').endswith(".MUX1") and
+                args[5] == "ResourceConsumer"):
+            name = args[4].strip('"')
+            if re.fullmatch(r"usb_drive_vbus\d+", name):
+                consumers.add(name)
+    if not consumers:
+        return
+    producer_path = f"{O6_ACPI}/RadxaO6Iomux.asl"
+    iomux = _asl_without_comments(_required(tree, producer_path, problems))
+    mux1 = _device_body(iomux, "MUX1")
+    producers = set(re.findall(
+        r'\bPinGroup\s*\(\s*"([^"]+)"\s*,\s*ResourceProducer\b', mux1))
+    for name in sorted(consumers - producers):
+        problems.append(f"{producer_path}: MUX1 lacks ResourceProducer PinGroup {name} required by {consumer_path}")
+
+
 def validate(repo: Path, revision: str, edk2: str, radxa: str) -> list[str]:
     """Return all structural problems; reject unsupported layouts explicitly."""
     if (edk2, radxa) not in SUPPORTED_PROFILES:
@@ -201,6 +248,7 @@ def validate(repo: Path, revision: str, edk2: str, radxa: str) -> list[str]:
     _cppc(tree, problems)
     _release_fdf(tree, edk2, radxa, problems)
     _smmu_hooks(tree, problems)
+    _usb_mux1_pins(tree, problems)
     return problems
 
 

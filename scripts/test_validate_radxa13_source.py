@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 from validate_radxa13_source import (
-    CPU_ASL, Entry, GitTree, O6, PCIE_MENU, SMBIOS, validate,
+    CPU_ASL, Entry, GitTree, O6, O6_ACPI, PCIE_MENU, SMBIOS, validate,
 )
 
 
@@ -108,6 +108,30 @@ class Radxa13StructuralTests(unittest.TestCase):
         mode_problems = mutated_problems(source, "202605", "1.3.0", {}, {fdf: "120000"})
         self.assertTrue(any("expected regular experimental FDF" in problem for problem in mode_problems))
         self.assertTrue(any("wrong DEBUG/RELEASE BL33" in problem for problem in size_problems))
+
+    def test_usb_vbus_consumers_require_mux1_resource_producers(self) -> None:
+        iomux = f"{O6_ACPI}/RadxaO6Iomux.asl"
+        data = self.reference.text(iomux)
+        for name in ("usb_drive_vbus0", "usb_drive_vbus4", "usb_drive_vbus5"):
+            old = f'PinGroup ("{name}", ResourceProducer'
+            self.assertEqual(1, data.count(old))
+            data = data.replace(old, f'PinGroup ("{name}", ResourceConsumer')
+        data += '\n// PinGroup ("usb_drive_vbus0", ResourceProducer,\n'
+        data += '/* PinGroup ("usb_drive_vbus4", ResourceProducer, */\n'
+        problems = mutated_problems(self.reference, "202208", "1.3.1", {iomux: data})
+        for name in ("usb_drive_vbus0", "usb_drive_vbus4", "usb_drive_vbus5"):
+            self.assertTrue(any(f"MUX1 lacks ResourceProducer PinGroup {name}" in problem
+                                for problem in problems), problems)
+
+    def test_usb_mux1_check_is_conditional_on_custom_consumers(self) -> None:
+        usb = f"{O6_ACPI}/UsbPwr.asl"
+        iomux = f"{O6_ACPI}/RadxaO6Iomux.asl"
+        no_consumers = self.reference.text(usb).replace("PinGroupFunction(", "OtherFunction(")
+        no_producers = self.reference.text(iomux).replace("ResourceProducer", "ResourceConsumer")
+        problems = mutated_problems(self.reference, "202208", "1.3.1",
+                                    {usb: no_consumers, iomux: no_producers})
+        self.assertFalse(any("MUX1 lacks ResourceProducer PinGroup" in problem
+                             for problem in problems), problems)
 
     def test_202211_130_profile_requires_reviewed_overlay_shape(self) -> None:
         self.assertEqual([], validate(
