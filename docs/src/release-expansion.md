@@ -81,11 +81,13 @@ recorded identities. The private batch journals the resolution commit and
 validates it again on resume. Any different DSDT input or other source conflict
 still stops that pair for review.
 
-For reviewed Radxa 1.3 source candidates, run the structural preflight before
-building. It catches cleanly merged overlay regressions such as references to
+Radxa 1.3 source preparation replays custom changes from the nearest valid
+checkpoint of the same Radxa version while keeping vendor-port selection
+independent. The batch runs the structural preflight before registering a
+candidate. It catches cleanly merged overlay regressions such as references to
 removed SMBIOS providers, incorrect CPU performance groups, stale O6 FDF
 layouts, and missing PCIe SMMU build/menu hooks. It rejects release pairs
-whose layout has not yet been reviewed:
+whose layout has not yet been reviewed. The check can also be run directly:
 
 ```bash
 python3 scripts/validate_radxa13_source.py --repo . \
