@@ -197,6 +197,33 @@ patch conflicts by reconstructing and mechanically regenerating the patch;
 never hand-edit patch hunks. Then rerun with `--retry-failed`. The batch does not
 guess conflict resolutions or need a person to babysit successful compiles.
 
+`unofficial_stage: final` accepts a fully reviewed tree only with exact identity
+bindings. For example, when a reviewed 202208/1.3.0 commit is parented to the
+202208/1.3.1 checkpoint, record its actual parent and vendor port rather than
+the automatic source seed:
+
+```json
+{
+  "202208/1.3.0": {
+    "unofficial_ref": "<reviewed-commit>",
+    "unofficial_stage": "final",
+    "unofficial_final_commit": "<reviewed-40-hex-commit>",
+    "unofficial_final_tree": "<reviewed-40-hex-tree>",
+    "unofficial_final_parent_ref": "source/unofficial/1.3.1/edk2-stable202208",
+    "unofficial_final_parent_commit": "<parent-40-hex-commit>",
+    "unofficial_final_parent_port_ref": "source/vendor/radxa/1.3.1/edk2-stable202208",
+    "unofficial_final_parent_port_commit": "<parent-port-40-hex-commit>",
+    "unofficial_final_destination_port_ref": "source/vendor/radxa/1.3.0/edk2-stable202208",
+    "unofficial_final_destination_port_commit": "<destination-port-40-hex-commit>",
+    "unofficial_final_destination_source_ref": "source/unofficial/1.3.0/edk2-stable202208"
+  }
+}
+```
+
+The batch checks the resolved commit, tree, single parent, parent checkpoint's
+recorded vendor port, and destination port commit before accepting the final
+tree. It writes the reviewed parent source and port into candidate provenance.
+
 ## Storage and cleanup
 
 The private clone hard-links Git objects where possible but has independent refs

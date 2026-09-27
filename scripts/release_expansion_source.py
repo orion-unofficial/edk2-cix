@@ -75,6 +75,52 @@ def validate_structural_source(repo: Path, source: str, edk2: str, radxa: str) -
                                   "\n".join(f"  - {problem}" for problem in problems))
 
 
+def validated_final_resolution(repo: Path, resolutions: dict, resolved: str,
+                               destination_port: str, destination_source: str
+                               ) -> tuple[str, str]:
+    """Bind a reviewed final tree to its real parent and destination inputs."""
+    required = (
+        "unofficial_final_commit", "unofficial_final_tree",
+        "unofficial_final_parent_ref", "unofficial_final_parent_commit",
+        "unofficial_final_parent_port_ref", "unofficial_final_parent_port_commit",
+        "unofficial_final_destination_port_ref", "unofficial_final_destination_port_commit",
+        "unofficial_final_destination_source_ref",
+    )
+    if any(not isinstance(resolutions.get(key), str) or not resolutions[key]
+           for key in required):
+        raise ReconstructionError("final unofficial resolution requires explicit identity bindings: "
+                                  + ", ".join(required))
+    for key in ("unofficial_final_commit", "unofficial_final_tree",
+                "unofficial_final_parent_commit", "unofficial_final_parent_port_commit",
+                "unofficial_final_destination_port_commit"):
+        if not re.fullmatch(r"[0-9a-f]{40}", resolutions[key]):
+            raise ReconstructionError(f"final unofficial resolution has invalid {key}")
+    if (resolutions["unofficial_final_commit"] != resolved or
+            resolutions["unofficial_final_tree"] != tree_id(repo, resolved)):
+        raise ReconstructionError("final unofficial resolution commit or tree differs")
+    parents = git(repo, "rev-list", "--parents", "-n", "1", resolved).stdout.split()
+    parent_ref = resolutions["unofficial_final_parent_ref"]
+    parent_port = resolutions["unofficial_final_parent_port_ref"]
+    parent_oid = resolutions["unofficial_final_parent_commit"]
+    if (parents != [resolved, parent_oid] or
+            not parent_ref.startswith("source/unofficial/") or
+            rev_parse(repo, parent_ref) != parent_oid):
+        raise ReconstructionError("final unofficial resolution parent differs")
+    parent_records = [record for record in load_ref_records(repo)
+                      if record.get("ref") == parent_ref]
+    if (len(parent_records) != 1 or
+            parent_records[0].get("type") != "unofficial-release-checkpoint" or
+            parent_records[0].get("radxa_source_ref") != parent_port or
+            rev_parse(repo, parent_port) != resolutions["unofficial_final_parent_port_commit"]):
+        raise ReconstructionError("final unofficial resolution parent port differs")
+    if (resolutions["unofficial_final_destination_port_ref"] != destination_port or
+            resolutions["unofficial_final_destination_source_ref"] != destination_source or
+            rev_parse(repo, destination_port) !=
+            resolutions["unofficial_final_destination_port_commit"]):
+        raise ReconstructionError("final unofficial resolution destination differs")
+    return parent_ref, parent_port
+
+
 def _blob(repo: Path, commit: str) -> bytes:
     return subprocess.run(
         ["git", "-C", str(repo), "show", f"{commit}:{DSDT_CPU_PATH}"],
@@ -280,14 +326,22 @@ def prepare(repo: Path, edk2: str, radxa: str, journal: Path,
         old_edk2, old_radxa, old_source = custom_seed
         old_port = radxa_source_ref(repo, old_radxa, "edk2-stable" + old_edk2)
         label = f"expansion-{edk2}-{radxa}"
-        message = (f"source: prepare custom Radxa {radxa} on {base}\n\n"
-                   f"Source-Port-From: {old_port}\nSource-Port-To: {port}\n"
-                   f"Source-Unofficial-From: {old_source}\n")
+        if (str(resolutions.get("unofficial_stage", "auto")).strip().lower() == "final" and
+                not resolutions.get("unofficial_ref")):
+            raise ReconstructionError("final unofficial resolution requires unofficial_ref")
+        resolved = None
         if resolutions.get("unofficial_ref"):
             resolved = rev_parse(repo, resolutions["unofficial_ref"])
             stage = resolved_source_port_stage(
                 repo, resolved, resolutions.get("unofficial_stage", "auto"),
                 stage_variable="unofficial_stage")
+            if stage == "final":
+                old_source, old_port = validated_final_resolution(
+                    repo, resolutions, resolved, port, exact)
+        message = (f"source: prepare custom Radxa {radxa} on {base}\n\n"
+                   f"Source-Port-From: {old_port}\nSource-Port-To: {port}\n"
+                   f"Source-Unofficial-From: {old_source}\n")
+        if resolved is not None:
             tree = resume_source_delta_tree(
                 repo, resolved=resolved, stage=stage, source_ref=old_source,
                 new_base_ref=port, label=label, resume_variable="unofficial_ref", verbose=False)
