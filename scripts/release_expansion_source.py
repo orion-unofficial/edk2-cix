@@ -32,6 +32,7 @@ from source_porting import (
 from source_policy import enforce_source_tree_policy
 from uplift_radxa_release import port_candidate
 from validate_release_inputs import input_problems, validate_inputs
+from validate_radxa13_source import validate as validate_radxa13_source
 
 
 def checkpoint(edk2: str, radxa: str) -> str:
@@ -50,6 +51,28 @@ def valid_source(repo: Path, edk2: str, radxa: str) -> str | None:
     except ReconstructionError:
         pass
     return None
+
+
+def unofficial_seed(repo: Path, edk2: str, radxa: str,
+                    vendor_seed: tuple[str, str, str] | None) -> tuple[str, str, str] | None:
+    """Replay 1.3.x custom changes from the nearest valid checkpoint on that line."""
+    if radxa not in ("1.3.0", "1.3.1"):
+        return vendor_seed
+    for older in reversed([r for r in matrix_release_values(repo)
+                           if version_key(r) < version_key(edk2)]):
+        if candidate := valid_source(repo, older, radxa):
+            return older, radxa, candidate
+    return vendor_seed
+
+
+def validate_structural_source(repo: Path, source: str, edk2: str, radxa: str) -> None:
+    """Reject a 1.3.x source whose clean merges lost reviewed firmware semantics."""
+    if radxa not in ("1.3.0", "1.3.1"):
+        return
+    problems = validate_radxa13_source(repo, source, edk2, radxa)
+    if problems:
+        raise ReconstructionError("Radxa 1.3 structural preflight failed:\n" +
+                                  "\n".join(f"  - {problem}" for problem in problems))
 
 
 def _blob(repo: Path, commit: str) -> bytes:
@@ -251,9 +274,10 @@ def prepare(repo: Path, edk2: str, radxa: str, journal: Path,
         })
 
     if source is None:
-        if seed is None:
+        custom_seed = unofficial_seed(repo, edk2, radxa, seed)
+        if custom_seed is None:
             raise ReconstructionError(f"no reviewed unofficial seed for {target(edk2, radxa)}")
-        old_edk2, old_radxa, old_source = seed
+        old_edk2, old_radxa, old_source = custom_seed
         old_port = radxa_source_ref(repo, old_radxa, "edk2-stable" + old_edk2)
         label = f"expansion-{edk2}-{radxa}"
         message = (f"source: prepare custom Radxa {radxa} on {base}\n\n"
@@ -292,6 +316,7 @@ def prepare(repo: Path, edk2: str, radxa: str, journal: Path,
         old_source = source
 
     enforce_source_tree_policy(repo, ref=source)
+    validate_structural_source(repo, source, edk2, radxa)
     if not ref_exists(repo, exact):
         register_new(repo, journal, exact, rev_parse(repo, source), {
             "type": "unofficial-release-checkpoint", "line": radxa.rsplit(".", 1)[0],

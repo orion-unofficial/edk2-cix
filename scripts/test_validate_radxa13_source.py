@@ -109,8 +109,12 @@ class Radxa13StructuralTests(unittest.TestCase):
         self.assertTrue(any("expected regular experimental FDF" in problem for problem in mode_problems))
         self.assertTrue(any("wrong DEBUG/RELEASE BL33" in problem for problem in size_problems))
 
+    def test_202211_130_profile_requires_reviewed_overlay_shape(self) -> None:
+        self.assertEqual([], validate(
+            ROOT, "source/unofficial/1.3.1/edk2-stable202208", "202211", "1.3.0"))
+
     def test_unqualified_pair_fails_closed(self) -> None:
-        self.assertIn("unsupported structural profile", validate(ROOT, "HEAD", "202211", "1.3.0")[0])
+        self.assertIn("unsupported structural profile", validate(ROOT, "HEAD", "202211", "1.3.1")[0])
 
 
 if __name__ == "__main__":

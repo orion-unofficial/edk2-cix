@@ -23,6 +23,7 @@ PCIE_MENU = "edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu"
 SUPPORTED_PROFILES = {
     ("202208", "1.3.0"): ("overlay", 0x1F4000),
     ("202208", "1.3.1"): ("overlay", 0x1F4000),
+    ("202211", "1.3.0"): ("overlay", 0x1F4000),
     ("202605", "1.3.0"): ("experimental", 0x1F2000),
     ("202605", "1.3.1"): ("experimental", 0x1F2000),
     ("202608", "1.3.1"): ("overlay", 0x1F4000),
