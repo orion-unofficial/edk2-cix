@@ -81,6 +81,18 @@ recorded identities. The private batch journals the resolution commit and
 validates it again on resume. Any different DSDT input or other source conflict
 still stops that pair for review.
 
+For reviewed Radxa 1.3 source candidates, run the structural preflight before
+building. It catches cleanly merged overlay regressions such as references to
+removed SMBIOS providers, incorrect CPU performance groups, stale O6 FDF
+layouts, and missing PCIe SMMU build/menu hooks. It rejects release pairs
+whose layout has not yet been reviewed:
+
+```bash
+python3 scripts/validate_radxa13_source.py --repo . \
+  --revision source/unofficial/1.3.1/edk2-stable202208 \
+  --edk2 202208 --radxa 1.3.1
+```
+
 Rerunning `run` resumes unattempted work and verifies previously passed images
 before skipping them. Failed/interrupted work stays visible without being
 repeated automatically. After examining its logs or supplying a resolution:
