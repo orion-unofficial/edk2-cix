@@ -16,6 +16,7 @@ from dsdt_cpu_conflict import (
 )
 from integrate_source_release import manifest_path_for, ported_radxa_source_snapshot, upsert_manifest
 from release_expansion import save
+from radxa_source_compatibility import adapt_exception_library, validate_exception_library
 from render_release_branch import (
     cached_worktree_is_dirty, render_from_plan, validate_release_metadata,
 )
@@ -366,9 +367,11 @@ def prepare(repo: Path, edk2: str, radxa: str, journal: Path,
                 oid = git(repo, "commit-tree", tree, "-m", message).stdout.strip()
         source = align_release_metadata(repo, candidate=oid, new_port_ref=port,
                                         to_release=radxa, verbose=False)
+        source = adapt_exception_library(repo, source)
     else:
         old_source = source
 
+    validate_exception_library(repo, source)
     enforce_source_tree_policy(repo, ref=source)
     validate_structural_source(repo, source, edk2, radxa)
     if not ref_exists(repo, exact):

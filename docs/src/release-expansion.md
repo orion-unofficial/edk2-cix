@@ -75,6 +75,15 @@ Compile/package success still does not establish successful booting on hardware
 or prove that every automatically merged firmware change is semantically correct.
 New candidates remain subject to review before promotion to maintained support.
 
+When the selected EDK2 removes ArmExceptionLib, preparation updates newly
+constructed Sky1 source and custom descriptors to the replacement DXE library
+only after checking its AArch64 sources. The adjustment follows EDK2's upstream
+library move and preserves existing default exception handlers, mirror symlinks
+and descriptor line endings. Its child commit records the candidate preimage.
+Existing checkpoints with the obsolete binding fail preflight and remain intact.
+To qualify this correction after a frozen batch fails, start a new batch with the
+affected EDK2/Radxa selections; retain the original receipts, plan and source refs.
+
 One reviewed O6 DSDT CPU-reference conflict is resolved during preparation when
 its 12 conflict groups, source inputs, stage and entire resulting file match
 recorded identities. The private batch journals the resolution commit and
