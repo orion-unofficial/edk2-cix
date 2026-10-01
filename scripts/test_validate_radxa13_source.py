@@ -7,12 +7,18 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
+from reconstruction_common import resolve_ref
 from validate_radxa13_source import (
     CPU_ASL, Entry, GitTree, O6, O6_ACPI, PCIE_MENU, SMBIOS, validate,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def source_ref(edk2: str, radxa: str) -> str:
+    """Find the retained fixture in either a maintenance checkout or clone."""
+    return resolve_ref(ROOT, f"source/unofficial/{radxa}/edk2-stable{edk2}")
 
 
 class MutationTree(GitTree):
@@ -42,13 +48,13 @@ def mutated_problems(source: GitTree, edk2: str, radxa: str,
 class Radxa13StructuralTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.reference = GitTree(ROOT, "source/unofficial/1.3.1/edk2-stable202208")
+        cls.reference = GitTree(ROOT, source_ref("202208", "1.3.1"))
 
     def test_retained_positive_sources_pass(self) -> None:
         for edk2, radxa in (("202208", "1.3.1"), ("202605", "1.3.0"),
                             ("202605", "1.3.1"), ("202608", "1.3.1")):
             with self.subTest(edk2=edk2, radxa=radxa):
-                revision = f"source/unofficial/{radxa}/edk2-stable{edk2}"
+                revision = source_ref(edk2, radxa)
                 self.assertEqual([], validate(ROOT, revision, edk2, radxa))
 
     def test_202208_130_profile_matches_retained_202208_shape(self) -> None:
@@ -56,11 +62,11 @@ class Radxa13StructuralTests(unittest.TestCase):
         # ref.  The retained 1.3.1 source checks this profile's shared layout;
         # the private candidate is checked separately by the caller's CLI.
         self.assertEqual([], validate(
-            ROOT, "source/unofficial/1.3.1/edk2-stable202208", "202208", "1.3.0"))
+            ROOT, source_ref("202208", "1.3.1"), "202208", "1.3.0"))
 
     def test_202608_130_profile_matches_retained_131_shape(self) -> None:
         self.assertEqual([], validate(
-            ROOT, "source/unofficial/1.3.1/edk2-stable202608", "202608", "1.3.0"))
+            ROOT, source_ref("202608", "1.3.1"), "202608", "1.3.0"))
 
     def test_old_pilot_clean_merge_failures_are_caught(self) -> None:
         source = self.reference
@@ -105,7 +111,7 @@ class Radxa13StructuralTests(unittest.TestCase):
                                 for problem in problems), problems)
 
     def test_202605_experimental_fdf_must_keep_its_own_layout(self) -> None:
-        source = GitTree(ROOT, "source/unofficial/1.3.0/edk2-stable202605")
+        source = GitTree(ROOT, source_ref("202605", "1.3.0"))
         fdf = f"custom/overlay-experimental-uefi-settings/edk2-platforms/{O6}/O6.fdf"
         data = source.text(fdf).replace("0x001f2000", "0x00200000")
         size_problems = mutated_problems(source, "202605", "1.3.0", {fdf: data})
@@ -139,7 +145,7 @@ class Radxa13StructuralTests(unittest.TestCase):
 
     def test_202211_130_profile_requires_reviewed_overlay_shape(self) -> None:
         self.assertEqual([], validate(
-            ROOT, "source/unofficial/1.3.1/edk2-stable202208", "202211", "1.3.0"))
+            ROOT, source_ref("202208", "1.3.1"), "202211", "1.3.0"))
 
     def test_unqualified_pair_fails_closed(self) -> None:
         self.assertIn("unsupported structural profile", validate(ROOT, "HEAD", "202211", "1.3.1")[0])
