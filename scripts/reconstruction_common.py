@@ -32,6 +32,7 @@ _RELEASE_METADATA_REF_CACHE: dict[tuple[str, str, str], str | None] = {}
 _UNOFFICIAL_RENDERED_TREE_CACHE: dict[tuple[str, str, str | None, str], str] = {}
 _GIT_TREE_ENTRIES_CACHE: dict[tuple[str, str], dict[str, tuple[str, str, str]]] = {}
 _VERSION_BLOB_CACHE: dict[tuple[str, str], str] = {}
+_UNOFFICIAL_CORRECTION_CACHE: dict[str, dict[tuple[str, str], dict[str, str]]] = {}
 
 
 def clear_metadata_caches() -> None:
@@ -45,6 +46,7 @@ def clear_metadata_caches() -> None:
     _UNOFFICIAL_RENDERED_TREE_CACHE.clear()
     _GIT_TREE_ENTRIES_CACHE.clear()
     _VERSION_BLOB_CACHE.clear()
+    _UNOFFICIAL_CORRECTION_CACHE.clear()
 
 
 def run(cmd: list[str], cwd: Path | str | None = None, check: bool = True, capture: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -333,6 +335,7 @@ CIX_REFS_MANIFEST = "refs-cix.json"
 EDK2_REFS_MANIFEST = "refs-edk2.json"
 RADXA_REFS_MANIFEST = "refs-radxa.json"
 UNOFFICIAL_REFS_MANIFEST = "refs-unofficial.json"
+UNOFFICIAL_CORRECTIONS_MANIFEST = "refs-unofficial-corrections.json"
 SOURCE_TARGET_CACHE_MANIFEST = "refs-source-target-cache.json"
 CACHE_REF_PREFIX = "source/cache/"
 CACHE_RELEASE_PREFIX = "source/cache/release/"
@@ -652,6 +655,11 @@ UNOFFICIAL_RELEASE_TAG_RE = re.compile(r"^source/unofficial/edk2/stable-(?P<rele
 UNOFFICIAL_CHECKPOINT_RE = re.compile(
     r"^source/unofficial/(?P<radxa>[^/]+)/(?P<edk2>edk2-stable[^/]+)$"
 )
+UNOFFICIAL_CORRECTION_RE = re.compile(
+    r"^source/unofficial/corrections/(?P<radxa>[^/]+)/"
+    r"(?P<edk2>edk2-stable[^/]+)/(?P<name>[A-Za-z0-9][A-Za-z0-9.-]*)$"
+)
+GIT_OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}$")
 UNOFFICIAL_LINE_CURRENT_RE = re.compile(
     r"^source/unofficial/(?P<line>\d+\.\d+)/current$"
 )
@@ -763,9 +771,142 @@ def unofficial_checkpoints_by_edk2(repo: Path) -> dict[str, dict[str, str]]:
     return checkpoints
 
 
+def unofficial_correction_refs(repo: Path) -> dict[tuple[str, str], dict[str, str]]:
+    """Validate retained corrections and return only explicitly selected refs."""
+
+    key = str(repo.resolve())
+    if key in _UNOFFICIAL_CORRECTION_CACHE:
+        return _UNOFFICIAL_CORRECTION_CACHE[key]
+
+    path = repo / "config" / UNOFFICIAL_CORRECTIONS_MANIFEST
+    records = ref_manifest_records(repo, UNOFFICIAL_CORRECTIONS_MANIFEST) if path.exists() else []
+    data = load_json(repo, f"config/{UNOFFICIAL_CORRECTIONS_MANIFEST}") if path.exists() else {}
+    selected = data.get("selected_refs", [])
+    if not isinstance(selected, list) or any(not isinstance(ref, str) for ref in selected):
+        raise ReconstructionError(f"{UNOFFICIAL_CORRECTIONS_MANIFEST}: selected_refs must be a list of refs")
+    if len(set(selected)) != len(selected):
+        raise ReconstructionError(f"{UNOFFICIAL_CORRECTIONS_MANIFEST}: duplicate selected correction")
+    selected_refs = set(selected)
+    values = available_ref_values(repo)
+    recorded: dict[tuple[str, str], dict[str, str]] = {}
+    recorded_refs: set[str] = set()
+
+    for record in records:
+        ref = record.get("ref")
+        match = UNOFFICIAL_CORRECTION_RE.fullmatch(ref) if isinstance(ref, str) else None
+        if not match:
+            raise ReconstructionError(f"{UNOFFICIAL_CORRECTIONS_MANIFEST}: invalid correction ref: {ref!r}")
+        tuple_key = (match.group("radxa"), match.group("edk2"))
+        if ref in recorded_refs:
+            raise ReconstructionError(f"{UNOFFICIAL_CORRECTIONS_MANIFEST}: duplicate correction ref: {ref}")
+        recorded_refs.add(ref)
+        if (
+            record.get("type") != "unofficial-source-correction"
+            or record.get("immutable") is not True
+            or record.get("radxa_release") != tuple_key[0]
+            or record.get("edk2_base") != tuple_key[1]
+        ):
+            raise ReconstructionError(f"{ref}: correction metadata does not match its Radxa/EDK2 tuple")
+        checkpoint_ref = f"source/unofficial/{tuple_key[0]}/{tuple_key[1]}"
+        line = ".".join(tuple_key[0].split(".")[:2])
+        current_ref = f"source/unofficial/{line}/current"
+        preimage_ref = record.get("corrects_ref")
+        if preimage_ref not in (checkpoint_ref, current_ref):
+            raise ReconstructionError(
+                f"{ref}: corrects_ref must name {checkpoint_ref} or {current_ref}"
+            )
+        if ref in selected_refs and preimage_ref in recorded.get(tuple_key, {}):
+            raise ReconstructionError(
+                f"{UNOFFICIAL_CORRECTIONS_MANIFEST}: ambiguous correction for "
+                f"{tuple_key} from {preimage_ref}"
+            )
+        for field in ("corrects_object_id", "corrects_tree_id", "object_id", "tree_id"):
+            if not isinstance(record.get(field), str) or not GIT_OBJECT_ID_RE.fullmatch(record[field]):
+                raise ReconstructionError(f"{ref}: missing or invalid {field}")
+
+        def matching_value(source: str) -> tuple[str, str]:
+            present = [
+                values[name]
+                for name in (f"refs/heads/{source}", f"refs/remotes/origin/{source}")
+                if name in values
+            ]
+            if not present:
+                raise ReconstructionError(f"{ref}: required source ref is unavailable: {source}")
+            if len(set(present)) != 1:
+                raise ReconstructionError(f"{ref}: ambiguous local and origin values for {source}")
+            return present[0]
+
+        if not ref_exists(repo, preimage_ref):
+            raise ReconstructionError(f"{ref}: required source ref is unavailable: {preimage_ref}")
+        preimage_oid = record["corrects_object_id"]
+        original = git(repo, "cat-file", "-t", preimage_oid, check=False)
+        if original.returncode != 0 or original.stdout.strip() != "commit":
+            raise ReconstructionError(f"{ref}: corrects_object_id is not an available commit")
+        if tree_id(repo, preimage_oid) != record["corrects_tree_id"]:
+            raise ReconstructionError(f"{ref}: corrects_tree_id differs from the recorded original commit")
+        if ref in selected_refs:
+            current_oid, _current_tree = matching_value(preimage_ref)
+            if current_oid != preimage_oid:
+                raise ReconstructionError(f"{ref}: corrects_object_id differs from {preimage_ref}")
+            if preimage_ref == current_ref:
+                policy = unofficial_source_policy(repo)
+                _default_line, lines = unofficial_line_policies(policy)
+                active = lines.get(line, {})
+                active_edk2 = _policy_string(active, "current_edk2_release")
+                if active_edk2.startswith("edk2-stable"):
+                    active_edk2 = release_for_edk2_ref(active_edk2)
+                if (
+                    _policy_string(active, "current_ref") != current_ref
+                    or _policy_string(active, "current_radxa_release") != tuple_key[0]
+                    or active_edk2 != release_for_edk2_ref(tuple_key[1])
+                ):
+                    raise ReconstructionError(f"{ref}: selected current correction differs from the active tuple")
+        actual_oid, actual_tree = matching_value(ref)
+        if (actual_oid, actual_tree) != (record["object_id"], record["tree_id"]):
+            raise ReconstructionError(f"{ref}: correction object or tree differs from the manifest")
+        ancestry = git(repo, "merge-base", "--is-ancestor", preimage_oid, actual_oid, check=False)
+        if ancestry.returncode != 0:
+            raise ReconstructionError(f"{ref}: correction is not a descendant of {preimage_ref}")
+        if ref in selected_refs:
+            recorded.setdefault(tuple_key, {})[preimage_ref] = ref
+
+    unknown_selections = selected_refs - recorded_refs
+    if unknown_selections:
+        raise ReconstructionError(
+            f"{UNOFFICIAL_CORRECTIONS_MANIFEST}: selected correction is not recorded: "
+            + ", ".join(sorted(unknown_selections))
+        )
+    prefix = "source/unofficial/corrections/"
+    actual_refs = {
+        name.removeprefix("refs/heads/").removeprefix("refs/remotes/origin/")
+        for name in values
+        if name.startswith((f"refs/heads/{prefix}", f"refs/remotes/origin/{prefix}"))
+    }
+    unrecorded = actual_refs - recorded_refs
+    if unrecorded:
+        raise ReconstructionError(
+            f"{UNOFFICIAL_CORRECTIONS_MANIFEST}: unrecorded correction refs: "
+            + ", ".join(sorted(unrecorded))
+        )
+    _UNOFFICIAL_CORRECTION_CACHE[key] = recorded
+    return recorded
+
+
+def unofficial_correction_ref(
+    repo: Path, radxa: str, edk2_ref: str, corrects_ref: str | None = None,
+) -> str | None:
+    """Return a verified correction for the exact tuple and preimage ref."""
+
+    source = corrects_ref or f"source/unofficial/{radxa}/{edk2_ref}"
+    return unofficial_correction_refs(repo).get((radxa, edk2_ref), {}).get(source)
+
+
 def unofficial_source_ref(repo: Path, radxa: str, edk2_ref: str) -> str:
     """Return the exact unofficial checkpoint for a source-target tuple."""
 
+    correction = unofficial_correction_ref(repo, radxa, edk2_ref)
+    if correction:
+        return correction
     checkpoint = f"source/unofficial/{radxa}/{edk2_ref}"
     if ref_exists(repo, checkpoint):
         return checkpoint
@@ -795,8 +936,17 @@ def active_unofficial_source_ref(repo: Path, radxa: str, edk2_ref: str) -> str |
             and configured_edk2 == wanted_release
         ):
             ref = _policy_string(record, "current_ref")
-            if ref and ref_exists(repo, ref):
-                return ref
+            if ref:
+                correction = unofficial_correction_ref(repo, radxa, edk2_ref, ref)
+                if correction:
+                    return correction
+                if unofficial_correction_refs(repo).get((radxa, edk2_ref)):
+                    raise ReconstructionError(
+                        f"{radxa}/{edk2_ref}: a correction exists for the checkpoint "
+                        f"but none corrects active source {ref}"
+                    )
+                if ref_exists(repo, ref):
+                    return ref
     return None
 
 
@@ -884,10 +1034,7 @@ def source_target_ref_records(repo: Path) -> dict[str, dict[str, Any]]:
         if parts.get("stage") != "custom" or parts.get("unofficial") != "unofficial":
             continue
         edk2_ref = edk2_ref_for_release(parts["release"])
-        try:
-            source_ref = active_unofficial_source_ref(repo, parts["radxa"], edk2_ref)
-        except ReconstructionError:
-            continue
+        source_ref = active_unofficial_source_ref(repo, parts["radxa"], edk2_ref)
         if not source_ref:
             continue
         record["tree_id"] = unofficial_rendered_tree(
@@ -1836,7 +1983,7 @@ def is_immutable_namespace(ref: str) -> bool:
         return True
     if ref.startswith("source/delta/"):
         return True
-    if UNOFFICIAL_CHECKPOINT_RE.match(ref):
+    if UNOFFICIAL_CHECKPOINT_RE.match(ref) or UNOFFICIAL_CORRECTION_RE.fullmatch(ref):
         return True
     return False
 

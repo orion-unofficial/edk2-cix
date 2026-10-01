@@ -72,6 +72,57 @@ Rendered-tree expectations must include release-metadata transformations, even
 when a generated cache branch is absent. Hash the final rendered tree rather
 than reusing the input checkpoint's tree hash.
 
+### Additive source corrections
+
+When a focused source fix is needed across retained historical checkpoints,
+keep each checkpoint ref and its record in `config/refs-unofficial.json` intact.
+Create a descendant at
+`source/unofficial/corrections/<Radxa>/<edk2-stable...>/<correction-name>`
+and add an immutable record to `config/refs-unofficial-corrections.json`.
+Each record names `corrects_ref` (the original checkpoint or line's `/current`
+ref), pins `corrects_object_id` and `corrects_tree_id`, and records the
+correction's `object_id`, `tree_id`, `radxa_release`, `edk2_base`,
+`type: "unofficial-source-correction"` and `immutable: true`.
+
+The manifest's separate `selected_refs` array names the corrections to use.
+Multiple immutable corrections may remain recorded for the same tuple and
+original ref, but at most one may be selected for that combination. An empty
+selection retains correction provenance without changing source selection.
+Every retained correction must have an available immutable ref matching its
+recorded object and tree, and descend from its recorded original commit with
+its recorded original tree. The original source ref must remain available.
+Selected corrections additionally require that original ref's current commit
+match `corrects_object_id`. Selected `/current` corrections must match the
+active line's configured Radxa/EDK2 tuple.
+
+The renderer selects a verified correction for its exact tuple and original
+source ref. An active tuple requires its own selected `/current` correction;
+a historical checkpoint correction cannot override an unmatched active tip.
+Missing refs, unknown selections, conflicting identities, ambiguous selections,
+wrong tuples or invalid ancestry stop source selection. The rendered tree
+expectation is recomputed from the selected correction and release metadata.
+
+Before advancing a mutable `/current` ref, remove its correction from
+`selected_refs` or prepare a new immutable correction descendant of the exact
+new tip and select that replacement. Keep the old correction record and ref
+unchanged; retained unselected corrections remain valid after the original
+mutable ref advances. Commit the selection change together with refreshed
+rendered tree expectations and exact source metadata. Correction identity
+fields are pinned provenance and are intentionally excluded from automatic
+`refresh-source-metadata` source-ref refreshes.
+
+Run focused correction regressions, source-policy and source-lifecycle checks
+for each selected correction, release-input checks, `make verify-build-matrix`,
+`make verify-manifest-integrity` and actual rendered-tree verification before
+using or publishing new selections. Confirm minimised-clone reconstruction and
+remote source coherence. Required refs include selected and unselected
+corrections: minimised exports retain `source/unofficial/**`, and publication
+and remote coherence discover their records through `config/refs-*.json`.
+Publish source metadata and refs atomically with `make publish-source-update`,
+using its default dry run first. These source checks establish reconstruction;
+firmware build receipts remain tied to their exact source IDs and must be
+requalified for a corrected firmware release.
+
 ## Validation and expansion
 
 Run `make test` and `make lint`, including all-checkpoint input checks and the
