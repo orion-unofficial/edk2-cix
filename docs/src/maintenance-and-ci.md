@@ -80,6 +80,14 @@ the firmware matrices, while `Build documentation` builds this book. The
 stable qualification summary is therefore tied to the exact implementation,
 metadata, tests, and documentation in the candidate commit.
 
+Publish reviewed end-user fixes after the essential regression, source-integrity,
+and affected build checks pass. Publish the build metadata and its matching
+source refs atomically. Extended release-matrix qualification can continue after
+publication; it should not hold up an independently validated fix. State the
+tested source identities and remaining qualification limits, then publish
+qualification results and focused follow-up repairs as they become available.
+Successful compilation remains separate from qualification on hardware.
+
 The extended regression coverage includes:
 
 - atomic publication and immutable-source-ref safeguards;
