@@ -75,6 +75,22 @@ Compile/package success still does not establish successful booting on hardware
 or prove that every automatically merged firmware change is semantically correct.
 New candidates remain subject to review before promotion to maintained support.
 
+### Compiler-cache reuse
+
+The runner does not invoke `make clean` between cases. It uses one rendered
+worktree for the configurations of each source pair and retains the compiler
+cache under `cache/buildbox/ccache` across pairs. Identical compilation inputs
+can therefore reuse cached compiler results. Changed build options invalidate
+generated firmware output through the normal configuration stamp; this prevents
+an earlier configuration's image from being mistaken for the new result.
+
+Each case still runs the real build and packaging checks. Cache hits can reduce
+compilation time, but source preparation, linking, ACPI generation, compression
+and validation also contribute to runtime. Measure case timings and compiler
+cache statistics before estimating the improvement for another matrix.
+
+### Source compatibility checks
+
 When the selected EDK2 removes ArmExceptionLib, preparation updates newly
 constructed Sky1 source and custom descriptors to the replacement DXE library
 only after checking its AArch64 sources. The adjustment follows EDK2's upstream
