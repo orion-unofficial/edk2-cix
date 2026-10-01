@@ -204,7 +204,7 @@ def resolve_dsdt_worktree(repo: Path, state: Path, edk2: str, radxa: str,
     if (f"Source Port Conflict: expansion-{edk2}-{radxa}" not in body or
             f"Source-Port-Input: {source_ref}\n" not in message or
             f"Source-Port-New-Base: {base_ref}\n" not in message or
-            f"Source-Port-Conflict-Stage: overlay\n" not in message):
+            "Source-Port-Conflict-Stage: overlay\n" not in message):
         raise ReconstructionError("DSDT conflict identity differs from selected pair") from error
     try:
         resolved_bytes = resolve_dsdt_cpu_conflict(_blob(repo, conflict))

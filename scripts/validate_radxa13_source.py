@@ -117,9 +117,10 @@ def _cppc(tree: GitTree, problems: list[str]) -> None:
     # Match each Device body up to the next Device rather than relying on line
     # offsets, which differ across EDK2 vintages.
     devices = list(re.finditer(r"\bDevice\s*\(\s*CPU(\d+)\s*\)", data))
-    bodies = {int(match.group(1)): data[match.end():devices[index + 1].start()
-                                      if index + 1 < len(devices) else len(data)]
-              for index, match in enumerate(devices)}
+    bodies = {}
+    for index, match in enumerate(devices):
+        end = devices[index + 1].start() if index + 1 < len(devices) else len(data)
+        bodies[int(match.group(1))] = data[match.end():end]
     for cpu in (0, 1, 4, 5):
         body = bodies.get(cpu, "")
         desired = "CORE_0_TO_3" if cpu < 4 else "CORE_4_5"
