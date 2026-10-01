@@ -27,6 +27,7 @@ from reconstruction_common import (
     unofficial_release_branch_for_tag,
     unofficial_release_edk2_refs,
     unofficial_checkpoints_by_edk2,
+    unofficial_correction_refs,
     unofficial_release_tag_for_branch,
     unofficial_line_policies,
     main_wrapper,
@@ -68,6 +69,7 @@ Checks:
   - obsolete source/delta/unofficial refs are absent
   - unofficial release tags are reachable from retained source/unofficial branches
   - versioned unofficial aliases have the same tree as their non-alias branch
+  - additive Unofficial corrections match their recorded checkpoint and source tree
 """
 
 
@@ -442,6 +444,7 @@ def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
+    unofficial_correction_refs(repo)
     releases = matrix_release_values(repo)
 
     expected_releases, expected_required_refs, aliases = expected_from_source_refs(repo)

@@ -21,6 +21,7 @@ from reconstruction_common import (
     repo_root,
     tree_id,
     truthy,
+    unofficial_correction_refs,
 )
 
 
@@ -36,6 +37,7 @@ Checks:
   - defaults-expanded base records retain component skeleton metadata
   - source-target tree IDs match generated release entries
   - persisted generated cache refs, if present, match recorded tree IDs
+  - additive Unofficial corrections match their checkpoint, object, tree and ancestry
 """
 
 
@@ -122,6 +124,7 @@ def main() -> None:
     args = parser().parse_args()
     repo = repo_root(Path(__file__))
     verbose = truthy(args.v)
+    corrections = unofficial_correction_refs(repo)
     problems = validate_variant_manifest(repo, verbose)
     problems.extend(validate_base_manifest(repo, verbose))
     if problems:
@@ -129,7 +132,7 @@ def main() -> None:
         raise ReconstructionError(f"manifest integrity verification failed:\n{details}")
     print(
         f"validated manifest integrity: {len(source_target_ref_records(repo))} source-target tree records, "
-        f"{len(base_tree_records(repo))} base tree records in "
+        f"{len(base_tree_records(repo))} base tree records, {len(corrections)} source corrections in "
         f"{format_duration(time.monotonic() - started)}"
     )
 
