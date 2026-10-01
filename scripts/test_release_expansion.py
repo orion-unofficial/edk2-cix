@@ -25,7 +25,8 @@ class ExpansionTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="release-expansion-test-")
         self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
+        # Match the CLI's canonical state path, including macOS /var aliases.
+        self.root = Path(self.tmp.name).resolve()
         self.repo = self.root / "input"
         self.repo.mkdir()
         batch.git(self.repo, "init", "-b", "build")
