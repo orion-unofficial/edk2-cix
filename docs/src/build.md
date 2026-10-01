@@ -145,6 +145,29 @@ older image in the mirrored output directory. Custom builds print the final
 full-flash image's exact path and SHA-256 digest to identify that invocation's
 output.
 
+### Edit a rendered source tree
+
+Render the desired source target once, then edit and build that worktree
+directly. Invoking the build-branch renderer again selects the recorded source
+refs and does not incorporate those local edits. Use `CIX_RELEASE=v1.2` when
+working on `src/cix-v1.2/tf-a` or `src/cix-v1.2/tee`; without that opt-in the
+build retains the vendor trusted firmware.
+
+For the source-built CIX path, Make checks a generated
+`.cix-release-bootloader2-inputs` stamp in the board's staging directory before
+considering `bootloader2.img` up to date. It uses the same TF-A, OP-TEE, helper,
+compiler, build-mode, fix-selection and STMM fingerprints as the intermediate
+cache. Source edits, additions, deletions and renames trigger BL2 reconstruction,
+including edits whose file timestamps were preserved. Generated TF-A and OP-TEE
+outputs are excluded, and unchanged fingerprints preserve the stamp's timestamp.
+There is no need to delete `src/Build/<board>/<target>_GCC{,.build}` after a
+trusted-firmware source edit. Compiler caches and unaffected content-addressed
+intermediates remain reusable.
+
+This check runs inside the rendered tree because direct developer builds do
+not invoke the build-branch caller. A failed fingerprint or BL2 rebuild fails
+the Make invocation; use only outputs from a successful build.
+
 ### Compiler warnings
 
 Both artifact modes should resolve warnings and errors. Exact upstream replay
