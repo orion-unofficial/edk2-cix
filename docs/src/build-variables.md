@@ -216,7 +216,9 @@ Default when running the rendered firmware tree directly:
 `$(REPO_ROOT)/build-cache/ccache`
 
 Default when invoking the firmware build through the `build` branch:
-`.cache/edk2-cix/firmware/ccache` inside the rendered worktree.
+`.cache/edk2-cix/firmware/buildbox/ccache` in the build-branch checkout,
+mounted as `/hosttmp/ccache` in the build container. Use `FIRMWARE_CACHE_ROOT`
+to relocate this persistent cache root.
 
 ### `CCACHE_WRAPPER_ROOT=<path>`
 
@@ -226,7 +228,8 @@ Default when running the rendered firmware tree directly:
 `$(REPO_ROOT)/build-cache/ccache-toolchain`
 
 Default when invoking the firmware build through the `build` branch:
-`.cache/edk2-cix/firmware/ccache-toolchain` inside the rendered worktree.
+`.cache/edk2-cix/firmware/buildbox/ccache-toolchain` in the build-branch checkout,
+mounted as `/hosttmp/ccache-toolchain` in the build container.
 
 ### `CCACHE_BIN=<path>`
 
