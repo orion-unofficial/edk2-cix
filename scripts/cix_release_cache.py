@@ -9,6 +9,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -207,6 +208,9 @@ def compute_cache_plan(
     enable_tf_a_fixes: bool = False,
 ) -> CachePlan:
     cert_create_dir = tfa_dir / "tools" / "cert_create"
+    for source_dir in (tfa_dir, tee_dir, cert_create_dir):
+        if not source_dir.is_dir():
+            raise FileNotFoundError(f"Missing required source directory: {source_dir}")
     cert_create_tree_fingerprint = tree_fingerprint(
         cert_create_dir,
         excluded_prefixes=("build", ".git", "__pycache__"),
@@ -254,6 +258,33 @@ def emit_shell_assignments(cache_root: Path, plan: CachePlan) -> str:
     return "\n".join(f"{name}={shlex.quote(str(value))}" for name, value in values.items())
 
 
+def update_fingerprint_stamp(path: Path, plan: CachePlan) -> None:
+    """Replace the Make prerequisite only when cache inputs change."""
+    content = json.dumps(
+        {
+            "cert_create_key": plan.cert_create_key,
+            "bl31_key": plan.bl31_key,
+            "tee_key": plan.tee_key,
+            "cache_helper": file_fingerprint(Path(__file__)),
+        },
+        sort_keys=True,
+    ) + "\n"
+    if path.is_file() and path.read_text(encoding="utf-8") == content:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, prefix=f".{path.name}.", delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+            handle.write(content)
+        temporary_path.replace(path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Compute cache locations for curated CIX bootloader2 intermediates.")
     parser.add_argument("--cache-root", required=True)
@@ -265,7 +296,9 @@ def main() -> int:
     parser.add_argument("--host-compiler", default="cc")
     parser.add_argument("--stmm-path")
     parser.add_argument("--enable-tf-a-fixes", action="store_true")
-    parser.add_argument("--shell", action="store_true")
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument("--shell", action="store_true")
+    output.add_argument("--stamp", type=Path, help="Update a Make prerequisite only when its fingerprint changes.")
     args = parser.parse_args()
 
     plan = compute_cache_plan(
@@ -278,6 +311,10 @@ def main() -> int:
         stmm_path=Path(args.stmm_path) if args.stmm_path else None,
         enable_tf_a_fixes=args.enable_tf_a_fixes,
     )
+
+    if args.stamp is not None:
+        update_fingerprint_stamp(args.stamp, plan)
+        return 0
 
     cache_root = Path(args.cache_root)
     if args.shell:
