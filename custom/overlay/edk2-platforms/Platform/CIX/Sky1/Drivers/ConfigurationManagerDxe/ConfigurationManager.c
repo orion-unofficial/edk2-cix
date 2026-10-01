@@ -527,6 +527,11 @@ InitializePlatformRepository (
     return Status;
   }
 
+  // Select CPPC before GICC records capture their CPC tokens.
+  if (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
+    CppcEnable = ConfigData->Misc.CpuCppcType != CPPC_DISABLE;
+  }
+
   Status = InitializeCmArmGiccInfo (This);
   if (EFI_ERROR (Status)) {
     DEBUG (
