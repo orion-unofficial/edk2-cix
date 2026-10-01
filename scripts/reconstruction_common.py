@@ -825,16 +825,10 @@ def unofficial_correction_refs(repo: Path) -> dict[tuple[str, str], dict[str, st
                 raise ReconstructionError(f"{ref}: missing or invalid {field}")
 
         def matching_value(source: str) -> tuple[str, str]:
-            present = [
-                values[name]
-                for name in (f"refs/heads/{source}", f"refs/remotes/origin/{source}")
-                if name in values
-            ]
-            if not present:
+            resolved = resolve_ref(repo, source, check=False)
+            if resolved is None:
                 raise ReconstructionError(f"{ref}: required source ref is unavailable: {source}")
-            if len(set(present)) != 1:
-                raise ReconstructionError(f"{ref}: ambiguous local and origin values for {source}")
-            return present[0]
+            return values[resolved]
 
         if not ref_exists(repo, preimage_ref):
             raise ReconstructionError(f"{ref}: required source ref is unavailable: {preimage_ref}")

@@ -93,7 +93,11 @@ recorded object and tree, and descend from its recorded original commit with
 its recorded original tree. The original source ref must remain available.
 Selected corrections additionally require that original ref's current commit
 match `corrects_object_id`. Selected `/current` corrections must match the
-active line's configured Radxa/EDK2 tuple.
+active line's configured Radxa/EDK2 tuple. Identity checks use the normal
+source resolver: local heads take precedence over origin remote-tracking refs,
+with origin used when a local head is absent. A pending local source update may
+therefore be corrected before publication even when origin still records its
+previous tip; the resolved local commit and tree must exactly match metadata.
 
 The renderer selects a verified correction for its exact tuple and original
 source ref. An active tuple requires its own selected `/current` correction;
