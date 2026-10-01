@@ -458,6 +458,10 @@ InitializeCmArmGiccInfo (
       PlatformRepo->GicCInfo[UidIndex]                    = DefalutGicCInfo[CpuCore->Coreid];
       PlatformRepo->GicCInfo[UidIndex].CPUInterfaceNumber = 0;
       PlatformRepo->GicCInfo[UidIndex].AcpiProcessorUid   = CpuCore->Uid;
+      if (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
+        PlatformRepo->GicCInfo[UidIndex].CpcToken =
+          CppcEnable ? (CM_OBJECT_TOKEN)&PlatformRepo->CpuCpcInfo[CpuCore->Coreid] : CM_NULL_TOKEN;
+      }
       if (!CpuCore->Enable) {
         PlatformRepo->GicCInfo[UidIndex].Flags &= ~EFI_ACPI_6_2_GIC_ENABLED;
       }
@@ -467,6 +471,10 @@ InitializeCmArmGiccInfo (
       PlatformRepo->GicCInfo[GicCIndex]                    = DefalutGicCInfo[CpuCore->Coreid];
       PlatformRepo->GicCInfo[GicCIndex].CPUInterfaceNumber = 0;
       PlatformRepo->GicCInfo[GicCIndex].AcpiProcessorUid   = CpuCore->Uid;
+      if (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
+        PlatformRepo->GicCInfo[GicCIndex].CpcToken =
+          CppcEnable ? (CM_OBJECT_TOKEN)&PlatformRepo->CpuCpcInfo[CpuCore->Coreid] : CM_NULL_TOKEN;
+      }
       if (!CpuCore->Enable) {
         PlatformRepo->GicCInfo[GicCIndex].Flags &= ~EFI_ACPI_6_2_GIC_ENABLED;
       }
@@ -523,6 +531,11 @@ InitializePlatformRepository (
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "%a: Failed to initialize cix cpu topology info, %r\n", __FUNCTION__, Status));
     return Status;
+  }
+
+  // Select CPPC before GICC records capture their CPC tokens.
+  if (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
+    CppcEnable = ConfigData->Misc.CpuCppcType != CPPC_DISABLE;
   }
 
   Status = InitializeCmArmGiccInfo (This);
