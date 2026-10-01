@@ -162,11 +162,40 @@ class UnofficialCorrectionRefsTests(unittest.TestCase):
         with self.assertRaisesRegex(ReconstructionError, "not a descendant"):
             unofficial_source_ref(self.repo, self.radxa, self.edk2)
 
-    def test_divergent_local_and_origin_ref_fails_closed(self) -> None:
+    def test_local_correction_identity_takes_precedence_over_stale_origin(self) -> None:
         git(self.repo, "update-ref", f"refs/remotes/origin/{self.correction}", self.old)
         clear_metadata_caches()
-        with self.assertRaisesRegex(ReconstructionError, "ambiguous local and origin"):
+        self.assertEqual(unofficial_source_ref(self.repo, self.radxa, self.edk2), self.correction)
+        # A correct remote-tracking copy cannot conceal a wrong local head.
+        git(self.repo, "update-ref", f"refs/remotes/origin/{self.correction}", self.new)
+        git(self.repo, "branch", "-f", self.correction, self.old)
+        clear_metadata_caches()
+        with self.assertRaisesRegex(ReconstructionError, "object or tree"):
             unofficial_source_ref(self.repo, self.radxa, self.edk2)
+
+    def test_pending_local_current_advance_with_stale_origin(self) -> None:
+        git(self.repo, "update-ref", f"refs/remotes/origin/{self.current}", self.old)
+        advanced = self.advance_current()
+        write_file(self.repo, "src/firmware.c", "int firmware = 2;\n")
+        replacement = commit_all(self.repo, "correct pending current advance")
+        replacement_ref = self.current_correction + "-pending"
+        git(self.repo, "branch", replacement_ref, replacement)
+        record = {
+            **self.current_record,
+            "ref": replacement_ref,
+            "corrects_object_id": advanced,
+            "corrects_tree_id": tree_id(self.repo, advanced),
+            "object_id": replacement,
+            "tree_id": tree_id(self.repo, replacement),
+        }
+        self.write_manifest([self.record, self.current_record, record], [self.correction, replacement_ref])
+        self.assertEqual(active_unofficial_source_ref(self.repo, self.radxa, self.edk2), replacement_ref)
+        self.write_manifest([self.record, self.current_record, {
+            **record, "corrects_object_id": self.old,
+            "corrects_tree_id": tree_id(self.repo, self.old),
+        }], [self.correction, replacement_ref])
+        with self.assertRaisesRegex(ReconstructionError, "corrects_object_id differs"):
+            active_unofficial_source_ref(self.repo, self.radxa, self.edk2)
 
     def test_checkpoint_correction_cannot_replace_unmatched_active_source(self) -> None:
         git(self.repo, "branch", "-D", self.current_correction)
