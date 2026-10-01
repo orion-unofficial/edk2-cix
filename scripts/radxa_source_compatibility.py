@@ -54,6 +54,7 @@ def adapt_exception_library(repo: Path, candidate: str) -> str:
         return candidate
     with temp_dir(repo, "radxa-exception-index-") as scratch:
         env = dict(os.environ, GIT_INDEX_FILE=str(Path(scratch) / "index"))
+
         def indexed(*args: str) -> str:
             return subprocess.run(["git", "-C", str(repo), *args], env=env,
                                   check=True, stdout=subprocess.PIPE,
