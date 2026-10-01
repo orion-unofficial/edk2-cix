@@ -151,6 +151,9 @@ tests. Not every file needs its own Make target:
 
 - `make test` discovers `test_*.py` through `quality_checks.py`;
   `test_support.py` provides shared test adapters.
+- `cix_release_cache.py` computes trusted-firmware cache keys and the Make
+  prerequisite stamp inside rendered builds. Its build-branch copy supports
+  cache and dependency regression tests.
 - `build_bl33.py`, `warn_debug_categories.py`, `prepare_release_logging.py` and
   `check_release_debug.py` execute inside rendered firmware builds. Their
   build-branch copies support tests and source-contract checks.
