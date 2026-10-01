@@ -250,6 +250,7 @@ CIX_RELEASE_V12_TEE_SOURCE_DIR := $(CIX_RELEASE_SOURCE_DIR)/tee
 CIX_RELEASE_V12_PAYLOAD_DIR := $(CIX_RELEASE_SOURCE_DIR)/release-payloads
 CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD := $(CIX_RELEASE_V12_PAYLOAD_DIR)/bootloader1-2026q1.img
 CIX_RELEASE_BOOTLOADER2_HELPER := scripts/build_cix_release_bootloader2.sh
+CIX_RELEASE_CACHE_HELPER := $(abspath ../scripts/cix_release_cache.py)
 CIX_RELEASE_SIGNING_KEYS_DIR := ../custom/signing-keys/cix-1.2
 CIX_RELEASE_V12_REQUIRED_FILES := \
 	$(CIX_RELEASE_V12_TFA_SOURCE_DIR)/Makefile \
@@ -478,6 +479,8 @@ CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Bu
 BUILD_OUTPUT_DIR = Build/$1/$(UEFI_TARGET)_GCC5
 BUILD_STAGE_DIR = Build/$1/$(UEFI_TARGET)_GCC5.build
 BUILD_CONFIG_STAMP = $(call BUILD_OUTPUT_DIR,$1)/.edk2-cix-build-config
+CIX_RELEASE_BOOTLOADER2_STAMP = $(call BUILD_STAGE_DIR,$1)/.cix-release-bootloader2-inputs
+ACTIVE_CIX_RELEASE_BOOTLOADER2_STAMP = $(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter 1.2,$(CIX_RELEASE_NORMALIZED))),$(call CIX_RELEASE_BOOTLOADER2_STAMP,$1))
 .PHONY: build __build host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool
 build:
 	$(Q)$(LOCKED_MAKE) __build V="$(V)"
@@ -1150,12 +1153,37 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) pref
 	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img) \
 	$(foreach board,$(FIRMWARE_BOARDS),Build/$(board)/$(UEFI_TARGET)_GCC5/Firmwares/bootloader3.img)
 
+# Hash the selected sources on every build, preserving the stamp's mtime for
+# unchanged inputs. Staging must finish first so the OP-TEE STMM input exists.
+ifeq ($(ARTEFACT_MODE):$(CIX_RELEASE_NORMALIZED),custom:1.2)
+.NOTINTERMEDIATE: $(foreach board,$(FIRMWARE_BOARDS),$(call CIX_RELEASE_BOOTLOADER2_STAMP,$(board)))
+.SILENT: $(call CIX_RELEASE_BOOTLOADER2_STAMP,%)
+$(call CIX_RELEASE_BOOTLOADER2_STAMP,%): \
+	$(call BUILD_CONFIG_STAMP,%) \
+	$(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin \
+	$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt \
+	FORCE
+	@$(ENSURE_REPO_LOCK)
+	@python3 "$(CIX_RELEASE_CACHE_HELPER)" \
+		--cache-root "$(CIX_RELEASE_CACHE_ROOT)" \
+		--tfa-dir "$(abspath $(CIX_RELEASE_V12_TFA_SOURCE_DIR))" \
+		--tee-dir "$(abspath $(CIX_RELEASE_V12_TEE_SOURCE_DIR))" \
+		--helper-script "$(abspath $(CIX_RELEASE_BOOTLOADER2_HELPER))" \
+		--mode "$(shell printf '%s' '$(FIRMWARE_TARGET)' | tr '[:upper:]' '[:lower:]')" \
+		--cross-compiler "$(GCC_AARCH64_PREFIX)gcc" \
+		--host-compiler "$${CC:-cc}" \
+		--stmm-path "$(abspath $(call BUILD_STAGE_DIR,$*))/Firmwares/BL32_AP_EFI_STMM.fd" \
+		$(if $(filter TRUE,$(ENABLE_TF_A_FIXES_NORMALIZED)),--enable-tf-a-fixes,) \
+		--stamp "$@"
+endif
+
 .SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img
 $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 	$(call BUILD_CONFIG_STAMP,%) \
 	$(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin \
 	$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt \
 	$(abspath $(CIX_RELEASE_BOOTLOADER2_HELPER)) \
+	$(call ACTIVE_CIX_RELEASE_BOOTLOADER2_STAMP,%) \
 	| $(FIPTOOL_BIN)
 
 	@$(ENSURE_REPO_LOCK)
