@@ -8,7 +8,7 @@ import unittest
 from test_firmware_acpi_runtime import PREAMBLE, ROOT, execute, repo_source
 from reconstruction_common import (
     active_unofficial_source_ref, unofficial_checkpoints_by_edk2,
-    unofficial_source_ref,
+    unofficial_source_ref, resolve_ref,
 )
 
 PATH = 'edk2-platforms/Platform/CIX/Sky1/Drivers/ConfigurationManagerDxe/ConfigurationManager.c'
@@ -83,8 +83,9 @@ class FirmwareCppcRuntimeTests(unittest.TestCase):
             }
             self.assertTrue(refs, 'no selected Unofficial source checkpoints')
             for ref in sorted(refs):
+                resolved = resolve_ref(ROOT, ref)
                 variants[ref] = tuple(subprocess.check_output(
-                    ['git', '-C', str(ROOT), 'show', ref + ':' + prefix + PATH], text=True)
+                    ['git', '-C', str(ROOT), 'show', resolved + ':' + prefix + PATH], text=True)
                     for prefix in ('custom/overlay/', 'src/'))
         seen = set()
         for ref, (custom, vendor) in variants.items():
