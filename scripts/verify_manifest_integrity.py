@@ -132,7 +132,8 @@ def main() -> None:
         raise ReconstructionError(f"manifest integrity verification failed:\n{details}")
     print(
         f"validated manifest integrity: {len(source_target_ref_records(repo))} source-target tree records, "
-        f"{len(base_tree_records(repo))} base tree records, {len(corrections)} source corrections in "
+        f"{len(base_tree_records(repo))} base tree records, "
+        f"{sum(len(refs) for refs in corrections.values())} selected source corrections in "
         f"{format_duration(time.monotonic() - started)}"
     )
 
