@@ -115,9 +115,20 @@ checkpoint of the same Radxa version while keeping vendor-port selection
 independent. The batch runs the structural preflight before registering a
 candidate. It catches cleanly merged overlay regressions such as references to
 removed SMBIOS providers, incorrect CPU performance groups, stale O6 FDF
-layouts, and missing PCIe SMMU build/menu hooks. It rejects release pairs
-whose layout has not yet been reviewed. It also checks that custom O6 USB VBUS
-consumers retain matching MUX1 PinGroup producers. The check can be run directly:
+layouts, and missing PCIe SMMU build/menu hooks. Canonical O6 FDFs use an ordinary
+overlay and an experimental mirror. The canonical family covers configured
+EDK2 releases with Radxa 1.3.0/1.3.1 by deriving the expected complete FDF from
+each candidate's own source FDF, preserving its module paths and semantic body.
+It rejects unknown layout syntax, absent source modules and custom body changes
+requiring review. Explicit historical profiles retain the experimental-only
+202605 layout. Family coverage is a structural check; the separate input checks
+establish source provenance, and build qualification remains required.
+
+The initial RELEASE capacity is project policy (`0x1f4000`, DEBUG `0x400000`),
+independent of EDK2 version. Adaptive builds still use the selected firmware
+catalog's bounds and validate the actual signed FIP before packaging. The
+preflight also checks that custom O6 USB VBUS consumers retain matching MUX1
+PinGroup producers. The check can be run directly:
 
 ```bash
 python3 scripts/validate_radxa13_source.py --repo . \

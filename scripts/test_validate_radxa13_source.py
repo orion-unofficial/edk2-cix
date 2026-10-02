@@ -148,7 +148,19 @@ class Radxa13StructuralTests(unittest.TestCase):
             ROOT, source_ref("202208", "1.3.1"), "202211", "1.3.0"))
 
     def test_unqualified_pair_fails_closed(self) -> None:
-        self.assertIn("unsupported structural profile", validate(ROOT, "HEAD", "202211", "1.3.1")[0])
+        self.assertIn("unsupported structural profile", validate(ROOT, "HEAD", "209901", "1.3.1")[0])
+
+    def test_canonical_family_is_independent_of_tuple_allowlist(self) -> None:
+        # This establishes structural-family coverage, not source provenance
+        # or build qualification for an unprepared EDK2 release.
+        self.assertEqual([], validate(
+            ROOT, source_ref("202208", "1.3.1"), "202302", "1.3.1"))
+
+    def test_canonical_family_still_rejects_semantic_regressions(self) -> None:
+        data = self.reference.text(CPU_ASL).replace(
+            "CORE_4_5_DESIRED_PERF_REG", "CORE_0_TO_3_DESIRED_PERF_REG", 2)
+        problems = mutated_problems(self.reference, "202302", "1.3.1", {CPU_ASL: data})
+        self.assertTrue(any("CPU4 has wrong CPPC register group" in p for p in problems), problems)
 
 
 if __name__ == "__main__":
