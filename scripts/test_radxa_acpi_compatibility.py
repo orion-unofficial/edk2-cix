@@ -119,8 +119,10 @@ class RealAcpiProducerTests(unittest.TestCase):
                 destination = root / version
                 destination.mkdir()
                 ref = 'source/base/edk2/edk2-stable' + version
-                archive = subprocess.check_output(['git', '-C', str(ROOT), 'archive', ref,
-                    'MdePkg/Include', 'EmbeddedPkg/Include', 'MdeModulePkg/Include'])
+                archive = subprocess.check_output([
+                    'git', '-C', str(ROOT), 'archive', ref,
+                    'MdePkg/Include', 'EmbeddedPkg/Include', 'MdeModulePkg/Include',
+                ])
                 with tarfile.open(fileobj=io.BytesIO(archive)) as contents:
                     for member in contents:
                         if member.isfile():
@@ -148,14 +150,17 @@ class RealAcpiProducerTests(unittest.TestCase):
 #define PcdAcpiPrefPmProf 8
 #define PcdAcpiUart3Enable UART3
 ''')
+
             def compile_table(data, table, version, uart, expect=True):
                 unit = root / 'table.c'
                 unit.write_bytes(data + b'\n#include <stdio.h>\nint main(void) { return fwrite(ReferenceAcpiTable, sizeof(' + table.encode() + b'), 1, stdout) != 1; }\n')
                 include = headers[version]
-                command = ['cc', '-std=c11', '-Wall', '-Werror', '-fshort-wchar', '-DUART3=' + str(uart),
+                command = [
+                    'cc', '-std=c11', '-Wall', '-Werror', '-fshort-wchar', '-DUART3=' + str(uart),
                     '-include', str(autogen), '-I', str(platform), '-I', str(include / 'MdePkg/Include'),
                     '-I', str(include / 'MdePkg/Include/X64'), '-I', str(include / 'EmbeddedPkg/Include'),
-                    '-I', str(include / 'MdeModulePkg/Include'), str(unit), '-o', str(root / 'table')]
+                    '-I', str(include / 'MdeModulePkg/Include'), str(unit), '-o', str(root / 'table'),
+                ]
                 result = subprocess.run(command, text=True, capture_output=True)
                 if not expect:
                     self.assertNotEqual(result.returncode, 0)
@@ -166,9 +171,11 @@ class RealAcpiProducerTests(unittest.TestCase):
             # Gate adaptation on the actual selected modern header definitions.
             modern_header = git(ROOT, 'show', 'source/base/edk2/edk2-stable202608:EmbeddedPkg/Include/Library/AcpiLib.h').stdout.encode()
             helper_header = git(ROOT, 'show', 'source/base/edk2/edk2-stable202608:MdeModulePkg/Include/AcpiHelperMacros.h').stdout.encode()
+
             class SelectedHeaders:
                 entries = dict(source.entries, **{ACPI_HELPER_HEADER: None})
                 resolve = source.resolve
+
                 def blob(self, path):
                     return {ACPI_LIB_HEADER: modern_header, ACPI_HELPER_HEADER: helper_header}.get(path) or source.blob(path)
             selected = SelectedHeaders()
