@@ -93,10 +93,14 @@ cache statistics before estimating the improvement for another matrix.
 
 When the selected EDK2 removes ArmExceptionLib, preparation updates newly
 constructed Sky1 source and custom descriptors to the replacement DXE library
-only after checking its AArch64 sources. The adjustment follows EDK2's upstream
-library move and preserves existing default exception handlers, mirror symlinks
-and descriptor line endings. Its child commit records the candidate preimage.
-Existing checkpoints with the obsolete binding fail preflight and remain intact.
+only after checking its AArch64 sources. It also adds the GptLib and
+ArmSmcccSocIdLib bindings when the selected PartitionDxe and SMBIOS processor
+module INFs require those modern dependencies, checking their provider INFs
+before changing the descriptors. These adaptations run together and preserve
+existing default exception handlers, mirror symlinks and descriptor line endings.
+Their child commit records the candidate preimage and upstream changes.
+Historical module INFs without those dependencies keep their original bindings.
+Existing checkpoints needing an adaptation fail preflight and remain intact.
 To qualify this correction after a frozen batch fails, start a new batch with the
 affected EDK2/Radxa selections; retain the original receipts, plan and source refs.
 
