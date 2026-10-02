@@ -98,6 +98,13 @@ ArmSmcccSocIdLib bindings when the selected PartitionDxe and SMBIOS processor
 module INFs require those modern dependencies, checking their provider INFs
 before changing the descriptors. These adaptations run together and preserve
 existing default exception handlers, mirror symlinks and descriptor line endings.
+Preparation also adapts custom FADT, DBG2 and SPCR producers when the selected
+`AcpiLib.h` no longer defines their GAS initializer macros. It verifies the
+replacement definitions in `AcpiHelperMacros.h`, adds that include, and uses
+`ACPI_NULL_GAS` and `ACPI_GAS32`. Imported ACPI source remains unchanged; a
+mirror requiring this adaptation becomes a regular custom overlay. Older headers
+and already adapted overlays retain their exact bytes. Compile regression tests
+use the real EDK2 headers and compare emitted table bytes across the transition.
 Their child commit records the candidate preimage and upstream changes.
 Historical module INFs without those dependencies keep their original bindings.
 Existing checkpoints needing an adaptation fail preflight and remain intact.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Narrow Sky1 source adaptations for selected EDK2 library dependencies."""
+"""Narrow Sky1 source adaptations for selected EDK2 interfaces."""
 
 from __future__ import annotations
 
@@ -73,6 +73,7 @@ def add_library_binding(data: bytes, name: str, provider: str, anchor: str) -> b
 def source_library_updates(tree: GitTree) -> dict[str, bytes]:
     """Adapt known dependencies together, gated on the selected consumer INFs."""
     updates = exception_library_updates(tree)
+    updates.update(acpi_helper_updates(tree))
     for path in DESCRIPTORS:
         if path not in tree.entries:
             continue
@@ -97,6 +98,52 @@ def source_library_updates(tree: GitTree) -> dict[str, bytes]:
             if tree.entries[resolved].mode != "100644":
                 raise ReconstructionError(f"unexpected Sky1 descriptor mode: {resolved}")
             updates[resolved] = data
+    return updates
+
+
+ACPI_TABLE_DIRECTORY = "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/"
+ACPI_LIB_HEADER = "src/edk2/EmbeddedPkg/Include/Library/AcpiLib.h"
+ACPI_HELPER_HEADER = "src/edk2/MdeModulePkg/Include/AcpiHelperMacros.h"
+ACPI_MACRO_RENAMES = {"NULL_GAS": "ACPI_NULL_GAS", "ARM_GAS32": "ACPI_GAS32"}
+
+
+def acpi_helper_updates(tree: GitTree) -> dict[str, bytes]:
+    """Adapt custom table producers when the selected EDK2 removed old GAS macros.
+
+    Imported table bytes stay intact. A mirror needing adaptation becomes a
+    regular custom overlay; unaffected mirrors retain their exact symlink blob.
+    """
+    if ACPI_LIB_HEADER not in tree.entries:
+        return {}
+    library = tree.blob(tree.resolve(ACPI_LIB_HEADER))
+    updates = {}
+    for name in ("Fadt", "Dbg2", "Spcr"):
+        path = ACPI_TABLE_DIRECTORY + name + ".aslc"
+        if path not in tree.entries:
+            continue
+        data = tree.blob(tree.resolve(path))
+        needed = [old for old in ACPI_MACRO_RENAMES
+                  if re.search(rb"\b" + old.encode() + rb"\b", data)
+                  and not re.search(rb"(?m)^#define[ \t]+" + old.encode() + rb"\b", library)]
+        if not needed:
+            continue
+        if ACPI_HELPER_HEADER not in tree.entries:
+            raise ReconstructionError("missing selected ACPI helper macro header")
+        helper = tree.blob(tree.resolve(ACPI_HELPER_HEADER))
+        for old in needed:
+            new = ACPI_MACRO_RENAMES[old]
+            if not re.search(rb"(?m)^#define[ \t]+" + new.encode() + rb"\b", helper):
+                raise ReconstructionError(f"selected ACPI helper header lacks {new}")
+            data = re.sub(rb"\b" + old.encode() + rb"\b", new.encode(), data)
+        include = b"#include <AcpiHelperMacros.h>"
+        if include not in data:
+            anchor = rb"(?m)^#include <Library/AcpiLib.h>(\r?\n)"
+            data, count = re.subn(anchor, lambda m: include + m[1] + m[0], data)
+            if count != 1:
+                raise ReconstructionError(f"unexpected ACPI library include in {path}")
+        if tree.entries[path].mode not in ("100644", "120000"):
+            raise ReconstructionError(f"unexpected ACPI table mode: {path}")
+        updates[path] = data
     return updates
 
 
@@ -149,15 +196,16 @@ def adapt_source_libraries(repo: Path, candidate: str) -> str:
                                  stderr=subprocess.PIPE).stdout.decode().strip()
             indexed("update-index", "--cacheinfo", "100644", oid, path)
         result = indexed("write-tree")
-    message = ("source: adapt Sky1 libraries to selected EDK2\n\n"
+    message = ("source: adapt Sky1 interfaces to selected EDK2\n\n"
                f"Source-Compatibility-Input: {candidate}\n"
                "Source-Compatibility-Upstream: d2fc49ac55eae1366d4fdf262129313d08b23d19\n"
                "Source-Compatibility-Upstream: 00a865d595591fef44dc9f23353f5c3d50152e04\n"
-               "Source-Compatibility-Upstream: 5c6e9d475fe2943f2844ca879785c198588a30d0\n")
+               "Source-Compatibility-Upstream: 5c6e9d475fe2943f2844ca879785c198588a30d0\n"
+               "Source-Compatibility-Upstream: 3b61f4d266ba8e8a4c320a06295637b01f098c2b\n")
     return git(repo, "commit-tree", result, "-p", candidate, "-m", message).stdout.strip()
 
 
 def validate_source_libraries(repo: Path, candidate: str) -> None:
     """Existing checkpoints need explicit correction rather than silent ref movement."""
     if source_library_updates(GitTree(repo, candidate)):
-        raise ReconstructionError("obsolete Sky1 library bindings; prepare a new candidate")
+        raise ReconstructionError("obsolete Sky1 interfaces; prepare a new candidate")
