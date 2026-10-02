@@ -56,11 +56,17 @@ def canonical_fdf(data: bytes) -> bytes:
     if sections != [b"SKY1_BL33_UEFI"]:
         raise ReconstructionError("unreviewed O6 FDF FD sections")
     fd = data.split(b"[FD.SKY1_BL33_UEFI]\n", 1)[1].split(b"[FV.", 1)[0]
+    if re.search(rb"(?m)^[ \t]*\[[^\]]+\]", fd):
+        raise ReconstructionError("unreviewed O6 FDF section within FD layout")
+    if re.findall(rb"(?m)^\[FV\.([^\]]+)\]$", data) != [b"FvMain", b"FVMAIN_COMPACT"]:
+        raise ReconstructionError("unreviewed O6 FDF FV sections")
     for field in (b"BaseAddress", b"Size", b"ErasePolarity", b"BlockSize", b"NumBlocks"):
         if len(re.findall(rb"(?m)^[ \t]*" + field + rb"[ \t]*=", fd)) != 1:
             raise ReconstructionError("unreviewed O6 FDF field count")
     if not re.search(rb"(?m)^BaseAddress[ \t]*=[ \t]*0x84400000\|gArmTokenSpaceGuid.PcdFdBaseAddress$", fd):
         raise ReconstructionError("unreviewed O6 FDF base address")
+    if not re.search(rb"(?m)^ErasePolarity[ \t]*=[ \t]*1$", fd):
+        raise ReconstructionError("unreviewed O6 FDF erase polarity")
     if len(re.findall(rb"(?m)^BlockSize[ \t]*=[ \t]*0x00001000$", fd)) != 1:
         raise ReconstructionError("unreviewed O6 FDF block geometry")
     regions = re.findall(rb"(?m)^0x[0-9a-fA-F]+\|([^\n]+)$", fd)
