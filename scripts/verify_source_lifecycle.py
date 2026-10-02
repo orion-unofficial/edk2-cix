@@ -35,6 +35,9 @@ Optional variables:
   FROM_REF=<ref>
       Source ref whose overlay paths should be projected.
       Default: the policy-selected source/unofficial/<line>/current ref.
+  FROM_PORT_REF=<ref>
+      Optional exact recorded vendor-port ownership baseline for FROM_REF.
+      Custom src additions remain custom-owned; arbitrary baselines are rejected.
   TARGET_REF=<ref[,ref...]>
       Specific target refs to validate. If omitted, every
       source/unofficial/edk2-stable* release branch is used.
@@ -52,6 +55,7 @@ fails rather than guessing when a source path maps to multiple exact candidates.
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
     p.add_argument("--from-ref", default=os.environ.get("FROM_REF", ""))
+    p.add_argument("--from-port-ref", default=os.environ.get("FROM_PORT_REF", ""))
     p.add_argument("--target-ref", default=os.environ.get("TARGET_REF", ""))
     p.add_argument("--normalise-mode", default=os.environ.get("SOURCE_LIFECYCLE_NORMALISE", "exact"))
     p.add_argument("--v", default=os.environ.get("V", "0"))
@@ -90,7 +94,7 @@ def main() -> None:
     problems: list[str] = []
     for target in targets:
         enforce_source_tree_policy(repo, ref=target, label=target)
-        projections = project_overlay_tree(repo, args.from_ref, target)
+        projections = project_overlay_tree(repo, args.from_ref, target, source_base_ref=args.from_port_ref or None)
         total += len(projections)
         normalise_required = required_normalisation(projections)
         normalise_total += len(normalise_required)

@@ -127,6 +127,17 @@ using its default dry run first. These source checks establish reconstruction;
 firmware build receipts remain tied to their exact source IDs and must be
 requalified for a corrected firmware release.
 
+For source ownership audits, `verify-source-lifecycle` accepts
+`FROM_PORT_REF=<recorded-vendor-port>` alongside `FROM_REF`. It verifies the
+source record's commit/tree and exact vendor-port binding, including selected
+corrections through their original checkpoint. A custom `src/` file absent
+from that genuine baseline remains a project addition, even when a regular
+overlay also overrides it. This is ownership classification only; it does not
+replace custom source bytes as merge preimages or create vendor files.
+Destination collisions require review even when differing only in whitespace.
+A mirror of a custom addition requires that exact addition in the destination.
+Original vendor-source deletions retain the ordinary fail-closed checks.
+
 ## Validation and expansion
 
 Run `make test` and `make lint`, including all-checkpoint input checks and the

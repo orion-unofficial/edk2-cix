@@ -18,7 +18,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from reconstruction_common import ReconstructionError, git, resolve_ref
+from reconstruction_common import (
+    ReconstructionError, git, resolve_ref, load_ref_records, rev_parse, tree_id,
+    unofficial_correction_ref,
+)
 from source_policy import (
     NORMAL_FILE_MODES,
     OVERLAY_PREFIX,
@@ -256,8 +259,44 @@ def project_overlay_entry(repo: Path, lifecycle: SourceLifecycle, overlay_path: 
     )
 
 
-def project_overlay_tree(repo: Path, from_ref: str, to_ref: str, paths: Iterable[str] | None = None) -> list[OverlayProjection]:
+def validated_source_base(repo: Path, source_ref: str, base_ref: str) -> str:
+    """Bind an optional ownership baseline to exact recorded checkpoint inputs."""
+    canonical = source_ref.removeprefix("refs/heads/").removeprefix("refs/remotes/origin/")
+    records = load_ref_records(repo)
+    matches = [record for record in records if record.get("ref") == canonical]
+    if len(matches) != 1:
+        raise ReconstructionError("source ownership baseline requires one recorded source ref")
+    record = matches[0]
+    if (record.get("object_id") != rev_parse(repo, source_ref)
+            or record.get("tree_id") != tree_id(repo, source_ref)):
+        raise ReconstructionError("source ownership record identity differs")
+    if record.get("type") == "unofficial-source-correction":
+        original_ref = record.get("corrects_ref")
+        if unofficial_correction_ref(repo, record.get("radxa_release", ""),
+                                     record.get("edk2_base", ""), original_ref) != canonical:
+            raise ReconstructionError("source ownership correction is not selected")
+        originals = [row for row in records if row.get("ref") == original_ref]
+        if (len(originals) != 1 or originals[0].get("object_id") != record.get("corrects_object_id")
+                or originals[0].get("tree_id") != record.get("corrects_tree_id")
+                or originals[0].get("radxa_release") != record.get("radxa_release")
+                or originals[0].get("edk2_base") != record.get("edk2_base")):
+            raise ReconstructionError("source ownership original identity differs")
+        record = originals[0]
+    base = base_ref.removeprefix("refs/heads/").removeprefix("refs/remotes/origin/")
+    if record.get("type") != "unofficial-release-checkpoint" or record.get("radxa_source_ref") != base:
+        raise ReconstructionError("source ownership baseline differs from the recorded vendor port")
+    ports = [row for row in records if row.get("ref") == base]
+    if (len(ports) != 1 or ports[0].get("type") not in {"vendor-source", "ported-vendor-source"}
+            or ports[0].get("object_id") != rev_parse(repo, base_ref)
+            or ports[0].get("tree_id") != tree_id(repo, base_ref)):
+        raise ReconstructionError("source ownership vendor port identity differs")
+    return base_ref
+
+
+def project_overlay_tree(repo: Path, from_ref: str, to_ref: str, paths: Iterable[str] | None = None,
+                         *, source_base_ref: str | None = None) -> list[OverlayProjection]:
     lifecycle = SourceLifecycle(repo, from_ref, to_ref)
+    baseline = source_entries(repo, validated_source_base(repo, from_ref, source_base_ref)) if source_base_ref else None
     entries = overlay_entries(repo, from_ref)
     selected = sorted(paths) if paths is not None else sorted(entries)
     projections: list[OverlayProjection] = []
@@ -268,6 +307,25 @@ def project_overlay_tree(repo: Path, from_ref: str, to_ref: str, paths: Iterable
                 OverlayProjection("error", "missing-overlay", path, None, None, f"{path} is not present in {from_ref}")
             )
             continue
+        source_path = overlay_source_path(path)
+        addition = lifecycle.from_entries.get(source_path)
+        if baseline is not None and source_path not in baseline and addition is not None:
+            target = lifecycle.to_entries.get(source_path)
+            if addition.mode not in NORMAL_FILE_MODES or (target is not None and target != addition):
+                projections.append(OverlayProjection(
+                    "error", "custom-source-collision", path, source_path, None,
+                    f"{source_path}: custom source addition collides with destination source or has unsupported mode"))
+                continue
+            if target is None:
+                if entry.mode in NORMAL_FILE_MODES:
+                    projections.append(OverlayProjection(
+                        "ok", "keep-custom-source-addition", path, source_path, path,
+                        f"{source_path} is a recorded custom addition absent from the vendor baseline; retain its overlay"))
+                else:
+                    projections.append(OverlayProjection(
+                        "error", "broken-custom-source-mirror", path, source_path, None,
+                        f"{path}: custom source addition must be carried before retaining its mirror", mirror=True))
+                continue
         projections.append(project_overlay_entry(repo, lifecycle, path, entry))
     return projections
 
