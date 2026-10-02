@@ -25,14 +25,44 @@ INPUTS = {
     "source": ("source/vendor/radxa/1.3.1/edk2-stable202208",
                "8628b567985a6943897faf23aa2e392329bfb4b6", "b254bc89d11d3457d5ce1b132d7bdf3d09ebe704"),
 }
-BLOBS = {'src/edk2/MdeModulePkg/Library/DxeCapsuleLibFmp/DxeCapsuleLib.c': {'preimage_sha256': '22354ec8bfa09b5a890e7693ef65e7da462cb17a8697af12115051d23baa7edc',
-                                                                    'output_sha256': '16aa7a4d1a19d5da4265899e92a224ece3db5b5d8171d05078000c44cd1db87e'},
- 'src/edk2/MdeModulePkg/Library/DxeCapsuleLibFmp/DxeCapsuleRuntime.c': {'preimage_sha256': 'e9faa1423bbb2b8843824f50d0ec1c1cf8aa2d26c0ec6e645bfe7fafc7ee2ea0',
-                                                                        'output_sha256': 'df30a72055dc8d385e640c6cba7e2c99e4013adf75e3c30a0fb7b017207daa19'},
- 'src/edk2-platforms/Platform/CIX/Sky1/Library/ArmPsciResetSystemLib/ResetSystemLib.c': {'preimage_sha256': '4208cd0913220c02740d80a53e8f25b6b1d1f3f310cdfe51ba5a08c5d12decf8',
-                                                                                         'output_sha256': '448ae300c2984cf8576025a3eded94844eeaf8553c84faf609201ac881efd1bc'},
- 'src/edk2-platforms/Platform/CIX/Sky1/Library/ArmPsciResetSystemLib/ArmPsciResetSystemLib.c': {'preimage_sha256': '85d10467d25dcc866c533cf4012e103398c8b1a1894be8410b2b6abe0b6665c5',
-                                                                                                'output_sha256': None}}
+BLOBS = {
+    "src/edk2/MdeModulePkg/Library/DxeCapsuleLibFmp/DxeCapsuleLib.c": {
+        "preimage_sha256": (
+            "22354ec8bfa09b5a890e7693ef65e7da462cb17a8697af12115051d23baa7edc"
+        ),
+        "output_sha256": (
+            "16aa7a4d1a19d5da4265899e92a224ece3db5b5d8171d05078000c44cd1db87e"
+        ),
+    },
+    "src/edk2/MdeModulePkg/Library/DxeCapsuleLibFmp/DxeCapsuleRuntime.c": {
+        "preimage_sha256": (
+            "e9faa1423bbb2b8843824f50d0ec1c1cf8aa2d26c0ec6e645bfe7fafc7ee2ea0"
+        ),
+        "output_sha256": (
+            "df30a72055dc8d385e640c6cba7e2c99e4013adf75e3c30a0fb7b017207daa19"
+        ),
+    },
+    (
+        "src/edk2-platforms/Platform/CIX/Sky1/Library/ArmPsciResetSystemLib/"
+        "ResetSystemLib.c"
+    ): {
+        "preimage_sha256": (
+            "4208cd0913220c02740d80a53e8f25b6b1d1f3f310cdfe51ba5a08c5d12decf8"
+        ),
+        "output_sha256": (
+            "448ae300c2984cf8576025a3eded94844eeaf8553c84faf609201ac881efd1bc"
+        ),
+    },
+    (
+        "src/edk2-platforms/Platform/CIX/Sky1/Library/ArmPsciResetSystemLib/"
+        "ArmPsciResetSystemLib.c"
+    ): {
+        "preimage_sha256": (
+            "85d10467d25dcc866c533cf4012e103398c8b1a1894be8410b2b6abe0b6665c5"
+        ),
+        "output_sha256": None,
+    },
+}
 
 
 class RadxaSourceConflictError(ValueError):
