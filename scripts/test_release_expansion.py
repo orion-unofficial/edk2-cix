@@ -387,6 +387,21 @@ class ExpansionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "runner changed"):
             batch.frozen_runner(state, plan)
 
+    def test_new_source_helpers_are_frozen_and_guarded(self):
+        state, plan, _ = self.init()
+        for name in ("radxa13_fdf.py", "radxa13_source_conflicts.py", "source_lifecycle.py"):
+            with self.subTest(helper=name):
+                self.assertIn(name, plan["runner_hashes"])
+                path = state / "repo/scripts" / name
+                original = path.read_bytes()
+                try:
+                    path.write_bytes(original + b"# altered source interpretation\n")
+                    with self.assertRaisesRegex(ValueError, "runner changed"):
+                        batch.guard(state, plan)
+                finally:
+                    path.write_bytes(original)
+        batch.guard(state, plan)
+
     def test_revalidation_cli_refuses_a_running_batch(self):
         state, _, case, row = self.prepared_case()
         with (state / "lock").open("a") as lock:
