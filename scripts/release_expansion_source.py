@@ -30,6 +30,9 @@ from source_porting import (
     align_release_metadata, apply_source_delta_to_base, resolved_source_port_stage,
     resume_source_delta_tree,
 )
+from radxa13_source_conflicts import (
+    INPUTS as RADXA13_CONFLICT_INPUTS, RadxaSourceConflictError, validated_source_resolution,
+)
 from source_policy import enforce_source_tree_policy
 from uplift_radxa_release import port_candidate
 from validate_release_inputs import input_problems, validate_inputs
@@ -323,7 +326,23 @@ def prepare(repo: Path, edk2: str, radxa: str, journal: Path,
         old_edk2, old_radxa, old_source = seed
         old_base = "edk2-stable" + old_edk2
         port = f"source/port/radxa/{radxa}/{base}"
-        if resolutions.get("port_ref"):
+        port_provenance = {"ported_from": radxa_source_ref(repo, old_radxa, old_base)}
+        if resolutions.get("port_source_journal"):
+            try:
+                oid = validated_source_resolution(
+                    repo, Path(resolutions["port_source_journal"]), edk2, radxa)
+            except (RadxaSourceConflictError, OSError, ValueError) as exc:
+                raise ReconstructionError(f"vendor-port source journal rejected: {exc}") from exc
+            if resolutions.get("port_ref") and rev_parse(repo, resolutions["port_ref"]) != oid:
+                raise ReconstructionError("PORT_REF differs from the validated source resolution")
+            # The reviewed merge may start from a different source than the
+            # nearest automatic seed. Preserve its actual input identities.
+            port_provenance = {
+                "ported_from": RADXA13_CONFLICT_INPUTS["new"][0],
+                "vendor_delta_from": RADXA13_CONFLICT_INPUTS["old"][0],
+                "vendor_delta_to": RADXA13_CONFLICT_INPUTS["source"][0],
+            }
+        elif resolutions.get("port_ref"):
             oid = rev_parse(repo, resolutions["port_ref"])
         elif old_edk2 == edk2:
             oid = port_candidate(repo, from_release=old_radxa, to_release=radxa,
@@ -335,7 +354,7 @@ def prepare(repo: Path, edk2: str, radxa: str, journal: Path,
         register_new(repo, journal, port, oid, {
             "type": "ported-vendor-source", "vendor": "radxa", "radxa_release": radxa,
             "edk2_base": base, "base_ref": f"source/cache/base/edk2/{base}",
-            "ported_from": radxa_source_ref(repo, old_radxa, old_base),
+            **port_provenance,
             "format": "materialised source tree",
         })
 

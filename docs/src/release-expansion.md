@@ -227,6 +227,31 @@ patch conflicts by reconstructing and mechanically regenerating the patch;
 never hand-edit patch hunks. Then rerun with `--retry-failed`. The batch does not
 guess conflict resolutions or need a person to babysit successful compiles.
 
+For the reviewed 202408.01/1.3.1 source conflict, `port_source_journal` can
+select a receipt from the private repository. The host helper
+`scripts/radxa13_source_conflicts.py` accepts only the recorded original source
+commits and normalized input trees, reproduces the complete conflict tree, and
+checks the resolution's exact parent, four changed files, output bytes, modes,
+and private resolution ref. Every untouched tree entry is bounded by that
+reproduction and changed-path check. Other pairs require a separate review.
+
+```json
+{
+  "202408.01/1.3.1": {
+    "port_source_journal": "<absolute-path-to-reviewed-source-resolution.json>",
+    "port_ref": "<matching-resolution-commit>"
+  }
+}
+```
+
+`port_ref` is optional when the journal is selected; if provided, it must resolve
+to the validated commit. Registration records the journal's actual 1.2.1 port
+and vendor delta inputs, even if the nearest automatic seed is a later Radxa
+release. The journal does not advance source refs or qualify a firmware build.
+Host regressions check both capsule INF variants and execute the resolved reset
+implementation with stubbed EC, GPIO and PSCI calls. Board behavior remains an
+explicit qualification step.
+
 `unofficial_stage: final` accepts a fully reviewed tree only with exact identity
 bindings. A parent may also be an explicitly selected immutable source
 correction of a recorded checkpoint. The correction must pass its full identity,
