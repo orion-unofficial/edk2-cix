@@ -2,8 +2,9 @@
 """Read-only structural preflight for retained custom Radxa 1.3 source trees.
 
 This checks source semantics that can silently regress during a clean overlay
-merge.  It is deliberately limited to the EDK2/Radxa layouts listed below;
-it does not establish build or hardware correctness.
+merge. Canonical O6 FDFs are checked against their own source-era body;
+explicit legacy profiles retain their historical layout. Neither family
+establishes build or hardware correctness.
 """
 
 from __future__ import annotations
@@ -15,13 +16,16 @@ import re
 import subprocess
 from pathlib import Path
 
+from radxa13_fdf import RELEASE_SIZE, expected_fdf, supported_family
+from reconstruction_common import ReconstructionError
+
 
 O6 = "Platform/Radxa/Orion/O6"
 SMBIOS = f"edk2-platforms/{O6}/Drivers/PlatformSmbios"
 O6_ACPI = f"custom/overlay/edk2-platforms/{O6}/Drivers/AcpiPlatfomTables"
 CPU_ASL = "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/Dsdt-CPU.asl"
 PCIE_MENU = "edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu"
-SUPPORTED_PROFILES = {
+LEGACY_PROFILES = {
     ("202208", "1.3.0"): ("overlay", 0x1F4000),
     ("202208", "1.3.1"): ("overlay", 0x1F4000),
     ("202211", "1.3.0"): ("overlay", 0x1F4000),
@@ -134,9 +138,15 @@ def _cppc(tree: GitTree, problems: list[str]) -> None:
 
 
 def _release_fdf(tree: GitTree, edk2: str, radxa: str, problems: list[str]) -> None:
-    layout, release_size = SUPPORTED_PROFILES[(edk2, radxa)]
     ordinary = f"custom/overlay/edk2-platforms/{O6}/O6.fdf"
     experimental = f"custom/overlay-experimental-uefi-settings/edk2-platforms/{O6}/O6.fdf"
+    # The historical experimental-only checkpoint remains explicit. Newly
+    # normalized checkpoints use one reviewed family, independently of EDK2.
+    legacy = LEGACY_PROFILES.get((edk2, radxa))
+    if legacy and legacy[0] == "experimental" and ordinary not in tree.entries:
+        layout, release_size = legacy
+    else:
+        layout, release_size = "overlay", RELEASE_SIZE
     if layout == "overlay":
         if tree.entries.get(ordinary, Entry("", "")).mode != "100644":
             problems.append(f"{ordinary}: expected regular custom FDF")
@@ -167,6 +177,13 @@ def _release_fdf(tree: GitTree, edk2: str, radxa: str, problems: list[str]) -> N
                 ("SIZE", release_size), ("BLOCKS", release_size // 0x1000)]
     if [(key, int(value, 16)) for key, value in defines] != expected:
         problems.append(f"{active}: wrong DEBUG/RELEASE BL33 FDF size or block count")
+    if layout == "overlay":
+        try:
+            expected_data = expected_fdf(tree)
+            if data.encode().replace(b"\r\n", b"\n") != expected_data:
+                problems.append(f"{active}: differs from canonical FDF derived from its own source body")
+        except (ReconstructionError, ValueError) as exc:
+            problems.append(f"{active}: {exc}")
 
 
 def _smmu_hooks(tree: GitTree, problems: list[str]) -> None:
@@ -235,7 +252,7 @@ def _usb_mux1_pins(tree: GitTree, problems: list[str]) -> None:
 
 def validate(repo: Path, revision: str, edk2: str, radxa: str) -> list[str]:
     """Return all structural problems; reject unsupported layouts explicitly."""
-    if (edk2, radxa) not in SUPPORTED_PROFILES:
+    if (edk2, radxa) not in LEGACY_PROFILES and not supported_family(repo, edk2, radxa):
         return [f"unsupported structural profile: edk2-{edk2}/radxa-{radxa}"]
     tree = GitTree(repo, revision)
     problems: list[str] = []
@@ -263,7 +280,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         problems = validate(args.repo, args.revision, args.edk2, args.radxa)
-    except (subprocess.CalledProcessError, ValueError) as exc:
+    except (subprocess.CalledProcessError, ReconstructionError, ValueError) as exc:
         problems = [str(exc)]
     for problem in problems:
         print(problem)
