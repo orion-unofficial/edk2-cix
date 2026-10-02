@@ -1564,25 +1564,34 @@ def release_entry(repo: Path, release: str | None, require: bool = False) -> tup
         if require:
             raise ReconstructionError("RELEASE is required and no default release is configured")
         raise ReconstructionError("no release selected")
-    entries = release_entries(repo)
-    matches = [
-        (branch, entry)
-        for branch, entry in entries.items()
+    # Default selection retains the comprehensive path. Explicit builds only
+    # need the selected projection, while matrix verification still uses
+    # release_entries() to reconstruct every configured target.
+    entries = release_entries(repo) if not release else None
+    branches = set(entries) if entries is not None else matrix_release_branches(repo)[0]
+    if entries is None and any("/unofficial" in branch for branch in branches):
+        # Complete synthesis previously validated all retained corrections even
+        # for an upstream/vendor selection. Keep that integrity gate.
+        unofficial_correction_refs(repo)
+    matches = sorted(
+        branch for branch in branches
         if selected in {branch, short_release(branch), source_target_name(branch)}
-    ]
-    if len(matches) == 1:
-        return matches[0]
+    )
     if len(matches) > 1:
-        source_targets = "\n".join(f"  - {branch}" for branch, _entry in matches)
+        source_targets = "\n".join(f"  - {branch}" for branch in matches)
         raise ReconstructionError(f"ambiguous firmware source target: {selected}\n{source_targets}")
-
-    branch = release_to_branch(selected)
-    entry = entries.get(branch) or entries.get(short_release(branch))
-    if entry is None:
-        raise ReconstructionError(
-            f"unknown firmware source target: {selected}\n"
-            "Use 'make help-source-targets' to list configured source targets."
-        )
+    if matches:
+        branch = matches[0]
+    else:
+        branch = release_to_branch(selected)
+        if branch not in branches:
+            branch = short_release(branch)
+        if branch not in branches:
+            raise ReconstructionError(
+                f"unknown firmware source target: {selected}\n"
+                "Use 'make help-source-targets' to list configured source targets."
+            )
+    entry = entries[branch] if entries is not None else synthesise_release_entry(repo, branch)
     return branch, entry
 
 
