@@ -24,11 +24,7 @@
 extern EFI_SYSTEM_RESOURCE_TABLE  *mEsrtTable;
 EFI_EVENT                         mDxeRuntimeCapsuleLibVirtualAddressChangeEvent = NULL;
 EFI_EVENT                         mDxeRuntimeCapsuleLibReadyToBootEvent          = NULL;
-<<<<<<< df3196dfeff1317d6ae7c072b0c17caeacd7374d
 extern BOOLEAN                    mDxeCapsuleLibReadyToBootEvent;
-=======
-BOOLEAN                           mDxeCapsuleLibReadyToBootEvent                 = FALSE;
->>>>>>> e9c6064f950e1e633d08d122345e17a3a7b01e9a
 
 /**
   Convert EsrtTable physical address to virtual address.

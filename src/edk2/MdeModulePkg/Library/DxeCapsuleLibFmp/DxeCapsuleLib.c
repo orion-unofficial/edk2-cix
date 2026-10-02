@@ -49,11 +49,7 @@ EFI_EVENT  mDxeCapsuleLibEndOfDxeEvent = NULL;
 
 EDKII_FIRMWARE_MANAGEMENT_PROGRESS_PROTOCOL  *mFmpProgress = NULL;
 
-<<<<<<< df3196dfeff1317d6ae7c072b0c17caeacd7374d
 BOOLEAN  mDxeCapsuleLibReadyToBootEvent = FALSE;
-=======
-extern BOOLEAN  mDxeCapsuleLibReadyToBootEvent;
->>>>>>> e9c6064f950e1e633d08d122345e17a3a7b01e9a
 
 /**
   Initialize capsule related variables.
