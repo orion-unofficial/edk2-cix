@@ -16,6 +16,7 @@ from dsdt_cpu_conflict import (
 )
 from integrate_source_release import manifest_path_for, ported_radxa_source_snapshot, upsert_manifest
 from release_expansion import save
+from radxa13_fdf import normalize_source_fdf
 from radxa_source_compatibility import adapt_source_libraries, validate_source_libraries
 from render_release_branch import (
     cached_worktree_is_dirty, render_from_plan, validate_release_metadata,
@@ -406,6 +407,8 @@ def prepare(repo: Path, edk2: str, radxa: str, journal: Path,
         source = align_release_metadata(repo, candidate=oid, new_port_ref=port,
                                         to_release=radxa, verbose=False)
         source = adapt_source_libraries(repo, source)
+        if radxa in ("1.3.0", "1.3.1"):
+            source = normalize_source_fdf(repo, source, edk2, radxa)
     else:
         old_source = source
 
