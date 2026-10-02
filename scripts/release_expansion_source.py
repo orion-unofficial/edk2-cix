@@ -23,7 +23,7 @@ from render_release_branch import (
 from reconstruction_common import (
     BUILD_INFRA_OVERLAY_PATHS, ReconstructionError, check_immutable_refs,
     clear_metadata_caches, git, load_ref_records, main_wrapper, matrix_release_values,
-    radxa_source_ref, ref_exists, rev_parse, tree_id, version_key,
+    radxa_source_ref, ref_exists, rev_parse, tree_id, version_key, unofficial_correction_ref,
     update_ref_record, synthesise_release_entry, release_to_branch,
 )
 from source_porting import (
@@ -107,11 +107,30 @@ def validated_final_resolution(repo: Path, resolutions: dict, resolved: str,
             not parent_ref.startswith("source/unofficial/") or
             rev_parse(repo, parent_ref) != parent_oid):
         raise ReconstructionError("final unofficial resolution parent differs")
-    parent_records = [record for record in load_ref_records(repo)
-                      if record.get("ref") == parent_ref]
-    if (len(parent_records) != 1 or
-            parent_records[0].get("type") != "unofficial-release-checkpoint" or
-            parent_records[0].get("radxa_source_ref") != parent_port or
+    records = load_ref_records(repo)
+    parent_records = [record for record in records if record.get("ref") == parent_ref]
+    if len(parent_records) != 1:
+        raise ReconstructionError("final unofficial resolution parent port differs")
+    parent_record = parent_records[0]
+    if parent_record.get("type") == "unofficial-source-correction":
+        # A selected immutable correction retains its original checkpoint's
+        # vendor-port binding; never infer the port from tree similarity.
+        original_ref = parent_record.get("corrects_ref")
+        original_records = [record for record in records if record.get("ref") == original_ref]
+        if (unofficial_correction_ref(
+                repo, parent_record.get("radxa_release", ""),
+                parent_record.get("edk2_base", ""), original_ref) != parent_ref
+                or len(original_records) != 1):
+            raise ReconstructionError("final unofficial resolution correction parent is not selected")
+        original = original_records[0]
+        if (original.get("object_id") != parent_record.get("corrects_object_id")
+                or original.get("tree_id") != parent_record.get("corrects_tree_id")
+                or original.get("radxa_release") != parent_record.get("radxa_release")
+                or original.get("edk2_base") != parent_record.get("edk2_base")):
+            raise ReconstructionError("final unofficial resolution correction original provenance differs")
+        parent_record = original
+    if (parent_record.get("type") != "unofficial-release-checkpoint" or
+            parent_record.get("radxa_source_ref") != parent_port or
             rev_parse(repo, parent_port) != resolutions["unofficial_final_parent_port_commit"]):
         raise ReconstructionError("final unofficial resolution parent port differs")
     if (resolutions["unofficial_final_destination_port_ref"] != destination_port or

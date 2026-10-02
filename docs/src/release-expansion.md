@@ -228,7 +228,13 @@ never hand-edit patch hunks. Then rerun with `--retry-failed`. The batch does no
 guess conflict resolutions or need a person to babysit successful compiles.
 
 `unofficial_stage: final` accepts a fully reviewed tree only with exact identity
-bindings. For example, when a reviewed 202208/1.3.0 commit is parented to the
+bindings. A parent may also be an explicitly selected immutable source
+correction of a recorded checkpoint. The correction must pass its full identity,
+original-tree and ancestry checks, and its original checkpoint must retain the
+exact vendor-port binding. Unselected corrections and corrections of mutable
+line tips cannot replace this checkpoint provenance. Record the correction as
+the actual Git parent; keep the original checkpoint and its metadata intact.
+For example, when a reviewed 202208/1.3.0 commit is parented to the
 202208/1.3.1 checkpoint, record its actual parent and vendor port rather than
 the automatic source seed:
 

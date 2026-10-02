@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import tempfile
@@ -15,6 +16,7 @@ from source_lifecycle import (
     normalise_overlay_lifecycle,
     project_overlay_tree,
 )
+from reconstruction_common import ReconstructionError, clear_metadata_caches, tree_id
 from test_support import commit_all, git, load_function_tests, require, switch_orphan, write_file
 
 
@@ -327,6 +329,120 @@ def test_normalisation_blockers_respect_modes() -> None:
         require(len(validate_blockers) == 1, f"expected one validate-mode blocker, got {validate_blockers}")
         require(validate_blockers[0].action == "rename", validate_blockers[0].action)
     finally:
+        shutil.rmtree(repo)
+
+
+def ownership_fixture():
+    repo = make_repo()
+    base = "source/port/radxa/1.3.1/edk2-stable202608"
+    source = "source/unofficial/1.3.1/edk2-stable202608"
+    write_file(repo, "src/component/vendor.c", "vendor source\n")
+    original = commit_all(repo, "vendor port")
+    git(repo, "branch", base, original)
+    git(repo, "switch", "-c", source)
+    write_file(repo, "src/component/custom.c", "custom src addition\n")
+    write_file(repo, "custom/overlay/component/custom.c", "custom override\n")
+    write_file(repo, "custom/overlay/component/vendor.c", "modified vendor source\n")
+    custom = commit_all(repo, "custom source additions")
+    write_file(repo, "config/refs-unofficial.json", json.dumps({"refs": [{
+        "ref": source, "type": "unofficial-release-checkpoint", "radxa_source_ref": base,
+        "object_id": custom, "tree_id": tree_id(repo, custom),
+    }]}))
+    write_file(repo, "config/refs-radxa.json", json.dumps({"refs": [{
+        "ref": base, "type": "ported-vendor-source",
+        "object_id": original, "tree_id": tree_id(repo, original),
+    }]}))
+    commit_all(repo, "record ownership provenance")
+    # Keep source identity pinned to the pre-metadata firmware tree.
+    git(repo, "branch", "metadata", "HEAD")
+    git(repo, "switch", "metadata")
+    git(repo, "branch", "-f", source, custom)
+    clear_metadata_caches()
+    return repo, base, source
+
+
+def test_recorded_custom_src_addition_is_not_a_vendor_deletion():
+    repo, base, source = ownership_fixture()
+    try:
+        default = project_overlay_tree(repo, source, base)
+        require(any(row.action == "non-mirror-source-deleted" for row in default), "default deletion guard weakened")
+        proven = project_overlay_tree(repo, source, base, source_base_ref=base)
+        require(not lifecycle_errors(proven), str(proven))
+        require(any(row.action == "keep-custom-source-addition" for row in proven), "custom ownership not recognized")
+    finally:
+        clear_metadata_caches()
+        shutil.rmtree(repo)
+
+
+def test_custom_addition_collision_rejects_even_whitespace_only_destination_change():
+    repo, base, source = ownership_fixture()
+    try:
+        git(repo, "switch", "-c", "destination", base)
+        write_file(repo, "src/component/custom.c", "custom src addition\r\n")
+        commit_all(repo, "destination custom path collision")
+        git(repo, "switch", "metadata")
+        proven = project_overlay_tree(repo, source, "destination", source_base_ref=base)
+        require(any(row.action == "custom-source-collision" for row in proven), "byte-different collision accepted")
+    finally:
+        clear_metadata_caches()
+        shutil.rmtree(repo)
+
+
+def test_recorded_baseline_does_not_allow_vendor_source_deletion():
+    repo, base, source = ownership_fixture()
+    try:
+        git(repo, "switch", "-c", "destination", base)
+        git(repo, "rm", "src/component/vendor.c")
+        commit_all(repo, "vendor removes original source")
+        git(repo, "switch", "metadata")
+        proven = project_overlay_tree(repo, source, "destination", source_base_ref=base)
+        require(any(row.action == "non-mirror-source-deleted" for row in proven), "genuine vendor deletion accepted")
+    finally:
+        clear_metadata_caches()
+        shutil.rmtree(repo)
+
+
+def test_false_or_rebound_ownership_baseline_fails_closed():
+    repo, base, source = ownership_fixture()
+    try:
+        try:
+            project_overlay_tree(repo, source, base, source_base_ref=source)
+        except ReconstructionError:
+            pass
+        else:
+            raise AssertionError("false baseline accepted")
+        git(repo, "branch", "-f", base, source)
+        clear_metadata_caches()
+        try:
+            project_overlay_tree(repo, source, base, source_base_ref=base)
+        except ReconstructionError:
+            pass
+        else:
+            raise AssertionError("moved vendor baseline accepted")
+    finally:
+        clear_metadata_caches()
+        shutil.rmtree(repo)
+
+
+def test_custom_source_mirror_requires_exact_addition_carried_into_destination():
+    repo, base, source = ownership_fixture()
+    try:
+        git(repo, "switch", "source/unofficial/1.3.1/edk2-stable202608")
+        git(repo, "rm", "custom/overlay/component/custom.c")
+        symlink(repo, "../../../src/component/custom.c", "custom/overlay/component/custom.c")
+        mirrored = commit_all(repo, "mirror custom source addition")
+        git(repo, "switch", "metadata")
+        data = json.loads((repo / "config/refs-unofficial.json").read_text())
+        data["refs"][0].update(object_id=mirrored, tree_id=tree_id(repo, mirrored))
+        write_file(repo, "config/refs-unofficial.json", json.dumps(data))
+        clear_metadata_caches()
+        missing = project_overlay_tree(repo, source, base, source_base_ref=base)
+        require(any(row.action == "broken-custom-source-mirror" for row in missing), "dangling custom mirror accepted")
+        carried = project_overlay_tree(repo, source, source, source_base_ref=base)
+        require(not lifecycle_errors(carried), str(carried))
+        require(any(row.mirror and row.action == "keep" for row in carried), "valid custom mirror dropped")
+    finally:
+        clear_metadata_caches()
         shutil.rmtree(repo)
 
 

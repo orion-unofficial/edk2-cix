@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Identity checks for explicitly final unofficial source resolutions."""
 
+import json
+import os
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 import release_expansion_source as source
-from reconstruction_common import ReconstructionError
+from reconstruction_common import ReconstructionError, clear_metadata_caches, tree_id
+from test_support import commit_all, git, write_file
 
 
 class FinalResolutionTests(unittest.TestCase):
@@ -93,6 +97,110 @@ class FinalResolutionTests(unittest.TestCase):
         self.assertIn(f"Source-Unofficial-From: {self.parent_ref}\n", message)
         self.assertIn(f"Source-Port-From: {self.parent_port}\n", message)
         self.assertNotIn(f"Source-Unofficial-From: {seed}\n", message)
+
+
+class CorrectionFinalResolutionTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="final-correction-", dir=os.environ.get("EDK2_CIX_TMP_ROOT"))
+        self.addCleanup(self.temp.cleanup)
+        self.addCleanup(clear_metadata_caches)
+        self.repo = Path(self.temp.name)
+        git(self.repo, "init", "-b", "build")
+        git(self.repo, "config", "user.name", "Final Correction Test")
+        git(self.repo, "config", "user.email", "final-correction-test")
+        write_file(self.repo, "firmware.c", "original\n")
+        self.original = commit_all(self.repo, "original checkpoint")
+        self.checkpoint = "source/unofficial/1.3.1/edk2-stable202608"
+        self.correction = "source/unofficial/corrections/1.3.1/edk2-stable202608/cppc-v1"
+        self.port = "source/port/radxa/1.3.1/edk2-stable202608"
+        self.destination = "source/port/radxa/1.3.0/edk2-stable202608"
+        self.target = "source/unofficial/1.3.0/edk2-stable202608"
+        for ref in (self.checkpoint, self.port, self.destination):
+            git(self.repo, "branch", ref, self.original)
+        write_file(self.repo, "firmware.c", "corrected\n")
+        self.corrected = commit_all(self.repo, "CPPC correction")
+        git(self.repo, "branch", self.correction, self.corrected)
+        write_file(self.repo, "radxa", "1.3.0\n")
+        self.final = commit_all(self.repo, "reviewed backport")
+        self.original_record = {
+            "ref": self.checkpoint, "type": "unofficial-release-checkpoint",
+            "object_id": self.original, "tree_id": tree_id(self.repo, self.original),
+            "radxa_release": "1.3.1", "edk2_base": "edk2-stable202608",
+            "radxa_source_ref": self.port,
+        }
+        self.correction_record = {
+            "ref": self.correction, "type": "unofficial-source-correction", "immutable": True,
+            "object_id": self.corrected, "tree_id": tree_id(self.repo, self.corrected),
+            "radxa_release": "1.3.1", "edk2_base": "edk2-stable202608",
+            "corrects_ref": self.checkpoint, "corrects_object_id": self.original,
+            "corrects_tree_id": tree_id(self.repo, self.original),
+        }
+        self.write_metadata()
+        self.bindings = {
+            "unofficial_final_commit": self.final, "unofficial_final_tree": tree_id(self.repo, self.final),
+            "unofficial_final_parent_ref": self.correction, "unofficial_final_parent_commit": self.corrected,
+            "unofficial_final_parent_port_ref": self.port, "unofficial_final_parent_port_commit": self.original,
+            "unofficial_final_destination_port_ref": self.destination,
+            "unofficial_final_destination_port_commit": self.original,
+            "unofficial_final_destination_source_ref": self.target,
+        }
+
+    def write_metadata(self, selected=True):
+        write_file(self.repo, "config/refs-unofficial.json", json.dumps({"refs": [self.original_record]}))
+        write_file(self.repo, "config/refs-unofficial-corrections.json", json.dumps({
+            "refs": [self.correction_record], "selected_refs": [self.correction] if selected else [],
+        }))
+        clear_metadata_caches()
+
+    def validate(self):
+        return source.validated_final_resolution(self.repo, self.bindings, self.final, self.destination, self.target)
+
+    def test_selected_correction_can_bind_lifecycle_ownership_baseline(self):
+        from source_lifecycle import validated_source_base
+        write_file(self.repo, "config/refs-radxa.json", json.dumps({"refs": [{
+            "ref": self.port, "type": "ported-vendor-source",
+            "object_id": self.original, "tree_id": tree_id(self.repo, self.original),
+        }]}))
+        clear_metadata_caches()
+        self.assertEqual(validated_source_base(self.repo, self.correction, self.port), self.port)
+        self.write_metadata(selected=False)
+        with self.assertRaisesRegex(ReconstructionError, "not selected"):
+            validated_source_base(self.repo, self.correction, self.port)
+
+    def test_selected_correction_inherits_exact_original_checkpoint_port(self):
+        self.assertEqual(self.validate(), (self.correction, self.port))
+
+    def test_unselected_correction_cannot_supply_final_parent(self):
+        self.write_metadata(selected=False)
+        with self.assertRaisesRegex(ReconstructionError, "not selected"):
+            self.validate()
+
+    def test_original_checkpoint_identity_tuple_and_port_are_required(self):
+        original = dict(self.original_record)
+        for field, value, error in (
+            ("object_id", "0" * 40, "original provenance"),
+            ("tree_id", "0" * 40, "original provenance"),
+            ("radxa_release", "1.3.0", "original provenance"),
+            ("edk2_base", "edk2-stable202605", "original provenance"),
+            ("radxa_source_ref", self.destination, "parent port differs"),
+            ("type", "unofficial-line-tip", "parent port differs"),
+        ):
+            with self.subTest(field=field):
+                self.original_record = {**original, field: value}
+                self.write_metadata()
+                with self.assertRaisesRegex(ReconstructionError, error):
+                    self.validate()
+
+    def test_moved_correction_and_missing_original_ref_fail_closed(self):
+        git(self.repo, "branch", "-f", self.correction, self.original)
+        clear_metadata_caches()
+        with self.assertRaisesRegex(ReconstructionError, "parent differs"):
+            self.validate()
+        git(self.repo, "branch", "-f", self.correction, self.corrected)
+        git(self.repo, "branch", "-D", self.checkpoint)
+        clear_metadata_caches()
+        with self.assertRaisesRegex(ReconstructionError, "unavailable"):
+            self.validate()
 
 
 if __name__ == "__main__":
