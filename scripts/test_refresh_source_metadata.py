@@ -321,12 +321,74 @@ def test_custom_refresh_applies_release_metadata_without_cached_ref() -> None:
         shutil.rmtree(repo)
 
 
+def test_selected_correction_refresh_ignores_stale_custom_cache() -> None:
+    repo = make_repo()
+    try:
+        source = "source/unofficial/edk2-stable202208"
+        checkpoint = "source/unofficial/1.2.1/edk2-stable202208"
+        correction = "source/unofficial/corrections/1.2.1/edk2-stable202208/cppc-v1"
+        vendor = "source/vendor/radxa/1.2.1/edk2-stable202208"
+        git(repo, "switch", source)
+        write_file(repo, "VERSION", "1.2.0\n")
+        write_file(repo, "debian/changelog", "old metadata\n")
+        original = commit_all(repo, "source before correction")
+        git(repo, "branch", checkpoint, original)
+        git(repo, "switch", "-c", correction)
+        write_file(repo, "src/current.txt", "corrected source\n")
+        corrected = commit_all(repo, "correct source")
+        git(repo, "switch", vendor)
+        write_file(repo, "debian/changelog", "edk2-cix (1.2.1) main; urgency=medium\n")
+        commit_all(repo, "vendor release metadata")
+        targets = [
+            "source/cache/release/custom/edk2-202208/radxa-1.2.1/unofficial",
+            "source/cache/release/custom/edk2-202208/cix-1.2/radxa-1.2.1/unofficial",
+        ]
+        for target in targets:
+            git(repo, "branch", target, original)
+        git(repo, "switch", "build")
+        write_json(repo / "config/refs-unofficial-corrections.json", {
+            "refs": [{
+                "ref": correction, "type": "unofficial-source-correction", "immutable": True,
+                "radxa_release": "1.2.1", "edk2_base": "edk2-stable202208",
+                "corrects_ref": checkpoint, "corrects_object_id": original,
+                "corrects_tree_id": git(repo, "rev-parse", original + "^{tree}").stdout.strip(),
+                "object_id": corrected, "tree_id": git(repo, "rev-parse", corrected + "^{tree}").stdout.strip(),
+            }],
+            "selected_refs": [correction],
+        })
+        unofficial = load_json(repo / "config/refs-unofficial.json")
+        unofficial["refs"].append({
+            "ref": checkpoint, "type": "unofficial-release-checkpoint", "immutable": True,
+            "radxa_release": "1.2.1", "object_id": original,
+            "tree_id": git(repo, "rev-parse", original + "^{tree}").stdout.strip(),
+        })
+        write_json(repo / "config/refs-unofficial.json", unofficial)
+        correction_metadata = (repo / "config/refs-unofficial-corrections.json").read_bytes()
+        refreshed = run_refresh(repo, WRITE="1")
+        require(refreshed.returncode == 0, refreshed.stderr + refreshed.stdout)
+        cache = load_json(repo / "config/refs-source-target-cache.json")
+        expected = cache["refs"][0]["tree_id"]
+        require(expected != git(repo, "rev-parse", original + "^{tree}").stdout.strip(), "refresh trusted stale custom cache")
+        require(expected != git(repo, "rev-parse", corrected + "^{tree}").stdout.strip(), "refresh omitted vendor metadata projection")
+        require((repo / "config/refs-unofficial-corrections.json").read_bytes() == correction_metadata,
+                "refresh rewrote immutable correction provenance or selection")
+        for target in targets:
+            require(rev_parse(repo, target) == original, "metadata-only refresh moved a cache ref")
+            rendered = run(["python3", "scripts/render_release_branch.py", "--release", target,
+                            "--rebuild", "1", "--persist", "1", "--force", "1"], repo, check=False)
+            require(rendered.returncode == 0, rendered.stderr + rendered.stdout)
+            require(git(repo, "rev-parse", target + "^{tree}").stdout.strip() == expected, "render disagreed with corrected expectation")
+    finally:
+        shutil.rmtree(repo)
+
+
 def main() -> None:
     test_dry_run_does_not_modify_metadata_or_tags()
     test_full_render_does_not_trust_existing_generated_cache_ref()
     test_refresh_preserves_inactive_retained_custom_target()
     test_refresh_repairs_hashes_cache_trees_and_tags()
     test_custom_refresh_applies_release_metadata_without_cached_ref()
+    test_selected_correction_refresh_ignores_stale_custom_cache()
     print("refresh_source_metadata tests passed")
 
 
