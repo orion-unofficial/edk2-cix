@@ -124,6 +124,13 @@ requiring review. Explicit historical profiles retain the experimental-only
 202605 layout. Family coverage is a structural check; the separate input checks
 establish source provenance, and build qualification remains required.
 
+New Radxa 1.3 candidates normalize the two custom O6 FDF paths after release
+metadata and EDK2 library adaptation, before structural validation and checkpoint
+registration. Normalization requires the existing custom FDF's complete body to
+match its own source body after the reviewed field changes; extra custom content
+stops preparation for review. The child commit records the input commit and
+source FDF blob. Existing checkpoints are validated without rewriting them.
+
 The initial RELEASE capacity is project policy (`0x1f4000`, DEBUG `0x400000`),
 independent of EDK2 version. Adaptive builds still use the selected firmware
 catalog's bounds and validate the actual signed FIP before packaging. The
