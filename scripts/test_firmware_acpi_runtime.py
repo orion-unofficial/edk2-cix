@@ -114,6 +114,7 @@ class FirmwareAcpiRuntimeTests(unittest.TestCase):
 #define ZeroMem(p,n) memset(p,0,n)
 #define CM_NULL_TOKEN NULL
 #define CppcEnable 1
+#define PcdGetBool(pcd) fixes
 typedef void *CM_OBJECT_TOKEN;
 typedef struct {UINT32 CPUInterfaceNumber,AcpiProcessorUid,Flags;CM_OBJECT_TOKEN CpcToken;} CM_ARM_GICC_INFO;
 typedef struct {UINT32 Uid,Coreid,Enable;} CIX_CPU_CORE;
@@ -145,12 +146,25 @@ int main(void) {
     assert(repo.GicCInfo[slot].AcpiProcessorUid==map[i]);
     assert(repo.CpuUidtoCoreNumberMap[slot]==i);
     assert(repo.GicCInfo[slot].Flags==(i!=7));
+    if(repo.GicCInfo[slot].CpcToken != CM_NULL_TOKEN)
+      assert(repo.GicCInfo[slot].CpcToken == &repo.CpuCpcInfo[i]);
+    if(fixes && REQUIRE_CORRECTED_TOKENS)
+      assert(repo.GicCInfo[slot].CpcToken == &repo.CpuCpcInfo[i]);
+    if(!fixes && REQUIRE_GATED_NULL_TOKENS)
+      assert(repo.GicCInfo[slot].CpcToken == CM_NULL_TOKEN);
   }
   free(repo.GicCInfo);return 0;
 }
 '''
             for variant in functions:
-                execute(defines + harness + variant + main)
+                selected_function = preprocess(defines + variant, False)
+                corrected = int(bool(re.search(r'\b(?:Fixed)?PcdGetBool\s*\(\s*PcdCustomFirmwareFixesEnable\s*\)', selected_function)))
+                tokens = ('#define REQUIRE_CORRECTED_TOKENS ' + str(corrected) + '\n'
+                          + '#define REQUIRE_GATED_NULL_TOKENS ' + str(corrected) + '\n')
+                for enabled in (0, 1):
+                    with self.subTest(order=mode, fixes=enabled, corrected=corrected):
+                        invocation = main.replace('(void)fixes;', 'fixes=' + str(enabled) + ';')
+                        execute(defines + tokens + harness + variant + invocation)
 
     def test_gpio_ownership_and_ec_thermal_limit(self):
         prefix = 'custom/overlay/edk2-platforms/Platform/Radxa/Orion/'

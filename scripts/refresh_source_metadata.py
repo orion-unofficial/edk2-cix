@@ -13,6 +13,7 @@ from typing import Any
 from reconstruction_common import (
     SOURCE_TARGET_CACHE_MANIFEST,
     UNOFFICIAL_LINE_CURRENT_RE,
+    UNOFFICIAL_CORRECTION_RE,
     ReconstructionError,
     alias_target_for,
     clear_metadata_caches,
@@ -206,7 +207,10 @@ def computed_source_target_tree(
     active_custom = (
         stage == "custom"
         and isinstance(source_ref, str)
-        and UNOFFICIAL_LINE_CURRENT_RE.match(source_ref) is not None
+        and (
+            UNOFFICIAL_LINE_CURRENT_RE.match(source_ref) is not None
+            or UNOFFICIAL_CORRECTION_RE.fullmatch(source_ref) is not None
+        )
     )
     if stage == "custom" and ref_exists(repo, ref) and not active_custom and not render_generated:
         return tree_id(repo, ref), "persisted-cache-ref"
