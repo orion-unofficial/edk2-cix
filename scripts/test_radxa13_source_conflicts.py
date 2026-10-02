@@ -11,7 +11,7 @@ import tempfile
 import unittest
 
 from radxa13_source_conflicts import (
-    BLOBS, CAPSULE, INPUTS, PATHS, RESET, RadxaSourceConflictError,
+    CAPSULE, INPUTS, PATHS, RESET, RadxaSourceConflictError,
     resolve_radxa13_source_conflict, validated_source_resolution,
 )
 
