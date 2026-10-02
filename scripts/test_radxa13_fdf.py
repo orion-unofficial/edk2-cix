@@ -126,6 +126,9 @@ class Radxa13FdfTests(unittest.TestCase):
             (b"!if $(TARGET) == DEBUG", b"!if $(TARGET) == RELEASE"),
             (b"FV = FVMAIN_COMPACT", b"FV = FVMAIN_COMPACT\n0x00200000|0x1000"),
             (b"ErasePolarity = 1", b"ErasePolarity = 1\nSize = 0x00200000"),
+            (b"ErasePolarity = 1", b"ErasePolarity = 0"),
+            (b"ErasePolarity = 1", b"[UNKNOWN]\nErasePolarity = 1"),
+            (b"[FV.FvMain]", b"[FV.Other]"),
         ):
             with self.subTest(new=new), self.assertRaises(ReconstructionError):
                 canonical_fdf(source.replace(old, new))
