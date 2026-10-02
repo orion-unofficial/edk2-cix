@@ -99,9 +99,9 @@ class FirmwareCppcRuntimeTests(unittest.TestCase):
             # This is the actual global initializer, not a test-selected CPPC state.
             state = re.search(r'BOOLEAN\s+CppcEnable\s*=\s*TRUE\s*;', custom).group().replace('BOOLEAN', 'static int')
             for order, mapping in (
-                    ('CIX', [2,3,4,5,6,7,8,9,10,11,0,1]),
+                    ('CIX', [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1]),
                     ('CONVENTIONAL', list(range(12))),
-                    ('PERFORMANCE', [8,9,10,11,4,5,6,7,2,3,0,1])):
+                    ('PERFORMANCE', [8, 9, 10, 11, 4, 5, 6, 7, 2, 3, 0, 1])):
                 for fixes in ((0, 1) if order == 'CIX' else (1,)):
                     with self.subTest(ref=ref, order=order, fixes=fixes):
                         flags = '' if order == 'CIX' else '#define ENABLE_CORE_ORDER_' + order + ' 1\n'
