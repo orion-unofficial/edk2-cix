@@ -113,7 +113,7 @@ class SourceSemanticsTests(unittest.TestCase):
 #define EFIAPI
 #define DEBUG(x) ((void)0)
 #define ASSERT(x) do { if (!(x)) ++asserts; } while (0)
-#define EFI_ERROR(x) ((x) != 0)
+#define EFI_ERROR(x) (((x) & ((EFI_STATUS)1 << (sizeof(EFI_STATUS)*8 - 1))) != 0)
 #define ARM_SMC_ID_PSCI_SYSTEM_RESET 0x84000009UL
 #define ARM_SMC_ID_PSCI_SYSTEM_OFF 0x84000008UL
 #define FixedPcdGet8(x) 0
@@ -122,12 +122,13 @@ class SourceSemanticsTests(unittest.TestCase):
 #define INTERRUPT_DISABLE 0
 #define INTERRUPT_TYPE_DEFAULT 0
 typedef unsigned long UINTN;
-typedef int EFI_STATUS;
+typedef unsigned long EFI_STATUS;
 typedef enum { EfiResetWarm, EfiResetCold, EfiResetShutdown, EfiResetPlatformSpecific } EFI_RESET_TYPE;
 typedef struct { UINTN Arg0; } ARM_SMC_ARGS;
 typedef struct { int Reserved; } EC_PARAMS_FORCE_EC_RESET;
 static jmp_buf end;
-static int ec_status, ec_calls, smc_calls, gpio_calls, waits, asserts;
+static EFI_STATUS ec_status;
+static int ec_calls, smc_calls, gpio_calls, waits, asserts;
 static UINTN last_smc;
 static EFI_STATUS ForceEcReset(EC_PARAMS_FORCE_EC_RESET *p) { if (p->Reserved) abort(); ++ec_calls; return ec_status; }
 static void ArmCallSmc(ARM_SMC_ARGS *p) { ++smc_calls; last_smc=p->Arg0; }
@@ -135,7 +136,7 @@ static void GpioConfig(int a,int b,int c,int d,int e) { ++gpio_calls; }
 static void CpuDeadLoop(void) { ++waits; longjmp(end, 1); }
 '''
         checks = r'''
-static int run(EFI_RESET_TYPE type, int status) {
+static int run(EFI_RESET_TYPE type, EFI_STATUS status) {
   ec_status=status; ec_calls=smc_calls=gpio_calls=waits=asserts=0; last_smc=0;
   if (!setjmp(end)) ResetSystem(type, 0, 0, 0);
   return 0;
@@ -143,7 +144,7 @@ static int run(EFI_RESET_TYPE type, int status) {
 int main(void) {
   run(EfiResetPlatformSpecific, 0);
   if (ec_calls!=1 || smc_calls || gpio_calls || waits!=1) return 1;
-  run(EfiResetPlatformSpecific, 1);
+  run(EfiResetPlatformSpecific, (EFI_STATUS)1 << (sizeof(EFI_STATUS)*8 - 1));
   if (ec_calls!=1 || smc_calls!=1 || last_smc!=ARM_SMC_ID_PSCI_SYSTEM_RESET || waits!=1) return 2;
   run(EfiResetCold, 0);
   if (ec_calls || smc_calls!=1 || last_smc!=ARM_SMC_ID_PSCI_SYSTEM_RESET || waits!=1) return 3;
@@ -151,6 +152,8 @@ int main(void) {
   if (ec_calls || smc_calls!=1 || last_smc!=ARM_SMC_ID_PSCI_SYSTEM_RESET || waits!=1) return 4;
   run(EfiResetShutdown, 0);
   if (ec_calls || gpio_calls!=5 || smc_calls!=1 || last_smc!=ARM_SMC_ID_PSCI_SYSTEM_OFF || waits!=1) return 5;
+  run(EfiResetPlatformSpecific, 1); /* UEFI warning is not an error. */
+  if (ec_calls!=1 || smc_calls || gpio_calls || waits!=1) return 7;
   run((EFI_RESET_TYPE)999, 0);
   if (ec_calls || gpio_calls || smc_calls || waits || asserts!=1) return 6;
   return 0;
