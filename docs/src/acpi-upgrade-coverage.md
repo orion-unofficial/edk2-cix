@@ -25,6 +25,7 @@ all named-release changes are present. See [checkpoint maintenance](source-check
 | SCMI mailbox | Separate mailbox/shared-memory windows, power-unit attributes and CPU-domain lookup methods. |
 | PPTT | The configured fixes PCD selects the cache-ID-capable table revision; it does not depend on an unforwarded compiler macro. Instruction caches do not advertise a valid data write policy; data and unified cache attributes are preserved. |
 | CPU numbering | Runtime SSDT domain names follow actual UIDs, physical cores, disabled cores and the selected core order. Static CIX numbering is not imposed on other modes. |
+| CPPC | Select the configured CPPC mode before GICC captures CPC tokens. Enabled modes bind tokens to physical cores; disabled CPPC uses null tokens. |
 | Audio DMA | Named AXI clock, DMA1 address translation, no obsolete DMA1/HDA fixed-pool metadata or hard-coded DMA dimensions. |
 | DSP and display audio | Channel 8 doorbells alongside channel 9 messages; internal I2S5–I2S9 links do not require debug pins. The 1.3.1 I2S2 pin function remains intact. |
 | Graphs | Absolute endpoint path strings and no links from disabled virtual displays. |
@@ -44,6 +45,12 @@ The dynamic CPU-domain mapping is preferable to copying a fixed CIX UID list:
 firmware knows which physical cores are enabled and which numbering mode was
 selected. The tests execute the mapping code for all supported numbering modes
 and a disabled-core case.
+
+Host regressions execute CPPC repository initialisation with mocked firmware
+services for each core order, fixes off/on and disabled/PCC/fast-channel modes.
+These checks cover token identity and initialisation order; they do not establish
+runtime CPU frequency or power behaviour on hardware. Corrected source selections
+need build qualification under their own source identities.
 
 The PCIe SMMU switch in the inspected source controls table generation. It is
 therefore too strong to claim that an initrd IORT replacement cannot expose the
