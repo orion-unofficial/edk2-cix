@@ -1,4 +1,174 @@
 {
-  "refs": [],
-  "selected_refs": []
+  "refs": [
+    {
+      "ref": "source/unofficial/corrections/1.2.1/edk2-stable202208/cppc-gicc-init",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.2.1",
+      "edk2_base": "edk2-stable202208",
+      "corrects_ref": "source/unofficial/1.2.1/edk2-stable202208",
+      "corrects_object_id": "ea72a7b7196c4f5e4ed818cfa3899d19f8cbff86",
+      "corrects_tree_id": "cbac7f9a33a798358ab8605cab86c743a302b35e",
+      "object_id": "b731cdae4274425a3061568d75dc8d2d37a116e6",
+      "tree_id": "5be0a965cf2488c8828bdbbca1699421d92b9a23"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.2.1/edk2-stable202605/cppc-gicc-init",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.2.1",
+      "edk2_base": "edk2-stable202605",
+      "corrects_ref": "source/unofficial/1.2.1/edk2-stable202605",
+      "corrects_object_id": "4ea414ba3f418ecc7214bd11a522a54b2a8c6947",
+      "corrects_tree_id": "7dbf05c59c7fd94fbd14f44b92023ffb4f3424f1",
+      "object_id": "3dc4be5051e46b905b04abba804671f48da5049d",
+      "tree_id": "56c8cf62fc81f32ef1cb83687b0800424f852aca"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.2.2/edk2-stable202605/cppc-gicc-init",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.2.2",
+      "edk2_base": "edk2-stable202605",
+      "corrects_ref": "source/unofficial/1.2.2/edk2-stable202605",
+      "corrects_object_id": "d4384c46a17bbcdc2f3b9aa1941e0a1aa39dc690",
+      "corrects_tree_id": "2e89aae39ee079b41459414da9b95b87d5ac5b9a",
+      "object_id": "431f1c84c6f26114d55bb96af9cd5240c00025d6",
+      "tree_id": "1d4eb95adbfd53abf1f89a5b8dcbf95c39663e4d"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.2.3/edk2-stable202605/cppc-gicc-init",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.2.3",
+      "edk2_base": "edk2-stable202605",
+      "corrects_ref": "source/unofficial/1.2.3/edk2-stable202605",
+      "corrects_object_id": "6e41e5c552ca3b9cfbb8e1f77c4ca6ebc265cd77",
+      "corrects_tree_id": "493bee8fdc43a591e34171f91beee14a777f52fb",
+      "object_id": "820400e44c0c095e0083fd197942065f5be2562e",
+      "tree_id": "cd20263b9ce32a16c1b27bca142b7aa2f9b11d9a"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.2.4/edk2-stable202208/cppc-gicc-init",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.2.4",
+      "edk2_base": "edk2-stable202208",
+      "corrects_ref": "source/unofficial/1.2.4/edk2-stable202208",
+      "corrects_object_id": "4a9a7c5c8492cf520a108f70b9c4e5cab5e6721c",
+      "corrects_tree_id": "9d42e1e75b9801a83787c501e3598b8d85af6372",
+      "object_id": "c5acdecb1432e281b05d0b69c8fd7584552d48e4",
+      "tree_id": "1b5d51eeb9ce4ecf59e826f2905ce246639e7011"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.2.4/edk2-stable202605/cppc-gicc-init",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.2.4",
+      "edk2_base": "edk2-stable202605",
+      "corrects_ref": "source/unofficial/1.2.4/edk2-stable202605",
+      "corrects_object_id": "f95b6afb37643c4177e2ab2414d16519222e195c",
+      "corrects_tree_id": "914928ae1286fb0697310e73f0b3dbe8481479ba",
+      "object_id": "f9bb05763b7b16c83f812033112cbd9d2cc51893",
+      "tree_id": "fc270463d8ed17f278a65e4570e5f8c487fc235c"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.2.4/edk2-stable202608/cppc-gicc-init",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.2.4",
+      "edk2_base": "edk2-stable202608",
+      "corrects_ref": "source/unofficial/1.2.4/edk2-stable202608",
+      "corrects_object_id": "82651824536e2c742b326c140417441735805706",
+      "corrects_tree_id": "70d035d5f519a97b3f6cb4fa87467f30d0f8e94a",
+      "object_id": "1e3cad46c1c601cb3cae76221ed93650ff961fd8",
+      "tree_id": "8be7e3b9f6907c7de766e8ac56804fab7d0dc6a7"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.2.4/edk2-stable202608/cppc-gicc-init-current",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.2.4",
+      "edk2_base": "edk2-stable202608",
+      "corrects_ref": "source/unofficial/1.2/current",
+      "corrects_object_id": "f0345eaf53a9f0d12c7977c0cc937cce904fc5d1",
+      "corrects_tree_id": "7ff576de295c9141c96985d634181204704d6c08",
+      "object_id": "1bd01c5cd3a65810f88b3d25aca614097a211615",
+      "tree_id": "40f7188d044186205adebfd6ebadf83d8010e4f0"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.3.0/edk2-stable202605/cppc-gicc-init",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.3.0",
+      "edk2_base": "edk2-stable202605",
+      "corrects_ref": "source/unofficial/1.3.0/edk2-stable202605",
+      "corrects_object_id": "2021ac9b4f5ef1e1e67f3f4830c7c6fd8dc6e1fb",
+      "corrects_tree_id": "701a5759ee11a734c9f183be48f0d91987bf6f9e",
+      "object_id": "558565e683c1883af19908ef84e6b8c4230b88ac",
+      "tree_id": "b2a73afcac68e2f762bc079d6dcfb61184f07f2d"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.3.1/edk2-stable202208/cppc-gicc-init",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.3.1",
+      "edk2_base": "edk2-stable202208",
+      "corrects_ref": "source/unofficial/1.3.1/edk2-stable202208",
+      "corrects_object_id": "8e9064685123df796c2c16b2ebcfd67b8d5d553f",
+      "corrects_tree_id": "a41f296141655f13214a8087ca63dc6b96c44a3d",
+      "object_id": "48bf3e1dfee3f73f97ae28b60705dc5ffe234b7d",
+      "tree_id": "263d20f96a9a95960ed2ab6937527165318257e4"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.3.1/edk2-stable202605/cppc-gicc-init",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.3.1",
+      "edk2_base": "edk2-stable202605",
+      "corrects_ref": "source/unofficial/1.3.1/edk2-stable202605",
+      "corrects_object_id": "800c6e50f529389efb1a2680cbc4d9e67833f59b",
+      "corrects_tree_id": "a0d84e969982e3af895caa376b5135563e9976c7",
+      "object_id": "64ec545970dfe70d68b3589aba6f1f7abfe6642d",
+      "tree_id": "b1320d37e2db342e0101f76b0af36bdd15e36f31"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.3.1/edk2-stable202608/cppc-gicc-init",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.3.1",
+      "edk2_base": "edk2-stable202608",
+      "corrects_ref": "source/unofficial/1.3.1/edk2-stable202608",
+      "corrects_object_id": "9916f3e32fadf9119836fcf3c308e2322e6f16be",
+      "corrects_tree_id": "69e8d1562562406819af52d237128eb29d54ee21",
+      "object_id": "cdad686436306803f800b7f8ffa6b0cdfc8a102e",
+      "tree_id": "f8ac5f0df115c97b9ed4def09bd154878ca8542a"
+    },
+    {
+      "ref": "source/unofficial/corrections/1.3.1/edk2-stable202608/cppc-gicc-init-current",
+      "type": "unofficial-source-correction",
+      "immutable": true,
+      "radxa_release": "1.3.1",
+      "edk2_base": "edk2-stable202608",
+      "corrects_ref": "source/unofficial/1.3/current",
+      "corrects_object_id": "bf8e53962b930485c7d2e574f1a33c58f351f606",
+      "corrects_tree_id": "7e3653de1581ca91c3f11c0cdda025ad13355171",
+      "object_id": "0fd78dbbc3ef0e9049f4ee6269952d4d74dc88a5",
+      "tree_id": "65f7c3c1891d2072b53d3e96dcecff5ab829f7e3"
+    }
+  ],
+  "selected_refs": [
+    "source/unofficial/corrections/1.2.1/edk2-stable202208/cppc-gicc-init",
+    "source/unofficial/corrections/1.2.1/edk2-stable202605/cppc-gicc-init",
+    "source/unofficial/corrections/1.2.2/edk2-stable202605/cppc-gicc-init",
+    "source/unofficial/corrections/1.2.3/edk2-stable202605/cppc-gicc-init",
+    "source/unofficial/corrections/1.2.4/edk2-stable202208/cppc-gicc-init",
+    "source/unofficial/corrections/1.2.4/edk2-stable202605/cppc-gicc-init",
+    "source/unofficial/corrections/1.2.4/edk2-stable202608/cppc-gicc-init",
+    "source/unofficial/corrections/1.3.0/edk2-stable202605/cppc-gicc-init",
+    "source/unofficial/corrections/1.3.1/edk2-stable202208/cppc-gicc-init",
+    "source/unofficial/corrections/1.3.1/edk2-stable202605/cppc-gicc-init",
+    "source/unofficial/corrections/1.3.1/edk2-stable202608/cppc-gicc-init",
+    "source/unofficial/corrections/1.3.1/edk2-stable202608/cppc-gicc-init-current"
+  ]
 }
