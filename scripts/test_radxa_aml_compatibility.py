@@ -208,7 +208,7 @@ class RealAmlCompileTests(unittest.TestCase):
             inf = subprocess.check_output(['python3', '-c', lookup,
                                           str(root / 'BaseTools/Source/Python'), str(src / 'edk2'),
                                           os.pathsep.join(packages), AML_MODULE.removeprefix('edk2-platforms/') + 'AmlLib.inf'],
-                                         text=True).strip()
+                                          text=True).strip()
             self.assertEqual(Path(inf), root / AML_OVERLAY / 'AmlLib.inf')
             self.assertEqual((Path(inf).parent / 'CodeGen/AmlCodeGen.c').read_bytes(), updates[AML_CODEGEN])
             fv = src / 'FV'
@@ -236,8 +236,8 @@ class RealAmlCompileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='radxa-aml-compile-') as temporary:
             root = Path(temporary)
             archive_files(OLD, ['src/' + AML_MODULE.rstrip('/'),
-                               'src/edk2-platforms/Platform/CIX/Sky1/Include',
-                               'src/edk2-platforms/Silicon/CIX/Sky1/Include'], root)
+                                'src/edk2-platforms/Platform/CIX/Sky1/Include',
+                                'src/edk2-platforms/Silicon/CIX/Sky1/Include'], root)
             module = root / ('src/' + AML_MODULE)
             inf = (module / 'AmlLib.inf').read_text()
             sources = re.search(r'\[Sources\](.*?)\n\[Packages\]', inf, re.S)[1]
@@ -281,6 +281,7 @@ class RealAmlCompileTests(unittest.TestCase):
                 includes += [path.parent for path in includes if path.name == 'Include']
                 objects = root / (version + '-objects')
                 objects.mkdir()
+
                 def compile_unit(base, name):
                     command = [*compiler, '-std=c11', '-Wall', '-Werror', '-Wno-address', '-fshort-wchar', '-DAML_HANDLE',
                                '-include', 'Uefi.h', '-c', str(base / name), '-o', str(objects / (name.replace('/', '_') + '.o')), '-I', str(base)]
