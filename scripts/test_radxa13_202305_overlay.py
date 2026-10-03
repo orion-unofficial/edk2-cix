@@ -13,7 +13,7 @@ import tempfile
 import unittest
 
 from radxa13_source_conflicts import (
-    OVERLAY_INPUTS, OVERLAY_PATHS, RadxaSourceConflictError,
+    OVERLAY_INPUTS, OVERLAY_REVIEWS, OVERLAY_PATHS, RadxaSourceConflictError,
     resolve_radxa13_overlay_conflict, validated_overlay_resolution,
 )
 
@@ -235,6 +235,8 @@ class JournalTests(unittest.TestCase):
     def setUp(self):
         self.repo = Path(os.environ["RADXA13_OVERLAY_REPO"])
         self.row = json.loads(Path(os.environ["RADXA13_OVERLAY_JOURNAL"]).read_text())
+        self.pair = self.row["pair"]
+        self.inputs = OVERLAY_REVIEWS[tuple(self.pair)][0]
         self.tmp = tempfile.TemporaryDirectory(prefix="radxa13-overlay-journal-")
         self.addCleanup(self.tmp.cleanup)
         self.journal = Path(self.tmp.name) / "journal.json"
@@ -242,17 +244,20 @@ class JournalTests(unittest.TestCase):
     def check_row(self, row, **kwargs):
         self.journal.write_text(json.dumps(row))
         return validated_overlay_resolution(
-            self.repo, self.journal, kwargs.get("edk2", "202305"), "1.3.1",
-            kwargs.get("source_ref", OVERLAY_INPUTS["source"][0]), OVERLAY_INPUTS["new"][0])
+            self.repo, self.journal, kwargs.get("edk2", self.pair[0]), kwargs.get("radxa", self.pair[1]),
+            kwargs.get("source_ref", self.inputs["source"][0]),
+            kwargs.get("base_ref", self.inputs["new"][0]))
 
     def test_exact_journal_and_selected_inputs(self):
         self.assertEqual(self.check_row(self.row), self.row["resolution_commit"])
-        for kwargs in ({"edk2": "202302"}, {"source_ref": OVERLAY_INPUTS["old"][0]}):
+        for kwargs in ({"edk2": "202302"}, {"source_ref": self.inputs["old"][0]},
+                       {"base_ref": OVERLAY_INPUTS["old"][0]},
+                       {"radxa": "1.3.0" if self.pair[1] == "1.3.1" else "1.3.1"}):
             with self.assertRaises(RadxaSourceConflictError):
                 self.check_row(self.row, **kwargs)
 
     def test_receipt_scope_parent_and_tree_tampering_rejected(self):
-        for key, value in (("pair", ["202305", "1.3.0"]), ("stage", "source"),
+        for key, value in (("pair", ["202305", "1.2.1"]), ("stage", "source"),
                            ("paths", list(OVERLAY_PATHS)[1:]), ("conflict_tree", "0" * 40),
                            ("resolution_tree", "0" * 40), ("resolution_ref", "refs/heads/build"),
                            ("resolution_commit", self.row["conflict_commit"]),
@@ -262,12 +267,36 @@ class JournalTests(unittest.TestCase):
         for row in ([], self.row | {"inputs": []}):
             with self.assertRaises(RadxaSourceConflictError):
                 self.check_row(row)
-        for role in OVERLAY_INPUTS:
+        for role in self.inputs:
             for field in ("ref", "commit", "tree"):
                 row = json.loads(json.dumps(self.row))
                 row["inputs"][role][field] = "0" * 40
                 with self.subTest(role=role, field=field), self.assertRaises(RadxaSourceConflictError):
                     self.check_row(row)
+
+    def test_other_reviewed_pair_inputs_cannot_be_substituted(self):
+        other = "1.3.0" if self.pair[1] == "1.3.1" else "1.3.1"
+        inputs, tree = OVERLAY_REVIEWS[("202305", other)]
+        for role, (ref, oid, input_tree) in inputs.items():
+            row = json.loads(json.dumps(self.row))
+            row["inputs"][role] = {"ref": ref, "commit": oid, "tree": input_tree}
+            with self.subTest(role=role), self.assertRaises(RadxaSourceConflictError):
+                self.check_row(row)
+        with self.assertRaises(RadxaSourceConflictError):
+            self.check_row(self.row | {"conflict_tree": tree})
+
+    def test_reviewed_output_with_wrong_file_mode_rejected(self):
+        env = os.environ.copy()
+        env["GIT_INDEX_FILE"] = str(Path(self.tmp.name) / "mode-index")
+        command = ["git", "-C", str(self.repo)]
+        subprocess.run(command + ["read-tree", self.row["resolution_commit"]], env=env, check=True)
+        blob = subprocess.check_output(command + ["rev-parse", self.row["resolution_commit"] + ":" + OVERLAY_PATHS[0]]).decode().strip()
+        subprocess.run(command + ["update-index", "--cacheinfo", "100755," + blob + "," + OVERLAY_PATHS[0]], env=env, check=True)
+        tree = subprocess.check_output(command + ["write-tree"], env=env).decode().strip()
+        commit = subprocess.check_output(command + ["commit-tree", tree, "-p", self.row["conflict_commit"],
+                                                    "-m", "negative-mode-test-only"], env=env).decode().strip()
+        with self.assertRaises(RadxaSourceConflictError):
+            self.check_row(self.row | {"resolution_commit": commit, "resolution_tree": tree})
 
     def test_unrelated_tree_entry_and_wrong_parent_rejected(self):
         env = os.environ.copy()
