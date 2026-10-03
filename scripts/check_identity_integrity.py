@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 import time
@@ -32,7 +33,30 @@ earlier branch model.
 
 Python regression fixtures under scripts/test_*.py may use the reserved
 example.invalid email domain. Other addresses and non-test files remain checked.
+Exact imported source fixtures may retain a reviewed original copyright email;
+the exception is bound to the file bytes and attribution line, not a directory.
 """
+
+# This raw vendor conflict fixture is documented in its adjacent README. Keep
+# its original attribution intact without exempting new or changed identities.
+IMPORTED_ATTRIBUTIONS = {
+    "scripts/tests/fixtures/radxa13-source-conflicts/Sky1Common.dsc.inc": (
+        "f582654c29b5df503595a50d8fffd7142572a2263a2ba859e9aa24c0d5d6ed92",
+        5,
+        "51da7f4a29467c5dd570f3d488c29bf0b039f42bd260342ad028eb1606e6192a",
+    ),
+}
+
+
+def imported_attribution_lines(rel: str, data: bytes) -> set[int]:
+    record = IMPORTED_ATTRIBUTIONS.get(rel)
+    if record is None or hashlib.sha256(data).hexdigest() != record[0]:
+        return set()
+    lines = data.splitlines()
+    line = record[1]
+    if line > len(lines) or hashlib.sha256(lines[line - 1]).hexdigest() != record[2]:
+        return set()
+    return {line}
 
 
 def parser() -> argparse.ArgumentParser:
@@ -79,15 +103,18 @@ def scan_files(repo: Path, verbose: bool) -> list[str]:
         if b"\0" in data:
             continue
         text = data.decode("utf-8", errors="ignore")
+        imported_lines = imported_attribution_lines(rel, data)
         for label, pattern in patterns:
             for match in pattern.finditer(text):
+                line = text.count("\n", 0, match.start()) + 1
                 # Reserved fixture identities are not personal email addresses.
                 if (label == "embedded email" and
                         Path(rel).parent == Path("scripts") and
                         Path(rel).name.startswith("test_") and Path(rel).suffix == ".py" and
                         match.group(0).rpartition("@")[2].lower() == "example.invalid"):
                     continue
-                line = text.count("\n", 0, match.start()) + 1
+                if label == "embedded email" and line in imported_lines:
+                    continue
                 problems.append(f"{rel}:{line}: {label}: {match.group(0)}")
     return problems
 

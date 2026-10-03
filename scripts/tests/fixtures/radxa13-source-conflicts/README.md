@@ -6,6 +6,10 @@ These are exact raw Git blobs from the preserved conflict tree
 reset implementation and their INF/DSC consumers are retained as source-review
 fixtures. Preserve imported INF bytes and their CRLF endings.
 
+The identity scanner permits the original copyright email in the DSC fixture
+only while its complete bytes and attribution line match the reviewed hashes.
+Changes or copies require a new review; other identity checks still apply.
+
 `radxa13_source_conflicts.py` verifies whole-file hashes before transforming the
 four editable files. Tests also compile the resolved reset implementation with
 host stubs, execute its reset paths, and link the actual capsule global

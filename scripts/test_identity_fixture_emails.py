@@ -9,14 +9,37 @@ import check_identity_integrity as identity
 
 
 class FixtureEmailTests(unittest.TestCase):
-    def scan(self, path, address):
+    def scan_bytes(self, path, data):
         with tempfile.TemporaryDirectory(prefix="identity-fixture-") as directory:
             root = Path(directory)
             target = root / path
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(address + "\n")
+            target.write_bytes(data)
             with patch.object(identity, "tracked_files", return_value=[path]):
                 return identity.scan_files(root, False)
+
+    def scan(self, path, address):
+        return self.scan_bytes(path, (address + "\n").encode())
+
+    def test_only_exact_imported_attribution_is_exempt(self):
+        path = "scripts/tests/fixtures/radxa13-source-conflicts/Sky1Common.dsc.inc"
+        data = (Path(__file__).resolve().parents[1] / path).read_bytes()
+        self.assertEqual(self.scan_bytes(path, data), [])
+        for name, changed in (
+            (path, data + b"\n# new author <fixture" + b"@" + b"example.org>\n"),
+            (path, data.replace(b"Copyright 2024", b"Copyright 2025")),
+            (path, data.replace(b"@gmail.com", b"@example.org")),
+            (path + ".copy", data),
+        ):
+            with self.subTest(path=name, changed=changed != data):
+                self.assertTrue(any("embedded email" in item for item in self.scan_bytes(name, changed)))
+
+    def test_imported_attribution_never_exempts_other_patterns(self):
+        path = next(iter(identity.IMPORTED_ATTRIBUTIONS))
+        data = (Path(__file__).resolve().parents[1] / path).read_bytes()
+        with patch.object(identity, "suspicious_patterns", return_value=[
+                ("host path", identity.re.compile("Copyright"))]):
+            self.assertTrue(any("host path" in item for item in self.scan_bytes(path, data)))
 
     def test_only_reserved_test_fixture_domain_is_exempt(self):
         reserved = "fixture" + "@" + "example.invalid"
