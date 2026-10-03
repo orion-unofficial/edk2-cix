@@ -333,6 +333,7 @@ CUSTOM_BASETOOLS_VFR_OVERLAY := $(CUSTOM_BASETOOLS_OVERLAY_DIR)/Source/C/VfrComp
 CUSTOM_BL33_SOURCES := $(addprefix $(abspath scripts)/,build_bl33.py bl33_layout.py debug_build_policy.py warn_debug_categories.py validate_firmware_chain.py firmware_chain.py)
 CUSTOM_RELEASE_LOGGING_SOURCES := $(CUSTOM_RELEASE_LOGGING_INCLUDE)/Library/DebugLib.h $(abspath scripts/prepare_release_logging.py)
 CUSTOM_EDK2_OVERLAY_SOURCES := \
+	$(wildcard $(CUSTOM_OVERLAY_ROOT)/edk2-platforms/Platform/CIX/Sky1/Library/Acpi/CIX/AmlLib/* $(CUSTOM_OVERLAY_ROOT)/edk2-platforms/Platform/CIX/Sky1/Library/Acpi/CIX/AmlLib/*/*) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.dsc.inc) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Common.fdf.inc) \
 	$(abspath ../custom/overlay/edk2-platforms/Platform/Radxa/Platforms/CIX/Sky1/Sky1Define.dsc.inc) \
