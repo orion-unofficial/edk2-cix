@@ -20,7 +20,9 @@ PROBE = r'''
 #include <assert.h>
 #include <Base.h>
 #include <Library/DebugLib.h>
+#pragma GCC visibility push(default)
 extern int puts (const char *);
+#pragma GCC visibility pop
 
 static unsigned Prints, Effects;
 static BOOLEAN Enabled = TRUE;
@@ -128,7 +130,7 @@ class ReleaseLoggingTests(unittest.TestCase):
             if fingerprint in seen:
                 continue
             seen.add(fingerprint)
-            with self.subTest(ref=ref), tempfile.TemporaryDirectory(prefix="release-logging-") as temp:
+            with self.subTest(ref=ref, arch=arch), tempfile.TemporaryDirectory(prefix="release-logging-") as temp:
                 root = Path(temp)
                 for name, data in headers.items():
                     path = root / "imported/Include" / name
