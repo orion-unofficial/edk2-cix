@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded resolution of separately reviewed Radxa 1.3.1 source conflicts.
+"""Bounded resolution of separately reviewed Radxa 1.3.x source conflicts.
 
 The input trees, entire editable blobs, resolution parent and untouched tree
 entries are verified. Other release pairs require a separate source review.
@@ -206,6 +206,20 @@ OVERLAY_INPUTS = {
             "02d1b4a387a048db91183d4b8aa9034c5240439a", "336964d3de69ff02594af12c54aadcec7f90f256"),
 }
 OVERLAY_CONFLICT_TREE = "7b703a212e9e88535ddc83a8d3432457c801f21a"
+# The 1.3.0 inputs were separately checked against its actual stopped worker.
+# Its raw three-way file inputs match 1.3.1, but its complete trees and selected
+# commits differ. Accept neither another pair nor an interchangeable port commit.
+OVERLAY_REVIEWS = {
+    ("202305", "1.3.1"): (OVERLAY_INPUTS, OVERLAY_CONFLICT_TREE),
+    ("202305", "1.3.0"): ({
+        "old": ("source/port/radxa/1.3.0/edk2-stable202302",
+                "927f4ef272108ad2349cff58212c06ccae4a43b5", "cc122f74646730c15cae47c68475d76d982e54dc"),
+        "source": ("source/unofficial/1.3.0/edk2-stable202302",
+                   "c6db68c699f50924c318e8ef3bf63f5498ac7093", "894fc081d5f56a600d004a1a9cb02a047c3d39b7"),
+        "new": ("source/port/radxa/1.3.0/edk2-stable202305",
+                "b5964fc6ee3ab012f38a0043f3bab3105fc349bc", "f6a50e3f22b94656f15d7e9318c2866c2087b56a"),
+    }, "42a562e8371013f4f755147f51a2adaa2856fbfe"),
+}
 OVERLAY_BLOBS = {
     OVERLAY_PATHS[0]: (
         "b3fd64e2fc5666f84b2d2e141388eec61a5c8b4b899638eeeb598d66de77b536",
@@ -263,13 +277,14 @@ def validated_overlay_resolution(repo: Path, journal: Path, edk2: str, radxa: st
     row = json.loads(journal.read_text())
     if not isinstance(row, dict) or not isinstance(row.get("inputs"), dict):
         raise RadxaSourceConflictError("overlay resolution journal has invalid structure")
-    if (edk2, radxa) != ("202305", "1.3.1") or row.get("pair") != [edk2, radxa]:
+    if (edk2, radxa) not in OVERLAY_REVIEWS or row.get("pair") != [edk2, radxa]:
         raise RadxaSourceConflictError("overlay resolution pair has not been reviewed")
     if row.get("stage") != "overlay" or row.get("paths") != list(OVERLAY_PATHS):
         raise RadxaSourceConflictError("overlay resolution scope differs")
-    if source_ref != OVERLAY_INPUTS["source"][0] or base_ref != OVERLAY_INPUTS["new"][0]:
+    inputs, conflict_tree = OVERLAY_REVIEWS[(edk2, radxa)]
+    if source_ref != inputs["source"][0] or base_ref != inputs["new"][0]:
         raise RadxaSourceConflictError("overlay resolution selected inputs differ")
-    for role, (ref, oid, tree) in OVERLAY_INPUTS.items():
+    for role, (ref, oid, tree) in inputs.items():
         if row["inputs"].get(role) != {"ref": ref, "commit": oid, "tree": tree}:
             raise RadxaSourceConflictError("overlay input receipt differs: " + role)
         selected = None
@@ -284,8 +299,8 @@ def validated_overlay_resolution(repo: Path, journal: Path, edk2: str, radxa: st
     if not all(isinstance(oid, str) and re.fullmatch(r"[0-9a-f]{40}", oid) for oid in (conflict, resolved)):
         raise RadxaSourceConflictError("invalid overlay resolution commit identity")
     if (_text(repo, "rev-list", "--parents", "-n", "1", conflict).split() != [conflict] or
-            _text(repo, "rev-parse", conflict + "^{tree}") != OVERLAY_CONFLICT_TREE or
-            row.get("conflict_tree") != OVERLAY_CONFLICT_TREE):
+            _text(repo, "rev-parse", conflict + "^{tree}") != conflict_tree or
+            row.get("conflict_tree") != conflict_tree):
         raise RadxaSourceConflictError("overlay conflict handoff tree or parent differs")
     expected_message = (
         f"source-port: conflict tree for expansion-{edk2}-{radxa}\n\n"

@@ -287,14 +287,18 @@ Host regressions check both capsule INF variants and execute the resolved reset
 implementation with stubbed EC, GPIO and PSCI calls. Board behavior remains an
 explicit qualification step.
 
-For the separately reviewed 202305/1.3.1 overlay conflict,
+For the separately reviewed 202305/1.3.0 and 202305/1.3.1 overlay conflicts,
 `unofficial_overlay_journal` selects a receipt with the exact 202302 source and
 vendor-port inputs and the 202305 destination port. The helper checks the
 complete preserved overlay handoff tree, its input-bound message and root
 parent, and the resolution's two changed files, whole-file bytes, modes, parent
 and private ref. This stage includes source assembly and overlay lifecycle
 processing, so its complete tree is pinned independently of a plain Git merge.
-Changed input commits or trees require a separate review.
+Each pair has its own exact input commits and complete handoff tree. The
+1.3.0 acceptance is bound to its stopped worker's canonical destination port;
+the two journals cannot be interchanged even though the reviewed file inputs
+and output bytes match. Changed input commits or trees require a separate
+review.
 
 ```json
 {
