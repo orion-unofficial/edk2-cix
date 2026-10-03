@@ -22,6 +22,23 @@ from reconstruction_common import clear_metadata_caches, load_ref_records, show_
 
 
 class ExpansionTests(unittest.TestCase):
+    def test_compiler_jobs_are_recorded_and_profile_tampering_fails(self):
+        from parallel_batch_make import profile
+        with tempfile.TemporaryDirectory(prefix="batch-jobs-") as tmp:
+            state = Path(tmp)
+            plan = {"build_date": "2026-10-03T00:00:00+00:00", "platform": "linux/arm64"}
+            args = (plan, "202608", "1.3.1", "O6", "false", "false", state, state / "output")
+            baseline = batch.build_command(*args)
+            self.assertFalse(any(arg.startswith("MAKE=") for arg in baseline))
+            plan["build_jobs"] = 4
+            (state / "parallel-make.mk").write_text(profile(4))
+            parallel = batch.build_command(*args)
+            self.assertEqual(parallel[:-1], baseline)
+            self.assertIn("parallel_batch_make.py --jobs 4", parallel[-1])
+            (state / "parallel-make.mk").write_text(profile(3))
+            with self.assertRaisesRegex(ValueError, "concurrency profile changed"):
+                batch.build_command(*args)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="release-expansion-test-")
         self.addCleanup(self.tmp.cleanup)
