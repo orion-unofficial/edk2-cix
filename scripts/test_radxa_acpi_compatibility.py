@@ -3,6 +3,7 @@
 from pathlib import Path
 import io
 import os
+from platform import machine
 import re
 import subprocess
 import tarfile
@@ -153,12 +154,15 @@ class RealAcpiProducerTests(unittest.TestCase):
 
             def compile_table(data, table, version, uart, expect=True):
                 unit = root / 'table.c'
-                unit.write_bytes(data + b'\n#include <stdio.h>\nint main(void) { return fwrite(ReferenceAcpiTable, sizeof(' + table.encode() + b'), 1, stdout) != 1; }\n')
+                # Firmware headers may leave hidden visibility active. Keep the
+                # host libc declarations public without changing table types.
+                unit.write_bytes(data + b'\n#pragma GCC visibility push(default)\n#include <stdio.h>\n#pragma GCC visibility pop\nint main(void) { return fwrite(ReferenceAcpiTable, sizeof(' + table.encode() + b'), 1, stdout) != 1; }\n')
                 include = headers[version]
+                arch = 'AArch64' if machine().lower() in ('arm64', 'aarch64') else 'X64'
                 command = [
                     'cc', '-std=c11', '-Wall', '-Werror', '-fshort-wchar', '-DUART3=' + str(uart),
                     '-include', str(autogen), '-I', str(platform), '-I', str(include / 'MdePkg/Include'),
-                    '-I', str(include / 'MdePkg/Include/X64'), '-I', str(include / 'EmbeddedPkg/Include'),
+                    '-I', str(include / 'MdePkg/Include' / arch), '-I', str(include / 'EmbeddedPkg/Include'),
                     '-I', str(include / 'MdeModulePkg/Include'), str(unit), '-o', str(root / 'table'),
                 ]
                 result = subprocess.run(command, text=True, capture_output=True)
