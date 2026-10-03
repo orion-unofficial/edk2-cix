@@ -14,7 +14,7 @@ from radxa_source_compatibility import (
     ACPI_HELPER_HEADER, ACPI_LIB_HEADER, ACPI_TABLE_DIRECTORY,
     acpi_helper_updates, adapt_source_libraries,
 )
-from reconstruction_common import ReconstructionError, git
+from reconstruction_common import ReconstructionError, for_each_ref, git, rev_parse, show_file
 from validate_radxa13_source import GitTree
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -90,28 +90,28 @@ class AcpiHelperTests(unittest.TestCase):
 
 class RealAcpiProducerTests(unittest.TestCase):
     def test_all_retained_checkpoints_are_unchanged(self):
-        refs = git(ROOT, 'for-each-ref', '--format=%(refname)', 'refs/heads/source/unofficial/').stdout.splitlines()
+        refs = for_each_ref(ROOT, 'source/unofficial/')
         self.assertTrue(refs, 'retained source refs are required for qualification')
         for ref in refs:
             with self.subTest(ref=ref):
-                self.assertEqual(acpi_helper_updates(GitTree(ROOT, ref)), {})
+                self.assertEqual(acpi_helper_updates(GitTree(ROOT, rev_parse(ROOT, ref))), {})
 
     def test_selected_header_transition_matches_all_retained_edk2_versions(self):
-        refs = git(ROOT, 'for-each-ref', '--format=%(refname)', 'refs/heads/source/base/edk2/').stdout.splitlines()
+        refs = for_each_ref(ROOT, 'source/base/edk2/')
         self.assertTrue(refs, 'retained source refs are required for qualification')
         for ref in refs:
             with self.subTest(ref=ref):
-                header = git(ROOT, 'show', ref + ':EmbeddedPkg/Include/Library/AcpiLib.h').stdout
+                header = show_file(ROOT, ref, 'EmbeddedPkg/Include/Library/AcpiLib.h').decode()
                 old = bool(re.search(r'^#define ARM_GAS32\(', header, re.M))
                 self.assertEqual(old, not ref.endswith('202608'))
                 if not old:
-                    header = git(ROOT, 'show', ref + ':MdeModulePkg/Include/AcpiHelperMacros.h').stdout
+                    header = show_file(ROOT, ref, 'MdeModulePkg/Include/AcpiHelperMacros.h').decode()
                     self.assertRegex(header, r'#define ACPI_GAS32\(')
 
     def test_real_tables_compile_and_preserve_emitted_bytes(self):
         source_repo = Path(os.environ.get('SOURCE_ACPI_TEST_REPO', ROOT))
         candidate = os.environ.get('SOURCE_ACPI_TEST_REF', 'source/unofficial/1.2.1/edk2-stable202605')
-        source = GitTree(source_repo, candidate)
+        source = GitTree(source_repo, rev_parse(source_repo, candidate))
         # Use the actual imported EDK2 headers/types, not mocked GAS/DBG2 structs.
         with tempfile.TemporaryDirectory(prefix='radxa-acpi-compile-') as temporary:
             root = Path(temporary)
@@ -121,7 +121,7 @@ class RealAcpiProducerTests(unittest.TestCase):
                 destination.mkdir()
                 ref = 'source/base/edk2/edk2-stable' + version
                 archive = subprocess.check_output([
-                    'git', '-C', str(ROOT), 'archive', ref,
+                    'git', '-C', str(ROOT), 'archive', rev_parse(ROOT, ref),
                     'MdePkg/Include', 'EmbeddedPkg/Include', 'MdeModulePkg/Include',
                 ])
                 with tarfile.open(fileobj=io.BytesIO(archive)) as contents:
@@ -173,8 +173,8 @@ class RealAcpiProducerTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 return subprocess.check_output([str(root / 'table')])
             # Gate adaptation on the actual selected modern header definitions.
-            modern_header = git(ROOT, 'show', 'source/base/edk2/edk2-stable202608:EmbeddedPkg/Include/Library/AcpiLib.h').stdout.encode()
-            helper_header = git(ROOT, 'show', 'source/base/edk2/edk2-stable202608:MdeModulePkg/Include/AcpiHelperMacros.h').stdout.encode()
+            modern_header = show_file(ROOT, 'source/base/edk2/edk2-stable202608', 'EmbeddedPkg/Include/Library/AcpiLib.h')
+            helper_header = show_file(ROOT, 'source/base/edk2/edk2-stable202608', 'MdeModulePkg/Include/AcpiHelperMacros.h')
 
             class SelectedHeaders:
                 entries = dict(source.entries, **{ACPI_HELPER_HEADER: None})
