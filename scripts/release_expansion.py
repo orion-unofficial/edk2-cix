@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNNERS = ("release_expansion.py", "release_expansion_source.py",
            "dsdt_cpu_conflict.py", "validate_radxa13_source.py",
            "radxa_source_compatibility.py", "radxa13_fdf.py",
-           "radxa13_source_conflicts.py", "source_lifecycle.py")
+           "radxa13_source_conflicts.py", "source_lifecycle.py", "parallel_batch_make.py")
 RADXA = ("1.2.1", "1.2.2", "1.2.3", "1.2.4", "1.3.0", "1.3.1")
 BATCH_DEBUG_MASK = "0x80000001"
 
@@ -88,6 +88,10 @@ def selected_pair_passed(state: Path, plan: dict, prepare_only: bool) -> bool:
 
 
 def initialise(state: Path, args: argparse.Namespace) -> dict:
+    jobs = getattr(args, "build_jobs", None)
+    if jobs is not None:
+        from parallel_batch_make import profile
+        profile(jobs)
     if (state / "plan.json").exists():
         plan = read(state / "plan.json")
         for key in ("edk2", "radxa", "boards", "fixes", "settings"):
@@ -96,6 +100,8 @@ def initialise(state: Path, args: argparse.Namespace) -> dict:
                 raise ValueError(f"--{key} differs from frozen plan; use a new --state")
         if args.platform and args.platform != plan["platform"]:
             raise ValueError("--platform differs from frozen plan; use a new --state")
+        if jobs is not None and jobs != plan.get("build_jobs"):
+            raise ValueError("--build-jobs differs from frozen plan; use a new --state")
         return plan
     # A failed initial clone must not be mistaken for a complete snapshot.
     if (state / "repo").exists():
@@ -115,6 +121,9 @@ def initialise(state: Path, args: argparse.Namespace) -> dict:
                 "linux/arm64" if os.uname().machine in {"arm64", "aarch64"} else "linux/amd64"),
             "build_date": time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime()),
             "min_free_gib": args.min_free_gib}
+    if jobs is not None:
+        plan["build_jobs"] = jobs
+        (state / "parallel-make.mk").write_text(profile(jobs))
     event(state, "Taking an isolated local repository snapshot; no remote publication")
     repo = state / "repo"
     subprocess.run(["git", "clone", "--local", "--no-checkout", "--no-tags", str(ROOT), str(repo)], check=True)
@@ -259,13 +268,24 @@ def commit_metadata(repo: Path) -> None:
 
 def build_command(plan: dict, edk2: str, radxa: str, board: str,
                   fixes: str, settings: str, state: Path, output: Path) -> list[str]:
-    return ["make", "build", f"RELEASE=edk2-{edk2}/radxa-{radxa}/unofficial",
-            "ARTEFACT_MODE=custom", f"FIRMWARE_BOARD={board}", "FIRMWARE_TARGET=RELEASE",
-            "FIRMWARE_DISTRO=trixie", f"ENABLE_FIRMWARE_FIXES={fixes}", "ENABLE_CORE_ORDER=cix",
-            f"ENABLE_EXPERIMENTAL_UEFI_SETTINGS={settings}", "DEBUG_VERBOSE=false", "CIX_RELEASE=",
-            "FORCE_DEBUG_BUILD=0", f"DEBUG_PRINT_ERROR_LEVEL={BATCH_DEBUG_MASK}",
-            f"BUILD_DATE={plan['build_date']}", f"BUILDBOX_PLATFORM={plan['platform']}",
-            f"FIRMWARE_CACHE_ROOT={state / 'cache'}", f"BUILD_DIST_ROOT={output}"]
+    command = [
+        "make", "build", f"RELEASE=edk2-{edk2}/radxa-{radxa}/unofficial",
+        "ARTEFACT_MODE=custom", f"FIRMWARE_BOARD={board}", "FIRMWARE_TARGET=RELEASE",
+        "FIRMWARE_DISTRO=trixie", f"ENABLE_FIRMWARE_FIXES={fixes}", "ENABLE_CORE_ORDER=cix",
+        f"ENABLE_EXPERIMENTAL_UEFI_SETTINGS={settings}", "DEBUG_VERBOSE=false", "CIX_RELEASE=",
+        "FORCE_DEBUG_BUILD=0", f"DEBUG_PRINT_ERROR_LEVEL={BATCH_DEBUG_MASK}",
+        f"BUILD_DATE={plan['build_date']}", f"BUILDBOX_PLATFORM={plan['platform']}",
+        f"FIRMWARE_CACHE_ROOT={state / 'cache'}", f"BUILD_DIST_ROOT={output}"]
+    if "build_jobs" in plan:
+        import shlex
+        from parallel_batch_make import profile
+        options = state / "parallel-make.mk"
+        if options.read_text() != profile(plan["build_jobs"]):
+            raise ValueError("frozen compiler concurrency profile changed")
+        wrapper = state / "repo/scripts/parallel_batch_make.py"
+        command.append("MAKE=" + shlex.join(["python3", str(wrapper), "--jobs", str(plan["build_jobs"]),
+                                             "--profile", str(options), "--"]))
+    return command
 
 
 def verify_output(output: Path, board: str, fixes: str, settings: str, radxa: str) -> dict:
@@ -577,6 +597,7 @@ def main() -> int:
     p.add_argument("--settings", default="all")
     p.add_argument("--platform", choices=["linux/arm64", "linux/amd64"])
     p.add_argument("--min-free-gib", type=int, default=12)
+    p.add_argument("--build-jobs", type=int, help="Freeze custom compiler job count; image packaging retains its defaults")
     p.add_argument("--retry-failed", action="store_true")
     p.add_argument("--only-pair", help="Run or prepare only one EDK2/Radxa pair from the frozen plan")
     args = p.parse_args()

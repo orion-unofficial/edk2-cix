@@ -287,6 +287,13 @@ Host regressions check both capsule INF variants and execute the resolved reset
 implementation with stubbed EC, GPIO and PSCI calls. Board behavior remains an
 explicit qualification step.
 
+For a new qualification batch, `--build-jobs=N` records a compiler job count
+without changing source refs or packaging concurrency. For example, use
+`--build-jobs=4` on a four-CPU Linux buildbox. The batch forwards this count to
+EDK2, BaseTools and helper compilation for custom builds. Existing frozen
+batches retain their recorded settings; changing the count requires a new
+state directory. The default leaves the source build's existing policy intact.
+
 For the separately reviewed 202305/1.3.0 and 202305/1.3.1 overlay conflicts,
 `unofficial_overlay_journal` selects a receipt with the exact 202302 source and
 vendor-port inputs and the 202305 destination port. The helper checks the
