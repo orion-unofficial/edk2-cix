@@ -83,5 +83,66 @@ class SourceJournalCallerTests(unittest.TestCase):
         self.assertNotIn("vendor_delta_from", metadata)
 
 
+class OverlayJournalCallerTests(unittest.TestCase):
+    repo = Path("/unused-private-batch")
+    candidate = "a" * 40
+    source_ref = "source/unofficial/1.3.1/edk2-stable202302"
+    port_ref = "source/port/radxa/1.3.1/edk2-stable202305"
+
+    def prepare(self, resolutions, *, validator_error=None):
+        with ExitStack() as stack:
+            patches = {
+                "finish_registration": {}, "check_immutable_refs": {},
+                "ref_exists": {"return_value": False},
+                "load_ref_records": {"return_value": []},
+                "matrix_release_values": {"return_value": ["202302", "202305"]},
+                "valid_source": {"return_value": None},
+                "radxa_source_ref": {"side_effect": lambda _, r, b: f"source/port/radxa/{r}/{b}"},
+                "rev_parse": {"side_effect": lambda _, ref: ref},
+                "unofficial_seed": {"return_value": ("202302", "1.3.1", self.source_ref)},
+                "enforce_source_tree_policy": {},
+                "validated_overlay_resolution": {"return_value": self.candidate, "side_effect": validator_error},
+                "resume_source_delta_tree": {"side_effect": RuntimeError("stop at reviewed resume")},
+                "apply_source_delta_to_base": {},
+                "validated_dsdt_resolution": {},
+            }
+            mocks = {name: stack.enter_context(patch.object(source, name, **kwargs))
+                     for name, kwargs in patches.items()}
+            try:
+                source.prepare(self.repo, "202305", "1.3.1", self.repo / "registration.json", resolutions)
+            except (RuntimeError, ReconstructionError) as exc:
+                return mocks, exc
+        self.fail("expected reviewed resume or input rejection")
+
+    def test_validated_journal_derives_commit_and_resumes_only_overlay_stage(self):
+        mocks, error = self.prepare({"unofficial_overlay_journal": "/reviewed/overlay.json"})
+        self.assertEqual(str(error), "stop at reviewed resume")
+        mocks["validated_overlay_resolution"].assert_called_once_with(
+            self.repo, Path("/reviewed/overlay.json"), "202305", "1.3.1", self.source_ref, self.port_ref)
+        kwargs = mocks["resume_source_delta_tree"].call_args.kwargs
+        self.assertEqual(kwargs["stage"], "overlay")
+        self.assertEqual(kwargs["resolved"], self.candidate)
+        self.assertEqual(kwargs["source_ref"], self.source_ref)
+        self.assertEqual(kwargs["new_base_ref"], self.port_ref)
+        mocks["apply_source_delta_to_base"].assert_not_called()
+        mocks["validated_dsdt_resolution"].assert_not_called()
+
+    def test_overlay_journal_rejects_mismatched_commit_or_final_stage(self):
+        for extra in ({"unofficial_ref": "b" * 40}, {"unofficial_stage": "final"},
+                      {"unofficial_stage": "source"}):
+            with self.subTest(extra=extra):
+                mocks, error = self.prepare({"unofficial_overlay_journal": "/reviewed/overlay.json", **extra})
+                self.assertIsInstance(error, ReconstructionError)
+                mocks["resume_source_delta_tree"].assert_not_called()
+
+    def test_invalid_overlay_journal_rejected_before_resume(self):
+        for error in (RadxaSourceConflictError("wrong pair"), OSError("missing receipt"), ValueError("malformed receipt")):
+            with self.subTest(error=type(error).__name__):
+                mocks, raised = self.prepare({"unofficial_overlay_journal": "/reviewed/overlay.json"}, validator_error=error)
+                self.assertIsInstance(raised, ReconstructionError)
+                self.assertIn("overlay journal rejected", str(raised))
+                mocks["resume_source_delta_tree"].assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
