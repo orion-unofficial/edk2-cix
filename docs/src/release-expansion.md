@@ -105,6 +105,16 @@ replacement definitions in `AcpiHelperMacros.h`, adds that include, and uses
 mirror requiring this adaptation becomes a regular custom overlay. Older headers
 and already adapted overlays retain their exact bytes. Compile regression tests
 use the real EDK2 headers and compare emitted table bytes across the transition.
+
+When the selected EDK2 exposes `AmlCodeGenMethod` publicly, preparation also
+adapts older CIX AML implementations that declare the same function private.
+The custom module overlay removes only `STATIC` from that definition; unchanged
+module files remain mirrors of the imported source. The adaptation checks the
+reviewed function signature and body, and adds the overlay files to the custom
+firmware build dependencies. Older headers and already compatible modules are
+unchanged. The regression gate compiles the complete CIX AML module against
+the selected EDK2 headers; full firmware qualification remains a separate step.
+
 Their child commit records the candidate preimage and upstream changes.
 Historical module INFs without those dependencies keep their original bindings.
 Existing checkpoints needing an adaptation fail preflight and remain intact.
