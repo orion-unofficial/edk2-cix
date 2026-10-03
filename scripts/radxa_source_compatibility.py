@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -10,6 +11,7 @@ import subprocess
 
 from reconstruction_common import ReconstructionError, git, temp_dir
 from validate_radxa13_source import GitTree
+from source_lifecycle import mirror_symlink_target
 
 LEGACY_EXCEPTION = "ArmPkg/Library/ArmExceptionLib/ArmExceptionLib.inf"
 DXE_EXCEPTION = "UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf"
@@ -74,6 +76,7 @@ def source_library_updates(tree: GitTree) -> dict[str, bytes]:
     """Adapt known dependencies together, gated on the selected consumer INFs."""
     updates = exception_library_updates(tree)
     updates.update(acpi_helper_updates(tree))
+    updates.update(aml_library_updates(tree))
     for path in DESCRIPTORS:
         if path not in tree.entries:
             continue
@@ -147,6 +150,118 @@ def acpi_helper_updates(tree: GitTree) -> dict[str, bytes]:
     return updates
 
 
+AML_MODULE = "edk2-platforms/Platform/CIX/Sky1/Library/Acpi/CIX/AmlLib/"
+AML_OVERLAY = "custom/overlay/" + AML_MODULE
+AML_CODEGEN = AML_OVERLAY + "CodeGen/AmlCodeGen.c"
+AML_PUBLIC_HEADER = "src/edk2/DynamicTablesPkg/Include/Library/AmlLib/AmlLib.h"
+# Reviewed source evidence: the vendor's 202208/202605 private method and the
+# public declaration added by upstream 95a7323e86126560e0a37b3801bc6c12a8428cda.
+AML_PRIVATE_METHOD_SHA256 = "8ca9649636e27e94d53f6d2d87c7c51187f3858f59902d6ca0ae6462de3933f6"
+AML_PUBLIC_SIGNATURE_SHA256 = "6958de4323d7d97369eb5f257ab17e7948642b64d796380757b649445d5336c6"
+
+
+def aml_library_updates(tree: GitTree) -> dict[str, bytes]:
+    """Export the vendor method through a custom module when EDK2 exposes it.
+
+    The selected CIX instance supplies AmlLib in place of the upstream instance.
+    Its method already has the public API's ABI through AML_HANDLE. Preserve
+    its implementation and callers; remove only the obsolete static linkage.
+    """
+    if AML_PUBLIC_HEADER not in tree.entries:
+        return {}
+    header = tree.blob(tree.resolve(AML_PUBLIC_HEADER))
+    if not re.search(rb"(?m)^[ \t]*AmlCodeGenMethod[ \t]*\(", header):
+        return {}
+    binding = rb"(?m)^[ \t]*AmlLib[ \t]*\|[ \t]*" + re.escape(
+        AML_MODULE.removeprefix("edk2-platforms/").encode() + b"AmlLib.inf") + rb"[ \t]*\r?$"
+    if not any(path in tree.entries and re.search(binding, tree.blob(tree.resolve(path)))
+               for path in DESCRIPTORS if path.startswith("custom/")):
+        return {}
+    prototype = re.search(rb"(?m)^EFI_STATUS\r?\nEFIAPI\r?\nAmlCodeGenMethod\s*\([^;]+;", header)
+    if (prototype is None or hashlib.sha256(re.sub(rb"\s+", b"", prototype[0])).hexdigest()
+            != AML_PUBLIC_SIGNATURE_SHA256):
+        raise ReconstructionError("unreviewed public AML method signature")
+    imported = "src/" + AML_MODULE
+    source = AML_CODEGEN if AML_CODEGEN in tree.entries else imported + "CodeGen/AmlCodeGen.c"
+    if source not in tree.entries:
+        raise ReconstructionError("missing selected CIX AML method implementation")
+    data = tree.blob(tree.resolve(source))
+    pattern = rb"(?m)^STATIC(\r?\n)(EFI_STATUS\r?\nEFIAPI\r?\nAmlCodeGenMethod[ \t]*\()"
+    private = re.search(pattern, data)
+    if private:
+        normalized = data.replace(b"\r\n", b"\n")
+        declaration = re.search(rb"(?m)^STATIC\nEFI_STATUS\nEFIAPI\nAmlCodeGenMethod\s*\(", normalized)
+        try:
+            end = normalized.index(b"\n}", declaration.end()) + 2
+        except (ValueError, AttributeError) as exc:
+            raise ReconstructionError("invalid private CIX AML method body") from exc
+        method = normalized[declaration.start():end]
+        if hashlib.sha256(method).hexdigest() != AML_PRIVATE_METHOD_SHA256:
+            raise ReconstructionError("unreviewed private CIX AML method implementation")
+    rewritten, count = re.subn(pattern, lambda match: match[2], data)
+    if count == 0:
+        # Ignore comments only to detect unfamiliar private declaration layouts.
+        # Never use this comparison view to rewrite imported source bytes.
+        tokens = re.sub(rb"/\*.*?\*/|//[^\r\n]*", b" ", data, flags=re.S)
+        if re.search(rb"\bSTATIC\s+EFI_STATUS\s+EFIAPI\s+AmlCodeGenMethod\s*\(", tokens):
+            raise ReconstructionError("unreviewed private CIX AML method declaration")
+        if AML_CODEGEN not in tree.entries:
+            return {}
+        normalized = data.replace(b"\r\n", b"\n")
+        declaration = re.search(rb"(?m)^EFI_STATUS\nEFIAPI\nAmlCodeGenMethod\s*\(", normalized)
+        try:
+            end = normalized.index(b"\n}", declaration.end()) + 2
+        except (ValueError, AttributeError) as exc:
+            raise ReconstructionError("invalid custom CIX AML method body") from exc
+        method = b"STATIC\n" + normalized[declaration.start():end]
+        if hashlib.sha256(method).hexdigest() != AML_PRIVATE_METHOD_SHA256:
+            raise ReconstructionError("unreviewed custom CIX AML method implementation")
+    elif count != 1:
+        raise ReconstructionError("unexpected private CIX AML method declarations")
+    inf = imported + "AmlLib.inf"
+    if inf not in tree.entries or not re.search(
+            rb"(?m)^[ \t]*LIBRARY_CLASS[ \t]*=[ \t]*AmlLib[ \t]*\r?$",
+            tree.blob(tree.resolve(inf))):
+        raise ReconstructionError("selected CIX AML provider does not declare AmlLib")
+    if not re.search(rb"(?m)^[ \t]*\*_\*_\*_CC_FLAGS[ \t]*=[ \t]*-DAML_HANDLE[ \t]*\r?$",
+                     tree.blob(tree.resolve(inf))):
+        raise ReconstructionError("selected CIX AML provider lacks reviewed AML_HANDLE ABI")
+    updates = {AML_CODEGEN: rewritten} if rewritten != data or source != AML_CODEGEN else {}
+    # EDK2 module resolution selects a directory as a unit. Complete that unit
+    # with canonical imported-source mirrors rather than a partial overlay.
+    for path, entry in tree.entries.items():
+        if not path.startswith(imported):
+            continue
+        overlay = "custom/overlay/" + path.removeprefix("src/")
+        if overlay in tree.entries or overlay in updates:
+            continue
+        if entry.mode != "100644":
+            raise ReconstructionError(f"unexpected imported CIX AML module mode: {path}")
+        updates[overlay] = mirror_symlink_target(overlay).encode()
+    # The delegated firmware Makefile owns FV freshness even when invoked
+    # directly in a rendered tree. The build-branch caller cannot observe those
+    # local edits. Carry this custom-only dependency with its source overlay.
+    makefile = "src/Makefile"
+    if makefile not in tree.entries:
+        raise ReconstructionError("missing delegated AML build dependency owner")
+    data = tree.blob(makefile)
+    dependency = (b"\t$(wildcard $(CUSTOM_OVERLAY_ROOT)/" + AML_MODULE.encode() +
+                  b"* $(CUSTOM_OVERLAY_ROOT)/" + AML_MODULE.encode() + b"*/*) \\\n")
+    if dependency not in data:
+        anchor = b"CUSTOM_EDK2_OVERLAY_SOURCES := \\\n"
+        if data.count(anchor) != 1:
+            raise ReconstructionError("unexpected custom AML build dependency anchor")
+        updates[makefile] = data.replace(anchor, anchor + dependency, 1)
+    return updates
+
+
+def compatibility_update_mode(path: str, data: bytes) -> str:
+    """Give generated module mirrors symlink mode; source edits remain regular."""
+    if path.startswith(AML_OVERLAY) and data == mirror_symlink_target(path).encode():
+        return "120000"
+    return "100644"
+
+
 def exception_library_updates(tree: GitTree) -> dict[str, bytes]:
     """Change only an obsolete Sky1 binding when the replacement supports AArch64."""
     if "src/edk2/" + LEGACY_EXCEPTION in tree.entries:
@@ -194,14 +309,21 @@ def adapt_source_libraries(repo: Path, candidate: str) -> str:
             oid = subprocess.run(["git", "-C", str(repo), "hash-object", "-w", "--stdin"],
                                  input=data, check=True, stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE).stdout.decode().strip()
-            indexed("update-index", "--cacheinfo", "100644", oid, path)
+            indexed("update-index", "--add", "--cacheinfo", compatibility_update_mode(path, data), oid, path)
         result = indexed("write-tree")
     message = ("source: adapt Sky1 interfaces to selected EDK2\n\n"
                f"Source-Compatibility-Input: {candidate}\n"
                "Source-Compatibility-Upstream: d2fc49ac55eae1366d4fdf262129313d08b23d19\n"
                "Source-Compatibility-Upstream: 00a865d595591fef44dc9f23353f5c3d50152e04\n"
                "Source-Compatibility-Upstream: 5c6e9d475fe2943f2844ca879785c198588a30d0\n"
-               "Source-Compatibility-Upstream: 3b61f4d266ba8e8a4c320a06295637b01f098c2b\n")
+               "Source-Compatibility-Upstream: 3b61f4d266ba8e8a4c320a06295637b01f098c2b\n"
+               "Source-Compatibility-Upstream: 95a7323e86126560e0a37b3801bc6c12a8428cda\n")
+    if any(path.startswith(AML_OVERLAY) for path in updates):
+        source = "src/" + AML_MODULE + "CodeGen/AmlCodeGen.c"
+        message += (f"Source-Compatibility-AML-Header: {AML_PUBLIC_HEADER}={tree.entries[tree.resolve(AML_PUBLIC_HEADER)].oid}\n"
+                    f"Source-Compatibility-AML-Vendor: {source}={tree.entries[tree.resolve(source)].oid}\n"
+                    "Source-Compatibility-AML-Precedent: 82651824536e2c742b326c140417441735805706\n"
+                    "Source-Compatibility-AML-Precedent: 9916f3e32fadf9119836fcf3c308e2322e6f16be\n")
     return git(repo, "commit-tree", result, "-p", candidate, "-m", message).stdout.strip()
 
 
