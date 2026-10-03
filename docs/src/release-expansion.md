@@ -290,7 +290,9 @@ explicit qualification step.
 For a new qualification batch, `--build-jobs=N` records a compiler job count
 without changing source refs or packaging concurrency. For example, use
 `--build-jobs=4` on a four-CPU Linux buildbox. The batch forwards this count to
-EDK2, BaseTools and helper compilation for custom builds. Existing frozen
+EDK2 and BaseTools compilation for custom builds. Vendor helper compilation
+retains its existing settings, including serialization of recipes with clean
+and build goals. Existing frozen
 batches retain their recorded settings; changing the count requires a new
 state directory. The default leaves the source build's existing policy intact.
 
