@@ -37,7 +37,7 @@ class ParallelMakeTests(unittest.TestCase):
                 lines = result.stdout.splitlines()
                 expected = "BOARD=O6 FIXES=TRUE MASK=0x80000001"
                 if mode == "custom":
-                    expected += " EDK2_BUILD_JOBS=4 BASETOOLS_BUILD_JOBS=4 HELPER_BUILD_JOBS=4"
+                    expected += " EDK2_BUILD_JOBS=4 BASETOOLS_BUILD_JOBS=4"
                 self.assertEqual(lines, [expected, "--no-genfds-multi-thread"])
             options.write_text(profile(3))
             result = subprocess.run([sys.executable, str(helper), "--jobs", "4", "--profile", str(options),

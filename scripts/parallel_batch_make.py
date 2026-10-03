@@ -18,7 +18,7 @@ def profile(jobs: int) -> str:
         raise ValueError("compiler jobs must be an integer from 1 to 4096")
     return ("# Generated batch compiler concurrency; packaging defaults unchanged.\n"
             "ifeq ($(ARTEFACT_MODE),custom)\n"
-            f"SRC_COMMON_ARGS += EDK2_BUILD_JOBS={jobs} BASETOOLS_BUILD_JOBS={jobs} HELPER_BUILD_JOBS={jobs}\n"
+            f"SRC_COMMON_ARGS += EDK2_BUILD_JOBS={jobs} BASETOOLS_BUILD_JOBS={jobs}\n"
             "endif\n")
 
 
