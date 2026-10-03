@@ -1,0 +1,53 @@
+# Devenv
+/.devenv*
+/devenv.local.nix
+
+# direnv
+/.direnv
+/.devcontainer/.direnv/
+/.devcontainer/.devenv/
+
+# pre-commit
+/.pre-commit-config.yaml
+
+# node.js
+/node_modules
+
+# Local VS Code configuration
+/.vscode*
+
+# Host Python cache files
+__pycache__/
+*.pyc
+
+# mdbook build output
+/book
+
+# debuild work directory
+/.pc
+
+# intel-corporation.edk2code extension file
+/.edkCode
+
+# Local captured build logs
+/build-logs/
+/logs/
+
+# Local buildbox scratch state
+/.buildbox/
+
+# Local git worktrees
+/.worktrees/
+
+# Managed local compiler-cache state
+/build-cache/
+
+# Local staged and packaged firmware artefacts
+/dist/
+
+# Local firmware validation reports
+/build-validation/
+
+# Editor swap/backup files
+*.sw?
+*~
