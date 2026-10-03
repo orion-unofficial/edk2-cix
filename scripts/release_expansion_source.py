@@ -32,7 +32,8 @@ from source_porting import (
     resume_source_delta_tree,
 )
 from radxa13_source_conflicts import (
-    INPUTS as RADXA13_CONFLICT_INPUTS, RadxaSourceConflictError, validated_source_resolution,
+    INPUTS as RADXA13_CONFLICT_INPUTS, RadxaSourceConflictError,
+    validated_overlay_resolution, validated_source_resolution,
 )
 from source_policy import enforce_source_tree_policy
 from uplift_radxa_release import port_candidate
@@ -370,7 +371,20 @@ def prepare(repo: Path, edk2: str, radxa: str, journal: Path,
                 not resolutions.get("unofficial_ref")):
             raise ReconstructionError("final unofficial resolution requires unofficial_ref")
         resolved = None
-        if resolutions.get("unofficial_ref"):
+        if resolutions.get("unofficial_overlay_journal"):
+            try:
+                resolved = validated_overlay_resolution(
+                    repo, Path(resolutions["unofficial_overlay_journal"]), edk2, radxa,
+                    old_source, port)
+            except (RadxaSourceConflictError, OSError, ValueError) as exc:
+                raise ReconstructionError(f"unofficial overlay journal rejected: {exc}") from exc
+            if (resolutions.get("unofficial_ref") and
+                    rev_parse(repo, resolutions["unofficial_ref"]) != resolved):
+                raise ReconstructionError("unofficial_ref differs from the validated overlay resolution")
+            if resolutions.get("unofficial_stage", "auto") not in ("auto", "overlay"):
+                raise ReconstructionError("reviewed overlay journal requires overlay stage")
+            stage = "overlay"
+        elif resolutions.get("unofficial_ref"):
             resolved = rev_parse(repo, resolutions["unofficial_ref"])
             stage = resolved_source_port_stage(
                 repo, resolved, resolutions.get("unofficial_stage", "auto"),

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded resolution of the reviewed 202408.01 / Radxa 1.3.1 source conflict.
+"""Bounded resolution of separately reviewed Radxa 1.3.1 source conflicts.
 
 The input trees, entire editable blobs, resolution parent and untouched tree
 entries are verified. Other release pairs require a separate source review.
@@ -186,4 +186,124 @@ def validated_source_resolution(repo: Path, journal: Path, edk2: str, radxa: str
     ref = f"refs/heads/batch/resolutions/{edk2}-{radxa}-source"
     if row.get("resolution_ref") != ref or _text(repo, "rev-parse", "--verify", ref) != resolved:
         raise RadxaSourceConflictError("private source resolution ref differs")
+    return resolved
+
+
+# A separate overlay-stage review. These are the exact source inputs and
+# complete handoff tree from the stopped 202305 / 1.3.1 source preparation.
+# It must never be treated as a general conflict-side selection rule.
+OVERLAY_PATHS = (
+    "custom/overlay/edk2/BaseTools/Source/Python/Workspace/DscBuildData.py",
+    "custom/overlay/edk2/SecurityPkg/Library/SecureBootVariableProvisionLib/"
+    "SecureBootVariableProvisionLib.c",
+)
+OVERLAY_INPUTS = {
+    "old": ("source/port/radxa/1.3.1/edk2-stable202302",
+            "b1adfd4201f47d7196301bb77093dbd9c336e9ce", "93f92c4bef76f804594910e78d9f318c38bff3dc"),
+    "source": ("source/unofficial/1.3.1/edk2-stable202302",
+               "3dc9402a7bd042c843cdbf0c4e99e73b6871f88e", "108e0cc1d92622d7d876a8d5e6f261833b9f9544"),
+    "new": ("source/port/radxa/1.3.1/edk2-stable202305",
+            "02d1b4a387a048db91183d4b8aa9034c5240439a", "336964d3de69ff02594af12c54aadcec7f90f256"),
+}
+OVERLAY_CONFLICT_TREE = "7b703a212e9e88535ddc83a8d3432457c801f21a"
+OVERLAY_BLOBS = {
+    OVERLAY_PATHS[0]: (
+        "b3fd64e2fc5666f84b2d2e141388eec61a5c8b4b899638eeeb598d66de77b536",
+        "dad3d511b8d66a398f136f487f5fe3cbbff5616a4c5580c65d36acf770028b7f",
+    ),
+    OVERLAY_PATHS[1]: (
+        "77b60d293cf9b423fa45fae9350fe41a77834031ac5709cf529b0b8e7af903da",
+        "529d3e04e15407c742b4c74afeb43e6ace2a5e10bd13ec33bba3ff8d3da08d37",
+    ),
+}
+
+
+def resolve_radxa13_overlay_conflict(blobs: dict[str, bytes]) -> dict[str, bytes]:
+    """Retain custom behavior and incorporate the two reviewed upstream edits."""
+    if set(blobs) != set(OVERLAY_PATHS):
+        raise RadxaSourceConflictError("expected exactly the two reviewed overlay paths")
+    output = {}
+    for path, raw in blobs.items():
+        if not isinstance(raw, bytes):
+            raise TypeError("overlay blobs must be bytes")
+        before, after = OVERLAY_BLOBS[path]
+        if hashlib.sha256(_canonical_markers(raw)).hexdigest() != before:
+            raise RadxaSourceConflictError("reviewed whole-file overlay preimage differs: " + path)
+        resolved, count = re.subn(
+            rb"(?m)^<<<<<<< [^\n]+\n(.*?)^=======\n.*?^>>>>>>> [^\n]+\n",
+            lambda match: match[1], raw, flags=re.S)
+        if count != 1:
+            raise RadxaSourceConflictError("expected one reviewed overlay conflict: " + path)
+        if path == OVERLAY_PATHS[0]:
+            # The new BaseTools makefiles consume CFLAGS. Keep the custom
+            # Windows literal's escaped backslashes while adopting that name.
+            resolved = resolved.replace(b"LinuxCFLAGS = 'BUILD_CFLAGS +=",
+                                        b"LinuxCFLAGS = 'CFLAGS +=", 1)
+        else:
+            # The upstream diagnostic-name edit must not discard the custom
+            # mixed X509/ESL path or its RSA public-key ownership fix.
+            resolved = resolved.replace(
+                b'Invalid key format: %d\\n", __FUNCTION__, KeyIndex',
+                b'Invalid key format: %d\\n", __func__, KeyIndex', 1)
+        if hashlib.sha256(resolved).hexdigest() != after:
+            raise RadxaSourceConflictError("reviewed overlay output differs: " + path)
+        output[path] = resolved
+    return output
+
+
+def validated_overlay_resolution(repo: Path, journal: Path, edk2: str, radxa: str,
+                                 source_ref: str, base_ref: str) -> str:
+    """Bind a private overlay resolution to its reviewed inputs and entire tree.
+
+    The accepted handoff tree is the source assembly's preserved output, not a
+    plain merge-tree result: it includes policy ownership and overlay lifecycle
+    processing. Exact tree identity binds every untouched entry. No ref changes
+    or source registration are performed here.
+    """
+    row = json.loads(journal.read_text())
+    if not isinstance(row, dict) or not isinstance(row.get("inputs"), dict):
+        raise RadxaSourceConflictError("overlay resolution journal has invalid structure")
+    if (edk2, radxa) != ("202305", "1.3.1") or row.get("pair") != [edk2, radxa]:
+        raise RadxaSourceConflictError("overlay resolution pair has not been reviewed")
+    if row.get("stage") != "overlay" or row.get("paths") != list(OVERLAY_PATHS):
+        raise RadxaSourceConflictError("overlay resolution scope differs")
+    if source_ref != OVERLAY_INPUTS["source"][0] or base_ref != OVERLAY_INPUTS["new"][0]:
+        raise RadxaSourceConflictError("overlay resolution selected inputs differ")
+    for role, (ref, oid, tree) in OVERLAY_INPUTS.items():
+        if row["inputs"].get(role) != {"ref": ref, "commit": oid, "tree": tree}:
+            raise RadxaSourceConflictError("overlay input receipt differs: " + role)
+        selected = None
+        for candidate in ("refs/heads/" + ref, "refs/remotes/origin/" + ref):
+            result = _git(repo, "rev-parse", "--verify", "--quiet", candidate + "^{commit}", check=False)
+            if result.returncode == 0:
+                selected = result.stdout.decode().strip()
+                break
+        if selected != oid or _text(repo, "rev-parse", oid + "^{tree}") != tree:
+            raise RadxaSourceConflictError("selected overlay input changed: " + ref)
+    conflict, resolved = row.get("conflict_commit", ""), row.get("resolution_commit", "")
+    if not all(isinstance(oid, str) and re.fullmatch(r"[0-9a-f]{40}", oid) for oid in (conflict, resolved)):
+        raise RadxaSourceConflictError("invalid overlay resolution commit identity")
+    if (_text(repo, "rev-list", "--parents", "-n", "1", conflict).split() != [conflict] or
+            _text(repo, "rev-parse", conflict + "^{tree}") != OVERLAY_CONFLICT_TREE or
+            row.get("conflict_tree") != OVERLAY_CONFLICT_TREE):
+        raise RadxaSourceConflictError("overlay conflict handoff tree or parent differs")
+    expected_message = (
+        f"source-port: conflict tree for expansion-{edk2}-{radxa}\n\n"
+        f"Source-Port-Input: {source_ref}\nSource-Port-New-Base: {base_ref}\n"
+        "Source-Port-Conflict-Stage: overlay")
+    if _text(repo, "show", "-s", "--format=%B", conflict) != expected_message:
+        raise RadxaSourceConflictError("overlay conflict message does not bind its inputs")
+    if _text(repo, "rev-list", "--parents", "-n", "1", resolved).split() != [resolved, conflict]:
+        raise RadxaSourceConflictError("overlay resolution does not have the exact conflict parent")
+    if _text(repo, "diff", "--name-only", conflict, resolved).splitlines() != sorted(OVERLAY_PATHS):
+        raise RadxaSourceConflictError("overlay resolution changed paths outside the reviewed files")
+    expected = resolve_radxa13_overlay_conflict({p: _blob(repo, conflict, p) for p in OVERLAY_PATHS})
+    for path, data in expected.items():
+        if not _text(repo, "ls-tree", resolved, "--", path).startswith("100644 blob ") or _blob(repo, resolved, path) != data:
+            raise RadxaSourceConflictError("overlay output bytes or mode differ: " + path)
+    if row.get("resolution_tree") != _text(repo, "rev-parse", resolved + "^{tree}"):
+        raise RadxaSourceConflictError("overlay resolution tree receipt differs")
+    ref = f"refs/heads/batch/resolutions/{edk2}-{radxa}-overlay"
+    if row.get("resolution_ref") != ref or _text(repo, "rev-parse", "--verify", ref) != resolved:
+        raise RadxaSourceConflictError("private overlay resolution ref differs")
     return resolved

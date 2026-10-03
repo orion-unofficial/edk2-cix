@@ -287,6 +287,32 @@ Host regressions check both capsule INF variants and execute the resolved reset
 implementation with stubbed EC, GPIO and PSCI calls. Board behavior remains an
 explicit qualification step.
 
+For the separately reviewed 202305/1.3.1 overlay conflict,
+`unofficial_overlay_journal` selects a receipt with the exact 202302 source and
+vendor-port inputs and the 202305 destination port. The helper checks the
+complete preserved overlay handoff tree, its input-bound message and root
+parent, and the resolution's two changed files, whole-file bytes, modes, parent
+and private ref. This stage includes source assembly and overlay lifecycle
+processing, so its complete tree is pinned independently of a plain Git merge.
+Changed input commits or trees require a separate review.
+
+```json
+{
+  "202305/1.3.1": {
+    "unofficial_overlay_journal": "<absolute-path-to-reviewed-overlay-resolution.json>",
+    "unofficial_stage": "overlay"
+  }
+}
+```
+
+The optional `unofficial_ref` must match the validated resolution. This journal
+resumes only the overlay stage. It keeps the custom Windows makefile escaping
+and mixed X509/signature-database provisioning while adopting the upstream
+`CFLAGS` variable and `__func__` diagnostic identifier. Regressions reproduce
+both conflicts from exact three-way inputs, execute the resolved fetch helpers
+and reject unrelated tree changes. The journal does not advance canonical refs
+or qualify compilation or Secure Boot behavior on hardware.
+
 `unofficial_stage: final` accepts a fully reviewed tree only with exact identity
 bindings. A parent may also be an explicitly selected immutable source
 correction of a recorded checkpoint. The correction must pass its full identity,
