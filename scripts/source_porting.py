@@ -537,7 +537,7 @@ def normalise_overlay_tree(
                         "-L",
                         f"{projection.source_path} (previous source)",
                         "-L",
-                        f"{mapping.target_path} (new source)",
+                        f"{target_source_path} (new source)",
                         str(overlay_path),
                         str(previous_path),
                         str(new_path),
