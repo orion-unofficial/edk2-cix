@@ -10,11 +10,7 @@
   ValidateFmpCapsule(), and DisplayCapsuleImage() receives untrusted input and
   performs basic validation.
 
-<<<<<<< c0d590b7701bd860b383fe8771166da5b231b200
   Copyright (c) 2016 - 2024, Intel Corporation. All rights reserved.<BR>
-=======
-  Copyright (c) 2016 - 2019, Intel Corporation. All rights reserved.<BR>
->>>>>>> c94f1e70a3dba103ceef9cc2333ff7bae4f336a9
   Copyright (c) 2024, Ampere Computing LLC. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -53,11 +49,7 @@ EFI_EVENT  mDxeCapsuleLibEndOfDxeEvent = NULL;
 
 EDKII_FIRMWARE_MANAGEMENT_PROGRESS_PROTOCOL  *mFmpProgress = NULL;
 
-<<<<<<< c0d590b7701bd860b383fe8771166da5b231b200
 BOOLEAN  mDxeCapsuleLibIsExitBootService = FALSE;
-=======
-extern BOOLEAN  mDxeCapsuleLibReadyToBootEvent;
->>>>>>> c94f1e70a3dba103ceef9cc2333ff7bae4f336a9
 
 /**
   Initialize capsule related variables.
@@ -1404,7 +1396,6 @@ IsNestedFmpCapsule (
   EFI_SYSTEM_RESOURCE_ENTRY  Entry;
 
   EsrtGuidFound = FALSE;
-<<<<<<< c0d590b7701bd860b383fe8771166da5b231b200
   if (mDxeCapsuleLibIsExitBootService) {
     if (mEsrtTable != NULL) {
       EsrtEntry = (EFI_SYSTEM_RESOURCE_ENTRY *)(mEsrtTable + 1);
@@ -1413,27 +1404,9 @@ IsNestedFmpCapsule (
           EsrtGuidFound = TRUE;
           break;
         }
-=======
-  if (mEsrtTable != NULL) {
-    EsrtEntry = (EFI_SYSTEM_RESOURCE_ENTRY *)(mEsrtTable + 1);
-    for (Index = 0; Index < mEsrtTable->FwResourceCount; Index++, EsrtEntry++) {
-      if (CompareGuid (&EsrtEntry->FwClass, &CapsuleHeader->CapsuleGuid)) {
-        EsrtGuidFound = TRUE;
-        break;
->>>>>>> c94f1e70a3dba103ceef9cc2333ff7bae4f336a9
       }
     }
   } else {
-    if (mDxeCapsuleLibReadyToBootEvent) {
-      //
-      // The ESRT table (mEsrtTable) in the Configuration Table would be located
-      // at the ReadyToBoot event if it exists. Hence, it should return here to
-      // avoid a crash due to calling gBS->LocateProtocol () at runtime in case
-      // there is no ERST table installed.
-      //
-      return FALSE;
-    }
-
     //
     // Check ESRT protocol
     //
