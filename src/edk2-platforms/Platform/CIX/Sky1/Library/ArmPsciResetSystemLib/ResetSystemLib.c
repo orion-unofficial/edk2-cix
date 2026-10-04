@@ -76,14 +76,18 @@ ResetPlatformSpecific (
   )
 {
   EC_PARAMS_FORCE_EC_RESET  Params;
+  EFI_STATUS                Status;
 
   (VOID)DataSize;
   (VOID)ResetData;
   Params.Reserved = 0;
-  ForceEcReset (&Params);
+  Status = ForceEcReset (&Params);
+  if (!EFI_ERROR (Status)) {
+    DEBUG ((DEBUG_INFO, "%a: force EC reset\n", __FUNCTION__));
+    CpuDeadLoop ();
+  }
 
-  DEBUG ((DEBUG_INFO, "%a: force EC reset\n", __FUNCTION__));
-  CpuDeadLoop ();
+  ResetCold ();
 }
 
 VOID
