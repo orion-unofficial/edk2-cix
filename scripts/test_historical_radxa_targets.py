@@ -33,7 +33,11 @@ from integrate_source_release import (  # noqa: E402
     materialise_existing_target_local_head,
     operation_manifest_metadata,
 )
-from source_porting import apply_source_delta_to_base, unchanged_ours_conflicts  # noqa: E402
+from source_porting import (  # noqa: E402
+    apply_source_delta_to_base,
+    normalise_overlay_tree,
+    unchanged_ours_conflicts,
+)
 from render_release_branch import coupled_persistent_refs, render_from_plan  # noqa: E402
 from verify_build_matrix import require_unofficial_source_policy  # noqa: E402
 
@@ -745,6 +749,54 @@ def test_source_delta_porting_rebases_regular_overlay_content() -> None:
         shutil.rmtree(repo)
 
 
+def test_overlay_conflict_labels_identify_each_new_source_path() -> None:
+    repo = Path(tempfile.mkdtemp(prefix="edk2-cix-overlay-conflict-label-test."))
+    try:
+        git(repo, "init", "-b", "build")
+        git(repo, "config", "user.name", "Overlay Conflict Label Test")
+        git(repo, "config", "user.email", "overlay-conflict-label-test")
+        write_file(repo, "README.md", "build branch\n")
+        commit_all(repo, "build root")
+        source_paths = ("src/component/first.c", "src/component/second.c")
+        overlay_paths = tuple(path.replace("src/", "custom/overlay/", 1) for path in source_paths)
+        overlays = {path: f"unofficial {index}\n" for index, path in enumerate(overlay_paths)}
+        create_branch(
+            repo,
+            "source-tree",
+            {**dict.fromkeys(source_paths, "previous source\n"), **overlays},
+            "source tree",
+        )
+        create_branch(
+            repo,
+            "new-tree",
+            {
+                **{path: f"new source {index}\n" for index, path in enumerate(source_paths)},
+                **overlays,
+            },
+            "new source tree",
+        )
+        tree = git(repo, "rev-parse", "new-tree^{tree}").stdout.strip()
+        git(repo, "switch", "build")
+
+        merged_tree, conflicts, _detail = normalise_overlay_tree(
+            repo,
+            tree=tree,
+            source_ref="source-tree",
+            label="overlay-conflict-label-test",
+            verbose=False,
+        )
+        require(conflicts == set(overlay_paths), "both overlay files must have genuine content conflicts")
+        for source_path, overlay_path in zip(source_paths, overlay_paths):
+            merged = git(repo, "show", f"{merged_tree}:{overlay_path}").stdout
+            new_source_labels = [line for line in merged.splitlines() if line.startswith(">>>>>>> ")]
+            require(
+                new_source_labels == [f">>>>>>> {source_path} (new source)"],
+                f"{overlay_path} has the wrong new source conflict label: {new_source_labels}",
+            )
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_source_delta_porting_retires_overlay_absorbed_by_vendor() -> None:
     repo = Path(tempfile.mkdtemp(prefix="edk2-cix-source-port-absorbed-overlay-test."))
     try:
@@ -1289,6 +1341,7 @@ def main() -> None:
     test_source_delta_porting_resolves_policy_owned_paths_from_source()
     test_source_delta_porting_drops_mirror_for_deleted_source_path()
     test_source_delta_porting_rebases_regular_overlay_content()
+    test_overlay_conflict_labels_identify_each_new_source_path()
     test_source_delta_porting_retires_overlay_absorbed_by_vendor()
     test_source_delta_porting_mirrors_new_file_in_complete_overlay()
     test_source_delta_porting_resolves_policy_paths_before_mixed_handoff()
