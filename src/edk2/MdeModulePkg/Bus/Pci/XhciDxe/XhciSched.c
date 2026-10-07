@@ -3292,6 +3292,9 @@ XhcSetConfigCmd (
   UINT8                     Dci;
   UINT8                     MaxDci;
   EFI_PHYSICAL_ADDRESS      PhyAddr;
+  UINT8                     *ConfigDescEnd;
+  UINTN                     Remaining;
+  UINT32                    SkipCount;
 
   CMD_TRB_CONFIG_ENDPOINT     CmdTrbCfgEP;
   INPUT_CONTEXT               *InputContext;
@@ -3312,54 +3315,49 @@ XhcSetConfigCmd (
 
   MaxDci = 0;
 
-<<<<<<< 2a022011f39e1c4a1c0ba21c10a4940041a8e9b6
-  IfDesc = (USB_INTERFACE_DESCRIPTOR *)((UINTN)ConfigDesc + ConfigDesc->Length);
-=======
-  IfDesc = (USB_INTERFACE_DESCRIPTOR *)(ConfigDesc + 1);
-
   //
-  // Calculate the end of the config descriptor to prevent pointer overflow
+  // Honour variable-length configuration headers and keep all descriptor
+  // reads and advances within the advertised configuration buffer.
   //
-  UINT8 *ConfigDescEnd = (UINT8 *)ConfigDesc + ConfigDesc->TotalLength;
+  if ((ConfigDesc == NULL) ||
+      (ConfigDesc->Length < sizeof (USB_CONFIG_DESCRIPTOR)) ||
+      (ConfigDesc->TotalLength < ConfigDesc->Length) ||
+      ((UINTN)ConfigDesc > MAX_UINTN - ConfigDesc->TotalLength)) {
+    goto Done;
+  }
 
->>>>>>> bafcb738d9117026e17ca2bf6ac9fc4f7fedfb15
+  ConfigDescEnd = (UINT8 *)ConfigDesc + ConfigDesc->TotalLength;
+  IfDesc       = (USB_INTERFACE_DESCRIPTOR *)((UINTN)ConfigDesc + ConfigDesc->Length);
   for (Index = 0; Index < ConfigDesc->NumInterfaces; Index++) {
-    //
-    // Safety check: ensure IfDesc is within bounds
-    //
-    if ((UINT8 *)IfDesc >= ConfigDescEnd) {
-      break;
-    }
+    SkipCount = 0;
+    while (TRUE) {
+      Remaining = (UINTN)ConfigDescEnd - (UINTN)IfDesc;
+      if (Remaining < 2) {
+        goto Done;
+      }
 
-    //
-    // Add a loop counter to prevent infinite loop in case of malformed descriptors
-    //
-    UINT32 SkipCount = 0;
-    while ((IfDesc->DescriptorType != USB_DESC_TYPE_INTERFACE) || (IfDesc->AlternateSetting != 0)) {
+      if ((IfDesc->Length < 2) || (IfDesc->Length > Remaining)) {
+        goto Done;
+      }
+
+      if (IfDesc->DescriptorType == USB_DESC_TYPE_INTERFACE) {
+        if (IfDesc->Length < sizeof (USB_INTERFACE_DESCRIPTOR)) {
+          goto Done;
+        }
+
+        if (IfDesc->AlternateSetting == 0) {
+          break;
+        }
+      }
+
+      //
+      // Bound the search through non-interface and alternate descriptors.
+      //
       if (SkipCount++ > 100) {
         goto Done;
       }
 
-      //
-      // Check Length field validity before using it
-      //
-      if (IfDesc->Length == 0) {
-          goto Done;
-        }
-
       IfDesc = (USB_INTERFACE_DESCRIPTOR *)((UINTN)IfDesc + IfDesc->Length);
-
-      //
-      // Safety check after advancing pointer
-      //
-      if ((UINT8 *)IfDesc >= ConfigDescEnd - sizeof(USB_INTERFACE_DESCRIPTOR)) {
-        goto Done;
-      }
-    }
-
-    if (IfDesc->Length < sizeof (USB_INTERFACE_DESCRIPTOR)) {
-      IfDesc = (USB_INTERFACE_DESCRIPTOR *)((UINTN)IfDesc + IfDesc->Length);
-      continue;
     }
 
     Dci = XhcInitializeEndpointContext (Xhc, SlotId, DeviceSpeed, InputContext, IfDesc);
@@ -3367,21 +3365,7 @@ XhcSetConfigCmd (
       MaxDci = Dci;
     }
 
-    //
-    // Check Length field validity before using it
-    //
-    if (IfDesc->Length == 0) {
-      goto Done;
-    }
-
     IfDesc = (USB_INTERFACE_DESCRIPTOR *)((UINTN)IfDesc + IfDesc->Length);
-
-    //
-    // Safety check after advancing pointer
-    //
-    if ((UINT8 *)IfDesc >= ConfigDescEnd - sizeof(USB_INTERFACE_DESCRIPTOR)) {
-      goto Done;
-    }
   }
 
 Done:
@@ -3439,6 +3423,9 @@ XhcSetConfigCmd64 (
   UINT8                     Dci;
   UINT8                     MaxDci;
   EFI_PHYSICAL_ADDRESS      PhyAddr;
+  UINT8                     *ConfigDescEnd;
+  UINTN                     Remaining;
+  UINT32                    SkipCount;
 
   CMD_TRB_CONFIG_ENDPOINT     CmdTrbCfgEP;
   INPUT_CONTEXT_64            *InputContext;
@@ -3459,54 +3446,49 @@ XhcSetConfigCmd64 (
 
   MaxDci = 0;
 
-<<<<<<< 2a022011f39e1c4a1c0ba21c10a4940041a8e9b6
-  IfDesc = (USB_INTERFACE_DESCRIPTOR *)((UINTN)ConfigDesc + ConfigDesc->Length);
-=======
-  IfDesc = (USB_INTERFACE_DESCRIPTOR *)(ConfigDesc + 1);
-
   //
-  // Calculate the end of the config descriptor to prevent pointer overflow
+  // Honour variable-length configuration headers and keep all descriptor
+  // reads and advances within the advertised configuration buffer.
   //
-  UINT8 *ConfigDescEnd = (UINT8 *)ConfigDesc + ConfigDesc->TotalLength;
+  if ((ConfigDesc == NULL) ||
+      (ConfigDesc->Length < sizeof (USB_CONFIG_DESCRIPTOR)) ||
+      (ConfigDesc->TotalLength < ConfigDesc->Length) ||
+      ((UINTN)ConfigDesc > MAX_UINTN - ConfigDesc->TotalLength)) {
+    goto Done;
+  }
 
->>>>>>> bafcb738d9117026e17ca2bf6ac9fc4f7fedfb15
+  ConfigDescEnd = (UINT8 *)ConfigDesc + ConfigDesc->TotalLength;
+  IfDesc       = (USB_INTERFACE_DESCRIPTOR *)((UINTN)ConfigDesc + ConfigDesc->Length);
   for (Index = 0; Index < ConfigDesc->NumInterfaces; Index++) {
-    //
-    // Safety check: ensure IfDesc is within bounds
-    //
-    if ((UINT8 *)IfDesc >= ConfigDescEnd) {
-      break;
-    }
+    SkipCount = 0;
+    while (TRUE) {
+      Remaining = (UINTN)ConfigDescEnd - (UINTN)IfDesc;
+      if (Remaining < 2) {
+        goto Done;
+      }
 
-    //
-    // Add a loop counter to prevent infinite loop in case of malformed descriptors
-    //
-    UINT32 SkipCount = 0;
-    while ((IfDesc->DescriptorType != USB_DESC_TYPE_INTERFACE) || (IfDesc->AlternateSetting != 0)) {
+      if ((IfDesc->Length < 2) || (IfDesc->Length > Remaining)) {
+        goto Done;
+      }
+
+      if (IfDesc->DescriptorType == USB_DESC_TYPE_INTERFACE) {
+        if (IfDesc->Length < sizeof (USB_INTERFACE_DESCRIPTOR)) {
+          goto Done;
+        }
+
+        if (IfDesc->AlternateSetting == 0) {
+          break;
+        }
+      }
+
+      //
+      // Bound the search through non-interface and alternate descriptors.
+      //
       if (SkipCount++ > 100) {
         goto Done;
       }
 
-      //
-      // Check Length field validity before using it
-      //
-      if (IfDesc->Length == 0) {
-        goto Done;
-      }
-
       IfDesc = (USB_INTERFACE_DESCRIPTOR *)((UINTN)IfDesc + IfDesc->Length);
-
-      //
-      // Safety check after advancing pointer
-      //
-      if ((UINT8 *)IfDesc >= ConfigDescEnd - sizeof(USB_INTERFACE_DESCRIPTOR)) {
-        goto Done;
-      }
-    }
-
-    if (IfDesc->Length < sizeof (USB_INTERFACE_DESCRIPTOR)) {
-      IfDesc = (USB_INTERFACE_DESCRIPTOR *)((UINTN)IfDesc + IfDesc->Length);
-      continue;
     }
 
     Dci = XhcInitializeEndpointContext64 (Xhc, SlotId, DeviceSpeed, InputContext, IfDesc);
@@ -3514,21 +3496,7 @@ XhcSetConfigCmd64 (
       MaxDci = Dci;
     }
 
-    //
-    // Check Length field validity before using it
-    //
-    if (IfDesc->Length == 0) {
-      goto Done;
-    }
-
     IfDesc = (USB_INTERFACE_DESCRIPTOR *)((UINTN)IfDesc + IfDesc->Length);
-
-    //
-    // Safety check after advancing pointer
-    //
-    if ((UINT8 *)IfDesc >= ConfigDescEnd - sizeof(USB_INTERFACE_DESCRIPTOR)) {
-      goto Done;
-    }
   }
 
 Done:
