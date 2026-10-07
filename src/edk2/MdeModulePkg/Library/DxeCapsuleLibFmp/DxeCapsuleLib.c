@@ -10,14 +10,9 @@
   ValidateFmpCapsule(), and DisplayCapsuleImage() receives untrusted input and
   performs basic validation.
 
-<<<<<<< 0481eef558390b83cdab43b734095413fd3685df
   Copyright (c) 2016 - 2024, Intel Corporation. All rights reserved.<BR>
   Copyright (c) 2024, Ampere Computing LLC. All rights reserved.<BR>
   Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. All rights reserved.<BR>
-=======
-  Copyright (c) 2016 - 2019, Intel Corporation. All rights reserved.<BR>
-  Copyright (c) 2024, Ampere Computing LLC. All rights reserved.<BR>
->>>>>>> ed20aad930d5dd2f55631e722219f69b3d91ce77
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
@@ -55,11 +50,7 @@ EFI_EVENT  mDxeCapsuleLibEndOfDxeEvent = NULL;
 
 EDKII_FIRMWARE_MANAGEMENT_PROGRESS_PROTOCOL  *mFmpProgress = NULL;
 
-<<<<<<< 0481eef558390b83cdab43b734095413fd3685df
 BOOLEAN  mDxeCapsuleLibIsExitBootService = FALSE;
-=======
-extern BOOLEAN  mDxeCapsuleLibReadyToBootEvent;
->>>>>>> ed20aad930d5dd2f55631e722219f69b3d91ce77
 
 /**
   Initialize capsule related variables.
@@ -1415,7 +1406,6 @@ IsNestedFmpCapsule (
   EFI_SYSTEM_RESOURCE_ENTRY  Entry;
 
   EsrtGuidFound = FALSE;
-<<<<<<< 0481eef558390b83cdab43b734095413fd3685df
   if (mDxeCapsuleLibIsExitBootService) {
     if (mEsrtTable != NULL) {
       EsrtEntry = (EFI_SYSTEM_RESOURCE_ENTRY *)(mEsrtTable + 1);
@@ -1424,27 +1414,9 @@ IsNestedFmpCapsule (
           EsrtGuidFound = TRUE;
           break;
         }
-=======
-  if (mEsrtTable != NULL) {
-    EsrtEntry = (EFI_SYSTEM_RESOURCE_ENTRY *)(mEsrtTable + 1);
-    for (Index = 0; Index < mEsrtTable->FwResourceCount; Index++, EsrtEntry++) {
-      if (CompareGuid (&EsrtEntry->FwClass, &CapsuleHeader->CapsuleGuid)) {
-        EsrtGuidFound = TRUE;
-        break;
->>>>>>> ed20aad930d5dd2f55631e722219f69b3d91ce77
       }
     }
   } else {
-    if (mDxeCapsuleLibReadyToBootEvent) {
-      //
-      // The ESRT table (mEsrtTable) in the Configuration Table would be located
-      // at the ReadyToBoot event if it exists. Hence, it should return here to
-      // avoid a crash due to calling gBS->LocateProtocol () at runtime in case
-      // there is no ERST table installed.
-      //
-      return FALSE;
-    }
-
     //
     // Check ESRT protocol
     //
