@@ -1,11 +1,7 @@
 /** @file
   Capsule library runtime support.
 
-<<<<<<< 507591401a28e4a2e7249b50afed93ac90e1b81b
   Copyright (c) 2016 - 2024, Intel Corporation. All rights reserved.<BR>
-=======
-  Copyright (c) 2016 - 2017, Intel Corporation. All rights reserved.<BR>
->>>>>>> 0668dcb3cbebcae5f4497b0dc857e295a8b43dec
   Copyright (c) 2024, Ampere Computing LLC. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 
@@ -26,16 +22,10 @@
 #include <Library/MemoryAllocationLib.h>
 
 extern EFI_SYSTEM_RESOURCE_TABLE  *mEsrtTable;
-<<<<<<< 507591401a28e4a2e7249b50afed93ac90e1b81b
 extern BOOLEAN                    mDxeCapsuleLibIsExitBootService;
 EFI_EVENT                         mDxeRuntimeCapsuleLibVirtualAddressChangeEvent = NULL;
 EFI_EVENT                         mDxeRuntimeCapsuleLibSystemResourceTableEvent  = NULL;
 EFI_EVENT                         mDxeRuntimeCapsuleLibExitBootServiceEvent      = NULL;
-=======
-EFI_EVENT                         mDxeRuntimeCapsuleLibVirtualAddressChangeEvent = NULL;
-EFI_EVENT                         mDxeRuntimeCapsuleLibReadyToBootEvent          = NULL;
-BOOLEAN                           mDxeCapsuleLibReadyToBootEvent                 = FALSE;
->>>>>>> 0668dcb3cbebcae5f4497b0dc857e295a8b43dec
 
 /**
   Convert EsrtTable physical address to virtual address.
@@ -114,8 +104,6 @@ DxeCapsuleLibSystemResourceTableInstallEventNotify (
     //
     mEsrtTable->FwResourceCountMax = mEsrtTable->FwResourceCount;
   }
-
-  mDxeCapsuleLibReadyToBootEvent = TRUE;
 }
 
 /**
