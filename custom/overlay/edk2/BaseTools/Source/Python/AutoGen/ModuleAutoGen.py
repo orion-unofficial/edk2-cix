@@ -1,0 +1,1 @@
+../../../../../../../src/edk2/BaseTools/Source/Python/AutoGen/ModuleAutoGen.py
