@@ -1,0 +1,1 @@
+../../../../../../../../../../src/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/tool/python3/pads-sky1.m4
