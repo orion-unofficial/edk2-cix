@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check module overlays in every retained Unofficial source tree."""
+"""Check module overlays in retained Unofficial sources and selected corrections."""
 
 from __future__ import annotations
 
@@ -8,7 +8,10 @@ import hashlib
 import re
 from pathlib import Path
 
-from reconstruction_common import for_each_ref, main_wrapper, ReconstructionError, tree_id
+from reconstruction_common import (
+    active_unofficial_source_ref, for_each_ref, main_wrapper, ReconstructionError,
+    tree_id, unofficial_checkpoints_by_edk2, unofficial_source_ref,
+)
 from source_lifecycle import tree_entries
 from source_porting import git_blob_bytes_batch
 from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
@@ -414,8 +417,27 @@ def source_input_problems(repo: Path, ref: str) -> list[str]:
     return sorted(set(problems))
 
 
+def effective_source_refs(repo: Path) -> list[str]:
+    """Replace immutable checkpoint preimages with their selected corrections.
+
+    An explicit correction supersedes the checkpoint's build contract without
+    rewriting its provenance. All other retained refs remain in the audit.
+    Manifest and lifecycle checks validate the immutable preimages separately.
+    """
+    refs = set(for_each_ref(repo, "source/unofficial"))
+    for edk2, checkpoints in unofficial_checkpoints_by_edk2(repo).items():
+        for radxa in checkpoints:
+            source = f"source/unofficial/{radxa}/{edk2}"
+            correction = (active_unofficial_source_ref(repo, radxa, edk2)
+                          or unofficial_source_ref(repo, radxa, edk2))
+            if correction != source:
+                refs.discard(source)
+                refs.add(correction)
+    return sorted(refs)
+
+
 def main() -> None:
-    refs = for_each_ref(ROOT, "source/unofficial")
+    refs = effective_source_refs(ROOT)
     checked = {}
     problems = []
     for ref in refs:

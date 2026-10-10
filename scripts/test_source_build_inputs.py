@@ -9,17 +9,59 @@ import subprocess
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from check_source_build_inputs import BUILD_FIXES, chain_validator_problems, missing_board_table_inputs, missing_build_fixes, missing_configuration_manager_types, missing_lto_library, missing_module_infs, missing_package_declarations, missing_platform_inputs, missing_smbios_cache_types, missing_toolchain, missing_wrapper_dependencies, source_input_problems, unbalanced_asl_conditionals
 from check_source_build_inputs import autogen_library_problems, missing_tool_definitions, missing_acpi_headers, flattened_overlay_mirrors
+from check_source_build_inputs import effective_source_refs, main as audit_main
 from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
 from test_support import commit_all, git, write_file
 from source_lifecycle import tree_entries
 from source_porting import git_blob_bytes_batch
-from reconstruction_common import show_file
+from reconstruction_common import ReconstructionError, show_file
 
 
 class SourceBuildInputsTests(unittest.TestCase):
+    def test_audit_replaces_only_explicitly_corrected_checkpoint_preimages(self):
+        source = 'source/unofficial/1.3.1/edk2-stable202408'
+        correction = 'source/unofficial/corrections/1.3.1/edk2-stable202408/lto-archive-path'
+        unrelated = 'source/unofficial/1.2/current'
+        retained = 'source/unofficial/corrections/1.3.1/edk2-stable202408/earlier-topic'
+        with patch('check_source_build_inputs.for_each_ref', return_value=[source, unrelated, retained]), \
+                patch('check_source_build_inputs.unofficial_checkpoints_by_edk2',
+                      return_value={'edk2-stable202408': ['1.3.1']}), \
+                patch('check_source_build_inputs.unofficial_source_ref', return_value=source), \
+                patch('check_source_build_inputs.active_unofficial_source_ref', return_value=correction):
+            self.assertEqual(effective_source_refs(Path('.')), sorted([correction, unrelated, retained]))
+
+    def test_audit_retains_uncorrected_checkpoint(self):
+        source = 'source/unofficial/1.2.2/edk2-stable202211'
+        with patch('check_source_build_inputs.for_each_ref', return_value=[source]), \
+                patch('check_source_build_inputs.unofficial_checkpoints_by_edk2',
+                      return_value={'edk2-stable202211': ['1.2.2']}), \
+                patch('check_source_build_inputs.unofficial_source_ref', return_value=source), \
+                patch('check_source_build_inputs.active_unofficial_source_ref', return_value=None):
+            self.assertEqual(effective_source_refs(Path('.')), [source])
+
+    def test_audit_selects_checkpoint_correction_without_a_current_line_tip(self):
+        source = 'source/unofficial/1.3.0/edk2-stable202408'
+        correction = 'source/unofficial/corrections/1.3.0/edk2-stable202408/lto-archive-path'
+        with patch('check_source_build_inputs.for_each_ref', return_value=[source]), \
+                patch('check_source_build_inputs.unofficial_checkpoints_by_edk2',
+                      return_value={'edk2-stable202408': ['1.3.0']}), \
+                patch('check_source_build_inputs.unofficial_source_ref', return_value=correction), \
+                patch('check_source_build_inputs.active_unofficial_source_ref', return_value=None):
+            self.assertEqual(effective_source_refs(Path('.')), [correction])
+
+    def test_selected_source_defect_fails_the_audit(self):
+        correction = 'source/unofficial/corrections/1.3.0/edk2-stable202408/lto-archive-path'
+        with patch('check_source_build_inputs.effective_source_refs', return_value=[correction]), \
+                patch('check_source_build_inputs.tree_id', return_value='selected-tree'), \
+                patch('check_source_build_inputs.source_input_problems', return_value=['selected source defect']), \
+                patch('check_source_build_inputs.tree_entries', return_value={}):
+            with self.assertRaisesRegex(ReconstructionError, correction + ': selected source defect'):
+                audit_main()
+
     def test_chain_validator_variants_are_pinned_to_signing_capability(self):
         repo = Path(__file__).resolve().parents[1]
         current = (repo / "scripts/validate_firmware_chain.py").read_bytes()
