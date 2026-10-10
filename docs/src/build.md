@@ -91,7 +91,10 @@ intentionally selected current EDK2/Radxa stack in `unofficial_source_policy`.
 It includes both fixes and experimental-menu states: 16 O6 builds and 16 O6N
 builds, separate from the 12 stock replays. Only O6 is currently available for
 testing on hardware. Retained historical targets outside these families do not
-inherit this qualification claim. See [Maintenance and CI](maintenance-and-ci.md).
+inherit the ongoing CI qualification claim. The separate
+[O6 release qualification](release-qualification.md) records the completed
+historical build matrix, exact tested sources, and subsequent source corrections.
+See [Maintenance and CI](maintenance-and-ci.md).
 
 ### Stage or package an image
 

@@ -3,6 +3,9 @@
 from pathlib import Path
 import os
 import subprocess
+import shlex
+import sys
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -12,12 +15,28 @@ from reconstruction_common import release_entry
 
 
 class ReleaseInputProvenanceTests(unittest.TestCase):
-    def test_public_build_rejects_historical_relabel_before_rendering(self):
-        result = subprocess.run([
-            'make', 'build', 'RELEASE=edk2-202211/radxa-1.3.1/unofficial',
-            'ARTEFACT_MODE=custom', 'FORCE_DEBUG_BUILD=1',
-        ], cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True,
-            env={**os.environ, 'PYTHONDONTWRITEBYTECODE': '1'})
+    def test_public_build_rejects_relabel_before_rendering(self):
+        root = Path(__file__).resolve().parents[1]
+        # The retained release is valid. Inject a wrong baseline into the real
+        # provenance checker instead of depending on an unfixed source alias.
+        with tempfile.TemporaryDirectory(prefix='relabel-preflight-') as directory:
+            launcher = Path(directory) / 'python.py'
+            launcher.write_text(
+                "from pathlib import Path\nimport runpy\nimport sys\n"
+                "target = sys.argv.pop(1)\n"
+                "assert Path(target).name == 'validate_build_variables.py', target\n"
+                f"sys.path.insert(0, {str(root / 'scripts')!r})\n"
+                "import validate_release_inputs\n"
+                "validate_release_inputs.baseline_release = lambda *_: '1.2.1'\n"
+                "sys.argv[0] = target\n"
+                "runpy.run_path(target, run_name='__main__')\n"
+            )
+            result = subprocess.run([
+                'make', 'build', 'RELEASE=edk2-202211/radxa-1.3.1/unofficial',
+                'ARTEFACT_MODE=custom', 'FORCE_DEBUG_BUILD=1',
+                'PYTHON=' + shlex.join([sys.executable, str(launcher)]),
+            ], cwd=root, capture_output=True, text=True,
+                env={**os.environ, 'PYTHONDONTWRITEBYTECODE': '1'})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('release input provenance failed', result.stderr)
         self.assertNotIn('[render]', result.stdout + result.stderr)
