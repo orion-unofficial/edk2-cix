@@ -26,7 +26,10 @@ overlay. Every referenced module sibling must therefore exist in the selected
 overlay, including secondary application INFs and C sources. Byte-identical
 companions should be symlinks to the matching imported files.
 
-`scripts/check_source_build_inputs.py` checks all retained Unofficial refs,
+`scripts/check_source_build_inputs.py` checks retained Unofficial refs,
+substituting the explicitly selected source for a superseded immutable
+checkpoint. Manifest and lifecycle checks still validate the original
+checkpoint's identity and provenance. Other retained refs remain in the audit,
 including normal and experimental overlays. It checks sibling INFs, symlinks,
 literal DSC/FDF dependencies, package declarations, ASL headers, toolchain
 selection and retained build contracts. It does not fully evaluate EDK2
