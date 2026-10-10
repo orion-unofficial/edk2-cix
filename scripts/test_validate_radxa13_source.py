@@ -68,6 +68,21 @@ class Radxa13StructuralTests(unittest.TestCase):
         self.assertEqual([], validate(
             ROOT, source_ref("202608", "1.3.1"), "202608", "1.3.0"))
 
+    def test_lto_linker_path_must_match_the_archive_in_the_source_tree(self) -> None:
+        for edk2, source_path, wrong_path in (
+            ("202208", "ArmPkg/Library/GccLto", "BaseTools/Bin/GccLto"),
+            ("202608", "BaseTools/Bin/GccLto", "ArmPkg/Library/GccLto"),
+        ):
+            with self.subTest(edk2=edk2):
+                source = GitTree(ROOT, source_ref(edk2, "1.3.1"))
+                makefile = source.text("src/Makefile")
+                self.assertEqual(makefile.count(source_path), 2)
+                problems = mutated_problems(source, edk2, "1.3.1", {
+                    "src/Makefile": makefile.replace(source_path, wrong_path),
+                })
+                self.assertTrue(any("LTO linker path" in p and "no support archive" in p
+                                    for p in problems), problems)
+
     def test_old_pilot_clean_merge_failures_are_caught(self) -> None:
         source = self.reference
         smbios = f"src/{SMBIOS}/PlatformSmbios.c"

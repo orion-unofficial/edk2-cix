@@ -45,6 +45,15 @@ implementation over every historical checkpoint. The structural checks include:
 | ArmLib, toolchain and capsule dependencies | Follow the selected base's paths, GCC/GCC5 tag and package availability |
 | MPAM and console helpers on 202208 | Explicit custom compatibility header and older supported libfdt entry points |
 
+The Radxa 1.3 structural preflight rejects linker paths without the matching
+AArch64 LTO archive. Custom DEBUG and RELEASE overrides must use
+`BaseTools/Bin/GccLto` from EDK2 202408; older bases use
+`ArmPkg/Library/GccLto`. Keep this correction inside the custom-mode gate.
+`scripts/test_source_lto_flags.py` executes the retained Make recipe for both
+targets and firmware-fix states, and verifies that upstream mode adds no custom
+overrides. Its optional `SOURCE_LTO_CANDIDATES` JSON list and `SOURCE_TEST_REPO`
+variable allow maintainers to check unpublished candidate commits.
+
 The 202208/1.2.4 and 202208/1.3.1 custom checkpoints start from their matching
 Radxa sources. A generic older checkpoint plus a new version string is not a
 valid replacement. Input provenance and exact vendor-payload checks reject

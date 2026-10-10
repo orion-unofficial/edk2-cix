@@ -16,6 +16,7 @@ import re
 import subprocess
 from pathlib import Path
 
+from check_source_build_inputs import missing_lto_library
 from radxa13_fdf import RELEASE_SIZE, expected_fdf, supported_family
 from reconstruction_common import ReconstructionError
 
@@ -186,6 +187,11 @@ def _release_fdf(tree: GitTree, edk2: str, radxa: str, problems: list[str]) -> N
             problems.append(f"{active}: {exc}")
 
 
+def _lto_linker(tree: GitTree, problems: list[str]) -> None:
+    makefile = _required(tree, "src/Makefile", problems)
+    problems.extend(missing_lto_library(set(tree.entries), makefile.encode()))
+
+
 def _smmu_hooks(tree: GitTree, problems: list[str]) -> None:
     makefile = _required(tree, "src/Makefile", problems)
     for token in ("PCIE_SMMU_IORT_VALIDATOR :=", "$(PCIE_SMMU_IORT_VALIDATOR) \\",
@@ -266,6 +272,7 @@ def validate(repo: Path, revision: str, edk2: str, radxa: str) -> list[str]:
     _smbios(tree, problems)
     _cppc(tree, problems)
     _release_fdf(tree, edk2, radxa, problems)
+    _lto_linker(tree, problems)
     _smmu_hooks(tree, problems)
     _usb_mux1_pins(tree, problems)
     return problems
