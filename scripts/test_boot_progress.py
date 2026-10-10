@@ -26,8 +26,12 @@ class BootProgressTests(unittest.TestCase):
                     original = show_file(ROOT, ref, "src/" + base + "/" + filename)
                     changed = show_file(ROOT, ref, "custom/overlay/" + base + "/" + filename)
                     self.assertEqual(changed.count(b" | DEBUG_BM"), count)
-                    # Exact bytes, including CRLF and every existing INFO/LOAD/error level.
-                    self.assertEqual(changed.replace(b" | DEBUG_BM", b""), original)
+                    # Changed overlays may use LF while imported source keeps CRLF.
+                    # Compare every other byte, including the original log levels.
+                    self.assertEqual(
+                        changed.replace(b" | DEBUG_BM", b"").replace(b"\r\n", b"\n"),
+                        original.replace(b"\r\n", b"\n"),
+                    )
                     inf = module.rsplit("/", 1)[1] + ".inf"
                     descriptor = "custom/overlay/" + base + "/" + inf
                     link = show_file(ROOT, ref, descriptor).decode()
