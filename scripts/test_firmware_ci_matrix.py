@@ -131,7 +131,8 @@ class FirmwareCIMatrixTests(unittest.TestCase):
             self.assertIn(f'  edk2-202208/radxa-{version}\n', stock)
             self.assertNotIn(f'  edk2-202208/radxa-{version}\n', legacy)
         self.assertEqual(custom.count('/unofficial\n'), 4)
-        self.assertNotIn('edk2-202211/radxa-1.3.1/unofficial', help_text)
+        self.assertNotIn('edk2-202211/radxa-1.3.1/unofficial', custom)
+        self.assertIn('edk2-202211/radxa-1.3.1/unofficial', legacy)
 
     def test_ci_calls_exact_replay_for_each_maintained_version_and_requires_enumeration(self):
         workflow = (ROOT / '.github/workflows/build-branch-ci.yaml').read_text()

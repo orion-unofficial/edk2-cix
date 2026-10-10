@@ -21,6 +21,7 @@ from reconstruction_common import ReconstructionError, for_each_ref, git, rev_pa
 from source_lifecycle import lifecycle_errors, mirror_symlink_target, project_overlay_tree
 from source_policy import enforce_source_tree_policy
 from validate_radxa13_source import GitTree
+from test_support import selected_unofficial_source_refs
 
 ROOT = Path(__file__).resolve().parents[1]
 OLD = 'source/unofficial/1.2.1/edk2-stable202605'
@@ -137,7 +138,7 @@ class AmlAdaptationTests(unittest.TestCase):
 
 class RealAmlCompileTests(unittest.TestCase):
     def test_retained_sources_and_header_selection(self):
-        refs = for_each_ref(ROOT, 'source/unofficial/')
+        refs = selected_unofficial_source_refs(ROOT)
         self.assertTrue(refs)
         for ref in refs:
             with self.subTest(ref=ref):

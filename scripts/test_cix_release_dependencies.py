@@ -224,7 +224,26 @@ class RetainedCixReleaseDependencyTests(unittest.TestCase):
         variants = {}
         for ref in for_each_ref(root, "source/unofficial/"):
             makefile = show_file(root, ref, "src/Makefile")
-            start = makefile.index(b"# Hash the selected sources on every build")
+            marker = b"# Hash the selected sources on every build"
+            if marker not in makefile:
+                # Stock-only historical sources must reject source-built BL2,
+                # rather than pretending to provide its dependency contract.
+                self.assertEqual(
+                    show_file(root, ref, "custom/signing-keys/cix-1.2/cix_privatekey.pem", check=False),
+                    b"", ref,
+                )
+                with tempfile.TemporaryDirectory(prefix="stock-cix-rejection-") as directory:
+                    path = Path(directory) / "Makefile"
+                    path.write_bytes(makefile)
+                    result = subprocess.run(
+                        [shutil.which("gmake") or "make", "-f", str(path), "help",
+                         "CIX_RELEASE=1.2", "SHELL=/must-not-run", "PYTHON=/must-not-run"],
+                        cwd=directory, capture_output=True, text=True, timeout=5,
+                    )
+                    self.assertNotEqual(result.returncode, 0, ref)
+                    self.assertIn("CIX_RELEASE must be empty", result.stderr, ref)
+                continue
+            start = makefile.index(marker)
             end = makefile.index(b".SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img", start)
             definitions = b"\n".join(line for line in makefile.splitlines() if line.startswith(
                 (b"BUILD_OUTPUT_DIR =", b"BUILD_STAGE_DIR =", b"BUILD_CONFIG_STAMP =",

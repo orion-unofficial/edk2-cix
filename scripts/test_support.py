@@ -111,3 +111,24 @@ def load_function_tests(module_globals: dict[str, Any]) -> unittest.TestSuite:
         suite.addTest(unittest.FunctionTestCase(main, description="main"))
 
     return suite
+
+
+def selected_unofficial_source_refs(repo: Path) -> list[str]:
+    """Enumerate the effective sources of every retained release tuple.
+
+    Immutable preimages and unselected corrections remain provenance, while
+    release qualification must exercise the source actually selected by Make.
+    """
+    from reconstruction_common import (
+        active_unofficial_source_ref, unofficial_checkpoints_by_edk2,
+        unofficial_source_ref,
+    )
+
+    refs = {
+        active_unofficial_source_ref(repo, radxa, edk2)
+        or unofficial_source_ref(repo, radxa, edk2)
+        for edk2, checkpoints in unofficial_checkpoints_by_edk2(repo).items()
+        for radxa in checkpoints
+    }
+    require(bool(refs), "No selected Unofficial source checkpoints")
+    return sorted(refs)

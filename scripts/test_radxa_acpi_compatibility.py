@@ -16,6 +16,7 @@ from radxa_source_compatibility import (
 )
 from reconstruction_common import ReconstructionError, for_each_ref, git, rev_parse, show_file
 from validate_radxa13_source import GitTree
+from test_support import selected_unofficial_source_refs
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -90,7 +91,7 @@ class AcpiHelperTests(unittest.TestCase):
 
 class RealAcpiProducerTests(unittest.TestCase):
     def test_all_retained_checkpoints_are_unchanged(self):
-        refs = for_each_ref(ROOT, 'source/unofficial/')
+        refs = selected_unofficial_source_refs(ROOT)
         self.assertTrue(refs, 'retained source refs are required for qualification')
         for ref in refs:
             with self.subTest(ref=ref):
