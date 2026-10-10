@@ -18,3 +18,4 @@
 - [Firmware certificate chains](firmware-chain-validation.md)
 - [ACPI Table Upgrade coverage](acpi-upgrade-coverage.md)
 - [Unattended Release Expansion](release-expansion.md)
+- [Firmware Build Validation](release-qualification.md)

@@ -86,6 +86,86 @@
       "tree_id": "6f8889d0883f926e8c5a965007f80f5e86fa9125"
     },
     {
+      "object_id": "fb932e5de114620bdae799db355e1cc274b48e0c",
+      "ref": "source/port/radxa/1.2.1/edk2-stable202608",
+      "tree_id": "4180669ffc4475c49cc745e0a9594ee49d7c0f13"
+    },
+    {
+      "object_id": "3c23f51136ebd7d5c3450f08a7bc129cfd53850c",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202211",
+      "tree_id": "24c349881e3e111ac6716430c78eb133b7eb6a38"
+    },
+    {
+      "object_id": "43530ef77411a80f5513377b3c9152dccf2359b6",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202302",
+      "tree_id": "0153b692557bc53452185a6ad1ab6ddb4c0ae6da"
+    },
+    {
+      "object_id": "64f8738495ec5a5e851d6ca2a47de2aa55fbef2a",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202305",
+      "tree_id": "31a32bdcf839d477a532e00ab6acd08fa0b094a0"
+    },
+    {
+      "object_id": "12bd0763a11284ebb360ef1f830cb4178ae20885",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202308",
+      "tree_id": "ba40c472dd6f3132f5188bce046e27ef33b72be4"
+    },
+    {
+      "object_id": "8f94bcc9cfb8fa28732658bf1fd49700c3d8595a",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202311",
+      "tree_id": "d05c37c07b58caf43f9277f105e7938ab1c98d2a"
+    },
+    {
+      "object_id": "063ec8ffa55c345f74c74f5f5d0b9fc9edc1ae5a",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202402",
+      "tree_id": "1e33a8606061c513ec3605f5fbfcb615521113ca"
+    },
+    {
+      "object_id": "553e5d7d98690214a60984b32c1527b3111caddb",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202405",
+      "tree_id": "6862f0e2669043aad56233f4b877166f9902bbe4"
+    },
+    {
+      "object_id": "f6c8efd37d6c7634153c0c16a7a1bd850cf566d6",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202408",
+      "tree_id": "f6b71f1b57df9097c5e9a27acd85e0fe46a1077b"
+    },
+    {
+      "object_id": "0d27c4887e5d990b452da79e3c5e4cc1cd857323",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202408.01",
+      "tree_id": "a0091e63b738a744597d70520e80971ebbbca51f"
+    },
+    {
+      "object_id": "cbde3d0ff77faeb392c93821ea407c9c7eed1906",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202411",
+      "tree_id": "17ddb0ff8123ffd3d5a155620888004342d185dc"
+    },
+    {
+      "object_id": "2219fa76b8f147631e27f962842e88a05d6ba50b",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202502",
+      "tree_id": "ca5cc332a73c52443456445946c75cd3b2529ddf"
+    },
+    {
+      "object_id": "d48123ff33be369d6d7f1e35812668ac25a51b92",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202505",
+      "tree_id": "ffbd01d4e743a88e608081a342953d7088087a17"
+    },
+    {
+      "object_id": "bfe4adafb80a280bd05596cbf536dd44b13ff8da",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202508",
+      "tree_id": "34b456c582d241213fba897242e90a7e589dc912"
+    },
+    {
+      "object_id": "4704b58a96557d541d004d928d2c0e3ba3caa919",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202511",
+      "tree_id": "3449236e689a57917b6d1d5b85173c6d7ae2cf2b"
+    },
+    {
+      "object_id": "9be4ea4266e67790a5c6634ca0cd8cdae3722c89",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202602",
+      "tree_id": "5a99e11dcfc92d32cdb8c0d32dc6ede523d209f1"
+    },
+    {
       "object_id": "fbaec7c26a63e30e956e2895a16c197166886c0a",
       "ported_from": "source/port/radxa/1.2.1/edk2-stable202605",
       "ref": "source/port/radxa/1.2.2/edk2-stable202605",
@@ -94,12 +174,172 @@
       "vendor_delta_to": "source/vendor/radxa/1.2.2/edk2-stable202208"
     },
     {
+      "object_id": "e75c14e3423ebed28df2eea4fb2a845829bae603",
+      "ref": "source/port/radxa/1.2.2/edk2-stable202608",
+      "tree_id": "6dc92f0feb61a6831cd6577f3f134feb85854b19"
+    },
+    {
+      "object_id": "751f761776e535b8d07b9dceaf3721e1fccf9559",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202211",
+      "tree_id": "244256a563525d8ef32384051f5b7c71f6596cbc"
+    },
+    {
+      "object_id": "6ae59abb078bca55d7e01f3a9d31cb4eb709a985",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202302",
+      "tree_id": "7c2e5d867dc47eb7ab89e73262c9de935f60571a"
+    },
+    {
+      "object_id": "ee5b32cc32e6bdac9e1a358f4f694513ae3a205b",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202305",
+      "tree_id": "a786341436d9d89e465ebbf7c4a04c8103d8dab6"
+    },
+    {
+      "object_id": "df83bb88229a7a93dc26a28a355d54ec7556e740",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202308",
+      "tree_id": "e8b1e0521dfc154d0959e905968604c7734b48e8"
+    },
+    {
+      "object_id": "9d88bbb51f20b21a131f4de269cbf31e71468bde",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202311",
+      "tree_id": "08068e98f5971d4010cbdca3f3e95ece73b96f0c"
+    },
+    {
+      "object_id": "5992070dbe760659283f47e2ca95ab9f150fb0fd",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202402",
+      "tree_id": "52cd19a76a138754fa83f8ddf7b3b17620c0b5e1"
+    },
+    {
+      "object_id": "a2d18ab024eab22974e806dd8dd28d1c417d6e4d",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202405",
+      "tree_id": "dc8dbe56207991896a83a2265a0dac46bcb9ccbc"
+    },
+    {
+      "object_id": "e71428bb0aefc5b8b4389b8517e4114cd8dd4cdc",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202408",
+      "tree_id": "9def6eb64fac3c326bc0da6cb61fd47fe8e6a41c"
+    },
+    {
+      "object_id": "05f3a2f51fd45d0ce43f435e0bf4c15cb76af540",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202408.01",
+      "tree_id": "b899b38aca89c53d43114b7a25a53688bc3a9e73"
+    },
+    {
+      "object_id": "f0dc8f0c0b1cf5afdb6b361197a2f7e48670eeef",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202411",
+      "tree_id": "b7434a034a90cb0dca02aa0476bc335fa8537667"
+    },
+    {
+      "object_id": "e54dcca223dfc7c98fdfa1564750e6de8502c281",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202502",
+      "tree_id": "f72fdca07a5dbcd3cfdfd36a6484c13347a7dcc2"
+    },
+    {
+      "object_id": "7880a1e87c527f6e2fe7f366bba434a98817ab76",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202505",
+      "tree_id": "9d6ca8be168973786397c41b2ba81ed78b1adeaf"
+    },
+    {
+      "object_id": "564a12c5ded738eaaec44bcdb87971121640105c",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202508",
+      "tree_id": "571d0e83c295cc7cd287e1ba6ae09294cffb06fa"
+    },
+    {
+      "object_id": "ea2b2ad57896f1710890f8d2993e9b7a845eab44",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202511",
+      "tree_id": "243a85d41104c1b0443a1bac2b4909b7abf56783"
+    },
+    {
+      "object_id": "33f676d519f007b12b1caae3bbf88d478d77146a",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202602",
+      "tree_id": "ce418f70fdc3406f12b6e77f2b809bf91cc60e80"
+    },
+    {
       "object_id": "400cc00345115e159550c6d64e87f0615fb293cc",
       "ported_from": "source/port/radxa/1.2.2/edk2-stable202605",
       "ref": "source/port/radxa/1.2.3/edk2-stable202605",
       "tree_id": "50a90e9692e21065962eab4787c905ab53388bce",
       "vendor_delta_from": "source/vendor/radxa/1.2.2/edk2-stable202208",
       "vendor_delta_to": "source/vendor/radxa/1.2.3/edk2-stable202208"
+    },
+    {
+      "object_id": "40fca9173712853d13cbaa79a26198fea47918a5",
+      "ref": "source/port/radxa/1.2.3/edk2-stable202608",
+      "tree_id": "1b6c98de942aa449868a07ff029ea26690215a58"
+    },
+    {
+      "object_id": "2da201cbaf10c0694bb8363b3b4d2d9880dac2d0",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202211",
+      "tree_id": "c2c7f7e4e0be4fe53461d0e8e887828dfad6b954"
+    },
+    {
+      "object_id": "32c31ea620f1508f60dbf43ad1dac3df5655bb3e",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202302",
+      "tree_id": "2f6156f4e699fc7de29be04a5e879bac75e2b021"
+    },
+    {
+      "object_id": "ce9ae9c359444cc204bfd32a01d55566b6674ae6",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202305",
+      "tree_id": "830f932ded5d294fca4cca6d79cfbad2fa431557"
+    },
+    {
+      "object_id": "6860349a0c8ec6e3bcb49a0dd80bb5f7eb0d939d",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202308",
+      "tree_id": "94d737a99cbeebc02c81ffdc79631df70a5e85b9"
+    },
+    {
+      "object_id": "817a62509334a6e1e8c3337add9738b78ac839bc",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202311",
+      "tree_id": "43e8b21d686ccaa5e0174ab55969c98929d67d38"
+    },
+    {
+      "object_id": "5b34a75d7edc025d1dfa8e10d85b3bb5983474d3",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202402",
+      "tree_id": "38aa1fe6e90e31c1977b66e0f8d897fc0ad50d14"
+    },
+    {
+      "object_id": "5be9908a670d3ac7f81aaf7fbd85d240d574ec38",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202405",
+      "tree_id": "ce87a527e1629d88a0fe979d0c9f582a54f23d31"
+    },
+    {
+      "object_id": "298a991289b269848e06402ebb404d311296b30e",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202408",
+      "tree_id": "905c6bc393a6a2964e888677cb44f35583fc3f9e"
+    },
+    {
+      "object_id": "6281cbabe98cbdee65efd22a463bf701ee7f8b25",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202408.01",
+      "tree_id": "96e619ef492a200042ee6fbbc77f2a54cccd46ea"
+    },
+    {
+      "object_id": "e8ff52700f6486de1a611295bd4ae00062b616fb",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202411",
+      "tree_id": "ce70130eb4bd6a9573560ddced17965c77047e68"
+    },
+    {
+      "object_id": "09a9078758edc29113e0f7b53fb9d07526c7785d",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202502",
+      "tree_id": "44e1c1ea7c7093e21accec12c7dfeaffe2f46c3e"
+    },
+    {
+      "object_id": "fbebdc1af5234b14e932983e8128e9310abb6f45",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202505",
+      "tree_id": "c1d3d2d775b4cb03e34c702f1a22c2073bbd0a50"
+    },
+    {
+      "object_id": "3c1dd9e5678e073c99695d2b89c973396199ccb5",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202508",
+      "tree_id": "fb1022efdba82fda7f09f77f21b89f2eec114df7"
+    },
+    {
+      "object_id": "7ad27e2297cc40e3e28302507b1872b2c5027e45",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202511",
+      "tree_id": "7786ef43173b62bf61f149a9949f5e40f8e0823e"
+    },
+    {
+      "object_id": "a14a170f7fca44fe926deeb4ef896cdc722f6ba9",
+      "ref": "source/port/radxa/1.2.4/edk2-stable202602",
+      "tree_id": "58b2137df5f60f82d17b92b17bfeae43f9da1c0d"
     },
     {
       "object_id": "b9c0224268b2e8a340f22bc29f35289e38b8a978",
@@ -115,12 +355,247 @@
       "tree_id": "3098e157ece8f8da8343e9247cfa62eb7ef9009f"
     },
     {
+      "base_ref": "source/cache/base/edk2/edk2-stable202211",
+      "edk2_base": "edk2-stable202211",
+      "format": "materialised source tree",
+      "immutable": true,
+      "object_id": "fc344834ff5f4f35749204ee56bc223d47d5bde9",
+      "ported_from": "source/vendor/radxa/1.3.0/edk2-stable202208",
+      "radxa_release": "1.3.0",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202211",
+      "tree_id": "0b30821fa3ecd150e6e41a27482bb02205c0872e",
+      "type": "ported-vendor-source",
+      "vendor": "radxa",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "base_ref": "source/cache/base/edk2/edk2-stable202302",
+      "edk2_base": "edk2-stable202302",
+      "format": "materialised source tree",
+      "immutable": true,
+      "object_id": "927f4ef272108ad2349cff58212c06ccae4a43b5",
+      "ported_from": "source/port/radxa/1.3.0/edk2-stable202211",
+      "radxa_release": "1.3.0",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202302",
+      "tree_id": "cc122f74646730c15cae47c68475d76d982e54dc",
+      "type": "ported-vendor-source",
+      "vendor": "radxa",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "b5964fc6ee3ab012f38a0043f3bab3105fc349bc",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202305",
+      "tree_id": "f6a50e3f22b94656f15d7e9318c2866c2087b56a",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "5fc5cf4bfc4c9ed01709aa820433ef5fb9531840",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202308",
+      "tree_id": "f4c00a81940fa8312d71ef61d4ca209d60d04e96",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "fa2ae68847084505ef98437ed1c357b84685b461",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202311",
+      "tree_id": "22f33100f0982a5cafd569b11a53ae525df62fac",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "813e42e933b09b6943990abd890d8aa3ade75fd9",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202402",
+      "tree_id": "7870bcfe068f76cf0b55689a6e31b8b640bf51f0",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "e111a533b2e4b2bd0203738f5eefaf7ff720b6bc",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202405",
+      "tree_id": "f833dbf43378026e5ac279affb87f2689bb42adc",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "5344cc0f4c1793304552c48a929c0d19444efeb6",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202408",
+      "tree_id": "26ff09ead8213a893f08a3bbd086829cea2fdd59",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "1609adc6c78786248650401c27ba2603d6ed5a9d",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202408.01",
+      "tree_id": "8a4ea5b23e95a220903dba1b698d0720538b5654",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "7c168d0ccf08af918219d86ec8c6f9650211fab6",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202411",
+      "tree_id": "46939f8205f8896a11304720f47844524323789e",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "f76b5e6ee6c11a5e660e3fa99fb0e32cb94ca612",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202502",
+      "tree_id": "4c245ef876a9a10a6e2e0d06ce77a4600fdcf7f4",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "79a69afad51687937ff1dec39d4968bc9092a98f",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202505",
+      "tree_id": "2f2460cbd988294f054b6796d7b1e5d60dc991d7",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "8e23af1855a290ac3deceeb596563541ca5921f3",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202508",
+      "tree_id": "71030e2e206a760bb85eb6adc57a37e0cdd2727e",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "9ab851b40bed3f18b737d74b5cc4291ce2e4ac4c",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202511",
+      "tree_id": "dde0d98519cf53badbe2ab99077e212bddc5bd0a",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "object_id": "4427fff04c1efd2090b68bed8825e79048a77f7c",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202602",
+      "tree_id": "15a2571c7099a5c3b3d1f2bdf3ebf6d78e59b3ef",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
       "object_id": "5aeb13a3b606cf4206c0f2924f7a9fc922bd191b",
       "ported_from": "source/port/radxa/1.2.4/edk2-stable202605",
       "ref": "source/port/radxa/1.3.0/edk2-stable202605",
       "tree_id": "5f0ac9f5ee1fd0344da6b95975a9a0de9a235d5d",
       "vendor_delta_from": "source/vendor/radxa/1.2.4/edk2-stable202208",
       "vendor_delta_to": "source/vendor/radxa/1.3.0/edk2-stable202208"
+    },
+    {
+      "base_ref": "source/cache/base/edk2/edk2-stable202608",
+      "edk2_base": "edk2-stable202608",
+      "format": "materialised source tree",
+      "immutable": true,
+      "object_id": "2f085466f19fdd9759d552bbec293eb960910fc9",
+      "ported_from": "source/port/radxa/1.3.0/edk2-stable202605",
+      "radxa_release": "1.3.0",
+      "ref": "source/port/radxa/1.3.0/edk2-stable202608",
+      "tree_id": "fa312f6c04137af1bf52bd51cd26a3688c9a8b35",
+      "type": "ported-vendor-source",
+      "vendor": "radxa"
+    },
+    {
+      "base_ref": "source/cache/base/edk2/edk2-stable202211",
+      "edk2_base": "edk2-stable202211",
+      "format": "materialised source tree",
+      "immutable": true,
+      "object_id": "c3f1bec59e3c74e1ee8f08de0af434f3f2318b2a",
+      "ported_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "radxa_release": "1.3.1",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202211",
+      "tree_id": "fb96ad1b1719d794f0b4adf837afd8fbbc720d5c",
+      "type": "ported-vendor-source",
+      "vendor": "radxa"
+    },
+    {
+      "base_ref": "source/cache/base/edk2/edk2-stable202302",
+      "edk2_base": "edk2-stable202302",
+      "format": "materialised source tree",
+      "immutable": true,
+      "object_id": "b1adfd4201f47d7196301bb77093dbd9c336e9ce",
+      "ported_from": "source/port/radxa/1.3.1/edk2-stable202211",
+      "radxa_release": "1.3.1",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202302",
+      "tree_id": "93f92c4bef76f804594910e78d9f318c38bff3dc",
+      "type": "ported-vendor-source",
+      "vendor": "radxa"
+    },
+    {
+      "base_ref": "source/cache/base/edk2/edk2-stable202305",
+      "edk2_base": "edk2-stable202305",
+      "format": "materialised source tree",
+      "immutable": true,
+      "object_id": "02d1b4a387a048db91183d4b8aa9034c5240439a",
+      "ported_from": "source/port/radxa/1.3.1/edk2-stable202302",
+      "radxa_release": "1.3.1",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202305",
+      "tree_id": "336964d3de69ff02594af12c54aadcec7f90f256",
+      "type": "ported-vendor-source",
+      "vendor": "radxa"
+    },
+    {
+      "object_id": "630e7ab23e0fbfb3d885e1837f4011a2da8cd0f8",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202308",
+      "tree_id": "051872d2bef4899b2341beccf9d4816750115699"
+    },
+    {
+      "object_id": "60734ac97ab111615166b119affc959f5265567d",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202311",
+      "tree_id": "b9095cd8fd16ef9522104424f038a243281697e3"
+    },
+    {
+      "object_id": "519c1a1ade45041085bf3929735548757263f56d",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202402",
+      "tree_id": "7dec48f716eea88e3d050a9aef62c4c908a2867b"
+    },
+    {
+      "object_id": "241a0655e110208e37c86d2f2267ab61b4eb4e18",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202405",
+      "tree_id": "618ff68a6559fa6e4722f9a58b519228bcd5976a"
+    },
+    {
+      "object_id": "ef10486cf64609c68f479a5f9de3a696d7b5a003",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202408",
+      "tree_id": "823e3d685c77adfbff3f02f8eff6557142c86815"
+    },
+    {
+      "object_id": "cd5e92dda2e05d5b1311ee1d1d569a5916e6fdcc",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202408.01",
+      "tree_id": "6884ae1b6c8062534e1a09783799e3eedc4dd0f7",
+      "vendor_delta_from": "source/vendor/radxa/1.2.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.1/edk2-stable202208"
+    },
+    {
+      "object_id": "3f4b16ac6c170ba821e8d60cc08d42cff3d84252",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202411",
+      "tree_id": "3b4d04316a8e98a2f511c554a0d20ab2d3edc57e"
+    },
+    {
+      "object_id": "c94924037689a6200b6ee228f5c33aec4b207d9c",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202502",
+      "tree_id": "f5dc12573ffa7721bd83cbe00873ae282186830d"
+    },
+    {
+      "object_id": "90e66479b330ce4bd06a643385652e2bf91c477f",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202505",
+      "tree_id": "e9fa1646b85df8caeb75193c01fcfdcb27330e7a"
+    },
+    {
+      "object_id": "fabfed499ba9e42dca3a48be3291ed4623be54fc",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202508",
+      "tree_id": "7b5ca8d4af4ef5a5fc75230e94ded2b998229575"
+    },
+    {
+      "object_id": "9787e68763b31adaaa9fb96600d7ac7e57b12c5c",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202511",
+      "tree_id": "9a1199b6c1ab2c5b90fdac6be94ad837c23c81f7"
+    },
+    {
+      "object_id": "b2700d26dd62165399646a566767ed8747face7c",
+      "ref": "source/port/radxa/1.3.1/edk2-stable202602",
+      "tree_id": "3d1543f856063e464e8f90c2a99cb02abd9b841a"
     },
     {
       "object_id": "7e57435d6f856b95a957692ef1bbb99fb3306f99",
