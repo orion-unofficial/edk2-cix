@@ -25,6 +25,7 @@ O6 = "Platform/Radxa/Orion/O6"
 SMBIOS = f"edk2-platforms/{O6}/Drivers/PlatformSmbios"
 O6_ACPI = f"custom/overlay/edk2-platforms/{O6}/Drivers/AcpiPlatfomTables"
 CPU_ASL = "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/AcpiSocTables/Dsdt-CPU.asl"
+CONSOLE_PREF = "custom/overlay-experimental-uefi-settings/edk2/EmbeddedPkg/Drivers/ConsolePrefDxe/ConsolePrefDxe.c"
 PCIE_MENU = "edk2-platforms/Platform/CIX/Sky1/Drivers/SetupManagerDxe/PcieMenu"
 LEGACY_PROFILES = {
     ("202208", "1.3.0"): ("overlay", 0x1F4000),
@@ -192,6 +193,27 @@ def _lto_linker(tree: GitTree, problems: list[str]) -> None:
     problems.extend(missing_lto_library(set(tree.entries), makefile.encode()))
 
 
+def _console_fdt(tree: GitTree, problems: list[str]) -> None:
+    """Require the console overlay to use an API exposed by its source era."""
+    data = _required(tree, CONSOLE_PREF, problems)
+    if not data:
+        return
+    data = re.sub(r"/\*.*?\*/|//[^\n]*", "", data, flags=re.DOTALL)
+    legacy_header = "src/edk2/EmbeddedPkg/Include/libfdt.h"
+    public_header = "src/edk2/MdePkg/Include/Library/FdtLib.h"
+    if legacy_header not in tree.entries:
+        if re.search(r"#\s*include\s*[<\"]libfdt\.h[>\"]|\bfdt_\w+\s*\(", data):
+            problems.append(f"{CONSOLE_PREF}: uses removed public libfdt API; use Library/FdtLib.h wrappers")
+    if re.search(r"#\s*include\s*[<\"]Library/FdtLib\.h[>\"]", data):
+        if public_header not in tree.entries:
+            problems.append(f"{CONSOLE_PREF}: Library/FdtLib.h is unavailable in this source tree")
+        else:
+            declarations = tree.text(public_header)
+            for name in sorted(set(re.findall(r"\b(Fdt\w+)\s*\(", data))):
+                if not re.search(rf"\b{re.escape(name)}\s*\(", declarations):
+                    problems.append(f"{CONSOLE_PREF}: {name} is not declared by Library/FdtLib.h")
+
+
 def _smmu_hooks(tree: GitTree, problems: list[str]) -> None:
     makefile = _required(tree, "src/Makefile", problems)
     for token in ("PCIE_SMMU_IORT_VALIDATOR :=", "$(PCIE_SMMU_IORT_VALIDATOR) \\",
@@ -273,6 +295,7 @@ def validate(repo: Path, revision: str, edk2: str, radxa: str) -> list[str]:
     _cppc(tree, problems)
     _release_fdf(tree, edk2, radxa, problems)
     _lto_linker(tree, problems)
+    _console_fdt(tree, problems)
     _smmu_hooks(tree, problems)
     _usb_mux1_pins(tree, problems)
     return problems

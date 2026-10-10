@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from reconstruction_common import resolve_ref
 from validate_radxa13_source import (
-    CPU_ASL, Entry, GitTree, O6, O6_ACPI, PCIE_MENU, SMBIOS, validate,
+    CONSOLE_PREF, CPU_ASL, Entry, GitTree, O6, O6_ACPI, PCIE_MENU, SMBIOS, validate,
 )
 
 
@@ -111,6 +111,37 @@ class Radxa13StructuralTests(unittest.TestCase):
         ):
             with self.subTest(fragment=fragment):
                 self.assertTrue(any(fragment in problem for problem in problems), problems)
+
+    def test_console_cannot_restore_private_libfdt_include_or_calls(self) -> None:
+        source = GitTree(ROOT, source_ref("202608", "1.3.1"))
+        data = source.text(source.resolve(CONSOLE_PREF))
+        for old, new in (
+            ("<Library/FdtLib.h>", "<libfdt.h>"),
+            ("FdtPathOffset (", "fdt_path_offset ("),
+            ("FdtDelProp (", "fdt_delprop ("),
+            ("FdtStrerror (", "fdt_strerror ("),
+        ):
+            with self.subTest(new=new):
+                self.assertIn(old, data)
+                problems = mutated_problems(source, "202608", "1.3.1", {
+                    source.resolve(CONSOLE_PREF): data.replace(old, new),
+                })
+                self.assertTrue(any("removed public libfdt API" in p for p in problems), problems)
+
+    def test_console_wrapper_must_exist_in_the_public_header(self) -> None:
+        source = GitTree(ROOT, source_ref("202608", "1.3.1"))
+        path = source.resolve(CONSOLE_PREF)
+        data = source.text(path).replace("FdtDelProp (", "FdtDelProperty (")
+        problems = mutated_problems(source, "202608", "1.3.1", {path: data})
+        self.assertTrue(any("FdtDelProperty is not declared" in p for p in problems), problems)
+
+    def test_console_wrapper_is_rejected_before_public_header_exists(self) -> None:
+        source = self.reference
+        path = source.resolve(CONSOLE_PREF)
+        data = source.text(path).replace("<libfdt.h>", "<Library/FdtLib.h>")
+        self.assertNotIn("src/edk2/MdePkg/Include/Library/FdtLib.h", source.entries)
+        problems = mutated_problems(source, "202208", "1.3.1", {path: data})
+        self.assertTrue(any("Library/FdtLib.h is unavailable" in p for p in problems), problems)
 
     def test_symlink_mode_must_be_preserved(self) -> None:
         path = f"custom/overlay/{SMBIOS}/PlatformSmbios.c"

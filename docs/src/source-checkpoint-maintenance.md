@@ -44,6 +44,7 @@ implementation over every historical checkpoint. The structural checks include:
 | Vendor PSD type | `AML_PSD_INFO` before 202402; `CIX_AML_PSD_INFO` from 202402 |
 | ArmLib, toolchain and capsule dependencies | Follow the selected base's paths, GCC/GCC5 tag and package availability |
 | MPAM and console helpers on 202208 | Explicit custom compatibility header and older supported libfdt entry points |
+| Console device-tree API | Public `libfdt.h` through 202505; `Library/FdtLib.h` wrappers from 202508 |
 
 The Radxa 1.3 structural preflight rejects linker paths without the matching
 AArch64 LTO archive. Custom DEBUG and RELEASE overrides must use
@@ -53,6 +54,14 @@ AArch64 LTO archive. Custom DEBUG and RELEASE overrides must use
 targets and firmware-fix states, and verifies that upstream mode adds no custom
 overrides. Its optional `SOURCE_LTO_CANDIDATES` JSON list and `SOURCE_TEST_REPO`
 variable allow maintainers to check unpublished candidate commits.
+
+From EDK2 202508, the experimental `ConsolePrefDxe` overlay must use the public
+`FdtPathOffset`, `FdtDelProp` and `FdtStrerror` interfaces from
+`Library/FdtLib.h`. The older public `EmbeddedPkg/Include/libfdt.h` is absent;
+the private copy inside `BaseFdtLib` is not a driver include directory. The
+structural preflight checks this against the selected tree's headers and rejects
+calls to removed interfaces before compilation. This migration preserves the
+console handoff policy and applies only to the custom experimental overlay.
 
 The 202208/1.2.4 and 202208/1.3.1 custom checkpoints start from their matching
 Radxa sources. A generic older checkpoint plus a new version string is not a
