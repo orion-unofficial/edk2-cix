@@ -16,6 +16,8 @@ import subprocess
 import tempfile
 import unittest
 
+from reconstruction_common import rev_parse
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -32,8 +34,9 @@ class SourceLtoFlagsTests(unittest.TestCase):
             for ref in refs:
                 def git(*args):
                     return subprocess.check_output(["git", "-C", str(repo), *args])
-                source = git("show", ref + ":src/Makefile").decode()
-                paths = set(git("ls-tree", "-r", "--name-only", ref).decode().splitlines())
+                commit = rev_parse(repo, ref)
+                source = git("show", commit + ":src/Makefile").decode()
+                paths = set(git("ls-tree", "-r", "--name-only", commit).decode().splitlines())
                 start = source.index('\tif [[ "$(ARTEFACT_MODE)" == "custom" ]]; then \\\n\t\tlto_flag=')
                 recipe = source[start:source.index('\tif [[ "$${#tool_def_overrides[@]}"', start)]
                 tag = re.search(r"build\s+-a\s+AARCH64\s+-t\s+(\w+)", source).group(1)
