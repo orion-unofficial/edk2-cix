@@ -26,6 +26,7 @@ class CixReleaseDependencyTests(unittest.TestCase):
         makefile = source("src/Makefile")
         self.toolchain = "GCC5" if "BUILD_OUTPUT_DIR = Build/$1/$(UEFI_TARGET)_GCC5" in makefile else "GCC"
         self.has_tf_a_fixes = '"--enable-tf-a-fixes"' in source("scripts/cix_release_cache.py")
+        self.has_vendor_stmm = "CIX_RELEASE_STMM_HELPER" in makefile
         start = makefile.index("# Hash the selected sources on every build")
         end = makefile.index(".SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img", start)
         names = (
@@ -41,6 +42,13 @@ class CixReleaseDependencyTests(unittest.TestCase):
         self.write("src/tee/core/main.c", "int value = 2;\n")
         self.write("src/compiler", "#!/bin/sh\necho fixture-compiler-v1\n", executable=True)
         self.write("src/fiptool", "fixture\n")
+        self.write("src/pinned.stmm", "STMM\n")
+        self.write("src/stage_stmm.py", '''import pathlib, sys
+output = pathlib.Path(sys.argv[sys.argv.index("--output") + 1])
+data = pathlib.Path("pinned.stmm").read_bytes()
+if not output.exists() or output.read_bytes() != data:
+    output.write_bytes(data)
+''')
         self.write("src/builder.sh", '''#!/bin/bash
 set -eu
 output=
@@ -51,6 +59,7 @@ done
 if [ "${FAIL_BUILDER:-0}" = 1 ]; then exit 1; fi
 printf 'build\\n' >> build.log
 cp "$(dirname "$(dirname "$output")")/.cix-release-bootloader2-inputs" "$output"
+printf '{}\\n' > "$(dirname "$output")/vendor-stmm.json"
 ''')
         self.write("src/Makefile", '''SHELL := /bin/bash
 .SHELLFLAGS := -eo pipefail -c
@@ -63,6 +72,9 @@ CIX_RELEASE_NORMALIZED ?= 1.2
 FIRMWARE_BOARDS := O6 O6N
 CIX_RELEASE_CACHE_HELPER := $(abspath ../scripts/cix_release_cache.py)
 CIX_RELEASE_BOOTLOADER2_HELPER := builder.sh
+CIX_RELEASE_STMM_HELPER := stage_stmm.py
+CIX_RELEASE_STMM_MANIFEST := manifest.json
+PACKAGE_TOOL := vendor
 CIX_RELEASE_V12_TFA_SOURCE_DIR := tfa
 CIX_RELEASE_V12_TEE_SOURCE_DIR := tee
 CIX_RELEASE_SIGNING_KEYS_DIR := keys
@@ -157,13 +169,25 @@ $(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt: $(call BUILD_CONFIG_STAMP,%)
         changed = json.loads(self.stamp().read_text())
         self.assertNotEqual(old["tee_key"], changed["tee_key"])
         self.assertEqual(old["bl31_key"], changed["bl31_key"])
-        stmm = self.stamp().parent / "Firmwares/BL32_AP_EFI_STMM.fd"
+        stmm = (self.src / "pinned.stmm") if self.has_vendor_stmm else (self.stamp().parent / "Firmwares/BL32_AP_EFI_STMM.fd")
         stmm.write_bytes(b"new STMM")
         self.build()
         self.assertNotEqual(changed["tee_key"], json.loads(self.stamp().read_text())["tee_key"])
         stmm.unlink()
+        self.build(success=not self.has_vendor_stmm)
+        self.assertEqual(self.count(), 3 if self.has_vendor_stmm else 4)
+
+    def test_unpinned_staged_stmm_is_restored_before_fingerprinting(self) -> None:
+        if not self.has_vendor_stmm:
+            self.skipTest("source variant predates pinned StandaloneMM staging")
         self.build()
-        self.assertEqual(self.count(), 4)
+        before = self.stamp().read_bytes()
+        staged = self.stamp().parent / "Firmwares/BL32_AP_EFI_STMM.fd"
+        staged.write_bytes(b"unreviewed payload")
+        self.build()
+        self.assertEqual(staged.read_bytes(), b"STMM\n")
+        self.assertEqual(self.stamp().read_bytes(), before)
+        self.assertEqual(self.count(), 1)
 
     def test_options_compiler_and_helper_changes_rebuild(self) -> None:
         self.build()

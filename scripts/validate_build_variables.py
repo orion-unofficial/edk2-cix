@@ -20,7 +20,8 @@ VALID_BOARDS = {"O6", "O6N"}
 VALID_FIRMWARE_DISTROS = {"bookworm", "trixie"}
 VALID_BUILDBOX_PLATFORMS = {"linux/amd64", "linux/arm64"}
 VALID_CORE_ORDERS = {"cix", "conventional", "performance"}
-CIX_SIGNING_HELPER_SHA256 = "1c5d06f76422759f2bcd1067c504337b5fd9791c190417a6652629af9933c2c7"
+CIX_SIGNING_HELPER_SHA256 = "454540806a67021042160f38b02f1007d4f19f2e6a2e45563a68e62d4766e2d9"
+CIX_VENDOR_STMM_HELPER_SHA256 = "487175ff2b9b995240e0f8819540bc1d3e3a3e7d69c7b61b1ae8961149afa22f"
 TRUE_TOKENS = {"1", "true", "on", "yes"}
 FALSE_TOKENS = {"0", "false", "off", "no"}
 SIGNING_CERT_NAMES = ("trusted_key_no.crt", "nt_fw_cert.crt", "nt_fw_key.crt")
@@ -90,6 +91,9 @@ def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
         makefile = show_file(repo, ref, "src/Makefile")
         if hashlib.sha256(helper).hexdigest() != CIX_SIGNING_HELPER_SHA256 or b"CIX_RELEASE_SIGNING_KEYS_DIR" not in makefile:
             raise ReconstructionError("source-built CIX signing helper is absent or differs from the reviewed version")
+        stmm_helper = show_file(repo, ref, "src/scripts/stage_vendor_stmm.py")
+        if hashlib.sha256(stmm_helper).hexdigest() != CIX_VENDOR_STMM_HELPER_SHA256:
+            raise ReconstructionError("vendor StandaloneMM staging helper differs from the reviewed version")
         for name, expected in CIX_KEY_SHA256.items():
             data = show_file(repo, ref, f"{CIX_SIGNING_KEYS}/{name}")
             if hashlib.sha256(data).hexdigest() != expected:

@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from validate_build_variables import validate_cix_source, validate_feature_relationships
+from reconstruction_common import active_unofficial_source_ref, unofficial_source_ref
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -67,7 +68,8 @@ class ValidateBuildVariableTests(unittest.TestCase):
                     supported: list[str] = []
                     validate_cix_source(
                         REPO_ROOT,
-                        {"source_ref": f"source/unofficial/{radxa}/edk2-stable{edk2}"},
+                        {"source_ref": active_unofficial_source_ref(REPO_ROOT, radxa, f"edk2-stable{edk2}")
+                         or unofficial_source_ref(REPO_ROOT, radxa, f"edk2-stable{edk2}")},
                         supported,
                     )
                     self.assertEqual(supported, [])
@@ -76,6 +78,12 @@ class ValidateBuildVariableTests(unittest.TestCase):
             REPO_ROOT, {"source_ref": "source/unofficial/1.2.1/edk2-stable202208"},
             unsupported)
         self.assertIn("CIX_RELEASE=1.2 is unavailable", unsupported[0])
+
+    def test_frozen_checkpoint_without_pinned_stmm_is_not_advertised(self) -> None:
+        problems: list[str] = []
+        validate_cix_source(REPO_ROOT, {"source_ref": "source/unofficial/1.3.1/edk2-stable202608"}, problems)
+        self.assertTrue(problems)
+        self.assertIn("reviewed version", problems[0])
 
 
 if __name__ == "__main__":

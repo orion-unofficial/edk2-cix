@@ -73,6 +73,9 @@ def main():
         result = validate_fip(image.read_bytes(), 'trusted',
                               selected['trusted_root_spki_sha256'], selected['trusted_counter'])
         entries = parse_fip(image.read_bytes())
+        stmm = json.loads((image.parent / 'Firmwares/vendor-stmm.json').read_text())
+        if stmm.get('status') != 'verified' or stmm.get('source_built_tee_sha256') != hashlib.sha256(entries['tos-fw']).hexdigest():
+            raise RuntimeError('StandaloneMM verification report does not bind to the signed OP-TEE payload')
         delegations = {}
         for certificate, extension, key_name in DELEGATED_KEYS:
             published_spki = subprocess.check_output(
@@ -84,7 +87,7 @@ def main():
             delegations[certificate] = hashlib.sha256(embedded_spki).hexdigest()
         records.append({'tf_a_fixes': fixes, 'compilation': 'passed',
                         'certificate_chain': 'verified', 'image_size': image.stat().st_size,
-                        'delegations': delegations, 'fip': result})
+                        'delegations': delegations, 'fip': result, 'vendor_stmm': stmm})
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps({'status': 'verified', 'variants': records}, indent=2) + '\n')
 

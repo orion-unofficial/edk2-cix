@@ -15,7 +15,7 @@ from reconstruction_common import (
 from source_lifecycle import tree_entries
 from source_porting import git_blob_bytes_batch
 from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
-from validate_build_variables import CIX_SIGNING_HELPER_SHA256
+from validate_build_variables import CIX_SIGNING_HELPER_SHA256, CIX_VENDOR_STMM_HELPER_SHA256
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +50,9 @@ BUILD_FIXES = (
 # Preserve their exact stock-only verifier; CIX-enabled checkpoints must carry
 # the current verifier and the complete pinned signing-key snapshot instead.
 STOCK_CHAIN_VALIDATOR_SHA256 = "834a922d27be1e5fa4111244628e9a99adeeae1b4755fb3767d594d441562387"
+# Frozen and unselected source checkpoints retain their previously reviewed
+# signing helper. Active CIX build selection requires the new helper separately.
+LEGACY_CIX_SIGNING_HELPER_SHA256 = "1c5d06f76422759f2bcd1067c504337b5fd9791c190417a6652629af9933c2c7"
 
 
 def chain_validator_problems(validator: bytes, signing_keys: dict[str, bytes],
@@ -61,7 +64,7 @@ def chain_validator_problems(validator: bytes, signing_keys: dict[str, bytes],
     problems = []
     if validator != current_validator:
         problems.append("CIX-enabled firmware-chain validator differs from build branch")
-    if hashlib.sha256(helper).hexdigest() != CIX_SIGNING_HELPER_SHA256:
+    if hashlib.sha256(helper).hexdigest() not in {CIX_SIGNING_HELPER_SHA256, LEGACY_CIX_SIGNING_HELPER_SHA256}:
         problems.append("CIX-enabled signing helper differs from the reviewed source")
     for name, expected in CIX_KEY_SHA256.items():
         if hashlib.sha256(signing_keys.get(name, b"")).hexdigest() != expected:
@@ -479,6 +482,11 @@ def main() -> None:
                 checked[tree].extend(chain_validator_problems(
                     validator, signing_keys, helper,
                     (ROOT / "scripts/validate_firmware_chain.py").read_bytes()))
+                if hashlib.sha256(helper).hexdigest() == CIX_SIGNING_HELPER_SHA256:
+                    stmm_entry = entries.get("src/scripts/stage_vendor_stmm.py")
+                    stmm = git_blob_bytes_batch(ROOT, [stmm_entry.object_id])[stmm_entry.object_id] if stmm_entry else b""
+                    if hashlib.sha256(stmm).hexdigest() != CIX_VENDOR_STMM_HELPER_SHA256:
+                        checked[tree].append("vendor StandaloneMM staging helper differs from the reviewed source")
         problems.extend(f"{ref}: {problem}" for problem in checked[tree])
     if problems:
         raise ReconstructionError("source build-input checks failed:\n" + "\n".join(problems))

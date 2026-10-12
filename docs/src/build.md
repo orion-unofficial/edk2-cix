@@ -125,10 +125,11 @@ output and the file actually copied beside `startup.nsh`; keep the complete
 updater and UART logs. When an existing SPI readback is available, compare it
 with the intended image while accounting for known mutable regions. A stated
 command, version label or successful boot alone does not prove which file was
-built or written. The default O6 OTA
-image (`cix_flash_ota.bin`) contains only `bootloader3.img` (UEFI). It does not
-replace BL1 or BL2. A successful boot after an OTA update therefore does not
-qualify a different BL1, TF-A or OP-TEE payload produced by the same build.
+built or written. Current O6 deployment uses a complete 8 MiB flash overwrite
+from the UEFI shell. The generated OTA image (`cix_flash_ota.bin`) is not
+currently usable and contains only `bootloader3.img` (UEFI); it would not
+replace BL1 or BL2. Use the full image to qualify a changed trusted-firmware
+chain, including the [pinned StandaloneMM component](standalone-mm.md).
 
 `BuildOptions` records EDK2's command-line defines, not every packaging option.
 Custom builds with experimental settings also show the rebuild command in

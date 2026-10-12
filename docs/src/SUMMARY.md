@@ -3,6 +3,7 @@
 - [Build](build.md)
 - [Build Variables](build-variables.md)
 - [Bootloader1 Validation](bootloader1-validation.md)
+- [CIX StandaloneMM](standalone-mm.md)
 - [Maintenance and CI](maintenance-and-ci.md)
 - [Source Checkpoint Maintenance](source-checkpoint-maintenance.md)
 - [Firmware Features](features.md)
