@@ -195,7 +195,10 @@ def main() -> None:
                 "The missing commits were not uploaded; publish the source update atomically."
             )
         return
-    errors = coherence_errors(expected, remote_ref_objects(repo, args.remote))
+    remote = remote_ref_objects(repo, args.remote)
+    errors = coherence_errors(expected, remote)
+    errors.extend(f"{ref}: obsolete correction branch is still published"
+                  for ref in sorted(remote) if ref.startswith("refs/heads/") and "/corrections/" in ref)
     if errors:
         detail = "\n".join(f"  - {error}" for error in errors)
         raise ReconstructionError(

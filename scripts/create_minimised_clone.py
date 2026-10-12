@@ -55,7 +55,8 @@ def ref_list(repo: Path, namespace: str) -> list[str]:
 
 
 def exportable_source_branch(branch: str) -> bool:
-    return branch not in OBSOLETE_SOURCE_BRANCHES and branch.startswith(SOURCE_BRANCH_PREFIXES)
+    return (branch not in OBSOLETE_SOURCE_BRANCHES and "/corrections/" not in branch
+            and branch.startswith(SOURCE_BRANCH_PREFIXES))
 
 
 def required_refspecs(repo: Path) -> list[tuple[str, str]]:

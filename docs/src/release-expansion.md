@@ -327,12 +327,12 @@ and reject unrelated tree changes. The journal does not advance canonical refs
 or qualify compilation or Secure Boot behavior on hardware.
 
 `unofficial_stage: final` accepts a fully reviewed tree only with exact identity
-bindings. A parent may also be an explicitly selected immutable source
-correction of a recorded checkpoint. The correction must pass its full identity,
-original-tree and ancestry checks, and its original checkpoint must retain the
-exact vendor-port binding. Unselected corrections and corrections of mutable
-line tips cannot replace this checkpoint provenance. Record the correction as
-the actual Git parent; keep the original checkpoint and its metadata intact.
+bindings. Use the maintained checkpoint as the parent, including fixes already
+integrated by descendant-only checkpoint maintenance. Its commit/tree identity
+and exact vendor-port binding must match the recorded source metadata. Mutable
+line tips cannot replace this checkpoint provenance. Record the actual Git
+parent and regenerate a frozen resolution if that parent identity changes;
+do not create a correction branch to hold the parent in place.
 For example, when a reviewed 202208/1.3.0 commit is parented to the
 202208/1.3.1 checkpoint, record its actual parent and vendor port rather than
 the automatic source seed:

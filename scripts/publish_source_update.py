@@ -39,7 +39,8 @@ commit reached the remote before its source refs. Existing immutable source refs
 may not move, except explicitly recorded descendant corrections to Unofficial
 release checkpoints. Mutable Unofficial tips, compatibility refs, and compatibility
 tags use an exact force-with-lease expectation. Git receives the build branch
-and every inferred pending ref in one --atomic push.
+and every inferred pending ref in one --atomic push. Obsolete correction branches
+stop publication; source-ref deletion requires an explicit migration.
 """
 
 
@@ -221,8 +222,13 @@ def main() -> None:
     queried = remote_objects(
         repo,
         args.remote,
-        ["refs/heads/build", *sorted(published_refs | explicit_refs)],
+        ["refs/heads/build", *sorted(published_refs | explicit_refs),
+         "refs/heads/*/corrections/*"],
     )
+    obsolete = [ref for ref in queried if "/corrections/" in ref]
+    if obsolete:
+        raise ReconstructionError("obsolete remote correction branches require explicit migration: "
+                                  + ", ".join(sorted(obsolete)))
     inferred_refs = set(infer_pending_refs(repo, records, queried))
     refs = sorted(explicit_refs | inferred_refs)
     if inferred_refs:
@@ -237,7 +243,11 @@ def main() -> None:
             ["git", "-C", str(repo), "merge-base", "--is-ancestor", "FETCH_HEAD", local_build],
             check=False,
         ).returncode != 0:
-            raise ReconstructionError("local build is not a fast-forward of the remote build branch")
+            detail = (fetched.stderr or fetched.stdout or "").strip()
+            raise ReconstructionError(
+                f"cannot fetch remote build: {detail}" if fetched.returncode
+                else "local build is not a fast-forward of the remote build branch"
+            )
     else:
         print("remote build already contains the selected metadata commit; checking for source refs to resume")
 

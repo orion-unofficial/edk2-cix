@@ -27,9 +27,9 @@ overlay, including secondary application INFs and C sources. Byte-identical
 companions should be symlinks to the matching imported files.
 
 `scripts/check_source_build_inputs.py` checks retained Unofficial refs,
-substituting the explicitly selected source for a superseded immutable
-checkpoint. Manifest and lifecycle checks still validate the original
-checkpoint's identity and provenance. Other retained refs remain in the audit,
+using each maintained checkpoint or active line selected by the source model.
+Manifest and lifecycle checks validate its identity and recorded provenance.
+Other retained refs remain in the audit,
 including normal and experimental overlays. It checks sibling INFs, symlinks,
 literal DSC/FDF dependencies, package declarations, ASL headers, toolchain
 selection and retained build contracts. It does not fully evaluate EDK2
@@ -93,65 +93,35 @@ Rendered-tree expectations must include release-metadata transformations, even
 when a generated cache branch is absent. Hash the final rendered tree rather
 than reusing the input checkpoint's tree hash.
 
-### Additive source corrections
+### Maintained checkpoint branches
 
-When a focused source fix is needed across retained historical checkpoints,
-keep each checkpoint ref and its record in `config/refs-unofficial.json` intact.
-Create a descendant at
-`source/unofficial/corrections/<Radxa>/<edk2-stable...>/<correction-name>`
-and add an immutable record to `config/refs-unofficial-corrections.json`.
-Each record names `corrects_ref` (the original checkpoint or line's `/current`
-ref), pins `corrects_object_id` and `corrects_tree_id`, and records the
-correction's `object_id`, `tree_id`, `radxa_release`, `edk2_base`,
-`type: "unofficial-source-correction"` and `immutable: true`.
+Integrate fixes into their named release checkpoint with the descendant-only
+workflow above. Import active development changes into the configured
+`source/unofficial/<line>/current` branch. A checkpoint update does not require
+a separate current correction or identity alias. Keep historical EDK2
+compatibility branches in their own lineage and carry applicable topics into
+them explicitly; they are not aliases for a particular Radxa checkpoint.
 
-The manifest's separate `selected_refs` array names the corrections to use.
-Multiple immutable corrections may remain recorded for the same tuple and
-original ref, but at most one may be selected for that combination. An empty
-selection retains correction provenance without changing source selection.
-Every retained correction must have an available immutable ref matching its
-recorded object and tree, and descend from its recorded original commit with
-its recorded original tree. The original source ref must remain available.
-Selected corrections additionally require that original ref's current commit
-match `corrects_object_id`. Selected `/current` corrections must match the
-active line's configured Radxa/EDK2 tuple. Identity checks use the normal
-source resolver: local heads take precedence over origin remote-tracking refs,
-with origin used when a local head is absent. A pending local source update may
-therefore be corrected before publication even when origin still records its
-previous tip; the resolved local commit and tree must exactly match metadata.
+Do not create permanent per-fix `source/unofficial/corrections/**` branches.
+Maintain the named source parents directly. Export omits the obsolete correction
+namespace; source validation and publication reject remaining correction refs.
+The publisher never deletes source refs. A future source-model migration must
+prove replacement trees and obtain the required authorization for removal.
+Keep migration evidence outside the published build tree, and update live source
+pins in place rather than introducing identity aliases or mapping ledgers.
 
-The renderer selects a verified correction for its exact tuple and original
-source ref. An active tuple requires its own selected `/current` correction;
-a historical checkpoint correction cannot override an unmatched active tip.
-Missing refs, unknown selections, conflicting identities, ambiguous selections,
-wrong tuples or invalid ancestry stop source selection. The rendered tree
-expectation is recomputed from the selected correction and release metadata.
-
-Before advancing a mutable `/current` ref, remove its correction from
-`selected_refs` or prepare a new immutable correction descendant of the exact
-new tip and select that replacement. Keep the old correction record and ref
-unchanged; retained unselected corrections remain valid after the original
-mutable ref advances. Commit the selection change together with refreshed
-rendered tree expectations and exact source metadata. Correction identity
-fields are pinned provenance and are intentionally excluded from automatic
-`refresh-source-metadata` source-ref refreshes.
-
-Run focused correction regressions, source-policy and source-lifecycle checks
-for each selected correction, release-input checks, `make verify-build-matrix`,
-`make verify-manifest-integrity` and actual rendered-tree verification before
-using or publishing new selections. Confirm minimised-clone reconstruction and
-remote source coherence. Required refs include selected and unselected
-corrections: minimised exports retain `source/unofficial/**`, and publication
-and remote coherence discover their records through `config/refs-*.json`.
-Publish source metadata and refs atomically with `make publish-source-update`,
-using its default dry run first. These source checks establish reconstruction;
-firmware build receipts remain tied to their exact source IDs and must be
-requalified for a corrected firmware release.
+Run the source-policy and lifecycle checks, release-input checks,
+`make verify-build-matrix`, `make verify-manifest-integrity`, actual rendered-tree
+verification and minimised-clone reconstruction. For a ref migration, compare
+all selected rendered tree IDs before and after and prove all retired objects
+remain reachable before removing refs. Publish with the default dry run of
+`make publish-source-update`, then `make publish-source-update WRITE=1` and
+`make check-remote-source-coherence`. These checks establish source preservation;
+firmware runtime behavior still requires hardware qualification.
 
 For source ownership audits, `verify-source-lifecycle` accepts
 `FROM_PORT_REF=<recorded-vendor-port>` alongside `FROM_REF`. It verifies the
-source record's commit/tree and exact vendor-port binding, including selected
-corrections through their original checkpoint. A custom `src/` file absent
+source record's commit/tree and exact vendor-port binding, against the maintained checkpoint. A custom `src/` file absent
 from that genuine baseline remains a project addition, even when a regular
 overlay also overrides it. This is ownership classification only; it does not
 replace custom source bytes as merge preimages or create vendor files.

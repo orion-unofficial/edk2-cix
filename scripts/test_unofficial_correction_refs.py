@@ -197,12 +197,14 @@ class UnofficialCorrectionRefsTests(unittest.TestCase):
         with self.assertRaisesRegex(ReconstructionError, "corrects_object_id differs"):
             active_unofficial_source_ref(self.repo, self.radxa, self.edk2)
 
-    def test_checkpoint_correction_cannot_replace_unmatched_active_source(self) -> None:
+    def test_checkpoint_correction_does_not_require_an_active_source_alias(self) -> None:
         git(self.repo, "branch", "-D", self.current_correction)
         self.write_manifest([self.record])
         self.assertEqual(unofficial_source_ref(self.repo, self.radxa, self.edk2), self.correction)
-        with self.assertRaisesRegex(ReconstructionError, "none corrects active source"):
-            active_unofficial_source_ref(self.repo, self.radxa, self.edk2)
+        self.assertEqual(active_unofficial_source_ref(self.repo, self.radxa, self.edk2), self.current)
+        advanced = self.advance_current()
+        self.assertEqual(active_unofficial_source_ref(self.repo, self.radxa, self.edk2), self.current)
+        self.assertEqual(tree_id(self.repo, self.current), tree_id(self.repo, advanced))
 
     def advance_current(self) -> str:
         git(self.repo, "switch", "-c", "advance-test", self.old)
@@ -216,9 +218,8 @@ class UnofficialCorrectionRefsTests(unittest.TestCase):
         advanced = self.advance_current()
         self.write_manifest([self.record, self.current_record], [self.correction])
         self.assertEqual(unofficial_source_ref(self.repo, self.radxa, self.edk2), self.correction)
-        # Selecting a checkpoint alone still cannot override the active source.
-        with self.assertRaisesRegex(ReconstructionError, "none corrects active source"):
-            active_unofficial_source_ref(self.repo, self.radxa, self.edk2)
+        # Checkpoint maintenance does not require an alias for the active source.
+        self.assertEqual(active_unofficial_source_ref(self.repo, self.radxa, self.edk2), self.current)
         self.write_manifest([self.record, self.current_record], [])
         self.assertEqual(active_unofficial_source_ref(self.repo, self.radxa, self.edk2), self.current)
         self.assertEqual(git(self.repo, "rev-parse", self.current).stdout.strip(), advanced)

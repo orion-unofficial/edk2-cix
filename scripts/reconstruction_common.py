@@ -934,11 +934,6 @@ def active_unofficial_source_ref(repo: Path, radxa: str, edk2_ref: str) -> str |
                 correction = unofficial_correction_ref(repo, radxa, edk2_ref, ref)
                 if correction:
                     return correction
-                if unofficial_correction_refs(repo).get((radxa, edk2_ref)):
-                    raise ReconstructionError(
-                        f"{radxa}/{edk2_ref}: a correction exists for the checkpoint "
-                        f"but none corrects active source {ref}"
-                    )
                 if ref_exists(repo, ref):
                     return ref
     return None

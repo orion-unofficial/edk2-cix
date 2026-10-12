@@ -75,7 +75,9 @@ an explicit ref to the automatically discovered set. The publisher validates
 the object and tree IDs, permits immutable Unofficial checkpoint corrections
 only when explicitly recorded and ancestry-preserving, uses exact leases for
 changed refs, and sends the build commit plus all pending refs in one atomic
-push. It can also resume safely if an older, non-atomic publication left
+push. Obsolete remote correction branches stop publication and require an
+explicit migration. The publisher never deletes source refs. It can also resume
+safely if an older, non-atomic publication left
 the build metadata on the remote before its source refs.
 
 Git cannot make a plain one-branch `git push` include changes made on other Git

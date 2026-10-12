@@ -37,6 +37,20 @@ deterministically reconstruct supported firmware source targets if generated
 release branches are absent. Do not treat them as temporary branches merely
 because they live under a `source/` namespace.
 
+## Maintained Unofficial Checkpoints
+
+Integrate reviewed fixes into the appropriate named Unofficial checkpoint using
+`make integrate-source-release TYPE=unofficial ... ALLOW_REPLACE=1 WRITE=1`.
+This is descendant-only maintenance: preserve the prior commits and refresh the
+matching manifests. Advance the configured mutable line through its normal
+import workflow. Do not introduce per-fix `source/unofficial/corrections/**`
+branches or current-tip identity aliases.
+
+The correction namespace is obsolete. Export omits it and publication rejects
+any remaining remote correction branches. Source-ref deletion requires an
+explicit migration; do not keep permanent retirement or identity-mapping
+ledgers after a migration is complete.
+
 ## Generated Refs
 
 `refs/heads/source/cache/release/**` refs are generated firmware artefacts.
