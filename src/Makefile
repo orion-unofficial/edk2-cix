@@ -250,9 +250,13 @@ CIX_RELEASE_V12_TEE_SOURCE_DIR := $(CIX_RELEASE_SOURCE_DIR)/tee
 CIX_RELEASE_V12_PAYLOAD_DIR := $(CIX_RELEASE_SOURCE_DIR)/release-payloads
 CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD := $(CIX_RELEASE_V12_PAYLOAD_DIR)/bootloader1-2026q1.img
 CIX_RELEASE_BOOTLOADER2_HELPER := scripts/build_cix_release_bootloader2.sh
+CIX_RELEASE_STMM_HELPER := scripts/stage_vendor_stmm.py
+CIX_RELEASE_STMM_MANIFEST := $(CIX_RELEASE_V12_PAYLOAD_DIR)/standalone-mm/manifest.json
 CIX_RELEASE_CACHE_HELPER := $(abspath ../scripts/cix_release_cache.py)
 CIX_RELEASE_SIGNING_KEYS_DIR := ../custom/signing-keys/cix-1.2
 CIX_RELEASE_V12_REQUIRED_FILES := \
+	$(CIX_RELEASE_STMM_HELPER) \
+	$(CIX_RELEASE_STMM_MANIFEST) \
 	$(CIX_RELEASE_V12_TFA_SOURCE_DIR)/Makefile \
 	$(CIX_RELEASE_V12_TEE_SOURCE_DIR)/Makefile \
 	$(CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD) \
@@ -1164,6 +1168,10 @@ $(call CIX_RELEASE_BOOTLOADER2_STAMP,%): \
 	$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt \
 	FORCE
 	@$(ENSURE_REPO_LOCK)
+	@python3 "$(CIX_RELEASE_STMM_HELPER)" \
+		--manifest "$(CIX_RELEASE_STMM_MANIFEST)" \
+		--vendor-fip "$(PACKAGE_TOOL)/Firmwares/bootloader2.img" \
+		--output "$(call BUILD_STAGE_DIR,$*)/Firmwares/BL32_AP_EFI_STMM.fd"
 	@python3 "$(CIX_RELEASE_CACHE_HELPER)" \
 		--cache-root "$(CIX_RELEASE_CACHE_ROOT)" \
 		--tfa-dir "$(abspath $(CIX_RELEASE_V12_TFA_SOURCE_DIR))" \
@@ -1202,6 +1210,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 		--tee-dir "$(abspath $(CIX_RELEASE_V12_TEE_SOURCE_DIR))" \
 		--build-root "$(abspath $(call BUILD_STAGE_DIR,$*))" \
 		--signing-keys-dir "$(abspath $(CIX_RELEASE_SIGNING_KEYS_DIR))" \
+		--vendor-fip "$(abspath $(PACKAGE_TOOL)/Firmwares/bootloader2.img)" \
 		--fiptool "$(abspath $(FIPTOOL_BIN))" \
 		--output "$$tmp_output" \
 		--cross-compile "$(GCC_AARCH64_PREFIX)" \
@@ -1223,6 +1232,9 @@ Build/%/$(UEFI_TARGET)_GCC/Firmwares/bootloader2.img: \
 	@$(ENSURE_REPO_LOCK)
 	@mkdir -p "$(call BUILD_OUTPUT_DIR,$*)/Firmwares"
 	@cp -f "$<" "$@"
+	@if [[ "$(ARTEFACT_MODE)" == "custom" && "$(CIX_RELEASE_NORMALIZED)" == "1.2" ]]; then \
+		cp -f "$(call BUILD_STAGE_DIR,$*)/Firmwares/vendor-stmm.json" "$(call BUILD_OUTPUT_DIR,$*)/Firmwares/vendor-stmm.json"; \
+	fi
 
 .SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img
 $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img: \
