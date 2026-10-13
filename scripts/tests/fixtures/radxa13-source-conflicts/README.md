@@ -1,9 +1,7 @@
 # Reviewed source conflict fixtures
 
-These are exact raw Git blobs from the preserved conflict tree
-`c13a964250a98fca4a2b44af6adf0fb0a08c355f`, rooted at conflict handoff commit
-`cb253b431548bc24eeec064732c0a6926ae0b1e1`. The three conflicted files, replacement
-reset implementation and their INF/DSC consumers are retained as source-review
+These are exact raw vendor conflict blobs. The three conflicted files,
+replacement reset implementation and their INF/DSC consumers are source-review
 fixtures. Preserve imported INF bytes and their CRLF endings.
 
 The identity scanner permits the original copyright email in the DSC fixture
