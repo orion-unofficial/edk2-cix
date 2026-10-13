@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 import check_identity_integrity as identity
+from publish_source_update import ORION_EMAILS, ORION_PUSH_URLS
 
 
 class FixtureEmailTests(unittest.TestCase):
@@ -61,6 +62,26 @@ class FixtureEmailTests(unittest.TestCase):
         problems = self.scan("scripts/test_fixture.py", address)
         self.assertEqual(len(problems), 1)
         self.assertIn("generated assistant identity", problems[0])
+
+    def test_publication_identities_are_limited_to_guard_test_and_guide(self):
+        self.assertEqual(identity.PUBLICATION_IDENTITIES, ORION_EMAILS | {
+            url.removeprefix("https://").split("/")[0] for url in ORION_PUSH_URLS if "@" in url
+        })
+        for path in identity.PUBLICATION_IDENTITY_FILES:
+            for email in identity.PUBLICATION_IDENTITIES:
+                with self.subTest(path=path, email=email):
+                    self.assertEqual(self.scan(path, email), [])
+            self.assertTrue(self.scan(path, "other" + "@" + "example.org"))
+        for path in ("scripts/other.py", "docs/other.md", "config/other.json"):
+            for email in identity.PUBLICATION_IDENTITIES:
+                with self.subTest(path=path, email=email):
+                    self.assertTrue(self.scan(path, email))
+
+    def test_publication_exception_does_not_exempt_other_patterns(self):
+        email = next(iter(identity.PUBLICATION_IDENTITIES))
+        with patch.object(identity, "suspicious_patterns", return_value=[
+                ("host path", identity.re.compile(identity.re.escape(email)))]):
+            self.assertTrue(self.scan("scripts/publish_source_update.py", email))
 
 
 if __name__ == "__main__":

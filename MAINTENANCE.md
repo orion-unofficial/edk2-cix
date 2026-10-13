@@ -80,6 +80,12 @@ explicit migration. The publisher never deletes source refs. It can also resume
 safely if an older, non-atomic publication left
 the build metadata on the remote before its source refs.
 
+For either Orion GitHub HTTPS URL, both dry-run and write mode reject newly
+published commits whose author or committer email does not belong to the
+`orion-unofficial` identity. `FORCE=1` skips this identity check only. See the
+[accepted identities and comparison rules](docs/src/source-checkpoint-maintenance.md)
+before using that override.
+
 Git cannot make a plain one-branch `git push` include changes made on other Git
 branches. This automatic publisher is therefore the sole exceptional command
 for a real multi-ref source update; ordinary build-branch changes continue to

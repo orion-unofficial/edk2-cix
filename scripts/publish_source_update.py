@@ -30,6 +30,7 @@ Optional variables:
       variable is normally unnecessary.
   REMOTE=<name>  Git remote to update. Default: origin.
   WRITE=0|1      Execute the atomic push. Without WRITE=1, use git push --dry-run.
+  FORCE=0|1      With FORCE=1, skip the Orion destination commit identity check.
   V=0|1          Print delegated Git operations.
 
 The checked-out build branch must be clean, contain object/tree metadata matching
@@ -41,6 +42,12 @@ release checkpoints. Mutable Unofficial tips, compatibility refs, and compatibil
 tags use an exact force-with-lease expectation. Git receives the build branch
 and every inferred pending ref in one --atomic push. Obsolete correction branches
 stop publication; source-ref deletion requires an explicit migration.
+
+For the Orion GitHub HTTPS destination (with or without the orion-unofficial
+URL username), every newly published commit must have both author and committer
+email attributed to orion-unofficial. Accepted emails are
+orion-unofficial@protonmail.com and the account's GitHub noreply forms. FORCE=1
+skips only this identity check; all other publication safeguards still apply.
 """
 
 
@@ -51,6 +58,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--source-refs", default=os.environ.get("SOURCE_REFS", ""))
     p.add_argument("--remote", default=os.environ.get("REMOTE", "origin"))
     p.add_argument("--write", default=os.environ.get("WRITE", "0"))
+    p.add_argument("--force", default=os.environ.get("FORCE", "0"))
     p.add_argument("--v", default=os.environ.get("V", "0"))
     return p
 
@@ -115,6 +123,78 @@ def remote_objects(repo: Path, remote: str, refs: list[str]) -> dict[str, str]:
 def local_commit(repo: Path, ref: str) -> str | None:
     result = git(repo, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False)
     return result.stdout.strip() if result.returncode == 0 else None
+
+
+ORION_PUSH_URLS = {
+    "https://orion-unofficial@github.com/orion-unofficial/edk2-cix.git",
+    "https://github.com/orion-unofficial/edk2-cix.git",
+}
+ORION_EMAILS = {
+    "orion-unofficial@protonmail.com",
+    "orion-unofficial@users.noreply.github.com",
+    # Public GitHub account ID from /users/orion-unofficial. Do not accept
+    # arbitrary numeric IDs merely because the username suffix matches.
+    "275841278+orion-unofficial@users.noreply.github.com",
+}
+
+
+def orion_email(email: str) -> bool:
+    """Check committed emails, never display names or mutable Git user config."""
+    return email in ORION_EMAILS
+
+
+def check_publication_identity(repo: Path, remote: str, refspecs: list[str], force: str) -> None:
+    if force == "1":
+        print("skipping publication commit identity check (FORCE=1)")
+        return
+    urls = git(repo, "remote", "get-url", "--push", "--all", remote).stdout.splitlines()
+    tips = sorted({source for spec in refspecs for source in [spec.split(":", 1)[0]] if source})
+    if not tips:
+        return  # Ref deletions introduce no commits.
+    for url in sorted(set(urls) & ORION_PUSH_URLS):
+        if git(repo, "rev-parse", "--is-shallow-repository").stdout.strip() == "true":
+            raise ReconstructionError(
+                "cannot check publication commit identity in a shallow repository; "
+                "fetch complete history or explicitly skip this check with FORCE=1"
+            )
+        advertised = remote_objects(repo, url, [])
+        # Fetch missing advertised objects without creating local/tracking refs.
+        # This also makes the exclusion accurate in a minimised local clone.
+        missing = [ref for ref, oid in advertised.items()
+                   if git(repo, "cat-file", "-e", oid, check=False).returncode != 0]
+        if missing:
+            git(repo, "fetch", "--quiet", "--no-tags", "--no-write-fetch-head", url, *missing)
+        existing = sorted({commit for oid in set(advertised.values())
+                           for commit in [local_commit(repo, oid)] if commit})
+        revisions = [*tips, *(f"^{commit}" for commit in existing)]
+        result = subprocess.run(
+            ["git", "--no-replace-objects", "-C", str(repo), "log", "--no-use-mailmap", "-z",
+             "--format=%H%x00%an%x00%ae%x00%cn%x00%ce", "--stdin"],
+            input="\n".join(revisions) + "\n", text=True, capture_output=True, check=False,
+        )
+        if result.returncode:
+            raise ReconstructionError("cannot check publication commit identity: " + result.stderr.strip())
+        fields = result.stdout.split("\0")
+        if fields.pop() != "" or len(fields) % 5:
+            raise ReconstructionError("cannot check publication commit identity: malformed Git metadata")
+        problems = []
+        for offset in range(0, len(fields), 5):
+            commit, author, author_email, committer, committer_email = fields[offset:offset + 5]
+            failures = []
+            if not orion_email(author_email):
+                failures.append(f"author {author} <{author_email}>")
+            if not orion_email(committer_email):
+                failures.append(f"committer {committer} <{committer_email}>")
+            if failures:
+                problems.append(f"{commit}: " + "; ".join(failures))
+        if problems:
+            raise ReconstructionError(
+                f"publication identity/user error: commits being pushed to {url} must have "
+                "both author and committer attributed to orion-unofficial:\n"
+                + "\n".join(f"  - {problem}" for problem in problems)
+                + "\nCorrect the commit identities, or explicitly skip this check with FORCE=1."
+            )
+        print(f"publication commit identity check passed for {len(fields) // 5} new commit(s)")
 
 
 def compatibility_tag(ref: str) -> str | None:
@@ -254,7 +334,7 @@ def main() -> None:
     refspecs: list[str] = []
     leases: list[str] = []
     if build_pending:
-        refspecs.append("refs/heads/build:refs/heads/build")
+        refspecs.append(f"{local_build}:refs/heads/build")
         leases.append(f"--force-with-lease=refs/heads/build:{remote_build}")
     matched_refs = 0
     for ref in refs:
@@ -269,12 +349,13 @@ def main() -> None:
             raise ReconstructionError(f"refusing to replace immutable source ref on {args.remote}: {ref}")
         if remote_object:
             leases.append(f"--force-with-lease={ref}:{remote_object}")
-        refspecs.append(f"{ref}:{ref}")
+        refspecs.append(f"{local_object}:{ref}")
 
     if not refspecs:
         print(f"{args.remote} already matches build and all {matched_refs} selected source ref(s)")
         return
 
+    check_publication_identity(repo, args.remote, refspecs, args.force)
     command = ["git", "push", "--atomic", *leases]
     if not truthy(args.write):
         command.append("--dry-run")

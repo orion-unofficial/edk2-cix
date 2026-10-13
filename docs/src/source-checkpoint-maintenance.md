@@ -119,6 +119,25 @@ remain reachable before removing refs. Publish with the default dry run of
 `make check-remote-source-coherence`. These checks establish source preservation;
 firmware runtime behavior still requires hardware qualification.
 
+Publication to `https://github.com/orion-unofficial/edk2-cix.git` or
+`https://orion-unofficial@github.com/orion-unofficial/edk2-cix.git` checks both
+author and committer emails on every commit newly introduced to the destination,
+including commits behind pending source branches and tags. The check uses the
+effective push URLs, including explicit push URLs and Git URL rewrites. Commits
+already reachable on the destination are excluded; missing advertised objects
+are fetched for this comparison without creating local or tracking refs.
+Shallow clones must fetch complete history before using the check.
+Both emails must be `orion-unofficial@protonmail.com`,
+`orion-unofficial@users.noreply.github.com`, or
+`275841278+orion-unofficial@users.noreply.github.com` (the account's numeric ID).
+Display names and current
+Git user settings do not establish commit attribution. A failure reports the
+commit IDs and offending identities and aborts before the atomic push, in both
+dry-run and write mode. To intentionally bypass this check, use
+`make publish-source-update WRITE=1 FORCE=1`. Other publication checks remain
+mandatory. This guard checks stored commit attribution; it does not authenticate
+the account used by Git to push.
+
 For source ownership audits, `verify-source-lifecycle` accepts
 `FROM_PORT_REF=<recorded-vendor-port>` alongside `FROM_REF`. It verifies the
 source record's commit/tree and exact vendor-port binding, against the maintained checkpoint. A custom `src/` file absent

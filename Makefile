@@ -391,7 +391,7 @@ help-dev-verify:
 	print_help_variable 'REF=<ref>' 'Optional source ref for verify-source-policy.'; \
 	print_help_variable 'PERSIST=0|1' 'For render-release-branch: create or verify a named source/cache/release branch. Without PERSIST=1, build targets use existing refs or cached detached worktrees and do not create a Git cache branch.'; \
 	print_help_variable 'REBUILD=0|1' 'Regenerate a rendered firmware source target from its render plan instead of reusing an existing ref.'; \
-	print_help_variable 'FORCE=0|1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass.'; \
+	print_help_variable 'FORCE=0|1' 'Allow an explicitly requested ref replacement or install overwrite after the target-specific safety checks pass. For publish-source-update, skip the Orion commit identity check.'; \
 	print_help_variable 'WORKTREE=<path>' 'Existing rendered worktree to use for verify-release-branch history checks.'; \
 	print_help_variable 'SOURCE_LIFECYCLE_NORMALISE=off|validate|mirror|exact' 'For verify-source-lifecycle. Control deterministic overlay/source lifecycle handling when an imported overlay path points at a source file that moved or disappeared in another release branch.\nDefault: exact.'; \
 	print_help_variable 'SCAN_COMMITS=0|1' 'Legacy override for scripts/check_identity_integrity.py. The make check-identity-integrity target is intentionally quick; use make verify-identity-integrity for the full source-ref and commit scan.'; \
@@ -855,7 +855,7 @@ check-upstream-versions:
 
 publish-source-update:
 	$(call PROGRESS_PROBE,[publish] Validating atomic build/source ref update)
-	@DEBUG="$(DEBUG)" SOURCE_REFS="$(SOURCE_REFS)" REMOTE="$(REMOTE)" WRITE="$(WRITE)" V="$(V)" $(PYTHON) scripts/publish_source_update.py --v "$(V)"
+	@DEBUG="$(DEBUG)" SOURCE_REFS="$(SOURCE_REFS)" REMOTE="$(REMOTE)" WRITE="$(WRITE)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/publish_source_update.py --v "$(V)"
 
 check-source-metadata:
 	$(call PROGRESS_PROBE,[check] Checking source metadata refresh state)

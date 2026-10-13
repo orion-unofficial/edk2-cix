@@ -35,7 +35,23 @@ Python regression fixtures under scripts/test_*.py may use the reserved
 example.invalid email domain. Other addresses and non-test files remain checked.
 Exact imported source fixtures may retain a reviewed original copyright email;
 the exception is bound to the file bytes and attribution line, not a directory.
+The publication guard, its regression tests and maintained publication guide
+may name the exact public Orion identities enforced by the guard.
 """
+
+PUBLICATION_IDENTITY_FILES = {
+    "scripts/publish_source_update.py",
+    "scripts/test_publish_source_update.py",
+    "docs/src/source-checkpoint-maintenance.md",
+}
+PUBLICATION_IDENTITIES = {
+    f"{local}@{domain}" for local, domain in (
+        ("orion-unofficial", "protonmail.com"),
+        ("orion-unofficial", "users.noreply.github.com"),
+        ("275841278+orion-unofficial", "users.noreply.github.com"),
+        ("orion-unofficial", "github.com"),  # HTTPS URL username and host.
+    )
+}
 
 # This raw vendor conflict fixture is documented in its adjacent README. Keep
 # its original attribution intact without exempting new or changed identities.
@@ -114,6 +130,9 @@ def scan_files(repo: Path, verbose: bool) -> list[str]:
                         match.group(0).rpartition("@")[2].lower() == "example.invalid"):
                     continue
                 if label == "embedded email" and line in imported_lines:
+                    continue
+                if (label == "embedded email" and rel in PUBLICATION_IDENTITY_FILES
+                        and match.group(0) in PUBLICATION_IDENTITIES):
                     continue
                 problems.append(f"{rel}:{line}: {label}: {match.group(0)}")
     return problems
