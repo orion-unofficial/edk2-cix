@@ -26,7 +26,7 @@ VALID_BOARDS = {"O6", "O6N"}
 VALID_FIRMWARE_DISTROS = {"bookworm", "trixie"}
 VALID_BUILDBOX_PLATFORMS = {"linux/amd64", "linux/arm64"}
 VALID_CORE_ORDERS = {"cix", "conventional", "performance"}
-VALID_CIX_RELEASES = {"1.2"}
+VALID_CIX_RELEASES = {"1.2", "unofficial"}
 VALID_O6_SMBIOS_BOARDS = {"O6"}
 TRUE_TOKENS = {"1", "true", "on", "yes"}
 FALSE_TOKENS = {"0", "false", "off", "no"}
@@ -512,12 +512,12 @@ def run_validate(args: argparse.Namespace) -> int:
                     "CIX_RELEASE is only supported with ARTEFACT_MODE=custom"
                 )
             if (
-                normalized_cix_release == "1.2"
+                normalized_cix_release in VALID_CIX_RELEASES
                 and args.firmware_board is not None
                 and args.firmware_board != "O6"
             ):
                 raise ValueError(
-                    "CIX_RELEASE=1.2 is qualified only for FIRMWARE_BOARD=O6"
+                    "CIX_RELEASE is qualified only for FIRMWARE_BOARD=O6"
                 )
 
         if args.enable_tf_a_fixes is not None and args.enable_tf_a_fixes != "":

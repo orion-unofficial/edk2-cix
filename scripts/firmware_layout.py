@@ -10,7 +10,7 @@ from pathlib import Path
 VERSION_FILENAME = "VERSION"
 MAX_DISPLAY_VERSION_LENGTH = 48
 VALID_ARTEFACT_MODES = {"custom", "upstream"}
-VALID_CIX_RELEASES = {"", "1.2"}
+VALID_CIX_RELEASES = {"", "1.2", "unofficial"}
 VALID_CORE_ORDERS = {"", "cix", "conventional", "performance"}
 VALID_FIRMWARE_TARGETS = {"RELEASE", "DEBUG"}
 PATH_ROOT = ("edk2", "radxa")
@@ -150,7 +150,7 @@ class FirmwareLayout:
 
         parts = ["custom"]
         if self.cix_release:
-            parts.append("cix")
+            parts.append("cix_unofficial" if self.cix_release == "unofficial" else "cix")
             if self.enable_tf_a_fixes:
                 parts.append("tf_a_fixes")
         if self.firmware_target == "DEBUG":
