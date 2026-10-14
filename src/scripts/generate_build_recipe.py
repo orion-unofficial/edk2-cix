@@ -20,10 +20,10 @@ def recipe(config: dict[str, str], release: str, board: str, product: str,
     args = {'RELEASE': release, 'ARTEFACT_MODE': 'custom', 'FIRMWARE_BOARD': board,
             'FIRMWARE_TARGET': config['UEFI_TARGET'],
             'FIRMWARE_DISTRO': distro}
-    for key in ('ENABLE_FIRMWARE_FIXES', 'ENABLE_CORE_ORDER', 'CIX_RELEASE',
+    for key in ('ENABLE_FIRMWARE_FIXES', 'ENABLE_CORE_ORDER', 'CIX_RELEASE', 'STMM',
                 'ENABLE_TF_A_FIXES', 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS',
                 'DEBUG_ON_UART3', 'UART3_ENABLE', 'DEBUG_VERBOSE', 'DEBUG_PRINT_ERROR_LEVEL'):
-        value = config.get(key, '')
+        value = config.get(key, 'vendor' if key == 'STMM' else '')
         # Keep empty values explicit: several options distinguish unset from false.
         args[key] = value.lower() if key in BOOLS else value
     # These overrides affect the stored image and are accepted by the source builder.
