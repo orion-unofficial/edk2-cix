@@ -769,8 +769,20 @@ $(call force,CFG_WITH_STMM_SP,y)
 else
 CFG_WITH_STMM_SP ?= n
 endif
+# 10 retains the CIX vendor image ABI; 12 requires a modern FF-A/HOB image.
+# This is independent of the normal-world UEFI release.
+CFG_STMM_FFA_VERSION ?= 10
+ifneq ($(words $(CFG_STMM_FFA_VERSION)),1)
+$(error CFG_STMM_FFA_VERSION must be 10 or 12)
+endif
+ifeq ($(filter 10 12,$(CFG_STMM_FFA_VERSION)),)
+$(error CFG_STMM_FFA_VERSION must be 10 or 12)
+endif
 ifeq ($(CFG_WITH_STMM_SP),y)
 $(call force,CFG_ZLIB,y)
+ifeq ($(CFG_STMM_FFA_VERSION),12)
+$(call force,CFG_ARM64_core,y)
+endif
 endif
 
 # When enabled checks that buffers passed to the GP Internal Core API

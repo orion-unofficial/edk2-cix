@@ -12,6 +12,34 @@
 #include <smccc.h>
 #include <stdint.h>
 
+/* FF-A 1.2 StandaloneMM interfaces, backported from upstream OP-TEE. */
+#define FFA_MEM_PERM_GET_32		U(0x84000088)
+#define FFA_MEM_PERM_GET_64		U(0xC4000088)
+#define FFA_MEM_PERM_SET_32		U(0x84000089)
+#define FFA_MEM_PERM_SET_64		U(0xC4000089)
+#define FFA_MEM_PERM_DATA_PERM		GENMASK_32(1, 0)
+#define FFA_MEM_PERM_RW			U(0x1)
+#define FFA_MEM_PERM_RO			U(0x3)
+#define FFA_MEM_PERM_INSTRUCTION_PERM	BIT(2)
+#define FFA_MEM_PERM_NX			BIT(2)
+#define FFA_MEM_PERM_X			U(0)
+#define FFA_MEM_PERM_RESERVED		GENMASK_32(31, 3)
+#define FFA_BOOT_INFO_NAME_LEN		U(16)
+#define FFA_BOOT_INFO_TYPE_IMDEF	BIT(7)
+#define FFA_BOOT_INFO_TYPE_ID_MASK	GENMASK_32(6, 0)
+#define FFA_BOOT_INFO_TYPE_ID_FDT	U(0)
+#define FFA_BOOT_INFO_TYPE_ID_HOB	U(1)
+#define FFA_BOOT_INFO_FLAG_NAME_FORMAT_MASK	GENMASK_32(1, 0)
+#define FFA_BOOT_INFO_FLAG_NAME_FORMAT_STRING	U(0)
+#define FFA_BOOT_INFO_FLAG_NAME_FORMAT_UUID	U(1)
+#define FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_SHIFT U(2)
+#define FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_MASK	GENMASK_32(3, 2)
+#define FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_VALUE	U(1)
+#define FFA_BOOT_INFO_FLAG_CONTENT_FORMAT_ADDR	U(0)
+#define FFA_BOOT_INFO_SIGNATURE		U(0xFFA)
+#define FFA_BOOT_INFO_VERSION_1_1	U(0x10001)
+#define FFA_BOOT_INFO_VERSION_1_2	U(0x10002)
+
 /* Error codes */
 #define FFA_OK			0
 #define FFA_NOT_SUPPORTED	-1
@@ -172,5 +200,27 @@ struct ffa_mem_relinquish {
 	uint32_t endpoint_count;
 	uint16_t endpoint_id_array[];
 };
+
+/* FF-A v1.1 boot information descriptor */
+struct ffa_boot_info_1_1 {
+	char name[FFA_BOOT_INFO_NAME_LEN];
+	uint8_t type;
+	uint8_t reserved;
+	uint16_t flags;
+	uint32_t size;
+	uint64_t contents;
+};
+
+/* FF-A v1.1 boot information header */
+struct ffa_boot_info_header_1_1 {
+	uint32_t signature;
+	uint32_t version;
+	uint32_t blob_size;
+	uint32_t desc_size;
+	uint32_t desc_count;
+	uint32_t desc_offset;
+	uint64_t reserved;
+};
+
 #endif /*__ASSEMBLER__*/
 #endif /* __FFA_H */

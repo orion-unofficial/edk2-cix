@@ -1,3 +1,7 @@
+ifeq ($(CFG_STMM_FFA_VERSION),12)
+subdirs-$(CFG_WITH_STMM_SP) += lib/libefi
+endif
+
 subdirs-y += crypto
 subdirs-y += drivers
 subdirs-y += kernel
@@ -82,8 +86,9 @@ endif
 ifneq ($(CFG_STMM_PATH),)
 gensrcs-y += stmm
 produce-stmm = stmm_hex.c
-depends-stmm = scripts/gen_stmm_hex.py $(CFG_STMM_PATH)
+depends-stmm = scripts/gen_stmm_hex.py $(CFG_STMM_PATH) $(conf-file)
 recipe-stmm = scripts/gen_stmm_hex.py --input $(CFG_STMM_PATH) \
-			--output $(sub-dir-out)/stmm_hex.c
+			--output $(sub-dir-out)/stmm_hex.c \
+			--ffa-version $(CFG_STMM_FFA_VERSION)
 cleanfiles += $(sub-dir-out)/stmm_hex.c
 endif

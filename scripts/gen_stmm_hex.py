@@ -5,8 +5,23 @@
 #
 
 import argparse
+import hashlib
 import sys
 import zlib
+
+
+# Exact CIX legacy payloads recovered from Radxa 1.2.4 and 1.3.1.
+# The firmware packaging guard independently verifies the selected checkpoint.
+CIX_LEGACY_IMAGES = {
+    '813a4b29954c11a0ad8a151b81f67852eccd03e7273e26ad7ecf25abad2f60dd',
+    'bcf541629e956efe8e8f06738314b5b43fcca32340ab3afc62d8723f39e380a1',
+}
+
+
+def validate_boot_abi(payload, ffa_version):
+    if ffa_version == 12 and hashlib.sha256(payload).hexdigest() in CIX_LEGACY_IMAGES:
+        raise ValueError('CIX vendor StandaloneMM requires CFG_STMM_FFA_VERSION=10; '
+                         'FF-A 1.2 requires a matching modern StandaloneMM image')
 
 
 def get_args():
@@ -20,6 +35,8 @@ def get_args():
                         required=True, type=argparse.FileType('w'),
                         help='The output stmm_hex.c')
 
+    parser.add_argument('--ffa-version', type=int, choices=(10, 12), default=10)
+
     return parser.parse_args()
 
 
@@ -29,6 +46,7 @@ def main():
     outf = args.output
 
     bytes = inf.read()
+    validate_boot_abi(bytes, args.ffa_version)
     uncompressed_size = len(bytes)
     bytes = zlib.compress(bytes)
     size = len(bytes)

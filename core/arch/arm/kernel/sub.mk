@@ -82,3 +82,7 @@ cflags-remove-unwind_arm32.c-y += -pg
 cflags-remove-unwind_arm64.c-$(CFG_ARM64_core) += -pg
 endif
 endif
+
+ifeq ($(CFG_STMM_FFA_VERSION),12)
+srcs-$(CFG_WITH_STMM_SP) += stmm_hob.c
+endif

@@ -20,6 +20,9 @@
 #include <tee/tee_svc.h>
 #include <tee/tee_svc_storage.h>
 #include <zlib.h>
+#if CFG_STMM_FFA_VERSION == 12
+#include "stmm_hob.h"
+#endif
 
 #ifdef ARM64
 #define SVC_REGS_A0(_regs)	((_regs)->x0)
@@ -36,6 +39,8 @@
 #define __FFA_SVC_MEMORY_ATTRIBUTES_SET	FFA_SVC_MEMORY_ATTRIBUTES_SET_64
 #define __FFA_MSG_SEND_DIRECT_RESP	FFA_MSG_SEND_DIRECT_RESP_64
 #define __FFA_MSG_SEND_DIRECT_REQ	FFA_MSG_SEND_DIRECT_REQ_64
+#define __FFA_MEM_PERM_GET FFA_MEM_PERM_GET_64
+#define __FFA_MEM_PERM_SET FFA_MEM_PERM_SET_64
 #endif
 #ifdef ARM32
 #define SVC_REGS_A0(_regs)	((_regs)->r0)
@@ -69,7 +74,11 @@ static const uint16_t ffa_storage_id = 4U;
 static const uint16_t ffa_debug_message_id = 100U;
 static const uint16_t ffa_nor_flash_id = 101U;
 
+#if CFG_STMM_FFA_VERSION == 12
+static const unsigned int stmm_stack_size = 0;
+#else
 static const unsigned int stmm_stack_size = 4 * SMALL_PAGE_SIZE;
+#endif
 static const unsigned int stmm_heap_size = 900 * SMALL_PAGE_SIZE;
 static const unsigned int stmm_sec_buf_size = 4 * SMALL_PAGE_SIZE;
 static const unsigned int stmm_ns_comm_buf_size = 20 * SMALL_PAGE_SIZE;
@@ -181,7 +190,7 @@ static TEE_Result alloc_and_map_sp_fobj(struct stmm_ctx *spc, size_t sz,
 	if (res)
 		mobj_put(mobj);
 
-	return TEE_SUCCESS;
+	return res;
 }
 
 static void *zalloc(void *opaque __unused, unsigned int items,
@@ -271,10 +280,12 @@ static TEE_Result load_stmm(struct stmm_ctx *spc, struct tee_ta_param *param)
 	if (res)
 		return res;
 
-	res = vm_set_prot(&spc->uctx, stack_addr, stmm_stack_size,
-			  TEE_MATTR_URW | TEE_MATTR_PRW);
-	if (res)
-		return res;
+	if (stmm_stack_size) {
+		res = vm_set_prot(&spc->uctx, stack_addr, stmm_stack_size,
+				  TEE_MATTR_URW | TEE_MATTR_PRW);
+		if (res)
+			return res;
+	}
 
 	res = vm_set_prot(&spc->uctx, sec_buf_addr, stmm_sec_buf_size,
 			  TEE_MATTR_URW | TEE_MATTR_PRW);
@@ -321,9 +332,31 @@ static TEE_Result load_stmm(struct stmm_ctx *spc, struct tee_ta_param *param)
 	spc->ns_comm_buf_addr = comm_buf_addr;
 	spc->ns_comm_buf_size = stmm_ns_comm_buf_size;
 
+#if CFG_STMM_FFA_VERSION == 12
+	{
+		struct stmm_flash_nvram_storage_info flash = *flash_nvram_storage_info;
+		struct stmm_ffa_init_regs regs = { 0 };
+		struct stmm_ffa_mem mem = {
+			.sp_addr = sp_addr, .sp_size = sp_size,
+			.image_addr = image_addr,
+			.image_region_size = uncompressed_size_roundup,
+			.heap_addr = heap_addr, .heap_size = stmm_heap_size,
+			.sec_buf_addr = sec_buf_addr, .sec_buf_size = stmm_sec_buf_size,
+			.ns_comm_buf_addr = comm_buf_addr,
+			.ns_comm_buf_size = stmm_ns_comm_buf_size,
+		};
+
+		/* The HOB list replaces the legacy records in the secure buffer. */
+		res = stmm_ffa_init(&mem, &flash, &regs);
+		if (res)
+			return res;
+		init_stmm_regs(spc, regs.a0, 0, 0, image_addr);
+	}
+#else
 	init_stmm_regs(spc, sec_buf_addr,
 		       (vaddr_t)(flash_nvram_storage_info + 1) - sec_buf_addr,
 		       stack_addr + stmm_stack_size, image_addr);
+#endif
 
 	return stmm_enter_user_mode(spc);
 }
@@ -880,6 +913,93 @@ static void spm_eret_error(int32_t error_code, struct thread_svc_regs *regs)
 	SVC_REGS_A7(regs) = FFA_PARAM_MBZ;
 }
 
+#if CFG_STMM_FFA_VERSION == 12
+static void spm_handle_get_mem_attr(struct user_mode_ctx *uctx,
+				    struct thread_svc_regs *regs)
+{
+	uint16_t attrs = 0;
+	uint16_t perm = 0;
+	vaddr_t va = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	va = SVC_REGS_A1(regs);
+	if (!va || (va & SMALL_PAGE_MASK))
+		goto err;
+
+	res = vm_get_prot(uctx, va, SMALL_PAGE_SIZE, &attrs);
+	if (res)
+		goto err;
+
+	if ((attrs & TEE_MATTR_URW) == TEE_MATTR_URW)
+		perm |= FFA_MEM_PERM_RW;
+	else if ((attrs & TEE_MATTR_UR) == TEE_MATTR_UR)
+		perm |= FFA_MEM_PERM_RO;
+
+	if (!(attrs & TEE_MATTR_UX))
+		perm |= FFA_MEM_PERM_NX;
+
+	SVC_REGS_A0(regs) = FFA_SUCCESS_32;
+	SVC_REGS_A1(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A2(regs) = perm;
+	SVC_REGS_A3(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A4(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A5(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A6(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A7(regs) = FFA_PARAM_MBZ;
+	return;
+
+err:
+	spm_eret_error(FFA_INVALID_PARAMETERS, regs);
+}
+
+static void spm_handle_set_mem_attr(struct user_mode_ctx *uctx,
+				    struct thread_svc_regs *regs)
+{
+	uintptr_t va = SVC_REGS_A1(regs);
+	uint32_t nr_pages = SVC_REGS_A2(regs);
+	uint32_t perm = SVC_REGS_A3(regs);
+	size_t sz = 0;
+	uint32_t prot = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!va || (va & SMALL_PAGE_MASK) || !nr_pages ||
+	    SVC_REGS_A2(regs) > UINT32_MAX ||
+	    SVC_REGS_A3(regs) > UINT32_MAX ||
+	    (perm & FFA_MEM_PERM_DATA_PERM) == 2 ||
+	    MUL_OVERFLOW(nr_pages, SMALL_PAGE_SIZE, &sz) ||
+	    (perm & FFA_MEM_PERM_RESERVED))
+		goto err;
+
+	if ((perm & FFA_MEM_PERM_DATA_PERM) == FFA_MEM_PERM_RO)
+		prot |= TEE_MATTR_UR;
+	else if ((perm & FFA_MEM_PERM_DATA_PERM) == FFA_MEM_PERM_RW)
+		prot |= TEE_MATTR_URW;
+
+	if ((perm & FFA_MEM_PERM_INSTRUCTION_PERM) != FFA_MEM_PERM_NX)
+		prot |= TEE_MATTR_UX;
+
+	res = vm_set_prot(uctx, va, sz, prot);
+	if (res) {
+		spm_eret_error(FFA_DENIED, regs);
+		return;
+	}
+
+	SVC_REGS_A0(regs) = FFA_SUCCESS_32;
+	SVC_REGS_A1(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A2(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A3(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A4(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A5(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A6(regs) = FFA_PARAM_MBZ;
+	SVC_REGS_A7(regs) = FFA_PARAM_MBZ;
+	return;
+
+err:
+	spm_eret_error(FFA_INVALID_PARAMETERS, regs);
+}
+
+#endif
+
 static void spm_handle_direct_req(struct thread_svc_regs *regs)
 {
 	uint16_t dst_id = SVC_REGS_A1(regs) & UINT16_MAX;
@@ -910,8 +1030,34 @@ static bool spm_handle_svc(struct thread_svc_regs *regs)
 
 	switch (*a0) {
 	case FFA_VERSION:
+#if CFG_STMM_FFA_VERSION == 12
+		*a0 = (SVC_REGS_A1(regs) & BIT(31)) ?
+			FFA_NOT_SUPPORTED : FFA_BOOT_INFO_VERSION_1_2;
+#else
 		*a0 = MAKE_FFA_VERSION(FFA_VERSION_MAJOR, FFA_VERSION_MINOR);
+#endif
 		return true;
+#if CFG_STMM_FFA_VERSION == 12
+	case FFA_ID_GET:
+		spm_eret_error(0, regs);
+		SVC_REGS_A0(regs) = FFA_SUCCESS_32;
+		SVC_REGS_A2(regs) = stmm_id;
+		return true;
+	case FFA_MSG_WAIT:
+		return_from_sp_helper(false, 0, regs);
+		return false;
+	case __FFA_MEM_PERM_GET:
+		spm_handle_get_mem_attr(&to_stmm_ctx(
+			ts_get_current_session()->ctx)->uctx, regs);
+		return true;
+	case __FFA_MEM_PERM_SET:
+		spm_handle_set_mem_attr(&to_stmm_ctx(
+			ts_get_current_session()->ctx)->uctx, regs);
+		return true;
+	case FFA_ERROR:
+		return_from_sp_helper(true, SVC_REGS_A2(regs), regs);
+		return false;
+#endif
 	case __FFA_MSG_SEND_DIRECT_RESP:
 		return_from_sp_helper(false, 0, regs);
 		return false;
@@ -919,9 +1065,14 @@ static bool spm_handle_svc(struct thread_svc_regs *regs)
 		spm_handle_direct_req(regs);
 		return true;
 	default:
+#if CFG_STMM_FFA_VERSION == 12
+		spm_eret_error(FFA_NOT_SUPPORTED, regs);
+		return true;
+#else
 		EMSG("Undefined syscall %#"PRIx32, (uint32_t)*a0);
 		return_from_sp_helper(true /*panic*/, 0xabcd, regs);
 		return false;
+#endif
 	}
 }
 
