@@ -1,10 +1,19 @@
+STMM ?= vendor
+ifneq ($(strip $(STMM)),vendor)
+ifeq ($(strip $(STMM)),unofficial)
+$(error STMM=unofficial is not available: the reconstructed payload is not yet qualified for any EDK2 base, including pre-2025 releases)
+else
+$(error STMM supports vendor or unofficial; unofficial is not yet available)
+endif
+endif
+
 ifneq ($(strip $(CIX_RELEASE)),)
-ifeq ($(filter 1.2 v1.2 V1.2,$(strip $(CIX_RELEASE))),)
-$(error CIX_RELEASE supports only 1.2 (or v1.2))
+ifeq ($(filter 1.2 v1.2 V1.2 unofficial,$(strip $(CIX_RELEASE))),)
+$(error CIX_RELEASE supports only 1.2 (or v1.2) or unofficial)
 endif
 ifneq ($(strip $(ARTEFACT_MODE)),)
 ifneq ($(ARTEFACT_MODE),custom)
-$(error CIX_RELEASE=1.2 requires ARTEFACT_MODE=custom)
+$(error CIX_RELEASE requires ARTEFACT_MODE=custom)
 endif
 endif
 endif
@@ -247,7 +256,7 @@ CCACHE_GCC5_AARCH64_PREFIX_EFFECTIVE := $(if $(filter TRUE,$(CCACHE_ENABLED_EFFE
 PACKAGE_TOOL := edk2-non-osi/Platform/CIX/Sky1/PackageTool
 CIX_RELEASE_SOURCE_DIR := cix-v1.2
 CIX_RELEASE_V12_TFA_SOURCE_DIR := $(CIX_RELEASE_SOURCE_DIR)/tf-a
-CIX_RELEASE_V12_TEE_SOURCE_DIR := $(CIX_RELEASE_SOURCE_DIR)/tee
+CIX_RELEASE_V12_TEE_SOURCE_DIR := $(CIX_RELEASE_SOURCE_DIR)/$(if $(filter unofficial,$(CIX_RELEASE_NORMALIZED)),tee-unofficial,tee)
 CIX_RELEASE_V12_PAYLOAD_DIR := $(CIX_RELEASE_SOURCE_DIR)/release-payloads
 CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD := $(CIX_RELEASE_V12_PAYLOAD_DIR)/bootloader1-2026q1.img
 CIX_RELEASE_BOOTLOADER2_HELPER := scripts/build_cix_release_bootloader2.sh
@@ -486,7 +495,7 @@ BUILD_OUTPUT_DIR = Build/$1/$(UEFI_TARGET)_GCC5
 BUILD_STAGE_DIR = Build/$1/$(UEFI_TARGET)_GCC5.build
 BUILD_CONFIG_STAMP = $(call BUILD_OUTPUT_DIR,$1)/.edk2-cix-build-config
 CIX_RELEASE_BOOTLOADER2_STAMP = $(call BUILD_STAGE_DIR,$1)/.cix-release-bootloader2-inputs
-ACTIVE_CIX_RELEASE_BOOTLOADER2_STAMP = $(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter 1.2,$(CIX_RELEASE_NORMALIZED))),$(call CIX_RELEASE_BOOTLOADER2_STAMP,$1))
+ACTIVE_CIX_RELEASE_BOOTLOADER2_STAMP = $(if $(and $(filter custom,$(ARTEFACT_MODE)),$(filter 1.2 unofficial,$(CIX_RELEASE_NORMALIZED))),$(call CIX_RELEASE_BOOTLOADER2_STAMP,$1))
 .PHONY: build __build host-fiptool host-cix-regen-trusted-key-cert host-cert-uefi-create-rsa host-cix-package-tool
 build:
 	$(Q)$(LOCKED_MAKE) __build V="$(V)"
@@ -851,7 +860,7 @@ preflight-inputs:
 	fi; \
 	if [ -n "$(strip $(ENABLE_TF_A_FIXES_NORMALIZED))" ] && [ "$(ENABLE_TF_A_FIXES_NORMALIZED)" = "TRUE" ]; then \
 		if [ -z "$(strip $(CIX_RELEASE_NORMALIZED))" ]; then \
-			echo "[config] warning: ENABLE_TF_A_FIXES=true has no effect unless CIX_RELEASE=v1.2 selects the source-built TF-A path." >&2; \
+			echo "[config] warning: ENABLE_TF_A_FIXES=true has no effect unless CIX_RELEASE selects the source-built TF-A path." >&2; \
 		else \
 			echo "[config] ENABLE_TF_A_FIXES=true enables custom TF-A fixes"; \
 		fi; \
@@ -961,6 +970,7 @@ $(call BUILD_CONFIG_STAMP,%): FORCE
 		'ENABLE_FIRMWARE_FIXES=$(ENABLE_FIRMWARE_FIXES_NORMALIZED)' \
 		'ENABLE_CORE_ORDER=$(ENABLE_CORE_ORDER_NORMALIZED)' \
 		'CIX_RELEASE=$(CIX_RELEASE_NORMALIZED)' \
+		'STMM=$(STMM)' \
 		'ENABLE_TF_A_FIXES=$(ENABLE_TF_A_FIXES_NORMALIZED)' \
 		'ENABLE_EXPERIMENTAL_UEFI_SETTINGS=$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)' \
 		'UART3_ENABLE=$(UART3_ENABLE_EFFECTIVE)' \
@@ -1161,7 +1171,7 @@ Build/%/$(UEFI_TARGET)_GCC5/cix_flash_all.bin: $(call BUILD_CONFIG_STAMP,%) pref
 
 # Hash the selected sources on every build, preserving the stamp's mtime for
 # unchanged inputs. Staging must finish first so the OP-TEE STMM input exists.
-ifeq ($(ARTEFACT_MODE):$(CIX_RELEASE_NORMALIZED),custom:1.2)
+ifneq ($(and $(filter custom,$(ARTEFACT_MODE)),$(filter 1.2 unofficial,$(CIX_RELEASE_NORMALIZED))),)
 .NOTINTERMEDIATE: $(foreach board,$(FIRMWARE_BOARDS),$(call CIX_RELEASE_BOOTLOADER2_STAMP,$(board)))
 .SILENT: $(call CIX_RELEASE_BOOTLOADER2_STAMP,%)
 $(call CIX_RELEASE_BOOTLOADER2_STAMP,%): \
@@ -1197,7 +1207,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 	| $(FIPTOOL_BIN)
 
 	@$(ENSURE_REPO_LOCK)
-	@if [[ "$(ARTEFACT_MODE)" != "custom" || "$(CIX_RELEASE_NORMALIZED)" != "1.2" ]]; then \
+	@if [[ "$(ARTEFACT_MODE)" != "custom" || -z "$(CIX_RELEASE_NORMALIZED)" ]]; then \
 		if [[ ! -s "$@" ]]; then \
 			echo "[build/$*] Expected staged bootloader2 image $@ was not found" >&2; \
 			exit 1; \
@@ -1234,7 +1244,7 @@ Build/%/$(UEFI_TARGET)_GCC5/Firmwares/bootloader2.img: \
 	@$(ENSURE_REPO_LOCK)
 	@mkdir -p "$(call BUILD_OUTPUT_DIR,$*)/Firmwares"
 	@cp -f "$<" "$@"
-	@if [[ "$(ARTEFACT_MODE)" == "custom" && "$(CIX_RELEASE_NORMALIZED)" == "1.2" ]]; then \
+	@if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(CIX_RELEASE_NORMALIZED)" ]]; then \
 		cp -f "$(call BUILD_STAGE_DIR,$*)/Firmwares/vendor-stmm.json" "$(call BUILD_OUTPUT_DIR,$*)/Firmwares/vendor-stmm.json"; \
 	fi
 
@@ -1409,7 +1419,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/dummy.bin: $(call BUILD_CONFIG_STAMP,%)
 		echo "Found EC-less platform."; \
 		ln -sf dummy.bin "$(call BUILD_STAGE_DIR,$*)/Firmwares/ec_fw.bin"; \
 	fi; \
-	if [[ "$(ARTEFACT_MODE)" == "custom" && "$(CIX_RELEASE_NORMALIZED)" == "1.2" ]]; then \
+	if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(CIX_RELEASE_NORMALIZED)" ]]; then \
 		cp -f "$(CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD)" "$(call BUILD_STAGE_DIR,$*)/Firmwares/bootloader1.img"; \
 	fi
 
