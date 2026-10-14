@@ -33,6 +33,10 @@
 #include "mbedtls/error.h"
 
 #include <string.h>
+#include <stdlib.h>
+#ifdef __KERNEL__
+#include <kernel/panic.h>
+#endif
 
 #if defined(MBEDTLS_FS_IO)
 #include <stdio.h>
@@ -57,17 +61,22 @@
 
 #define ENTROPY_MAX_LOOP    256     /**< Maximum amount to loop before error */
 
-/* Return next random integer */
-int rand(void);
-
+/* The CIX self-test rand() adapter has no error-return channel. */
 int rand(void)
 {
 	int rc = 0;
 	size_t olen = 0;
 	unsigned char rc_buf[sizeof(rc)] = { 0 };
 
-	mbedtls_hardware_poll(NULL, rc_buf, sizeof(rc_buf), &olen);
-	memcpy(&rc, rc_buf, olen < sizeof(rc) ? olen : sizeof(rc));
+	if (mbedtls_hardware_poll(NULL, rc_buf, sizeof(rc_buf), &olen) ||
+	    olen != sizeof(rc_buf)) {
+#ifdef __KERNEL__
+		panic("CIX rand: hardware entropy failed or returned a short read");
+#else
+		abort();
+#endif
+	}
+	memcpy(&rc, rc_buf, sizeof(rc));
 	return rc;
 }
 

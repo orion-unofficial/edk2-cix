@@ -153,6 +153,7 @@ TEE_Result cix_get_key_info(csec_meta_key_id_t id, uint32_t req_len, uint8_t* ou
 		EMSG("Invalid key_id\n");
 		break;
 	}
+	return ret;
 }
 
 TEE_Result cix_get_efuse(uint32_t offset, uint32_t len, uint8_t* fuse_data, uint32_t* fuse_len)
