@@ -1287,7 +1287,7 @@ extern void set_cix_version_str(void);
 extern int mbedtls_te_selftest(void);
 #endif
 
-void signed_key_init(void)
+static void signed_key_init(void)
 {
 	void *point_shm = NULL;
 	ta_pub_key_info *share_ta_key_info = NULL;
@@ -1300,7 +1300,7 @@ void signed_key_init(void)
 		ta_pub_key_modulus_size = share_ta_key_info->module_size;
 		memcpy(ta_pub_key_modulus, share_ta_key_info->key_module, ta_pub_key_modulus_size);
 		IMSG("Dump ta public key\n");
-		IMSG("size: %d; Exponent: %d\n", ta_pub_key_modulus_size, ta_pub_key_exponent);
+		IMSG("size: %zu; Exponent: %u\n", ta_pub_key_modulus_size, ta_pub_key_exponent);
 		DHEXDUMP(ta_pub_key_modulus, ta_pub_key_modulus_size);
 	}
 }

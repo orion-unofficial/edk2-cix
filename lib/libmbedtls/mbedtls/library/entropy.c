@@ -63,8 +63,12 @@ static unsigned long int next = 1;
 
 int rand(void)
 {
-	int rc, olen;
-	mbedtls_hardware_poll(NULL, &rc, sizeof(rc), &olen);
+	int rc = 0;
+	size_t olen = 0;
+	unsigned char rc_buf[sizeof(rc)] = { 0 };
+
+	mbedtls_hardware_poll(NULL, rc_buf, sizeof(rc_buf), &olen);
+	memcpy(&rc, rc_buf, olen < sizeof(rc) ? olen : sizeof(rc));
 	return rc;
 }
 
