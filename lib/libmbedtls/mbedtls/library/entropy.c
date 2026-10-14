@@ -57,9 +57,8 @@
 
 #define ENTROPY_MAX_LOOP    256     /**< Maximum amount to loop before error */
 
-static unsigned long int next = 1;
-
 /* Return next random integer */
+int rand(void);
 
 int rand(void)
 {

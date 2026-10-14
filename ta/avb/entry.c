@@ -392,7 +392,6 @@ static TEE_Result write_vbmeta_public_key(uint32_t pt,
                 EMSG("Can't create vbmeta public key, res = 0x%x", res);
 
         TEE_CloseObject(h);
-out:
         TEE_Free(value);
 
         return res;

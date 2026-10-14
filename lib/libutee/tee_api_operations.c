@@ -1051,7 +1051,7 @@ void TEE_GetOperationBufferOffs(TEE_OperationHandle operation,size_t* buffer_off
 	if (operation == TEE_HANDLE_NULL)
                 TEE_Panic(0);
 
-        __utee_check_out_annotation(operation, sizeof(*operation));
+        __utee_check_out_annotation(buffer_offs, sizeof(*buffer_offs));
 	*buffer_offs = operation->buffer_offs;
 }
 

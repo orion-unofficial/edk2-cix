@@ -57,6 +57,10 @@ void main_init_gic(void);
 void main_secondary_init_gic(void);
 #endif
 
+#if defined(CFG_TE_DRIVER)
+void platform_get_te_configs(void **base, int *irq, int *host);
+#endif
+
 /*
  *******************************************************************************
  *                          VARIABLES SUPPLIED BY THIS MODULE
@@ -184,14 +188,16 @@ void platform_get_te_configs(void **base, int *irq, int *host)
 TEE_Result tee_otp_get_ta_enc_key(uint32_t key_type __maybe_unused,
 					 uint8_t *buffer, size_t len)
 {
-	uint32_t key_len = 32U;
 	uint32_t rsp_len = 0U;
 	TEE_Result ret;
 
-	(void)len;
-	ret = cix_get_key_info(KEY_ID_MODEL_KEY, key_len, buffer, &rsp_len);
-	EMSG_RAW("Cix_en_key: %u\n", key_len);
-	DHEXDUMP(buffer, 32);
+	if (len > UINT32_MAX)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	ret = cix_get_key_info(KEY_ID_MODEL_KEY, (uint32_t)len, buffer,
+			       &rsp_len);
+	EMSG_RAW("Cix_en_key: %u\n", rsp_len);
+	DHEXDUMP(buffer, rsp_len);
 
 	return ret;
 }
