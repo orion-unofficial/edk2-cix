@@ -1,10 +1,19 @@
+STMM ?= vendor
+ifneq ($(strip $(STMM)),vendor)
+ifeq ($(strip $(STMM)),unofficial)
+$(error STMM=unofficial is not available: the reconstructed payload is not yet qualified for any EDK2 base, including pre-2025 releases)
+else
+$(error STMM supports vendor or unofficial; unofficial is not yet available)
+endif
+endif
+
 ifneq ($(strip $(CIX_RELEASE)),)
-ifeq ($(filter 1.2 v1.2 V1.2,$(strip $(CIX_RELEASE))),)
-$(error CIX_RELEASE supports only 1.2 (or v1.2))
+ifeq ($(filter 1.2 v1.2 V1.2 unofficial,$(strip $(CIX_RELEASE))),)
+$(error CIX_RELEASE supports only 1.2 (or v1.2) or unofficial)
 endif
 ifneq ($(strip $(ARTEFACT_MODE)),)
 ifneq ($(ARTEFACT_MODE),custom)
-$(error CIX_RELEASE=1.2 requires ARTEFACT_MODE=custom)
+$(error CIX_RELEASE requires ARTEFACT_MODE=custom)
 endif
 endif
 endif
@@ -203,6 +212,7 @@ SRC_COMMON_ARGS = \
 	$(if $(strip $(ENABLE_FIRMWARE_FIXES_NORMALIZED)),ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES_NORMALIZED)") \
 	$(if $(strip $(ENABLE_CORE_ORDER_NORMALIZED)),ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER_NORMALIZED)") \
 	$(if $(strip $(CIX_RELEASE_NORMALIZED)),CIX_RELEASE="$(CIX_RELEASE_NORMALIZED)") \
+	STMM="$(STMM)" \
 	$(if $(strip $(ENABLE_TF_A_FIXES_NORMALIZED)),ENABLE_TF_A_FIXES="$(ENABLE_TF_A_FIXES_NORMALIZED)") \
 	$(if $(strip $(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)),ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS_NORMALIZED)") \
 	$(if $(strip $(DEBUG_ON_UART3_NORMALIZED)),DEBUG_ON_UART3="$(DEBUG_ON_UART3_NORMALIZED)") \
