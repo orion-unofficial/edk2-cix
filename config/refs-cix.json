@@ -42,6 +42,15 @@
       "type": "vendor-component",
       "upstream_ref": "114fb20577bcc4038025de4e12bca60e04dd5212",
       "vendor_path": "tf-a"
+    },
+    {
+      "component": "op-tee",
+      "immutable": false,
+      "ref": "source/unofficial/cix/1.2/op-tee/3.17.0",
+      "object_id": "53988c15476c3332cb5837397d73b0fd200f3a00",
+      "tree_id": "1ef76ae2823dafded8a8ea5100bdc0fffeeab586",
+      "type": "unofficial-component",
+      "render_path": "src/cix-v1.2/tee-unofficial"
     }
   ]
 }

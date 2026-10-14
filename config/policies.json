@@ -67,7 +67,8 @@
       "source/port/**"
     ],
     "mutable_unofficial_patterns": [
-      "source/unofficial/*/current"
+      "source/unofficial/*/current",
+      "source/unofficial/cix/1.2/op-tee/3.17.0"
     ],
     "rules": [
       "config/refs-*.json records expected object IDs and tree IDs where those values are not derived",

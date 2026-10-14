@@ -89,6 +89,12 @@ def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
     try:
         helper = show_file(repo, ref, "src/scripts/build_cix_release_bootloader2.sh")
         makefile = show_file(repo, ref, "src/Makefile")
+        if env("CIX_RELEASE") == "unofficial":
+            components = [step.get("component", {}) for step in entry.get("render", {}).get("steps", [])]
+            if b"tee-unofficial" not in makefile or not any(
+                component.get("path") == "src/cix-v1.2/tee-unofficial" for component in components
+            ):
+                raise ReconstructionError("maintained OP-TEE component is not selected by this source target")
         if hashlib.sha256(helper).hexdigest() != CIX_SIGNING_HELPER_SHA256 or b"CIX_RELEASE_SIGNING_KEYS_DIR" not in makefile:
             raise ReconstructionError("source-built CIX signing helper is absent or differs from the reviewed version")
         stmm_helper = show_file(repo, ref, "src/scripts/stage_vendor_stmm.py")
@@ -99,7 +105,7 @@ def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
             if hashlib.sha256(data).hexdigest() != expected:
                 raise ReconstructionError(f"pinned CIX signing key differs: {name}")
     except ReconstructionError as exc:
-        problems.append(f"CIX_RELEASE=1.2 is unavailable for {entry['source_ref']}: {exc}")
+        problems.append(f"CIX_RELEASE is unavailable for {entry['source_ref']}: {exc}")
 
 
 def validate_signing_cert_source(repo: Path, problems: list[str]) -> None:
@@ -142,10 +148,10 @@ def validate_feature_relationships(repo: Path, problems: list[str]) -> None:
 
     if core_order and core_order != "cix" and firmware_fixes not in TRUE_TOKENS:
         problems.append(f"ENABLE_CORE_ORDER={core_order} requires ENABLE_FIRMWARE_FIXES=true")
-    if env("ENABLE_TF_A_FIXES").lower() in TRUE_TOKENS and env("CIX_RELEASE").lower().removeprefix("v") != "1.2":
-        problems.append("ENABLE_TF_A_FIXES=true requires CIX_RELEASE=1.2")
+    if env("ENABLE_TF_A_FIXES").lower() in TRUE_TOKENS and env("CIX_RELEASE").lower().removeprefix("v") not in {"1.2", "unofficial"}:
+        problems.append("ENABLE_TF_A_FIXES=true requires CIX_RELEASE=1.2 or unofficial")
     if env("CIX_RELEASE") and (env("FIRMWARE_BOARD") or "O6") != "O6":
-        problems.append("CIX_RELEASE=1.2 currently supports only FIRMWARE_BOARD=O6")
+        problems.append("CIX_RELEASE currently supports only FIRMWARE_BOARD=O6")
 
 
 def validate() -> None:
@@ -153,8 +159,11 @@ def validate() -> None:
     repo = args.repo_root.resolve() if args.repo_root else repo_root(Path(__file__).resolve())
     problems: list[str] = []
     cix_release_raw = env("CIX_RELEASE").strip().lower()
-    if cix_release_raw and cix_release_raw.removeprefix("v") != "1.2":
-        problems.append("CIX_RELEASE supports only 1.2 (or v1.2)")
+    if cix_release_raw and cix_release_raw.removeprefix("v") not in {"1.2", "unofficial"}:
+        problems.append("CIX_RELEASE supports only 1.2 (or v1.2) or unofficial")
+
+    if env("STMM") not in {"", "vendor"}:
+        problems.append("STMM=unofficial is not available for any EDK2 base; use STMM=vendor")
 
     require_choice("V", env("V") or "0", {"0", "1"}, problems)
     require_boolean("DEBUG", env("DEBUG") or "0", problems)

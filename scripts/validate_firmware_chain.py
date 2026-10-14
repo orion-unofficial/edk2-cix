@@ -82,7 +82,7 @@ def preflight(package: Path, selected: dict, cix_release: str, mode: str,
     if not cix_release.strip():
         return
     require(mode == "custom", "CIX_RELEASE is only supported with ARTEFACT_MODE=custom")
-    require(cix_release.strip().lower().removeprefix("v") == "1.2", "unknown CIX trusted-firmware selection")
+    require(cix_release.strip().lower().removeprefix("v") in {"1.2", "unofficial"}, "unknown CIX trusted-firmware selection")
     package = package.resolve()
     signing_keys = signing_keys or package.parents[5] / CIX_SIGNING_KEYS
     for name, expected in CIX_KEY_SHA256.items():

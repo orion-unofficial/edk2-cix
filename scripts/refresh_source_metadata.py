@@ -212,13 +212,21 @@ def computed_source_target_tree(
             or UNOFFICIAL_CORRECTION_RE.fullmatch(source_ref) is not None
         )
     )
-    if stage == "custom" and ref_exists(repo, ref) and not active_custom and not render_generated:
-        return tree_id(repo, ref), "persisted-cache-ref"
     if stage == "custom" and isinstance(source_ref, str) and ref_exists(repo, source_ref):
         steps = entry.get("render", {}).get("steps", [])
+        if steps and any("component" in step for step in steps) and all(
+            "component" in step or "release_metadata" in step for step in steps
+        ):
+            metadata = next((step["release_metadata"] for step in steps if "release_metadata" in step), {})
+            return unofficial_rendered_tree(repo, source_ref, metadata.get("ref"),
+                                             parts["radxa"]), "source-with-components"
+        if ref_exists(repo, ref) and not active_custom and not render_generated:
+            return tree_id(repo, ref), "persisted-cache-ref"
         if len(steps) == 1 and "release_metadata" in steps[0]:
             metadata = steps[0]["release_metadata"]
             return unofficial_rendered_tree(repo, source_ref, metadata["ref"], metadata["release"]), "source-with-metadata"
+    if stage == "custom" and ref_exists(repo, ref) and not active_custom and not render_generated:
+        return tree_id(repo, ref), "persisted-cache-ref"
     if stage in {"custom", "upstream"} and entry_can_use_source_ref_directly(entry):
         direct = source_ref_tree(repo, entry)
         if direct:

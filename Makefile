@@ -1,10 +1,19 @@
+STMM ?= vendor
+ifneq ($(strip $(STMM)),vendor)
+ifeq ($(strip $(STMM)),unofficial)
+$(error STMM=unofficial is not available: the reconstructed payload is not yet qualified for any EDK2 base, including pre-2025 releases)
+else
+$(error STMM supports vendor or unofficial; unofficial is not yet available)
+endif
+endif
+
 ifneq ($(strip $(CIX_RELEASE)),)
-ifeq ($(filter 1.2 v1.2 V1.2,$(strip $(CIX_RELEASE))),)
-$(error CIX_RELEASE supports only 1.2 (or v1.2))
+ifeq ($(filter 1.2 v1.2 V1.2 unofficial,$(strip $(CIX_RELEASE))),)
+$(error CIX_RELEASE supports only 1.2 (or v1.2) or unofficial)
 endif
 ifneq ($(strip $(ARTEFACT_MODE)),)
 ifneq ($(ARTEFACT_MODE),custom)
-$(error CIX_RELEASE=1.2 requires ARTEFACT_MODE=custom)
+$(error CIX_RELEASE requires ARTEFACT_MODE=custom)
 endif
 endif
 endif
@@ -205,8 +214,9 @@ help-vars:
 	print_help_line 'ARTEFACT_MODE=custom|upstream' 'Select the firmware artefact mode passed to rendered firmware builds. See README.md, "What does a bare make build?", for the difference.\nDefault for explicit source-build targets: custom.'; \
 	print_section 'Custom Build Gates'; \
 	print_help_line 'ENABLE_FIRMWARE_FIXES=true|false' 'Enable opt-in custom firmware fixes for O6/O6N. This changes firmware metadata and setup behavior; see FIXES.md in the rendered source target for details.\nDefault: false.'; \
-	print_help_line 'CIX_RELEASE=1.2|v1.2' 'Custom builds only: compile BL31 and OP-TEE from curated CIX V1.2 sources and sign their trusted FIP with the published CIX key chain. Uses the pinned CIX 2026Q1 BL1. Leave empty for stock vendor early boot. Offline chain checks do not prove hardware acceptance.\nDefault: empty.'; \
-	print_help_line 'ENABLE_TF_A_FIXES=true|false' 'With CIX_RELEASE=1.2, apply the curated TF-A fixes to source-built BL31.\nDefault: false.'; \
+	print_help_line 'CIX_RELEASE=1.2|v1.2|unofficial' 'Custom builds only: compile BL31 and OP-TEE from curated CIX V1.2 sources (unofficial selects the maintained OP-TEE component) and sign their trusted FIP with the published CIX key chain. Uses the pinned CIX 2026Q1 BL1. Leave empty for stock vendor early boot. Offline chain checks do not prove hardware acceptance.\nDefault: empty.'; \
+	print_help_line 'STMM=vendor|unofficial' 'StandaloneMM selection. Default: vendor (pinned payload). unofficial is reserved and rejected until a reconstructed payload is qualified, including with pre-2025 UEFI bases.'; \
+	print_help_line 'ENABLE_TF_A_FIXES=true|false' 'With CIX_RELEASE=1.2 or unofficial, apply the curated TF-A fixes to source-built BL31.\nDefault: false.'; \
 	print_help_line 'ENABLE_CORE_ORDER=cix|conventional|performance' 'Choose how custom firmware numbers CPUs exposed to the OS. cix keeps vendor order; conventional puts A520 cores before A720 cores; performance puts A720 cores first.\nDefault: unset, which behaves like cix.\nRequires ENABLE_FIRMWARE_FIXES=true for conventional and performance.'; \
 	print_help_line 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Enable the experimental Radxa settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
 	print_help_line 'UART3_ENABLE=true|false' 'Expose UART3 to ACPI and mux its header pins as UART instead of GPIO. This consumes header GPIO105/GPIO106 while enabled.\nDefault: false.'; \
@@ -526,9 +536,9 @@ firmware:
 			"$(FIRMWARE_BOARD)" "$$PROFILE_ENABLE_FIRMWARE_FIXES" >&2; \
 	fi
 
-BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" FORCE_DEBUG_BUILD="$(FORCE_DEBUG_BUILD)" DEBUG_ALLOW_LARGE_IMAGE="$(DEBUG_ALLOW_LARGE_IMAGE)" CIX_RELEASE="$(CIX_RELEASE)" ENABLE_TF_A_FIXES="$(ENABLE_TF_A_FIXES)" FORCE="$(FORCE)"
+BUILD_VARIABLE_ENV = DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" FORCE_DEBUG_BUILD="$(FORCE_DEBUG_BUILD)" DEBUG_ALLOW_LARGE_IMAGE="$(DEBUG_ALLOW_LARGE_IMAGE)" CIX_RELEASE="$(CIX_RELEASE)" STMM="$(STMM)" ENABLE_TF_A_FIXES="$(ENABLE_TF_A_FIXES)" FORCE="$(FORCE)"
 
-DELEGATED_BUILD_ARGS = $(if $(filter custom,$(or $(ARTEFACT_MODE),custom)),FIRMWARE_REBUILD_RELEASE="$$release_label" FIRMWARE_REBUILD_BUILD_COMMIT="$(shell git rev-parse HEAD)") V="$(V)" DEBUG="$(DEBUG)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" FORCE_DEBUG_BUILD="$(FORCE_DEBUG_BUILD)" DEBUG_ALLOW_LARGE_IMAGE="$(DEBUG_ALLOW_LARGE_IMAGE)" CIX_RELEASE="$(CIX_RELEASE)" ENABLE_TF_A_FIXES="$(ENABLE_TF_A_FIXES)"
+DELEGATED_BUILD_ARGS = $(if $(filter custom,$(or $(ARTEFACT_MODE),custom)),FIRMWARE_REBUILD_RELEASE="$$release_label" FIRMWARE_REBUILD_BUILD_COMMIT="$(shell git rev-parse HEAD)") V="$(V)" DEBUG="$(DEBUG)" ARTEFACT_MODE="$(ARTEFACT_MODE)" FIRMWARE_BOARD="$(FIRMWARE_BOARD)" FIRMWARE_PRODUCT="$(FIRMWARE_PRODUCT)" FIRMWARE_TARGET="$(FIRMWARE_TARGET)" FIRMWARE_DISTRO="$(FIRMWARE_DISTRO)" FIRMWARE_VALIDATE_ON_BUILD="$(FIRMWARE_VALIDATE_ON_BUILD)" BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" ENABLE_FIRMWARE_FIXES="$(ENABLE_FIRMWARE_FIXES)" ENABLE_CORE_ORDER="$(ENABLE_CORE_ORDER)" ENABLE_EXPERIMENTAL_UEFI_SETTINGS="$(ENABLE_EXPERIMENTAL_UEFI_SETTINGS)" DEBUG_ON_UART3="$(DEBUG_ON_UART3)" UART3_ENABLE="$(UART3_ENABLE)" DEBUG_VERBOSE="$(DEBUG_VERBOSE)" DEBUG_PRINT_ERROR_LEVEL="$(DEBUG_PRINT_ERROR_LEVEL)" FORCE_DEBUG_BUILD="$(FORCE_DEBUG_BUILD)" DEBUG_ALLOW_LARGE_IMAGE="$(DEBUG_ALLOW_LARGE_IMAGE)" CIX_RELEASE="$(CIX_RELEASE)" STMM="$(STMM)" ENABLE_TF_A_FIXES="$(ENABLE_TF_A_FIXES)"
 
 define check_bootloader1
 $(PYTHON) scripts/validate_bootloader1.py --worktree "$$wt" --phase "$(1)" --build-target "$(2)" --artefact-mode "$(3)" --cix-release "$(4)" --board "$(FIRMWARE_BOARD)" --firmware-target "$(FIRMWARE_TARGET)"

@@ -252,11 +252,18 @@ whose root public key matches the selected stock firmware's trusted-world
 anchor. The build rejects changed keys, a bad certificate chain, changed BL1,
 rollback counters below the vendor reference, or an oversized flash payload.
 
+`CIX_RELEASE=unofficial` selects the maintained OP-TEE component instead of
+the existing curated subtree, with the same TF-A and signing path.
+`STMM=vendor` (the default) retains the pinned StandaloneMM image for either
+source selection. `STMM=unofficial` is reserved and fails explicitly on every
+EDK2 base until the reconstructed payload and its UEFI client compatibility
+have been qualified, including the pre-2025 bases.
+
 Leave `CIX_RELEASE` unset or empty to retain the selected vendor BL1, BL31
 and OP-TEE. A `/cix-1.2/` segment in `RELEASE` identifies imported source
 lineage; it does not itself enable source-built trusted components.
 `ENABLE_TF_A_FIXES=true` separately opts into the curated TF-A fixes when
-`CIX_RELEASE=1.2` is active. A certificate-valid image still needs board
+`CIX_RELEASE=1.2` or `CIX_RELEASE=unofficial` is active. A certificate-valid image still needs board
 qualification; eFuse, rollback state and runtime compatibility are not
 observable by the offline validator.
 
@@ -550,7 +557,7 @@ The most important compatibility rules are:
 - `ENABLE_CORE_ORDER=conventional|performance` requires `ENABLE_FIRMWARE_FIXES=true`;
   `cix` preserves the default order and is accepted with fixes disabled
 - `DEBUG_ON_UART3=true` implies `UART3_ENABLE=true`
-- `CIX_RELEASE=1.2|v1.2` requires `ARTEFACT_MODE=custom`
+- `CIX_RELEASE=1.2|v1.2|unofficial` requires `ARTEFACT_MODE=custom`
 - the `O6_SMBIOS_*` asset-tag variables are custom-only and board-limited to
   `O6`
 - `ENABLE_FIRMWARE_FIXES=true` and `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true` are

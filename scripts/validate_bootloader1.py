@@ -107,7 +107,7 @@ def git_bytes(repo: Path, ref: str, path: str) -> bytes:
 def source_payloads(worktree: Path, catalog: dict[str, dict], mode: str,
                     cix_release: str, target: str) -> set[str]:
     cix_release = cix_release.strip().lower().removeprefix("v")
-    if cix_release not in {"", "1.2"}:
+    if cix_release not in {"", "1.2", "unofficial"}:
         raise ReconstructionError(f"unsupported BL1 CIX release: {cix_release}")
     if mode not in {"upstream", "custom", "custom+fixes"}:
         raise ReconstructionError(f"unsupported BL1 artefact mode: {mode}")

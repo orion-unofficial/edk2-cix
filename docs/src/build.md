@@ -155,7 +155,9 @@ Render the desired source target once, then edit and build that worktree
 directly. Invoking the build-branch renderer again selects the recorded source
 refs and does not incorporate those local edits. Use `CIX_RELEASE=v1.2` when
 working on `src/cix-v1.2/tf-a` or `src/cix-v1.2/tee`; without that opt-in the
-build retains the vendor trusted firmware.
+build retains the vendor trusted firmware. Use `CIX_RELEASE=unofficial` for
+the maintained `src/cix-v1.2/tee-unofficial` component. Keep `STMM=vendor`
+until a reconstructed payload is qualified.
 
 For the source-built CIX path, Make checks a generated
 `.cix-release-bootloader2-inputs` stamp in the board's staging directory before

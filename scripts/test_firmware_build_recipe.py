@@ -35,7 +35,7 @@ class RecipeTests(unittest.TestCase):
         self.assertEqual(set(values), {
             'RELEASE', 'ARTEFACT_MODE', 'FIRMWARE_BOARD',
             'FIRMWARE_TARGET', 'FIRMWARE_DISTRO', 'ENABLE_FIRMWARE_FIXES', 'ENABLE_CORE_ORDER',
-            'CIX_RELEASE', 'ENABLE_TF_A_FIXES', 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS',
+            'CIX_RELEASE', 'STMM', 'ENABLE_TF_A_FIXES', 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS',
             'DEBUG_ON_UART3', 'UART3_ENABLE', 'DEBUG_VERBOSE', 'DEBUG_PRINT_ERROR_LEVEL', 'BUILD_DATE',
             'DEBUG_ALLOW_LARGE_IMAGE',
         })
@@ -115,6 +115,16 @@ class RecipeTests(unittest.TestCase):
 
 
 class RecipeReconfigurationTests(FirmwareReconfigurationTests):
+    def test_trusted_component_selection_invalidates_previous_outputs(self):
+        output, before = self.configure({'CIX_RELEASE': '1.2', 'STMM': 'vendor'})
+        stale = output / 'stale.bin'
+        stale.write_bytes(b'legacy trusted firmware')
+        _, after = self.configure({'CIX_RELEASE': 'unofficial', 'STMM': 'vendor'})
+        self.assertFalse(stale.exists())
+        self.assertEqual(before['CIX_RELEASE'], '1.2')
+        self.assertEqual(after['CIX_RELEASE'], 'unofficial')
+        self.assertEqual(after['STMM'], 'vendor')
+
     def test_recipe_identity_changes_invalidate_cached_build_outputs(self):
         initial = {'ENABLE_EXPERIMENTAL_UEFI_SETTINGS': 'true', 'FIRMWARE_REBUILD_RELEASE': 'release',
                    'FIRMWARE_REBUILD_BUILD_COMMIT': 'a'*40, 'FIRMWARE_DISTRO': 'trixie', 'FIRMWARE_PRODUCT': 'orion-o6'}

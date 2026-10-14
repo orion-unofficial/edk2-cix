@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zlib
 
 from firmware_chain import parse_fip
 from reconstruction_common import show_file
@@ -99,6 +100,26 @@ class VendorStmmTests(unittest.TestCase):
             verify_embedded(b"cached OP-TEE without StandaloneMM", image)
         with self.assertRaisesRegex(StmmError, "exactly one copy"):
             verify_embedded(tee + tee, image)
+
+    def test_unapproved_standalone_image_fails_before_signing(self):
+        _, image = self.select("1.3.1")
+        # Preserve a valid FV header and a complete compressed stream. An
+        # unapproved replacement must fail despite passing these format checks:
+        # the legacy CIX loader cannot accept an arbitrary newer MM payload.
+        replacement = bytearray(image)
+        replacement[0x1000] ^= 1
+        tee = self.root / "tee.bin"
+        tee.write_bytes(zlib.compress(replacement))
+        report = self.root / "verification.json"
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "scripts/stage_vendor_stmm.py"),
+             "--manifest", str(self.manifest), "--vendor-fip", str(self.vendor),
+             "--verify-tee", str(tee), "--report", str(report)],
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("exactly one copy of the pinned", result.stderr)
+        self.assertFalse(report.exists())
 
     def test_cli_stages_and_records_verified_component(self):
         entry, image = self.select("1.3.1")

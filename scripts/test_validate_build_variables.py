@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from validate_build_variables import validate_cix_source, validate_feature_relationships
-from reconstruction_common import ReconstructionError, active_unofficial_source_ref, show_file, unofficial_source_ref
+from reconstruction_common import ReconstructionError, active_unofficial_source_ref, release_entry, show_file, unofficial_source_ref
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -77,7 +77,7 @@ class ValidateBuildVariableTests(unittest.TestCase):
         validate_cix_source(
             REPO_ROOT, {"source_ref": "source/unofficial/1.2.1/edk2-stable202208"},
             unsupported)
-        self.assertIn("CIX_RELEASE=1.2 is unavailable", unsupported[0])
+        self.assertIn("CIX_RELEASE is unavailable", unsupported[0])
 
     def test_source_without_reviewed_stmm_is_not_advertised(self) -> None:
         source = "source/unofficial/1.3.1/edk2-stable202608"
@@ -97,6 +97,20 @@ class ValidateBuildVariableTests(unittest.TestCase):
         supported: list[str] = []
         validate_cix_source(REPO_ROOT, {"source_ref": source}, supported)
         self.assertEqual(supported, [])
+
+    def test_unofficial_requires_rendered_component_on_supported_checkpoints(self) -> None:
+        with patch.dict(os.environ, {"CIX_RELEASE": "unofficial"}, clear=True):
+            for radxa in ("1.2.4", "1.3.1"):
+                for edk2 in ("202208", "202605", "202608"):
+                    with self.subTest(radxa=radxa, edk2=edk2):
+                        _, entry = release_entry(REPO_ROOT,
+                            f"source/cache/release/custom/edk2-{edk2}/cix-1.2/radxa-{radxa}/unofficial")
+                        problems: list[str] = []
+                        validate_cix_source(REPO_ROOT, entry, problems)
+                        self.assertEqual(problems, [])
+                        validate_cix_source(REPO_ROOT, {"source_ref": entry["source_ref"]}, problems)
+                        self.assertEqual(len(problems), 1)
+                        self.assertIn("component is not selected", problems[0])
 
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ _REF_VALUE_CACHE: dict[str, dict[str, tuple[str, str]]] = {}
 _RESOLVE_REF_CACHE: dict[tuple[str, str], str | None] = {}
 _TREE_ID_CACHE: dict[tuple[str, str], str] = {}
 _RELEASE_METADATA_REF_CACHE: dict[tuple[str, str, str], str | None] = {}
-_UNOFFICIAL_RENDERED_TREE_CACHE: dict[tuple[str, str, str | None, str], str] = {}
+_UNOFFICIAL_RENDERED_TREE_CACHE: dict[tuple, str] = {}
 _GIT_TREE_ENTRIES_CACHE: dict[tuple[str, str], dict[str, tuple[str, str, str]]] = {}
 _VERSION_BLOB_CACHE: dict[tuple[str, str], str] = {}
 _UNOFFICIAL_CORRECTION_CACHE: dict[str, dict[tuple[str, str], dict[str, str]]] = {}
@@ -1178,6 +1178,19 @@ def release_metadata_ref(repo: Path, radxa: str, edk2_ref: str) -> str | None:
     return _RELEASE_METADATA_REF_CACHE[key]
 
 
+def unofficial_component_steps(repo: Path, source_ref: str | None = None) -> list[dict[str, Any]]:
+    """Select independently maintained component trees for custom targets."""
+    if source_ref and b"tee-unofficial" not in show_file(repo, source_ref, "src/Makefile", check=False):
+        # Historical trees without the selector also lack qualified payload or
+        # signing prerequisites. Do not silently upgrade those targets.
+        return []
+    return [
+        {"component": {"path": record["render_path"], "ref": record["ref"]}}
+        for record in ref_manifest_records(repo, "refs-cix.json")
+        if record.get("type") == "unofficial-component"
+    ]
+
+
 def unofficial_rendered_tree(repo: Path, source_ref: str, metadata_ref: str | None, release: str) -> str:
     """Derive the final tree of a materialised Unofficial checkpoint.
 
@@ -1189,12 +1202,16 @@ def unofficial_rendered_tree(repo: Path, source_ref: str, metadata_ref: str | No
     """
 
     source_tree = tree_id(repo, source_ref)
-    if metadata_ref is None:
+    components = [step["component"] for step in unofficial_component_steps(repo, source_ref)]
+    component_trees = tuple((item["path"], tree_id(repo, item["ref"])) for item in components)
+    if metadata_ref is None and not components:
         return source_tree
-    metadata_tree = tree_id(repo, metadata_ref)
-    key = (str(repo.resolve()), source_tree, metadata_tree, release)
+    metadata_tree = tree_id(repo, metadata_ref) if metadata_ref else None
+    key = (str(repo.resolve()), source_tree, metadata_tree, release, component_trees)
     if key in _UNOFFICIAL_RENDERED_TREE_CACHE:
         return _UNOFFICIAL_RENDERED_TREE_CACHE[key]
+
+    generated_trees: dict[str, dict] = {}
 
     def hash_tree(items: dict[str, tuple[str, str, str]]) -> str:
         # Git sorts directory names with a trailing slash and encodes tree
@@ -1204,27 +1221,45 @@ def unofficial_rendered_tree(repo: Path, source_ref: str, metadata_ref: str | No
             f"{mode.lstrip('0')} {name}\0".encode() + bytes.fromhex(oid)
             for name, (mode, _kind, oid) in ordered
         )
-        return subprocess.run(
+        oid = subprocess.run(
             ["git", "-C", str(repo), "hash-object", "-t", "tree", "--stdin"], input=data,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
         ).stdout.decode("ascii").strip()
+        generated_trees[oid] = dict(items)
+        return oid
 
     root = git_tree_entries(repo, source_tree)
-    root.pop(".gitmodules", None)
-    vendor = git_tree_entries(repo, metadata_tree)
-    changelog = git_tree_entries(repo, vendor["debian"][2])["changelog"]
-    debian = git_tree_entries(repo, root["debian"][2]) if "debian" in root else {}
-    debian["changelog"] = changelog
-    root["debian"] = ("040000", "tree", hash_tree(debian))
-    version_key = (str(repo.resolve()), release)
-    if version_key not in _VERSION_BLOB_CACHE:
-        _VERSION_BLOB_CACHE[version_key] = subprocess.run(
-            ["git", "-C", str(repo), "hash-object", "--stdin"],
-            input=f"{release}\n", text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
-        ).stdout.strip()
-    version = _VERSION_BLOB_CACHE[version_key]
-    mode = root.get("VERSION", ("100644", "blob", ""))[0]
-    root["VERSION"] = (mode, "blob", version)
+    if metadata_tree:
+        root.pop(".gitmodules", None)
+        vendor = git_tree_entries(repo, metadata_tree)
+        changelog = git_tree_entries(repo, vendor["debian"][2])["changelog"]
+        debian = git_tree_entries(repo, root["debian"][2]) if "debian" in root else {}
+        debian["changelog"] = changelog
+        root["debian"] = ("040000", "tree", hash_tree(debian))
+        version_key = (str(repo.resolve()), release)
+        if version_key not in _VERSION_BLOB_CACHE:
+            _VERSION_BLOB_CACHE[version_key] = subprocess.run(
+                ["git", "-C", str(repo), "hash-object", "--stdin"],
+                input=f"{release}\n", text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+            ).stdout.strip()
+        version = _VERSION_BLOB_CACHE[version_key]
+        mode = root.get("VERSION", ("100644", "blob", ""))[0]
+        root["VERSION"] = (mode, "blob", version)
+
+    def replace_tree(items: dict, path: list[str], replacement: str) -> str:
+        name = path[0]
+        if len(path) > 1:
+            if name in items:
+                oid = items[name][2]
+                children = dict(generated_trees[oid]) if oid in generated_trees else git_tree_entries(repo, oid)
+            else:
+                children = {}
+            replacement = replace_tree(children, path[1:], replacement)
+        items[name] = ("040000", "tree", replacement)
+        return hash_tree(items)
+
+    for path, component_tree in component_trees:
+        replace_tree(root, path.split("/"), component_tree)
     result = hash_tree(root)
     _UNOFFICIAL_RENDERED_TREE_CACHE[key] = result
     return result
@@ -1294,7 +1329,7 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
                 f"render: firmware source target with EDK2 {release}, Radxa {radxa}, "
                 "and unofficial source"
             )
-        render["steps"] = []
+        render["steps"] = unofficial_component_steps(repo, unofficial_ref)
         if metadata_ref:
             render["steps"].append({
                 "release_metadata": {

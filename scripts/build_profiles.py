@@ -75,11 +75,11 @@ def resolve_profile(
     }
     if cix_release_override.strip():
         choice = cix_release_override.strip().lower().removeprefix("v")
-        if choice != "1.2":
-            raise ReconstructionError("CIX_RELEASE supports only 1.2 (or v1.2)")
+        if choice not in {"1.2", "unofficial"}:
+            raise ReconstructionError("CIX_RELEASE supports only 1.2 (or v1.2) or unofficial")
         if result["artefact_mode"] != "custom":
-            raise ReconstructionError("CIX_RELEASE=1.2 requires a custom profile")
-        result["cix_early_boot_release"] = "1.2"
+            raise ReconstructionError("CIX_RELEASE requires a custom profile")
+        result["cix_early_boot_release"] = choice
     if result["release"] == "unofficial-policy-default":
         result["release"] = default_release(repo)
 
