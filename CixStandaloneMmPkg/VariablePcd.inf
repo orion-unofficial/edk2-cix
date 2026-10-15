@@ -1,0 +1,30 @@
+[Defines]
+ INF_VERSION = 0x0001001A
+ BASE_NAME = CixVariablePcd
+ FILE_GUID = 3512FE16-002B-4EA6-B302-E898F6D9900E
+ MODULE_TYPE = BASE
+ VERSION_STRING = 1.0
+ LIBRARY_CLASS = NULL|MM_STANDALONE
+ CONSTRUCTOR = CixVariablePcdInit
+[Sources]
+ VariablePcd.c
+[Packages]
+ MdePkg/MdePkg.dec
+ MdeModulePkg/MdeModulePkg.dec
+[LibraryClasses]
+ BaseMemoryLib
+ HobLib
+ MmServicesTableLib
+ PcdLib
+[Protocols]
+ gEfiSmmFirmwareVolumeBlockProtocolGuid
+[Pcd]
+ gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableBase64
+ gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingBase64
+ gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareBase64
+ gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize
+ gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwWorkingSize
+ gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageFtwSpareSize
+
+[Depex]
+ gEfiSmmFirmwareVolumeBlockProtocolGuid
