@@ -14,6 +14,8 @@ Required:
   --output <path>         Destination bootloader2.img path
 
 Optional:
+  --stmm <vendor|unofficial>  StandaloneMM selection (default: vendor)
+  --stmm-source <path>    Rendered hybrid component, required for unofficial
   --vendor-fip <path>     Original vendor FIP selecting the pinned StandaloneMM checkpoint
   --cross-compile <pref>  AArch64 cross compiler prefix
   --jobs <n>              Parallel make jobs (default: 1)
@@ -65,6 +67,9 @@ MODE=release
 ENABLE_TF_A_FIXES=0
 VERBOSE=0
 CACHE_ROOT=
+STMM=vendor
+STMM_SOURCE=
+STMM_FFA_VERSION=10
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -119,6 +124,8 @@ while [[ $# -gt 0 ]]; do
 			CACHE_ROOT="$2"
 			shift 2
 			;;
+		--stmm) STMM="$2"; shift 2 ;;
+		--stmm-source) STMM_SOURCE="$2"; shift 2 ;;
 		--vendor-fip)
 			VENDOR_FIP="$2"
 			shift 2
@@ -178,9 +185,24 @@ TEE_OUTPUT="${TEE_DIR}/out/arm-plat-cix/core/tee-raw.bin"
 CERT_CREATE_DIR="${TFA_DIR}/tools/cert_create"
 CERT_CREATE_BIN="${CERT_CREATE_DIR}/cert_create"
 STMM_PATH="${FIRMWARE_DIR}/BL32_AP_EFI_STMM.fd"
+STMM_ARGS=()
+case "$STMM" in
+ vendor) ;;
+ unofficial)
+  require_dir "$STMM_SOURCE"
+  if ! grep -q CFG_STMM_FFA_VERSION "$TEE_DIR/mk/config.mk"; then
+   printf 'Hybrid StandaloneMM requires maintained OP-TEE with the modern loader\n' >&2
+   exit 1
+  fi
+  STMM_HELPER="${SCRIPT_DIR}/build_hybrid_stmm.py"
+  STMM_FFA_VERSION=12
+  STMM_ARGS=(--source "$STMM_SOURCE" --cache-root "${CACHE_ROOT:-${BUILD_ROOT}/.cix-cache}/stmm" --cross-compile "$CROSS_COMPILE" --jobs "$JOBS")
+  ;;
+ *) printf 'Unknown StandaloneMM selection: %s\n' "$STMM" >&2; exit 1 ;;
+esac
 require_file "$STMM_HELPER"
 require_file "$STMM_MANIFEST"
-run python3 "$STMM_HELPER" --manifest "$STMM_MANIFEST" --vendor-fip "$VENDOR_FIP" --output "$STMM_PATH"
+run python3 "$STMM_HELPER" "${STMM_ARGS[@]}" --manifest "$STMM_MANIFEST" --vendor-fip "$VENDOR_FIP" --output "$STMM_PATH"
 require_file "$STMM_PATH"
 TEMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cix-release-bl2.XXXXXX")"
 TFA_BUILD_ROOT="${TEMP_ROOT}/tf-a"
@@ -238,7 +260,7 @@ load_cache_plan() {
 	if [[ "$ENABLE_TF_A_FIXES" == "1" ]]; then
 		cache_cmd+=(--enable-tf-a-fixes)
 	fi
-	cache_cmd+=(--stmm-path "$STMM_PATH")
+	cache_cmd+=(--stmm-path "$STMM_PATH" --stmm-ffa-version "$STMM_FFA_VERSION")
 	eval "$("${cache_cmd[@]}")"
 }
 
@@ -319,6 +341,7 @@ ensure_tee() {
 		"CFG_ARM64_core=y"
 		"CFG_USER_TA_TARGETS=ta_arm64"
 		"CFG_STMM_PATH=${STMM_PATH}"
+		"CFG_STMM_FFA_VERSION=${STMM_FFA_VERSION}"
 	)
 	run env "${tee_env[@]}" make -C "$TEE_DIR" "-j${JOBS}" all
 	require_file "$TEE_OUTPUT"
@@ -340,7 +363,7 @@ load_cache_plan
 ensure_cert_create
 ensure_bl31
 ensure_tee
-run python3 "$STMM_HELPER" --manifest "$STMM_MANIFEST" --vendor-fip "$VENDOR_FIP" \
+run python3 "$STMM_HELPER" "${STMM_ARGS[@]}" --manifest "$STMM_MANIFEST" --vendor-fip "$VENDOR_FIP" \
 	--verify-tee "$ACTIVE_TEE_BIN" --report "${FIRMWARE_DIR}/vendor-stmm.json"
 
 printf '[cix-release] Generating bootloader2 certificates\n'

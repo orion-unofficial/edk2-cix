@@ -158,6 +158,7 @@ def build_cache_plan(
     mode: str,
     stmm_fingerprint: str,
     enable_tf_a_fixes: bool = False,
+    stmm_ffa_version: int = 10,
 ) -> CachePlan:
     cert_create_key = _key_payload_hash(
         {
@@ -187,6 +188,7 @@ def build_cache_plan(
             "cross_compiler": cross_compiler_fingerprint,
             "tee_tree": tee_tree_fingerprint,
             "stmm": stmm_fingerprint,
+            "stmm_ffa_version": str(stmm_ffa_version),
         }
     )
     return CachePlan(
@@ -206,6 +208,7 @@ def compute_cache_plan(
     host_compiler: str,
     stmm_path: Path | None,
     enable_tf_a_fixes: bool = False,
+    stmm_ffa_version: int = 10,
 ) -> CachePlan:
     cert_create_dir = tfa_dir / "tools" / "cert_create"
     for source_dir in (tfa_dir, tee_dir, cert_create_dir):
@@ -239,6 +242,7 @@ def compute_cache_plan(
         mode=mode,
         stmm_fingerprint=optional_file_fingerprint(stmm_path),
         enable_tf_a_fixes=enable_tf_a_fixes,
+        stmm_ffa_version=stmm_ffa_version,
     )
 
 
@@ -295,6 +299,7 @@ def main() -> int:
     parser.add_argument("--cross-compiler", required=True)
     parser.add_argument("--host-compiler", default="cc")
     parser.add_argument("--stmm-path")
+    parser.add_argument("--stmm-ffa-version", type=int, choices=(10, 12), default=10)
     parser.add_argument("--enable-tf-a-fixes", action="store_true")
     output = parser.add_mutually_exclusive_group()
     output.add_argument("--shell", action="store_true")
@@ -310,6 +315,7 @@ def main() -> int:
         host_compiler=args.host_compiler,
         stmm_path=Path(args.stmm_path) if args.stmm_path else None,
         enable_tf_a_fixes=args.enable_tf_a_fixes,
+        stmm_ffa_version=args.stmm_ffa_version,
     )
 
     if args.stamp is not None:
