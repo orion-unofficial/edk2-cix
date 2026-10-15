@@ -117,10 +117,12 @@ OP-TEE supplies an FF-A 1.2 StandaloneMM loader interface and EFI HOB builders.
 The backport retains the CIX NOR and debug services and leaves the global
 OP-TEE FF-A version unchanged. Its HOB allocator corrects the upstream
 free-memory-top calculation and checks bounds and arithmetic overflow.
-Both configurations have compiled in the Linux buildbox. Focused C tests
-exercise the actual helpers with mocked hardware; they do not establish boot
-or variable-service compatibility. The modern compile check uses a synthetic,
-nonbootable input, not a distributable firmware image.
+Both configurations compile in the Linux buildbox, including the modern loader
+with the hybrid payload described below. Focused C tests exercise the actual
+helpers with mocked hardware. Failed TF-A NOR transactions terminate the secure
+partition rather than returning to the vendor driver, which ignores failed
+direct-response status. Subsequent recovery requires reopening the failed
+partition; this does not make an interrupted flash update atomic.
 
 The loader must provide an FF-A boot-information header and HOB descriptor,
 the PHIT and firmware-volume HOBs, the non-secure communication-buffer HOB,
@@ -153,40 +155,75 @@ PCD configuration and relocations checked against the replacement core. Keep
 the pinned production payload until a replacement passes the qualification
 below; do not weaken the payload guard merely to admit a newly built FD.
 
-## Deferred source reconstruction
+## Hybrid qualification target
 
-Source reconstruction is outstanding and is gated on a confirmed successful
-hardware boot with the pinned vendor image. Keep the full-flash image hash,
-component verification reports, exact source target and serial boot log with
-that qualification. Compilation and certificate validation do not establish
-successful boot or variable persistence.
+`source/unofficial/stmm/edk2-stable202608` contains a reproducible qualification
+platform, pinned in `config/refs-cix.json`. It descends from the upstream EDK2
+202608 component, materializes the required dependencies, and backports the
+upstream CryptoPkg native-width integer fix. It is consumed by the qualification
+build command, independently of the normal-world EDK2 selection. It is **not**
+selected by firmware rendering or by `STMM=unofficial`.
 
-After that gate, reconstruct the CIX StandaloneMM DSC/FDF and replace components
-from public source where their interfaces and behaviour are established. Retain
-vendor binaries where a replacement would depend on uncertain contracts.
+| Component | Implementation |
+| --- | --- |
+| StandaloneMmCore | EDK2 202608 source |
+| StandaloneMmCpu | Matching EDK2 202608 source |
+| VariableStandaloneMm | EDK2 source, authenticated variables and variable policy |
+| FaultTolerantWriteStandaloneMm | EDK2 source |
+| NorFlashStandaloneMm | Pinned Radxa 1.3.1 executable, 36 KiB |
+| SerialOutStandaloneMm | Pinned Radxa 1.3.1 executable, 16 KiB |
+| FwVersionStandaloneMm | Pinned Radxa 1.3.1 executable, 20 KiB |
 
-The public EDK2 MM core, CPU, variable and fault-tolerant-write sources are
-available, but exact vendor configuration and CIX boot adaptations require
-review. The CIX secure NOR, serial-output and firmware-version implementations
-are absent as source in the inspected tree; their recovered executables are
-36, 16 and 20 KiB respectively. Their communication layouts, HOB/PCD usage,
-status conventions and storage semantics must be established before replacement.
+The three remaining secure-side implementations are absent from the inspected
+public CIX sources. Their exact executable and dependency-section hashes are
+checked during the build. The CIX OP-TEE bridge and TF-A xSPI transport remain
+source-built; a replacement must preserve their flash-controller ownership.
 
-The CIX OP-TEE loader and service bridge and the TF-A xSPI transport already
-exist as source. The immediate integration restores their missing input;
-reconstruction must not invent a second flash-controller owner. Modern EDK2
-boot-information/HOB interfaces also need explicit adaptation to the older
-CIX OP-TEE handoff. Do not mix checkpoints or replace the entire standalone
-core merely because an executable has the same name.
+The platform binds the variable and FTW PCDs through the standard FVB
+`GetPhysicalAddress` method and the CIX NVRAM HOB, without relying on private
+vendor structure offsets. Its FVB dependency must be satisfied before the PCD
+constructor runs. The variable driver also requires
+`VarCheckPolicyLibStandaloneMm`: linking the policy engine without its
+constructor leaves policy disabled and permits authenticated deletion without
+signature verification.
 
-Qualification of a reconstructed or hybrid image must cover cold and warm boot,
-variable reads/writes, authenticated variables, persistence, fault-tolerant
-updates, malformed requests and storage-error propagation. Preserve the pinned
-vendor image as the comparison baseline until the replacement is qualified.
-Before enabling `STMM=unofficial`, verify the normal-world UEFI client contract
-as well as the secure-side entry/CPU contract. In particular, establish the
-202208 baseline's session parameters, communication-buffer layout, return
-statuses and variable-service behaviour against the rebuilt secure components.
-If a pre-2025 base cannot be supported with that evidence, reject that exact
-combination explicitly. The current blanket rejection of `STMM=unofficial`
-applies to pre-2025 and newer bases alike.
+To build the isolated qualification FD:
+
+```sh
+docker build -f scripts/stmm.Dockerfile -t edk2-cix-stmm-qualification .
+python3 scripts/build_stmm_qualification.py \
+    --output .worktrees/stmm-qualification
+```
+
+The output directory must be new. It retains the exact source export, build log,
+compiler and image identities, vendor checksums, `BL32_AP_MM.fd`, and `build.json`.
+The report deliberately says `built-not-qualified`. The FD requires
+`CFG_STMM_FFA_VERSION=12`; it is not a complete or independently flashable board
+image. Repeat into a second directory to compare clean-build payload hashes.
+
+### Current qualification boundary
+
+Executing the actual hybrid AArch64 payload with the C-generated OP-TEE handoff
+and modeled NOR services exercises initialization, memory permissions, ordinary
+variable operations, authenticated PK enrollment/deletion, replay/tamper
+rejection, and cold-start persistence. These checks are useful offline evidence;
+they do not establish hardware boot, flash timing or power-loss behavior.
+
+Interrupted reclaim remains a blocker. A modeled interruption after erasing the
+variable FV header causes the retained NOR executable to reformat the store on
+its next initialization, before FTW can recover from the spare area. Repeating
+that interruption with the recovered vendor variable and FTW executables
+reproduces the loss. Replacing those two components with upstream sources alone
+therefore cannot fix the NOR initialization/recovery ordering.
+
+Resolve that interaction with a reviewed implementation before enabling the
+hybrid payload. Recovery must run before any destructive format decision, and
+must validate the FTW metadata and spare contents. Returning a flash error or
+changing only the FF-A handoff does not address loss of power between successful
+flash commands. Preserve the pinned vendor payload for comparison.
+
+Qualification still requires the complete normal-world client contract, fault
+recovery, malformed-request coverage, signed complete-image validation, and
+hardware cold/warm boot and persistence. Pre-2025 normal-world combinations are
+not qualified either. The explicit rejection of `STMM=unofficial` on all bases
+remains in force; successful compilation must not bypass it.

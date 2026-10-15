@@ -47,10 +47,18 @@
       "component": "op-tee",
       "immutable": false,
       "ref": "source/unofficial/cix/1.2/op-tee/3.17.0",
-      "object_id": "53988c15476c3332cb5837397d73b0fd200f3a00",
-      "tree_id": "1ef76ae2823dafded8a8ea5100bdc0fffeeab586",
+      "object_id": "32e7627e054a1a0de48004203af56cfc8e45112a",
+      "tree_id": "f05d5d3dac531f384fda173bd99ae1fbde0c8c67",
       "type": "unofficial-component",
       "render_path": "src/cix-v1.2/tee-unofficial"
+    },
+    {
+      "component": "standalone-mm",
+      "immutable": false,
+      "ref": "source/unofficial/stmm/edk2-stable202608",
+      "object_id": "d95b3657092197dbd794cb5c4a7f25928c0cca87",
+      "tree_id": "5784835c19eb776d7c021d9e3893f9e677bce6b9",
+      "type": "qualification-component"
     }
   ]
 }

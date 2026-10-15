@@ -33,6 +33,62 @@ def function(path, name):
 
 @unittest.skipUnless(SOURCE, 'pass --source to test the selected OP-TEE component')
 class ComponentTests(unittest.TestCase):
+    def test_nor_transport_failure_does_not_resume_vendor_driver(self):
+        code = r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+struct thread_svc_regs { unsigned long x0,x1,x2,x3,x4,x5,x6,x7; };
+struct thread_smc_args { unsigned long a0,a1,a2,a3,a4; };
+#define SVC_REGS_A1(r) ((r)->x1)
+#define SVC_REGS_A2(r) ((r)->x2)
+#define SVC_REGS_A3(r) ((r)->x3)
+#define SVC_REGS_A4(r) ((r)->x4)
+#define SVC_REGS_A5(r) ((r)->x5)
+#define GENMASK_64(h,l) ((UINT64_MAX >> (63-(h))) & (UINT64_MAX << (l)))
+#define STMM_RET_SUCCESS 0
+#define STMM_RET_INVALID_PARAM (-2)
+#define TEE_ERROR_STORAGE_NOT_AVAILABLE 0xf0100003U
+#define CIX_SIP_NOR_STORAGE 0xc200000bU
+#define DMSG_RAW(...) ((void)0)
+#define EMSG(...) ((void)0)
+static unsigned long smc_status;
+static unsigned responses, panics;
+static uintptr_t virt_to_phys(void *p) { return (uintptr_t)p; }
+static void thread_smccc(struct thread_smc_args *a) {
+    assert(a->a0==CIX_SIP_NOR_STORAGE);
+    assert(a->a4==0x10012345000UL);
+    a->a0=smc_status;
+}
+static void return_from_sp_helper(bool panic,uint32_t code,struct thread_svc_regs *r) {
+    (void)r; assert(panic && code==TEE_ERROR_STORAGE_NOT_AVAILABLE); panics++;
+}
+static void service_compose_direct_resp(struct thread_svc_regs *r,uint32_t result) {
+    (void)r; assert(!result); responses++;
+}
+static const unsigned mem_mgr_id=3,ffa_storage_id=4,ffa_debug_message_id=100,ffa_nor_flash_id=101;
+static void stmm_handle_mem_mgr_service(struct thread_svc_regs *r) {(void)r;}
+static void stmm_handle_storage_service(struct thread_svc_regs *r) {(void)r;}
+static void stmm_handle_debug_message_service(struct thread_svc_regs *r) {(void)r;}
+static void spm_eret_error(int n,struct thread_svc_regs *r) {(void)n;(void)r;}
+'''
+        code += function('core/arch/arm/kernel/stmm_sp.c', 'stmm_handle_nor_flash_service')
+        code += function('core/arch/arm/kernel/stmm_sp.c', 'spm_handle_direct_req')
+        code += r'''
+int main(void) {
+    const unsigned long statuses[]={0,1,(unsigned long)-1,(unsigned long)-5};
+    for (unsigned i=0;i<4;i++) {
+        struct thread_svc_regs regs={.x1=101,.x5=0x10012345000UL};
+        responses=panics=0; smc_status=statuses[i];
+        assert(spm_handle_direct_req(&regs)==(smc_status==0));
+        assert(responses==(smc_status==0));
+        assert(panics==(smc_status!=0));
+    }
+    return 0;
+}
+'''
+        self.compile_run(code, flags=('-Wno-parentheses',))
+
     def compile_run(self, code, sources=(), headers=None, flags=()):
         with tempfile.TemporaryDirectory(prefix='optee-component-') as directory:
             root = Path(directory)
