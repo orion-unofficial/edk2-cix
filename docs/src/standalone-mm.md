@@ -209,21 +209,47 @@ variable operations, authenticated PK enrollment/deletion, replay/tamper
 rejection, and cold-start persistence. These checks are useful offline evidence;
 they do not establish hardware boot, flash timing or power-loss behavior.
 
-Interrupted reclaim remains a blocker. A modeled interruption after erasing the
-variable FV header causes the retained NOR executable to reformat the store on
-its next initialization, before FTW can recover from the spare area. Repeating
-that interruption with the recovered vendor variable and FTW executables
-reproduces the loss. Replacing those two components with upstream sources alone
+The MVP acceptance criterion is no observed regressions against the recovered
+vendor components under the same qualification conditions. Improving an inherited
+failure is deferred work, rather than an automatic prerequisite for an MVP.
+The paired 189-point reclaim-interruption sweep has identical outcomes: both
+implementations recover in 149 cases and lose the variable in the same 40 cases,
+with matching return statuses and recovered values. Comparison with recovered
+components does not establish equivalence to every stage of the complete vendor
+boot chain.
+
+### Deferred NOR recovery improvement
+
+A modeled interruption after erasing the variable FV header causes the retained
+NOR executable to reformat the store on its next initialization, before FTW can
+recover from the spare area. The recovered vendor variable and FTW executables
+reproduce the loss. Replacing those two components with upstream sources alone
 therefore cannot fix the NOR initialization/recovery ordering.
 
-Resolve that interaction with a reviewed implementation before enabling the
-hybrid payload. Recovery must run before any destructive format decision, and
-must validate the FTW metadata and spare contents. Returning a flash error or
-changing only the FF-A handoff does not address loss of power between successful
-flash commands. Preserve the pinned vendor payload for comparison.
+Investigate recovery before any destructive format decision, validating the FTW
+metadata and spare contents. Also establish whether another stage of the stock
+vendor boot chain performs earlier recovery. Returning a flash error or changing
+only the FF-A handoff does not address loss of power between successful flash
+commands. Keep the vendor comparison and interrupted-flash fixtures when changing
+this behavior. A newly introduced failure remains an MVP blocker.
 
-Qualification still requires the complete normal-world client contract, fault
-recovery, malformed-request coverage, signed complete-image validation, and
-hardware cold/warm boot and persistence. Pre-2025 normal-world combinations are
-not qualified either. The explicit rejection of `STMM=unofficial` on all bases
-remains in force; successful compilation must not bypass it.
+### Remaining MVP image integration
+
+`CIX_RELEASE=unofficial` already selects maintained OP-TEE with `STMM=vendor`,
+the default. The reconstructed payload requires the explicit combination
+`CIX_RELEASE=unofficial STMM=unofficial`.
+
+The latter still needs integration into the rendered firmware source and build
+rules: build the pinned hybrid component, select the FF-A 1.2 OP-TEE mode, bind
+the payload and interface selection into cache keys, and verify the exact
+embedded payload before signing. The current production helper always stages
+and verifies the vendor StandaloneMM image. Removing only the Makefile rejection
+would therefore be insufficient.
+
+Complete the normal-world client-contract checks and validate a signed FIP and
+complete 8 MiB image before offering a hardware-test candidate. Hardware boot
+confirmation follows that candidate; it is distinct from build qualification.
+Pre-2025 combinations require their own compatibility evidence or an explicit
+rejection. The current selector rejection remains until the MVP integration and
+its checks are implemented; deferred NOR recovery improvement alone is no longer
+the reason to retain it.
