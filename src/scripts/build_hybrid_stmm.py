@@ -42,7 +42,8 @@ def build(source: Path, cache: Path, compiler: str, jobs: int) -> tuple[dict, by
         shutil.copytree(source, workspace, symlinks=True)
         (output / 'tmp').mkdir(exist_ok=True)
         environment = dict(os.environ)
-        for name in ('WORKSPACE', 'EDK_TOOLS_PATH', 'CONF_PATH', 'PACKAGES_PATH', 'BUILD_OUTPUT_BASE'):
+        for name in ('WORKSPACE', 'EDK_TOOLS_PATH', 'CONF_PATH', 'PACKAGES_PATH', 'BUILD_OUTPUT_BASE',
+                     'MAKEFLAGS', 'MFLAGS', 'MAKEOVERRIDES'):
             environment.pop(name, None)
         environment.update(WORKSPACE=str(workspace), TMPDIR=str(output / 'tmp'),
                            GCC_AARCH64_PREFIX=compiler, SOURCE_DATE_EPOCH='0', JOBS=str(jobs))
