@@ -139,6 +139,7 @@ FIRMWARE_TARGET ?= $(DEFAULT_FIRMWARE_TARGET)
 RAW_FIRMWARE_TARGET := $(FIRMWARE_TARGET)_GCC
 FIRMWARE_VERSION ?= $(strip $(shell python3 "$(FIRMWARE_LAYOUT_SCRIPT)" version --repo-root "$(REPO_ROOT)" 2>/dev/null || true))
 FIRMWARE_LAYOUT_QUERY_ARGS = \
+	--stmm "$(STMM)" \
 	--artefact-mode "$(ARTEFACT_MODE)" \
 	--firmware-target "$(FIRMWARE_TARGET)" \
 	$(if $(filter TRUE,$(ENABLE_FIRMWARE_FIXES_NORMALIZED)),--enable-firmware-fixes TRUE) \

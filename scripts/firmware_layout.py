@@ -89,6 +89,7 @@ class FirmwareLayout:
     enable_firmware_fixes: bool = False
     enable_core_order: str = ""
     cix_release: str = ""
+    stmm: str = "vendor"
     enable_tf_a_fixes: bool = False
     enable_experimental_uefi_settings: bool = False
     debug_on_uart3: bool = False
@@ -103,6 +104,10 @@ class FirmwareLayout:
         firmware_target = _normalize_target(self.firmware_target)
         enable_core_order = _normalize_core_order(self.enable_core_order)
         cix_release = _normalize_cix_release(self.cix_release)
+        if self.stmm not in {"vendor", "unofficial"}:
+            raise ValueError("STMM supports vendor or unofficial")
+        if self.stmm == "unofficial" and cix_release != "unofficial":
+            raise ValueError("STMM=unofficial requires CIX_RELEASE=unofficial")
         debug_print_error_level = _normalize_u32_literal(self.debug_print_error_level)
         object.__setattr__(self, "artefact_mode", artefact_mode)
         object.__setattr__(self, "firmware_target", firmware_target)
@@ -151,6 +156,8 @@ class FirmwareLayout:
         parts = ["custom"]
         if self.cix_release:
             parts.append("cix_unofficial" if self.cix_release == "unofficial" else "cix")
+            if self.stmm == "unofficial":
+                parts.append("stmm_unofficial")
             if self.enable_tf_a_fixes:
                 parts.append("tf_a_fixes")
         if self.firmware_target == "DEBUG":
@@ -181,6 +188,8 @@ class FirmwareLayout:
             tokens.append("custom")
         if self.cix_release:
             tokens.append("cix")
+            if self.stmm == "unofficial":
+                tokens.append("stmm_unofficial")
             if self.enable_tf_a_fixes:
                 tokens.append("tf_a_fixes")
         if self.firmware_target == "DEBUG":
@@ -208,6 +217,8 @@ class FirmwareLayout:
         tokens: list[str] = []
         if self.cix_release:
             tokens.append("cix")
+            if self.stmm == "unofficial":
+                tokens.append("stmm_unofficial")
             if self.enable_tf_a_fixes:
                 tokens.append("tf_a_fixes")
         if self.enable_firmware_fixes:
@@ -403,6 +414,7 @@ def parse_layout_args(args: argparse.Namespace) -> FirmwareLayout:
         enable_firmware_fixes=_parse_bool(getattr(args, "enable_firmware_fixes", None)),
         enable_core_order=getattr(args, "enable_core_order", ""),
         cix_release=getattr(args, "cix_release", ""),
+        stmm=getattr(args, "stmm", "vendor"),
         enable_tf_a_fixes=_parse_bool(getattr(args, "enable_tf_a_fixes", None)),
         enable_experimental_uefi_settings=_parse_bool(
             getattr(args, "enable_experimental_uefi_settings", None)
@@ -420,6 +432,7 @@ def add_layout_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--enable-firmware-fixes")
     parser.add_argument("--enable-core-order")
     parser.add_argument("--cix-release")
+    parser.add_argument("--stmm", choices=("vendor", "unofficial"), default="vendor")
     parser.add_argument("--enable-tf-a-fixes")
     parser.add_argument("--enable-experimental-uefi-settings")
     parser.add_argument("--debug-on-uart3")
