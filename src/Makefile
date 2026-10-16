@@ -1,9 +1,23 @@
 STMM ?= vendor
-ifneq ($(strip $(STMM)),vendor)
+ifeq ($(filter $(strip $(STMM)),vendor unofficial),)
+$(error STMM supports vendor or unofficial)
+endif
 ifeq ($(strip $(STMM)),unofficial)
-$(error STMM=unofficial is not available: the reconstructed payload is not yet qualified for any EDK2 base, including pre-2025 releases)
-else
-$(error STMM supports vendor or unofficial; unofficial is not yet available)
+ifneq ($(strip $(CIX_RELEASE)),unofficial)
+$(error STMM=unofficial requires CIX_RELEASE=unofficial)
+endif
+endif
+
+ifeq ($(strip $(STMM)),unofficial)
+STMM_FIRMWARE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
+ifeq ($(wildcard $(STMM_FIRMWARE_ROOT)/src/edk2/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h),)
+$(error STMM=unofficial requires an EDK2 202502-or-newer base; pre-2025 bases are not qualified)
+endif
+ifneq ($(shell cat "$(STMM_FIRMWARE_ROOT)/VERSION"),1.3.1)
+$(error STMM=unofficial currently supports Radxa 1.3.1 only)
+endif
+ifeq ($(wildcard $(STMM_FIRMWARE_ROOT)/src/cix-v1.2/stmm-unofficial/CixStandaloneMmPkg/CixStandaloneMm.dsc),)
+$(error STMM=unofficial requires the rendered stmm-unofficial component)
 endif
 endif
 
@@ -130,6 +144,7 @@ O6_SMBIOS_BASEBOARD_ASSET_TAG_C_LITERAL := $(if $(filter __INVALID__,$(O6_SMBIOS
 O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL_RAW := $(if $(strip $(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE)),$(shell python3 "$(MAKE_INPUT_VALIDATOR)" emit-c-string-literal --value "$(O6_SMBIOS_CHASSIS_ASSET_TAG_EFFECTIVE)" 2>/dev/null || printf '%s' __INVALID__),)
 O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL := $(if $(filter __INVALID__,$(O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL_RAW)),,$(O6_SMBIOS_CHASSIS_ASSET_TAG_C_LITERAL_RAW))
 FIRMWARE_LAYOUT_QUERY_ARGS = \
+	--stmm "$(STMM)" \
 	--artefact-mode "$(ARTEFACT_MODE)" \
 	--firmware-target "$(FIRMWARE_TARGET)" \
 	$(if $(filter TRUE,$(ENABLE_FIRMWARE_FIXES_NORMALIZED)),--enable-firmware-fixes TRUE) \
@@ -261,6 +276,12 @@ CIX_RELEASE_V12_PAYLOAD_DIR := $(CIX_RELEASE_SOURCE_DIR)/release-payloads
 CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD := $(CIX_RELEASE_V12_PAYLOAD_DIR)/bootloader1-2026q1.img
 CIX_RELEASE_BOOTLOADER2_HELPER := scripts/build_cix_release_bootloader2.sh
 CIX_RELEASE_STMM_HELPER := scripts/stage_vendor_stmm.py
+CIX_RELEASE_STMM_FFA_VERSION := $(if $(filter unofficial,$(STMM)),12,10)
+CIX_RELEASE_STMM_SOURCE := $(abspath $(CIX_RELEASE_SOURCE_DIR)/stmm-unofficial)
+CIX_RELEASE_STMM_ARGS = $(if $(filter unofficial,$(STMM)),--source "$(CIX_RELEASE_STMM_SOURCE)" --cache-root "$(CIX_RELEASE_CACHE_ROOT)/stmm" --cross-compile "$(GCC_AARCH64_PREFIX)" --jobs "$(HELPER_BUILD_JOBS)")
+ifeq ($(STMM),unofficial)
+CIX_RELEASE_STMM_HELPER := scripts/build_hybrid_stmm.py
+endif
 CIX_RELEASE_STMM_MANIFEST := $(CIX_RELEASE_V12_PAYLOAD_DIR)/standalone-mm/manifest.json
 CIX_RELEASE_CACHE_HELPER := $(abspath ../scripts/cix_release_cache.py)
 CIX_RELEASE_SIGNING_KEYS_DIR := ../custom/signing-keys/cix-1.2
@@ -1180,7 +1201,7 @@ $(call CIX_RELEASE_BOOTLOADER2_STAMP,%): \
 	$(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt \
 	FORCE
 	@$(ENSURE_REPO_LOCK)
-	@python3 "$(CIX_RELEASE_STMM_HELPER)" \
+	@python3 "$(CIX_RELEASE_STMM_HELPER)" $(CIX_RELEASE_STMM_ARGS) \
 		--manifest "$(CIX_RELEASE_STMM_MANIFEST)" \
 		--vendor-fip "$(PACKAGE_TOOL)/Firmwares/bootloader2.img" \
 		--output "$(call BUILD_STAGE_DIR,$*)/Firmwares/BL32_AP_EFI_STMM.fd"
@@ -1193,6 +1214,7 @@ $(call CIX_RELEASE_BOOTLOADER2_STAMP,%): \
 		--cross-compiler "$(GCC_AARCH64_PREFIX)gcc" \
 		--host-compiler "$${CC:-cc}" \
 		--stmm-path "$(abspath $(call BUILD_STAGE_DIR,$*))/Firmwares/BL32_AP_EFI_STMM.fd" \
+		--stmm-ffa-version "$(CIX_RELEASE_STMM_FFA_VERSION)" \
 		$(if $(filter TRUE,$(ENABLE_TF_A_FIXES_NORMALIZED)),--enable-tf-a-fixes,) \
 		--stamp "$@"
 endif
@@ -1223,6 +1245,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 		--build-root "$(abspath $(call BUILD_STAGE_DIR,$*))" \
 		--signing-keys-dir "$(abspath $(CIX_RELEASE_SIGNING_KEYS_DIR))" \
 		--vendor-fip "$(abspath $(PACKAGE_TOOL)/Firmwares/bootloader2.img)" \
+		--stmm "$(STMM)" --stmm-source "$(CIX_RELEASE_STMM_SOURCE)" \
 		--fiptool "$(abspath $(FIPTOOL_BIN))" \
 		--output "$$tmp_output" \
 		--cross-compile "$(GCC_AARCH64_PREFIX)" \
