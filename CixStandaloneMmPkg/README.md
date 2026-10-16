@@ -13,8 +13,9 @@ Build in the Linux buildbox with GCC_AARCH64_PREFIX=aarch64-linux-gnu-:
 
 The output is Build/StandaloneMm/RELEASE_GCC/FV/BL32_AP_MM.fd. It requires the
 maintained CIX OP-TEE FF-A 1.2 handoff (CFG_STMM_FFA_VERSION=12), including the
-CIX NVRAM GUID HOB. This is a qualification component, not an approved payload
-for STMM=unofficial. The 2 MiB FD is not a flashable board image.
+CIX NVRAM GUID HOB. The firmware build integrates this component through
+CIX_RELEASE=unofficial STMM=unofficial. The 2 MiB FD is not a flashable board
+image; hardware qualification of the assembled board image remains required.
 
 VariablePcd uses the standard FVB GetPhysicalAddress method to bind the source
 storage drivers to the vendor RAM shadow. The FVB dependency must be satisfied
@@ -22,8 +23,9 @@ before its constructor. VarCheckPolicyLibStandaloneMm must be selected: merely
 linking VariablePolicyLib leaves policy disabled and permits authenticated
 variable deletion without signature verification.
 
-Known qualification blocker: interruption after erasing the variable FV header
+Deferred vendor-parity limitation: interruption after erasing the variable FV header
 during reclaim causes the retained NOR executable to reformat the NVRAM before
 FTW can recover it. The same failure occurs with the recovered vendor variable
-and FTW executables. Do not enable this platform for firmware builds until the
-early NOR initialization/recovery interaction is fixed and qualified.
+and FTW executables. The MVP criterion is no regressions against those vendor
+components. Investigate the early NOR initialization/recovery ordering separately;
+passing the offline comparison does not prove resilience to all power failures.
