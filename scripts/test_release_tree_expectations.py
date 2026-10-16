@@ -310,7 +310,7 @@ class SupportedReleaseTreeTests(unittest.TestCase):
         """Check real manifests, including targets with no retained cache ref.
 
         Use an isolated Git index as an independent oracle for the tree hash;
-        only the two metadata paths are changed, without firmware checkouts.
+        apply component trees and release metadata without firmware checkouts.
         """
         entries = release_entries(ROOT)
         custom = {branch: entry for branch, entry in entries.items() if entry.get("unofficial_delta")}
@@ -326,17 +326,25 @@ class SupportedReleaseTreeTests(unittest.TestCase):
             for branch, entry in custom.items():
                 with self.subTest(target=branch):
                     steps = entry["render"]["steps"]
-                    self.assertEqual([list(step) for step in steps], [["release_metadata"]])
-                    metadata = steps[0]["release_metadata"]
+                    self.assertEqual(list(steps[-1]), ["release_metadata"])
+                    self.assertTrue(all(list(step) == ["component"] for step in steps[:-1]))
+                    components = tuple((step["component"]["path"], tree_id(ROOT, step["component"]["ref"]))
+                                       for step in steps[:-1])
+                    metadata = steps[-1]["release_metadata"]
                     source_tree = tree_id(ROOT, entry["source_ref"])
                     metadata_tree = tree_id(ROOT, metadata["ref"])
                     release = metadata["release"]
-                    key = (source_tree, metadata_tree, release)
+                    key = (source_tree, metadata_tree, release, components)
                     if key not in rendered:
-                        if loaded_tree != source_tree:
+                        if loaded_tree != (source_tree, components):
                             git(repo, "read-tree", source_tree)
                             git(repo, "update-index", "--force-remove", ".gitmodules")
-                            loaded_tree = source_tree
+                            for path, component_tree in components:
+                                old_paths = git(repo, "ls-files", "--", path).stdout.splitlines()
+                                if old_paths:
+                                    git(repo, "update-index", "--force-remove", "--", *old_paths)
+                                git(repo, "read-tree", f"--prefix={path}/", component_tree)
+                            loaded_tree = (source_tree, components)
                         if release not in versions:
                             versions[release] = subprocess.run(
                                 ["git", "-C", str(repo), "hash-object", "-w", "--stdin"],

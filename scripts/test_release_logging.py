@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 import unittest
 
-from reconstruction_common import for_each_ref, show_file
+from reconstruction_common import unofficial_firmware_refs, show_file
 from prepare_release_logging import prepare
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -122,7 +122,7 @@ class ReleaseLoggingTests(unittest.TestCase):
         selected = os.environ.get("SOURCE_TEST_REF")
         arch = "AArch64" if platform.machine().lower() in ("arm64", "aarch64") else "X64"
         seen = set()
-        for ref in for_each_ref(ROOT, "source/unofficial/"):
+        for ref in unofficial_firmware_refs(ROOT):
             wrapper = show_file(ROOT, selected or ref, WRAPPER)
             headers = {name: show_file(ROOT, ref, "src/edk2/MdePkg/Include/" + name)
                        for name in ("Base.h", f"{arch}/ProcessorBind.h", "Library/DebugLib.h")}

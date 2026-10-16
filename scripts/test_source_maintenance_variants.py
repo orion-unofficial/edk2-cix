@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-from reconstruction_common import for_each_ref, show_file
+from reconstruction_common import unofficial_firmware_refs, show_file
 
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORM = 'edk2-platforms/Platform/CIX/Sky1/'
@@ -38,7 +38,7 @@ class SourceMaintenanceVariantTests(unittest.TestCase):
                      'The caller already selected an explicit source variant')
     def test_retained_interfaces_and_cache_structures(self):
         variants = {}
-        refs = for_each_ref(ROOT, 'source/unofficial/')
+        refs = unofficial_firmware_refs(ROOT)
         self.assertTrue(refs, 'No retained Unofficial source refs')
         for ref in refs:
             digest = hashlib.sha256()

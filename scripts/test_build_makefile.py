@@ -5,7 +5,7 @@ import json
 import os
 import tempfile
 
-from reconstruction_common import for_each_ref, show_file
+from reconstruction_common import unofficial_firmware_refs, show_file
 import subprocess
 import unittest
 
@@ -69,7 +69,7 @@ class BuildMakefileTests(unittest.TestCase):
     def test_retained_source_wrappers_derive_product_and_reject_mismatch(self):
         candidates = os.environ.get('SOURCE_BOARD_CANDIDATES')
         refs = ([entry['new'] for entry in json.loads(Path(candidates).read_text())]
-                if candidates else for_each_ref(REPO_ROOT, 'source/unofficial/'))
+                if candidates else unofficial_firmware_refs(REPO_ROOT))
         snippets = set()
         for ref in refs:
             text = show_file(REPO_ROOT, ref, '.github/local/Makefile.local').decode()

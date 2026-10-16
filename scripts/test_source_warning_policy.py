@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-from reconstruction_common import for_each_ref, show_file
+from reconstruction_common import unofficial_firmware_refs, show_file
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = (
@@ -25,7 +25,7 @@ class SourceWarningPolicyTests(unittest.TestCase):
     def test_effective_autogen_warning_arguments_survive_release_setup(self):
         selected = os.environ.get("SOURCE_TEST_REF")
         local = os.environ.get("SOURCE_TEST_ROOT")
-        refs = [selected] if selected else for_each_ref(ROOT, "source/unofficial/")
+        refs = [selected] if selected else unofficial_firmware_refs(ROOT)
         if local:
             refs = ["local"]
         with tempfile.TemporaryDirectory(prefix="autogen-arguments-") as tmp:

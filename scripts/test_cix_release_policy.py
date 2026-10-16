@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from build_profiles import resolve_profile
-from reconstruction_common import ReconstructionError, for_each_ref, show_file
+from reconstruction_common import ReconstructionError, unofficial_firmware_refs, show_file
 from validate_build_variables import validate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -47,7 +47,7 @@ class CixReleasePolicyTests(unittest.TestCase):
         self.assertIn("requires ARTEFACT_MODE=custom", result.stderr)
 
     def test_retained_source_make_entry_points_reject_invalid_values(self):
-        refs = for_each_ref(ROOT, "source/unofficial/")
+        refs = unofficial_firmware_refs(ROOT)
         self.assertTrue(refs)
         with tempfile.TemporaryDirectory(prefix="cix-source-policy-") as tmp:
             root = Path(tmp)

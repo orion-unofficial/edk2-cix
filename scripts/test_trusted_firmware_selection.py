@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 from build_profiles import resolve_profile
-from reconstruction_common import show_file, unofficial_component_steps
+from reconstruction_common import resolve_ref, show_file, unofficial_component_steps, unofficial_firmware_refs, unofficial_checkpoints_by_edk2
 from validate_build_variables import validate_cix_source
 
 
@@ -78,8 +78,19 @@ class TrustedSelectionTests(unittest.TestCase):
     def test_hybrid_component_has_no_unresolved_submodules(self):
         entries = subprocess.check_output([
             'git', '-C', str(ROOT), 'ls-tree', '-r',
-            'source/unofficial/stmm/edk2-stable202608'], text=True)
+            resolve_ref(ROOT, 'source/unofficial/stmm/edk2-stable202608')], text=True)
         self.assertFalse(any(line.startswith('160000 ') for line in entries.splitlines()))
+
+    def test_component_refs_are_not_firmware_checkpoints(self):
+        firmware = ['source/unofficial/edk2-stable202608',
+                    'source/unofficial/1.3/current',
+                    'source/unofficial/1.3.1/edk2-stable202608']
+        components = ['source/unofficial/stmm/edk2-stable202608',
+                      'source/unofficial/cix/1.2/op-tee/3.17.0']
+        with patch('reconstruction_common.for_each_ref', return_value=firmware + components):
+            self.assertEqual(unofficial_firmware_refs(ROOT), firmware)
+            self.assertEqual(unofficial_checkpoints_by_edk2(ROOT), {
+                'edk2-stable202608': {'1.3.1': firmware[2]}})
 
     def test_renderer_uses_one_component_ref(self):
         self.assertEqual(unofficial_component_steps(ROOT), [{'component': {

@@ -14,7 +14,7 @@ from bl33_layout import limits, prepare, select
 from build_bl33 import build, required_size, resize_fdf
 from debug_build_policy import fd_size
 from firmware_chain import ChainError
-from reconstruction_common import for_each_ref, show_file
+from reconstruction_common import unofficial_firmware_refs, show_file
 from test_firmware_chain import SignedFirmwareFixture, vendor
 from validate_firmware_chain import check_flash, check_ota, validate_uefi
 from validate_release_inputs import source_fdf
@@ -121,7 +121,7 @@ class Bl33LayoutTests(unittest.TestCase):
 
     def test_source_fdf_resizing_for_every_retained_board_and_target(self):
         seen = set()
-        for ref in for_each_ref(ROOT, "source/unofficial/"):
+        for ref in unofficial_firmware_refs(ROOT):
             for board in ("O6", "O6N"):
                 text = source_fdf(ROOT, ref, board)
                 if text in seen:

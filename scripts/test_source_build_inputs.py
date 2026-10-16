@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 from check_source_build_inputs import BUILD_FIXES, chain_validator_problems, missing_board_table_inputs, missing_build_fixes, missing_configuration_manager_types, missing_lto_library, missing_module_infs, missing_package_declarations, missing_platform_inputs, missing_smbios_cache_types, missing_toolchain, missing_wrapper_dependencies, source_input_problems, unbalanced_asl_conditionals
 from check_source_build_inputs import autogen_library_problems, missing_tool_definitions, missing_acpi_headers, flattened_overlay_mirrors
-from check_source_build_inputs import effective_source_refs, main as audit_main
+from check_source_build_inputs import effective_source_refs, stmm_helper_problems, main as audit_main
 from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
 from test_support import commit_all, git, write_file
 from source_lifecycle import tree_entries
@@ -27,7 +27,7 @@ class SourceBuildInputsTests(unittest.TestCase):
         correction = 'source/unofficial/corrections/1.3.1/edk2-stable202408/lto-archive-path'
         unrelated = 'source/unofficial/1.2/current'
         retained = 'source/unofficial/corrections/1.3.1/edk2-stable202408/earlier-topic'
-        with patch('check_source_build_inputs.for_each_ref', return_value=[source, unrelated, retained]), \
+        with patch('check_source_build_inputs.unofficial_firmware_refs', return_value=[source, unrelated, retained]), \
                 patch('check_source_build_inputs.unofficial_checkpoints_by_edk2',
                       return_value={'edk2-stable202408': ['1.3.1']}), \
                 patch('check_source_build_inputs.unofficial_source_ref', return_value=source), \
@@ -36,7 +36,7 @@ class SourceBuildInputsTests(unittest.TestCase):
 
     def test_audit_retains_uncorrected_checkpoint(self):
         source = 'source/unofficial/1.2.2/edk2-stable202211'
-        with patch('check_source_build_inputs.for_each_ref', return_value=[source]), \
+        with patch('check_source_build_inputs.unofficial_firmware_refs', return_value=[source]), \
                 patch('check_source_build_inputs.unofficial_checkpoints_by_edk2',
                       return_value={'edk2-stable202211': ['1.2.2']}), \
                 patch('check_source_build_inputs.unofficial_source_ref', return_value=source), \
@@ -46,7 +46,7 @@ class SourceBuildInputsTests(unittest.TestCase):
     def test_audit_selects_checkpoint_correction_without_a_current_line_tip(self):
         source = 'source/unofficial/1.3.0/edk2-stable202408'
         correction = 'source/unofficial/corrections/1.3.0/edk2-stable202408/lto-archive-path'
-        with patch('check_source_build_inputs.for_each_ref', return_value=[source]), \
+        with patch('check_source_build_inputs.unofficial_firmware_refs', return_value=[source]), \
                 patch('check_source_build_inputs.unofficial_checkpoints_by_edk2',
                       return_value={'edk2-stable202408': ['1.3.0']}), \
                 patch('check_source_build_inputs.unofficial_source_ref', return_value=correction), \
@@ -82,6 +82,31 @@ class SourceBuildInputsTests(unittest.TestCase):
         self.assertTrue(chain_validator_problems(current, keys, helper + b"# drift\n", current))
         keys["cix_privatekey.pem"] += b"tampered"
         self.assertTrue(chain_validator_problems(current, keys, helper, current))
+
+    def test_historical_verifier_is_pinned_to_its_signing_helper(self):
+        repo = Path(__file__).resolve().parents[1]
+        ref = 'source/unofficial/1.3.1/edk2-stable202602'
+        current = (repo / 'scripts/validate_firmware_chain.py').read_bytes()
+        validator = show_file(repo, ref, 'src/scripts/validate_firmware_chain.py')
+        helper = show_file(repo, ref, 'src/scripts/build_cix_release_bootloader2.sh')
+        keys = {name: show_file(repo, ref, f'{CIX_SIGNING_KEYS}/{name}') for name in CIX_KEY_SHA256}
+        self.assertEqual(chain_validator_problems(validator, keys, helper, current), [])
+        self.assertTrue(chain_validator_problems(validator + b'# drift', keys, helper, current))
+        self.assertTrue(chain_validator_problems(validator, keys, helper + b'# drift', current))
+        modern_helper = show_file(repo, 'source/unofficial/1.3/current', 'src/scripts/build_cix_release_bootloader2.sh')
+        self.assertTrue(chain_validator_problems(validator, keys, modern_helper, current))
+
+    def test_hybrid_signing_requires_both_reviewed_payload_helpers(self):
+        repo = Path(__file__).resolve().parents[1]
+        ref = 'source/unofficial/1.3/current'
+        helper = show_file(repo, ref, 'src/scripts/build_cix_release_bootloader2.sh')
+        contents = {path: show_file(repo, ref, path) for path in (
+            'src/scripts/stage_vendor_stmm.py', 'src/scripts/build_hybrid_stmm.py')}
+        self.assertEqual(stmm_helper_problems(helper, contents), [])
+        for path in contents:
+            with self.subTest(path=path):
+                self.assertEqual(len(stmm_helper_problems(helper, {**contents, path: b''})), 1)
+                self.assertEqual(len(stmm_helper_problems(helper, {**contents, path: contents[path] + b'# drift'})), 1)
 
     def test_regular_overlay_cannot_contain_a_symlink_blob_as_source(self):
         path = 'custom/overlay/Spcr.aslc'

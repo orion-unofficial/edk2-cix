@@ -6,7 +6,7 @@ import subprocess
 import unittest
 
 from debug_build_policy import preflight, fd_size
-from reconstruction_common import for_each_ref, show_file
+from reconstruction_common import unofficial_firmware_refs, show_file
 from validate_release_inputs import source_fdf
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,7 +21,7 @@ class DebugPreflightTests(unittest.TestCase):
                          fdf_override=source_fdf(ROOT, ref, board, experimental), **values)
 
     def test_all_retained_layouts_and_default_masks(self):
-        for ref in for_each_ref(ROOT, "source/unofficial/"):
+        for ref in unofficial_firmware_refs(ROOT):
             for board in ("O6", "O6N"):
                 for experimental in (False, True):
                     with self.subTest(ref=ref, board=board, experimental=experimental):

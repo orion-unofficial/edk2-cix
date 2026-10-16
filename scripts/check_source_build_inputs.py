@@ -9,13 +9,16 @@ import re
 from pathlib import Path
 
 from reconstruction_common import (
-    active_unofficial_source_ref, for_each_ref, main_wrapper, ReconstructionError,
+    active_unofficial_source_ref, unofficial_firmware_refs, main_wrapper, ReconstructionError,
     tree_id, unofficial_checkpoints_by_edk2, unofficial_source_ref,
 )
 from source_lifecycle import tree_entries
 from source_porting import git_blob_bytes_batch
 from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
-from validate_build_variables import CIX_SIGNING_HELPER_SHA256, CIX_VENDOR_STMM_HELPER_SHA256
+from validate_build_variables import (
+    CIX_SIGNING_HELPER_SHA256, CIX_VENDOR_STMM_HELPER_SHA256,
+    CIX_HYBRID_SIGNING_HELPER_SHA256, CIX_HYBRID_STMM_HELPER_SHA256,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +56,10 @@ STOCK_CHAIN_VALIDATOR_SHA256 = "834a922d27be1e5fa4111244628e9a99adeeae1b4755fb37
 # Frozen and unselected source checkpoints retain their previously reviewed
 # signing helper. Active CIX build selection requires the new helper separately.
 LEGACY_CIX_SIGNING_HELPER_SHA256 = "1c5d06f76422759f2bcd1067c504337b5fd9791c190417a6652629af9933c2c7"
+# This verifier differs only by rejecting the later `unofficial` selector.
+# Accept it solely with the corresponding historical signing helper, which
+# cannot build maintained OP-TEE or the hybrid StandaloneMM payload.
+LEGACY_CIX_CHAIN_VALIDATOR_SHA256 = "c8f638865e21f212903a3a396f7101318aa6507b473169304068aa1f4bd4ec14"
 
 
 def chain_validator_problems(validator: bytes, signing_keys: dict[str, bytes],
@@ -62,14 +69,30 @@ def chain_validator_problems(validator: bytes, signing_keys: dict[str, bytes],
             return ["stock-only firmware-chain validator differs from the pinned historical version"]
         return []
     problems = []
-    if validator != current_validator:
+    helper_hash = hashlib.sha256(helper).hexdigest()
+    legacy_pair = (helper_hash == LEGACY_CIX_SIGNING_HELPER_SHA256 and
+                   hashlib.sha256(validator).hexdigest() == LEGACY_CIX_CHAIN_VALIDATOR_SHA256)
+    if validator != current_validator and not legacy_pair:
         problems.append("CIX-enabled firmware-chain validator differs from build branch")
-    if hashlib.sha256(helper).hexdigest() not in {CIX_SIGNING_HELPER_SHA256, LEGACY_CIX_SIGNING_HELPER_SHA256}:
+    if helper_hash not in {CIX_SIGNING_HELPER_SHA256, CIX_HYBRID_SIGNING_HELPER_SHA256, LEGACY_CIX_SIGNING_HELPER_SHA256}:
         problems.append("CIX-enabled signing helper differs from the reviewed source")
     for name, expected in CIX_KEY_SHA256.items():
         if hashlib.sha256(signing_keys.get(name, b"")).hexdigest() != expected:
             problems.append(f"CIX-enabled source lacks pinned signing key: {name}")
     return problems
+
+
+def stmm_helper_problems(helper: bytes, contents: dict[str, bytes]) -> list[str]:
+    """Pin the payload builders used by each reviewed signing helper."""
+    helper_hash = hashlib.sha256(helper).hexdigest()
+    required = {}
+    if helper_hash in {CIX_SIGNING_HELPER_SHA256, CIX_HYBRID_SIGNING_HELPER_SHA256}:
+        required["src/scripts/stage_vendor_stmm.py"] = CIX_VENDOR_STMM_HELPER_SHA256
+    if helper_hash == CIX_HYBRID_SIGNING_HELPER_SHA256:
+        required["src/scripts/build_hybrid_stmm.py"] = CIX_HYBRID_STMM_HELPER_SHA256
+    return [f"StandaloneMM helper differs from the reviewed source: {path}"
+            for path, expected in required.items()
+            if hashlib.sha256(contents.get(path, b"")).hexdigest() != expected]
 
 
 def missing_build_fixes(contents: dict[str, bytes]) -> list[str]:
@@ -427,7 +450,7 @@ def effective_source_refs(repo: Path) -> list[str]:
     rewriting its provenance. All other retained refs remain in the audit.
     Manifest and lifecycle checks validate the immutable preimages separately.
     """
-    refs = set(for_each_ref(repo, "source/unofficial"))
+    refs = set(unofficial_firmware_refs(repo))
     for edk2, checkpoints in unofficial_checkpoints_by_edk2(repo).items():
         for radxa in checkpoints:
             source = f"source/unofficial/{radxa}/{edk2}"
@@ -482,11 +505,11 @@ def main() -> None:
                 checked[tree].extend(chain_validator_problems(
                     validator, signing_keys, helper,
                     (ROOT / "scripts/validate_firmware_chain.py").read_bytes()))
-                if hashlib.sha256(helper).hexdigest() == CIX_SIGNING_HELPER_SHA256:
-                    stmm_entry = entries.get("src/scripts/stage_vendor_stmm.py")
-                    stmm = git_blob_bytes_batch(ROOT, [stmm_entry.object_id])[stmm_entry.object_id] if stmm_entry else b""
-                    if hashlib.sha256(stmm).hexdigest() != CIX_VENDOR_STMM_HELPER_SHA256:
-                        checked[tree].append("vendor StandaloneMM staging helper differs from the reviewed source")
+                stmm_entries = {path: entries[path] for path in (
+                    "src/scripts/stage_vendor_stmm.py", "src/scripts/build_hybrid_stmm.py") if path in entries}
+                stmm_blobs = git_blob_bytes_batch(ROOT, [item.object_id for item in stmm_entries.values()])
+                checked[tree].extend(stmm_helper_problems(
+                    helper, {path: stmm_blobs[item.object_id] for path, item in stmm_entries.items()}))
         problems.extend(f"{ref}: {problem}" for problem in checked[tree])
     if problems:
         raise ReconstructionError("source build-input checks failed:\n" + "\n".join(problems))

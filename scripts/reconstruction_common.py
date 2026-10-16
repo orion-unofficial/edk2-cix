@@ -653,7 +653,7 @@ CIX_PORT_RE = re.compile(
 UNOFFICIAL_RELEASE_RE = re.compile(r"^source/unofficial/(?P<edk2>edk2-stable[^/]+)$")
 UNOFFICIAL_RELEASE_TAG_RE = re.compile(r"^source/unofficial/edk2/stable-(?P<release>\d{6}(?:\.\d+)?)$")
 UNOFFICIAL_CHECKPOINT_RE = re.compile(
-    r"^source/unofficial/(?P<radxa>[^/]+)/(?P<edk2>edk2-stable[^/]+)$"
+    r"^source/unofficial/(?P<radxa>\d+\.\d+\.\d+)/(?P<edk2>edk2-stable[^/]+)$"
 )
 UNOFFICIAL_CORRECTION_RE = re.compile(
     r"^source/unofficial/corrections/(?P<radxa>[^/]+)/"
@@ -733,6 +733,19 @@ def available_cix_releases(repo: Path) -> list[str]:
         if {"tf-a", "op-tee"}.issubset(components)
     ]
     return sorted(releases, key=version_key)
+
+
+def unofficial_firmware_refs(repo: Path) -> list[str]:
+    """Enumerate firmware checkpoints and line tips, excluding component trees.
+
+    Component refs share the Unofficial namespace for retention/publication but
+    do not contain the firmware Makefile, overlays or board packaging inputs.
+    Keep generic for_each_ref callers able to see every required source ref.
+    """
+    patterns = (UNOFFICIAL_RELEASE_RE, UNOFFICIAL_CHECKPOINT_RE,
+                UNOFFICIAL_LINE_CURRENT_RE, UNOFFICIAL_CORRECTION_RE)
+    return [ref for ref in for_each_ref(repo, "source/unofficial")
+            if any(pattern.fullmatch(ref) for pattern in patterns)]
 
 
 def unofficial_release_branches(repo: Path) -> list[str]:

@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 import unittest
 
-from reconstruction_common import for_each_ref, show_file
+from reconstruction_common import unofficial_firmware_refs, show_file
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADER = 'custom/overlay/edk2-platforms/Platform/CIX/Sky1/Include/AcpiGraph.h'
@@ -20,7 +20,7 @@ class CustomAslFlagsTests(unittest.TestCase):
     def test_graph_header_and_fix_gate_follow_effective_source_recipe(self):
         candidates = os.environ.get('SOURCE_ASL_CANDIDATES')
         refs = ([row['new'] for row in json.loads(Path(candidates).read_text())]
-                if candidates else for_each_ref(ROOT, 'source/unofficial/'))
+                if candidates else unofficial_firmware_refs(ROOT))
         with tempfile.TemporaryDirectory(prefix='custom-asl-flags-') as temporary:
             root = Path(temporary)
             header = root / HEADER

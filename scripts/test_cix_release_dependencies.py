@@ -12,7 +12,7 @@ import sys
 import tempfile
 import unittest
 
-from reconstruction_common import for_each_ref, ref_manifest_records, show_file
+from reconstruction_common import unofficial_firmware_refs, show_file
 from test_firmware_update_safety import source
 
 
@@ -247,11 +247,7 @@ class RetainedCixReleaseDependencyTests(unittest.TestCase):
     def test_distinct_retained_dependency_rules(self) -> None:
         root = Path(__file__).resolve().parents[1]
         variants = {}
-        components = {record['ref'] for record in ref_manifest_records(root, 'refs-cix.json')
-                      if record.get('type') in {'unofficial-component', 'qualification-component'}}
-        for ref in for_each_ref(root, "source/unofficial/"):
-            if ref in components:
-                continue
+        for ref in unofficial_firmware_refs(root):
             makefile = show_file(root, ref, "src/Makefile")
             marker = b"# Hash the selected sources on every build"
             if marker not in makefile:

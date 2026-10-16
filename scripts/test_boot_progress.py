@@ -7,7 +7,7 @@ import posixpath
 import re
 import unittest
 
-from reconstruction_common import for_each_ref, show_file
+from reconstruction_common import unofficial_firmware_refs, show_file
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class BootProgressTests(unittest.TestCase):
     def test_retained_sources_preserve_original_levels_and_module_inputs(self):
         selected = os.environ.get("SOURCE_TEST_REF")
-        refs = [selected] if selected else for_each_ref(ROOT, "source/unofficial/")
+        refs = [selected] if selected else unofficial_firmware_refs(ROOT)
         for ref in refs:
             with self.subTest(ref=ref):
                 for module, filename, count in (
