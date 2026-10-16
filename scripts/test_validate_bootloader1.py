@@ -129,7 +129,7 @@ class SourceRefTests(unittest.TestCase):
                 "-c", "commit.gpgsign=false", "commit", "-qm", "fixture vendor payloads")
             commit = git(repo, "rev-parse", "HEAD").stdout.decode().strip()
             vendor = "source/vendor/cix/fixture"
-            for ref in (vendor, "source/unofficial/fixture"):
+            for ref in (vendor, "source/unofficial/1.3/current"):
                 git(repo, "update-ref", f"refs/remotes/origin/{ref}", commit)
             self.assertEqual(git(repo, "for-each-ref", "refs/heads/source/").stdout, b"")
             catalog = catalogue(payload)
@@ -138,6 +138,15 @@ class SourceRefTests(unittest.TestCase):
             ]
             self.assertEqual(bl1.git_bytes(repo, vendor, bl1.STOCK), payload)
             # One pinned vendor reference and both inputs on the Unofficial ref.
+            self.assertEqual(bl1.check_source_refs(repo, catalog), 3)
+            # Component-only refs are retained in a normal clone but do not
+            # carry board flash payloads. Neither one belongs in the BL1 audit.
+            git(repo, "rm", "-r", "src")
+            git(repo, "-c", "user.name=BL1 regression", "-c", "user.email=bl1-regression",
+                "-c", "commit.gpgsign=false", "commit", "-qm", "component without BL1")
+            for ref in ('source/unofficial/stmm/edk2-stable202608',
+                        'source/unofficial/cix/1.2/op-tee/3.17.0'):
+                git(repo, "update-ref", f"refs/remotes/origin/{ref}", "HEAD")
             self.assertEqual(bl1.check_source_refs(repo, catalog), 3)
 
 

@@ -18,7 +18,7 @@ import zipfile
 from pathlib import Path
 
 from bootloader1_vendor import verify_or_warn
-from reconstruction_common import ReconstructionError, bootloader1_report_path, for_each_ref, main_wrapper, resolve_ref
+from reconstruction_common import ReconstructionError, bootloader1_report_path, unofficial_firmware_refs, main_wrapper, resolve_ref
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -221,7 +221,7 @@ def check_source_refs(repo: Path, catalog: dict[str, dict]) -> int:
             data = git_bytes(repo, origin["commit"], origin["path"])
             check_payload(data, origin["ref"], catalog, {digest})
             checked += 1
-    refs = for_each_ref(repo, "source/unofficial/")
+    refs = unofficial_firmware_refs(repo)
     if not refs:
         raise ReconstructionError("no Unofficial source refs available for BL1 audit")
     for ref in refs:
