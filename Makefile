@@ -10,7 +10,7 @@ endif
 
 ifeq ($(strip $(STMM)),unofficial)
 STMM_FIRMWARE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-ifeq ($(wildcard $(STMM_FIRMWARE_ROOT)/src/edk2/ArmPkg/Include/IndustryStandard/ArmFfaBootInfo.h),)
+ifeq ($(wildcard $(STMM_FIRMWARE_ROOT)/src/edk2/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h),)
 $(error STMM=unofficial requires an EDK2 202502-or-newer base; pre-2025 bases are not qualified)
 endif
 ifneq ($(shell cat "$(STMM_FIRMWARE_ROOT)/VERSION"),1.3.1)

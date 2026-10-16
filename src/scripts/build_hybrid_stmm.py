@@ -12,8 +12,8 @@ import sys
 
 # This helper is also installed at src/scripts in rendered firmware trees.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts'))
-from cix_release_cache import compiler_fingerprint, tree_fingerprint
-from stage_vendor_stmm import load_payload, read_bounded, require, sha256, verify_embedded, write_changed
+from cix_release_cache import compiler_fingerprint, tree_fingerprint  # noqa: E402
+from stage_vendor_stmm import load_payload, read_bounded, require, sha256, verify_embedded, write_changed  # noqa: E402
 
 
 def build(source: Path, cache: Path, compiler: str, jobs: int) -> tuple[dict, bytes]:
