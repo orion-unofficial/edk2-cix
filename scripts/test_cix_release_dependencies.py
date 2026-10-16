@@ -12,7 +12,7 @@ import sys
 import tempfile
 import unittest
 
-from reconstruction_common import for_each_ref, show_file
+from reconstruction_common import for_each_ref, ref_manifest_records, show_file
 from test_firmware_update_safety import source
 
 
@@ -74,6 +74,7 @@ CIX_RELEASE_CACHE_HELPER := $(abspath ../scripts/cix_release_cache.py)
 CIX_RELEASE_BOOTLOADER2_HELPER := builder.sh
 CIX_RELEASE_STMM_HELPER := stage_stmm.py
 CIX_RELEASE_STMM_MANIFEST := manifest.json
+CIX_RELEASE_STMM_FFA_VERSION := 10
 PACKAGE_TOOL := vendor
 CIX_RELEASE_V12_TFA_SOURCE_DIR := tfa
 CIX_RELEASE_V12_TEE_SOURCE_DIR := tee
@@ -246,7 +247,11 @@ class RetainedCixReleaseDependencyTests(unittest.TestCase):
     def test_distinct_retained_dependency_rules(self) -> None:
         root = Path(__file__).resolve().parents[1]
         variants = {}
+        components = {record['ref'] for record in ref_manifest_records(root, 'refs-cix.json')
+                      if record.get('type') in {'unofficial-component', 'qualification-component'}}
         for ref in for_each_ref(root, "source/unofficial/"):
+            if ref in components:
+                continue
             makefile = show_file(root, ref, "src/Makefile")
             marker = b"# Hash the selected sources on every build"
             if marker not in makefile:

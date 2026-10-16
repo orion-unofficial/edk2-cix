@@ -13,6 +13,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class ValidateBuildVariableTests(unittest.TestCase):
+    def test_hybrid_cannot_select_vendor_optee(self) -> None:
+        with patch.dict(os.environ, {"CIX_RELEASE": "1.2", "STMM": "unofficial"}, clear=True):
+            problems: list[str] = []
+            validate_cix_source(REPO_ROOT, {"source_ref": "source/unofficial/1.3/current"}, problems)
+            self.assertEqual(len(problems), 1)
+            self.assertIn("STMM=unofficial requires CIX_RELEASE=unofficial", problems[0])
+
     def problems_for(self, **values: str) -> list[str]:
         with patch.dict(os.environ, values, clear=True):
             problems: list[str] = []
@@ -103,8 +110,8 @@ class ValidateBuildVariableTests(unittest.TestCase):
             for radxa in ("1.2.4", "1.3.1"):
                 for edk2 in ("202208", "202605", "202608"):
                     with self.subTest(radxa=radxa, edk2=edk2):
-                        _, entry = release_entry(REPO_ROOT,
-                            f"source/cache/release/custom/edk2-{edk2}/cix-1.2/radxa-{radxa}/unofficial")
+                        _, entry = release_entry(
+                            REPO_ROOT, f"source/cache/release/custom/edk2-{edk2}/cix-1.2/radxa-{radxa}/unofficial")
                         problems: list[str] = []
                         validate_cix_source(REPO_ROOT, entry, problems)
                         self.assertEqual(problems, [])

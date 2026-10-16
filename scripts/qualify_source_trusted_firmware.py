@@ -12,7 +12,7 @@ from validate_firmware_chain import CIX_SIGNING_KEYS, PACKAGE, load_catalog, pre
 
 
 # This command executes in the rendered buildbox and exercises the same helper
-# used by CIX_RELEASE=1.2 firmware builds.
+# used by source-built CIX firmware builds.
 QUALIFICATION_ROOT = Path('build-cache/trusted-component-qualification')
 DELEGATED_KEYS = (
     ("trusted-key-cert", "302", "trusted_world_privatekey.pem"),
@@ -36,9 +36,12 @@ fix_args=()
 if [[ "$1" == true ]]; then
     fix_args+=(--enable-tf-a-fixes)
 fi
+if [[ "$3" == unofficial ]]; then
+    fix_args+=(--stmm unofficial --stmm-source "$PWD/src/cix-v1.2/stmm-unofficial")
+fi
 bash src/scripts/build_cix_release_bootloader2.sh \
     --tfa-dir "$PWD/src/cix-v1.2/tf-a" \
-    --tee-dir "$PWD/src/cix-v1.2/tee" \
+    --tee-dir "$PWD/src/cix-v1.2/$2" \
     --build-root "$build_root" \
     --signing-keys-dir "$PWD/custom/signing-keys/cix-1.2" \
     --fiptool "$PWD/src/tools/arm-trusted-firmware-fiptool/build/$host_arch/fiptool" \
@@ -54,16 +57,21 @@ def main():
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--distro', choices=('bookworm', 'trixie'),
                         default=os.environ.get('FIRMWARE_DISTRO', 'trixie'))
+    parser.add_argument('--cix-release', choices=('1.2', 'unofficial'), default='1.2')
+    parser.add_argument('--stmm', choices=('vendor', 'unofficial'), default='vendor')
     args = parser.parse_args()
+    if args.stmm == 'unofficial' and args.cix_release != 'unofficial':
+        parser.error('hybrid StandaloneMM requires --cix-release unofficial')
     worktree = args.worktree.resolve()
     package = worktree / PACKAGE
     selected = reference(package, load_catalog())
-    preflight(package, selected, '1.2', 'custom')
+    preflight(package, selected, args.cix_release, 'custom')
     records = []
     for fixes in ('false', 'true'):
         # Verify the helper's real signed output before a full-image build.
         subprocess.run([str(worktree / 'scripts/run_in_buildbox.sh'),
-                        'bash', '-euc', DEVELOPMENT_BUILD, 'trusted-component-check', fixes],
+                        'bash', '-euc', DEVELOPMENT_BUILD, 'trusted-component-check', fixes,
+                        'tee-unofficial' if args.cix_release == 'unofficial' else 'tee', args.stmm],
                        cwd=worktree, env=dict(os.environ,
                                               CIX_RELEASE='',
                                               EDK2_CIX_BUILDBOX_IMAGE=os.environ.get('EDK2_CIX_BUILDBOX_IMAGE') or f'mcr.microsoft.com/devcontainers/base:{args.distro}',
@@ -87,9 +95,11 @@ def main():
             delegations[certificate] = hashlib.sha256(embedded_spki).hexdigest()
         records.append({'tf_a_fixes': fixes, 'compilation': 'passed',
                         'certificate_chain': 'verified', 'image_size': image.stat().st_size,
-                        'delegations': delegations, 'fip': result, 'vendor_stmm': stmm})
+                        'delegations': delegations, 'fip': result, 'standalone_mm': stmm})
     args.report.parent.mkdir(parents=True, exist_ok=True)
-    args.report.write_text(json.dumps({'status': 'verified', 'variants': records}, indent=2) + '\n')
+    report = {'status': 'verified', 'cix_release': args.cix_release,
+              'stmm': args.stmm, 'variants': records}
+    args.report.write_text(json.dumps(report, indent=2) + '\n')
 
 
 if __name__ == '__main__':

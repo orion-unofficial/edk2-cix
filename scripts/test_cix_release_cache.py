@@ -11,6 +11,17 @@ import cix_release_cache
 
 
 class CixReleaseCacheTests(unittest.TestCase):
+    def test_stmm_interface_changes_only_tee_cache(self):
+        inputs = dict(cert_create_tree_fingerprint="cert", tfa_tree_fingerprint="tfa",
+                      tee_tree_fingerprint="tee", helper_fingerprint="helper",
+                      host_compiler_fingerprint="cc", cross_compiler_fingerprint="cross",
+                      mode="release", stmm_fingerprint="payload")
+        legacy = cix_release_cache.build_cache_plan(**inputs, stmm_ffa_version=10)
+        modern = cix_release_cache.build_cache_plan(**inputs, stmm_ffa_version=12)
+        self.assertNotEqual(legacy.tee_key, modern.tee_key)
+        self.assertEqual(legacy.bl31_key, modern.bl31_key)
+        self.assertEqual(legacy.cert_create_key, modern.cert_create_key)
+
     def test_tee_tree_fingerprint_ignores_generated_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir_text:
             tee_dir = Path(tmpdir_text) / "tee"

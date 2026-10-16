@@ -17,11 +17,11 @@ from the UEFI shell; the generated OTA image is not currently usable.
 | `CIX_RELEASE=` | Stock vendor `bootloader2.img` |
 | `CIX_RELEASE=1.2 STMM=vendor` | Existing curated CIX source and pinned vendor StandaloneMM; `v1.2` is an alias |
 | `CIX_RELEASE=unofficial STMM=vendor` | Maintained OP-TEE component and pinned vendor StandaloneMM |
-| `CIX_RELEASE=unofficial STMM=unofficial` | Reserved for the reconstructed payload; currently rejected |
+| `CIX_RELEASE=unofficial STMM=unofficial` | Hybrid payload built from EDK2 202608 sources plus three pinned vendor executables; Radxa 1.3.1 O6 with EDK2 202502 or newer |
 
 `STMM=vendor` is the default. Source-built trusted firmware remains restricted
 to custom O6 builds with the reviewed signing and pinned-payload integration.
-The new selector is available on the active 1.3 line and the Radxa 1.2.4/1.3.1
+`CIX_RELEASE=unofficial` is available on the active 1.3 line and the Radxa 1.2.4/1.3.1
 checkpoints for EDK2 202208, 202605 and 202608. Other historical targets must
 first receive and qualify those prerequisites; accepting a selector alone
 does not make them supported.
@@ -161,8 +161,9 @@ below; do not weaken the payload guard merely to admit a newly built FD.
 platform, pinned in `config/refs-cix.json`. It descends from the upstream EDK2
 202608 component, materializes the required dependencies, and backports the
 upstream CryptoPkg native-width integer fix. It is consumed by the qualification
-build command, independently of the normal-world EDK2 selection. It is **not**
-selected by firmware rendering or by `STMM=unofficial`.
+build command and by firmware rendering at `src/cix-v1.2/stmm-unofficial`.
+`STMM=unofficial` builds this component independently of the normal-world EDK2
+selection, using the maintained OP-TEE loader in FF-A 1.2 mode.
 
 | Component | Implementation |
 | --- | --- |
@@ -233,23 +234,43 @@ only the FF-A handoff does not address loss of power between successful flash
 commands. Keep the vendor comparison and interrupted-flash fixtures when changing
 this behavior. A newly introduced failure remains an MVP blocker.
 
-### Remaining MVP image integration
+### Building a hardware-test candidate
 
-`CIX_RELEASE=unofficial` already selects maintained OP-TEE with `STMM=vendor`,
-the default. The reconstructed payload requires the explicit combination
-`CIX_RELEASE=unofficial STMM=unofficial`.
+From the build branch, select the latest maintained firmware sources explicitly:
 
-The latter still needs integration into the rendered firmware source and build
-rules: build the pinned hybrid component, select the FF-A 1.2 OP-TEE mode, bind
-the payload and interface selection into cache keys, and verify the exact
-embedded payload before signing. The current production helper always stages
-and verifies the vendor StandaloneMM image. Removing only the Makefile rejection
-would therefore be insufficient.
+```bash
+make buildbox-firmware-build \
+    ARTEFACT_MODE=custom FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE \
+    FIRMWARE_DISTRO=trixie ENABLE_FIRMWARE_FIXES=true \
+    ENABLE_CORE_ORDER=cix ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false \
+    DEBUG_VERBOSE=false CIX_RELEASE=unofficial STMM=unofficial
+```
 
-Complete the normal-world client-contract checks and validate a signed FIP and
-complete 8 MiB image before offering a hardware-test candidate. Hardware boot
-confirmation follows that candidate; it is distinct from build qualification.
-Pre-2025 combinations require their own compatibility evidence or an explicit
-rejection. The current selector rejection remains until the MVP integration and
-its checks are implemented; deferred NOR recovery improvement alone is no longer
-the reason to retain it.
+This builds TF-A and maintained OP-TEE, builds the hybrid StandaloneMM component,
+selects `CFG_STMM_FFA_VERSION=12`, verifies the embedded payload before signing,
+and assembles the complete 8 MiB `cix_flash_all.bin`. Use that complete image for
+UEFI-shell testing; the OTA image is not the supported update route for this test.
+`STMM=vendor` remains the default and selects FF-A mode 10.
+
+Hybrid source contents, compiler identities and build helper identify its cache;
+the OP-TEE cache also includes the selected payload and handoff version. Modified
+staging copies are restored before signing. The existing
+`Firmwares/vendor-stmm.json` report filename is retained for build-tool
+compatibility; hybrid reports identify `selection: unofficial`, the built image,
+retained executables and the exact OP-TEE hash. Hybrid artifact paths and archive
+names include `stmm_unofficial` to distinguish them from vendor-payload builds.
+
+The initial supported combination is Radxa 1.3.1 on O6 with a modern normal-world
+EDK2 base. Pre-2025 bases and other Radxa checkpoints are explicitly rejected for
+this selector. That restriction is the qualification boundary, rather than a
+claim that normal-world EDK2 itself selects the secure-world handoff ABI.
+
+A successful build and offline tests do not establish hardware boot. Capture the
+complete UART log and test variable persistence across a cold boot, including
+Secure Boot state, before treating the hybrid image as hardware qualified. The
+inherited NOR/FTW power-loss recovery limitation described above remains deferred.
+
+The Radxa 1.3.1 O6 path has passed full-image assembly and vendor-anchored
+certificate-chain validation with EDK2 202608 in the trixie buildbox. The
+StandaloneMM payload embedded in that image also passed the offline
+authenticated-variable and cold-persistence checks described above.

@@ -21,6 +21,8 @@ VALID_FIRMWARE_DISTROS = {"bookworm", "trixie"}
 VALID_BUILDBOX_PLATFORMS = {"linux/amd64", "linux/arm64"}
 VALID_CORE_ORDERS = {"cix", "conventional", "performance"}
 CIX_SIGNING_HELPER_SHA256 = "454540806a67021042160f38b02f1007d4f19f2e6a2e45563a68e62d4766e2d9"
+CIX_HYBRID_SIGNING_HELPER_SHA256 = "5c848a037636b060e215bf81019814fe2b98b8840f087b935b5c51c7c7d88afb"
+CIX_HYBRID_STMM_HELPER_SHA256 = "40a683ce0c5de0920433a5329c5d7abbf9b5a6d1c7ff9f20d9b37c5c653cfcb0"
 CIX_VENDOR_STMM_HELPER_SHA256 = "487175ff2b9b995240e0f8819540bc1d3e3a3e7d69c7b61b1ae8961149afa22f"
 TRUE_TOKENS = {"1", "true", "on", "yes"}
 FALSE_TOKENS = {"0", "false", "off", "no"}
@@ -87,16 +89,30 @@ def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
     """Advertise CIX_RELEASE only for checkpoints with the reviewed helper and keys."""
     ref = entry["source_ref"]
     try:
+        if env("STMM") == "unofficial" and env("CIX_RELEASE").lower() != "unofficial":
+            raise ReconstructionError("STMM=unofficial requires CIX_RELEASE=unofficial")
         helper = show_file(repo, ref, "src/scripts/build_cix_release_bootloader2.sh")
         makefile = show_file(repo, ref, "src/Makefile")
-        if env("CIX_RELEASE") == "unofficial":
+        if env("CIX_RELEASE").lower() == "unofficial":
             components = [step.get("component", {}) for step in entry.get("render", {}).get("steps", [])]
             if b"tee-unofficial" not in makefile or not any(
                 component.get("path") == "src/cix-v1.2/tee-unofficial" for component in components
             ):
                 raise ReconstructionError("maintained OP-TEE component is not selected by this source target")
-        if hashlib.sha256(helper).hexdigest() != CIX_SIGNING_HELPER_SHA256 or b"CIX_RELEASE_SIGNING_KEYS_DIR" not in makefile:
+        if hashlib.sha256(helper).hexdigest() not in {CIX_SIGNING_HELPER_SHA256, CIX_HYBRID_SIGNING_HELPER_SHA256} or b"CIX_RELEASE_SIGNING_KEYS_DIR" not in makefile:
             raise ReconstructionError("source-built CIX signing helper is absent or differs from the reviewed version")
+        if env("STMM") == "unofficial":
+            if hashlib.sha256(helper).hexdigest() != CIX_HYBRID_SIGNING_HELPER_SHA256:
+                raise ReconstructionError("hybrid StandaloneMM build integration is absent")
+            hybrid = show_file(repo, ref, "src/scripts/build_hybrid_stmm.py")
+            if hashlib.sha256(hybrid).hexdigest() != CIX_HYBRID_STMM_HELPER_SHA256:
+                raise ReconstructionError("hybrid StandaloneMM helper differs from the reviewed version")
+            if (entry.get("radxa_release") or show_file(repo, ref, "VERSION").decode().strip()) != "1.3.1":
+                raise ReconstructionError("hybrid StandaloneMM currently supports Radxa 1.3.1 only")
+            if not show_file(repo, ref, "src/edk2/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h", check=False):
+                raise ReconstructionError("hybrid StandaloneMM requires EDK2 202502 or newer; pre-2025 bases are not qualified")
+            if not any(component.get("path") == "src/cix-v1.2/stmm-unofficial" for component in components):
+                raise ReconstructionError("hybrid StandaloneMM component is not selected")
         stmm_helper = show_file(repo, ref, "src/scripts/stage_vendor_stmm.py")
         if hashlib.sha256(stmm_helper).hexdigest() != CIX_VENDOR_STMM_HELPER_SHA256:
             raise ReconstructionError("vendor StandaloneMM staging helper differs from the reviewed version")
@@ -162,8 +178,9 @@ def validate() -> None:
     if cix_release_raw and cix_release_raw.removeprefix("v") not in {"1.2", "unofficial"}:
         problems.append("CIX_RELEASE supports only 1.2 (or v1.2) or unofficial")
 
-    if env("STMM") not in {"", "vendor"}:
-        problems.append("STMM=unofficial is not available for any EDK2 base; use STMM=vendor")
+    require_choice("STMM", env("STMM"), {"vendor", "unofficial"}, problems)
+    if env("STMM") == "unofficial" and cix_release_raw != "unofficial":
+        problems.append("STMM=unofficial requires CIX_RELEASE=unofficial")
 
     require_choice("V", env("V") or "0", {"0", "1"}, problems)
     require_boolean("DEBUG", env("DEBUG") or "0", problems)

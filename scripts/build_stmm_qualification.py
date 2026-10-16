@@ -21,7 +21,7 @@ def sha256(data: bytes) -> str:
 def build(repo: Path, output: Path, image: str, jobs: int) -> dict:
     records = json.loads((repo / 'config/refs-cix.json').read_text())['refs']
     records = [r for r in records if r.get('component') == 'standalone-mm']
-    if len(records) != 1 or records[0].get('type') != 'qualification-component':
+    if len(records) != 1 or records[0].get('type') not in {'qualification-component', 'unofficial-component'}:
         raise ValueError('missing or ambiguous StandaloneMM qualification component')
     record = records[0]
 

@@ -1188,6 +1188,8 @@ def unofficial_component_steps(repo: Path, source_ref: str | None = None) -> lis
         {"component": {"path": record["render_path"], "ref": record["ref"]}}
         for record in ref_manifest_records(repo, "refs-cix.json")
         if record.get("type") == "unofficial-component"
+        and (record.get("component") != "standalone-mm" or not source_ref or
+             b"stmm-unofficial" in show_file(repo, source_ref, "src/Makefile", check=False))
     ]
 
 

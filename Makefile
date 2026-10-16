@@ -1,9 +1,10 @@
 STMM ?= vendor
-ifneq ($(strip $(STMM)),vendor)
+ifeq ($(filter $(strip $(STMM)),vendor unofficial),)
+$(error STMM supports vendor or unofficial)
+endif
 ifeq ($(strip $(STMM)),unofficial)
-$(error STMM=unofficial is not available: the reconstructed payload is not yet qualified for any EDK2 base, including pre-2025 releases)
-else
-$(error STMM supports vendor or unofficial; unofficial is not yet available)
+ifneq ($(strip $(CIX_RELEASE)),unofficial)
+$(error STMM=unofficial requires CIX_RELEASE=unofficial)
 endif
 endif
 
@@ -215,7 +216,7 @@ help-vars:
 	print_section 'Custom Build Gates'; \
 	print_help_line 'ENABLE_FIRMWARE_FIXES=true|false' 'Enable opt-in custom firmware fixes for O6/O6N. This changes firmware metadata and setup behavior; see FIXES.md in the rendered source target for details.\nDefault: false.'; \
 	print_help_line 'CIX_RELEASE=1.2|v1.2|unofficial' 'Custom builds only: compile BL31 and OP-TEE from curated CIX V1.2 sources (unofficial selects the maintained OP-TEE component) and sign their trusted FIP with the published CIX key chain. Uses the pinned CIX 2026Q1 BL1. Leave empty for stock vendor early boot. Offline chain checks do not prove hardware acceptance.\nDefault: empty.'; \
-	print_help_line 'STMM=vendor|unofficial' 'StandaloneMM selection. Default: vendor (pinned payload). unofficial is reserved and rejected until a reconstructed payload is qualified, including with pre-2025 UEFI bases.'; \
+	print_help_line 'STMM=vendor|unofficial' 'StandaloneMM selection. Default: vendor. unofficial builds the hybrid payload with maintained OP-TEE on supported Radxa 1.3.1 O6 / EDK2 202502-or-newer targets; hardware qualification remains outstanding.'; \
 	print_help_line 'ENABLE_TF_A_FIXES=true|false' 'With CIX_RELEASE=1.2 or unofficial, apply the curated TF-A fixes to source-built BL31.\nDefault: false.'; \
 	print_help_line 'ENABLE_CORE_ORDER=cix|conventional|performance' 'Choose how custom firmware numbers CPUs exposed to the OS. cix keeps vendor order; conventional puts A520 cores before A720 cores; performance puts A720 cores first.\nDefault: unset, which behaves like cix.\nRequires ENABLE_FIRMWARE_FIXES=true for conventional and performance.'; \
 	print_help_line 'ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false' 'Enable the experimental Radxa settings overlay for O6/O6N, including RTC wakeup and selected power controls, with SR-IOV remaining O6-only.\nDefault: false.'; \
@@ -584,7 +585,7 @@ define run_release_make
 		--build-target "$(1)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--firmware-target "$(FIRMWARE_TARGET)" \
-		--artefact-mode "$(or $(ARTEFACT_MODE),custom)$(if $(filter 1 true yes on,$(ENABLE_FIRMWARE_FIXES)),+fixes,)" \
+		--artefact-mode "$(or $(ARTEFACT_MODE),custom)$(if $(filter 1 true yes on,$(ENABLE_FIRMWARE_FIXES)),+fixes,)$(if $(filter unofficial,$(STMM)),+stmm_unofficial,)" \
 		--v "$(V)"
 endef
 
@@ -702,7 +703,7 @@ install:
 		--build-target "buildbox-firmware-stage" \
 		--board "$(FIRMWARE_BOARD)" \
 		--firmware-target "$(FIRMWARE_TARGET)" \
-		--artefact-mode "$(or $(ARTEFACT_MODE),custom)$(if $(filter 1 true yes on,$(ENABLE_FIRMWARE_FIXES)),+fixes,)" \
+		--artefact-mode "$(or $(ARTEFACT_MODE),custom)$(if $(filter 1 true yes on,$(ENABLE_FIRMWARE_FIXES)),+fixes,)$(if $(filter unofficial,$(STMM)),+stmm_unofficial,)" \
 		--v "$(V)"; \
 	force_arg=""; \
 	if [ "$(FORCE)" = "1" ]; then force_arg="--force"; fi; \
