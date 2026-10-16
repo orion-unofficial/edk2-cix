@@ -1,9 +1,23 @@
 STMM ?= vendor
-ifneq ($(strip $(STMM)),vendor)
+ifeq ($(filter $(strip $(STMM)),vendor unofficial),)
+$(error STMM supports vendor or unofficial)
+endif
 ifeq ($(strip $(STMM)),unofficial)
-$(error STMM=unofficial is not available: the reconstructed payload is not yet qualified for any EDK2 base, including pre-2025 releases)
-else
-$(error STMM supports vendor or unofficial; unofficial is not yet available)
+ifneq ($(strip $(CIX_RELEASE)),unofficial)
+$(error STMM=unofficial requires CIX_RELEASE=unofficial)
+endif
+endif
+
+ifeq ($(strip $(STMM)),unofficial)
+STMM_FIRMWARE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../..)
+ifeq ($(wildcard $(STMM_FIRMWARE_ROOT)/src/edk2/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h),)
+$(error STMM=unofficial requires an EDK2 202502-or-newer base; pre-2025 bases are not qualified)
+endif
+ifneq ($(shell cat "$(STMM_FIRMWARE_ROOT)/VERSION"),1.3.1)
+$(error STMM=unofficial currently supports Radxa 1.3.1 only)
+endif
+ifeq ($(wildcard $(STMM_FIRMWARE_ROOT)/src/cix-v1.2/stmm-unofficial/CixStandaloneMmPkg/CixStandaloneMm.dsc),)
+$(error STMM=unofficial requires the rendered stmm-unofficial component)
 endif
 endif
 
@@ -125,6 +139,7 @@ FIRMWARE_TARGET ?= $(DEFAULT_FIRMWARE_TARGET)
 RAW_FIRMWARE_TARGET := $(FIRMWARE_TARGET)_GCC
 FIRMWARE_VERSION ?= $(strip $(shell python3 "$(FIRMWARE_LAYOUT_SCRIPT)" version --repo-root "$(REPO_ROOT)" 2>/dev/null || true))
 FIRMWARE_LAYOUT_QUERY_ARGS = \
+	--stmm "$(STMM)" \
 	--artefact-mode "$(ARTEFACT_MODE)" \
 	--firmware-target "$(FIRMWARE_TARGET)" \
 	$(if $(filter TRUE,$(ENABLE_FIRMWARE_FIXES_NORMALIZED)),--enable-firmware-fixes TRUE) \
