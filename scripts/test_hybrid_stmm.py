@@ -22,7 +22,7 @@ class HybridTests(unittest.TestCase):
         self.binary = b'vendor-executable'
         (self.vendor / 'driver.efi').write_bytes(self.binary)
         (self.vendor / 'manifest.json').write_text(json.dumps({
-            'schema_version': 1, 'files': {'driver.efi': sha256(self.binary)}}))
+            'schema_version': 1, 'radxa_release': '1.3.1', 'files': {'driver.efi': sha256(self.binary)}}))
         self.payload = self.binary + bytes(2 * 1024 * 1024 - len(self.binary))
         self.builds = 0
 
@@ -49,6 +49,31 @@ class HybridTests(unittest.TestCase):
         (self.source / 'changed.c').write_text('source change\n')
         self.assertNotEqual(self.build()[0]['source'], first['source'])
         self.assertEqual(self.builds, 3)
+
+    def test_release_specific_vendor_inputs_and_cache_identity(self):
+        first, _ = self.build()
+        vendor = self.vendor / '1.2.4'
+        vendor.mkdir()
+        binary = b'older-vendor-executable'
+        (vendor / 'driver.efi').write_bytes(binary)
+        (vendor / 'manifest.json').write_text(json.dumps({
+            'schema_version': 1, 'radxa_release': '1.2.4',
+            'files': {'driver.efi': sha256(binary)}}))
+        self.payload = binary + bytes(2 * 1024 * 1024 - len(binary))
+
+        def compile_selected(command, **kwargs):
+            self.assertEqual(kwargs['env']['CIX_STMM_VENDOR_PATH'], 'Vendor/1.2.4')
+            self.compile(command, **kwargs)
+        with patch.object(hybrid, 'compiler_fingerprint', return_value='compiler'), \
+                patch.object(hybrid.subprocess, 'run', side_effect=compile_selected):
+            second, _ = hybrid.build(self.source, self.root / 'cache', 'cross-', 2, '1.2.4')
+        self.assertNotEqual(first['radxa_release'], second['radxa_release'])
+        self.assertEqual(second['vendor']['files']['driver.efi'], sha256(binary))
+        with self.assertRaisesRegex(StmmError, 'supports Radxa'):
+            hybrid.build(self.source, self.root / 'cache', 'cross-', 2, '1.3.0')
+        (vendor / 'manifest.json').write_text((self.vendor / 'manifest.json').read_text())
+        with self.assertRaisesRegex(StmmError, 'release mismatch'):
+            hybrid.build(self.source, self.root / 'cache', 'cross-', 2, '1.2.4')
 
     def test_outer_make_overrides_are_not_inherited(self):
         def compile_isolated(command, **kwargs):

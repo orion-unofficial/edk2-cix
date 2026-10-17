@@ -20,7 +20,9 @@ def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def build(repo: Path, output: Path, image: str, jobs: int) -> dict:
+def build(repo: Path, output: Path, image: str, jobs: int, release: str = '1.3.1') -> dict:
+    if release not in {'1.2.4', '1.3.1'}:
+        raise ValueError('unsupported Radxa release')
     records = json.loads((repo / 'config/refs-cix.json').read_text())['refs']
     records = [r for r in records if r.get('component') == 'standalone-mm']
     if len(records) != 1 or records[0].get('type') not in {'qualification-component', 'unofficial-component'}:
@@ -46,9 +48,10 @@ def build(repo: Path, output: Path, image: str, jobs: int) -> dict:
         status = archive.wait()
     if status:
         raise RuntimeError('failed to export StandaloneMM source')
-    vendor = source / 'CixStandaloneMmPkg/Vendor'
+    vendor_relative = 'Vendor/1.2.4' if release == '1.2.4' else 'Vendor'
+    vendor = source / 'CixStandaloneMmPkg' / vendor_relative
     manifest = json.loads((vendor / 'manifest.json').read_text())
-    if manifest.get('schema_version') != 1:
+    if manifest.get('schema_version') != 1 or manifest.get('radxa_release') != release:
         raise ValueError('unsupported vendor component manifest')
     for name, expected in manifest['files'].items():
         if Path(name).name != name or sha256((vendor / name).read_bytes()) != expected:
@@ -59,12 +62,13 @@ export WORKSPACE=/work/source TMPDIR=/work/tmp GCC_AARCH64_PREFIX=aarch64-linux-
 cd "$WORKSPACE"
 source edksetup.sh
 make -C BaseTools -j"$JOBS"
-build -p CixStandaloneMmPkg/CixStandaloneMm.dsc -a AARCH64 -t GCC -b RELEASE -n "$JOBS"
+build -p CixStandaloneMmPkg/CixStandaloneMm.dsc -a AARCH64 -t GCC -b RELEASE -n "$JOBS" -D CIX_STMM_VENDOR_PATH="$CIX_STMM_VENDOR_PATH"
 aarch64-linux-gnu-gcc --version > /work/compiler.txt
 '''
     with (output / 'build.log').open('w') as log:
         subprocess.run(['docker', 'run', '--rm', '--network', 'none', '--entrypoint', 'bash',
                         '-e', f'SOURCE_DATE_EPOCH={epoch}', '-e', f'JOBS={jobs}',
+                        '-e', f'CIX_STMM_VENDOR_PATH={vendor_relative}',
                         '-v', f'{output}:/work', image_id, '-c', command], stdout=log, stderr=log, check=True)
     fd = source / 'Build/StandaloneMm/RELEASE_GCC/FV/BL32_AP_MM.fd'
     payload = fd.read_bytes()
@@ -77,7 +81,7 @@ aarch64-linux-gnu-gcc --version > /work/compiler.txt
     report = {'status': 'built-not-qualified', 'source': record, 'buildbox_image': image_id,
               'source_date_epoch': int(epoch), 'compiler': (output / 'compiler.txt').read_text(),
               'fd_sha256': sha256(payload), 'fd_size': len(payload), 'vendor': manifest,
-              'required_optee_stmm_ffa_version': 12}
+              'required_optee_stmm_ffa_version': 12, 'radxa_release': release}
     (output / 'build.json').write_text(json.dumps(report, indent=2) + '\n')
     return report
 
@@ -87,11 +91,12 @@ def main():
     parser.add_argument('--output', required=True, type=Path, help='new durable build directory')
     parser.add_argument('--image', default='edk2-cix-stmm-qualification', help='image built with scripts/stmm.Dockerfile')
     parser.add_argument('--jobs', type=int, default=8)
+    parser.add_argument('--radxa-release', choices=('1.2.4', '1.3.1'), default='1.3.1')
     args = parser.parse_args()
     if args.jobs < 1:
         parser.error('--jobs must be positive')
     repo = Path(__file__).resolve().parents[1]
-    report = build(repo, args.output.resolve(), args.image, args.jobs)
+    report = build(repo, args.output.resolve(), args.image, args.jobs, args.radxa_release)
     print(f"Built qualification payload {report['fd_sha256']}; not approved for STMM=unofficial")
 
 

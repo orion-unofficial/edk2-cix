@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 from build_profiles import resolve_profile
-from reconstruction_common import resolve_ref, show_file, unofficial_component_steps, unofficial_firmware_refs, unofficial_checkpoints_by_edk2
+from reconstruction_common import release_entry, resolve_ref, show_file, unofficial_component_steps, unofficial_firmware_refs, unofficial_checkpoints_by_edk2
 from validate_build_variables import validate_cix_source
 
 
@@ -31,6 +31,17 @@ class TrustedSelectionTests(unittest.TestCase):
             validate_cix_source(ROOT, entry, problems)
             self.assertEqual(len(problems), 1)
             self.assertIn('hybrid StandaloneMM component is not selected', problems[0])
+
+    def test_both_integrated_releases_accept_hybrid_and_old_bases_reject_it(self):
+        with patch.dict(os.environ, CIX_RELEASE='unofficial', STMM='unofficial'):
+            for release in ('1.2.4', '1.3.1'):
+                _, entry = release_entry(ROOT, f'edk2-202608/radxa-{release}/unofficial', require=True)
+                problems = []
+                validate_cix_source(ROOT, entry, problems)
+                self.assertEqual(problems, [], release)
+                _, old = release_entry(ROOT, f'edk2-202208/radxa-{release}/unofficial', require=True)
+                validate_cix_source(ROOT, old, problems)
+                self.assertTrue(problems, release)
 
     def test_profile_selects_maintained_component_without_changing_release(self):
         stock = resolve_profile(ROOT, requested_profile='latest')

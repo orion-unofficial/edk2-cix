@@ -22,7 +22,7 @@ VALID_BUILDBOX_PLATFORMS = {"linux/amd64", "linux/arm64"}
 VALID_CORE_ORDERS = {"cix", "conventional", "performance"}
 CIX_SIGNING_HELPER_SHA256 = "454540806a67021042160f38b02f1007d4f19f2e6a2e45563a68e62d4766e2d9"
 CIX_HYBRID_SIGNING_HELPER_SHA256 = "5c848a037636b060e215bf81019814fe2b98b8840f087b935b5c51c7c7d88afb"
-CIX_HYBRID_STMM_HELPER_SHA256 = "40a683ce0c5de0920433a5329c5d7abbf9b5a6d1c7ff9f20d9b37c5c653cfcb0"
+CIX_HYBRID_STMM_HELPER_SHA256 = "350c252fbf662e5d2bc31403f6e5726e034328c66f29d56ea0347fdb4265f7af"
 CIX_VENDOR_STMM_HELPER_SHA256 = "487175ff2b9b995240e0f8819540bc1d3e3a3e7d69c7b61b1ae8961149afa22f"
 TRUE_TOKENS = {"1", "true", "on", "yes"}
 FALSE_TOKENS = {"0", "false", "off", "no"}
@@ -107,8 +107,8 @@ def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
             hybrid = show_file(repo, ref, "src/scripts/build_hybrid_stmm.py")
             if hashlib.sha256(hybrid).hexdigest() != CIX_HYBRID_STMM_HELPER_SHA256:
                 raise ReconstructionError("hybrid StandaloneMM helper differs from the reviewed version")
-            if (entry.get("radxa_release") or show_file(repo, ref, "VERSION").decode().strip()) != "1.3.1":
-                raise ReconstructionError("hybrid StandaloneMM currently supports Radxa 1.3.1 only")
+            if (entry.get("radxa_release") or show_file(repo, ref, "VERSION").decode().strip()) not in {"1.2.4", "1.3.1"}:
+                raise ReconstructionError("hybrid StandaloneMM supports Radxa 1.2.4 or 1.3.1 only")
             if not show_file(repo, ref, "src/edk2/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h", check=False):
                 raise ReconstructionError("hybrid StandaloneMM requires EDK2 202502 or newer; pre-2025 bases are not qualified")
             if not any(component.get("path") == "src/cix-v1.2/stmm-unofficial" for component in components):

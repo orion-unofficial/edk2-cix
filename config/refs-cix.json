@@ -56,8 +56,8 @@
       "component": "standalone-mm",
       "immutable": false,
       "ref": "source/unofficial/stmm/edk2-stable202608",
-      "object_id": "f6ac12af983d14e6e57edbe703d822765cce591a",
-      "tree_id": "c300d1c629cac9fb215ea030e25bbe6681c097a4",
+      "object_id": "e3fb003bbb6a6476dddb89b380c518219b9d929b",
+      "tree_id": "3a188fee452580fa0f49c58c9669fca692052401",
       "type": "unofficial-component",
       "render_path": "src/cix-v1.2/stmm-unofficial"
     }

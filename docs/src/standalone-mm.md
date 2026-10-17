@@ -17,7 +17,7 @@ from the UEFI shell; the generated OTA image is not currently usable.
 | `CIX_RELEASE=` | Stock vendor `bootloader2.img` |
 | `CIX_RELEASE=1.2 STMM=vendor` | Existing curated CIX source and pinned vendor StandaloneMM; `v1.2` is an alias |
 | `CIX_RELEASE=unofficial STMM=vendor` | Maintained OP-TEE component and pinned vendor StandaloneMM |
-| `CIX_RELEASE=unofficial STMM=unofficial` | Hybrid payload built from EDK2 202608 sources plus three pinned vendor executables; Radxa 1.3.1 O6 with EDK2 202502 or newer |
+| `CIX_RELEASE=unofficial STMM=unofficial` | Hybrid payload built from EDK2 202608 sources plus three pinned vendor executables; Integrated Radxa 1.2.4/1.3.1 O6 targets with EDK2 202502 or newer |
 
 `STMM=vendor` is the default. Source-built trusted firmware remains restricted
 to custom O6 builds with the reviewed signing and pinned-payload integration.
@@ -171,13 +171,15 @@ selection, using the maintained OP-TEE loader in FF-A 1.2 mode.
 | StandaloneMmCpu | Matching EDK2 202608 source |
 | VariableStandaloneMm | EDK2 source, authenticated variables and variable policy |
 | FaultTolerantWriteStandaloneMm | EDK2 source |
-| NorFlashStandaloneMm | Pinned Radxa 1.3.1 executable, 36 KiB |
-| SerialOutStandaloneMm | Pinned Radxa 1.3.1 executable, 16 KiB |
-| FwVersionStandaloneMm | Pinned Radxa 1.3.1 executable, 20 KiB |
+| NorFlashStandaloneMm | Pinned release-specific Radxa executable, 36 KiB |
+| SerialOutStandaloneMm | Pinned release-specific Radxa executable, 16 KiB |
+| FwVersionStandaloneMm | Pinned release-specific Radxa executable, 20 KiB |
 
 The three remaining secure-side implementations are absent from the inspected
 public CIX sources. Their exact executable and dependency-section hashes are
-checked during the build. The CIX OP-TEE bridge and TF-A xSPI transport remain
+checked during the build. The selected vendor FIP determines the release, and
+the recovered service manifest must match that release's pinned vendor FD hash.
+The 1.2.4 and 1.3.1 executables differ and are retained separately. The CIX OP-TEE bridge and TF-A xSPI transport remain
 source-built; a replacement must preserve their flash-controller ownership.
 
 The platform binds the variable and FTW PCDs through the standard FVB
@@ -196,7 +198,8 @@ python3 scripts/build_stmm_qualification.py \
     --output .worktrees/stmm-qualification
 ```
 
-The output directory must be new. It retains the exact source export, build log,
+Add `--radxa-release 1.2.4` to select the recovered 1.2.4 services; the default
+is 1.3.1. The output directory must be new. It retains the exact source export, build log,
 compiler and image identities, vendor checksums, `BL32_AP_MM.fd`, and `build.json`.
 The report deliberately says `built-not-qualified`. The FD requires
 `CFG_STMM_FFA_VERSION=12`; it is not a complete or independently flashable board
@@ -246,13 +249,17 @@ make buildbox-firmware-build \
     DEBUG_VERBOSE=false CIX_RELEASE=unofficial STMM=unofficial
 ```
 
+For Radxa 1.2.4, add `RELEASE=edk2-202608/radxa-1.2.4/unofficial` to the same
+command. The default selects the active 1.3.1 line.
+
 This builds TF-A and maintained OP-TEE, builds the hybrid StandaloneMM component,
 selects `CFG_STMM_FFA_VERSION=12`, verifies the embedded payload before signing,
 and assembles the complete 8 MiB `cix_flash_all.bin`. Use that complete image for
 UEFI-shell testing; the OTA image is not the supported update route for this test.
 `STMM=vendor` remains the default and selects FF-A mode 10.
 
-Hybrid source contents, compiler identities and build helper identify its cache;
+Hybrid source contents, Radxa release, compiler identities and build helper
+identify its cache;
 the OP-TEE cache also includes the selected payload and handoff version. Modified
 staging copies are restored before signing. The existing
 `Firmwares/vendor-stmm.json` report filename is retained for build-tool
@@ -260,17 +267,20 @@ compatibility; hybrid reports identify `selection: unofficial`, the built image,
 retained executables and the exact OP-TEE hash. Hybrid artifact paths and archive
 names include `stmm_unofficial` to distinguish them from vendor-payload builds.
 
-The initial supported combination is Radxa 1.3.1 on O6 with a modern normal-world
-EDK2 base. Pre-2025 bases and other Radxa checkpoints are explicitly rejected for
-this selector. That restriction is the qualification boundary, rather than a
-claim that normal-world EDK2 itself selects the secure-world handoff ABI.
+The integrated targets are the active Radxa 1.3.1 O6 line, its retained
+202605/202608 checkpoints, and Radxa 1.2.4 O6 on EDK2 202608. Other historical
+checkpoints need explicit integration and qualification before using this selector.
+Pre-2025 bases remain explicitly rejected. This is a qualification boundary;
+normal-world EDK2 does not itself select the secure-world handoff ABI.
 
 A successful build and offline tests do not establish hardware boot. Capture the
 complete UART log and test variable persistence across a cold boot, including
 Secure Boot state, before treating the hybrid image as hardware qualified. The
 inherited NOR/FTW power-loss recovery limitation described above remains deferred.
 
-The Radxa 1.3.1 O6 path has passed full-image assembly and vendor-anchored
-certificate-chain validation with EDK2 202608 in the trixie buildbox. The
-StandaloneMM payload embedded in that image also passed the offline
-authenticated-variable and cold-persistence checks described above.
+Both Radxa 1.2.4 and 1.3.1 O6 paths have passed full-image assembly and
+vendor-anchored certificate-chain validation with EDK2 202608 in the trixie
+buildbox. Each exact embedded StandaloneMM payload also passed offline
+authenticated-variable and cold-persistence checks. The 1.2.4 reconstruction
+matched its release-specific vendor services in all 189 sampled interruption
+cases, including the same 40 inherited recovery failures.
