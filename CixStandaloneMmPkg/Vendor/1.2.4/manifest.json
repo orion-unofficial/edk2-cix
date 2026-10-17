@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "source_fd_sha256": "813a4b29954c11a0ad8a151b81f67852eccd03e7273e26ad7ecf25abad2f60dd",
+  "radxa_release": "1.2.4",
+  "files": {
+    "SerialOutStandaloneMm.efi": "0c3790601fd1570adc0f00921179c44a24883a3e56a04ec7300b442b2b1ccb4a",
+    "SerialOutStandaloneMm.depex": "557c754d26e2667287367a856ea5fcd584f35ab796d24a6a875d1648a4637d23",
+    "NorFlashStandaloneMm.efi": "7ce17c6811c3680e9cc5e92b7bb76ea64c647135fc8980ce759c31935c0b0742",
+    "NorFlashStandaloneMm.depex": "557c754d26e2667287367a856ea5fcd584f35ab796d24a6a875d1648a4637d23",
+    "FwVersionStandaloneMm.efi": "ff0019aac1d410eb498c2845a16ef5941cbcc9316a22914039c213adebf1ae6a",
+    "FwVersionStandaloneMm.depex": "557c754d26e2667287367a856ea5fcd584f35ab796d24a6a875d1648a4637d23"
+  }
+}

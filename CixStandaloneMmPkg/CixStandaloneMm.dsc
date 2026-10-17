@@ -25,6 +25,10 @@
   SKUID_IDENTIFIER               = DEFAULT
   FLASH_DEFINITION               = CixStandaloneMmPkg/CixStandaloneMm.fdf
 
+  !ifndef CIX_STMM_VENDOR_PATH
+    DEFINE CIX_STMM_VENDOR_PATH = Vendor
+  !endif
+
   # LzmaF86
   DEFINE COMPRESSION_TOOL_GUID   = D42AE6BD-1352-4bfb-909A-CA72A6EAE889
 

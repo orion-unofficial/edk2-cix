@@ -66,21 +66,21 @@ READ_LOCK_STATUS   = TRUE
 
   INF StandaloneMmPkg/Core/StandaloneMmCore.inf
   FILE MM_STANDALONE = be83b8f0-e78b-40d0-bddd-c173df5e4256 {
-    SECTION SMM_DEPEX = CixStandaloneMmPkg/Vendor/SerialOutStandaloneMm.depex
-    SECTION PE32 = CixStandaloneMmPkg/Vendor/SerialOutStandaloneMm.efi
+    SECTION SMM_DEPEX = CixStandaloneMmPkg/$(CIX_STMM_VENDOR_PATH)/SerialOutStandaloneMm.depex
+    SECTION PE32 = CixStandaloneMmPkg/$(CIX_STMM_VENDOR_PATH)/SerialOutStandaloneMm.efi
     SECTION UI = "SerialOutStandaloneMm"
   }
   FILE MM_STANDALONE = 530665b7-1243-4f4e-9906-e40c105bd05a {
-    SECTION SMM_DEPEX = CixStandaloneMmPkg/Vendor/NorFlashStandaloneMm.depex
-    SECTION PE32 = CixStandaloneMmPkg/Vendor/NorFlashStandaloneMm.efi
+    SECTION SMM_DEPEX = CixStandaloneMmPkg/$(CIX_STMM_VENDOR_PATH)/NorFlashStandaloneMm.depex
+    SECTION PE32 = CixStandaloneMmPkg/$(CIX_STMM_VENDOR_PATH)/NorFlashStandaloneMm.efi
     SECTION UI = "NorFlashStandaloneMm"
   }
   INF MdeModulePkg/Universal/FaultTolerantWriteDxe/FaultTolerantWriteStandaloneMm.inf
   INF MdeModulePkg/Universal/Variable/RuntimeDxe/VariableStandaloneMm.inf
   INF ArmPkg/Drivers/StandaloneMmCpu/StandaloneMmCpu.inf
   FILE MM_STANDALONE = bc709486-d541-433d-b003-ef8388c380a0 {
-    SECTION SMM_DEPEX = CixStandaloneMmPkg/Vendor/FwVersionStandaloneMm.depex
-    SECTION PE32 = CixStandaloneMmPkg/Vendor/FwVersionStandaloneMm.efi
+    SECTION SMM_DEPEX = CixStandaloneMmPkg/$(CIX_STMM_VENDOR_PATH)/FwVersionStandaloneMm.depex
+    SECTION PE32 = CixStandaloneMmPkg/$(CIX_STMM_VENDOR_PATH)/FwVersionStandaloneMm.efi
     SECTION UI = "FwVersionStandaloneMm"
   }
 
