@@ -16,11 +16,19 @@ from cix_release_cache import compiler_fingerprint, tree_fingerprint  # noqa: E4
 from stage_vendor_stmm import load_payload, read_bounded, require, sha256, verify_embedded, write_changed  # noqa: E402
 
 
-def build(source: Path, cache: Path, compiler: str, jobs: int) -> tuple[dict, bytes]:
-    source = source.resolve()
+def vendor_directory(source: Path, release: str) -> Path:
+    require(release in {'1.2.4', '1.3.1'}, 'hybrid StandaloneMM supports Radxa 1.2.4 or 1.3.1 only')
     vendor = source / 'CixStandaloneMmPkg/Vendor'
+    return vendor / release if release == '1.2.4' else vendor
+
+
+def build(source: Path, cache: Path, compiler: str, jobs: int,
+          release: str = '1.3.1') -> tuple[dict, bytes]:
+    source = source.resolve()
+    vendor = vendor_directory(source, release)
     manifest = json.loads(read_bounded(vendor / 'manifest.json', 65536))
     require(manifest.get('schema_version') == 1, 'unsupported hybrid vendor manifest')
+    require(manifest.get('radxa_release') == release, 'hybrid vendor release mismatch')
     for name, expected in manifest['files'].items():
         require(Path(name).name == name and sha256(read_bounded(vendor / name, 1024 * 1024)) == expected,
                 f'hybrid vendor component hash mismatch: {name}')
@@ -28,7 +36,7 @@ def build(source: Path, cache: Path, compiler: str, jobs: int) -> tuple[dict, by
               'compiler': compiler_fingerprint(compiler + 'gcc'),
               'host_compiler': compiler_fingerprint('cc'),
               'helper': sha256(Path(__file__).read_bytes()), 'ffa_version': 12,
-              'source_date_epoch': 0}
+              'source_date_epoch': 0, 'radxa_release': release}
     key = sha256(json.dumps(inputs, sort_keys=True).encode())
     output = cache.resolve() / key
     fd = output / 'BL32_AP_MM.fd'
@@ -46,11 +54,12 @@ def build(source: Path, cache: Path, compiler: str, jobs: int) -> tuple[dict, by
                      'MAKEFLAGS', 'MFLAGS', 'MAKEOVERRIDES'):
             environment.pop(name, None)
         environment.update(WORKSPACE=str(workspace), TMPDIR=str(output / 'tmp'),
-                           GCC_AARCH64_PREFIX=compiler, SOURCE_DATE_EPOCH='0', JOBS=str(jobs))
+                           GCC_AARCH64_PREFIX=compiler, SOURCE_DATE_EPOCH='0', JOBS=str(jobs),
+                           CIX_STMM_VENDOR_PATH=str(vendor.relative_to(source / 'CixStandaloneMmPkg')))
         command = '''set -eo pipefail
 source edksetup.sh
 make -C BaseTools -j"$JOBS"
-build -p CixStandaloneMmPkg/CixStandaloneMm.dsc -a AARCH64 -t GCC -b RELEASE -n "$JOBS"
+build -p CixStandaloneMmPkg/CixStandaloneMm.dsc -a AARCH64 -t GCC -b RELEASE -n "$JOBS" -D CIX_STMM_VENDOR_PATH="$CIX_STMM_VENDOR_PATH"
 '''
         print('[cix-release] Building hybrid StandaloneMM', flush=True)
         with (output / 'build.log').open('w') as log:
@@ -88,8 +97,12 @@ def main():
     args = parser.parse_args()
     require(args.jobs > 0, 'jobs must be positive')
     entry, _ = load_payload(args.manifest, args.vendor_fip)
-    require(entry['radxa_release'] == '1.3.1', 'hybrid StandaloneMM currently supports Radxa 1.3.1 only')
-    identity, payload = build(args.source, args.cache_root, args.cross_compile, args.jobs)
+    release = entry['radxa_release']
+    vendor = vendor_directory(args.source, release)
+    manifest = json.loads(read_bounded(vendor / 'manifest.json', 65536))
+    require(manifest.get('source_fd_sha256') == entry['fd_sha256'],
+            'hybrid vendor services do not match the selected vendor StandaloneMM image')
+    identity, payload = build(args.source, args.cache_root, args.cross_compile, args.jobs, release)
     report = {'schema_version': 1, 'status': 'verified', 'selection': 'unofficial', 'standalone_mm': identity}
     if args.output:
         write_changed(args.output, payload)
