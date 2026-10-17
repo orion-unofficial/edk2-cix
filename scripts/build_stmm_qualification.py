@@ -13,6 +13,8 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from reconstruction_common import resolve_ref
+
 
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -28,7 +30,7 @@ def build(repo: Path, output: Path, image: str, jobs: int) -> dict:
     def git(*args):
         return subprocess.check_output(['git', '-C', str(repo), *args], text=True).strip()
 
-    if (git('rev-parse', record['ref']) != record['object_id'] or
+    if (git('rev-parse', resolve_ref(repo, record['ref'])) != record['object_id'] or
             git('rev-parse', record['object_id'] + '^{tree}') != record['tree_id']):
         raise ValueError('StandaloneMM source ref differs from its build pin')
     image_id = subprocess.check_output(['docker', 'image', 'inspect', '--format', '{{.Id}}', image], text=True).strip()
