@@ -309,7 +309,8 @@ static TEE_Result load_stmm(struct stmm_ctx *spc, struct tee_ta_param *param)
 		.sp_heap_base = heap_addr,
 		.sp_ns_comm_buf_base = comm_buf_addr,
 		.sp_shared_buf_base = sec_buf_addr,
-		.sp_image_size = stmm_image_size,
+		/* Describe the loaded FV, not its compressed storage representation. */
+		.sp_image_size = uncompressed_size_roundup,
 		.sp_pcpu_stack_size = stmm_stack_size,
 		.sp_heap_size = stmm_heap_size,
 		.sp_ns_comm_buf_size = stmm_ns_comm_buf_size,
