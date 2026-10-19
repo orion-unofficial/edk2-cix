@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 import unittest
 
-from reconstruction_common import resolve_ref
+from reconstruction_common import resolve_ref, unofficial_firmware_refs
 
 ROOT = Path(__file__).resolve().parents[1]
 PREFIX = 'custom/overlay/edk2-platforms/Platform/CIX/Sky1/'
@@ -95,10 +95,8 @@ class FirmwareAcpiRuntimeTests(unittest.TestCase):
         function = text[start:end]
         functions = {function}
         if not os.environ.get('SOURCE_TEST_ROOT') and not os.environ.get('SOURCE_TEST_REF'):
-            refs = subprocess.check_output(['git', '-C', str(ROOT), 'for-each-ref',
-                                            '--format=%(refname)', 'refs/heads/source/unofficial/'], text=True).splitlines()
-            for ref in refs:
-                text = subprocess.check_output(['git', '-C', str(ROOT), 'show', ref +
+            for ref in unofficial_firmware_refs(ROOT):
+                text = subprocess.check_output(['git', '-C', str(ROOT), 'show', resolve_ref(ROOT, ref) +
                                                 ':custom/overlay/edk2-platforms/Platform/CIX/Sky1/Drivers/ConfigurationManagerDxe/ConfigurationManager.c'], text=True)
                 start = text.index('STATIC\nEFI_STATUS\nEFIAPI\nInitializeCmArmGiccInfo (')
                 functions.add(text[start:text.index('\n}', start) + 2])

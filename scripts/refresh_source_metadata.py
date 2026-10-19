@@ -219,7 +219,7 @@ def computed_source_target_tree(
         ):
             metadata = next((step["release_metadata"] for step in steps if "release_metadata" in step), {})
             return unofficial_rendered_tree(repo, source_ref, metadata.get("ref"),
-                                             parts["radxa"]), "source-with-components"
+                                            parts["radxa"]), "source-with-components"
         if ref_exists(repo, ref) and not active_custom and not render_generated:
             return tree_id(repo, ref), "persisted-cache-ref"
         if len(steps) == 1 and "release_metadata" in steps[0]:
