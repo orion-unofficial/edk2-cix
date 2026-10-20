@@ -402,6 +402,10 @@ InitializeCmArmGiccInfo (
       PlatformRepo->GicCInfo[GicCIndex]                    = DefalutGicCInfo[CpuCore->Coreid];
       PlatformRepo->GicCInfo[GicCIndex].CPUInterfaceNumber = 0;
       PlatformRepo->GicCInfo[GicCIndex].AcpiProcessorUid   = CpuCore->Uid;
+      if (FixedPcdGetBool (PcdCustomFirmwareFixesEnable)) {
+        PlatformRepo->GicCInfo[GicCIndex].CpcToken =
+          CppcEnable ? (CM_OBJECT_TOKEN)&PlatformRepo->CpuCpcInfo[CpuCore->Coreid] : CM_NULL_TOKEN;
+      }
       if (!CpuCore->Enable) {
         PlatformRepo->GicCInfo[GicCIndex].Flags &= ~EFI_ACPI_6_2_GIC_ENABLED;
       }
