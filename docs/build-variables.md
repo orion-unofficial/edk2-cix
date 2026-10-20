@@ -197,33 +197,30 @@ This setting is only valid with:
 
 Default: `false`
 
-### `ENABLE_CORE_ORDER=cix|conventional|performance`
+### `ENABLE_CORE_ORDER=cix|performance`
 
-This setting only has an effect when `ENABLE_FIRMWARE_FIXES=true` is also
-enabled.
+This setting affects custom O6/O6N firmware. `performance` requires
+`ENABLE_FIRMWARE_FIXES=true`; unset or `cix` preserves vendor enumeration.
 
-- `cix`
-  - preserve the vendor/default exposed CPU UID order
-  - this is also the effective behavior when `ENABLE_CORE_ORDER` is unset
-- `conventional`
-  - remap exposed CPU UIDs to a little-cores-first layout
-  - this is the most conventional heterogeneous-core presentation
-- `performance`
-  - remap exposed CPU UIDs so the A720 cores appear before the A520 cores,
-    starting with the highest-performance A720 pair
-  - useful for experiments, but more likely to surprise tools and users that
-    expect little-first numbering
+- `cix`: preserve the vendor CPU order and ACPI processor UIDs.
+- `performance`: emit the boot processor first in the MADT, then the remaining
+  physical cores in pair order `10,11,8,9,6,7,4,5,0,1,2,3`. With physical core 10
+  booting and all cores enabled, this is also Linux logical CPU order. The A520
+  cores remain last in their original order.
 
-This changes the exposed CPU numbering seen by the OS. It does not change the
-physical hardware topology itself.
+Processor UIDs, MPIDRs, PPTT topology and per-core power-management associations
+retain their vendor identity. Only MADT GICC enumeration order changes. Linux
+always assigns the actual boot processor logical CPU0, independently of its
+ACPI UID. If another core boots, that core comes first and the remaining cores
+follow the same pair preference. Disabled or absent cores affect the resulting
+logical numbering. Other operating systems may enumerate differently; this
+option applies to ACPI boot, not a separately supplied device tree.
 
-This setting is only valid with:
+The former `conventional` mode is rejected: it could not put A520 cores first
+while Linux booted on an A720. Select `cix` or `performance` explicitly.
+Numbering does not change core frequencies or guarantee faster scheduling.
 
-- `ARTEFACT_MODE=custom`
-- `ENABLE_FIRMWARE_FIXES=true`
-- `FIRMWARE_BOARD=O6` or `FIRMWARE_BOARD=O6N`
-
-Default: unset, which behaves like `cix`
+Default: unset, which behaves like `cix`.
 
 ### `ENABLE_EXPERIMENTAL_UEFI_SETTINGS=true|false`
 
@@ -438,14 +435,14 @@ make buildbox-firmware-build \
   ENABLE_FIRMWARE_FIXES=true
 ```
 
-### Custom build with fixes plus the conventional little-first CPU order
+### Custom build with fixes plus the performance CPU order
 
 ```bash
 make buildbox-firmware-build \
   ARTEFACT_MODE=custom \
   FIRMWARE_BOARD=O6 \
   ENABLE_FIRMWARE_FIXES=true \
-  ENABLE_CORE_ORDER=conventional
+  ENABLE_CORE_ORDER=performance
 ```
 
 ### Custom build with the experimental setup overlay as well
