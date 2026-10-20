@@ -11,6 +11,7 @@
 **/
 
 #include <Library/AcpiLib.h>
+#include <Library/ArmLib.h>
 #include <Library/CpuInfoLib.h>
 #include <Library/DebugLib.h>
 #include <Library/MemoryAllocationLib.h>
@@ -230,7 +231,6 @@ AddGICCList (
   STATIC CONST UINT8      CoreOrder[PLAT_CPU_COUNT] = {
     10, 11, 8, 9, 6, 7, 4, 5, 0, 1, 2, 3
   };
-  CM_ARM_GICC_INFO        DefaultGicCInfo[PLAT_CPU_COUNT] = PLAT_GIC_CPU_INTERFACE;
   CONST CM_ARM_GICC_INFO  *CoreInfo[PLAT_CPU_COUNT] = { NULL };
   UINT8                  BootCoreId;
   UINT32                 Index;
@@ -261,7 +261,7 @@ AddGICCList (
   // Reject unknown/duplicate cores before writing any part of the output list.
   for (Index = 0; Index < GicCCount; Index++) {
     for (CoreId = 0; CoreId < PLAT_CPU_COUNT; CoreId++) {
-      if (GicCInfo[Index].MPIDR == DefaultGicCInfo[CoreId].MPIDR) {
+      if (GicCInfo[Index].MPIDR == GET_MPID (CoreId, 0)) {
         break;
       }
     }
