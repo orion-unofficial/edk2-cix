@@ -252,31 +252,15 @@ class BuildFirmwareVariantsTests(unittest.TestCase):
 
         self.assertEqual(phases, ["vendor", "custom", "custom/debug"])
 
-    def test_release_phase_interleaves_cix_inside_each_compile_bucket(self) -> None:
+    def test_release_phase_includes_only_supported_core_order(self) -> None:
         variants = firmware_layout.iter_build_all_variants()
-        labels = [variant.archive_suffix() or "upstream" for variant in variants[1:17]]
-
-        self.assertEqual(
-            labels,
-            [
-                "custom",
-                "custom+cix",
-                "custom+fixes",
-                "custom+cix+fixes",
-                "custom+fixes+core_order-conventional",
-                "custom+cix+fixes+core_order-conventional",
-                "custom+fixes+core_order-performance",
-                "custom+cix+fixes+core_order-performance",
-                "custom+experimental",
-                "custom+cix+experimental",
-                "custom+verbose",
-                "custom+cix+verbose",
-                "custom+uart3",
-                "custom+cix+uart3",
-                "custom+uart3+uart3_debug",
-                "custom+cix+uart3+uart3_debug",
-            ],
-        )
+        labels = [variant.archive_suffix() for variant in variants
+                  if variant.artefact_mode == 'custom' and variant.firmware_target == 'RELEASE']
+        self.assertEqual(labels, [
+            'custom', 'custom+fixes', 'custom+fixes+core_order-performance',
+            'custom+experimental', 'custom+verbose', 'custom+uart3',
+            'custom+uart3+uart3_debug',
+        ])
 
     def test_format_duration_prefers_readable_units(self) -> None:
         self.assertEqual(build_firmware_variants.format_duration(5), "5s")
