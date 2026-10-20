@@ -770,7 +770,7 @@ preflight-inputs:
 		echo "[config] ENABLE_FIRMWARE_FIXES=true enables the opt-in firmware fixes"; \
 	fi; \
 	if [ -n "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" ] && [ "$(strip $(ENABLE_CORE_ORDER_NORMALIZED))" != "cix" ]; then \
-		echo "[config] ENABLE_CORE_ORDER=$(ENABLE_CORE_ORDER_NORMALIZED) remaps exposed CPU UIDs"; \
+		echo "[config] ENABLE_CORE_ORDER=$(ENABLE_CORE_ORDER_NORMALIZED) orders MADT CPU entries (preserving ACPI UIDs)"; \
 	fi; \
 	if [ -n "$(strip $(CIX_RELEASE_NORMALIZED))" ]; then \
 		echo "[config] CIX_RELEASE=$(CIX_RELEASE_NORMALIZED) enables the curated CIX V1.2 source-and-payload path"; \
@@ -1477,7 +1477,6 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 		core_order_flags=''; \
 		if [[ "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" ]]; then \
 			case "$(ENABLE_CORE_ORDER_NORMALIZED)" in \
-				conventional) core_order_flags='-DENABLE_CORE_ORDER_CONVENTIONAL=1' ;; \
 				performance) core_order_flags='-DENABLE_CORE_ORDER_PERFORMANCE=1' ;; \
 			esac; \
 		fi; \
@@ -1526,9 +1525,6 @@ Build/%/$(UEFI_TARGET)_GCC5/FV/SKY1_BL33_UEFI.fd: $(call BUILD_CONFIG_STAMP,%) $
 		fi; \
 		if [[ "$(ARTEFACT_MODE)" == "custom" && -n "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" ]]; then \
 			build_extra_defines+=(-D ENABLE_FIRMWARE_FIXES=$(ENABLE_FIRMWARE_FIXES_NORMALIZED)); \
-		fi; \
-		if [[ "$(ARTEFACT_MODE)" == "custom" && "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" && "$(ENABLE_CORE_ORDER_NORMALIZED)" == "conventional" ]]; then \
-			build_extra_defines+=(-D ENABLE_CORE_ORDER_CONVENTIONAL=1); \
 		fi; \
 		if [[ "$(ARTEFACT_MODE)" == "custom" && "$(ENABLE_FIRMWARE_FIXES_NORMALIZED)" == "TRUE" && "$(ENABLE_CORE_ORDER_NORMALIZED)" == "performance" ]]; then \
 			build_extra_defines+=(-D ENABLE_CORE_ORDER_PERFORMANCE=1); \
