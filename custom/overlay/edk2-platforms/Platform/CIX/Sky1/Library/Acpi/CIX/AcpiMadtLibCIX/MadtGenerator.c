@@ -12,7 +12,6 @@
 
 #include <Library/AcpiLib.h>
 #include <Library/ArmLib.h>
-#include <Library/CpuInfoLib.h>
 #include <Library/DebugLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Protocol/AcpiTable.h>
@@ -232,7 +231,8 @@ AddGICCList (
     10, 11, 8, 9, 6, 7, 4, 5, 0, 1, 2, 3
   };
   CONST CM_ARM_GICC_INFO  *CoreInfo[PLAT_CPU_COUNT] = { NULL };
-  UINT8                  BootCoreId;
+  UINT32                 BootCoreId;
+  UINT64                 BootMpidr;
   UINT32                 Index;
   UINT32                 CoreId;
 #endif
@@ -273,7 +273,16 @@ AddGICCList (
     CoreInfo[CoreId] = &GicCInfo[Index];
   }
 
-  GetCpuBootCoreId (&BootCoreId);
+  // Table generation runs on the BSP. Match its architectural affinity rather
+  // than adding a second instance of the vendor CPU-info library constructor.
+  BootMpidr = ArmReadMpidr () &
+              (ARM_CORE_AFF0 | ARM_CORE_AFF1 | ARM_CORE_AFF2 | ARM_CORE_AFF3);
+  for (BootCoreId = 0; BootCoreId < PLAT_CPU_COUNT; BootCoreId++) {
+    if (BootMpidr == GET_MPID (BootCoreId, 0)) {
+      break;
+    }
+  }
+
   if ((BootCoreId >= PLAT_CPU_COUNT) || (CoreInfo[BootCoreId] == NULL) ||
       ((CoreInfo[BootCoreId]->Flags & EFI_ACPI_6_2_GIC_ENABLED) == 0))
   {
