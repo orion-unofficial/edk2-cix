@@ -228,23 +228,29 @@ overwritten on subsequent boots.
 
 ### Optional CPU Numbering Modes
 
-If you also set `ENABLE_CORE_ORDER` to one of the two additional modes below,
-the firmware can change the CPU UIDs it exposes to the operating system. This
-does not change the physical core layout. It only changes the numbering the OS
-sees.
 
-The available modes are:
+This setting affects custom O6/O6N firmware. `performance` requires
+`ENABLE_FIRMWARE_FIXES=true`; unset or `cix` preserves vendor enumeration.
 
-- `cix`
-  - keep the vendor/default CPU numbering
-- `conventional`
-  - expose CPUs with the "LITTLE" A520 cores before the A720 cores
-- `performance`
-  - expose CPUs with the A720 cores before the A520 cores, starting with the
-    highest-performance A720 pair
+- `cix`: preserve the vendor CPU order and ACPI processor UIDs.
+- `performance`: emit the boot processor first in the MADT, then the remaining
+  physical cores in pair order `10,11,8,9,6,7,4,5,0,1,2,3`. With physical core 10
+  booting and all cores enabled, this is also Linux logical CPU order. The A520
+  cores remain last in their original order.
 
-`conventional` gives you a more standard heterogeneous-core layout.
-`performance` puts the A720 cores before the A520 cores.
+Processor UIDs, MPIDRs, PPTT topology and per-core power-management associations
+retain their vendor identity. Only MADT GICC enumeration order changes. Linux
+always assigns the actual boot processor logical CPU0, independently of its
+ACPI UID. If another core boots, that core comes first and the remaining cores
+follow the same pair preference. Disabled or absent cores affect the resulting
+logical numbering. Other operating systems may enumerate differently; this
+option applies to ACPI boot, not a separately supplied device tree.
+
+The former `conventional` mode is rejected: it could not put A520 cores first
+while Linux booted on an A720. Select `cix` or `performance` explicitly.
+Numbering does not change core frequencies or guarantee faster scheduling.
+
+Default: unset, which behaves like `cix`.
 
 ### IOMMU Capability Description in IORT
 
@@ -355,7 +361,7 @@ make buildbox-firmware-build \
   ARTEFACT_MODE=custom \
   FIRMWARE_BOARD=O6 \
   ENABLE_FIRMWARE_FIXES=true \
-  ENABLE_CORE_ORDER=conventional
+  ENABLE_CORE_ORDER=performance
 ```
 
 You can also combine it with the separate experimental UEFI settings overlay:
