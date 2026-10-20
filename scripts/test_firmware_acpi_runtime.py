@@ -124,11 +124,10 @@ static void GetValidCpuCoreNum(UINT8 *out) {*out=12;}
 static int allocate(int kind,size_t size,void **out) {assert(kind==4);*out=malloc(size);assert(*out);return 0;}
 static struct {int (*AllocatePool)(int,size_t,void **);} services={allocate}, *gBS=&services;
 '''
-        for mode in ('CIX', 'CONVENTIONAL', 'PERFORMANCE'):
+        for mode in ('CIX', 'PERFORMANCE'):
             defines = '' if mode == 'CIX' else '#define ENABLE_CORE_ORDER_' + mode + ' 1\n'
             mapping = {'CIX': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1],
-                       'CONVENTIONAL': list(range(12)),
-                       'PERFORMANCE': [8, 9, 10, 11, 4, 5, 6, 7, 2, 3, 0, 1]}[mode]
+                       'PERFORMANCE': [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1]}[mode]
             main = '''
 int main(void) {
   (void)fixes;
@@ -140,7 +139,7 @@ int main(void) {
   for(unsigned int i=0;i<12;i++) cores[i]=(CIX_CPU_CORE){map[i],i,i!=7};
   assert(InitializeCmArmGiccInfo(&protocol)==0);
   for(unsigned int i=0;i<12;i++) {
-    unsigned int slot=''' + ('i' if mode == 'CIX' else 'map[i]') + ''';
+    unsigned int slot=i;
     assert(repo.GicCInfo[slot].AcpiProcessorUid==map[i]);
     assert(repo.CpuUidtoCoreNumberMap[slot]==i);
     assert(repo.GicCInfo[slot].Flags==(i!=7));

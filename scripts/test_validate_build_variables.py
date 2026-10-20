@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import os
+import subprocess
+import sys
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -13,6 +15,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class ValidateBuildVariableTests(unittest.TestCase):
+    def test_retired_conventional_order_fails_before_source_resolution(self) -> None:
+        result = subprocess.run([sys.executable, str(REPO_ROOT / 'scripts/validate_build_variables.py')],
+                                env={**os.environ, 'ENABLE_CORE_ORDER': 'conventional'},
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('ENABLE_CORE_ORDER', result.stderr)
+        self.assertIn('cix, performance', result.stderr)
+
     def test_hybrid_cannot_select_vendor_optee(self) -> None:
         with patch.dict(os.environ, {"CIX_RELEASE": "1.2", "STMM": "unofficial"}, clear=True):
             problems: list[str] = []

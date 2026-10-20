@@ -7,13 +7,13 @@ branded Unofficial firmware builds from the maintained
 source combinations currently available.
 
 The table focuses on changes that affect the firmware image or the behaviour it
-exposes to the operating system, setup UI, or shipped payload. The commit
-column gives a starting point for deeper investigation.
+exposes to the operating system, setup UI, or shipped payload. The reference
+column points to implementation history or maintained build guidance.
 
 Except where the table says otherwise, entries require `ARTEFACT_MODE=custom`.
 The additional gate column lists any other `make` variables needed.
 
-| Class | Area | Specific change | Additional gate | First commit |
+| Class | Area | Specific change | Additional gate | Reference |
 | --- | --- | --- | --- | --- |
 | Enhancement | Security: Secure Boot defaults | Use pinned Microsoft-managed UEFI Secure Boot `PK`, `KEK`, `db`, and `dbx` defaults instead of the CIX default key payloads. | None | `e0f006cc0f` |
 | Fix | Platform policy: Farm Mode / EC | Omit vendor Farm Mode handling and the related EC farm-command/protocol plumbing. | None | `0566b6918c` |
@@ -43,7 +43,7 @@ The additional gate column lists any other `make` variables needed.
 | Fix | Hardware observability: DSU PMU | Expose the DSU PMU ACPI device so Linux can discover the shared cluster / L3 performance-counter block. | `ENABLE_FIRMWARE_FIXES=true` | `0ba4d5e46b` |
 | Fix | CPU topology: PPTT cache model | Describe a conservative PPTT cache topology: A520 L1I/L1D, A720 L1I/L1D plus private L2, and shared 12 MiB L3. | `ENABLE_FIRMWARE_FIXES=true` | `0ba4d5e46b` |
 | Fix | Display ACPI metadata | Emit the `edp-panel` property only for the actual eDP path instead of attaching empty-string placeholders to non-eDP outputs. | `ENABLE_FIRMWARE_FIXES=true` | `0ba4d5e46b` |
-| Enhancement | CPU topology: Exposed CPU ordering | Remap the CPU UIDs exposed to the OS to either little-cores-first (`conventional`) or performance-first (`performance`) order while keeping physical-core policy attached to the same hardware cores. | `ENABLE_FIRMWARE_FIXES=true` + `ENABLE_CORE_ORDER=conventional` or `performance` | `343385f2d7` |
+| Enhancement | CPU topology: Exposed CPU ordering | Keep the boot CPU first, then enumerate A720 pairs as `10,11,8,9,6,7,4,5` before A520 cores `0,1,2,3`, preserving vendor ACPI UIDs and physical-core policy. | `ENABLE_FIRMWARE_FIXES=true` + `ENABLE_CORE_ORDER=performance`; `cix` preserves vendor order | [CPU ordering](https://github.com/orion-unofficial/edk2-cix/blob/build/docs/src/build-variables.md#enable_core_ordercixperformance) |
 | Fix | Firmware image layout: DEBUG BL33 | Enlarge the Radxa BL33 firmware volume for O6/O6N `DEBUG` builds so debug images have enough space. | `FIRMWARE_TARGET=DEBUG`; valid with `ARTEFACT_MODE=custom` or `upstream` | `bd8d037cd8` |
 | Enhancement | Firmware metadata: O6 asset tags | Set O6 SMBIOS Type 2 and Type 3 asset-tag strings together or independently at build time. | `FIRMWARE_BOARD=O6` + `O6_SMBIOS_ASSET_TAG=<text>`, `O6_SMBIOS_BASEBOARD_ASSET_TAG=<text>`, or `O6_SMBIOS_CHASSIS_ASSET_TAG=<text>` | `fd2cf4148e` |
 | Enhancement | Serial/debug: UART3 OS exposure | Mux the UART3 header for UART use and expose it to the OS through firmware metadata without moving firmware `DEBUG()` output there. | `UART3_ENABLE=true` | `c7cbf3ec3b` |
