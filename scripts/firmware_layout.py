@@ -11,7 +11,7 @@ VERSION_FILENAME = "VERSION"
 MAX_DISPLAY_VERSION_LENGTH = 48
 VALID_ARTEFACT_MODES = {"custom", "upstream"}
 VALID_CIX_RELEASES = {"", "1.2"}
-VALID_CORE_ORDERS = {"", "cix", "conventional", "performance"}
+VALID_CORE_ORDERS = {"", "cix", "performance"}
 VALID_FIRMWARE_TARGETS = {"RELEASE", "DEBUG"}
 PATH_ROOT = ("edk2", "radxa")
 
@@ -153,7 +153,7 @@ class FirmwareLayout:
             parts.append("debug")
         if self.enable_firmware_fixes:
             parts.append("fixes")
-            if self.effective_core_order in {"conventional", "performance"}:
+            if self.effective_core_order in {"performance"}:
                 parts.extend(("core_order", self.effective_core_order))
         if self.enable_experimental_uefi_settings:
             parts.append(_leaf_token("experimental_uefi_settings"))
@@ -181,7 +181,7 @@ class FirmwareLayout:
             tokens.append("debug")
         if self.enable_firmware_fixes:
             tokens.append("fixes")
-            if self.effective_core_order in {"conventional", "performance"}:
+            if self.effective_core_order in {"performance"}:
                 tokens.append(f"core_order-{self.effective_core_order}")
         if self.enable_experimental_uefi_settings:
             tokens.append(_leaf_token("experimental_uefi_settings"))
@@ -204,9 +204,7 @@ class FirmwareLayout:
             tokens.append("cix")
         if self.enable_firmware_fixes:
             tokens.append("fixes")
-            if self.effective_core_order == "conventional":
-                tokens.append("core_order_conv")
-            elif self.effective_core_order == "performance":
+            if self.effective_core_order == "performance":
                 tokens.append("core_order_perf")
         if self.enable_experimental_uefi_settings:
             tokens.append("experimental")
@@ -352,14 +350,13 @@ def _iter_custom_target_variants(target: str) -> list[FirmwareLayout]:
     presets = [
         {},
         {"enable_firmware_fixes": True},
-        {"enable_firmware_fixes": True, "enable_core_order": "conventional"},
         {"enable_firmware_fixes": True, "enable_core_order": "performance"},
         {"enable_experimental_uefi_settings": True},
         {"uart3_enable": True},
         {"uart3_enable": True, "debug_on_uart3": True},
     ]
     if target == "RELEASE":
-        presets.insert(5, {"debug_verbose": True})
+        presets.insert(4, {"debug_verbose": True})
 
     # Keep broad compile invalidators ahead of the UART/debug leaves, then flip
     # the narrower curated-CIX path inside each preset bucket.
