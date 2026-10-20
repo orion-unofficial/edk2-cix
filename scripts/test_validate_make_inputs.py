@@ -35,6 +35,12 @@ class ValidateMakeInputsTests(unittest.TestCase):
         )
         self.assertEqual(run_validate(args), 0)
 
+    def test_custom_rejects_retired_conventional_core_order(self) -> None:
+        args = self.parse('--artefact-mode', 'custom', '--firmware-board', 'O6',
+                          '--enable-firmware-fixes', 'TRUE',
+                          '--enable-core-order', 'conventional')
+        self.assertEqual(run_validate(args), 2)
+
     def test_upstream_rejects_non_default_core_order(self) -> None:
         args = self.parse(
             "--artefact-mode",
@@ -42,7 +48,7 @@ class ValidateMakeInputsTests(unittest.TestCase):
             "--firmware-board",
             "O6",
             "--enable-core-order",
-            "conventional",
+            "performance",
         )
         self.assertEqual(run_validate(args), 2)
 
