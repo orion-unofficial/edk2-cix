@@ -93,6 +93,21 @@ Rendered-tree expectations must include release-metadata transformations, even
 when a generated cache branch is absent. Hash the final rendered tree rather
 than reusing the input checkpoint's tree hash.
 
+### Maintained StandaloneMM component
+
+The independently rendered StandaloneMM component has its own source history.
+Advance it with a reviewed descendant and matching `refs-cix.json` metadata:
+
+```sh
+make integrate-source-release TYPE=unofficial COMPONENT=standalone-mm \
+  EDK2_BASE=edk2-stable202608 REF=<reviewed-descendant> ALLOW_REPLACE=1 WRITE=1
+```
+
+This form requires an explicitly mutable `unofficial-component` record. It does
+not move firmware checkpoints or development lines. Publication also checks
+component ancestry and sends its ref with the build metadata in the same atomic
+transaction. Rewinds and unrelated replacement histories remain rejected.
+
 ### Maintained checkpoint branches
 
 Integrate fixes into their named release checkpoint with the descendant-only

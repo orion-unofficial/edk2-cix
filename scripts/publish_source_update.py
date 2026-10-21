@@ -38,7 +38,8 @@ every pending source ref, and be either ahead of or identical to the remote
 build branch. The identical case safely resumes a publication whose metadata
 commit reached the remote before its source refs. Existing immutable source refs
 may not move, except explicitly recorded descendant corrections to Unofficial
-release checkpoints. Mutable Unofficial tips, compatibility refs, and compatibility
+release checkpoints and descendant updates to explicitly mutable Unofficial components.
+Mutable Unofficial tips, compatibility refs, and compatibility
 tags use an exact force-with-lease expectation. Git receives the build branch
 and every inferred pending ref in one --atomic push. Obsolete correction branches
 stop publication; source-ref deletion requires an explicit migration.
@@ -104,6 +105,17 @@ def checkpoint_correction(repo: Path, ref: str, old: str, new: str, records: lis
         return False
     return all(git(repo, "merge-base", "--is-ancestor", a, b, check=False).returncode == 0
                for a, b in ((base, old), (old, new)))
+
+
+def component_correction(repo: Path, ref: str, old: str, new: str, records: list[dict]) -> bool:
+    """Maintain explicitly mutable components only through descendant updates."""
+    matches = [record for record in records if record.get("ref") == ref.removeprefix("refs/heads/")]
+    if not ref.startswith("refs/heads/source/unofficial/") or len(matches) != 1:
+        return False
+    record = matches[0]
+    return (record.get("type") == "unofficial-component" and record.get("immutable") is False and
+            record.get("object_id") == new and
+            git(repo, "merge-base", "--is-ancestor", old, new, check=False).returncode == 0)
 
 
 def remote_objects(repo: Path, remote: str, refs: list[str]) -> dict[str, str]:
@@ -345,7 +357,9 @@ def main() -> None:
         if local_object == remote_object:
             matched_refs += 1
             continue
-        if remote_object and not mutable_ref(ref) and not checkpoint_correction(repo, ref, remote_object, local_object, records):
+        if (remote_object and not mutable_ref(ref) and
+                not checkpoint_correction(repo, ref, remote_object, local_object, records) and
+                not component_correction(repo, ref, remote_object, local_object, records)):
             raise ReconstructionError(f"refusing to replace immutable source ref on {args.remote}: {ref}")
         if remote_object:
             leases.append(f"--force-with-lease={ref}:{remote_object}")

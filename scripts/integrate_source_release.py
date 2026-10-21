@@ -52,6 +52,7 @@ Supported forms:
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.3.1 EDK2_BASE=edk2-stable202608 REF=<ported-ref> RADXA_SOURCE=port WRITE=1
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1+<commit> EDK2_BASE=edk2-stable202208 REF=main WRITE=1
   make integrate-source-release TYPE=unofficial RELEASE=1.3.1 EDK2_BASE=edk2-stable202605 REF=<reviewed-descendant> ALLOW_REPLACE=1 WRITE=1
+  make integrate-source-release TYPE=unofficial COMPONENT=standalone-mm EDK2_BASE=edk2-stable202608 REF=<reviewed-descendant> ALLOW_REPLACE=1 WRITE=1
 
 Required variables:
   TYPE=upstream|vendor|unofficial
@@ -81,6 +82,8 @@ Only this command is allowed to create or advance immutable source refs.
 TYPE=unofficial records a reviewed maintenance correction to an existing
 Unofficial release checkpoint. It requires ALLOW_REPLACE=1 and a descendant
 commit, preserves the old checkpoint in history, and never moves a line tip.
+With COMPONENT=standalone-mm it advances the explicitly mutable component in
+refs-cix.json instead; RELEASE is not required and firmware checkpoints are unchanged.
 If an immutable target is already recorded locally or as an origin
 remote-tracking ref, rerunning the same integration is a no-op. The command
 reports where the existing ref was found; git branch alone lists only local
@@ -614,8 +617,12 @@ def validate(args: argparse.Namespace) -> list[str]:
     missing: list[str] = []
     if args.type_ not in {"upstream", "vendor", "unofficial"}:
         missing.append("TYPE=upstream|vendor|unofficial")
-    if args.type_ == "unofficial" and not (args.release and args.edk2_base and args.ref):
-        missing.append("RELEASE=<radxa-release> EDK2_BASE=<edk2-release> REF=<reviewed-descendant>")
+    if args.type_ == "unofficial":
+        if args.component:
+            if args.component != "standalone-mm" or not (args.edk2_base and args.ref):
+                missing.append("COMPONENT=standalone-mm EDK2_BASE=<edk2-release> REF=<reviewed-descendant>")
+        elif not (args.release and args.edk2_base and args.ref):
+            missing.append("RELEASE=<radxa-release> EDK2_BASE=<edk2-release> REF=<reviewed-descendant>")
     if args.type_ == "upstream" and args.component not in UPSTREAM_COMPONENTS:
         missing.append("COMPONENT=edk2|edk2-platforms|edk2-non-osi|tf-a|op-tee")
     if args.type_ == "vendor" and args.vendor not in VENDORS:
@@ -639,13 +646,22 @@ def validate(args: argparse.Namespace) -> list[str]:
 
 
 def integrate_checkpoint_correction(repo: Path, args: argparse.Namespace) -> None:
-    """Advance a reviewed checkpoint without rewriting or losing its history."""
-    target = f"source/unofficial/{args.release}/{normalise_edk2_base(args.edk2_base)}"
-    path = repo / "config/refs-unofficial.json"
+    """Advance a reviewed checkpoint or mutable component, preserving history."""
+    component = getattr(args, "component", "")
+    if component and component != "standalone-mm":
+        raise ReconstructionError("unsupported Unofficial maintenance component: " + component)
+    target = (f"source/unofficial/stmm/{normalise_edk2_base(args.edk2_base)}" if component else
+              f"source/unofficial/{args.release}/{normalise_edk2_base(args.edk2_base)}")
+    path = repo / "config" / ("refs-cix.json" if component else "refs-unofficial.json")
     original = path.read_text()
     data = json.loads(original)
     record = next((item for item in data.get("refs", []) if item.get("ref") == target), None)
-    if not record or record.get("type") != "unofficial-release-checkpoint":
+    if component:
+        matches = [item for item in data.get("refs", []) if item.get("ref") == target]
+        if (len(matches) != 1 or record.get("type") != "unofficial-component" or
+                record.get("component") != component or record.get("immutable") is not False):
+            raise ReconstructionError(f"not an explicitly mutable Unofficial component: {target}")
+    elif not record or record.get("type") != "unofficial-release-checkpoint":
         raise ReconstructionError(f"not a recorded Unofficial release checkpoint: {target}")
     local_old = exact_commit_id(repo, f"refs/heads/{target}") or "0" * 40
     old = rev_parse(repo, target)
@@ -659,13 +675,17 @@ def integrate_checkpoint_correction(repo: Path, args: argparse.Namespace) -> Non
         raise ReconstructionError("checkpoint maintenance requires ALLOW_REPLACE=1")
     if git(repo, "merge-base", "--is-ancestor", old, candidate, check=False).returncode:
         raise ReconstructionError("checkpoint correction must preserve the old checkpoint as an ancestor")
-    enforce_source_tree_policy(repo, ref=candidate, label=target)
+    if component:
+        git(repo, "cat-file", "-e", f"{candidate}:CixStandaloneMmPkg/CixStandaloneMm.dsc")
+    else:
+        enforce_source_tree_policy(repo, ref=candidate, label=target)
     ensure_target_not_checked_out_dirty(repo, target)
     print(f"checkpoint correction: {target}: {old} -> {candidate}")
     if not truthy(args.write):
         print("dry run; set WRITE=1 after reviewing and validating the candidate")
         return
-    record.setdefault("maintenance_base_object_id", old)
+    if not component:
+        record.setdefault("maintenance_base_object_id", old)
     record["object_id"] = candidate
     record["tree_id"] = tree_id(repo, candidate)
     # As with source integration, the manifest and ref are one maintenance
