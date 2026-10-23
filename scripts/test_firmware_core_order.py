@@ -4,7 +4,6 @@ import io
 import os
 import re
 from pathlib import Path
-from platform import machine
 import tarfile
 import tempfile
 import subprocess
@@ -165,13 +164,14 @@ class FirmwareCoreOrderTests(unittest.TestCase):
                             target = headers / member.name
                             target.parent.mkdir(parents=True, exist_ok=True)
                             target.write_bytes(contents.extractfile(member).read())
-                arch = 'AArch64' if machine().lower() in ('arm64', 'aarch64') else 'X64'
                 for performance in (False, True):
                     with self.subTest(version=version, performance=performance):
+                        # This firmware uses AArch64 headers even when the syntax check
+                        # runs on an x86 host. No target code is linked or executed.
                         command = ['cc', '-std=c11', '-Wall', '-Werror', '-fshort-wchar',
-                                   '-c', '-o', str(root / 'MadtGenerator.o'), '-include', 'Uefi.h',
+                                   '-fsyntax-only', '-include', 'Uefi.h',
                                    '-I', str(platform), '-I', str(platform / 'Include'),
-                                   '-I', str(headers / 'MdePkg/Include' / arch)]
+                                   '-I', str(headers / 'MdePkg/Include/AArch64')]
                         for package in packages:
                             command += ['-I', str(headers / package / 'Include')]
                         if performance:

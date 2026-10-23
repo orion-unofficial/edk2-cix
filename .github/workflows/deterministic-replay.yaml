@@ -58,6 +58,8 @@ jobs:
 
       - name: Resolve selected upstream release
         id: resolve
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
