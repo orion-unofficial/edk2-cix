@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "qualification_states": [
+    "qualified-candidate",
+    "not-integrated",
+    "integrated-unqualified",
+    "qualified-descendant"
+  ],
+  "qualification_scope": "release-native offline acceptance; physical boot and persistence separately unverified",
+  "required_criteria": [
+    "input-validation",
+    "native-compile",
+    "full-source-image",
+    "exact-fd-optee-flash-binding",
+    "vendor-signature-chain",
+    "actual-c-producer-native-abi",
+    "authenticated-variable-tests",
+    "cold-persistence",
+    "paired-nor-baseline-2047",
+    "paired-cuts-189-149-40",
+    "complete-source-model-lint-policy-identity-helper",
+    "minimised-clone-rebuild-replay",
+    "applicable-deterministic-replay",
+    "remote-coherence"
+  ],
+  "inherited_defects": {
+    "paired_power_cut_samples": 189,
+    "recoveries": 149,
+    "expected_matching_failures": 40,
+    "policy": "exact ordinal candidate/control failures required; counts alone are insufficient; NOR/FTW defect remains deferred",
+    "boundary_control": "208 core with pinned 131 services; native 411/502 heap failures retained; storage parity only"
+  },
+  "compiler_image": null,
+  "minimum_disk_gib": 8,
+  "minimum_memory_gib": 4,
+  "components": {
+    "candidate": {
+      "stmm": {
+        "commit": "dd9c47397b670f072e08fb49cb36ed3ed4149b39",
+        "tree": "c2c5d99f9d7886da2c720a92f9d34bcb91300ef1"
+      },
+      "optee": {
+        "commit": "a4a447c01cc18f090bf96afac8cf7b7112a0e9b9",
+        "tree": "32f5caa4a073840c515ea6184c95783ab0886586"
+      }
+    },
+    "maintained": {
+      "stmm": {
+        "ref": "source/unofficial/stmm/edk2-stable202608",
+        "commit": "0b9f807bf32a37deffd75e9a12592eeebba38f40",
+        "tree": "15fd7bdc315d0696e884c6ecf45548a85970583b"
+      },
+      "optee": {
+        "ref": "source/unofficial/cix/1.2/op-tee/3.17.0",
+        "commit": "32e7627e054a1a0de48004203af56cfc8e45112a",
+        "tree": "f05d5d3dac531f384fda173bd99ae1fbde0c8c67"
+      }
+    }
+  },
+  "blocked_workloads": {
+    "native-compile": "Native helper modules/tests require separate reviewed publication. Pullable Linux amd64 compiler OCI digest not published/verified; pin compiler_image after approved transfer. Existing stmm.Dockerfile uses mutable Debian/apt inputs and is not an immutable replay.",
+    "full-source-image": "Descendant integration, supported caller/native-helper guard refresh and measured hosted disk/memory/buildbox path remain outstanding; keep existing execution path.",
+    "emulator-auth-cold-nor": "Local image IDs are not registry digests; 608 historical image absent. Need approved immutable OCI transfer, portable fixture/auth/control plans and resource measurements. Keep existing path and failed-cut evidence.",
+    "502-full-qualification": "No isolated full-source candidate; preliminary FD/storage does not qualify complete image.",
+    "hardware": "O6 UART/boot/real flash timing/persistence/Secure Boot state unverified; separate flash/reboot authorization.",
+    "new-sha-quality": "Historical run repair exists and current committed HEAD passed remote CI; dirty STMM WIP and resulting descendants still need clean exact-SHA source-model/minimised-clone gates.",
+    "candidate-input-availability": "GitHub cannot resolve the three isolated firmware candidates or their component and OP-TEE commits. Approved immutable input transfer/publication is required; never substitute maintained refs."
+  },
+  "cases": [
+    {
+      "key": "202208-radxa-1.3.1",
+      "edk2": "202208",
+      "radxa": "1.3.1",
+      "maintained": {
+        "commit": "0367ce3d7e00eb6c1cb14c88f73ee0e08c1268a1",
+        "tree": "6b819119a2e44963f7d9a2cf1ca1228a25e83bc6",
+        "ref": "source/unofficial/1.3.1/edk2-stable202208",
+        "state": "not-integrated"
+      },
+      "candidate": {
+        "commit": "a36f33943dc2f8480e64c75cf195753fec3653e4",
+        "tree": "d65aaf56984245886c3032b259ab7836fd59211d",
+        "state": "qualified-candidate",
+        "qualification_scope": "isolated-offline-binding-signature-auth-cold-paired-storage; no descendant, clone or hardware qualification",
+        "qualification_evidence": {
+          "fd_sha256": "b3bf74eb3871e5bcc591399725a21021871ebef7a4741dbea4d97271e6f3cd92",
+          "source_optee_sha256": "d5166b36a1839c73ffdb8fe173d6bfd8dcd1f9a0d91476cdb3d6ce5ec625935c",
+          "full_flash_sha256": "9392472be74198f6ddb2b9e8f8d45f88c880bc9c4fbb77318f61421d6c89cfac",
+          "binding_report_sha256": "78a9628513320b2be2db8b3f794512b7a69109f485b057cc9579819d62d1ddad",
+          "chain_report_sha256": "7fb832d4400ee0bbb9b1f229af8808eb65e7339afecf2f1925ab623cb8b7c6fe",
+          "historical_helper_sha256": "77f6974d3cc4e27caf50c6f7f1ae5695f0d15a7ccd24b58309b3f164446bdb5e",
+          "native_helpers": {
+            "stmm_release_platform.py": "534922d1d112d060f92379bf6b571f2c865111e609423cd860b20b732d497ed8",
+            "stmm_release_port.py": "2864f4fc02f36c5783542d6b891f18e1913e280d3681087885dc69de021d9738"
+          },
+          "storage_plan_sha256": "9ee0d3d9b1ceb975947cc49ffc7af19a45e6ba7c2e06de791802ea50b62abf77"
+        }
+      }
+    },
+    {
+      "key": "202411-radxa-1.3.1",
+      "edk2": "202411",
+      "radxa": "1.3.1",
+      "maintained": {
+        "commit": "50503afa043f1e65692db7d95dbedc15091f2e32",
+        "tree": "6114b8895a41c5da4b7171f3c0239ecfce24a9c3",
+        "ref": "source/unofficial/1.3.1/edk2-stable202411",
+        "state": "not-integrated"
+      },
+      "candidate": {
+        "commit": "477ff0b9d6b9e1c830ceba7a922e7aee300812ca",
+        "tree": "7dd962a5df8db9f715868b6ad3c57e5d65cc1dab",
+        "state": "qualified-candidate",
+        "qualification_scope": "isolated-offline-binding-signature-auth-cold-paired-storage; no descendant, clone or hardware qualification",
+        "qualification_evidence": {
+          "fd_sha256": "16ea8af48eee9202429c553e87d0eef037afab053fc42f8c4cef72fd88085c40",
+          "source_optee_sha256": "6982d6db64600798474bb91bb78dadf5d77969592291c9499797e9f0c389285e",
+          "full_flash_sha256": "7e16abe01dca1c5d5d93b8226e30d64f744e74c8a988db8cae27627a3f4eed07",
+          "binding_report_sha256": "590e45bd4123705748798ddd827106a778ed75543b21127a22dd81d98b061727",
+          "chain_report_sha256": "b62cf6fe5f311baebda65b59f2531fee0aab796bb5042a66f0bdebed89f796f7",
+          "historical_helper_sha256": "77f6974d3cc4e27caf50c6f7f1ae5695f0d15a7ccd24b58309b3f164446bdb5e",
+          "native_helpers": {
+            "stmm_release_platform.py": "534922d1d112d060f92379bf6b571f2c865111e609423cd860b20b732d497ed8",
+            "stmm_release_port.py": "2864f4fc02f36c5783542d6b891f18e1913e280d3681087885dc69de021d9738"
+          },
+          "storage_plan_sha256": "64b4cb0c9fa9541bd2bf85faf8ebf3930f85d2159b0000de2c9e8b2bbf9e2bfa"
+        }
+      }
+    },
+    {
+      "key": "202502-radxa-1.3.1",
+      "edk2": "202502",
+      "radxa": "1.3.1",
+      "maintained": {
+        "commit": "520003797fddae4d4f05c035b708b86b003b1b56",
+        "tree": "f1b8eb26bd05f47df615c6734372dcec77fa183e",
+        "ref": "source/unofficial/1.3.1/edk2-stable202502",
+        "state": "not-integrated"
+      },
+      "candidate": null
+    },
+    {
+      "key": "202608-radxa-1.3.1",
+      "edk2": "202608",
+      "radxa": "1.3.1",
+      "maintained": {
+        "commit": "d76df27051c2fe4b549b36178b8c3b8d0ef65bfc",
+        "tree": "a3ceab4701084c9dacd78835621e5f877facaab6",
+        "ref": "source/unofficial/1.3.1/edk2-stable202608",
+        "state": "not-integrated"
+      },
+      "candidate": {
+        "commit": "a18044ed54e59cf7eb404d27b6dc80ecbd9e1c5e",
+        "tree": "3777285e4f95c6efbfb5b5a5698970ab5f9f9cc5",
+        "state": "qualified-candidate",
+        "qualification_scope": "isolated-offline-binding-signature-auth-cold-paired-storage; no descendant, clone or hardware qualification",
+        "qualification_evidence": {
+          "fd_sha256": "42a16eabec8f8464faf7cc66fe366ad0032239a118e3798c4384dd2bc54a4da0",
+          "source_optee_sha256": "1b3892aa175ec52861ca5fce3bc33bc0e80a520eaf442a4cdd66be4b6433000a",
+          "full_flash_sha256": "d9666b52c158c14650b71d89f49faae7facc6d6e1eb8246babba2a4fb26a694a",
+          "binding_report_sha256": "d5e07e6192b592a0a0588445a889d21f672fd0aea59dd471bf5838c6734bb4bb",
+          "chain_report_sha256": "fba45c608ae0c0b7f6f6e36b7bc65e97047a3e60cbc28c98f5e9c70ed479e7e0",
+          "historical_helper_sha256": "77f6974d3cc4e27caf50c6f7f1ae5695f0d15a7ccd24b58309b3f164446bdb5e",
+          "native_helpers": {
+            "stmm_release_platform.py": "534922d1d112d060f92379bf6b571f2c865111e609423cd860b20b732d497ed8",
+            "stmm_release_port.py": "2864f4fc02f36c5783542d6b891f18e1913e280d3681087885dc69de021d9738"
+          },
+          "storage_plan_sha256": "87708be436ac3aa7c7309f589504c7beef39edb99086318dd70370e54250787d"
+        }
+      }
+    }
+  ],
+  "blocked_criteria": [
+    "full-source-image",
+    "exact-fd-optee-flash-binding",
+    "vendor-signature-chain",
+    "actual-c-producer-native-abi",
+    "authenticated-variable-tests",
+    "cold-persistence",
+    "paired-nor-baseline-2047",
+    "paired-cuts-189-149-40"
+  ]
+}

@@ -1,0 +1,175 @@
+name: Release-matched StandaloneMM preparation
+
+on:
+  workflow_dispatch:
+    inputs:
+      harness_sha:
+        description: Exact committed build-branch SHA containing this workflow and manifest
+        required: true
+        type: string
+      selection:
+        description: Explicit source population (never substitutes maintained tips for candidates)
+        type: choice
+        options: [maintained, candidate]
+        default: maintained
+      stage:
+        description: Preflight first; native compile requires a reviewed registry digest in the manifest
+        type: choice
+        options: [preflight, native-compile]
+        default: preflight
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stmm-${{ github.run_id }}-${{ github.run_attempt }}
+  cancel-in-progress: false
+
+env:
+  AGENT_SESSION_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
+  WORKFLOW_SHA: ${{ github.workflow_sha }}
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the dispatch and requested harness to be identical
+        env:
+          REQUESTED_SHA: ${{ inputs.harness_sha }}
+        run: |
+          set -euo pipefail
+          [[ "${REQUESTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${WORKFLOW_SHA}" == "${REQUESTED_SHA}" ]]
+          [[ "$(git rev-parse HEAD)" == "${REQUESTED_SHA}" ]]
+      - name: Focused orchestration regressions before expensive work
+        run: python3 -m unittest discover -s scripts -p test_stmm_ci.py
+      - name: Select explicit pinned source population
+        id: plan
+        env:
+          SELECTION: ${{ inputs.selection }}
+        run: |
+          set -euo pipefail
+          matrix="$(python3 scripts/stmm_ci.py matrix --selection "${SELECTION}")"
+          echo "matrix=${matrix}" >>"${GITHUB_OUTPUT}"
+
+  cases:
+    needs: plan
+    name: ${{ inputs.selection }} / ${{ matrix.key }} / ${{ inputs.stage }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      STMM_ROOT: ${{ github.workspace }}/.worktrees/session-gha-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch required source refs without selecting a mutable default
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/source/*:refs/heads/source/*'
+          git fetch origin '+refs/tags/source/*:refs/tags/source/*'
+      - name: Check exact harness and establish isolated scratch
+        env:
+          REQUESTED_SHA: ${{ inputs.harness_sha }}
+        run: |
+          set -euo pipefail
+          [[ "${REQUESTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${WORKFLOW_SHA}" == "${REQUESTED_SHA}" ]]
+          [[ "$(git rev-parse HEAD)" == "${REQUESTED_SHA}" ]]
+          mkdir -p "${STMM_ROOT}/tmp"
+          for name in TMPDIR TMP TEMP EDK2_CIX_TMP_ROOT; do
+            echo "${name}=${STMM_ROOT}/tmp" >>"${GITHUB_ENV}"
+          done
+          df -h .
+          free -h
+          nproc
+      - name: Validate inputs or compile one native payload
+        env:
+          CASE_KEY: ${{ matrix.key }}
+          SELECTION: ${{ inputs.selection }}
+          STAGE: ${{ inputs.stage }}
+        run: |
+          set -euo pipefail
+          python3 scripts/stmm_ci.py case --case "${CASE_KEY}" --selection "${SELECTION}" \
+            --stage "${STAGE}" --output "${STMM_ROOT}/evidence"
+      - name: Upload exact per-case inputs, results and diagnostics on failure too
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
+        with:
+          name: stmm-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.selection }}-${{ matrix.key }}
+          retention-days: 30
+          if-no-files-found: error
+          include-hidden-files: true
+          path: |
+            ${{ env.STMM_ROOT }}/evidence/*.json
+            ${{ env.STMM_ROOT }}/evidence/debug/**
+            ${{ env.STMM_ROOT }}/evidence/native/build.log
+            ${{ env.STMM_ROOT }}/evidence/native/compiler.txt
+            ${{ env.STMM_ROOT }}/evidence/native/profile.json
+            ${{ env.STMM_ROOT }}/evidence/native/BL32_AP_MM.fd
+
+  summary:
+    if: ${{ always() }}
+    needs: [plan, cases]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch source identities for independent summary validation
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin '+refs/heads/source/*:refs/heads/source/*'
+          git fetch origin '+refs/tags/source/*:refs/tags/source/*'
+      - name: Download every case result
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8
+        with:
+          pattern: stmm-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: .worktrees/session-gha-${{ github.run_id }}-${{ github.run_attempt }}/results
+      - name: Fail closed and report evaluated and outstanding criteria
+        if: ${{ always() }}
+        env:
+          STMM_JOB_RESULTS: >-
+            {"plan":"${{ needs.plan.result }}","cases":"${{ needs.cases.result }}",
+            "download":"${{ steps.download.outcome }}"}
+          SELECTION: ${{ inputs.selection }}
+          STAGE: ${{ inputs.stage }}
+          REQUESTED_SHA: ${{ inputs.harness_sha }}
+        run: |
+          set -euo pipefail
+          [[ "${REQUESTED_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${WORKFLOW_SHA}" == "${REQUESTED_SHA}" ]]
+          [[ "$(git rev-parse HEAD)" == "${REQUESTED_SHA}" ]]
+          root=".worktrees/session-gha-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "${root}"
+          python3 scripts/stmm_ci.py aggregate --selection "${SELECTION}" --stage "${STAGE}" \
+            --results "${root}/results" --output "${root}/aggregate.json"
+      - name: Preserve aggregate even when a gate fails
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
+        with:
+          name: stmm-summary-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 30
+          if-no-files-found: error
+          include-hidden-files: true
+          path: .worktrees/session-gha-${{ github.run_id }}-${{ github.run_attempt }}/aggregate.json
