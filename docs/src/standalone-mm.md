@@ -205,7 +205,27 @@ The report deliberately says `built-not-qualified`. The FD requires
 `CFG_STMM_FFA_VERSION=12`; it is not a complete or independently flashable board
 image. Repeat into a second directory to compare clean-build payload hashes.
 
+### Qualification stage progression
+
+Start with input and identity preflight. Proceed to the applicable native
+compilation, full-image, emulator and storage stages only when their documented
+prerequisites are met. Integration into maintained descendants requires new
+qualification of those exact descendants against the complete acceptance
+criteria below. A preparation workflow may support only input preflight or
+native compilation; its existence does not establish that full-image, emulator
+or storage stages are portable, enabled or qualified.
+
 ### Current qualification boundary
+
+Qualification must establish the exact OP-TEE-to-StandaloneMM
+producer/consumer compatibility for the selected releases and bind the signed
+firmware payload to the tested compressed and decoded images. Preserve the
+required authentication, cold-persistence, NOR/FTW mutation and interruption
+comparisons, boundary controls, and parity with specific inherited failures.
+Size, hash or case-count checks alone do not replace required byte-level and
+behavioral comparisons. A restricted boundary control proves only the behavior
+it actually exercises; it does not qualify the complete component or boot chain.
+Keep full-image, emulated and physical-hardware evidence distinct.
 
 Executing the actual hybrid AArch64 payload with the C-generated OP-TEE handoff
 and modeled NOR services exercises initialization, memory permissions, ordinary
