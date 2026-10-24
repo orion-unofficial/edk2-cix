@@ -147,7 +147,9 @@ bytes, then the same 189 ordinal cuts, including the 40 inherited failures and
 created by these jobs; O6 boot/UART/physical persistence and Secure Boot state
 remain separately unverified and require explicit flash/reboot authorization.
 
-Actions are pinned to verified full commit IDs. Preflight does not install Python
+Actions use published floating major-version tags, consistently across workflows,
+so compatible upstream updates are adopted automatically. The exact harness and
+firmware input identity checks remain required. Preflight does not install Python
 packages or pull a compiler/emulator image. The hosted runner label remains a
 managed environment; it does not establish historical compiler replay.
 

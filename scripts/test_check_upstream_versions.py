@@ -261,6 +261,53 @@ def test_local_workflow_action_ref() -> None:
     require(state.version == "6", "expected normalized workflow action version")
 
 
+def test_workflow_action_refs_must_agree_across_workflows() -> None:
+    with tempfile.TemporaryDirectory(prefix="check-upstream-versions-test-") as tmp:
+        root = Path(tmp)
+        workflows = root / ".github" / "workflows"
+        workflows.mkdir(parents=True)
+        (workflows / "ci.yaml").write_text(
+            "steps:\n  - uses: actions/checkout@v7\n", encoding="utf-8"
+        )
+        other = workflows / "stmm.yaml"
+        local = {"action": "actions/checkout", "type": "workflow-action-ref"}
+        for ref in ("v7", "v6", "3d3c42e5aac5ba805825da76410c181273ba90b1"):
+            other.write_text(f"steps:\n  - uses: actions/checkout@{ref}\n", encoding="utf-8")
+            if ref == "v7":
+                require(local_workflow_action_ref(root, local).label == "v7", "matching majors should agree")
+                continue
+            try:
+                local_workflow_action_ref(root, local)
+            except ReconstructionError as error:
+                detail = str(error)
+                require("inconsistent refs" in detail, "mismatched refs must be rejected")
+                require("ci.yaml" in detail and "stmm.yaml" in detail, "diagnostic must name both workflows")
+                require(ref in detail and "v7" in detail, "diagnostic must name both refs")
+            else:
+                raise AssertionError(f"mixed workflow action refs must be rejected: {ref}")
+
+
+def test_workflow_action_newer_major_is_still_reported() -> None:
+    remote = latest_remote_tag(
+        [RemoteRef("current", "refs/tags/v7"), RemoteRef("newer", "refs/tags/v8")],
+        r"^refs/tags/v(?P<version>\d+)$",
+    )
+    require(remote is not None, "expected a published major tag")
+    status, detail = compare_tag(LocalState(label="v7", version="7"), remote)
+    require(status == "stale", "newer major must remain visible as stale")
+    result = UpstreamVersionResult(
+        source_id="github-actions-checkout", check_id="github-actions-checkout:release",
+        kind="release", description="Latest checkout major", mode="strict",
+        status=status, local="v7", remote=remote.label, detail=detail,
+    )
+    require(should_fail(result, "policy"), "strict-policy newer majors must still fail")
+    with tempfile.TemporaryDirectory(prefix="check-upstream-versions-test-") as tmp:
+        path = Path(tmp) / "summary.md"
+        write_github_summary([result], path)
+        summary = path.read_text(encoding="utf-8")
+    require("stale" in summary and "v8" in summary, "summary must report the newer major")
+
+
 def test_docker_latest_tag_snapshot() -> None:
     latest = latest_docker_tag_from_snapshot(
         [
@@ -289,6 +336,8 @@ def main() -> None:
     test_local_file_regex()
     test_local_json_field_rejects_ambiguous_current_ref()
     test_local_workflow_action_ref()
+    test_workflow_action_refs_must_agree_across_workflows()
+    test_workflow_action_newer_major_is_still_reported()
     test_docker_latest_tag_snapshot()
     print("check_upstream_versions tests passed")
 

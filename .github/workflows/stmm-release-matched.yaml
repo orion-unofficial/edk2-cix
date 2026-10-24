@@ -37,7 +37,7 @@ jobs:
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
@@ -73,7 +73,7 @@ jobs:
     env:
       STMM_ROOT: ${{ github.workspace }}/.worktrees/session-gha-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
@@ -109,7 +109,7 @@ jobs:
             --stage "${STAGE}" --output "${STMM_ROOT}/evidence"
       - name: Upload exact per-case inputs, results and diagnostics on failure too
         if: ${{ always() }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
+        uses: actions/upload-artifact@v7
         with:
           name: stmm-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.selection }}-${{ matrix.key }}
           retention-days: 30
@@ -129,7 +129,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
@@ -142,7 +142,7 @@ jobs:
       - name: Download every case result
         id: download
         continue-on-error: true
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8
+        uses: actions/download-artifact@v8
         with:
           pattern: stmm-${{ github.run_id }}-${{ github.run_attempt }}-*
           path: .worktrees/session-gha-${{ github.run_id }}-${{ github.run_attempt }}/results
@@ -166,7 +166,7 @@ jobs:
             --results "${root}/results" --output "${root}/aggregate.json"
       - name: Preserve aggregate even when a gate fails
         if: ${{ always() }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
+        uses: actions/upload-artifact@v7
         with:
           name: stmm-summary-${{ github.run_id }}-${{ github.run_attempt }}
           retention-days: 30
