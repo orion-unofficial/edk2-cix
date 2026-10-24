@@ -144,7 +144,7 @@ resolve_container_runtime() {
         fi
         if "$candidate" info >/dev/null 2>&1; then
             if [[ "$candidate" != "${runtime_candidates[0]}" ]] && command -v "${runtime_candidates[0]}" >/dev/null 2>&1; then
-                status "Preferred runtime ${runtime_candidates[0]} was not usable; falling back to ${candidate}"
+                status "Preferred runtime ${runtime_candidates[0]} was not usable; falling back to ${candidate}" >&2
             fi
             printf '%s\n' "$candidate"
             return 0
