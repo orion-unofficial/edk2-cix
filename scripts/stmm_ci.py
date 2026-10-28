@@ -21,8 +21,9 @@ POLICY = ROOT / 'config/stmm-ci.json'
 HELPERS = ('stmm_ci.py',)
 TESTS = ('test_stmm_ci.py',)
 NATIVE_HELPERS = ('qualify_stmm_releases.py', 'stmm_release_platform.py',
-                  'stmm_release_port.py', 'stmm_vendor_control.py')
-NATIVE_TESTS = ('test_stmm_release_platform.py', 'test_stmm_vendor_control.py')
+                  'stmm_release_port.py', 'stmm_vendor_control.py', 'reconstruction_common.py')
+NATIVE_TESTS = ('test_stmm_release_platform.py', 'test_stmm_release_port.py',
+                'test_stmm_vendor_control.py')
 NATIVE_DSC = 'src/edk2-platforms/Platform/StandaloneMm/PlatformStandaloneMmPkg/PlatformStandaloneMmRpmb.dsc'
 CRYPTO_PATH = 'CryptoPkg/Library/Include/CrtLibSupport.h'
 REQUIRED_CRITERIA = (

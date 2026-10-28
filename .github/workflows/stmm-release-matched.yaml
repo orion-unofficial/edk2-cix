@@ -98,6 +98,13 @@ jobs:
           df -h .
           free -h
           nproc
+      - name: Native preparation regressions before compilation
+        if: ${{ inputs.stage == 'native-compile' }}
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p test_stmm_release_platform.py
+          python3 -m unittest discover -s scripts -p test_stmm_release_port.py
+          python3 -m unittest discover -s scripts -p test_stmm_vendor_control.py
       - name: Validate inputs or compile one native payload
         env:
           CASE_KEY: ${{ matrix.key }}

@@ -47,11 +47,43 @@ of the unintegrated firmware topics. The minimum change is these five files:
 procedure link in `standalone-mm.md` can accompany them; exclude its other WIP.
 Input-only preflight uses the standard library and Git, and consumes no native
 helper modules, local images, session evidence or unpublished candidate objects.
-Native compilation separately needs `qualify_stmm_releases.py`,
-`stmm_release_platform.py`, `stmm_release_port.py`, `stmm_vendor_control.py` and
-the native platform/vendor tests recorded by the adapter. Review those files and
-their tracked import dependencies before enabling that lane. Keep the compiler
-image unset until its prerequisites are satisfied.
+The build branch's native host tooling consists of `qualify_stmm_releases.py`,
+`stmm_release_platform.py`, `stmm_release_port.py`, `stmm_vendor_control.py`,
+`test_stmm_release_platform.py` and `test_stmm_vendor_control.py`, plus the
+maintained `test_stmm_release_port.py` regressions. The compiler entry point
+retains its existing `reconstruction_common.py` dependency. Actions calls
+`compile_case()` with exact objects through the adapter; it does not use the
+standalone matrix CLI's source-selection defaults. These host files do not
+change rendered firmware sources or integrate a component descendant.
+
+For `native-compile`, each case fetches the required source refs, checks the
+exact harness/workflow/checkout identity, establishes isolated scratch, then
+executes the native platform, source-port and vendor regression suites. Every
+suite must pass before the adapter can invoke compilation. The adapter records
+the same three native test files in its test-suite identity. Workflow tests
+execute the gate's shell commands with a command stub and prove that failure in
+any suite prevents reaching compilation. The gate runs only for
+`native-compile`; `preflight` still uses the standard library, Git and adapter
+tests without importing native modules or requiring their test fixtures, source
+ports, compiler tools or images.
+
+Native preparation regressions use exact maintained firmware commits from the
+CI manifest for EDK2 202208, 202411, 202502 and 202608. They cover GCC5/GCC,
+legacy mode 10 and modern mode 12, both retained vendor directories, privileged
+cache/MMU bindings, malformed inputs and byte-level source-port postimages.
+Legacy tests use hash-bound copies of the reviewed header and generated DEPEX
+patch under `scripts/tests/fixtures/stmm-source-port/`; this avoids requiring
+unpublished candidate objects on the runner. Those fixtures do not install the
+missing files in the maintained component. The port tests check the actual
+preimages and preserve original source and patch line endings.
+
+Host preparation tests perform no native firmware compilation, emulator or NOR
+execution. A passing host test does not change a case's `not-integrated` state
+or establish firmware qualification. Keep the compiler image unset until the
+separate image task establishes a verified pullable Linux amd64 registry
+digest. Reviewed source/component descendant integration and repinning remain
+required before maintained compilation; full acceptance and the EDK2 202502
+qualification gap remain outstanding.
 
 The original failures in run `39028460047`, job `117384260914`, were repaired
 in build ancestry. Baseline run `39953414390` passed source-model tests, lint,

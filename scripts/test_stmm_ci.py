@@ -4,6 +4,9 @@ import copy
 import json
 import os
 from pathlib import Path
+import re
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -184,8 +187,33 @@ class StmmCiTests(unittest.TestCase):
         with patch.object(ci, 'ROOT', self.output), patch.object(ci, 'POLICY', policy_path):
             with patch.object(ci, 'object_pin'), patch.object(ci, 'git', side_effect=resolve):
                 result = ci.subject(self.policy, self.case, 'maintained')
+                with patch.object(ci, 'compile_native') as compiler, patch('builtins.print'):
+                    status = ci.run_case(self.policy, self.case['key'], 'maintained', 'preflight',
+                                         self.output / 'preflight')
+                compiler.assert_not_called()
+                self.assertEqual(status, 0)
         self.assertEqual(set(result['helpers']), {'stmm_ci.py'})
         self.assertEqual(set(result['test_suite']), {'test_stmm_ci.py'})
+
+    def test_native_identity_covers_every_required_test(self):
+        # Hashing native inputs is explicit and only requested for this stage.
+        with patch.object(ci, 'object_pin'), patch.object(ci, 'git', return_value='a' * 40), patch.object(
+                ci, 'file_hashes', side_effect=lambda names: {name: 'a' * 64 for name in names}):
+            result = ci.subject(self.policy, self.case, 'candidate', 'native-compile')
+        self.assertEqual(set(result['test_suite']), set(ci.TESTS + ci.NATIVE_TESTS))
+        self.assertEqual(set(result['helpers']), set(ci.HELPERS + ci.NATIVE_HELPERS))
+
+    def test_not_integrated_source_blocks_native_compilation(self):
+        identity = dict(self.identity, input_state='not-integrated')
+        with patch.object(ci, 'subject', return_value=identity), patch.object(ci, 'compile_native') as compiler:
+            with patch('builtins.print'):
+                status = ci.run_case(self.policy, self.case['key'], 'maintained', 'native-compile',
+                                     self.output / 'blocked-native')
+        self.assertEqual(status, 1)
+        compiler.assert_not_called()
+        result = json.loads((self.output / 'blocked-native/result.json').read_text())
+        self.assertEqual(result['status'], 'blocked')
+        self.assertEqual(result['qualification'], 'incomplete')
 
     def test_native_stage_requires_complete_build_evidence(self):
         row = self.result()
@@ -215,6 +243,78 @@ class StmmCiTests(unittest.TestCase):
         self.assertEqual(json.loads((output / 'result.json').read_text())['status'], 'blocked')
         with self.assertRaises(FileExistsError):
             ci.run_case(self.policy, self.case['key'], 'candidate', 'preflight', output)
+
+
+class NativeWorkflowTests(unittest.TestCase):
+    def setUp(self):
+        workflow = (ci.ROOT / '.github/workflows/stmm-release-matched.yaml').read_text()
+        cases = workflow.split('\n  cases:\n', 1)[1].split('\n  summary:\n', 1)[0]
+        self.steps = re.split(r'^      - ', cases, flags=re.M)[1:]
+        self.fetch = next(i for i, step in enumerate(self.steps) if 'name: Fetch required source refs' in step)
+        self.setup = next(i for i, step in enumerate(self.steps) if 'name: Check exact harness' in step)
+        self.gate = next(i for i, step in enumerate(self.steps) if 'name: Native preparation regressions' in step)
+        self.compile = next(i for i, step in enumerate(self.steps) if 'name: Validate inputs or compile' in step)
+
+    @staticmethod
+    def script(step):
+        value = step.split('        run: |\n', 1)[1]
+        return '\n'.join(line[10:] for line in value.splitlines()) + '\n'
+
+    def test_native_tests_follow_fetch_identity_and_scratch_setup(self):
+        self.assertLess(self.fetch, self.setup)
+        self.assertLess(self.setup, self.gate)
+        self.assertLess(self.gate, self.compile)
+        setup = self.steps[self.setup]
+        for guard in ('${WORKFLOW_SHA}', '$(git rev-parse HEAD)', '${REQUESTED_SHA}',
+                      'TMPDIR TMP TEMP EDK2_CIX_TMP_ROOT'):
+            self.assertIn(guard, setup)
+        gate = self.steps[self.gate]
+        self.assertIn("if: ${{ inputs.stage == 'native-compile' }}", gate)
+        self.assertNotIn('continue-on-error', gate)
+        self.assertNotIn('if:', self.steps[self.compile])
+        self.assertNotIn('continue-on-error', self.steps[self.compile])
+        executed = re.findall(r'-p (test_\w+\.py)', self.script(gate))
+        self.assertEqual(executed, list(ci.NATIVE_TESTS))
+        self.assertEqual(set(executed), {'test_stmm_release_platform.py', 'test_stmm_release_port.py',
+                                         'test_stmm_vendor_control.py'})
+
+    def test_failure_in_any_native_suite_stops_before_compilation(self):
+        # Execute the actual workflow shell blocks with a Python command stub:
+        # no compiler, Docker, source import or native suite runs in this test.
+        for failure in (*ci.NATIVE_TESTS, ''):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory(prefix='stmm-gate-') as temporary:
+                root = Path(temporary)
+                stub = root / 'python3'
+                stub.write_text('#!' + sys.executable + '\n'
+                                'import os, sys\n'
+                                'from pathlib import Path\n'
+                                'name = sys.argv[-1] if "unittest" in sys.argv else "compile"\n'
+                                'with Path(os.environ["STMM_TEST_LOG"]).open("a") as log:\n'
+                                '    log.write(name + "\\n")\n'
+                                'sys.exit(9 if name == os.environ["STMM_FAIL_TEST"] else 0)\n')
+                stub.chmod(0o755)
+                log = root / 'calls'
+                env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ['PATH'],
+                           STMM_TEST_LOG=str(log), STMM_FAIL_TEST=failure, STMM_ROOT=str(root),
+                           CASE_KEY='test', SELECTION='candidate', STAGE='native-compile')
+                script = self.script(self.steps[self.gate]) + self.script(self.steps[self.compile])
+                result = subprocess.run(['bash', '-c', script], env=env, capture_output=True, text=True, timeout=10)
+                calls = log.read_text().splitlines()
+                if failure:
+                    self.assertEqual(result.returncode, 9, result.stderr)
+                    self.assertEqual(calls, list(ci.NATIVE_TESTS[:ci.NATIVE_TESTS.index(failure) + 1]))
+                    self.assertNotIn('compile', calls)
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(calls, list(ci.NATIVE_TESTS) + ['compile'])
+
+    def test_preflight_plan_has_no_native_test_or_tool_dependency(self):
+        workflow = (ci.ROOT / '.github/workflows/stmm-release-matched.yaml').read_text()
+        plan = workflow.split('\n  plan:\n', 1)[1].split('\n  cases:\n', 1)[0]
+        self.assertIn('-p test_stmm_ci.py', plan)
+        for name in ci.NATIVE_HELPERS + ci.NATIVE_TESTS:
+            self.assertNotIn(name, plan)
+        self.assertNotIn('docker', plan)
 
 
 if __name__ == '__main__':
