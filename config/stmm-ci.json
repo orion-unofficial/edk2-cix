@@ -72,8 +72,8 @@
       "edk2": "202208",
       "radxa": "1.3.1",
       "maintained": {
-        "commit": "0367ce3d7e00eb6c1cb14c88f73ee0e08c1268a1",
-        "tree": "6b819119a2e44963f7d9a2cf1ca1228a25e83bc6",
+        "commit": "7d40d67e2595068a24eb48877d03d357ef68b1ac",
+        "tree": "a00c14bd761995807a5faabcd2a198db362d35f5",
         "ref": "source/unofficial/1.3.1/edk2-stable202208",
         "state": "not-integrated"
       },
@@ -102,8 +102,8 @@
       "edk2": "202411",
       "radxa": "1.3.1",
       "maintained": {
-        "commit": "50503afa043f1e65692db7d95dbedc15091f2e32",
-        "tree": "6114b8895a41c5da4b7171f3c0239ecfce24a9c3",
+        "commit": "94aa590ea6558d9b0c917d36ea6677e406ecbbbc",
+        "tree": "cce5523b3ce23d3504ca07284ba099ae673ebfd4",
         "ref": "source/unofficial/1.3.1/edk2-stable202411",
         "state": "not-integrated"
       },
@@ -132,8 +132,8 @@
       "edk2": "202502",
       "radxa": "1.3.1",
       "maintained": {
-        "commit": "520003797fddae4d4f05c035b708b86b003b1b56",
-        "tree": "f1b8eb26bd05f47df615c6734372dcec77fa183e",
+        "commit": "6a6d5f924731dc91ccdbf0aa34197f892960fcd7",
+        "tree": "868a9a51977284fb3d60eb821f8e4f65eb33a587",
         "ref": "source/unofficial/1.3.1/edk2-stable202502",
         "state": "not-integrated"
       },
@@ -144,8 +144,8 @@
       "edk2": "202608",
       "radxa": "1.3.1",
       "maintained": {
-        "commit": "d76df27051c2fe4b549b36178b8c3b8d0ef65bfc",
-        "tree": "a3ceab4701084c9dacd78835621e5f877facaab6",
+        "commit": "adddde5c52eece072df5fe1a964462b08599476d",
+        "tree": "564a6581f438df8ee9a4015604cddfbb509866be",
         "ref": "source/unofficial/1.3.1/edk2-stable202608",
         "state": "not-integrated"
       },
