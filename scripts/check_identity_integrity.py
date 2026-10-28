@@ -121,6 +121,9 @@ def scan_files(repo: Path, verbose: bool) -> list[str]:
         text = data.decode("utf-8", errors="ignore")
         imported_lines = imported_attribution_lines(rel, data)
         for label, pattern in patterns:
+            # Root agent instructions may name the assistant they configure.
+            if rel == "AGENTS.md" and label == "generated assistant identity":
+                continue
             for match in pattern.finditer(text):
                 line = text.count("\n", 0, match.start()) + 1
                 # Reserved fixture identities are not personal email addresses.

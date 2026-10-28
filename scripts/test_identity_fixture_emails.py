@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Keep reserved fixture identities distinct from private metadata leaks."""
 from pathlib import Path
+from types import SimpleNamespace
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -21,6 +22,45 @@ class FixtureEmailTests(unittest.TestCase):
 
     def scan(self, path, address):
         return self.scan_bytes(path, (address + "\n").encode())
+
+    def test_assistant_name_is_allowed_only_in_root_agent_instructions(self):
+        name = "Co" + "dex"
+        self.assertEqual(self.scan("AGENTS.md", name), [])
+        for path in ("src/example.c", "docs/guide.md", "config/example.json",
+                     "docs/AGENTS.md", "scripts/AGENTS.md", "agents.md"):
+            with self.subTest(path=path):
+                problems = self.scan(path, name)
+                self.assertEqual(len(problems), 1)
+                self.assertIn("generated assistant identity", problems[0])
+
+    def test_agent_instructions_still_reject_other_identity_patterns(self):
+        for value, label in (
+            ("/" + "Users/fixture/project", "host path"),
+            ("/" + "private/" + "tmp/fixture", "host path"),
+            ("/" + "tmp/fixture", "host path"),
+            ("fixture" + "@" + "example.org", "embedded email"),
+            ("fixture" + "@" + "example.invalid", "embedded email"),
+            ("main-" + "monorepo", "old branch name"),
+        ):
+            with self.subTest(label=label, value=value):
+                problems = self.scan("AGENTS.md", "Co" + "dex\n" + value)
+                self.assertEqual(len(problems), 1)
+                self.assertIn(label, problems[0])
+
+    def test_assistant_name_is_rejected_in_each_commit_metadata_field(self):
+        clean = ["a" * 40, "Fixture Author", "author@example.invalid",
+                 "Fixture Committer", "committer@example.invalid", "Fixture subject"]
+        for field in range(1, 6):
+            with self.subTest(field=field):
+                fields = clean.copy()
+                fields[field] = "Co" + "dex"
+                result = SimpleNamespace(stdout="\0".join(fields) + "\n")
+                with patch.object(identity, "git", return_value=result):
+                    problems = identity.scan_commits(Path("."))
+                self.assertEqual(len(problems), 1)
+                self.assertIn("generated identity string in commit metadata", problems[0])
+        with patch.object(identity, "git", return_value=SimpleNamespace(stdout="\0".join(clean) + "\n")):
+            self.assertEqual(identity.scan_commits(Path(".")), [])
 
     def test_only_exact_imported_attribution_is_exempt(self):
         path = "scripts/tests/fixtures/radxa13-source-conflicts/Sky1Common.dsc.inc"
