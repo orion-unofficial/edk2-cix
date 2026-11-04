@@ -10,6 +10,7 @@ import re
 import stat
 import sys
 import time
+from functools import partial
 from pathlib import Path
 
 from import_workflow import ZERO_OID, transaction_update_refs
@@ -21,7 +22,7 @@ from reconstruction_common import (
     clear_metadata_caches,
     commit_component_skeleton,
     format_duration,
-    git,
+    git as git_command,
     main_wrapper,
     read_delta_artefact_metadata,
     default_release,
@@ -44,6 +45,12 @@ from reconstruction_common import (
     source_target_name,
 )
 from source_policy import enforce_source_tree_policy
+
+
+# Keep stdout available for --print-worktree/--print-ref even when verbose Git
+# subprocesses stream output. Python redirect_stdout does not redirect their FD 1.
+# Captured Git queries still return their stdout through CompletedProcess.
+git = partial(git_command, stdout=2)
 
 
 HELP = """render-release-branch
