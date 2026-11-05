@@ -5719,6 +5719,7 @@ LoadStorage (
   CHAR16      *StrPtr;
   EFI_STRING  ConfigRequest;
   UINTN       StrLen;
+  UINTN       VariableSize;
 
   ConfigRequest = NULL;
 
@@ -5786,9 +5787,31 @@ LoadStorage (
     //
     // Call GetVariable directly for EfiVarStore
     //
-    Status = gRT->GetVariable (Storage->BrowserStorage->Name, &(Storage->BrowserStorage->Guid), NULL, (UINTN *)(&(Storage->BrowserStorage->Size)), Storage->BrowserStorage->EditBuffer);
+    // GetVariable reports the persistent length through VariableSize.
+    // Keep the IFR size used to allocate and synchronize both browser buffers.
+    //
+    VariableSize = Storage->BrowserStorage->Size;
+    Status       = gRT->GetVariable (
+                          Storage->BrowserStorage->Name,
+                          &Storage->BrowserStorage->Guid,
+                          NULL,
+                          &VariableSize,
+                          Storage->BrowserStorage->EditBuffer
+                          );
     if (EFI_ERROR (Status)) {
+      //
+      // Use browser defaults on read failure, including an oversized variable.
+      // This load does not write the persistent variable.
+      //
       ExtractDefault (FormSet, NULL, EFI_HII_DEFAULT_CLASS_STANDARD, FormSetLevel, GetDefaultForStorage, Storage->BrowserStorage, TRUE, TRUE);
+    } else if (VariableSize < Storage->BrowserStorage->Size) {
+      //
+      // Preserve the stored prefix and initialize the missing tail.
+      //
+      ZeroMem (
+        Storage->BrowserStorage->EditBuffer + VariableSize,
+        Storage->BrowserStorage->Size - VariableSize
+        );
     }
   } else {
     //
