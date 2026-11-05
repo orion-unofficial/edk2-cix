@@ -69,6 +69,7 @@ VERBOSE=0
 CACHE_ROOT=
 STMM=vendor
 STMM_SOURCE=
+STMM_EDK2_RELEASE=
 STMM_FFA_VERSION=10
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -126,6 +127,7 @@ while [[ $# -gt 0 ]]; do
 			;;
 		--stmm) STMM="$2"; shift 2 ;;
 		--stmm-source) STMM_SOURCE="$2"; shift 2 ;;
+		--stmm-edk2-release) STMM_EDK2_RELEASE="$2"; shift 2 ;;
 		--vendor-fip)
 			VENDOR_FIP="$2"
 			shift 2
@@ -197,6 +199,15 @@ case "$STMM" in
   STMM_HELPER="${SCRIPT_DIR}/build_hybrid_stmm.py"
   STMM_FFA_VERSION=12
   STMM_ARGS=(--source "$STMM_SOURCE" --cache-root "${CACHE_ROOT:-${BUILD_ROOT}/.cix-cache}/stmm" --cross-compile "$CROSS_COMPILE" --jobs "$JOBS")
+  if [[ -n "$STMM_EDK2_RELEASE" ]]; then
+    case "$STMM_EDK2_RELEASE" in
+      202208|202411) STMM_FFA_VERSION=10 ;;
+      202502|202608) STMM_FFA_VERSION=12 ;;
+      *) printf 'Unsupported native StandaloneMM release: %s\n' "$STMM_EDK2_RELEASE" >&2; exit 1 ;;
+    esac
+    STMM_ARGS+=(--edk2-release "$STMM_EDK2_RELEASE" --edk2-source "${SCRIPT_DIR}/../edk2"
+      --native-dsc "${SCRIPT_DIR}/../edk2-platforms/Platform/StandaloneMm/PlatformStandaloneMmPkg/PlatformStandaloneMmRpmb.dsc")
+  fi
   ;;
  *) printf 'Unknown StandaloneMM selection: %s\n' "$STMM" >&2; exit 1 ;;
 esac

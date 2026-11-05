@@ -276,9 +276,10 @@ CIX_RELEASE_V12_PAYLOAD_DIR := $(CIX_RELEASE_SOURCE_DIR)/release-payloads
 CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD := $(CIX_RELEASE_V12_PAYLOAD_DIR)/bootloader1-2026q1.img
 CIX_RELEASE_BOOTLOADER2_HELPER := scripts/build_cix_release_bootloader2.sh
 CIX_RELEASE_STMM_HELPER := scripts/stage_vendor_stmm.py
+CIX_RELEASE_STMM_EDK2_RELEASE := 202608
 CIX_RELEASE_STMM_FFA_VERSION := $(if $(filter unofficial,$(STMM)),12,10)
 CIX_RELEASE_STMM_SOURCE := $(abspath $(CIX_RELEASE_SOURCE_DIR)/stmm-unofficial)
-CIX_RELEASE_STMM_ARGS = $(if $(filter unofficial,$(STMM)),--source "$(CIX_RELEASE_STMM_SOURCE)" --cache-root "$(CIX_RELEASE_CACHE_ROOT)/stmm" --cross-compile "$(GCC_AARCH64_PREFIX)" --jobs "$(HELPER_BUILD_JOBS)")
+CIX_RELEASE_STMM_ARGS = $(if $(filter unofficial,$(STMM)),--source "$(CIX_RELEASE_STMM_SOURCE)" --edk2-source "$(abspath edk2)" --native-dsc "$(abspath edk2-platforms/Platform/StandaloneMm/PlatformStandaloneMmPkg/PlatformStandaloneMmRpmb.dsc)" --edk2-release "$(CIX_RELEASE_STMM_EDK2_RELEASE)" --cache-root "$(CIX_RELEASE_CACHE_ROOT)/stmm" --cross-compile "$(GCC_AARCH64_PREFIX)" --jobs "$(HELPER_BUILD_JOBS)")
 ifeq ($(STMM),unofficial)
 CIX_RELEASE_STMM_HELPER := scripts/build_hybrid_stmm.py
 endif
@@ -1245,7 +1246,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 		--build-root "$(abspath $(call BUILD_STAGE_DIR,$*))" \
 		--signing-keys-dir "$(abspath $(CIX_RELEASE_SIGNING_KEYS_DIR))" \
 		--vendor-fip "$(abspath $(PACKAGE_TOOL)/Firmwares/bootloader2.img)" \
-		--stmm "$(STMM)" --stmm-source "$(CIX_RELEASE_STMM_SOURCE)" \
+		--stmm "$(STMM)" --stmm-source "$(CIX_RELEASE_STMM_SOURCE)" --stmm-edk2-release "$(CIX_RELEASE_STMM_EDK2_RELEASE)" \
 		--fiptool "$(abspath $(FIPTOOL_BIN))" \
 		--output "$$tmp_output" \
 		--cross-compile "$(GCC_AARCH64_PREFIX)" \
