@@ -27,6 +27,7 @@ RUN set -eux; \
     printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s/ bookworm-updates main\n' "${SNAPSHOT_TIMESTAMP}" >> /etc/apt/sources.list; \
     printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s/ bookworm-security main\n' "${SNAPSHOT_TIMESTAMP}" >> /etc/apt/sources.list; \
     printf 'Acquire::Check-Valid-Until "false";\n' > /etc/apt/apt.conf.d/99snapshot; \
-    apt-get update; \
+    printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' > /etc/apt/apt.conf.d/80replay-network; \
+    apt-get -o APT::Update::Error-Mode=any update; \
     grep -Ev '^\s*(#|$)' "${manifest}" | xargs -r apt-get install -y --no-install-recommends; \
     rm -rf /var/lib/apt/lists/* /tmp/replay-packages
