@@ -46,19 +46,19 @@
     {
       "component": "op-tee",
       "immutable": false,
-      "object_id": "32e7627e054a1a0de48004203af56cfc8e45112a",
+      "object_id": "a4a447c01cc18f090bf96afac8cf7b7112a0e9b9",
       "ref": "source/unofficial/cix/1.2/op-tee/3.17.0",
       "render_path": "src/cix-v1.2/tee-unofficial",
-      "tree_id": "f05d5d3dac531f384fda173bd99ae1fbde0c8c67",
+      "tree_id": "32f5caa4a073840c515ea6184c95783ab0886586",
       "type": "unofficial-component"
     },
     {
       "component": "standalone-mm",
       "immutable": false,
-      "object_id": "0b9f807bf32a37deffd75e9a12592eeebba38f40",
+      "object_id": "a16ca850d5e45ccb80cb7bf31a3bdc609e3df0c6",
       "ref": "source/unofficial/stmm/edk2-stable202608",
       "render_path": "src/cix-v1.2/stmm-unofficial",
-      "tree_id": "15fd7bdc315d0696e884c6ecf45548a85970583b",
+      "tree_id": "077e2e15d537e3945e57640b766eba2e92ff0f70",
       "type": "unofficial-component"
     }
   ]

@@ -983,6 +983,12 @@ def unofficial_release_branch_for_tag(tag: str) -> str:
     return f"source/unofficial/{edk2_ref_for_release(match.group('release'))}"
 
 
+# The release-native O6 profile has one reviewed checkpoint. Give it its
+# own render/cache identity so the normal release still selects the live line.
+NATIVE_STMM_CHECKPOINT_REF = "source/unofficial/1.3.1/edk2-stable202608"
+NATIVE_STMM_CHECKPOINT_TARGET = "edk2-202608/radxa-1.3.1/unofficial-checkpoint"
+
+
 def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
     all_releases = matrix_release_values(repo)
     supported_edk2 = {edk2_ref_for_release(release) for release in all_releases}
@@ -1018,6 +1024,8 @@ def matrix_release_branches(repo: Path) -> tuple[set[str], dict[str, str]]:
                     branches.update({unofficial, alias})
                     aliases[alias] = unofficial
 
+    if "1.3.1" in unofficial_checkpoints.get("edk2-stable202608", {}):
+        branches.add(release_to_branch(NATIVE_STMM_CHECKPOINT_TARGET))
     return branches, aliases
 
 
@@ -1144,7 +1152,7 @@ def rendered_tree_for(repo: Path, branch: str) -> str | None:
 
 def alias_target_for(branch: str, parts: dict[str, str]) -> str | None:
     unofficial = parts.get("unofficial")
-    if not unofficial or unofficial == "unofficial":
+    if not unofficial or unofficial in {"unofficial", "unofficial-checkpoint"}:
         return None
     release = parts["release"]
     radxa = parts["radxa"]
@@ -1331,10 +1339,15 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
         entry["source_ref"] = radxa_ref
     else:
         metadata_ref = release_metadata_ref(repo, radxa, edk2_ref)
-        unofficial_ref = (
-            active_unofficial_source_ref(repo, radxa, edk2_ref)
-            or unofficial_source_ref(repo, radxa, edk2_ref)
-        )
+        if unofficial == "unofficial-checkpoint":
+            if source_target_name(branch) != NATIVE_STMM_CHECKPOINT_TARGET:
+                raise ReconstructionError(f"unsupported Unofficial checkpoint target: {branch}")
+            unofficial_ref = NATIVE_STMM_CHECKPOINT_REF
+        else:
+            unofficial_ref = (
+                active_unofficial_source_ref(repo, radxa, edk2_ref)
+                or unofficial_source_ref(repo, radxa, edk2_ref)
+            )
         render["base"] = {"ref": unofficial_ref}
         if cix:
             render["commit_message"] = (

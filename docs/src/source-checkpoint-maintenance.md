@@ -108,6 +108,28 @@ not move firmware checkpoints or development lines. Publication also checks
 component ancestry and sends its ref with the build metadata in the same atomic
 transaction. Rewinds and unrelated replacement histories remain rejected.
 
+### Maintained OP-TEE component
+
+Use the same descendant-only operation for an existing maintained CIX OP-TEE
+component, selecting its CIX release and Arm base explicitly:
+
+```sh
+make integrate-source-release TYPE=unofficial COMPONENT=op-tee VENDOR=cix \
+  RELEASE=<cix-release> ARM_BASE=<arm-release> \
+  REF=<reviewed-descendant> ALLOW_REPLACE=1 WRITE=1
+```
+
+The target is `source/unofficial/cix/<cix-release>/op-tee/<arm-release>`.
+It must have exactly one `unofficial-component` record in `refs-cix.json`
+with an explicit `immutable: false`. The live commit and tree must match that
+record. The candidate must retain the old component as an ancestor and contain
+the StandaloneMM loader. This is an input guard, not ABI or firmware
+qualification. Without `WRITE=1`, neither the ref nor the manifest changes.
+Write mode uses an exact ref lease and restores the manifest if the ref update
+fails. It leaves vendor/base refs, firmware checkpoints, compatibility tags and
+qualification state unchanged. The normal coordinated publication and exact
+descendant qualification requirements still apply separately.
+
 ### Maintained checkpoint branches
 
 Integrate fixes into their named release checkpoint with the descendant-only

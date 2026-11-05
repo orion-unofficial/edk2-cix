@@ -17,7 +17,7 @@ from the UEFI shell; the generated OTA image is not currently usable.
 | `CIX_RELEASE=` | Stock vendor `bootloader2.img` |
 | `CIX_RELEASE=1.2 STMM=vendor` | Existing curated CIX source and pinned vendor StandaloneMM; `v1.2` is an alias |
 | `CIX_RELEASE=unofficial STMM=vendor` | Maintained OP-TEE component and pinned vendor StandaloneMM |
-| `CIX_RELEASE=unofficial STMM=unofficial` | Hybrid payload built from EDK2 202608 sources plus three pinned vendor executables; Integrated Radxa 1.2.4/1.3.1 O6 targets with EDK2 202502 or newer |
+| `CIX_RELEASE=unofficial STMM=unofficial` | Source-built hybrid payload on supported O6 source targets. The release-native 202608 profile requires the explicit 1.3.1 checkpoint below. |
 
 `STMM=vendor` is the default. Source-built trusted firmware remains restricted
 to custom O6 builds with the reviewed signing and pinned-payload integration.
@@ -257,20 +257,25 @@ only the FF-A handoff does not address loss of power between successful flash
 commands. Keep the vendor comparison and interrupted-flash fixtures when changing
 this behavior. A newly introduced failure remains an MVP blocker.
 
-### Building a hardware-test candidate
+### Building the release-native O6 candidate
 
-From the build branch, select the latest maintained firmware sources explicitly:
+Select the maintained 202608 / Radxa 1.3.1 checkpoint explicitly:
 
-```bash
+```sh
 make buildbox-firmware-build \
+    RELEASE=edk2-202608/radxa-1.3.1/unofficial-checkpoint \
     ARTEFACT_MODE=custom FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE \
     FIRMWARE_DISTRO=trixie ENABLE_FIRMWARE_FIXES=true \
     ENABLE_CORE_ORDER=cix ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false \
     DEBUG_VERBOSE=false CIX_RELEASE=unofficial STMM=unofficial
 ```
 
-For Radxa 1.2.4, add `RELEASE=edk2-202608/radxa-1.2.4/unofficial` to the same
-command. The default selects the active 1.3.1 line.
+The suffix `unofficial-checkpoint` selects the named maintained checkpoint.
+The ordinary `unofficial` name and the default build still follow the current
+development line. Only the O6 RELEASE checkpoint has this release-native
+profile and its matching offline evidence. The qualification state is
+`integrated-unqualified`. Historical source targets retain their own helper
+profiles and qualification states.
 
 This builds TF-A and maintained OP-TEE, builds the hybrid StandaloneMM component,
 selects `CFG_STMM_FFA_VERSION=12`, verifies the embedded payload before signing,
@@ -287,11 +292,10 @@ compatibility; hybrid reports identify `selection: unofficial`, the built image,
 retained executables and the exact OP-TEE hash. Hybrid artifact paths and archive
 names include `stmm_unofficial` to distinguish them from vendor-payload builds.
 
-The integrated targets are the active Radxa 1.3.1 O6 line, its retained
-202605/202608 checkpoints, and Radxa 1.2.4 O6 on EDK2 202608. Other historical
-checkpoints need explicit integration and qualification before using this selector.
-Pre-2025 bases remain explicitly rejected. This is a qualification boundary;
-normal-world EDK2 does not itself select the secure-world handoff ABI.
+The build validates the signer, hybrid builder, platform adapter, native
+source porter and vendor stager as one reviewed helper profile. The native
+202608 porter keeps absolute build paths out of generated PE CodeView records.
+Pre-2025 bases remain rejected by the firmware build.
 
 A successful build and offline tests do not establish hardware boot. Capture the
 complete UART log and test variable persistence across a cold boot, including

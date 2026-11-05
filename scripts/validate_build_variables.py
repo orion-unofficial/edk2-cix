@@ -8,7 +8,10 @@ import hashlib
 import os
 from pathlib import Path
 
-from reconstruction_common import ReconstructionError, main_wrapper, release_entry, repo_root, show_file
+from reconstruction_common import (
+    NATIVE_STMM_CHECKPOINT_REF, NATIVE_STMM_CHECKPOINT_TARGET, ReconstructionError,
+    main_wrapper, release_entry, repo_root, show_file,
+)
 from debug_build_policy import preflight
 from validate_release_inputs import source_fdf, validate_inputs
 from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
@@ -24,6 +27,22 @@ CIX_SIGNING_HELPER_SHA256 = "454540806a67021042160f38b02f1007d4f19f2e6a2e45563a6
 CIX_HYBRID_SIGNING_HELPER_SHA256 = "5c848a037636b060e215bf81019814fe2b98b8840f087b935b5c51c7c7d88afb"
 CIX_HYBRID_STMM_HELPER_SHA256 = "350c252fbf662e5d2bc31403f6e5726e034328c66f29d56ea0347fdb4265f7af"
 CIX_VENDOR_STMM_HELPER_SHA256 = "487175ff2b9b995240e0f8819540bc1d3e3a3e7d69c7b61b1ae8961149afa22f"
+CIX_NATIVE_SIGNING_HELPER_SHA256 = "7347d87ceb46905bd4e6aa0f0580793bb1c378581859438cd0a071eef47214ac"
+CIX_STMM_VENDOR_PATH = "src/scripts/stage_vendor_stmm.py"
+CIX_STMM_HYBRID_PATH = "src/scripts/build_hybrid_stmm.py"
+CIX_STMM_HELPER_PROFILES = {
+    CIX_SIGNING_HELPER_SHA256: {CIX_STMM_VENDOR_PATH: CIX_VENDOR_STMM_HELPER_SHA256},
+    CIX_HYBRID_SIGNING_HELPER_SHA256: {
+        CIX_STMM_VENDOR_PATH: CIX_VENDOR_STMM_HELPER_SHA256,
+        CIX_STMM_HYBRID_PATH: CIX_HYBRID_STMM_HELPER_SHA256,
+    },
+    CIX_NATIVE_SIGNING_HELPER_SHA256: {
+        CIX_STMM_VENDOR_PATH: CIX_VENDOR_STMM_HELPER_SHA256,
+        CIX_STMM_HYBRID_PATH: "77f6974d3cc4e27caf50c6f7f1ae5695f0d15a7ccd24b58309b3f164446bdb5e",
+        "src/scripts/stmm_release_platform.py": "f718bf83f545c9dfbd8804d67495736425f4468e59feb3722758460ab36c2f6a",
+        "src/scripts/stmm_release_port.py": "0a0a4ae7a2a25716313dfd0472262e47a8159556be78a0602462f77176ca7e54",
+    },
+}
 TRUE_TOKENS = {"1", "true", "on", "yes"}
 FALSE_TOKENS = {"0", "false", "off", "no"}
 SIGNING_CERT_NAMES = ("trusted_key_no.crt", "nt_fw_cert.crt", "nt_fw_key.crt")
@@ -85,6 +104,14 @@ def validate_release(repo: Path, problems: list[str]) -> None:
         problems.append(str(exc))
 
 
+def stmm_helper_problems(helper: bytes, contents: dict[str, bytes]) -> list[str]:
+    """Check the exact dependencies of the selected signing helper."""
+    required = CIX_STMM_HELPER_PROFILES.get(hashlib.sha256(helper).hexdigest(), {})
+    return [f"StandaloneMM helper differs from the reviewed source: {path}"
+            for path, expected in required.items()
+            if hashlib.sha256(contents.get(path, b"")).hexdigest() != expected]
+
+
 def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
     """Advertise CIX_RELEASE only for checkpoints with the reviewed helper and keys."""
     ref = entry["source_ref"]
@@ -99,23 +126,34 @@ def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
                 component.get("path") == "src/cix-v1.2/tee-unofficial" for component in components
             ):
                 raise ReconstructionError("maintained OP-TEE component is not selected by this source target")
-        if hashlib.sha256(helper).hexdigest() not in {CIX_SIGNING_HELPER_SHA256, CIX_HYBRID_SIGNING_HELPER_SHA256} or b"CIX_RELEASE_SIGNING_KEYS_DIR" not in makefile:
+        helper_hash = hashlib.sha256(helper).hexdigest()
+        profile = CIX_STMM_HELPER_PROFILES.get(helper_hash)
+        if profile is None or b"CIX_RELEASE_SIGNING_KEYS_DIR" not in makefile:
             raise ReconstructionError("source-built CIX signing helper is absent or differs from the reviewed version")
+        helper_problems = stmm_helper_problems(helper, {path: show_file(repo, ref, path) for path in profile})
+        if helper_problems:
+            raise ReconstructionError("; ".join(helper_problems))
         if env("STMM") == "unofficial":
-            if hashlib.sha256(helper).hexdigest() != CIX_HYBRID_SIGNING_HELPER_SHA256:
+            if CIX_STMM_HYBRID_PATH not in profile:
                 raise ReconstructionError("hybrid StandaloneMM build integration is absent")
-            hybrid = show_file(repo, ref, "src/scripts/build_hybrid_stmm.py")
-            if hashlib.sha256(hybrid).hexdigest() != CIX_HYBRID_STMM_HELPER_SHA256:
-                raise ReconstructionError("hybrid StandaloneMM helper differs from the reviewed version")
-            if (entry.get("radxa_release") or show_file(repo, ref, "VERSION").decode().strip()) not in {"1.2.4", "1.3.1"}:
+            radxa = entry.get("radxa_release") or show_file(repo, ref, "VERSION").decode().strip()
+            if helper_hash == CIX_NATIVE_SIGNING_HELPER_SHA256 and (
+                ref != NATIVE_STMM_CHECKPOINT_REF
+                or entry.get("edk2_release") != "edk2-stable202608"
+                or radxa != "1.3.1"
+                or (env("FIRMWARE_BOARD") or "O6") != "O6"
+                or (env("FIRMWARE_TARGET") or "RELEASE") != "RELEASE"
+            ):
+                raise ReconstructionError(
+                    "native StandaloneMM requires EDK2 202608, Radxa 1.3.1 and O6 RELEASE "
+                    f"with RELEASE={NATIVE_STMM_CHECKPOINT_TARGET}"
+                )
+            if radxa not in {"1.2.4", "1.3.1"}:
                 raise ReconstructionError("hybrid StandaloneMM supports Radxa 1.2.4 or 1.3.1 only")
             if not show_file(repo, ref, "src/edk2/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h", check=False):
                 raise ReconstructionError("hybrid StandaloneMM requires EDK2 202502 or newer; pre-2025 bases are not qualified")
             if not any(component.get("path") == "src/cix-v1.2/stmm-unofficial" for component in components):
                 raise ReconstructionError("hybrid StandaloneMM component is not selected")
-        stmm_helper = show_file(repo, ref, "src/scripts/stage_vendor_stmm.py")
-        if hashlib.sha256(stmm_helper).hexdigest() != CIX_VENDOR_STMM_HELPER_SHA256:
-            raise ReconstructionError("vendor StandaloneMM staging helper differs from the reviewed version")
         for name, expected in CIX_KEY_SHA256.items():
             data = show_file(repo, ref, f"{CIX_SIGNING_KEYS}/{name}")
             if hashlib.sha256(data).hexdigest() != expected:

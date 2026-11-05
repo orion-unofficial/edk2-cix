@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import hashlib
 import os
 import subprocess
 import sys
@@ -95,6 +96,62 @@ class ValidateBuildVariableTests(unittest.TestCase):
             REPO_ROOT, {"source_ref": "source/unofficial/1.2.1/edk2-stable202208"},
             unsupported)
         self.assertIn("CIX_RELEASE is unavailable", unsupported[0])
+
+    def test_native_profile_binds_all_helpers_and_release(self) -> None:
+        from validate_build_variables import CIX_NATIVE_SIGNING_HELPER_SHA256, CIX_STMM_HELPER_PROFILES
+
+        signer_path = "src/scripts/build_cix_release_bootloader2.sh"
+        helpers = CIX_STMM_HELPER_PROFILES[CIX_NATIVE_SIGNING_HELPER_SHA256]
+        self.assertEqual(len(helpers), 4)
+        ref = "source/unofficial/1.3.1/edk2-stable202608"
+        entry = {
+            "source_ref": ref,
+            "edk2_release": "edk2-stable202608",
+            "radxa_release": "1.3.1",
+            "render": {"steps": [{"component": {"path": path}} for path in (
+                "src/cix-v1.2/tee-unofficial", "src/cix-v1.2/stmm-unofficial")]},
+        }
+        signer = b"native signer fixture"
+        signer_hash = hashlib.sha256(signer).hexdigest()
+        companions = {path: path.encode() for path in helpers}
+        profile = {path: hashlib.sha256(data).hexdigest() for path, data in companions.items()}
+        files = {signer_path: signer, **companions}
+        from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
+        files.update({f"{CIX_SIGNING_KEYS}/{name}": show_file(REPO_ROOT, ref, f"{CIX_SIGNING_KEYS}/{name}")
+                      for name in CIX_KEY_SHA256})
+
+        def read_file(repo, ref, path, **kwargs):
+            if path == "src/Makefile":
+                return b"tee-unofficial CIX_RELEASE_SIGNING_KEYS_DIR"
+            if path.endswith("/ArmFfaBootInfo.h"):
+                return b"FFA boot info"
+            return files.get(path, b"")
+
+        def validate(selection):
+            problems = []
+            validate_cix_source(REPO_ROOT, selection, problems)
+            return problems
+
+        with patch.dict(os.environ, {"STMM": "unofficial", "CIX_RELEASE": "unofficial"}, clear=True), \
+                patch("validate_build_variables.CIX_NATIVE_SIGNING_HELPER_SHA256", signer_hash), \
+                patch.dict(CIX_STMM_HELPER_PROFILES, {signer_hash: profile}), \
+                patch("validate_build_variables.show_file", side_effect=read_file):
+            self.assertEqual(validate(entry), [])
+            self.assertIn("requires EDK2 202608", validate({**entry, "edk2_release": "edk2-stable202605"})[0])
+            self.assertIn("Radxa 1.3.1", validate({**entry, "radxa_release": "1.2.4"})[0])
+            self.assertIn("unofficial-checkpoint", validate(
+                {**entry, "source_ref": "source/unofficial/1.3/current"})[0])
+            with patch.dict(os.environ, {"FIRMWARE_TARGET": "DEBUG"}):
+                self.assertIn("O6 RELEASE", validate(entry)[0])
+            for path in companions:
+                with self.subTest(path=path):
+                    for changed in (b"", companions[path] + b" changed"):
+                        with patch.dict(files, {path: changed}):
+                            self.assertIn(path, validate(entry)[0])
+            with patch.dict(files, {signer_path: signer + b" changed"}):
+                self.assertIn("signing helper", validate(entry)[0])
+            self.assertIn("component is not selected", validate(
+                {**entry, "render": {"steps": entry["render"]["steps"][:1]}})[0])
 
     def test_source_without_reviewed_stmm_is_not_advertised(self) -> None:
         source = "source/unofficial/1.3.1/edk2-stable202608"

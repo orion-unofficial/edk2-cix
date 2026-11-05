@@ -79,7 +79,7 @@ def canonical_branches(branches: list[str] | set[str]) -> tuple[list[str], list[
     alias_versions: set[str] = set()
     for branch in branches:
         name = source_target_name(branch)
-        if "/unofficial-" in name:
+        if "/unofficial-" in name and not name.endswith("/unofficial-checkpoint"):
             alias_versions.add(name.rsplit("/unofficial-", 1)[1])
             continue
         canonical.append(branch)

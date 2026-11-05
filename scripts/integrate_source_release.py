@@ -53,6 +53,7 @@ Supported forms:
   make integrate-source-release TYPE=vendor VENDOR=radxa RELEASE=1.2.1+<commit> EDK2_BASE=edk2-stable202208 REF=main WRITE=1
   make integrate-source-release TYPE=unofficial RELEASE=1.3.1 EDK2_BASE=edk2-stable202605 REF=<reviewed-descendant> ALLOW_REPLACE=1 WRITE=1
   make integrate-source-release TYPE=unofficial COMPONENT=standalone-mm EDK2_BASE=edk2-stable202608 REF=<reviewed-descendant> ALLOW_REPLACE=1 WRITE=1
+  make integrate-source-release TYPE=unofficial COMPONENT=op-tee VENDOR=cix RELEASE=1.2 ARM_BASE=3.17.0 REF=<reviewed-descendant> ALLOW_REPLACE=1 WRITE=1
 
 Required variables:
   TYPE=upstream|vendor|unofficial
@@ -82,8 +83,10 @@ Only this command is allowed to create or advance immutable source refs.
 TYPE=unofficial records a reviewed maintenance correction to an existing
 Unofficial release checkpoint. It requires ALLOW_REPLACE=1 and a descendant
 commit, preserves the old checkpoint in history, and never moves a line tip.
-With COMPONENT=standalone-mm it advances the explicitly mutable component in
-refs-cix.json instead; RELEASE is not required and firmware checkpoints are unchanged.
+With COMPONENT=standalone-mm or COMPONENT=op-tee it advances the explicitly mutable component in
+refs-cix.json instead; firmware checkpoints are unchanged.
+RELEASE may be omitted for StandaloneMM. OP-TEE maintenance requires VENDOR=cix,
+RELEASE=<cix-release> and ARM_BASE=<arm-release>.
 If an immutable target is already recorded locally or as an origin
 remote-tracking ref, rerunning the same integration is a no-op. The command
 reports where the existing ref was found; git branch alone lists only local
@@ -619,7 +622,10 @@ def validate(args: argparse.Namespace) -> list[str]:
         missing.append("TYPE=upstream|vendor|unofficial")
     if args.type_ == "unofficial":
         if args.component:
-            if args.component != "standalone-mm" or not (args.edk2_base and args.ref):
+            if args.component == "op-tee":
+                if args.vendor != "cix" or not (args.release and args.arm_base and args.ref):
+                    missing.append("COMPONENT=op-tee VENDOR=cix RELEASE=<cix-release> ARM_BASE=<arm-release> REF=<reviewed-descendant>")
+            elif args.component != "standalone-mm" or not (args.edk2_base and args.ref):
                 missing.append("COMPONENT=standalone-mm EDK2_BASE=<edk2-release> REF=<reviewed-descendant>")
         elif not (args.release and args.edk2_base and args.ref):
             missing.append("RELEASE=<radxa-release> EDK2_BASE=<edk2-release> REF=<reviewed-descendant>")
@@ -648,10 +654,16 @@ def validate(args: argparse.Namespace) -> list[str]:
 def integrate_checkpoint_correction(repo: Path, args: argparse.Namespace) -> None:
     """Advance a reviewed checkpoint or mutable component, preserving history."""
     component = getattr(args, "component", "")
-    if component and component != "standalone-mm":
+    if component and component not in {"standalone-mm", "op-tee"}:
         raise ReconstructionError("unsupported Unofficial maintenance component: " + component)
-    target = (f"source/unofficial/stmm/{normalise_edk2_base(args.edk2_base)}" if component else
-              f"source/unofficial/{args.release}/{normalise_edk2_base(args.edk2_base)}")
+    if component == "op-tee":
+        if args.vendor != "cix" or not (args.release and args.arm_base and args.ref):
+            raise ReconstructionError("OP-TEE maintenance requires VENDOR=cix, RELEASE, ARM_BASE and REF")
+        target = f"source/unofficial/cix/{args.release.removeprefix('v')}/op-tee/{args.arm_base}"
+    elif component:
+        target = f"source/unofficial/stmm/{normalise_edk2_base(args.edk2_base)}"
+    else:
+        target = f"source/unofficial/{args.release}/{normalise_edk2_base(args.edk2_base)}"
     path = repo / "config" / ("refs-cix.json" if component else "refs-unofficial.json")
     original = path.read_text()
     data = json.loads(original)
@@ -668,6 +680,8 @@ def integrate_checkpoint_correction(repo: Path, args: argparse.Namespace) -> Non
     candidate = rev_parse(repo, args.ref)
     if old != record.get("object_id"):
         raise ReconstructionError(f"checkpoint differs from its recorded object: {target}")
+    if component and tree_id(repo, old) != record.get("tree_id"):
+        raise ReconstructionError(f"component differs from its recorded tree: {target}")
     if old == candidate:
         print(f"{target} already records {candidate}")
         return
@@ -675,8 +689,10 @@ def integrate_checkpoint_correction(repo: Path, args: argparse.Namespace) -> Non
         raise ReconstructionError("checkpoint maintenance requires ALLOW_REPLACE=1")
     if git(repo, "merge-base", "--is-ancestor", old, candidate, check=False).returncode:
         raise ReconstructionError("checkpoint correction must preserve the old checkpoint as an ancestor")
-    if component:
+    if component == "standalone-mm":
         git(repo, "cat-file", "-e", f"{candidate}:CixStandaloneMmPkg/CixStandaloneMm.dsc")
+    elif component == "op-tee":
+        git(repo, "cat-file", "-e", f"{candidate}:core/arch/arm/kernel/stmm_sp.c")
     else:
         enforce_source_tree_policy(repo, ref=candidate, label=target)
     ensure_target_not_checked_out_dirty(repo, target)

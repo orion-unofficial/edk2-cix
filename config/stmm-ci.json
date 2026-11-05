@@ -47,19 +47,19 @@
     "maintained": {
       "stmm": {
         "ref": "source/unofficial/stmm/edk2-stable202608",
-        "commit": "0b9f807bf32a37deffd75e9a12592eeebba38f40",
-        "tree": "15fd7bdc315d0696e884c6ecf45548a85970583b"
+        "commit": "a16ca850d5e45ccb80cb7bf31a3bdc609e3df0c6",
+        "tree": "077e2e15d537e3945e57640b766eba2e92ff0f70"
       },
       "optee": {
         "ref": "source/unofficial/cix/1.2/op-tee/3.17.0",
-        "commit": "32e7627e054a1a0de48004203af56cfc8e45112a",
-        "tree": "f05d5d3dac531f384fda173bd99ae1fbde0c8c67"
+        "commit": "a4a447c01cc18f090bf96afac8cf7b7112a0e9b9",
+        "tree": "32f5caa4a073840c515ea6184c95783ab0886586"
       }
     }
   },
   "blocked_workloads": {
-    "native-compile": "Native helper modules/tests require separate reviewed publication. Pullable Linux amd64 compiler OCI digest not published/verified; pin compiler_image after approved transfer. Existing stmm.Dockerfile uses mutable Debian/apt inputs and is not an immutable replay.",
-    "full-source-image": "Descendant integration, supported caller/native-helper guard refresh and measured hosted disk/memory/buildbox path remain outstanding; keep existing execution path.",
+    "native-compile": "Pullable Linux amd64 compiler OCI digest has not been published or verified; compiler_image remains null.",
+    "full-source-image": "The 202608 O6 checkpoint has exact local full-image evidence; the hosted adapter and its resource/buildbox gates remain outstanding.",
     "emulator-auth-cold-nor": "Local image IDs are not registry digests; 608 historical image absent. Need approved immutable OCI transfer, portable fixture/auth/control plans and resource measurements. Keep existing path and failed-cut evidence.",
     "502-full-qualification": "No isolated full-source candidate; preliminary FD/storage does not qualify complete image.",
     "hardware": "O6 UART/boot/real flash timing/persistence/Secure Boot state unverified; separate flash/reboot authorization.",
@@ -144,10 +144,20 @@
       "edk2": "202608",
       "radxa": "1.3.1",
       "maintained": {
-        "commit": "adddde5c52eece072df5fe1a964462b08599476d",
-        "tree": "564a6581f438df8ee9a4015604cddfbb509866be",
+        "commit": "1d246d970477544c5089df30dc125eb734b4b3d9",
+        "tree": "414af3945cf00c88207d7fecce738bafa3d99d88",
         "ref": "source/unofficial/1.3.1/edk2-stable202608",
-        "state": "not-integrated"
+        "state": "integrated-unqualified",
+        "qualification_scope": "O6 RELEASE checkpoint with exact offline binding, signature, ABI and storage evidence; descendant qualification incomplete",
+        "qualification_evidence": {
+          "rendered_tree": "bbf6b973e5905df891929167a03fd11e4c6894ef",
+          "fd_sha256": "aefad444673071df5203d382d07dd039d3bb1d38984cd51c89fb43fb7626432a",
+          "source_optee_sha256": "4573f593ee78d6741d9680682382c6e48d6c0dbf16f6108f9d54b8642a199c24",
+          "full_flash_sha256": "2091ca61ac40dcbe0f6dd1070ca0c043fc64d19880243cc7d00a933ad28ffdb7",
+          "binding_report_sha256": "596bb7a3a18ede0559634e3457e6d4e4e348127dbe7ef348fd7477ba8531c757",
+          "chain_report_sha256": "4bf0a75fb88ed2459b5dedc3b08b64f4fda92aeb19b980289f326d0b1d5ce0f6",
+          "storage_parity_report_sha256": "52cf3943533fe0ea7ea2de100a75b6dc230b4d7697f3428105452bdef0b53fef"
+        }
       },
       "candidate": {
         "commit": "a18044ed54e59cf7eb404d27b6dc80ecbd9e1c5e",

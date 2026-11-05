@@ -132,7 +132,7 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
     def test_every_custom_tuple_and_alias_renders_without_cache_records(self) -> None:
         branches, _ = matrix_release_branches(self.repo)
         custom = sorted(branch for branch in branches if branch.startswith(PREFIX))
-        self.assertEqual(len(custom), 16)
+        self.assertEqual(len(custom), 17)
         for branch in custom:
             with self.subTest(target=branch):
                 self.assert_render(self.repo, branch)
@@ -246,7 +246,14 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
         clear_metadata_caches()
         for suffix in ("", "-1.3.1"):
             with self.subTest(alias=suffix):
+                _, entry = release_entry(self.repo, target + suffix, require=True)
+                self.assertEqual(entry["source_ref"], "source/unofficial/1.3/current")
                 self.assert_render(self.repo, target + suffix)
+        explicit = "edk2-202608/radxa-1.3.1/unofficial-checkpoint"
+        _, entry = release_entry(self.repo, explicit, require=True)
+        self.assertEqual(entry["source_ref"], "source/unofficial/1.3.1/edk2-stable202608")
+        self.assertNotIn("alias_of", entry)
+        self.assert_render(self.repo, explicit)
 
     def test_aligned_crlf_version_matches_the_expected_tree(self) -> None:
         (self.repo / "VERSION").write_bytes(b"1.3.1\r\n")

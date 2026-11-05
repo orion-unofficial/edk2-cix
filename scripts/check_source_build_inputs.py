@@ -16,8 +16,7 @@ from source_lifecycle import tree_entries
 from source_porting import git_blob_bytes_batch
 from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
 from validate_build_variables import (
-    CIX_SIGNING_HELPER_SHA256, CIX_VENDOR_STMM_HELPER_SHA256,
-    CIX_HYBRID_SIGNING_HELPER_SHA256, CIX_HYBRID_STMM_HELPER_SHA256,
+    CIX_STMM_HELPER_PROFILES, stmm_helper_problems,
 )
 
 
@@ -74,25 +73,12 @@ def chain_validator_problems(validator: bytes, signing_keys: dict[str, bytes],
                    hashlib.sha256(validator).hexdigest() == LEGACY_CIX_CHAIN_VALIDATOR_SHA256)
     if validator != current_validator and not legacy_pair:
         problems.append("CIX-enabled firmware-chain validator differs from build branch")
-    if helper_hash not in {CIX_SIGNING_HELPER_SHA256, CIX_HYBRID_SIGNING_HELPER_SHA256, LEGACY_CIX_SIGNING_HELPER_SHA256}:
+    if helper_hash not in CIX_STMM_HELPER_PROFILES and helper_hash != LEGACY_CIX_SIGNING_HELPER_SHA256:
         problems.append("CIX-enabled signing helper differs from the reviewed source")
     for name, expected in CIX_KEY_SHA256.items():
         if hashlib.sha256(signing_keys.get(name, b"")).hexdigest() != expected:
             problems.append(f"CIX-enabled source lacks pinned signing key: {name}")
     return problems
-
-
-def stmm_helper_problems(helper: bytes, contents: dict[str, bytes]) -> list[str]:
-    """Pin the payload builders used by each reviewed signing helper."""
-    helper_hash = hashlib.sha256(helper).hexdigest()
-    required = {}
-    if helper_hash in {CIX_SIGNING_HELPER_SHA256, CIX_HYBRID_SIGNING_HELPER_SHA256}:
-        required["src/scripts/stage_vendor_stmm.py"] = CIX_VENDOR_STMM_HELPER_SHA256
-    if helper_hash == CIX_HYBRID_SIGNING_HELPER_SHA256:
-        required["src/scripts/build_hybrid_stmm.py"] = CIX_HYBRID_STMM_HELPER_SHA256
-    return [f"StandaloneMM helper differs from the reviewed source: {path}"
-            for path, expected in required.items()
-            if hashlib.sha256(contents.get(path, b"")).hexdigest() != expected]
 
 
 def missing_build_fixes(contents: dict[str, bytes]) -> list[str]:
@@ -505,8 +491,8 @@ def main() -> None:
                 checked[tree].extend(chain_validator_problems(
                     validator, signing_keys, helper,
                     (ROOT / "scripts/validate_firmware_chain.py").read_bytes()))
-                stmm_entries = {path: entries[path] for path in (
-                    "src/scripts/stage_vendor_stmm.py", "src/scripts/build_hybrid_stmm.py") if path in entries}
+                profile = CIX_STMM_HELPER_PROFILES.get(hashlib.sha256(helper).hexdigest(), {})
+                stmm_entries = {path: entries[path] for path in profile if path in entries}
                 stmm_blobs = git_blob_bytes_batch(ROOT, [item.object_id for item in stmm_entries.values()])
                 checked[tree].extend(stmm_helper_problems(
                     helper, {path: stmm_blobs[item.object_id] for path, item in stmm_entries.items()}))

@@ -15,6 +15,7 @@ from pathlib import Path
 from stmm_release_platform import SUPPORTED_EDK2
 
 
+BUILD_RULE_PATH = 'BaseTools/Conf/build_rule.template'
 CRYPTO_PATH = 'CryptoPkg/Library/Include/CrtLibSupport.h'
 # Exact upstream fix already retained by the CIX component (EDK2 ba43de142c8e).
 CRYPTO_BEFORE = 'ca74a28d0003f42643cafc50a26efeef7da750ff6c9067db8985d1ea8ecabf37'
@@ -44,6 +45,16 @@ def apply(source: Path, release: str, crypto_header: bytes | None = None) -> dic
             raise ValueError('CryptoPkg fix preimage differs from the reviewed upstream source')
         path.write_bytes(crypto_header)
         changed.append(CRYPTO_PATH)
+        # GenFw copies its input argument into the PE CodeView record. Invoke
+        # it from the DLL directory so neither the record nor its allocated
+        # length depends on the absolute build/cache path.
+        rule = source / BUILD_RULE_PATH
+        anchor = ('        -$(CP) $(DEBUG_DIR)(+)$(MODULE_NAME).debug $(BIN_DIR)(+)$(MODULE_NAME_GUID).debug\n\n'
+                  '        "$(GENFW)" -e $(MODULE_TYPE) -o ${dst} ${src} $(GENFW_FLAGS)')
+        replace(rule, anchor, anchor.split('\n\n')[0] + '\n\n'
+                '        cd "$(dir ${src})" && "$(GENFW)" -e $(MODULE_TYPE) '
+                '-o "$(abspath ${dst})" "$(notdir ${src})" $(GENFW_FLAGS)')
+        changed.append(BUILD_RULE_PATH)
     if release < '202502':
         directory = source / 'StandaloneMmPkg/Library/StandaloneMmCoreEntryPoint/Arm'
         header = directory / 'CixLegacyBootInfo.h'

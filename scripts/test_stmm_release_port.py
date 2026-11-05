@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 from reconstruction_common import show_file
-from stmm_release_port import CRYPTO_AFTER, CRYPTO_PATH, apply
+from stmm_release_port import BUILD_RULE_PATH, CRYPTO_AFTER, CRYPTO_PATH, apply
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,7 +31,10 @@ EXPECTED = {
         ARM + 'CreateHobList.c': 'e3a1a434ce83d0c104130cddec6075518714dfe0c5441492137cd6002ff6887b',
     },
     '202502': {},
-    '202608': {CRYPTO_PATH: CRYPTO_AFTER},
+    '202608': {
+        CRYPTO_PATH: CRYPTO_AFTER,
+        BUILD_RULE_PATH: '33917aa0d4eec667d2a360b9e0c397b0a574a29be3a19c0934abd12de6d865ca',
+    },
 }
 
 
@@ -46,7 +49,7 @@ def stage(source, release):
     if release < '202502':
         files += [ARM + name for name in ('StandaloneMmCoreEntryPoint.c', 'CreateHobList.c')]
     if release == '202608':
-        files.append(CRYPTO_PATH)
+        files.extend((CRYPTO_PATH, BUILD_RULE_PATH))
     for name in files:
         path = source / name
         path.parent.mkdir(parents=True, exist_ok=True)
