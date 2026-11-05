@@ -23,11 +23,18 @@ RUN set -eux; \
     esac; \
     rm -f /etc/apt/sources.list; \
     find /etc/apt/sources.list.d -mindepth 1 -maxdepth 1 -type f -delete; \
-    printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s/ bookworm main\n' "${SNAPSHOT_TIMESTAMP}" > /etc/apt/sources.list; \
-    printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian/%s/ bookworm-updates main\n' "${SNAPSHOT_TIMESTAMP}" >> /etc/apt/sources.list; \
-    printf 'deb [check-valid-until=no] http://snapshot.debian.org/archive/debian-security/%s/ bookworm-security main\n' "${SNAPSHOT_TIMESTAMP}" >> /etc/apt/sources.list; \
+    for archive in debian debian-security; do \
+        mirrorlist="/etc/apt/snapshot-${archive}.mirrors"; \
+        : > "${mirrorlist}"; \
+        printf 'http://snapshot-cloudflare.debian.org/archive/%s/%s/\tpriority:1\n' "${archive}" "${SNAPSHOT_TIMESTAMP}" >> "${mirrorlist}"; \
+        printf 'http://snapshot-fastly.debian.org/archive/%s/%s/\tpriority:2\n' "${archive}" "${SNAPSHOT_TIMESTAMP}" >> "${mirrorlist}"; \
+        printf 'http://snapshot.debian.org/archive/%s/%s/\tpriority:3\n' "${archive}" "${SNAPSHOT_TIMESTAMP}" >> "${mirrorlist}"; \
+    done; \
+    printf 'deb [check-valid-until=no] mirror+file:/etc/apt/snapshot-debian.mirrors bookworm main\n' > /etc/apt/sources.list; \
+    printf 'deb [check-valid-until=no] mirror+file:/etc/apt/snapshot-debian.mirrors bookworm-updates main\n' >> /etc/apt/sources.list; \
+    printf 'deb [check-valid-until=no] mirror+file:/etc/apt/snapshot-debian-security.mirrors bookworm-security main\n' >> /etc/apt/sources.list; \
     printf 'Acquire::Check-Valid-Until "false";\n' > /etc/apt/apt.conf.d/99snapshot; \
-    printf 'Acquire::Retries "3";\nAcquire::Retries::Delay "false";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' > /etc/apt/apt.conf.d/80replay-network; \
+    printf 'Acquire::Retries "1";\nAcquire::Retries::Delay "false";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' > /etc/apt/apt.conf.d/80replay-network; \
     apt-get -o APT::Update::Error-Mode=any update; \
     grep -Ev '^\s*(#|$)' "${manifest}" | xargs -r apt-get install -y --no-install-recommends; \
     rm -rf /var/lib/apt/lists/* /tmp/replay-packages
