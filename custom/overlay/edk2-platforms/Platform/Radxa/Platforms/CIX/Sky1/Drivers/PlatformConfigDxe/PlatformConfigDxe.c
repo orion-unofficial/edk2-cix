@@ -147,6 +147,7 @@ PlatformConfigRouteConfig (
 
   @retval  EFI_SUCCESS           The callback successfully handled the action.
   @retval  EFI_INVALID_PARAMETER The setup browser call this function with invalid parameters.
+  @retval  EFI_UNSUPPORTED       The question or action is not handled by this callback.
 
 **/
 EFI_STATUS
@@ -167,6 +168,16 @@ PlatformConfigCallback (
   if ((Action != EFI_BROWSER_ACTION_CHANGED) &&
       (Action != EFI_BROWSER_ACTION_RETRIEVE)) {
     return EFI_UNSUPPORTED;
+  }
+
+  switch (QuestionId) {
+    case KEY_ENABLE_NETWORK_STACK:
+    case KEY_DISABLE_ACPI_CPPC:
+    case KEY_DISABLE_SMALL_CORE:
+    case KEY_ENABLE_ACPI_LPI0:
+      break;
+    default:
+      return EFI_UNSUPPORTED;
   }
 
   if ((Value == NULL) || (ActionRequest == NULL) || (Type != EFI_IFR_TYPE_BOOLEAN)) {
