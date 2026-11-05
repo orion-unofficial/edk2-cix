@@ -120,22 +120,22 @@
     },
     {
       "ref": "source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.3.1/unofficial",
-      "tree_id": "cb9ca4003ff046a45d310ac50a9ac8bffb482e48",
+      "tree_id": "3708d77f4dbf1f179d1f9f60d5955c16267f3c7c",
       "type": "rendered-release"
     },
     {
       "ref": "source/cache/release/custom/edk2-202608/radxa-1.3.1/unofficial",
-      "tree_id": "cb9ca4003ff046a45d310ac50a9ac8bffb482e48",
+      "tree_id": "3708d77f4dbf1f179d1f9f60d5955c16267f3c7c",
       "type": "rendered-release"
     },
     {
       "ref": "source/cache/release/upstream/edk2-202208/radxa-1.3.1",
-      "tree_id": "710670570022ba3906f0a5e4d32cca32f5044a40",
+      "tree_id": "23a2879b8fbf2e7c671fa2fc1db031b3a06fd719",
       "type": "rendered-upstream-radxa-release"
     },
     {
       "ref": "source/cache/release/vendor/edk2-202208/cix-1.2/radxa-1.2.1",
-      "tree_id": "8b9937fbc49c545e66087a47b445824bb50ec497",
+      "tree_id": "92a5ff21d75a70225920c977deff2d3842da2c5f",
       "type": "rendered-vendor-release"
     },
     {
