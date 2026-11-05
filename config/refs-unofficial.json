@@ -5,12 +5,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "160fb8ebbb60584cf80437573968f2cfe9c5995c",
-      "object_id": "2a5a1292d5090cd2dc7cfad659434f0ded10517e",
+      "object_id": "228726f60fb5b634e675a1aeb83bab504aa8584d",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202208",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/vendor/radxa/1.2.1/edk2-stable202208",
       "ref": "source/unofficial/1.2.1/edk2-stable202208",
-      "tree_id": "34bc0a652f61b90e6e07ce4f0fef9ba79179be25",
+      "tree_id": "fd545dc3f70898b6041da825ea3a105a962e5328",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -18,12 +18,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "d1fae2c067eb08e51f323aeeb05d45922f544eb2",
-      "object_id": "24763976ca9ddef13a4dd3f7109e02646e390832",
+      "object_id": "695822dc46f48918d3c8c7dd76dd8a9e49292bfd",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202211",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202211",
       "ref": "source/unofficial/1.2.1/edk2-stable202211",
-      "tree_id": "c03d166945a831cfab63e889f24bf261a161e6d6",
+      "tree_id": "529c8796756b4b63da211235a4dd0a7e75987d08",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -31,12 +31,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "026d4ca4c8a51343d5c18fba3436f12f8a8d89a8",
-      "object_id": "7c6ec835d8c8eec3e22507439c8af57ba8da0d11",
+      "object_id": "fbabdb763507f13a6e74f7f50868155b829274e8",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202302",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202302",
       "ref": "source/unofficial/1.2.1/edk2-stable202302",
-      "tree_id": "c8431f132f5719eeb2cfd6f1a2d02f5a861a8a65",
+      "tree_id": "331822e52d97855d74ad8ae98f674d46f3b3b70a",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -44,12 +44,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "aced4c16c427d1b5b0e69d665a1f35fc8f20b04f",
-      "object_id": "9acc14ee8e36efcd85d57ca5cbf524121e29859e",
+      "object_id": "ed082d48f2a651fd4570d775335d827fd5e548f6",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202305",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202305",
       "ref": "source/unofficial/1.2.1/edk2-stable202305",
-      "tree_id": "cf5256d18b1484d425904890b7283a8e3756d671",
+      "tree_id": "e1257f8045b456666998439500cbbe63d462fe9d",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -57,12 +57,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "0e207323656f91107ae317051d69ceca24c09f45",
-      "object_id": "91839aafee37ef9724f2e5e22cf0a523da34d82d",
+      "object_id": "b38a9b11ade21f6bf670f0568dcebb339f63d8e3",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202308",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202308",
       "ref": "source/unofficial/1.2.1/edk2-stable202308",
-      "tree_id": "07f01f81dc2e6e36cbba08af124d17ad4e2a5d3b",
+      "tree_id": "2590ee24a88752438f9358bc7fde9ddbd6875dae",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -70,12 +70,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "fe0d9a9b9221c4b6a10b29ba3ef276067c8afc47",
-      "object_id": "c87605927368937b4ca1548f5bae1acf78f82908",
+      "object_id": "2a4c77a7204e51f84a1f5c5575308275871bf52a",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202311",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202311",
       "ref": "source/unofficial/1.2.1/edk2-stable202311",
-      "tree_id": "59bc952423c0c75d31197f5b2cbbb7997adb4f9e",
+      "tree_id": "454c9b8d461da1cffd3396530c9487ac18170cd0",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -83,12 +83,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "502ddd64790e18bd4421afb9e514bfe7252ab4fc",
-      "object_id": "7633b504d6eb587870548cbcbfd6b1b56c3a988f",
+      "object_id": "2dd071ae0676e10968074aaa28859777ca4b9dca",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202402",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202402",
       "ref": "source/unofficial/1.2.1/edk2-stable202402",
-      "tree_id": "0cd7cb9b81b4c61559b5c8e43202631236160058",
+      "tree_id": "1fd9531738a9c02d2d27677296f9be9178f732b3",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -96,12 +96,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "4b0873e1470a92044d8c9b7e3d5ee93120ada37c",
-      "object_id": "7caea915c0d3472af9f4195dff057b02584e8dee",
+      "object_id": "ecc753cf7136e6783f22dd20412aa5ebccb4c885",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202405",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202405",
       "ref": "source/unofficial/1.2.1/edk2-stable202405",
-      "tree_id": "e90d9be59514cf533ef8e8f94e1442dc7bc9aac5",
+      "tree_id": "ad3985aa056700135504b3c4f86d4eedad03b8f1",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -109,12 +109,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "aa90a10bfa703035b86cb0b35c9e3046d8003632",
-      "object_id": "152342596e191463c2438a17a5237df47f7073ec",
+      "object_id": "97281ffe7310d40bbc7d94ef0cbbfd94d19e174e",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202408",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202408",
       "ref": "source/unofficial/1.2.1/edk2-stable202408",
-      "tree_id": "5364d1e3e221036fbaf40553531043d23c238f1d",
+      "tree_id": "538357c7303e1d74d128606b4cdec72e02f5ee0f",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -122,12 +122,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "a07cbe5818319a676965c259e3cdabc7cf8dbf73",
-      "object_id": "79ab8483494a72eb7d05bb7c6368020e0984889c",
+      "object_id": "8a0a41d3c685f1d72111c09e2e244d4cfe0e3042",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202408.01",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202408.01",
       "ref": "source/unofficial/1.2.1/edk2-stable202408.01",
-      "tree_id": "1eaeacd205a8cfaeed6cccced9ccdafde8cec4e1",
+      "tree_id": "4feffeb994f3c03b2b735c6327bdec7a27225a74",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -135,12 +135,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "1ab305f3c5fdd189db296df5aeae74a74d494558",
-      "object_id": "ffb3f0923e1da4e9a5ea7cd5420b41186cf35528",
+      "object_id": "f0457fb40ef879b9315176f241ba848bf0717b4b",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202411",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202411",
       "ref": "source/unofficial/1.2.1/edk2-stable202411",
-      "tree_id": "ceac3c76fa2f064abde88624806f5e2a7867202c",
+      "tree_id": "87d90ac1aab0280ace03a8e236641934fab0b202",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -148,12 +148,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "f97dc8612197df4f1010d1c601846f9501987d14",
-      "object_id": "a85f422aba67471f803368ead145034af710a663",
+      "object_id": "654a16bda3230d298668a7b38f0634b8df6f579f",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202502",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202502",
       "ref": "source/unofficial/1.2.1/edk2-stable202502",
-      "tree_id": "35cf44ba7c8ce041c591b9cd147dee17c7f10de5",
+      "tree_id": "d4bb9a22c5ad28b8aafab9966b15cb9951ed02a4",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -161,12 +161,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "9bb49575f5e94d649d76f0e9455c2e066cd70120",
-      "object_id": "f328cc73c2ac12982069068a1a29012ca3508686",
+      "object_id": "6f3df3970dd3136a7c1d89fca418761d279daf28",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202505",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202505",
       "ref": "source/unofficial/1.2.1/edk2-stable202505",
-      "tree_id": "32f2415e82af4fb7f506723efbddb436fd0e0f68",
+      "tree_id": "415cd0fb80ce7159e7324e9919a2d02d11d404e9",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -174,12 +174,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "15782cc3d290e350a8edfed376229388bf640ab9",
-      "object_id": "2ea08186f2c8fd319aa532935f194f8ceb0dc4d0",
+      "object_id": "49f798306db81ebfa751f8f4ebddde60fa245e36",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202508",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202508",
       "ref": "source/unofficial/1.2.1/edk2-stable202508",
-      "tree_id": "e9b575515dc2f54d8c833b8378e086d6db60be66",
+      "tree_id": "ee858eb2e1c2394aece92d270115b268ef33f3e5",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -187,12 +187,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "12d9b1034ed28e51fcadc211f48fa812b9c4d914",
-      "object_id": "7c94d5f06e95270769c7b829e036e1ba160207bc",
+      "object_id": "e59dc319fdddc02e4d5effc5e65bc2b3d5d5467a",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202511",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202511",
       "ref": "source/unofficial/1.2.1/edk2-stable202511",
-      "tree_id": "f2b62997bd6cb0bb112af3b995dec20264a27c1b",
+      "tree_id": "c1393dda759495163c8d79649fbe94303f58ec7f",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -200,12 +200,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "84568055d616a9c796f2e3ed83982a9ccc4294ed",
-      "object_id": "24bbacf637c27d915c17b411de1c067ca1820b62",
+      "object_id": "587c5ca7c51b0814e427c9022a7c41b323368324",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202602",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202602",
       "ref": "source/unofficial/1.2.1/edk2-stable202602",
-      "tree_id": "4da23dcc4cd872b4e7b540638551081085282512",
+      "tree_id": "90accef205c5d9c3312343deb2504f0f092ec8d9",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -213,12 +213,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "844857c9e6cc8330c0474a70d923613cc93ce0fc",
-      "object_id": "94c06fd4e251cf8c6aaa9570da854b8bd0c8c622",
+      "object_id": "de749e5480fe59ee85acecda8784846faabc0c53",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202605",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202605",
       "ref": "source/unofficial/1.2.1/edk2-stable202605",
-      "tree_id": "ca78c6933b3e9f9dc998f59b95cdf6661c948804",
+      "tree_id": "2f6018503df4fe1dd3d5985586811fa75b5e0c23",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -226,12 +226,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "e3e25ebb403d7086bd7eb93b92cf7c889b87652b",
-      "object_id": "fe0f83fc8ed4ed3e943ce8ef467ed43ac5c768f1",
+      "object_id": "b0a898fb870b0682ca694b9c65b1141425fbc6b5",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202605",
       "radxa_release": "1.2.1",
       "radxa_source_ref": "source/port/radxa/1.2.1/edk2-stable202608",
       "ref": "source/unofficial/1.2.1/edk2-stable202608",
-      "tree_id": "b7d5d03ed2cdc864537ce2792203d5bc82fd04cb",
+      "tree_id": "e409769c85c025afed09205a231cf6c1c47b9ecc",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -239,12 +239,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "a4c0c37ea51005090aaffa286b2d5dce6946f95d",
-      "object_id": "fc547940c128278648f6e9f15066f591cc0b30e8",
+      "object_id": "23a69caf2ae3741dc1a74b72bab9c9e4c65b6188",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202208",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/vendor/radxa/1.2.2/edk2-stable202208",
       "ref": "source/unofficial/1.2.2/edk2-stable202208",
-      "tree_id": "3139d79a5450bedb6e5bd6f52ae6d34c4e3d8a4d",
+      "tree_id": "249ebde18a426d14036b7e8f5f40e9cdc6dc4dc9",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -252,12 +252,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "f9090f3a747b2d239dd964d6de7433aa92f5a619",
-      "object_id": "83c35466c15738028e32fac3b6c84c1437d6ecd5",
+      "object_id": "ed3179b6876535fc730da0351d83ead42005399b",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202211",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202211",
       "ref": "source/unofficial/1.2.2/edk2-stable202211",
-      "tree_id": "60d6a99e539c4b0fdefdda15903410d65a6a9243",
+      "tree_id": "13d6dbfa4df1b27107528a3c400234682dd35d90",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -265,12 +265,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "623d6b88053d21448358de3804df1b8597ff97c3",
-      "object_id": "a944898bac338402a0337c651880113c2f349c0e",
+      "object_id": "a1d6eda3414dec398c1a683466581923b9c02b18",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202302",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202302",
       "ref": "source/unofficial/1.2.2/edk2-stable202302",
-      "tree_id": "c887f8b6889cf5ab3d5dc53ae4edbe85c26ef8e9",
+      "tree_id": "7658ecdc0b6cd627a884edcc6392553f5eadc6e2",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -278,12 +278,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "7f7d4533ddeea87f27575ee2cbd0cec5f3c9e415",
-      "object_id": "0724ac9c3cbf2cdf38aa602be453a62a93c6d050",
+      "object_id": "2f91dc9e222d869d02ef5485115b74aac031cc51",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202305",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202305",
       "ref": "source/unofficial/1.2.2/edk2-stable202305",
-      "tree_id": "d24d6694dc793687220e9929815665089aee25da",
+      "tree_id": "baaf7dc2a01fba38d0e1de34861fa9bb0f5bcf14",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -291,12 +291,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "daef7b2244f65c18d604ee640f3ab07424995f4f",
-      "object_id": "9616c22f67250096eb86afe71ae3d51e8939c1f1",
+      "object_id": "e2677cf131e66c01f18186050cb13380ebf59d6e",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202308",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202308",
       "ref": "source/unofficial/1.2.2/edk2-stable202308",
-      "tree_id": "40f8d5bfe5239d830d7fe7cffba9a14643bcd0cc",
+      "tree_id": "e7aac1b456b5eed831831c29d2fd65c0cf6c4f1d",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -304,12 +304,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "0af52f28ea084a4ae4659773c005151f14167c13",
-      "object_id": "04499916d9c41ccc3fe0e541a2856998ae1e02b6",
+      "object_id": "4aae49c87e13b3d442e6977eab3aebf53465f929",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202311",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202311",
       "ref": "source/unofficial/1.2.2/edk2-stable202311",
-      "tree_id": "10ce74bc6761a8835d20348cc24ab2e1c859ac7d",
+      "tree_id": "26d80f41e25fc7484782fa02bc01249408d4b517",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -317,12 +317,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "8f5d53ba6365852ea941f996298fab9f89a1b1cf",
-      "object_id": "a950a9004e93ac52ed36394dfe7ee319f1b67dc8",
+      "object_id": "6b1317c325e247f1d073a24884d2cfcba7b2d554",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202402",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202402",
       "ref": "source/unofficial/1.2.2/edk2-stable202402",
-      "tree_id": "8995b28937809063550f909db05144e9f944acf2",
+      "tree_id": "e8e8968217a2423fb226bf010b754e8baf3a8c5e",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -330,12 +330,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "440c6c532004edea67796bea7fe6669e67f99418",
-      "object_id": "2ddf3460ebd8318d50ee92e81f6095ed0ebb0b13",
+      "object_id": "75fd9dc92d18bbd90e2f77c84b5a8954d37205d7",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202405",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202405",
       "ref": "source/unofficial/1.2.2/edk2-stable202405",
-      "tree_id": "e3df16684d5712cf9ecfca0bbddbb27040368d91",
+      "tree_id": "7e1ce9d8f1ea40bf03e6ccdd5376cd6ffa13dc2d",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -343,12 +343,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "9c524853b539160cbf7cfe2ffcf67c4f3f3b6002",
-      "object_id": "402a9b3a937149dd5162d01b9cfcf34ff1116138",
+      "object_id": "5abfa111a3046e5e2978121053c5465f44d5894d",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202408",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202408",
       "ref": "source/unofficial/1.2.2/edk2-stable202408",
-      "tree_id": "6625952781718c84ad0074bae37fbf4798b50f19",
+      "tree_id": "c891f8882c39fabe90343f13010df4e894f49742",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -356,12 +356,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "c5e14c8b229c3aba9fd7208577d2176e0c9d06bf",
-      "object_id": "bd684288f0cd2dd77f1d1b445e545cbe19c0f278",
+      "object_id": "1a355f852335477eee0e6324c5698fd0b1fd1da3",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202408.01",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202408.01",
       "ref": "source/unofficial/1.2.2/edk2-stable202408.01",
-      "tree_id": "222e92e3fb8e6ca56e29eac2467b416b53890b24",
+      "tree_id": "e31f220c366678b6c74e8271196d2b546a6b8f01",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -369,12 +369,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "64111648fa8502bc66585bf3e4fded1c87bb7342",
-      "object_id": "10763bbaa3957fcb0feb292085d0c9b087e60141",
+      "object_id": "2ffe4030b836ca95d38d4537293407f7db42aae8",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202411",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202411",
       "ref": "source/unofficial/1.2.2/edk2-stable202411",
-      "tree_id": "c6a4082e4af5c05bdaa5b39c20e715b0b112116f",
+      "tree_id": "bdd1f3a491a43faeaa8b9792b7a49cb27dd7b948",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -382,12 +382,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "ba4d98c07cb97c2b7d1a99104a9fc58e16dbc080",
-      "object_id": "a3cb92c3b5c5a4a85db458799de178814a9f29cc",
+      "object_id": "fa1ef12e46141140dea03011396b0fdec034da33",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202502",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202502",
       "ref": "source/unofficial/1.2.2/edk2-stable202502",
-      "tree_id": "5f8a11980e8153c0e29ddebbdfc1bc77d0215fb6",
+      "tree_id": "5243c3b4106ae6ebc5d2a561085f9881a703ac29",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -395,12 +395,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "64cba26c67d78f11e8bcbf47e70a4fc84a7aae5f",
-      "object_id": "6be7e3922523e7c898b75003b52460f2b2e072d2",
+      "object_id": "ebb3f9ddfd8ffc44bc5f2fe8bce29502e4a9b63a",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202505",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202505",
       "ref": "source/unofficial/1.2.2/edk2-stable202505",
-      "tree_id": "6c7acdc9b7a0faf27f92bcee878d5cf018fc2459",
+      "tree_id": "602be816a7c8d8931a138387585d5d187b7b80c9",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -408,12 +408,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "a90c0f8e9e6ec58c9c05a265e1fad3d409149bc7",
-      "object_id": "a7aba4932c7f70246e7ab8b40f8014cd8ef0b862",
+      "object_id": "b6874f79ea0b8480981c0c2fa255980ec3380be2",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202508",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202508",
       "ref": "source/unofficial/1.2.2/edk2-stable202508",
-      "tree_id": "9945a451914fbbdabd12147446e57875f81f4df6",
+      "tree_id": "1e970fdfd660530768743e12e517ab91f1728a07",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -421,12 +421,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "276e729e03ccf901db9ec05603547b35f68c3533",
-      "object_id": "7654b0ef0536803375458dd02a8a563325d1ae11",
+      "object_id": "8cae76bb59867ffec3650d340806a94cedfe76b0",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202511",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202511",
       "ref": "source/unofficial/1.2.2/edk2-stable202511",
-      "tree_id": "f04faeadc1f8e27ba60d158800d511da97547080",
+      "tree_id": "95acf931220a13183cf3102145f14be3fa56ca5a",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -434,12 +434,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "b052b7428520a4390e78fef3299929b2a30f450c",
-      "object_id": "3073bf798f67fd09ee32febf238ad12297ad8808",
+      "object_id": "47fd920b73c6f18bc9b8ce0deb492e243849a763",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202602",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202602",
       "ref": "source/unofficial/1.2.2/edk2-stable202602",
-      "tree_id": "e37d3007e62930cc4ff6b33916f3e8f4ce80c318",
+      "tree_id": "31a27f840e8026dca7baac03a455dd187d1ac951",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -447,12 +447,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "98732c03876f387a398178203af2edf299dc378b",
-      "object_id": "842059f55400d780956848a14d2d2557fbd0bf9f",
+      "object_id": "49bc06014a906c25d7b162bee4d848ae60024c27",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202605",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202605",
       "ref": "source/unofficial/1.2.2/edk2-stable202605",
-      "tree_id": "6e55031c094ac71ed9428c72baf8116b4c891b7c",
+      "tree_id": "e4f7eb99380908c6068572460486f0d301a86177",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -460,12 +460,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "baf2484e9c7fd99324793089f77d2bd71226ab0e",
-      "object_id": "5a7e501893da1d0cda000f8f889763c52cb2bfca",
+      "object_id": "b8d8b1ae3e1a48199addb71e359902a350d699c2",
       "previous_unofficial_ref": "source/unofficial/1.2.1/edk2-stable202608",
       "radxa_release": "1.2.2",
       "radxa_source_ref": "source/port/radxa/1.2.2/edk2-stable202608",
       "ref": "source/unofficial/1.2.2/edk2-stable202608",
-      "tree_id": "ec5f5d821eb3c59b94e6510769e741ab6b7e46b2",
+      "tree_id": "4ab1267453043c90d9b75a2f6467cbba17d914c8",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -473,12 +473,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "35c2766be5a14058bf1f0d3293d4e2b3374ab0ef",
-      "object_id": "2f7068764f0ca2144e0cbf72133e6e63adce9124",
+      "object_id": "daf40c90e175fcb62664ef9a6d7d4a9d1f6b9e73",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202208",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/vendor/radxa/1.2.3/edk2-stable202208",
       "ref": "source/unofficial/1.2.3/edk2-stable202208",
-      "tree_id": "0a50038ab37f2462eddfca8501c783a04da67f6f",
+      "tree_id": "e9228d51eaf591ae6688760d1e916b4b89fdf109",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -486,12 +486,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "ed4fecdfa4c510b2abfbe4c9796727a7452324c3",
-      "object_id": "aea110f061bd0ec7606472b2172f318684a4e5ec",
+      "object_id": "91188274edc48890880410ec5c804262d46e1182",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202211",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202211",
       "ref": "source/unofficial/1.2.3/edk2-stable202211",
-      "tree_id": "5431e6ee9927eb91f722422507445e07a0754157",
+      "tree_id": "364bff84eb42d3e29b21fd76c7c809f4ddfa077b",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -499,12 +499,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "b3351094a5dfb235666a7d20dc4f177784d113c2",
-      "object_id": "4a2e78e918b5bebafaad8140974af4cc9a9d1ef5",
+      "object_id": "3fea15b34388ce58385480c8bc7cca61ddbb7ad7",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202302",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202302",
       "ref": "source/unofficial/1.2.3/edk2-stable202302",
-      "tree_id": "33d3104f4813bdd0ee2c8e31c4cc9b73afacde8a",
+      "tree_id": "f5a3b61bb210780d7a9d92643b6ec1e896f5eac9",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -512,12 +512,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "f826a76bc035ec71f5763bb897897bb304775bd7",
-      "object_id": "0821e2ced54867385fd7e80cb35244639d9b3f77",
+      "object_id": "64ed6823dbe3a1ba5cd3eac5cd0f6b5561920a92",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202305",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202305",
       "ref": "source/unofficial/1.2.3/edk2-stable202305",
-      "tree_id": "781dc8a04f2b6c96aa36054cafa174ed13b93073",
+      "tree_id": "883fbb3207b0de4fbe340d44ad9bd3d406086f9e",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -525,12 +525,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "b012fc998104de643c2d5e713767e990feb22622",
-      "object_id": "a85196891450e96fc27c0271b73c38907fca40e6",
+      "object_id": "86491d74413c69ab2cfd7c61e424046b617dee1d",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202308",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202308",
       "ref": "source/unofficial/1.2.3/edk2-stable202308",
-      "tree_id": "437b58b3074f0b1b63d912426f8bc4eb78edc491",
+      "tree_id": "b40e545958130d7143662f621277683468b74809",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -538,12 +538,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "17b500b618f95bdbb23dc8927bc8c17b87e7d5b0",
-      "object_id": "257a7ee812f0693d8ceffcec75090c83e52d999c",
+      "object_id": "2f9cb3460bcd4fbdc696bc3400e717bafc28d3dd",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202311",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202311",
       "ref": "source/unofficial/1.2.3/edk2-stable202311",
-      "tree_id": "568f014988573f290732caa23cfca9c0a49caf45",
+      "tree_id": "6aaffeb0ad5bfbc343b6f3c5e2181b6699c62706",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -551,12 +551,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "4e16a1c4f79c5b90442fa7f5887d8659e90db734",
-      "object_id": "5cf24a85f44c47e716f2ca97049c423c55f28c1e",
+      "object_id": "899e68b36a5d8ef131794e97dd17aa9a5e040b72",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202402",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202402",
       "ref": "source/unofficial/1.2.3/edk2-stable202402",
-      "tree_id": "e009c25876d2b862795a8ec7227e02e12efcfefe",
+      "tree_id": "368cb4dd39d65bf53109b3780b69fc384c7b279f",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -564,12 +564,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "764ef56d158aa97f552e4bc5d48a52c4f233534c",
-      "object_id": "a4bc9268aa12e1694ff9d3f51a169b0ffabd5bd1",
+      "object_id": "7c7b1b9e2c8c1d14682fb504eb32844fe48194fd",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202405",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202405",
       "ref": "source/unofficial/1.2.3/edk2-stable202405",
-      "tree_id": "5ab24b55c99ee3b58f78e92c7e5f73722a8e7733",
+      "tree_id": "f14ea44a28ee71b02e4acbac9db8bd8b98019201",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -577,12 +577,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "8436d6d308a7d687c3efa59eacc252f961f81487",
-      "object_id": "ff1b4b8e7deaf11a7e6d0b0cbb8cbc5cf596e95a",
+      "object_id": "56335415f67ec0769dd26f367717b80aec0ef6b9",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202408",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202408",
       "ref": "source/unofficial/1.2.3/edk2-stable202408",
-      "tree_id": "86e118912bbe9865d0bbbc6c511fce62fca9e66c",
+      "tree_id": "d4b31485f4a9cf9b30ae198b10b74d6ba12f9b32",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -590,12 +590,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "0916b42021ede90b84ff830f0bbdbb31c6ec65ee",
-      "object_id": "23f064e6d699e5186be3b5baf4cfc1a0c82bb70b",
+      "object_id": "947baca59878698adbff96eab69708d9c96a478f",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202408.01",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202408.01",
       "ref": "source/unofficial/1.2.3/edk2-stable202408.01",
-      "tree_id": "6de644de5954ccdbead00b1450083c5da0dc55a8",
+      "tree_id": "01feda736c1988398aeb2ca28d355c8e170f1d8e",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -603,12 +603,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "7b48f26da0f142fdb7c9240e9c87d280625f9f61",
-      "object_id": "55dcfe0a166eebf49c727fd140aa111f221f8649",
+      "object_id": "127e8eff16d01fad4f7e8eccdd2da0d24a23965c",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202411",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202411",
       "ref": "source/unofficial/1.2.3/edk2-stable202411",
-      "tree_id": "f5d3e0e4519fd60725ac9d6039952fb695f8af48",
+      "tree_id": "b27b5eac72ff8de1ca960c9001c8b027ecbb21b4",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -616,12 +616,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "21a7d4b6becc60a5cfa032c9a4c1adf82dac3974",
-      "object_id": "de7e7fc5163fdfbf155a86273ebcfe2aac45d3fe",
+      "object_id": "29bbd6e771812ca4a0764f2305124410ec339006",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202502",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202502",
       "ref": "source/unofficial/1.2.3/edk2-stable202502",
-      "tree_id": "cdcb89d75475f1ed8e17c2fc2c51d8cd60a6c336",
+      "tree_id": "a0825559f9ef28edbc464c9db80057501c25705c",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -629,12 +629,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "85f84619d4c52acac751c92233c09e522ddaf8e9",
-      "object_id": "a20cf8f40ac23534f34a3157ac7edff6561e9204",
+      "object_id": "f19217f334eb8bb3520722511bebae49b8dc8084",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202505",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202505",
       "ref": "source/unofficial/1.2.3/edk2-stable202505",
-      "tree_id": "5b2cc59fa2cc1353d1c6417e2386f71894b98a0f",
+      "tree_id": "0e89b07a94e43bf15b2504008c1889d97915cf96",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -642,12 +642,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "19d276a98217c6348132a8a841171cb1ca15b628",
-      "object_id": "90a58c10dfc071751c66732173e794ece674cc11",
+      "object_id": "11e145bf7b0cf73e910f873498412bf0de09112f",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202508",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202508",
       "ref": "source/unofficial/1.2.3/edk2-stable202508",
-      "tree_id": "571ba2955dc86478d0ba319e25f6fe73bbd92da4",
+      "tree_id": "46904bf6c0a7272f951cd315a38c79f25f3f1e5d",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -655,12 +655,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "8f06dbf79c6c7012a08baeed15dcf8949aa20cb7",
-      "object_id": "a8f955d85ebbfccb7b7420154c2d5625870108f8",
+      "object_id": "595739e09593394db753c756ee6aed0de2d8fdb2",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202511",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202511",
       "ref": "source/unofficial/1.2.3/edk2-stable202511",
-      "tree_id": "8c13e70dbcc5bca047230b67532a00a4ad3aa77e",
+      "tree_id": "8a7d53f3d59b8d8b3370f93ffa95e75efd8b88bc",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -668,12 +668,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "686a6aec34a662e97923b14dd267fabb5ec132a5",
-      "object_id": "cb345334f2fa1b90c45895074cf4d35f0aba6aad",
+      "object_id": "35c55838e80b238da5f775f65c3530f2dcf2215f",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202602",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202602",
       "ref": "source/unofficial/1.2.3/edk2-stable202602",
-      "tree_id": "dfbbef3d1ff92168191a101edc63287c3e40b2aa",
+      "tree_id": "57e35d89ebc885fffecdfd849d536ce722b84016",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -681,12 +681,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "f3ca18e08c2442e4680188fc12a57086159bde86",
-      "object_id": "fd6e1fb23b80e6427d458b30a6288d71e35e3689",
+      "object_id": "4bf55c7990be2547f054caf2e4b11f9b84f46871",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202605",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202605",
       "ref": "source/unofficial/1.2.3/edk2-stable202605",
-      "tree_id": "fffdcec586f1aeb67e3ce4d5c58aad5a4fb22d2c",
+      "tree_id": "c04bf85be95845c8cc4532a2d30c960cb02ebca0",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -694,12 +694,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "6e258485f0f3cd582f6ebe0d0baedc22dfd13006",
-      "object_id": "3b7a1af1287d6b978c4d6b372998241f3bdb4d49",
+      "object_id": "b0d835ad3afa4e41b7b47526cf6e8ba850d5975c",
       "previous_unofficial_ref": "source/unofficial/1.2.2/edk2-stable202608",
       "radxa_release": "1.2.3",
       "radxa_source_ref": "source/port/radxa/1.2.3/edk2-stable202608",
       "ref": "source/unofficial/1.2.3/edk2-stable202608",
-      "tree_id": "4407a175cd0e774417e8dae0422af029885dc0fa",
+      "tree_id": "bc11074f0bee1da99c0d3af85ee3db3b48bc8de2",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -707,12 +707,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "d61cbe0e5ce2be5e6af81bd8d2457015a43e4e25",
-      "object_id": "6064689052c840915af74e34608f5d625028a954",
+      "object_id": "d65588b7428a4c03027ba170aea9913094d5b995",
       "previous_unofficial_ref": "source/unofficial/edk2-stable202208",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/vendor/radxa/1.2.4/edk2-stable202208",
       "ref": "source/unofficial/1.2.4/edk2-stable202208",
-      "tree_id": "c08a98d9246bb7c1e5af509ba0602b2e94f4dfa2",
+      "tree_id": "07cc2be09d96e347d18618e62bc0ebb6a8844007",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -720,12 +720,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "f1c473e71b896dc2152e139517896f2069c8a39b",
-      "object_id": "ce0c9226fe817ef3d97d81bbd338e8c19e658f39",
+      "object_id": "80478361ec4b661e76b7642a992f6d938d87545a",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202211",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202211",
       "ref": "source/unofficial/1.2.4/edk2-stable202211",
-      "tree_id": "2e6ffe27e1c28fcec82de0912b9d3c033c0d102f",
+      "tree_id": "160a50588aec4109dad36eb3eef5a94f7ef57ee6",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -733,12 +733,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "ec6c6a6863850c47d507630070b0c6a2cc0911c4",
-      "object_id": "3a39a2c504a5cc7df48972c24b126d0877ccc2d7",
+      "object_id": "b6641c0a8e5b9a7d31940086f1f1dd9009595f0d",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202302",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202302",
       "ref": "source/unofficial/1.2.4/edk2-stable202302",
-      "tree_id": "690d720f9aac1134e935e14f56b7f5985267fe64",
+      "tree_id": "1cd214ff777a04b48cdee6017d41b8844e33ad9c",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -746,12 +746,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "4755ecd0ba6e6cade12d18a67efc319e6052affa",
-      "object_id": "eacc6dec3b81df8e49c75784a6501d2daad8e783",
+      "object_id": "888eb28e051dcbe2a1ad9f23cf0fad79d8181be0",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202305",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202305",
       "ref": "source/unofficial/1.2.4/edk2-stable202305",
-      "tree_id": "5c9d6c4094e930ced7a8f2b7e96e71e7911427f1",
+      "tree_id": "0e61f23715d6308150a85eeb5334356c1d77d113",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -759,12 +759,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "f6a5d9e0b78e0e54dcb8b96c5302dad4fbcc3478",
-      "object_id": "56abc721b718d813c5d6c4767ce80d3921057d74",
+      "object_id": "791d019118d8bb4b0caaf702fbefa1bf37aa7114",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202308",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202308",
       "ref": "source/unofficial/1.2.4/edk2-stable202308",
-      "tree_id": "152d249434aa7391e8700cfa435f29810b28ef73",
+      "tree_id": "703f49ecfdeec6f40c909e592f1453a8cc528b07",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -772,12 +772,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "1cec4f7016f784b558680c50be7d05cd11ca93de",
-      "object_id": "9e4080d9b01db6334bc0c9032f6b20a56e9bc75d",
+      "object_id": "bf689c0b55e9e05fcb03fe73c0c283d9902cce48",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202311",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202311",
       "ref": "source/unofficial/1.2.4/edk2-stable202311",
-      "tree_id": "5b8cadd7a3e90f070bf7279833fb605a4eb640e3",
+      "tree_id": "d71b61c25fbb9245c68bbcc4a760c476c76e03e8",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -785,12 +785,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "e95e9a02211a0ac94cd9bb4da930b486cc3513f5",
-      "object_id": "c9fb8201b4263762c2a14762b84ba31dfc4297ae",
+      "object_id": "2bedb9fbe56451fc4e8bfe3de76085298ffb6eba",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202402",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202402",
       "ref": "source/unofficial/1.2.4/edk2-stable202402",
-      "tree_id": "ac7e1ca7ce503e6edb84e3fb002599efdb244deb",
+      "tree_id": "5cba4e4ab646b59f3ce23cbf03374d1e460893c1",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -798,12 +798,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "f45c3bc251de6d84dd2119fae86711088a616a8d",
-      "object_id": "c91cf2b215644edc7d8a92a4edbd3bbc6351a431",
+      "object_id": "422a8fe06e38367a3385c191a6524f3ec22f90e2",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202405",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202405",
       "ref": "source/unofficial/1.2.4/edk2-stable202405",
-      "tree_id": "7c31021efdeeb4c8dda950c83c540b6b9f185118",
+      "tree_id": "6f0d451fff90457a66aaaeb6a68de8b9159fe7e6",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -811,12 +811,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "82ea6da02c109c166f140bdba7804e1379329d58",
-      "object_id": "81df03c8ea03e6316fc27c479d41541ad6121c83",
+      "object_id": "9d7506f5670fd7e2632ef05e494b516687725949",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202408",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202408",
       "ref": "source/unofficial/1.2.4/edk2-stable202408",
-      "tree_id": "ccdd5a2913ab82a4c3258df36f0054c601c8fee0",
+      "tree_id": "9e2c2c5637705eb647bb90a164ba78f9283385d9",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -824,12 +824,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "7d431bc792e9dd4fade6001151bd94a1b78729bc",
-      "object_id": "3de4e336140f4b682b4c6947b8d64eb12fd1fa34",
+      "object_id": "518d578b49e71fef49cfc08476db2f19088eff83",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202408.01",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202408.01",
       "ref": "source/unofficial/1.2.4/edk2-stable202408.01",
-      "tree_id": "00ad061647394f4c71bacab7884007a7f44440e1",
+      "tree_id": "4acb11644fcc33832bb50ee93204b9c0d9e8273b",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -837,12 +837,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "b96257a0ca533eaf7f536c52f1f6ba1403e6ac52",
-      "object_id": "e2a09baf1ec9d8a80adcbccdfa0d2bc39fad98e9",
+      "object_id": "57c74d0ac077f20e5b289d44d34adfa4061eef4f",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202411",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202411",
       "ref": "source/unofficial/1.2.4/edk2-stable202411",
-      "tree_id": "5abc19cd84f26c24a2b62de7b5757b221dbf386b",
+      "tree_id": "793796eaaa87c3b0bb30a92da806ba5819d64bf5",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -850,12 +850,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "b1a46e746316ac00d42a383317c508a8f3d33e3e",
-      "object_id": "1acc87eb29c94130564a0c2b078d4eb053f6523d",
+      "object_id": "8c42dc10d624742a4b1ed39491051fe9aae6d20c",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202502",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202502",
       "ref": "source/unofficial/1.2.4/edk2-stable202502",
-      "tree_id": "b2f1937149a818a2ebca692ab25bda71aade91e5",
+      "tree_id": "02da60deebdae6ba55144cd1da26ef09d2e4cf08",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -863,12 +863,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "5c9a1a4876004faf35dc4890d5fc5c25bd2da419",
-      "object_id": "509024a2c4a894455fc753a70d96bcd53a8ebeb8",
+      "object_id": "ce66b01c9bbc6ba17aaba4ec5596fad3249842dc",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202505",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202505",
       "ref": "source/unofficial/1.2.4/edk2-stable202505",
-      "tree_id": "7d53b829fcd2f432ff00d4f8c9c08a756c651ec1",
+      "tree_id": "b8cc40786902e6cab0f3bb2e6d66181f0fb6fc53",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -876,12 +876,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "cafa183a9c7993813c627c8be44338296f90d90a",
-      "object_id": "96831c07b0e00a632a1006076515e58a704555bd",
+      "object_id": "321bcccde5caea2e782352f08f4a8f4367246d39",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202508",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202508",
       "ref": "source/unofficial/1.2.4/edk2-stable202508",
-      "tree_id": "fbe4aefa5214de1ea97cf2592e3236247e604d47",
+      "tree_id": "8f926adffa78b63cc18ae95944fca07fc33869f1",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -889,12 +889,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "5c56a81076f1840be62efee3cc3e055683f9a3b7",
-      "object_id": "ec01341c7df60a69a7d1a05f3057658375faa5c0",
+      "object_id": "d71d911572a178aa00594529c065592f970e362d",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202511",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202511",
       "ref": "source/unofficial/1.2.4/edk2-stable202511",
-      "tree_id": "e9e796805c5572f152d1d5cc8b10630c1a0fbfa2",
+      "tree_id": "f9e0e3986f149c99f28e2c9d9cfd0db517dd998e",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -902,12 +902,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "083f725bd2f1d358d4a972b5c8722f4aa4b97140",
-      "object_id": "925a4805a6d4565e569048457eeea25e774ba47a",
+      "object_id": "e88937213eafca6888a8224da1cce803b673d685",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202602",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202602",
       "ref": "source/unofficial/1.2.4/edk2-stable202602",
-      "tree_id": "eab90cf24095161fc20bb99178b31476e8003b09",
+      "tree_id": "21a541c752b9676acbea2fc2e920b9ba614941cb",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -915,12 +915,12 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "afff8f8d7efb96d7ac460b6ac3f0712d25721a85",
-      "object_id": "7443e84646b4dd931d017510afdf825163645409",
+      "object_id": "12512ba583abab40a64070f450437ddf46ee5c8e",
       "previous_unofficial_ref": "source/unofficial/1.2.3/edk2-stable202605",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202605",
       "ref": "source/unofficial/1.2.4/edk2-stable202605",
-      "tree_id": "46c5a05f56fe715bc756376f393b27abdc0927c9",
+      "tree_id": "c8f88609fd6f19fa11aa19a8a0b6488b34bd0ad4",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -928,20 +928,20 @@
       "immutable": true,
       "line": "1.2",
       "maintenance_base_object_id": "f8d4292943d4edd69c1395cb4192bd27c6cfb273",
-      "object_id": "9ccfa8b1a7e438fc20828b257217b531ebac48c9",
+      "object_id": "c2f69a8ce956bf1f2aaedab7dfcaed84894775a4",
       "previous_unofficial_ref": "source/unofficial/1.2/current",
       "radxa_release": "1.2.4",
       "radxa_source_ref": "source/port/radxa/1.2.4/edk2-stable202608",
       "ref": "source/unofficial/1.2.4/edk2-stable202608",
-      "tree_id": "1d8ebc0b9f68968e00bdd2562d3f4baacb71a689",
+      "tree_id": "1b8ce470c5fced4d67968c8e96942fc9534a1605",
       "type": "unofficial-release-checkpoint"
     },
     {
       "immutable": false,
       "line": "1.2",
-      "object_id": "3119562df589d9984dcd60154ac1058cc1af7020",
+      "object_id": "51fe59c2fa715acaf58568ce64bdbb9a7f5b36d3",
       "ref": "source/unofficial/1.2/current",
-      "tree_id": "fa60a48b216325787ac9db7e238573d722b63f88",
+      "tree_id": "d919aba6f534e679d38ccee59433e69ac6619a0a",
       "type": "unofficial-line-tip"
     },
     {
@@ -949,12 +949,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "53b4837290624a828456f31891e631a7dfc6a5e0",
-      "object_id": "b60b36af2175cb5421fc845d20728c3036c1225b",
+      "object_id": "8338a456dce640db15045dd05c35cd93338bd515",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202208",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/vendor/radxa/1.3.0/edk2-stable202208",
       "ref": "source/unofficial/1.3.0/edk2-stable202208",
-      "tree_id": "0674bc5d34375ed799d99203d797f91177b76694",
+      "tree_id": "917a0ead1d32f7b8c5d7358689787ac62cebc037",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -962,12 +962,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "81ab91fff7f2851d11a3e5de4927b5a36b8e7789",
-      "object_id": "1efe21992633598018de8e712bc1521e3a148d21",
+      "object_id": "6c441a59042ad727c94a0d2f7e9ee89f963dd763",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202208",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202211",
       "ref": "source/unofficial/1.3.0/edk2-stable202211",
-      "tree_id": "58907f7ae472df0f8730ddb9661825fbc96d26a3",
+      "tree_id": "a24004f269a1b621e70d4e4508ecece6654161d4",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -975,12 +975,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "c6db68c699f50924c318e8ef3bf63f5498ac7093",
-      "object_id": "de06dd92b78a29fdaba432d6f1cc56b916e17f4a",
+      "object_id": "ec02a45afeac6967c91347a15f62534eff803fb6",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202211",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202302",
       "ref": "source/unofficial/1.3.0/edk2-stable202302",
-      "tree_id": "7df55f54c784dfca8ac34a207104f936729928d0",
+      "tree_id": "535a47b0d5a4684b9119ef0684eb2d8770bcfdc4",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -988,12 +988,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "2748e346d4fe3d1e296461585cc9533c7ded9250",
-      "object_id": "a4290094eddca0dd477181761a8229a40e7db4b7",
+      "object_id": "4d12e791c0df08632554e45deee954173c148dcf",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202302",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202305",
       "ref": "source/unofficial/1.3.0/edk2-stable202305",
-      "tree_id": "60120c4de38cadd459b9c336e4d44bc2bcae000d",
+      "tree_id": "5d638768343b7bc8b721a93b7a0a5ba620072916",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1001,12 +1001,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "11b6570123a4aa35b5e7f3982dfd24d7f14b23b4",
-      "object_id": "08902611a784b485503615b65748bb1204166477",
+      "object_id": "f08fc0f484ec46b010871488f4f4d4f873990be9",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202305",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202308",
       "ref": "source/unofficial/1.3.0/edk2-stable202308",
-      "tree_id": "e22dfe21e368e16f6e44c6da501d8be387c2923e",
+      "tree_id": "c4b9f88ec1f0277490be2569e40e877090a31bd8",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1014,12 +1014,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "a62ecbb6eb3201ea8aa4514e4ac9fe60aa0c6f33",
-      "object_id": "c45f28ef26941c89dd0d043d72d793eecd5e4304",
+      "object_id": "17fdbd06b0ec96509c1de3e17087150417d0e8cf",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202308",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202311",
       "ref": "source/unofficial/1.3.0/edk2-stable202311",
-      "tree_id": "ac8ae44619fcbd008fe77b3be11bff6815357f4d",
+      "tree_id": "6bc05315221ca83b3140512b28f5b9950e8367f2",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1027,12 +1027,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "28cb6026bd3e200c75d18f51a245d8139c39d435",
-      "object_id": "7ea903fa100e8eb0b29e651967dbac7aafb5f491",
+      "object_id": "202e6d945aca20d6e04b11d9d941121cce788eb9",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202311",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202402",
       "ref": "source/unofficial/1.3.0/edk2-stable202402",
-      "tree_id": "e25fd500fde7882ec5ece3f6f917df55a97f6f1e",
+      "tree_id": "5ae6ea2a1b19e904a705d436086b2df74e01d7ee",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1040,12 +1040,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "94c76f793fe6d911a0231e6c09e8a4e7485e6e8d",
-      "object_id": "e8b014bccdf9afa1bb214471fb5d6d7bc0dbc610",
+      "object_id": "00e9181009b768f03d55db2ca100f5704ec7dbe9",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202402",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202405",
       "ref": "source/unofficial/1.3.0/edk2-stable202405",
-      "tree_id": "237aeec0d89275c20dd4ee83a994ee6f2509c35e",
+      "tree_id": "388d69e0f8a5e6d79d202d18f3ff730d0a01141a",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1053,12 +1053,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "ec66923552b00969ff07cecdd234d732033cd43d",
-      "object_id": "e314a4f1bab5b4882808dcee492e8b473e71c2e0",
+      "object_id": "b37b1b1e959387f1fa6815daa47c8435351cc970",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202405",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202408",
       "ref": "source/unofficial/1.3.0/edk2-stable202408",
-      "tree_id": "d90417e8c99c997aa614c8a00f6c948e625d1c8d",
+      "tree_id": "e8df1320c45afdcdfc8019b93af1f84de4ff117e",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1066,12 +1066,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "22bde730197a521bac1086833a90d20b2209a5cf",
-      "object_id": "180093aad93a9bb6e25fde45378bfd9167878fa6",
+      "object_id": "d7e9b1f01ba585add6beb61dc5dc38778e88ce9d",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202408",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202408.01",
       "ref": "source/unofficial/1.3.0/edk2-stable202408.01",
-      "tree_id": "ab607bd42602fd7e7ea25973b63e7bf5c9e537d8",
+      "tree_id": "7632064ed582f0a36e3ae945f3c98d6d006a37b7",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1079,12 +1079,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "4e01a6ab4ab3ca67dbf2c4442e0e216b29e7c232",
-      "object_id": "6737f7e2087a2e9d446788cf964de5abd1382126",
+      "object_id": "6aa7bd841b155c04618adba7b2bac51b05ad99f5",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202408.01",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202411",
       "ref": "source/unofficial/1.3.0/edk2-stable202411",
-      "tree_id": "dce9d1c27906fa82fa7322143919511ed48f76a0",
+      "tree_id": "df463fc2851e4adabc3feac0fb2567356a4c4310",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1092,12 +1092,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "35d1bb4f2ddec750286f34d11ead9f158b43b98f",
-      "object_id": "eb5ae92265f37721b0d9bcc2e377fd440b90c4e0",
+      "object_id": "e4f6ecade777994ea277fd61a0e0e6e08f0abe05",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202411",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202502",
       "ref": "source/unofficial/1.3.0/edk2-stable202502",
-      "tree_id": "3d8adb1b5e09e889def807ecfbc87279cec655cc",
+      "tree_id": "536b6e5afb2ce3f68eb7845cea856a27ddfd6742",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1105,12 +1105,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "13286cdfe98e6fce890f501fbd93797fa4b36763",
-      "object_id": "e50c611adf1be242d045dd6367caa2fc5508ff1b",
+      "object_id": "6b7607f5c65ad5213832e476b89f9c6877ec0269",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202502",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202505",
       "ref": "source/unofficial/1.3.0/edk2-stable202505",
-      "tree_id": "debb9aaf807efed8292dd2e3b8da939f58eaf237",
+      "tree_id": "72f7b66ad22658863db91b1143393f551688e70e",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1118,12 +1118,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "55542f8588e2f72ec24ce8053300c3438736342a",
-      "object_id": "8cacc50181784a9a57505981beea4f59c7c8076b",
+      "object_id": "542209904fad9271347b448c261338820c1a1113",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202505",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202508",
       "ref": "source/unofficial/1.3.0/edk2-stable202508",
-      "tree_id": "f9148410eacaf17b5ebdb01d0397ebe357a3e71f",
+      "tree_id": "385cac2660be575069210b7620242ba6ffc9f712",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1131,12 +1131,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "6ba68f63668b763314d58c9eef37d1f3d03a2859",
-      "object_id": "fb1e0682de560e98eb1f3755299a7e311f3e5cbe",
+      "object_id": "5c5d77dcd0158779ef165deee49c2ac4e76fd616",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202508",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202511",
       "ref": "source/unofficial/1.3.0/edk2-stable202511",
-      "tree_id": "1a2218d72331cccbd398f63332e08284082cefbf",
+      "tree_id": "7f22c52730181894f0991bee0593381546246dee",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1144,12 +1144,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "0619e5618d88dcce01e5e74a2cb97e49b6d74d0e",
-      "object_id": "0ead4b686fb809ece9e9dd583aee670874d6e70a",
+      "object_id": "12661bf547274bd2bd217333b40866d1bba0bc21",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202511",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202602",
       "ref": "source/unofficial/1.3.0/edk2-stable202602",
-      "tree_id": "df870efc575a7bd0d032d2d758e4bd9e6a849c9e",
+      "tree_id": "e84332f5accb6b005421ed1eba2674cb78076a48",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1157,12 +1157,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "62e7fe6540c3c174491caee259b04e870eef1c01",
-      "object_id": "b1459ce8d87d8d8c49a87d896d6a10a27bd03c5c",
+      "object_id": "5ea6838e54daedad40feb90be2256d48e5fcaab1",
       "previous_unofficial_ref": "source/unofficial/1.2.4/edk2-stable202605",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202605",
       "ref": "source/unofficial/1.3.0/edk2-stable202605",
-      "tree_id": "f178804fef88c1abc8eb121c5f4f8a95ecba8c8f",
+      "tree_id": "420ff8979296b8d1a87a1e7c9fffd0985ea25bf4",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1170,12 +1170,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "958228d7249085a0bb6d19caee55f269b79d867c",
-      "object_id": "84cd7a1d35b025b0ac23bd314405bb5cdf8607a2",
+      "object_id": "b95aa2b3d7a911c86322603e3e335910177703fa",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202608",
       "radxa_release": "1.3.0",
       "radxa_source_ref": "source/port/radxa/1.3.0/edk2-stable202608",
       "ref": "source/unofficial/1.3.0/edk2-stable202608",
-      "tree_id": "cdea0039b49b2c19330f0e427de639224719b316",
+      "tree_id": "f08e0290dac241f455eead9303b780b0da39eef3",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1183,12 +1183,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "2edf28979e7369ccdefa18a22b9698411d6f1161",
-      "object_id": "7d40d67e2595068a24eb48877d03d357ef68b1ac",
+      "object_id": "19174946bfc4d755f0f445e7dbb3ab55ac75be7e",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202608",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/vendor/radxa/1.3.1/edk2-stable202208",
       "ref": "source/unofficial/1.3.1/edk2-stable202208",
-      "tree_id": "a00c14bd761995807a5faabcd2a198db362d35f5",
+      "tree_id": "a0679271a0c6053569584cde16426ee55a905e23",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1196,12 +1196,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "b65b504b3dd8ee01b15c5d7b5012667b2e5b19dd",
-      "object_id": "4f610363f584fd75f6cb8c7400dbdd3dad868b7e",
+      "object_id": "6c738503b43839db55ba2bd5da29ae9b1a3a722d",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202208",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202211",
       "ref": "source/unofficial/1.3.1/edk2-stable202211",
-      "tree_id": "8bca14d3021900e39dfe218f690bf3ba875c4a2f",
+      "tree_id": "817813751ce36e83a7f07dbd2bf54a6b3d611ebe",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1209,12 +1209,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "3dc9402a7bd042c843cdbf0c4e99e73b6871f88e",
-      "object_id": "00b17c5018e53d4769a14745f7e6cb4e924ab33a",
+      "object_id": "648abdb557af8e126a97f32630b999dfcc376671",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202211",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202302",
       "ref": "source/unofficial/1.3.1/edk2-stable202302",
-      "tree_id": "7ca8904012605f5a178f83b6e6ffaeccd38ad5ae",
+      "tree_id": "81f095bd460697014e5ecd05791202f744804d1c",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1222,12 +1222,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "750929f5916507d7d982f02c4e6aa2d8979ebac6",
-      "object_id": "9440b08179c426aa3f2a9a308182a825623901ef",
+      "object_id": "3c9c5bcbc658f7e57b9237784f2b97eb89f78784",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202302",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202305",
       "ref": "source/unofficial/1.3.1/edk2-stable202305",
-      "tree_id": "86b889879ec4aaa2a28677b643337d481181fa16",
+      "tree_id": "2481bb6a3eaa60d8d36c2d42334fed21867bff53",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1235,12 +1235,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "e3814ed04a41a9a68bfd12b05accded7c31e30e9",
-      "object_id": "2665f0be99a01b972fff9f73b9f5c52ce7514fe8",
+      "object_id": "03a67e4c93ea15c13401ff960b05e875c9d05dab",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202305",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202308",
       "ref": "source/unofficial/1.3.1/edk2-stable202308",
-      "tree_id": "6d46a80999cf59ed4c43e48e3dd66be175b10fe7",
+      "tree_id": "17c4addf98d360a411609d7729d8e7ce0beb7968",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1248,12 +1248,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "168c86d262d322b68b363a6c1961e41734009013",
-      "object_id": "211b73da6f9ea41f05a4a6be7e079cfc449b8dd8",
+      "object_id": "09a33ebd6eaf11593b42153dadcbe1b2372110ca",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202308",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202311",
       "ref": "source/unofficial/1.3.1/edk2-stable202311",
-      "tree_id": "16e3fef01182a4fb8e7e91422e1f30efb50e58c5",
+      "tree_id": "f54c79a5109d1396efae28db305a944f50c4a4b7",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1261,12 +1261,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "1867a37e3c2435e2204355a994e60890acd3895c",
-      "object_id": "bc59936dddc6641f39ade6b75e4c4e775e3e39c1",
+      "object_id": "33517b28e6360b7bd26437ebd06b953a17601005",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202311",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202402",
       "ref": "source/unofficial/1.3.1/edk2-stable202402",
-      "tree_id": "2e136d0833adc9374645f49c729e3a13e7f6c316",
+      "tree_id": "85982db871f6b99093ced8bf944f69840d58dc09",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1274,12 +1274,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "4e83606dd0ca64646fcc5eb11283e9d0b650448a",
-      "object_id": "8632627a61c0099fcd1c7c11295bc43db2bd69e9",
+      "object_id": "798838363b844a2da72249eca93f27f222e57b05",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202402",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202405",
       "ref": "source/unofficial/1.3.1/edk2-stable202405",
-      "tree_id": "b4f58c07b6dbc62fbbf988ec3ed72f123d065b5f",
+      "tree_id": "13f65b44ed46f3bbb362a0357dfa0ee8d591e299",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1287,12 +1287,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "1086658a11e35ae4672a205c24b55433e95cab92",
-      "object_id": "355df6572d35e06d536021b02247f40cd34e3ff4",
+      "object_id": "1315d06173f27c2d9a4c2abb7693b260460a6be5",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202405",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202408",
       "ref": "source/unofficial/1.3.1/edk2-stable202408",
-      "tree_id": "5efa9d875af259ca459aa15104f0fecb17e14ae6",
+      "tree_id": "3b287267d344865a210f26d56d91941d8faad612",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1300,12 +1300,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "f26c04d0ef20726f9a885c740a4852d04ea74516",
-      "object_id": "d103181bbc0d5c4574f37d9c891c84399b25799d",
+      "object_id": "a7906012397648a47670b12f44009039ddda5c29",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202408",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202408.01",
       "ref": "source/unofficial/1.3.1/edk2-stable202408.01",
-      "tree_id": "076029c88daaba6cdac47ef9971245228a3c9d20",
+      "tree_id": "474c825b4bb269420d06163a79b2fd622192d385",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1313,12 +1313,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "a4f7f2ab12fcbf92e5cffbb52e3068f920b88540",
-      "object_id": "94aa590ea6558d9b0c917d36ea6677e406ecbbbc",
+      "object_id": "5a6cc117fa6ed27e4518b99c92f2253b52e8a84e",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202408.01",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202411",
       "ref": "source/unofficial/1.3.1/edk2-stable202411",
-      "tree_id": "cce5523b3ce23d3504ca07284ba099ae673ebfd4",
+      "tree_id": "e805b7dc7b70fb9123200d2ef735b718a9cb9841",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1326,12 +1326,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "6b9f949912d9af13d84a48003d4dce740db9a200",
-      "object_id": "6a6d5f924731dc91ccdbf0aa34197f892960fcd7",
+      "object_id": "3d549127eef5bbd03afef8640448e26f57d3564d",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202411",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202502",
       "ref": "source/unofficial/1.3.1/edk2-stable202502",
-      "tree_id": "868a9a51977284fb3d60eb821f8e4f65eb33a587",
+      "tree_id": "8d28eb4af246110eab26e56a356d2606fdbb800f",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1339,12 +1339,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "88f6e1a07a8c02c57a4c73a528a0d5207f4dca11",
-      "object_id": "a7c1b6039bd67c5efb65c4cdf8b3e9b0ac537c58",
+      "object_id": "baf73db3dd9cd6568ede9883be23d49af319b050",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202502",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202505",
       "ref": "source/unofficial/1.3.1/edk2-stable202505",
-      "tree_id": "60053abf1dbb9094a4f35f6c586687cc83410270",
+      "tree_id": "1fc7a2076686de721901a30b900c473e88d4b82b",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1352,12 +1352,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "0c33eb4b37396aa86b71e9a033fcd90516651931",
-      "object_id": "89e1127a88fde7757b903c024ede7dc4990035e1",
+      "object_id": "caf30e0d4a5da593e75d69d1adc49412938cc817",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202505",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202508",
       "ref": "source/unofficial/1.3.1/edk2-stable202508",
-      "tree_id": "f63fb2dbafaf527d3c97f97705e361b39d6e16d7",
+      "tree_id": "74956115da875b96cfe849d54693eea0283c933b",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1365,12 +1365,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "fb4a5ed2cdaa0b10cd9c380fb004a9d4fae714ba",
-      "object_id": "bd373897bfdf61291c48bfaf3818ca4e29a17453",
+      "object_id": "7da4f2c4e7d88d869dc0565b7c349c864cbb579e",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202508",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202511",
       "ref": "source/unofficial/1.3.1/edk2-stable202511",
-      "tree_id": "9d872e279252af56894292fa0979fb1dcfc92d2c",
+      "tree_id": "f0c0f886e653dcfe6c054239263414f68006227b",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1378,12 +1378,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "69410d6a00d0b72206eddccb020c5af2a2aa9d8c",
-      "object_id": "e820ba6118595b175af41ffd5c9b87ce85478dc2",
+      "object_id": "145dd381828068b97005bb4f6d33961920b856e3",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202511",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202602",
       "ref": "source/unofficial/1.3.1/edk2-stable202602",
-      "tree_id": "3645f907ac859e3caa7d89fd83b287de6e462cc2",
+      "tree_id": "24281f49cf0a487fdd5b0a3efdc9d69b5db394f2",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1391,12 +1391,12 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "5eda68df04a5e9f1a8759e689b0bdd89f6284245",
-      "object_id": "ed2426d312202824c2b3a20bcab119bc01967e46",
+      "object_id": "045d813fca2a55763101ab70aa87cde0d8dc918f",
       "previous_unofficial_ref": "source/unofficial/1.3.0/edk2-stable202605",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202605",
       "ref": "source/unofficial/1.3.1/edk2-stable202605",
-      "tree_id": "f33dbb61ddd918e752b83fafdbfafc3eda9a469e",
+      "tree_id": "118437e081ab2764e7faa1d9bf494a16397979ea",
       "type": "unofficial-release-checkpoint"
     },
     {
@@ -1404,164 +1404,164 @@
       "immutable": true,
       "line": "1.3",
       "maintenance_base_object_id": "6c113d258eb4b31ac137de843d63d899f2780ca7",
-      "object_id": "1d246d970477544c5089df30dc125eb734b4b3d9",
+      "object_id": "f61a44fdcc98b9a1c2f58a879e42b7aa4cfcbe27",
       "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202605",
       "radxa_release": "1.3.1",
       "radxa_source_ref": "source/port/radxa/1.3.1/edk2-stable202608",
       "ref": "source/unofficial/1.3.1/edk2-stable202608",
-      "tree_id": "414af3945cf00c88207d7fecce738bafa3d99d88",
+      "tree_id": "a9f823f4770e1297b3a7722b978d5dfc06b00a00",
       "type": "unofficial-release-checkpoint"
     },
     {
       "immutable": false,
       "line": "1.3",
-      "object_id": "3178ceda33517dc8047024bfbe2a02de0ec1c4e6",
+      "object_id": "0d8a7b0020b3c52113974f32fe7a7e377e7dced3",
       "ref": "source/unofficial/1.3/current",
-      "tree_id": "03c28c9855ff00b063544ae7175f6eea82253647",
+      "tree_id": "e93c692636b08a2a9512016947c938fef0122fe1",
       "type": "unofficial-line-tip"
     },
     {
       "edk2_base": "edk2-stable202208",
       "immutable": false,
-      "object_id": "499aa46204020999b5074b9abe50d6fbc92390d7",
+      "object_id": "ea970a6ce502287e2f524ffc37d6aa04f0f81d72",
       "ref": "source/unofficial/edk2-stable202208",
-      "tree_id": "6a4dbe31a552b5fa062d75c8d72087cce351af6c",
+      "tree_id": "d0c1a803e3a65e9a4d4ebf5acc7b9d8cdec65d45",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202211",
       "immutable": false,
-      "object_id": "202f9d8854b3b2d78fee1238f203585c1cc02d9d",
+      "object_id": "dadf18b36aa052f4adc24fc7106ba14d57992026",
       "ref": "source/unofficial/edk2-stable202211",
-      "tree_id": "b2f6ccd46ef6db41a0e9fe4baaa07a435b715f3a",
+      "tree_id": "dcf3e75958b8edc64245a0222e18a815f21b7a49",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202302",
       "immutable": false,
-      "object_id": "445a3ba5b55c2e0c5b60179fe7777068a4ae3883",
+      "object_id": "949e1a3037a9682f10867c48d341b8de544fbeff",
       "ref": "source/unofficial/edk2-stable202302",
-      "tree_id": "5f136d5fb8fc2455a2510ac0b3a09298509b095b",
+      "tree_id": "c81df1537356e14c558f4fa25af207554a333c7e",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202305",
       "immutable": false,
-      "object_id": "304b2174cd8c01895d2e4beabeabc815f03fc9dc",
+      "object_id": "694b442b9475254babfe663b8f368fef7f7a6fd0",
       "ref": "source/unofficial/edk2-stable202305",
-      "tree_id": "87481908ebfcbc9eec3f48998f3ee9a497076af4",
+      "tree_id": "4e399d22c3960ebf2d546dba3307f35b44e56b27",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202308",
       "immutable": false,
-      "object_id": "3e209c4492e81844083988e2d29235e9dcbb4745",
+      "object_id": "be138bc62d094a3af2a852893b377bf536aa64a7",
       "ref": "source/unofficial/edk2-stable202308",
-      "tree_id": "30a1fce2505570987563c482e87ee8f468d6c5fe",
+      "tree_id": "6a74af23558094b42190a3e54ad5bccf377fe0ef",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202311",
       "immutable": false,
-      "object_id": "2f03930a0799706f5f5ca66168483a4de17b28b4",
+      "object_id": "81dc618f185bb107504ce8631ac0935c91333b38",
       "ref": "source/unofficial/edk2-stable202311",
-      "tree_id": "dbafa7df9de2d99f8381fb12ba548757c6685fd8",
+      "tree_id": "95da13a3a63219e5639cf93b140f31b292afeef3",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202402",
       "immutable": false,
-      "object_id": "50e9ff148f2918fc1e6654fd54629e6e30c7899a",
+      "object_id": "2b99b459e1eab0f201e22d44e464d29f76258e3a",
       "ref": "source/unofficial/edk2-stable202402",
-      "tree_id": "a095850d9f50c54feedc1cbd96210cb7ee410422",
+      "tree_id": "bd096c7c373dad057c571b86c7a03f94c118205b",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202405",
       "immutable": false,
-      "object_id": "858bfcc0581ee384612f0d947a96aca47da546ed",
+      "object_id": "d59887d036cb902b3a19e9fdf7515dd9976d85c7",
       "ref": "source/unofficial/edk2-stable202405",
-      "tree_id": "9c6b7bcf2c2b6dab45ab3318d1a849a2292754ff",
+      "tree_id": "ef9c1dd2886bd13e8db41287a29449dedddf11f1",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202408",
       "immutable": false,
-      "object_id": "14ed82a3cc00ab12d754e1d69c6a9faaa89002bb",
+      "object_id": "07cd6f96182b08195d7c4087f9b3c9959c997290",
       "ref": "source/unofficial/edk2-stable202408",
-      "tree_id": "515efaee3672b4da946191c11184547cd739ef97",
+      "tree_id": "048617e64ab06e9bca7e2658b444c0a95b7dfa62",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202408.01",
       "immutable": false,
-      "object_id": "3191ab04de2a62cae174996288ae0429177d9c52",
+      "object_id": "b82c3788429d1088c2fa2d84732bc50ebcbe4daf",
       "ref": "source/unofficial/edk2-stable202408.01",
-      "tree_id": "53c428058508595b13bd7b03282929322ceb2dff",
+      "tree_id": "d3c89e0ec51a1f639b5ee72ae7fc99fcbb3df9f8",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202411",
       "immutable": false,
-      "object_id": "cf07c46dfd424b57157f8c6cd1eb6bfcf225fcd6",
+      "object_id": "b6ce8a42f6a6081ddeda3d403817f78ce66259dd",
       "ref": "source/unofficial/edk2-stable202411",
-      "tree_id": "76e8655ddda763068b6d50a0d0b9ee955681fb7f",
+      "tree_id": "496642103b7912bb9a40efccbd12942af4226953",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202502",
       "immutable": false,
-      "object_id": "b1ba101c3e34597d6e421f6974157b7883a03e10",
+      "object_id": "ccf4b16af394f59b5bb9a867c21120c4527f3311",
       "ref": "source/unofficial/edk2-stable202502",
-      "tree_id": "9b43a7bfa945545ab41b293c1ac64f28fa3a648e",
+      "tree_id": "c9dedfb76e96a389e187d0931eda829a733c6e33",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202505",
       "immutable": false,
-      "object_id": "81ed13599533e834de358683776d2f1b20145eb2",
+      "object_id": "0d7e85190b9e4584a60249b26d16e1d43425dab1",
       "ref": "source/unofficial/edk2-stable202505",
-      "tree_id": "36a1266e49723828933b7e74e30791e2fe102a6e",
+      "tree_id": "eb1949fe753809f096d95568d02fbed295c9a3bd",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202508",
       "immutable": false,
-      "object_id": "9559698ac8517eb79c7d8a937ae988f64d646386",
+      "object_id": "53d69cbf46596cea1c873d1c34f3c70ffcd72373",
       "ref": "source/unofficial/edk2-stable202508",
-      "tree_id": "6ef8527091ab6bf3eee1c0e744803e6d7da64c1c",
+      "tree_id": "39d4d2e880b48f8c9d6fd5ef35e39222f4d85c89",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202511",
       "immutable": false,
-      "object_id": "2a9947ca362663bcbba49562b880465845b2a137",
+      "object_id": "60b00f98ae7de2450d0e345731317cec97d33f7a",
       "ref": "source/unofficial/edk2-stable202511",
-      "tree_id": "2f20b6a08264b9a36b124991ad31c6bac773e850",
+      "tree_id": "f15606bd26dd35d632450a10860ef447651e6115",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202602",
       "immutable": false,
-      "object_id": "933809abd6b210be516f7ac635a3cb7ede318ccc",
+      "object_id": "db1a788fb28f725f7a0a8d462dc7a8364303ff83",
       "ref": "source/unofficial/edk2-stable202602",
-      "tree_id": "8873aec3288506c37f1ae0766f30687663680619",
+      "tree_id": "f13a4e161b5bfb96afd58a728201d255c01dbc89",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202605",
       "immutable": false,
-      "object_id": "ac1f0ce1e0a0d635011b5054365c51b6b35116c4",
+      "object_id": "7541a6091a6616070d0e2d2655feb41d172a4929",
       "ref": "source/unofficial/edk2-stable202605",
-      "tree_id": "776e32e1512dd4852a65e2b799085f2d6d99dbd3",
+      "tree_id": "b15a54415a6cc58954ca285d73623d3158c4778a",
       "type": "unofficial-edk2-compatibility"
     },
     {
       "edk2_base": "edk2-stable202608",
       "immutable": false,
-      "object_id": "ff37e783e63b8bb1f2d1a67739f50cf1ffcbb753",
+      "object_id": "28dbeeb3b870daff469fcbd2bb93eb6f3108a6b0",
       "ref": "source/unofficial/edk2-stable202608",
-      "tree_id": "db2ef36a717cfc2da84863a8e17c0b7c7430ce9d",
+      "tree_id": "4e62f7c5321ff6eac25ad83b9e9fbc1ad81e745a",
       "type": "unofficial-edk2-compatibility"
     }
   ]
