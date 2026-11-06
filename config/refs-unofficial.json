@@ -1423,9 +1423,9 @@
     {
       "edk2_base": "edk2-stable202208",
       "immutable": false,
-      "object_id": "ea970a6ce502287e2f524ffc37d6aa04f0f81d72",
+      "object_id": "3f2aab080db909fae1f66e4220f528d525df9201",
       "ref": "source/unofficial/edk2-stable202208",
-      "tree_id": "d0c1a803e3a65e9a4d4ebf5acc7b9d8cdec65d45",
+      "tree_id": "d7e2c60f75b0063968d69d87612203ea98630b99",
       "type": "unofficial-edk2-compatibility"
     },
     {

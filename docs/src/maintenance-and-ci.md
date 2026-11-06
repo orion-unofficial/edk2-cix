@@ -44,6 +44,13 @@ Expanding its callers does not change vendor source bytes, warning policy,
 compiler options or packaging. All twelve stock replay builds must pass CI before
 claiming that all stock replays have been requalified at a candidate commit.
 
+A future replay dependency image could move Debian Snapshot access out of
+ordinary firmware CI. Build the amd64 and arm64 images from the reviewed
+Bookworm base digest, snapshot timestamp and package manifests. Verify the
+installed package versions on each architecture and publish the images to GHCR
+with their input provenance. Pin the resulting image digest in replay CI and
+require the stock byte comparisons before adopting a new digest.
+
 The stable `Qualification summary` job reports the result of every gate and
 fails if any required gate failed. Branch protection should require that job,
 not a matrix child whose displayed name may change. A run qualifies the
