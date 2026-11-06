@@ -10,11 +10,16 @@ from pathlib import Path
 
 from reconstruction_common import (
     active_unofficial_source_ref, unofficial_firmware_refs, main_wrapper, ReconstructionError,
-    tree_id, unofficial_checkpoints_by_edk2, unofficial_source_ref,
+    rev_parse, show_file, tree_id, unofficial_checkpoints_by_edk2, unofficial_source_ref,
+    unofficial_line_policies, unofficial_source_policy,
+    UNOFFICIAL_CHECKPOINT_RE, UNOFFICIAL_CORRECTION_RE, UNOFFICIAL_LINE_CURRENT_RE,
 )
 from source_lifecycle import tree_entries
 from source_porting import git_blob_bytes_batch
-from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
+from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS, PACKAGE
+from firmware_trust_audit import (
+    PACKAGE_INPUTS, compatible_reference, parse_catalogue, require_provenance,
+)
 from validate_build_variables import (
     CIX_STMM_HELPER_PROFILES, stmm_helper_problems,
 )
@@ -448,9 +453,28 @@ def effective_source_refs(repo: Path) -> list[str]:
     return sorted(refs)
 
 
+def source_catalogue_provenance(repo: Path, ref: str, lines: dict) -> tuple[str, str] | None:
+    checkpoint = UNOFFICIAL_CHECKPOINT_RE.fullmatch(ref) or UNOFFICIAL_CORRECTION_RE.fullmatch(ref)
+    line = UNOFFICIAL_LINE_CURRENT_RE.fullmatch(ref)
+    if checkpoint:
+        release = checkpoint["radxa"]
+    elif line and line["line"] in lines:
+        release = lines[line["line"]]["current_radxa_release"]
+    else:
+        # Legacy EDK2-only refs and retained, unconfigured line tips still
+        # require their package identity and layout, but have no release pin.
+        return None
+    vendor_ref = f"source/vendor/radxa/{release}/edk2-stable202208"
+    return vendor_ref, rev_parse(repo, vendor_ref)
+
+
 def main() -> None:
     refs = effective_source_refs(ROOT)
+    _, lines = unofficial_line_policies(unofficial_source_policy(ROOT))
+    current_catalogue = parse_catalogue((ROOT / "config/firmware-trust.json").read_bytes())
     checked = {}
+    catalogue_provenance = {}
+    catalogue_path = "src/scripts/firmware-trust.json"
     problems = []
     for ref in refs:
         tree = tree_id(ROOT, ref)
@@ -466,8 +490,7 @@ def main() -> None:
                                    ("src/scripts/warn_debug_categories.py", "scripts/warn_debug_categories.py"),
                                    ("src/scripts/firmware_chain.py", "scripts/firmware_chain.py"),
                                    ("src/scripts/check_release_debug.py", "scripts/check_release_debug.py"),
-                                   ("src/scripts/prepare_release_logging.py", "scripts/prepare_release_logging.py"),
-                                   ("src/scripts/firmware-trust.json", "config/firmware-trust.json")):
+                                   ("src/scripts/prepare_release_logging.py", "scripts/prepare_release_logging.py")):
                 entry = entries.get(source)
                 if entry is None:
                     checked[tree].append(f"missing mandatory build validation input: {source}")
@@ -475,6 +498,15 @@ def main() -> None:
                     content = git_blob_bytes_batch(ROOT, [entry.object_id])[entry.object_id]
                     if content != (ROOT / caller).read_bytes():
                         checked[tree].append(f"build validation input differs from build branch: {source}")
+            try:
+                embedded = parse_catalogue(show_file(ROOT, ref, catalogue_path))
+                package_fingerprints = tuple(
+                    hashlib.sha256(show_file(ROOT, ref, f"{PACKAGE}/{name}")).hexdigest()
+                    for name in PACKAGE_INPUTS
+                )
+                catalogue_provenance[tree] = compatible_reference(embedded, current_catalogue, package_fingerprints)
+            except ReconstructionError as exc:
+                checked[tree].append(f"{catalogue_path}: {exc}")
             validator_path = "src/scripts/validate_firmware_chain.py"
             validator_entry = entries.get(validator_path)
             if validator_entry is None:
@@ -497,6 +529,13 @@ def main() -> None:
                 checked[tree].extend(stmm_helper_problems(
                     helper, {path: stmm_blobs[item.object_id] for path, item in stmm_entries.items()}))
         problems.extend(f"{ref}: {problem}" for problem in checked[tree])
+        if tree in catalogue_provenance:
+            try:
+                provenance = source_catalogue_provenance(ROOT, ref, lines)
+                if provenance is not None:
+                    require_provenance(catalogue_provenance[tree], *provenance)
+            except ReconstructionError as exc:
+                problems.append(f"{ref}: {catalogue_path}: {exc}")
     if problems:
         raise ReconstructionError("source build-input checks failed:\n" + "\n".join(problems))
     print(f"Source build inputs passed for {len(refs)} refs / {len(checked)} distinct trees")

@@ -3,6 +3,7 @@
 
 import os
 import ast
+import hashlib
 import warnings
 import posixpath
 import subprocess
@@ -15,6 +16,7 @@ from check_source_build_inputs import BUILD_FIXES, chain_validator_problems, mis
 from check_source_build_inputs import autogen_library_problems, missing_tool_definitions, missing_acpi_headers, flattened_overlay_mirrors
 from check_source_build_inputs import effective_source_refs, stmm_helper_problems, main as audit_main
 from validate_firmware_chain import CIX_KEY_SHA256, CIX_SIGNING_KEYS
+from validate_build_variables import CIX_STMM_HELPER_PROFILES
 from test_support import commit_all, git, write_file
 from source_lifecycle import tree_entries
 from source_porting import git_blob_bytes_batch
@@ -96,12 +98,14 @@ class SourceBuildInputsTests(unittest.TestCase):
         modern_helper = show_file(repo, 'source/unofficial/1.3/current', 'src/scripts/build_cix_release_bootloader2.sh')
         self.assertTrue(chain_validator_problems(validator, keys, modern_helper, current))
 
-    def test_hybrid_signing_requires_both_reviewed_payload_helpers(self):
+    def test_hybrid_signing_requires_every_reviewed_payload_helper(self):
         repo = Path(__file__).resolve().parents[1]
         ref = 'source/unofficial/1.3/current'
         helper = show_file(repo, ref, 'src/scripts/build_cix_release_bootloader2.sh')
-        contents = {path: show_file(repo, ref, path) for path in (
-            'src/scripts/stage_vendor_stmm.py', 'src/scripts/build_hybrid_stmm.py')}
+        profile = CIX_STMM_HELPER_PROFILES[hashlib.sha256(helper).hexdigest()]
+        self.assertLessEqual({'src/scripts/stage_vendor_stmm.py', 'src/scripts/build_hybrid_stmm.py'},
+                             profile.keys())
+        contents = {path: show_file(repo, ref, path) for path in profile}
         self.assertEqual(stmm_helper_problems(helper, contents), [])
         for path in contents:
             with self.subTest(path=path):
