@@ -31,7 +31,7 @@ classifier; unknown or firmware-affecting paths run all of these gates:
 
 `firmware_qualification_policy` keeps EDK2 202208 and Radxa 1.2.4 as fixed custom
 baselines. The other custom axis values come from the deliberately selected
-`unofficial_source_policy` line, currently EDK2 202608 and Radxa 1.3.1. Promotion
+`unofficial_source_policy` line, currently EDK2 202608 and Radxa 1.3.2. Promotion
 therefore changes the required four pairs together; missing source integrations
 fail matrix enumeration. It does not automatically promote discovered tags.
 The stock replay list is cumulative: add the promoted Radxa release and its

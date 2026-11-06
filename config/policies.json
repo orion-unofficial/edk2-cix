@@ -139,7 +139,7 @@
     "default_line": "1.3",
     "lines": {
       "1.3": {
-        "current_cix_release": "1.2",
+        "current_cix_release": "",
         "current_edk2_release": "202608",
         "current_radxa_release": "1.3.2",
         "current_ref": "source/unofficial/1.3/current"

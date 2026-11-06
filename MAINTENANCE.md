@@ -712,7 +712,7 @@ is safer in notes, scripts, and reruns. Keep `LINE` explicit as well when more
 than one line is maintained.
 
 Repeat the dry-run/review/write sequence for every actively maintained line.
-The current policy maintains only line `1.3`/Radxa `1.3.1`; line `1.2`/Radxa
+The current policy maintains only line `1.3`/Radxa `1.3.2`; line `1.2`/Radxa
 `1.2.4` remains available through its retained immutable refs but is not moved
 by routine uplifts.
 

@@ -61,7 +61,7 @@ make PROFILE=latest
 make PROFILE=latest FIRMWARE_BOARD=O6N
 ```
 
-This currently selects EDK2 `202608` and Radxa `1.3.1`, retaining the
+This currently selects EDK2 `202608` and Radxa `1.3.2`, retaining the
 matching vendor-signed BL1, BL31 and OP-TEE payloads. It uses the project's custom-capable build path, but
 keeps `ENABLE_FIRMWARE_FIXES=false`; the result is an uplifted current-source
 build and is not expected to match the published 202208-based Radxa image
@@ -177,7 +177,7 @@ The minimum maintained scope is:
 | Build mode | EDK2 | Radxa |
 | --- | --- | --- |
 | Stock upstream / exact replay | 202208 | 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.3.1, 1.3.2 |
-| Custom `/unofficial` | 202208 and latest maintained (currently 202608) | 1.2.4 and current maintained (currently 1.3.1) |
+| Custom `/unofficial` | 202208 and latest maintained (currently 202608) | 1.2.4 and current maintained (currently 1.3.2) |
 
 Each stock target uses the matching `source/vendor/radxa/<version>/edk2-stable202208`
 ref. Its 202208 `/unofficial` counterpart adds our source changes to that exact

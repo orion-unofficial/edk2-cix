@@ -32,7 +32,7 @@ make PROFILE=latest
 make PROFILE=latest ENABLE_FIRMWARE_FIXES=true
 ```
 
-The current `latest` stack uses EDK2 `202608` and Radxa `1.3.1`, retaining
+The current `latest` stack uses EDK2 `202608` and Radxa `1.3.2`, retaining
 the matching vendor-signed BL1, BL31 and OP-TEE. Curated CIX V1.2 component
 sources remain available for development, but their OEM-signed trusted FIP is
 not authorised by the vendor trust root and cannot be packaged as qualified
