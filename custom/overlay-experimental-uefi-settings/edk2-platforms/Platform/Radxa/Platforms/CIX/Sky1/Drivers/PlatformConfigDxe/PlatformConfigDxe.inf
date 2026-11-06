@@ -68,6 +68,7 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdSrIovSupport
 
 [FixedPcd]
+  gRadxaTokenSpaceGuid.PcdBoardId
   gCixTokenSpaceGuid.PcdUsb3Control0DataRole
   gCixTokenSpaceGuid.PcdSPEEn
   gCixTokenSpaceGuid.PcdAcpiSmmuEnable

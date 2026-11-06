@@ -35,6 +35,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #string STR_USBC_CONTROL_PROMPT0              #language en-US "USB-C Controller 0"
 #string STR_USBC_CONTROL_PROMPT1              #language en-US "USB-C Controller 1"
 #string STR_USBC_CONTROL_PROMPT2              #language en-US "USB-C Controller 2"
+#string STR_USB3_DRD_DATA_ROLE_PROMPT    #language en-US "USB3 DRD Controller 0 Role"
 #string STR_USBC_DRD_DATA_ROLE_PROMPT         #language en-US "USB-C DRD Role"
 
 #string STR_USB2_CONTROL_HELP                 #language en-US "Enable or disable this USB 2.0 controller. Default: enabled on O6 and O6N."
