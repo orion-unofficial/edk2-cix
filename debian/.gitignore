@@ -1,0 +1,9 @@
+/.debhelper
+/debhelper-build-stamp
+/files
+/*.debhelper.log
+/*.postrm.debhelper
+/*.substvars
+/SOURCE
+/edk2-*/
+/tmp
