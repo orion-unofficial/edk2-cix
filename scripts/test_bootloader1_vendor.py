@@ -28,6 +28,22 @@ class VendorPolicyTests(unittest.TestCase):
                     patch.object(vendor.shutil, "which", return_value="/usr/bin/docker"):
                 self.assertEqual(vendor.select_runner(), "docker")
 
+    def test_linux_docker_verifier_runs_as_owner_of_private_input_directory(self):
+        for system, runner in (("Linux", "docker"), ("Linux", "podman"), ("Darwin", "docker")):
+            with (
+                self.subTest(system=system, runner=runner),
+                patch.object(vendor.platform, "system", return_value=system),
+                patch.object(vendor.os, "getuid", return_value=65534),
+                patch.object(vendor.os, "getgid", return_value=65533),
+            ):
+                cmd = vendor.command(Path("/tool"), Path("/private"), runner, ["--help"])
+                if system == "Linux" and runner == "docker":
+                    self.assertEqual(cmd[cmd.index("--user") + 1], "65534:65533")
+                else:
+                    self.assertNotIn("--user", cmd)
+                self.assertEqual(cmd[cmd.index("--cap-drop") + 1], "ALL")
+                self.assertIn("type=bind,src=/private,dst=/images,readonly", cmd)
+
     def test_missing_runtime_and_download_failure_warn(self):
         for error in (vendor.VendorUnavailable("no runtime"), vendor.VendorUnavailable("download failed")):
             with patch.object(vendor, "verify_payloads", side_effect=error), io.StringIO() as output, redirect_stderr(output):

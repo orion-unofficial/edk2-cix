@@ -75,7 +75,11 @@ def select_runner(requested: str = "auto") -> str:
 def command(tool: Path, directory: Path, runner: str, arguments: list[str]) -> list[str]:
     if runner == "native":
         return [str(tool), *arguments]
-    return [runner, "run", "--rm", "--platform", "linux/amd64", "--network", "none",
+    # Linux Docker uses the caller-owned private directory through a bind mount.
+    user = []
+    if runner == "docker" and platform.system() == "Linux":
+        user = ["--user", f"{os.getuid()}:{os.getgid()}"]
+    return [runner, "run", "--rm", *user, "--platform", "linux/amd64", "--network", "none",
             "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
             "--pids-limit", "32", "--memory", "256m",
             "--mount", f"type=bind,src={tool},dst=/vendor/cix_mkimage_rsa,readonly",
