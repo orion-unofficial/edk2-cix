@@ -1413,6 +1413,19 @@
       "type": "unofficial-release-checkpoint"
     },
     {
+      "edk2_base": "edk2-stable202608",
+      "immutable": true,
+      "line": "1.3",
+      "maintenance_base_object_id": "e950b35bbe09abe1112a3751f602ef5656e86811",
+      "object_id": "cb1bbf58dcb0b9e1efaf1da8ac2863e0af78feb2",
+      "previous_unofficial_ref": "source/unofficial/1.3.1/edk2-stable202608",
+      "radxa_release": "1.3.2",
+      "radxa_source_ref": "source/port/radxa/1.3.2/edk2-stable202608",
+      "ref": "source/unofficial/1.3.2/edk2-stable202608",
+      "tree_id": "453d81c3b28bb18b5cc0a88154676328ebb673b5",
+      "type": "unofficial-release-checkpoint"
+    },
+    {
       "immutable": false,
       "line": "1.3",
       "object_id": "0d8a7b0020b3c52113974f32fe7a7e377e7dced3",

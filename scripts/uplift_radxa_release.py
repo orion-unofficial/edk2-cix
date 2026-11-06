@@ -48,6 +48,7 @@ from reconstruction_common import (
     version_key,
     write_json,
 )
+from radxa13_fdf import normalize_source_fdf
 from source_policy import enforce_source_tree_policy
 from source_porting import (
     align_release_metadata,
@@ -56,6 +57,8 @@ from source_porting import (
     resolved_source_port_stage,
     resume_source_delta_tree,
 )
+
+from validate_radxa13_source import validate as validate_radxa13_source
 
 
 HELP = """uplift-radxa-release
@@ -702,6 +705,12 @@ def main() -> None:
         to_release=args.to_release,
         verbose=verbose,
     )
+    if args.to_release == "1.3.2":
+        edk2_release = release_for_edk2_ref(edk2_base)
+        candidate = normalize_source_fdf(repo, candidate, edk2_release, args.to_release)
+        problems = validate_radxa13_source(repo, candidate, edk2_release, args.to_release)
+        if problems:
+            raise ReconstructionError("Radxa 1.3.2 structural preflight failed:\n" + "\n".join(problems))
     print(
         f"[radxa-uplift] unofficial candidate: {candidate} "
         f"(tree {tree_id(repo, candidate)})"

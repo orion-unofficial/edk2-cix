@@ -17,7 +17,7 @@ import subprocess
 from pathlib import Path
 
 from check_source_build_inputs import missing_lto_library
-from radxa13_fdf import RELEASE_SIZE, expected_fdf, supported_family
+from radxa13_fdf import RELEASE_SIZE, expected_fdf, fdf_updates, supported_family
 from reconstruction_common import ReconstructionError
 
 
@@ -140,6 +140,13 @@ def _cppc(tree: GitTree, problems: list[str]) -> None:
 
 
 def _release_fdf(tree: GitTree, edk2: str, radxa: str, problems: list[str]) -> None:
+    if radxa == "1.3.2":
+        try:
+            for path in fdf_updates(tree, radxa=radxa):
+                problems.append(f"{path}: differs from canonical 1.3.2 FDF layout")
+        except (ReconstructionError, ValueError) as exc:
+            problems.append(str(exc))
+        return
     ordinary = f"custom/overlay/edk2-platforms/{O6}/O6.fdf"
     experimental = f"custom/overlay-experimental-uefi-settings/edk2-platforms/{O6}/O6.fdf"
     # The historical experimental-only checkpoint remains explicit. Newly

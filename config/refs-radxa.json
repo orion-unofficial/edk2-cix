@@ -611,6 +611,14 @@
       "tree_id": "edb9a80aadc2526cfd92c7f5f4d630ccbb29d454"
     },
     {
+      "object_id": "5e45c07a9fac2f4f489b6faf1648ff95ac9f781e",
+      "ported_from": "source/port/radxa/1.3.1/edk2-stable202608",
+      "ref": "source/port/radxa/1.3.2/edk2-stable202608",
+      "tree_id": "ec1eef6ff5ef037948e76f8ff72dbfa5353c07df",
+      "vendor_delta_from": "source/vendor/radxa/1.3.1/edk2-stable202208",
+      "vendor_delta_to": "source/vendor/radxa/1.3.2/edk2-stable202208"
+    },
+    {
       "object_id": "1270744166bac1bbe690145fff5a44a8e78e10fb",
       "ref": "source/vendor/radxa/0.2.0-1/edk2-stable202208",
       "tree_id": "c479bb42d8dcd77e296c6d04bfd7df142ad7d249"
@@ -725,6 +733,12 @@
       "ref": "source/vendor/radxa/1.3.1/edk2-stable202208",
       "tree_id": "bbba65f524ebadf5f3f0750447521d4ffd5d4495",
       "upstream_ref": "d70d68cce58b53907ce6d43c1ff3fb77a5986a6c"
+    },
+    {
+      "object_id": "638c33eb98c358aab0c025bb1b06a359027e5ff2",
+      "ref": "source/vendor/radxa/1.3.2/edk2-stable202208",
+      "tree_id": "ca5c8113e6da499d5650f7234c7500d853ab3bdb",
+      "upstream_ref": "37113548ff022b1ee4be7fdb054a59caef2fdcf8"
     }
   ]
 }

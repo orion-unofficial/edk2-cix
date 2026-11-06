@@ -120,7 +120,12 @@
     },
     {
       "ref": "source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.3.1/unofficial",
-      "tree_id": "f3ea79ee6f4d05ac31d98c091c56505dfa32ac32",
+      "tree_id": "1619fb86e844686771673fcb18668d20840c5f2b",
+      "type": "rendered-release"
+    },
+    {
+      "ref": "source/cache/release/custom/edk2-202608/cix-1.2/radxa-1.3.2/unofficial",
+      "tree_id": "1039097f9b26525bd96863a58632b9d4dd819fd0",
       "type": "rendered-release"
     },
     {

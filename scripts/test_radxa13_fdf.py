@@ -5,9 +5,10 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
+from debug_build_policy import fd_size
 from radxa13_fdf import (
-    EXPERIMENTAL_FDF, MIRROR, ORDINARY_FDF, SOURCE_FDF, canonical_fdf,
-    expected_fdf, fdf_updates, normalize_source_fdf,
+    BOARD_FDF, EXPERIMENTAL_FDF, MIRROR, O6N_FDF, ORDINARY_FDF, SOURCE_FDF, canonical_fdf,
+    expected_fdf, fdf_updates, normalize_source_fdf, supported_family,
 )
 from reconstruction_common import ReconstructionError, git, resolve_ref, temp_dir
 from validate_radxa13_source import Entry, GitTree, validate
@@ -97,6 +98,49 @@ class Radxa13FdfTests(unittest.TestCase):
                 source = tree.blob(SOURCE_FDF)
                 self.assertNotIn(b"[Defines]", source)
                 self.assertEqual(expected_fdf(self.sources[(edk2, "1.3.1")]), canonical_fdf(source))
+
+    def test_132_requires_both_canonical_board_layouts(self):
+        old = self.sources[("202608", "1.3.1")]
+        port = GitTree(ROOT, resolve_ref(ROOT, "source/port/radxa/1.3.1/edk2-stable202608"))
+        changes = {}
+        self.assertTrue(supported_family(ROOT, "202608", "1.3.2"))
+        self.assertFalse(supported_family(ROOT, "202605", "1.3.2"))
+        for fdf in (BOARD_FDF, O6N_FDF):
+            with self.subTest(fdf=fdf):
+                source = "src/" + fdf
+                ordinary = "custom/overlay/" + fdf
+                literal = port.blob(source).replace(b"0x001f2000", b"0x00220000").replace(
+                    b"0x1f2000", b"0x220000").replace(b"0x1f2", b"0x220")
+                canonical = canonical_fdf(literal, radxa="1.3.2")
+                self.assertEqual(fd_size(canonical.decode(), "RELEASE"), 0x220000)
+                self.assertEqual(fd_size(canonical.decode(), "DEBUG"), 0x400000)
+                self.assertEqual(canonical, canonical_fdf(canonical, radxa="1.3.2"))
+                for broken in (
+                    literal.replace(b"0x220", b"0x221", 1),
+                    canonical.replace(b"0x220\n", b"0x221\n"),
+                    canonical.replace(b"0x00220000", b"0x001f4000").replace(b"0x220\n", b"0x1f4\n"),
+                    canonical.replace(b"0x00000000|", b"0x00001000|"),
+                    canonical.replace(b"FV = FVMAIN_COMPACT", b"FV = FVMAIN_COMPACT\n 0x220000 | 0x1000"),
+                ):
+                    with self.assertRaises(ReconstructionError):
+                        canonical_fdf(broken, radxa="1.3.2")
+                with self.assertRaises(ReconstructionError):
+                    canonical_fdf(literal, radxa="1.3.1")
+                changes[source] = literal
+                changes[ordinary] = canonical
+        candidate = BlobTree(old, changes)
+        self.assertEqual({}, fdf_updates(candidate, radxa="1.3.2"))
+        with patch("validate_radxa13_source.GitTree", return_value=candidate):
+            self.assertEqual([], validate(ROOT, "mutation", "202608", "1.3.2"))
+        o6n_overlay = "custom/overlay/" + O6N_FDF
+        wrong_body = BlobTree(old, {**changes, o6n_overlay: changes[ORDINARY_FDF]})
+        with self.assertRaisesRegex(ReconstructionError, "unreviewed changes"):
+            fdf_updates(wrong_body, radxa="1.3.2")
+        module = b"ArmPkg/Drivers/ArmGicDxe/ArmGicDxe.inf"
+        self.assertIn(module, changes["src/" + O6N_FDF])
+        missing_module = BlobTree(old, changes, removed=("src/edk2/" + module.decode(),))
+        with self.assertRaisesRegex(ReconstructionError, "missing O6 FDF source module"):
+            fdf_updates(missing_module, radxa="1.3.2")
 
     def test_arm_gic_paths_are_preserved_across_source_eras(self):
         old = expected_fdf(self.sources[("202208", "1.3.1")])
