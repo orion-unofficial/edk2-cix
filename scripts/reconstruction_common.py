@@ -665,6 +665,9 @@ GIT_OBJECT_ID_RE = re.compile(r"^[0-9a-f]{40}$")
 UNOFFICIAL_LINE_CURRENT_RE = re.compile(
     r"^source/unofficial/(?P<line>\d+\.\d+)/current$"
 )
+UNOFFICIAL_LINE_HISTORY_RE = re.compile(
+    r"^source/unofficial/history/(?P<radxa>[^/]+)/(?P<edk2>edk2-stable[^/]+)$"
+)
 
 
 def radxa_source_namespaces() -> tuple[str, ...]:
@@ -745,7 +748,7 @@ def unofficial_firmware_refs(repo: Path) -> list[str]:
     Keep generic for_each_ref callers able to see every required source ref.
     """
     patterns = (UNOFFICIAL_RELEASE_RE, UNOFFICIAL_CHECKPOINT_RE,
-                UNOFFICIAL_LINE_CURRENT_RE, UNOFFICIAL_CORRECTION_RE)
+                UNOFFICIAL_LINE_CURRENT_RE, UNOFFICIAL_LINE_HISTORY_RE, UNOFFICIAL_CORRECTION_RE)
     return [ref for ref in for_each_ref(repo, "source/unofficial")
             if any(pattern.fullmatch(ref) for pattern in patterns)]
 
@@ -952,6 +955,23 @@ def active_unofficial_source_ref(repo: Path, radxa: str, edk2_ref: str) -> str |
                 if ref_exists(repo, ref):
                     return ref
     return None
+
+
+def historical_unofficial_line_ref(repo: Path, radxa: str, edk2_ref: str) -> str | None:
+    """Use a recorded former line tip for the release it originally selected."""
+    ref = f"source/unofficial/history/{radxa}/{edk2_ref}"
+    records = ref_manifest_records(repo, UNOFFICIAL_REFS_MANIFEST)
+    record = next((record for record in records if record.get("ref") == ref), None)
+    if record is None:
+        return None
+    if (
+        record.get("type") != "unofficial-historical-line"
+        or record.get("immutable") is not True
+        or rev_parse(repo, ref) != record.get("object_id")
+        or tree_id(repo, ref) != record.get("tree_id")
+    ):
+        raise ReconstructionError(f"historical Unofficial line pin does not match {ref}")
+    return ref
 
 
 def selected_unofficial_current_ref(repo: Path) -> str:
@@ -1348,6 +1368,7 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
         else:
             unofficial_ref = (
                 active_unofficial_source_ref(repo, radxa, edk2_ref)
+                or historical_unofficial_line_ref(repo, radxa, edk2_ref)
                 or unofficial_source_ref(repo, radxa, edk2_ref)
             )
         render["base"] = {"ref": unofficial_ref}
@@ -2048,7 +2069,8 @@ def is_immutable_namespace(ref: str) -> bool:
         return True
     if ref.startswith("source/delta/"):
         return True
-    if UNOFFICIAL_CHECKPOINT_RE.match(ref) or UNOFFICIAL_CORRECTION_RE.fullmatch(ref):
+    if (UNOFFICIAL_CHECKPOINT_RE.match(ref) or UNOFFICIAL_CORRECTION_RE.fullmatch(ref)
+            or UNOFFICIAL_LINE_HISTORY_RE.fullmatch(ref)):
         return True
     return False
 

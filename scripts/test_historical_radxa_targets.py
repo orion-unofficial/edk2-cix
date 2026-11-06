@@ -219,6 +219,53 @@ def test_default_source_target_follows_unofficial_source_policy() -> None:
         shutil.rmtree(repo)
 
 
+def test_historical_line_render_survives_advancing_current() -> None:
+    repo = make_repo()
+    try:
+        edk2 = "edk2-stable202602"
+        old = "1.2.1"
+        current = "source/unofficial/1.2/current"
+        history = f"source/unofficial/history/{old}/{edk2}"
+        checkpoint = f"source/unofficial/{old}/{edk2}"
+        create_branch(repo, checkpoint, {"src.txt": "immutable checkpoint\n"}, "checkpoint")
+        create_branch(repo, f"source/port/radxa/1.2.2/{edk2}",
+                      {"debian/changelog": "new release\n"}, "new vendor port")
+        git(repo, "switch", "build")
+        write_unofficial_source_policy(repo, radxa=old)
+        target = f"edk2-202602/radxa-{old}/unofficial"
+        _, original = release_entry(repo, target, require=True)
+        require(original["source_ref"] == current, "historical target did not start on the line tip")
+
+        git(repo, "branch", history, current)
+        write_file(repo, "config/refs-unofficial.json", json.dumps({"refs": [{
+            "ref": history,
+            "type": "unofficial-historical-line",
+            "immutable": True,
+            "object_id": git(repo, "rev-parse", history).stdout.strip(),
+            "tree_id": git(repo, "rev-parse", f"{history}^{{tree}}").stdout.strip(),
+        }]}))
+        git(repo, "branch", "-f", current, f"source/port/radxa/1.2.2/{edk2}")
+        write_unofficial_source_policy(repo, radxa="1.2.2")
+        clear_metadata_caches()
+        for alias in (target, f"{target}-{old}", f"edk2-202602/cix-1.2/radxa-{old}/unofficial"):
+            _, retained = release_entry(repo, alias, require=True)
+            require(retained["source_ref"] == history, f"{alias} fell back to the checkpoint")
+            require(retained["tree_id"] == original["tree_id"], f"{alias} changed its rendered tree")
+        require(original["tree_id"] != git(repo, "rev-parse", f"{checkpoint}^{{tree}}").stdout.strip(),
+                "fixture must distinguish the old line tip from the immutable checkpoint")
+
+        git(repo, "branch", "-f", history, checkpoint)
+        clear_metadata_caches()
+        try:
+            release_entry(repo, target, require=True)
+        except ReconstructionError as exc:
+            require("historical Unofficial line pin does not match" in str(exc), str(exc))
+        else:
+            raise AssertionError("a moved historical line pin was accepted")
+    finally:
+        shutil.rmtree(repo)
+
+
 def test_unofficial_cache_aliases_are_coupled_for_persistent_refresh() -> None:
     repo = make_repo()
     try:

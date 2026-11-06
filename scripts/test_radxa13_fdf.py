@@ -103,6 +103,7 @@ class Radxa13FdfTests(unittest.TestCase):
         old = self.sources[("202608", "1.3.1")]
         port = GitTree(ROOT, resolve_ref(ROOT, "source/port/radxa/1.3.1/edk2-stable202608"))
         changes = {}
+        self.assertTrue(supported_family(ROOT, "202208", "1.3.2"))
         self.assertTrue(supported_family(ROOT, "202608", "1.3.2"))
         self.assertFalse(supported_family(ROOT, "202605", "1.3.2"))
         for fdf in (BOARD_FDF, O6N_FDF):

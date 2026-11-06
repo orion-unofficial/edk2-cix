@@ -38,7 +38,7 @@ EXPERIMENTAL_COMMENT = (
 
 def supported_family(repo: Path, edk2: str, radxa: str) -> bool:
     """Use the build catalog, never candidate metadata, to bound this family."""
-    if radxa == "1.3.2" and edk2 != "202608":
+    if radxa == "1.3.2" and edk2 not in ("202208", "202608"):
         return False
     if radxa not in ("1.3.0", "1.3.1", "1.3.2"):
         return False

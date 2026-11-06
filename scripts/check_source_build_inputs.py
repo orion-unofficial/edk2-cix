@@ -13,6 +13,7 @@ from reconstruction_common import (
     rev_parse, show_file, tree_id, unofficial_checkpoints_by_edk2, unofficial_source_ref,
     unofficial_line_policies, unofficial_source_policy,
     UNOFFICIAL_CHECKPOINT_RE, UNOFFICIAL_CORRECTION_RE, UNOFFICIAL_LINE_CURRENT_RE,
+    UNOFFICIAL_LINE_HISTORY_RE,
 )
 from source_lifecycle import tree_entries
 from source_porting import git_blob_bytes_batch
@@ -454,7 +455,8 @@ def effective_source_refs(repo: Path) -> list[str]:
 
 
 def source_catalogue_provenance(repo: Path, ref: str, lines: dict) -> tuple[str, str] | None:
-    checkpoint = UNOFFICIAL_CHECKPOINT_RE.fullmatch(ref) or UNOFFICIAL_CORRECTION_RE.fullmatch(ref)
+    checkpoint = (UNOFFICIAL_CHECKPOINT_RE.fullmatch(ref) or UNOFFICIAL_CORRECTION_RE.fullmatch(ref)
+                  or UNOFFICIAL_LINE_HISTORY_RE.fullmatch(ref))
     line = UNOFFICIAL_LINE_CURRENT_RE.fullmatch(ref)
     if checkpoint:
         release = checkpoint["radxa"]
