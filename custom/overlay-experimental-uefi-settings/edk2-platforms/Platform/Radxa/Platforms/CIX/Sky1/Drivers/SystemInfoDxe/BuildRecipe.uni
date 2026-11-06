@@ -1,0 +1,3 @@
+#langdef en-US "English"
+#string STR_BUILD_RECIPE_TITLE #language en-US "Rebuild running firmware"
+#string STR_BUILD_RECIPE_HELP #language en-US "Compile-time build arguments"

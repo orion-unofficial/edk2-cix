@@ -1,0 +1,1 @@
+../../../../../../../../../src/edk2-platforms/Platform/Radxa/Orion/O6/Drivers/PlatformSmbios/SmbiosType32.c
