@@ -62,9 +62,9 @@ class QualificationPolicyTests(unittest.TestCase):
         self.assertIn("qualify_source_trusted_firmware.py", current)
         self.assertIn("validate_firmware_chain.py", current)
         self.assertNotIn("validate_firmware_chain.py", replay)
-        self.assertIn("edk2-202208/radxa-1.3.1", replay)
+        self.assertIn("edk2-202208/radxa-1.3.2", replay)
         self.assertIn(
-            "REPLAY_VERSION: ${{ inputs.replay_version || '1.3.1' }}",
+            "REPLAY_VERSION: ${{ inputs.replay_version || '1.3.2' }}",
             replay,
         )
 

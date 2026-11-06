@@ -16,7 +16,7 @@ make help-source-targets
 ## Build One Firmware Image
 
 The default behavior is a byte-identical rebuild of the latest published Radxa
-firmware. A targetless invocation currently replays Radxa `1.3.1` from its
+firmware. A targetless invocation currently replays Radxa `1.3.2` from its
 EDK2 202208 source and compares the rebuilt payload with the release package:
 
 ```bash
@@ -89,7 +89,7 @@ optional fixes: select `ENABLE_FIRMWARE_FIXES=true` for those.
 Qualification retains the 202208 and Radxa 1.2.4 baselines and follows the
 intentionally selected current EDK2/Radxa stack in `unofficial_source_policy`.
 It includes both fixes and experimental-menu states: 16 O6 builds and 16 O6N
-builds, separate from the 12 stock replays. Only O6 is currently available for
+builds, separate from the 14 stock replays. Only O6 is currently available for
 testing on hardware. Retained historical targets outside these families do not
 inherit the ongoing CI qualification claim. The separate
 [O6 release qualification](release-qualification.md) records the completed
@@ -274,8 +274,8 @@ source targets can still use `ARTEFACT_MODE=upstream` for closest-to-upstream
 diagnostics, but they are not byte-identical replays of the original published
 vendor images.
 
-The retained replay corpus covers Radxa `1.2.1` through `1.2.4`, `1.3.0`, and
-`1.3.1` for both boards. Each release records its package hash, build timestamp,
+The retained replay corpus covers Radxa `1.2.1` through `1.2.4`, `1.3.0`, `1.3.1`, and
+`1.3.2` for both boards. Each release records its package hash, build timestamp,
 certificate hashes, and strict validation profile. Identical certificate bytes
 are recognized by SHA-256 instead of being treated as different merely because
 they occur in different release directories.

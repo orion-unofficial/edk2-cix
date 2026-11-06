@@ -35,7 +35,7 @@ does not replace or reinterpret them.
 A targetless `make` uses the `upstream` profile. It rebuilds the latest
 published Radxa release from its exact EDK2 202208 source target and recorded
 replay data, then compares the rebuilt payload byte-for-byte with the published
-package. The current default is Radxa `1.3.1` for O6:
+package. The current default is Radxa `1.3.2` for O6:
 
 ```bash
 make
@@ -148,17 +148,17 @@ make deterministic-replay FIRMWARE_BOARD=O6
 make deterministic-replay FIRMWARE_BOARD=O6N
 ```
 
-By default, this renders the exact `edk2-202208/radxa-1.3.1` upstream source
-target, downloads the matching `1.3.1` release package from
+By default, this renders the exact `edk2-202208/radxa-1.3.2` upstream source
+target, downloads the matching `1.3.2` release package from
 `radxa-pkg/edk2-cix`, and delegates to the rendered firmware tree's strict
 byte-identical replay target. To replay a package you already have, pass
-`REPLAY_INPUT=/path/to/edk2-cix_1.3.1_all.deb`; for a raw
+`REPLAY_INPUT=/path/to/edk2-cix_1.3.2_all.deb`; for a raw
 `cix_flash_all.bin`, also pass `REPLAY_BUILD_OPTIONS=/path/to/BuildOptions`
 when available.
 
 The replay-capable EDK2 202208 source records timestamp, certificate, package,
 and validation-profile data for Radxa `1.2.1`, `1.2.2`, `1.2.3`, `1.2.4`,
-`1.3.0`, and `1.3.1`, for both O6 and O6N. Reuse is content-addressed: the
+`1.3.0`, `1.3.1`, and `1.3.2` for both O6 and O6N. Reuse is content-addressed: the
 trusted-key certificate is shared across those releases because its SHA-256 is
 identical, while release- and board-specific certificate data remains distinct.
 
@@ -176,7 +176,7 @@ The minimum maintained scope is:
 
 | Build mode | EDK2 | Radxa |
 | --- | --- | --- |
-| Stock upstream / exact replay | 202208 | 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.3.1 |
+| Stock upstream / exact replay | 202208 | 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.3.1, 1.3.2 |
 | Custom `/unofficial` | 202208 and latest maintained (currently 202608) | 1.2.4 and current maintained (currently 1.3.1) |
 
 Each stock target uses the matching `source/vendor/radxa/<version>/edk2-stable202208`

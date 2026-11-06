@@ -204,7 +204,7 @@ print('fixture helper: ' + script, file=sys.stderr)
         )
         self.assertNotIn("unofficial", result.stderr)
 
-    def test_replay_defaults_to_radxa_1_3_1(self) -> None:
+    def test_replay_defaults_to_radxa_1_3_2(self) -> None:
         result = subprocess.run(
             [
                 "make",
@@ -218,7 +218,7 @@ print('fixture helper: ' + script, file=sys.stderr)
             text=True,
         )
         self.assertIn(
-            "Preparing replay-capable source target: edk2-202208/radxa-1.3.1",
+            "Preparing replay-capable source target: edk2-202208/radxa-1.3.2",
             result.stderr,
         )
 

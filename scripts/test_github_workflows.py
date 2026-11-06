@@ -192,10 +192,10 @@ class GitHubWorkflowTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertEqual(text.count("default: edk2-202208/radxa-1.3.1"), 2)
-        self.assertEqual(text.count("default: 1.3.1"), 2)
-        self.assertIn("inputs.replay_source_target || 'edk2-202208/radxa-1.3.1'", text)
-        self.assertIn("inputs.replay_version || '1.3.1'", text)
+        self.assertEqual(text.count("default: edk2-202208/radxa-1.3.2"), 2)
+        self.assertEqual(text.count("default: 1.3.2"), 2)
+        self.assertIn("inputs.replay_source_target || 'edk2-202208/radxa-1.3.2'", text)
+        self.assertIn("inputs.replay_version || '1.3.2'", text)
         self.assertNotIn("unofficial-1.2.1", text)
 
     def test_deterministic_replay_validates_once_and_collects_its_reports(self) -> None:

@@ -97,7 +97,7 @@ REPLAY_DOWNLOAD ?= 1
 REPLAY_INPUT ?=
 REPLAY_BUILD_OPTIONS ?=
 REPLAY_BUILD_DATE ?=
-REPLAY_VERSION ?= 1.3.1
+REPLAY_VERSION ?= 1.3.2
 DOCS_BUILD_MODE ?= auto
 CONFLICT_PATHS ?=
 CONFLICT_EDITOR ?=
@@ -238,7 +238,7 @@ help-vars:
 	print_help_line 'REPLAY_DOWNLOAD=0|1' 'When REPLAY_INPUT is unset, download the REPLAY_VERSION package before replay. Set to 0 to reuse an existing rendered replay cache instead.\nDefault: 1.'; \
 	print_help_line 'REPLAY_BUILD_OPTIONS=<path>' 'BuildOptions file used when REPLAY_INPUT points directly at cix_flash_all.bin.\nDefault: unset.'; \
 	print_help_line 'REPLAY_BUILD_DATE=<iso8601>' 'Fallback build timestamp when replay inputs do not include BuildOptions.\nDefault: unset.'; \
-	print_help_line 'REPLAY_VERSION=<version>' 'Release tag, exact upstream Radxa source version, and replay validation profile passed to the rendered firmware tree.\nDefault: 1.3.1.'; \
+	print_help_line 'REPLAY_VERSION=<version>' 'Release tag, exact upstream Radxa source version, and replay validation profile passed to the rendered firmware tree.\nDefault: 1.3.2.'; \
 	print_section 'Install Variables'; \
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
 	print_help_line 'FORCE=0|1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \

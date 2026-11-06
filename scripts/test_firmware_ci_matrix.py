@@ -64,13 +64,13 @@ class FirmwareCIMatrixTests(unittest.TestCase):
         policy = self.policy()
         selected = policy['unofficial_source_policy']['default_line']
         policy['unofficial_source_policy']['lines'][selected].update(
-            current_edk2_release='202611', current_radxa_release='1.3.2')
+            current_edk2_release='202611', current_radxa_release='1.3.3')
         # An unrelated imported line must not become the advertised/qualified one.
         policy['unofficial_source_policy']['lines']['9.9'] = {
             'current_edk2_release': '209911', 'current_radxa_release': '9.9.9'}
         edk2, radxa = qualification_releases(policy)
         self.assertEqual(edk2, ['202208', '202611'])
-        self.assertEqual(radxa, ['1.2.4', '1.3.2'])
+        self.assertEqual(radxa, ['1.2.4', '1.3.3'])
         old_targets = [f'edk2-{e}/radxa-{r}/unofficial'
                        for e in ('202208', '202608') for r in ('1.2.4', '1.3.1')]
         with self.assertRaisesRegex(ValueError, 'missing primary source targets'):
@@ -78,16 +78,18 @@ class FirmwareCIMatrixTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'stock replay coverage'):
             stock_matrix([], policy)
 
-    def test_stock_scope_retains_all_six_releases_and_vendor_inputs(self):
+    def test_stock_scope_retains_all_seven_releases_and_vendor_inputs(self):
         entries = {source_target_name(branch): entry for branch, entry in release_entries(ROOT).items()}
         rows = stock_matrix(list(entries), self.policy())['include']
-        self.assertEqual([row['version'] for row in rows][:6],
-                         ['1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.3.0', '1.3.1'])
+        self.assertEqual([row['version'] for row in rows],
+                         ['1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.3.0', '1.3.1', '1.3.2'])
         for row in rows:
             with self.subTest(version=row['version']):
                 entry = entries[row['release']]
                 validate_stock_entry(entry, '202208', row['version'])
                 harness = entry['render']['steps'][0]['overlay_paths']['ref']
+                if {'stock_replay_validation': row['version']} in entry['render']['steps']:
+                    harness = 'HEAD'
                 for board in self.policy()['firmware_qualification_policy']['boards']:
                     prefix = f"validation/replay-inputs/{row['version']}/{board}"
                     manifest = json.loads(show_file(ROOT, harness, f'{prefix}/manifest.json'))

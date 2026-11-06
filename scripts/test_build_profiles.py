@@ -16,8 +16,8 @@ class BuildProfileTests(unittest.TestCase):
 
         self.assertEqual(profile["profile"], "upstream")
         self.assertEqual(profile["build_kind"], "deterministic-replay")
-        self.assertEqual(profile["release"], "edk2-202208/radxa-1.3.1")
-        self.assertEqual(profile["replay_version"], "1.3.1")
+        self.assertEqual(profile["release"], "edk2-202208/radxa-1.3.2")
+        self.assertEqual(profile["replay_version"], "1.3.2")
         self.assertEqual(profile["artefact_mode"], "upstream")
         self.assertEqual(profile["enable_firmware_fixes"], "false")
         self.assertEqual(profile["cix_early_boot_release"], "")

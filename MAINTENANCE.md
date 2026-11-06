@@ -1105,8 +1105,8 @@ entry points live there with the implementation they exercise:
   tests and lint, EDK2 202208 and the current maintained EDK2 against Radxa 1.2.4
   and the current maintained Radxa release through public `make build` for
   O6/O6N with fixes and experimental menus off/on (32 builds), the current-source
-  matrix, and exact stock Radxa 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0 and 1.3.1
-  replays on both boards (12 builds). Documentation/licensing-only changes
+  matrix, and exact stock Radxa 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.3.1 and 1.3.2
+  replays on both boards (14 builds). Documentation/licensing-only changes
   stop after classification.
 - `Supported firmware release matrix` derives its targets from the public
   source model and `firmware_qualification_policy` in `config/policies.json`.
@@ -1120,7 +1120,7 @@ entry points live there with the implementation they exercise:
   dispatched O6/O6N, fixes-off/on Trixie matrix.
 - `Deterministic replay` provides the reusable and manually dispatched O6/O6N
   replay of a selected stock Radxa release from its historical EDK2 `202208`
-  vendor base. Manual dispatch defaults to 1.3.1; the qualification caller
+  vendor base. Manual dispatch defaults to 1.3.2; the qualification caller
   enumerates every `stock_radxa_releases` entry in the qualification policy.
 - `Upstream versions` is the only scheduled Actions workflow. It also runs when
   relevant configuration or tooling changes.

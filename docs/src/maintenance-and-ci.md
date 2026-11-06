@@ -26,8 +26,8 @@ classifier; unknown or firmware-affecting paths run all of these gates:
   and enabled; the O6/fixes-on lane then builds a CIX V1.2 source-signed image
   after its stock-payload image and verifies both certificates and BL1 identity;
   and
-- exact replay of stock Radxa 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0 and 1.3.1 on
-  EDK2 `202208` for O6 and O6N: **12 stock replay builds**.
+- exact replay of stock Radxa 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.3.1 and 1.3.2 on
+  EDK2 `202208` for O6 and O6N: **14 stock replay builds**.
 
 `firmware_qualification_policy` keeps EDK2 202208 and Radxa 1.2.4 as fixed custom
 baselines. The other custom axis values come from the deliberately selected
@@ -41,7 +41,7 @@ whose base is not its exact vendor ref.
 
 The stock workflow keeps the existing upstream build and byte-comparison path.
 Expanding its callers does not change vendor source bytes, warning policy,
-compiler options or packaging. All twelve stock replay builds must pass CI before
+compiler options or packaging. All fourteen stock replay builds must pass CI before
 claiming that all stock replays have been requalified at a candidate commit.
 
 A future replay dependency image could move Debian Snapshot access out of
