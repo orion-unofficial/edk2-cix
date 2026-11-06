@@ -959,6 +959,8 @@ def active_unofficial_source_ref(repo: Path, radxa: str, edk2_ref: str) -> str |
 
 def historical_unofficial_line_ref(repo: Path, radxa: str, edk2_ref: str) -> str | None:
     """Use a recorded former line tip for the release it originally selected."""
+    if not (repo / "config" / UNOFFICIAL_REFS_MANIFEST).exists():
+        return None
     ref = f"source/unofficial/history/{radxa}/{edk2_ref}"
     records = ref_manifest_records(repo, UNOFFICIAL_REFS_MANIFEST)
     record = next((record for record in records if record.get("ref") == ref), None)
