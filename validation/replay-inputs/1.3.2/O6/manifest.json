@@ -1,0 +1,86 @@
+{
+  "board": "O6",
+  "certificates": {
+    "nt-fw-cert.bin": {
+      "sha256": "e0e706bc732905fe673daff84383128cc0c1892f71c342221f64a850672d88ab",
+      "size": 1345
+    },
+    "nt-fw-key-cert.bin": {
+      "sha256": "1d43ebdcc65d2ffca0033dd5b4982bb1af7269a3cd2dad2e99f36f1b0e26f49f",
+      "size": 1643
+    },
+    "trusted-key-cert.bin": {
+      "sha256": "2a25ee2b9dfc8d44eacc904dcf8bad07ebc40e73d026e9974c321282d80cd5c1",
+      "size": 1594
+    }
+  },
+  "product": "orion-o6",
+  "reference_artefacts": {
+    "AARCH64/BurnImage.efi": {
+      "path": "AARCH64/BurnImage.efi",
+      "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/BurnImage.efi",
+      "sha256": "45b518013f8bb7aedd2ce3942764d48b71502cd8d30fce77c0d0a0ced651da2a",
+      "size": 57344
+    },
+    "AARCH64/EnrollFromDefaultKeysApp.efi": {
+      "path": "AARCH64/EnrollFromDefaultKeysApp.efi",
+      "sha256": "e80c71fa7ce82c66046b98b71f68436a680d99f067dfeadfd76469203affbf00",
+      "size": 20480
+    },
+    "AARCH64/FlashUpdate.efi": {
+      "path": "AARCH64/FlashUpdate.efi",
+      "repo_path": "src/edk2-non-osi/Platform/CIX/Sky1/FlashTool/FlashUpdate.efi",
+      "sha256": "bb75273d604da80daa694b612108cba9e2c6931b9ad0f684ca96c9bc18c27e34",
+      "size": 434176
+    },
+    "AARCH64/Shell.efi": {
+      "path": "AARCH64/Shell.efi",
+      "sha256": "566fb4c143a1c8e6c072464399702418c7fe4341bffb65706cf5e00465166ed6",
+      "size": 974848
+    },
+    "AARCH64/VariableInfo.efi": {
+      "path": "AARCH64/VariableInfo.efi",
+      "sha256": "d49cc6b60181a922e9f48d2ec1191f0afeb1039721c7bd8ffac0902c807aa800",
+      "size": 16384
+    },
+    "BuildOptions": {
+      "path": "BuildOptions",
+      "sha256": "1dceb64d8917299549de6d5696f654d484252563149c4370f2dfbcc088adc2dd",
+      "size": 617
+    },
+    "FV/SKY1_BL33_UEFI.fd": {
+      "path": "FV/SKY1_BL33_UEFI.fd",
+      "sha256": "6a770fa4068c13bfabdbd0b05b3b9f0e8e8fe5d33d403eae648441863835cee4",
+      "size": 2228224
+    },
+    "Firmwares/bootloader3.img": {
+      "path": "Firmwares/bootloader3.img",
+      "sha256": "aaf349031d867c9df66d8c2929484bbc70f8cddc5d00a086f601866af29ad597",
+      "size": 2233022
+    },
+    "Firmwares/csu_pm_config.bin": {
+      "path": "Firmwares/csu_pm_config.bin",
+      "sha256": "96beab23be37e64ee5e5d83a31b3cc68ea64086c094707d9da42b89e1b921db9",
+      "size": 4096
+    },
+    "cix_flash_all.bin": {
+      "path": "cix_flash_all.bin",
+      "sha256": "5bd91b76c4aa685983fb83486512ba7b91a3f945a72982cf93b108ed747d083e",
+      "size": 8388608
+    },
+    "cix_flash_ota.bin": {
+      "path": "cix_flash_ota.bin",
+      "sha256": "bccca0177916e3495a0c7c54c4f4243ed79380540979340c035ad1e2ebc108b3",
+      "size": 2233054
+    }
+  },
+  "replay_environment": {
+    "BUILD_DATE": "2026-11-05T07:32:21+00:00",
+    "EDK2_COMMIT_HASH": "39c4bb1d67",
+    "EDK2_NON_OSI_COMMIT_HASH": "4e99786",
+    "EDK2_PLATFORMS_COMMIT_HASH": "35210838",
+    "PM_CONFIG_SOURCE_DATE_EPOCH": "1793864056",
+    "SOURCE_COMMIT_HASH": "3711354",
+    "SOURCE_DATE_EPOCH": "1793863020"
+  }
+}

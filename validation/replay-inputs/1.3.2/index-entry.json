@@ -1,0 +1,52 @@
+{
+  "boards": {
+    "O6": {
+      "certificates": {
+        "nt-fw-cert.bin": {
+          "sha256": "e0e706bc732905fe673daff84383128cc0c1892f71c342221f64a850672d88ab",
+          "size": 1345
+        },
+        "nt-fw-key-cert.bin": {
+          "sha256": "1d43ebdcc65d2ffca0033dd5b4982bb1af7269a3cd2dad2e99f36f1b0e26f49f",
+          "size": 1643
+        },
+        "trusted-key-cert.bin": {
+          "sha256": "2a25ee2b9dfc8d44eacc904dcf8bad07ebc40e73d026e9974c321282d80cd5c1",
+          "size": 1594
+        }
+      },
+      "manifest": "1.3.2/O6/manifest.json"
+    },
+    "O6N": {
+      "certificates": {
+        "nt-fw-cert.bin": {
+          "sha256": "c343e0cecfb0d0c4da68d129d75cf11a85a3598702fded26f08275375826018a",
+          "size": 1345
+        },
+        "nt-fw-key-cert.bin": {
+          "sha256": "8cce66f8d18bb03b8da561936237d97de1ce7390113467b01abda429071e8c4d",
+          "size": 1643
+        },
+        "trusted-key-cert.bin": {
+          "sha256": "2a25ee2b9dfc8d44eacc904dcf8bad07ebc40e73d026e9974c321282d80cd5c1",
+          "size": 1594
+        }
+      },
+      "manifest": "1.3.2/O6N/manifest.json"
+    }
+  },
+  "package": {
+    "sha256": "0d982b1a38f4967f89926c7d719aacc5d2e57cebb2664aeca39977be2d082a23",
+    "size": 5915788,
+    "url": "https://github.com/radxa-pkg/edk2-cix/releases/download/1.3.2/edk2-cix_1.3.2_all.deb"
+  },
+  "profile": "upstream-1.3.2-bookworm",
+  "vendor_source": {
+    "object_id": "638c33eb98c358aab0c025bb1b06a359027e5ff2",
+    "ref": "source/vendor/radxa/1.3.2/edk2-stable202208",
+    "source_target": "edk2-202208/radxa-1.3.2",
+    "tree_id": "ca5c8113e6da499d5650f7234c7500d853ab3bdb",
+    "upstream_ref": "37113548ff022b1ee4be7fdb054a59caef2fdcf8"
+  },
+  "version": "1.3.2"
+}

@@ -1323,6 +1323,8 @@ def synthesise_release_entry(repo: Path, branch: str) -> dict[str, Any]:
             vendor_dependency_compat_step(),
             vendor_asl_compat_step(),
         ]
+        if (release, radxa) == ("202208", "1.3.2"):
+            render["steps"].append({"stock_replay_validation": radxa})
         entry["source_ref"] = radxa_ref
     elif stage == "vendor":
         radxa_ref = radxa_source_ref(repo, radxa, edk2_ref)

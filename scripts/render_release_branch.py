@@ -244,6 +244,25 @@ def overlay_paths_from_ref(repo: Path, worktree: Path, ref: str, paths: list[str
         git(worktree, "checkout", resolved_ref, "--", clean_path, capture=not verbose)
 
 
+def apply_stock_replay_validation(repo: Path, worktree: Path, release: str, verbose: bool) -> None:
+    """Add build-owned replay data without changing any historical render plan."""
+    inputs = f"validation/replay-inputs/{release}"
+    paths = [inputs, f"validation/replay-source/{release}"]
+    overlay_paths_from_ref(repo, worktree, rev_parse(repo, "HEAD"), paths, "error", verbose)
+    profile_name = f"upstream-{release}-bookworm"
+    for relative, section, key, addition in (
+        ("validation/expected-hashes.json", "profiles", profile_name, "profile.json"),
+        ("validation/replay-inputs/index.json", "releases", release, "index-entry.json"),
+    ):
+        path = worktree / relative
+        document = json.loads(path.read_bytes())
+        if key in document[section]:
+            raise ReconstructionError(f"stock replay overlay would replace {section}/{key}")
+        document[section][key] = json.loads((worktree / inputs / addition).read_bytes())
+        path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        git(worktree, "add", "--", relative, capture=not verbose)
+
+
 def apply_release_metadata(repo: Path, worktree: Path, ref: str, release: str, verbose: bool) -> None:
     """Take package identity from the selected Radxa release source."""
 
@@ -474,6 +493,8 @@ def commit_rendered_worktree(repo: Path, worktree: Path, branch: str, entry: dic
             elif "overlay_paths" in step:
                 overlay = step["overlay_paths"]
                 trailers.append(f"Source-Overlay: {','.join(overlay.get('paths', []))}={overlay.get('ref', '')}")
+            elif "stock_replay_validation" in step:
+                trailers.append(f"Source-Stock-Replay-Validation: Radxa {step['stock_replay_validation']}")
             elif "release_metadata" in step:
                 metadata = step["release_metadata"]
                 trailers.append(
@@ -560,6 +581,8 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_
                             overlay.get("missing", "error"),
                             verbose,
                         )
+                    elif "stock_replay_validation" in step:
+                        apply_stock_replay_validation(repo, worktree, step["stock_replay_validation"], verbose)
                     elif "release_metadata" in step:
                         metadata = step["release_metadata"]
                         apply_release_metadata(
