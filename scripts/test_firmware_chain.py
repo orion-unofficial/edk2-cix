@@ -328,11 +328,14 @@ class PackagingTests(unittest.TestCase):
                              "elif sys.argv[1].endswith('validate_bootloader1.py'):\n pass\n"
                              "else:\n os.execv(sys.executable,[sys.executable,*sys.argv[1:]])\n")
             (wt / "Makefile").write_text(
-                ".PHONY: buildbox-firmware-build\n"
-                "buildbox-firmware-build:\n\t@touch compilation-reached\n"
+                ".PHONY: firmware-build buildbox-firmware-build\n"
+                "firmware-build buildbox-firmware-build:\n\t@touch compilation-reached\n"
                 "\t@mkdir -p src/Build/O6/RELEASE_GCC\n"
                 "\t@cp fixture-output.bin src/Build/O6/RELEASE_GCC/cix_flash_all.bin\n")
-            command = ["make", "--no-print-directory", "build", "RELEASE=edk2-202605/radxa-1.3.1/unofficial",
+            runner = root / 'buildbox-runner.sh'
+            runner.write_text('#!/bin/sh\nmake_command=$1\nshift\nexec "$make_command" -C "$EDK2_CIX_FIRMWARE_ROOT" "$@"\n')
+            runner.chmod(0o755)
+            command = ["make", "--no-print-directory", "build", f"BUILDBOX_RUNNER={runner}", "RELEASE=edk2-202605/radxa-1.3.1/unofficial",
                        "ARTEFACT_MODE=custom", "FIRMWARE_BOARD=O6", "FIRMWARE_TARGET=RELEASE",
                        "FIRMWARE_DISTRO=trixie", "ENABLE_FIRMWARE_FIXES=true", "ENABLE_CORE_ORDER=cix",
                        "ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false", "DEBUG_VERBOSE=false",

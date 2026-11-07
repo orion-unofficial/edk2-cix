@@ -11,6 +11,21 @@ import cix_release_cache
 
 
 class CixReleaseCacheTests(unittest.TestCase):
+    def test_packaging_recipe_changes_invalidate_the_stamp(self):
+        with tempfile.TemporaryDirectory() as directory:
+            recipe = Path(directory) / 'Makefile'
+            stamp = Path(directory) / 'stamp'
+            plan = cix_release_cache.CachePlan('cert', 'bl31', 'tee')
+            recipe.write_text('original recipe')
+            cix_release_cache.update_fingerprint_stamp(stamp, plan, recipe)
+            original = stamp.read_bytes()
+            recipe.write_text('corrected selector forwarding')
+            cix_release_cache.update_fingerprint_stamp(stamp, plan, recipe)
+            self.assertNotEqual(stamp.read_bytes(), original)
+            timestamp = stamp.stat().st_mtime_ns
+            cix_release_cache.update_fingerprint_stamp(stamp, plan, recipe)
+            self.assertEqual(stamp.stat().st_mtime_ns, timestamp)
+
     def test_stmm_interface_changes_only_tee_cache(self):
         inputs = dict(cert_create_tree_fingerprint="cert", tfa_tree_fingerprint="tfa",
                       tee_tree_fingerprint="tee", helper_fingerprint="helper",

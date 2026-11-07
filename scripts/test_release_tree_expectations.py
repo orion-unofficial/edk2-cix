@@ -81,7 +81,7 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
         # Stop at the firmware-build boundary: exercise the real top-level
         # Makefile, renderer, worktree preparation and output mirroring.
         write_file(self.repo, "Makefile", (
-            "buildbox-firmware-build deterministic-replay:\n"
+            "firmware-build buildbox-firmware-build deterministic-replay:\n"
             "\t@mkdir -p src/Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)_GCC\n"
             "\t@cp fixture-flash.bin src/Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)_GCC/cix_flash_all.bin\n"
             "\t@printf '%s\\n' 'ARTEFACT_MODE=$(ARTEFACT_MODE)' 'ENABLE_FIRMWARE_FIXES=$(ENABLE_FIRMWARE_FIXES)' 'CIX_RELEASE=$(CIX_RELEASE)' > src/Build/$(FIRMWARE_BOARD)/$(FIRMWARE_TARGET)_GCC/BuildOptions\n"
@@ -109,7 +109,11 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
         write_file(self.repo, "config/refs-source-target-cache.json", '{"refs": []}\n')
         clear_metadata_caches()
         self.addCleanup(clear_metadata_caches)
+        runner = Path(self.temp.name) / 'buildbox-runner.sh'
+        runner.write_text('#!/bin/sh\nmake_command=$1\nshift\nexec "$make_command" -C "$EDK2_CIX_FIRMWARE_ROOT" "$@"\n')
+        runner.chmod(0o755)
         self.environment = patch.dict(os.environ, {
+            "BUILDBOX_RUNNER": str(runner),
             "EDK2_CIX_TMP_ROOT": str(Path(self.temp.name) / "tmp"),
             "EDK2_CIX_BL1_TOOL": str(Path(self.temp.name) / "unavailable-tool"),
         })
@@ -341,16 +345,17 @@ class SupportedReleaseTreeTests(unittest.TestCase):
                 with self.subTest(target=branch):
                     steps = entry["render"]["steps"]
                     self.assertEqual(list(steps[-1]), ["release_metadata"])
-                    self.assertTrue(all(list(step) == ["component"] for step in steps[:-1]))
+                    self.assertTrue(all(list(step) in (["component"], ["stmm_integration"]) for step in steps[:-1]))
                     components = tuple((step["component"]["path"], tree_id(ROOT, step["component"]["ref"]))
-                                       for step in steps[:-1])
+                                       for step in steps[:-1] if "component" in step)
+                    feature = tuple(step["stmm_integration"]["ref"] for step in steps if "stmm_integration" in step)
                     metadata = steps[-1]["release_metadata"]
                     source_tree = tree_id(ROOT, entry["source_ref"])
                     metadata_tree = tree_id(ROOT, metadata["ref"])
                     release = metadata["release"]
-                    key = (source_tree, metadata_tree, release, components)
+                    key = (source_tree, metadata_tree, release, components, feature)
                     if key not in rendered:
-                        if loaded_tree != (source_tree, components):
+                        if loaded_tree != (source_tree, components, feature):
                             git(repo, "read-tree", source_tree)
                             git(repo, "update-index", "--force-remove", ".gitmodules")
                             for path, component_tree in components:
@@ -358,7 +363,15 @@ class SupportedReleaseTreeTests(unittest.TestCase):
                                 if old_paths:
                                     git(repo, "update-index", "--force-remove", "--", *old_paths)
                                 git(repo, "read-tree", f"--prefix={path}/", component_tree)
-                            loaded_tree = (source_tree, components)
+                            if feature:
+                                from stmm_integration import feature_files
+                                for path, (mode, data) in feature_files(ROOT, entry["source_ref"]).items():
+                                    oid = subprocess.run(
+                                        ["git", "-C", str(repo), "hash-object", "-w", "--stdin"],
+                                        input=data, capture_output=True, check=True,
+                                    ).stdout.decode().strip()
+                                    git(repo, "update-index", "--add", "--cacheinfo", f"{mode},{oid},{path}")
+                            loaded_tree = (source_tree, components, feature)
                         if release not in versions:
                             versions[release] = subprocess.run(
                                 ["git", "-C", str(repo), "hash-object", "-w", "--stdin"],

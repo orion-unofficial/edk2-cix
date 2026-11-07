@@ -19,6 +19,7 @@ SCRIPT_FILES = [
     "refresh_source_metadata.py",
     "render_release_branch.py",
     "source_policy.py",
+    "stmm_integration.py",
 ]
 ZERO = "0" * 40
 

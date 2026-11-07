@@ -50,13 +50,15 @@ class TrustedSelectionTests(unittest.TestCase):
 
     def test_adapter_preserves_the_release_target_and_shell_recipe_contract(self):
         from stmm_integration import adapt_makefile
-        for release in ('202208', '202608'):
-            ref = f'source/unofficial/1.3.2/edk2-stable{release}'
+        for release, radxa in (('202208', '1.3.2'), ('202502', '1.3.1'), ('202608', '1.3.2')):
+            ref = f'source/unofficial/{radxa}/edk2-stable{release}'
             original = show_file(ROOT, ref, 'src/Makefile')
             adapted = adapt_makefile(original, 'src/Makefile')
             preamble = original[original.index(b'FIRMWARE_TARGET ?='):original.index(b'UNAME :=')]
             self.assertIn(preamble, adapted)
             self.assertIn(b'@python3 "$(CIX_RELEASE_STMM_HELPER)" $(CIX_RELEASE_STMM_ARGS)', adapted)
+            signer = adapted[adapted.index(b'bash "$(abspath $(CIX_RELEASE_BOOTLOADER2_HELPER))"'):]
+            self.assertIn(b'--stmm "$(STMM)"', signer.split(b'--jobs', 1)[0])
 
     def test_profile_selects_maintained_component_without_changing_release(self):
         stock = resolve_profile(ROOT, requested_profile='latest')
@@ -100,6 +102,22 @@ class TrustedSelectionTests(unittest.TestCase):
         hybrid = module.FirmwareLayout(cix_release='unofficial', stmm='unofficial')
         self.assertNotEqual(maintained.leaf_parts(), hybrid.leaf_parts())
         self.assertIn('stmm_unofficial', hybrid.archive_suffix_tokens())
+
+    def test_shared_layout_keeps_vendor_and_unofficial_payloads_separate(self):
+        from stmm_integration import feature_files
+        import sys
+        for release in ('202208', '202608'):
+            ref = f'source/unofficial/1.3.2/edk2-stable{release}'
+            module = types.ModuleType('shared_firmware_layout_' + release)
+            sys.modules[module.__name__] = module
+            self.addCleanup(sys.modules.pop, module.__name__, None)
+            content = feature_files(ROOT, ref)['scripts/firmware_layout.py'][1]
+            exec(compile(content, module.__name__, 'exec'), module.__dict__)
+            vendor = module.FirmwareLayout(cix_release='unofficial')
+            modern = module.FirmwareLayout(cix_release='unofficial', stmm='unofficial')
+            self.assertNotEqual(vendor.leaf_parts(), modern.leaf_parts())
+            self.assertNotEqual(vendor.archive_suffix_tokens(), modern.archive_suffix_tokens())
+            self.assertIn('stmm_unofficial', modern.leaf_parts())
 
     def test_hybrid_component_has_no_unresolved_submodules(self):
         entries = subprocess.check_output([

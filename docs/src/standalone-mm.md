@@ -23,10 +23,11 @@ from the UEFI shell; the generated OTA image is not currently usable.
 to custom O6 builds with the reviewed signing and pinned-payload integration.
 The renderer adds the shared integration to retained recipes with the reviewed
 CIX signing and staging contract. This includes Radxa 1.3.2's retained 202208
-and 202608 checkpoints, all retained 1.3.1 EDK2 checkpoints, and the 1.2.4
+and 202608 checkpoints, the retained 1.3.1 EDK2 checkpoints, and the 1.2.4
 202208, 202605 and 202608 checkpoints. Earlier 1.2.4 recipes retain their
 existing guard because they lack that contract. A 202502 / 1.3.2 checkpoint
-has not been retained in the source model.
+has not been retained in the source model. The promoted 202608 / 1.3.1
+candidate keeps its original native recipe and five-helper profile.
 
 The opt-in uses `source/unofficial/stmm/integration-v1`, pinned in
 `config/refs-cix.json`. Its machine-readable `profile.json` binds the five

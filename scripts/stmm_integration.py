@@ -17,7 +17,10 @@ def compatibility(repo: Path) -> dict:
 def selected(repo: Path, source_ref: str) -> bool:
     if not (repo / "config/refs-cix.json").is_file():
         return False
-    from reconstruction_common import ref_manifest_records
+    from reconstruction_common import ref_manifest_records, NATIVE_STMM_CHECKPOINT_REF
+    # Keep the independently promoted native candidate and its helper bindings.
+    if source_ref in {NATIVE_STMM_CHECKPOINT_REF, 'source/unofficial/history/1.3.1/edk2-stable202608'}:
+        return False
     if not any(record.get('ref') == FEATURE_REF for record in ref_manifest_records(repo, 'refs-cix.json')):
         return False
     # VERSION in an old checkpoint can precede the release metadata overlay.
@@ -25,9 +28,9 @@ def selected(repo: Path, source_ref: str) -> bool:
     from reconstruction_common import show_file
     recipe = show_file(repo, source_ref, 'src/Makefile', check=False)
     # Earlier 1.2.4 recipes lack the reviewed signing/staging contract.
-    return (baseline_release(repo, source_ref) in compatibility(repo)['firmware_releases']
-            and b'CIX_RELEASE_CACHE_HELPER :=' in recipe
-            and b'CIX_RELEASE_SIGNING_KEYS_DIR :=' in recipe)
+    if b'CIX_RELEASE_CACHE_HELPER :=' not in recipe or b'CIX_RELEASE_SIGNING_KEYS_DIR :=' not in recipe:
+        return False
+    return baseline_release(repo, source_ref) in compatibility(repo)['firmware_releases']
 
 
 def adapt_makefile(data: bytes, path: str) -> bytes:
@@ -105,8 +108,10 @@ CIX_RELEASE_STMM_ARGS = $(if $(filter unofficial,$(STMM)),--source "$(CIX_RELEAS
         tail = tail.replace('--stmm-path "$(abspath $(call BUILD_STAGE_DIR,$*))/Firmwares/BL32_AP_EFI_STMM.fd" \\\n',
                             '--stmm-path "$(abspath $(call BUILD_STAGE_DIR,$*))/Firmwares/BL32_AP_EFI_STMM.fd" \\\n\t\t--stmm-ffa-version "$(CIX_RELEASE_STMM_FFA_VERSION)" \\\n')
     tail = re.sub(r'^\s*--stmm "\$\(STMM\)"[^\n]*\n', '', tail, flags=re.M)
-    tail = tail.replace('--vendor-fip "$(abspath $(PACKAGE_TOOL)/Firmwares/bootloader2.img)" \\\n',
-                        '--vendor-fip "$(abspath $(PACKAGE_TOOL)/Firmwares/bootloader2.img)" \\\n\t\t--stmm "$(STMM)" --stmm-source "$(CIX_RELEASE_STMM_SOURCE)" --stmm-edk2-release 202608 \\\n')
+    signer = 'bash "$(abspath $(CIX_RELEASE_BOOTLOADER2_HELPER))" ' + chr(92) + '\n'
+    tail = tail.replace(signer, signer + '\t\t--stmm "$(STMM)" --stmm-source "$(CIX_RELEASE_STMM_SOURCE)" --stmm-edk2-release 202608 ' + chr(92) + '\n')
+    cache = '@python3 "$(CIX_RELEASE_CACHE_HELPER)" ' + chr(92) + '\n'
+    tail = tail.replace(cache, cache + '\t\t--recipe "$(abspath Makefile)" ' + chr(92) + '\n')
     text = text[:stamp] + tail
     if "'STMM=$(STMM)'" not in text:
         text = text.replace("'CIX_RELEASE=$(CIX_RELEASE_NORMALIZED)'", "'CIX_RELEASE=$(CIX_RELEASE_NORMALIZED)' \\\n\t\t'STMM=$(STMM)'")
@@ -136,7 +141,14 @@ def feature_files(repo: Path, source_ref: str) -> dict[str, tuple[str, bytes]]:
         text = text.replace('normalized_cix_release == "1.2"', 'normalized_cix_release in VALID_CIX_RELEASES')
         if path.endswith('firmware_layout.py') and '    stmm: str' not in text:
             text = text.replace('    cix_release: str = ""', '    cix_release: str = ""\n    stmm: str = "vendor"')
-            text = text.replace('parts.append("cix")', 'parts.append("cix_unofficial" if self.cix_release == "unofficial" else "cix")\n            if self.stmm == "unofficial":\n                parts.append("stmm_unofficial")')
+            text = text.replace('        cix_release = _normalize_cix_release(self.cix_release)', """        cix_release = _normalize_cix_release(self.cix_release)
+        if self.stmm not in {"vendor", "unofficial"}:
+            raise ValueError("STMM supports vendor or unofficial")
+        if self.stmm == "unofficial" and cix_release != "unofficial":
+            raise ValueError("STMM=unofficial requires CIX_RELEASE=unofficial")""")
+            leaf = 'parts.append("cix_unofficial" if self.cix_release == "unofficial" else "cix")'
+            text = text.replace('parts.append("cix")', leaf)
+            text = text.replace(leaf, leaf + '\n            if self.stmm == "unofficial":\n                parts.append("stmm_unofficial")')
             text = text.replace('            tokens.append("cix")', '            tokens.append("cix")\n            if self.stmm == "unofficial":\n                tokens.append("stmm_unofficial")')
             text = text.replace('        cix_release=getattr(args, "cix_release", ""),', '        cix_release=getattr(args, "cix_release", ""),\n        stmm=getattr(args, "stmm", "vendor"),')
             text = text.replace('    parser.add_argument("--cix-release")', '    parser.add_argument("--cix-release")\n    parser.add_argument("--stmm", choices=("vendor", "unofficial"), default="vendor")')
