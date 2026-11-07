@@ -1,0 +1,42 @@
+{
+  "images": [
+    {
+      "compressed_file": "radxa-1.2.4.fd.zlib",
+      "compressed_sha256": "3bdf2c40ff6fb8af132eeae59fca0161eb5400cbcef99b651446a791f93f4c27",
+      "compressed_size": 306964,
+      "fd_sha256": "813a4b29954c11a0ad8a151b81f67852eccd03e7273e26ad7ecf25abad2f60dd",
+      "fd_size": 2097152,
+      "provenance": {
+        "release_url": "https://github.com/radxa-pkg/edk2-cix/releases/tag/1.2.4",
+        "source_commit": "82651824536e2c742b326c140417441735805706",
+        "source_path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader2.img",
+        "vendor_source_commit": "6cacc6c1278be56a40d50ba7084aa029567720b9",
+        "vendor_source_ref": "source/vendor/radxa/1.2.4/edk2-stable202208"
+      },
+      "radxa_release": "1.2.4",
+      "vendor_fip_sha256": "bc9cd4a3b595f909bf4662291beababad1c7b29c8cf94322f112ece3513aac98",
+      "vendor_tee_compressed_offset": 541567,
+      "vendor_tee_sha256": "7ab15ebfdb2ce1b1282c7c3270424e23d70da833b5d14bc17d226d3de2088142"
+    },
+    {
+      "compressed_file": "radxa-1.3.1.fd.zlib",
+      "compressed_sha256": "7fd616c0046f1c296ba7ea20409052158e3de27ebf5dc29b1e98f6bf638c6300",
+      "compressed_size": 306907,
+      "fd_sha256": "bcf541629e956efe8e8f06738314b5b43fcca32340ab3afc62d8723f39e380a1",
+      "fd_size": 2097152,
+      "provenance": {
+        "release_url": "https://github.com/radxa-pkg/edk2-cix/releases/tag/1.3.1",
+        "source_commit": "9916f3e32fadf9119836fcf3c308e2322e6f16be",
+        "source_path": "src/edk2-non-osi/Platform/CIX/Sky1/PackageTool/Firmwares/bootloader2.img",
+        "vendor_source_commit": "8628b567985a6943897faf23aa2e392329bfb4b6",
+        "vendor_source_ref": "source/vendor/radxa/1.3.1/edk2-stable202208"
+      },
+      "radxa_release": "1.3.1",
+      "vendor_fip_sha256": "7ff0c68c436ca1a02bc109aeb330ace2698761bdb3b8750bd3c3fd62885dface",
+      "vendor_tee_compressed_offset": 557589,
+      "vendor_tee_sha256": "92e52229b8c1cfb9fcae82bf7a06bbc71996d1835c62a3ebdc3af09ad4ec9f32"
+    }
+  ],
+  "purpose": "Checkpoint-pinned complete vendor StandaloneMM payloads pending successful hardware boot and deferred source reconstruction.",
+  "schema_version": 1
+}
