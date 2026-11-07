@@ -565,12 +565,13 @@ define run_release_make
 	$(call check_bootloader1,inputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	$(call check_firmware_chain,inputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
-	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
+	cache_root="$(abspath $(FIRMWARE_CACHE_ROOT))"; \
 	container_cache_root="/hosttmp"; \
 	printf '[build] Starting %s: board=%s target=%s release=%s\n' "$(1)" "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
 	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(1) $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox CCACHE_DIR=$$container_cache_root/ccache"; fi; \
 	EDK2_CIX_FIRMWARE_ROOT="$$wt" \
 	EDK2_CIX_HOST_TMPDIR="$$cache_root/buildbox" \
+	EDK2_CIX_BUILD_LOCK_ROOT="$$cache_root/buildbox/locks" \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
 	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
 	EDK2_CIX_FIRMWARE_DISTRO="$(or $(FIRMWARE_DISTRO),trixie)" \
@@ -688,12 +689,13 @@ install:
 	$(call check_bootloader1,inputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	$(call check_firmware_chain,inputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
-	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
+	cache_root="$(abspath $(FIRMWARE_CACHE_ROOT))"; \
 	container_cache_root="/hosttmp"; \
 	printf '[build] Starting buildbox-firmware-stage: board=%s target=%s release=%s\n' "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
 	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt buildbox-firmware-stage $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox CCACHE_DIR=$$container_cache_root/ccache"; fi; \
 	EDK2_CIX_FIRMWARE_ROOT="$$wt" \
 	EDK2_CIX_HOST_TMPDIR="$$cache_root/buildbox" \
+	EDK2_CIX_BUILD_LOCK_ROOT="$$cache_root/buildbox/locks" \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
 	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
 	EDK2_CIX_FIRMWARE_DISTRO="$(or $(FIRMWARE_DISTRO),trixie)" \
