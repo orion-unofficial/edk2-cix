@@ -567,8 +567,12 @@ define run_release_make
 	container_cache_root="/hosttmp"; \
 	printf '[build] Starting %s: board=%s target=%s release=%s\n' "$(1)" "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
 	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(1) $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox CCACHE_DIR=$$container_cache_root/ccache"; fi; \
+	EDK2_CIX_FIRMWARE_ROOT="$$wt" \
+	EDK2_CIX_HOST_TMPDIR="$$cache_root/buildbox" \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
-	$(MAKE) --no-print-directory -C "$$wt" $(1) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
+	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
+	EDK2_CIX_BUILDBOX_IMAGE="$(if $(BUILDBOX_IMAGE),$(BUILDBOX_IMAGE),mcr.microsoft.com/devcontainers/base:$(or $(FIRMWARE_DISTRO),trixie))" \
+	scripts/run_in_buildbox.sh $(MAKE) --no-print-directory $(patsubst buildbox-%,%,$(1)) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
 		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox" \
 		BUILDBOX_CONTAINER_TMPDIR="$$container_cache_root" \
 		CCACHE_DIR="$$container_cache_root/ccache" \
