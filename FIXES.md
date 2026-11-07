@@ -40,6 +40,17 @@ This describes the interfaces; the kernel must still choose one DSP owner.
 Internal display-audio codecs I2S5–I2S9 do not request external debug pins.
 O6 retains its GPIO144 HDA `pdb0` output mask; O6N has no such sound-card pin.
 
+### PCI option-ROM blacklist isolation
+
+With `ENABLE_FIRMWARE_FIXES=true`, each eligible PCI function gets an independent
+option-ROM blacklist check. A blacklisted endpoint (including `1000:005d`,
+MegaRAID SAS 9361-8i) no longer suppresses allowed siblings' ROMs, including
+endpoints behind PCIe switches. All four vendor blacklist entries remain blocked.
+Fixes-disabled builds retain the vendor traversal behaviour; upstream replay
+uses the unchanged imported driver. Physical option-ROM execution and boot on
+O6/O6N still require hardware validation. This correction does not qualify PCIe
+SMMU behaviour.
+
 ### PCIe Capability Handoff (`_OSC`)
 
 `_OSC` is the ACPI “Operating System Capabilities” handshake for PCIe. It tells
