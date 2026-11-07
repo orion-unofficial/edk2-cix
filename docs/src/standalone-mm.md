@@ -277,30 +277,30 @@ only the FF-A handoff does not address loss of power between successful flash
 commands. Keep the vendor comparison and interrupted-flash fixtures when changing
 this behavior. A newly introduced failure remains an MVP blocker.
 
-### Building the release-native O6 candidate
+### Building the shared O6 integration
 
-Select the maintained 202608 / Radxa 1.3.1 checkpoint explicitly:
+Select the current Radxa 1.3.2 source target explicitly:
 
 ```sh
 make buildbox-firmware-build \
-    RELEASE=edk2-202608/radxa-1.3.1/unofficial-checkpoint \
+    RELEASE=edk2-202608/radxa-1.3.2/unofficial \
     ARTEFACT_MODE=custom FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE \
     FIRMWARE_DISTRO=trixie ENABLE_FIRMWARE_FIXES=true \
     ENABLE_CORE_ORDER=cix ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false \
     DEBUG_VERBOSE=false CIX_RELEASE=unofficial STMM=unofficial
 ```
 
-The suffix `unofficial-checkpoint` selects the named maintained checkpoint.
-The ordinary `unofficial` name and the default build still follow the current
-development line. Only the O6 RELEASE checkpoint has this release-native
-profile and its matching offline evidence. The qualification state is
-`integrated-unqualified`. Historical source targets retain their own helper
-profiles and qualification states.
+The retained 202208 / 1.3.2 target uses the same secure-world component.
+The historical `edk2-202608/radxa-1.3.1/unofficial-checkpoint` selector and its
+original release-native helper profile and offline evidence remain retained.
+The shared adapter has its own source identity and representative compilation
+and signature checks. These checks do not establish physical O6/O6N boot or
+NOR behavior for other combinations. Physical testing is an optional activity
+for external testers with suitable facilities.
 
 This builds TF-A and maintained OP-TEE, builds the hybrid StandaloneMM component,
 selects `CFG_STMM_FFA_VERSION=12`, verifies the embedded payload before signing,
-and assembles the complete 8 MiB `cix_flash_all.bin`. Use that complete image for
-UEFI-shell testing; the OTA image is not the supported update route for this test.
+and assembles the complete 8 MiB `cix_flash_all.bin`.
 `STMM=vendor` remains the default and selects FF-A mode 10.
 
 Hybrid source contents, Radxa release, compiler identities and build helper
