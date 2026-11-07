@@ -30,7 +30,14 @@ CIX_VENDOR_STMM_HELPER_SHA256 = "487175ff2b9b995240e0f8819540bc1d3e3a3e7d69c7b61
 CIX_NATIVE_SIGNING_HELPER_SHA256 = "7347d87ceb46905bd4e6aa0f0580793bb1c378581859438cd0a071eef47214ac"
 CIX_STMM_VENDOR_PATH = "src/scripts/stage_vendor_stmm.py"
 CIX_STMM_HYBRID_PATH = "src/scripts/build_hybrid_stmm.py"
+CIX_SHARED_SIGNING_HELPER_SHA256 = 'c55363750102735968dd993fb7ba9c3e1ed8356a1aae63094c6b06eb59f7c288'
 CIX_STMM_HELPER_PROFILES = {
+    CIX_SHARED_SIGNING_HELPER_SHA256: {
+        'src/scripts/stmm_release_port.py': '0a0a4ae7a2a25716313dfd0472262e47a8159556be78a0602462f77176ca7e54',
+        'src/scripts/stmm_release_platform.py': 'f718bf83f545c9dfbd8804d67495736425f4468e59feb3722758460ab36c2f6a',
+        'src/scripts/build_hybrid_stmm.py': '1146b29856f23740df445336690cbcc5586f8881932550ae00cf2254fc0d3156',
+        'src/scripts/stage_vendor_stmm.py': '487175ff2b9b995240e0f8819540bc1d3e3a3e7d69c7b61b1ae8961149afa22f',
+    },
     CIX_SIGNING_HELPER_SHA256: {CIX_STMM_VENDOR_PATH: CIX_VENDOR_STMM_HELPER_SHA256},
     CIX_HYBRID_SIGNING_HELPER_SHA256: {
         CIX_STMM_VENDOR_PATH: CIX_VENDOR_STMM_HELPER_SHA256,
@@ -115,11 +122,22 @@ def stmm_helper_problems(helper: bytes, contents: dict[str, bytes]) -> list[str]
 def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
     """Advertise CIX_RELEASE only for checkpoints with the reviewed helper and keys."""
     ref = entry["source_ref"]
+    from stmm_integration import selected, feature_files
+    shared = selected(repo, ref)
+    files = feature_files(repo, ref) if shared else {}
+
+    def content(path):
+        return files[path][1] if path in files else show_file(repo, ref, path)
     try:
         if env("STMM") == "unofficial" and env("CIX_RELEASE").lower() != "unofficial":
             raise ReconstructionError("STMM=unofficial requires CIX_RELEASE=unofficial")
-        helper = show_file(repo, ref, "src/scripts/build_cix_release_bootloader2.sh")
-        makefile = show_file(repo, ref, "src/Makefile")
+        helper = content("src/scripts/build_cix_release_bootloader2.sh")
+        makefile = content("src/Makefile")
+        if shared:
+            from stmm_integration import FEATURE_REF
+            if not any(step.get("stmm_integration", {}).get("ref") == FEATURE_REF
+                       for step in entry.get("render", {}).get("steps", [])):
+                raise ReconstructionError("shared StandaloneMM integration is not selected by this source target")
         if env("CIX_RELEASE").lower() == "unofficial":
             components = [step.get("component", {}) for step in entry.get("render", {}).get("steps", [])]
             if b"tee-unofficial" not in makefile or not any(
@@ -130,7 +148,7 @@ def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
         profile = CIX_STMM_HELPER_PROFILES.get(helper_hash)
         if profile is None or b"CIX_RELEASE_SIGNING_KEYS_DIR" not in makefile:
             raise ReconstructionError("source-built CIX signing helper is absent or differs from the reviewed version")
-        helper_problems = stmm_helper_problems(helper, {path: show_file(repo, ref, path) for path in profile})
+        helper_problems = stmm_helper_problems(helper, {path: content(path) for path in profile})
         if helper_problems:
             raise ReconstructionError("; ".join(helper_problems))
         if env("STMM") == "unofficial":
@@ -148,9 +166,16 @@ def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
                     "native StandaloneMM requires EDK2 202608, Radxa 1.3.1 and O6 RELEASE "
                     f"with RELEASE={NATIVE_STMM_CHECKPOINT_TARGET}"
                 )
-            if radxa not in {"1.2.4", "1.3.1"}:
-                raise ReconstructionError("hybrid StandaloneMM supports Radxa 1.2.4 or 1.3.1 only")
-            if not show_file(repo, ref, "src/edk2/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h", check=False):
+            if shared:
+                if (env("FIRMWARE_BOARD") or "O6") != "O6" or (env("FIRMWARE_TARGET") or "RELEASE") != "RELEASE":
+                    raise ReconstructionError("shared StandaloneMM supports O6 RELEASE only")
+                from stmm_integration import capability_problems
+                missing = capability_problems(repo, ref)
+                if missing:
+                    raise ReconstructionError("; ".join(missing))
+            if radxa not in {"1.2.4", "1.3.1", "1.3.2"}:
+                raise ReconstructionError("hybrid StandaloneMM supports Radxa 1.2.4, 1.3.1 or 1.3.2 only")
+            if not shared and not show_file(repo, ref, "src/edk2/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h", check=False):
                 raise ReconstructionError("hybrid StandaloneMM requires EDK2 202502 or newer; pre-2025 bases are not qualified")
             if not any(component.get("path") == "src/cix-v1.2/stmm-unofficial" for component in components):
                 raise ReconstructionError("hybrid StandaloneMM component is not selected")

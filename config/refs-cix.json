@@ -60,6 +60,15 @@
       "render_path": "src/cix-v1.2/stmm-unofficial",
       "tree_id": "077e2e15d537e3945e57640b766eba2e92ff0f70",
       "type": "unofficial-component"
+    },
+    {
+      "component": "standalone-mm-integration",
+      "immutable": false,
+      "type": "unofficial-component",
+      "ref": "source/unofficial/stmm/integration-v1",
+      "render_path": "src/stmm-integration-v1",
+      "object_id": "1559e12c1fa1c864316aebac82b4c5042ea12a60",
+      "tree_id": "d7283744884c6dbf2dfa56873d18243c44d4b0fe"
     }
   ]
 }

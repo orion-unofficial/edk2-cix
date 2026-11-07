@@ -17,14 +17,23 @@ from the UEFI shell; the generated OTA image is not currently usable.
 | `CIX_RELEASE=` | Stock vendor `bootloader2.img` |
 | `CIX_RELEASE=1.2 STMM=vendor` | Existing curated CIX source and pinned vendor StandaloneMM; `v1.2` is an alias |
 | `CIX_RELEASE=unofficial STMM=vendor` | Maintained OP-TEE component and pinned vendor StandaloneMM |
-| `CIX_RELEASE=unofficial STMM=unofficial` | Source-built hybrid payload on supported O6 source targets. The release-native 202608 profile requires the explicit 1.3.1 checkpoint below. |
+| `CIX_RELEASE=unofficial STMM=unofficial` | Modern 202608 secure-world payload through the versioned shared adapter on compatible O6 RELEASE source targets. |
 
 `STMM=vendor` is the default. Source-built trusted firmware remains restricted
 to custom O6 builds with the reviewed signing and pinned-payload integration.
-`CIX_RELEASE=unofficial` is available on the active 1.3 line and the Radxa 1.2.4/1.3.1
-checkpoints for EDK2 202208, 202605 and 202608. Other historical targets must
-first receive and qualify those prerequisites; accepting a selector alone
-does not make them supported.
+The renderer adds the shared integration to retained recipes with the reviewed
+CIX signing and staging contract. This includes Radxa 1.3.2's retained 202208
+and 202608 checkpoints, all retained 1.3.1 EDK2 checkpoints, and the 1.2.4
+202208, 202605 and 202608 checkpoints. Earlier 1.2.4 recipes retain their
+existing guard because they lack that contract. A 202502 / 1.3.2 checkpoint
+has not been retained in the source model.
+
+The opt-in uses `source/unofficial/stmm/integration-v1`, pinned in
+`config/refs-cix.json`. Its machine-readable `profile.json` binds the five
+helpers, accepted recipe preimages, secure-world baseline, board/target and
+Radxa vendor-service identities. The adapter changes selection and staging
+within each recipe while preserving its compiler, DSC/FDF, packaging and
+signing rules. Stock deterministic replay uses its existing render plan.
 
 The maintained component is
 `source/unofficial/cix/1.2/op-tee/3.17.0`, descended directly from the unchanged
@@ -44,7 +53,9 @@ is assembled by the renderer, not copied into every retained source branch.
 ## Payload selection and verification
 
 The selected stock `bootloader2.img` hash determines the StandaloneMM checkpoint.
-The build accepts only the recorded Radxa 1.2.4 and 1.3.1 inputs. It does not
+The build accepts the recorded Radxa 1.2.4 and 1.3.1 trusted FIPs. Radxa
+1.3.2 uses the byte-identical 1.3.1 trusted FIP and vendor-service profile,
+with that binding recorded separately in the shared compatibility profile. It does not
 select by a filename, version string, latest release or host directory contents.
 
 | Radxa checkpoint | StandaloneMM FD SHA-256 | Compressed bytes |
@@ -106,6 +117,15 @@ The pinned-payload integration executes inside the rendered source tree because
 direct developer builds do not invoke the outer build-branch caller. The helper
 and payload inputs therefore belong to the retained firmware source;
 qualification and report orchestration remain on `build`.
+
+The shared adapter compiles secure-world EDK2 202608 independently of the
+normal-world release. Its FF-A boot-information capability check examines
+that secure-world component. Normal-world 202208 retains the CIX MM
+communication driver and the same variable-message structures used by the
+modern secure-world variable service. The compatibility profile pins the
+normal-world communication executable and trusted FIP separately for each
+Radxa family. Normal-world FVB, variable-service and firmware layouts remain
+release-owned.
 
 ## Modern StandaloneMM source integration
 

@@ -35,19 +35,28 @@ class TrustedSelectionTests(unittest.TestCase):
             _, current = release_entry(ROOT, 'edk2-202608/radxa-1.3.2/unofficial', require=True)
             problems = []
             validate_cix_source(ROOT, current, problems)
-            self.assertEqual(len(problems), 1)
-            self.assertIn('native StandaloneMM requires EDK2 202608, Radxa 1.3.1', problems[0])
+            self.assertEqual(problems, [])
 
-    def test_both_integrated_releases_accept_hybrid_and_old_bases_reject_it(self):
+    def test_shared_integration_accepts_old_and_new_normal_world_bases(self):
         with patch.dict(os.environ, CIX_RELEASE='unofficial', STMM='unofficial'):
-            for release in ('1.2.4', '1.3.1'):
+            for release in ('1.2.4', '1.3.2'):
                 _, entry = release_entry(ROOT, f'edk2-202608/radxa-{release}/unofficial', require=True)
                 problems = []
                 validate_cix_source(ROOT, entry, problems)
                 self.assertEqual(problems, [], release)
                 _, old = release_entry(ROOT, f'edk2-202208/radxa-{release}/unofficial', require=True)
                 validate_cix_source(ROOT, old, problems)
-                self.assertTrue(problems, release)
+                self.assertEqual(problems, [], release)
+
+    def test_adapter_preserves_the_release_target_and_shell_recipe_contract(self):
+        from stmm_integration import adapt_makefile
+        for release in ('202208', '202608'):
+            ref = f'source/unofficial/1.3.2/edk2-stable{release}'
+            original = show_file(ROOT, ref, 'src/Makefile')
+            adapted = adapt_makefile(original, 'src/Makefile')
+            preamble = original[original.index(b'FIRMWARE_TARGET ?='):original.index(b'UNAME :=')]
+            self.assertIn(preamble, adapted)
+            self.assertIn(b'@python3 "$(CIX_RELEASE_STMM_HELPER)" $(CIX_RELEASE_STMM_ARGS)', adapted)
 
     def test_profile_selects_maintained_component_without_changing_release(self):
         stock = resolve_profile(ROOT, requested_profile='latest')

@@ -490,6 +490,8 @@ def commit_rendered_worktree(repo: Path, worktree: Path, branch: str, entry: dic
             elif "component" in step:
                 component = step["component"]
                 trailers.append(f"Source-Component: {component['path']}={component['ref']}")
+            elif "stmm_integration" in step:
+                trailers.append(f"Source-StandaloneMM-Integration: {step['stmm_integration']['ref']}")
             elif "overlay_paths" in step:
                 overlay = step["overlay_paths"]
                 trailers.append(f"Source-Overlay: {','.join(overlay.get('paths', []))}={overlay.get('ref', '')}")
@@ -571,6 +573,15 @@ def render_from_plan(repo: Path, branch: str, entry: dict, verbose: bool, allow_
                     elif "component" in step:
                         component = step["component"]
                         replace_component_path(repo, worktree, component["path"], component["ref"], verbose)
+                    elif "stmm_integration" in step:
+                        from stmm_integration import feature_files
+                        changes = feature_files(repo, entry["source_ref"])
+                        for path, (mode, data) in changes.items():
+                            target = worktree / path
+                            target.parent.mkdir(parents=True, exist_ok=True)
+                            target.write_bytes(data)
+                            target.chmod(int(mode, 8) & 0o777)
+                        git(worktree, "add", "--", *changes, capture=not verbose)
                     elif "overlay_paths" in step:
                         overlay = step["overlay_paths"]
                         overlay_paths_from_ref(

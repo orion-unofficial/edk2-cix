@@ -531,6 +531,9 @@ def release_entry_required_refs(entry: dict[str, Any]) -> set[str]:
         component = step.get("component", {})
         if component.get("ref"):
             refs.add(component["ref"])
+        feature = step.get("stmm_integration", {})
+        if feature.get("ref"):
+            refs.add(feature["ref"])
         overlay = step.get("overlay_paths", {})
         if overlay.get("ref"):
             refs.add(overlay["ref"])
@@ -1225,17 +1228,18 @@ def release_metadata_ref(repo: Path, radxa: str, edk2_ref: str) -> str | None:
 
 def unofficial_component_steps(repo: Path, source_ref: str | None = None) -> list[dict[str, Any]]:
     """Select independently maintained component trees for custom targets."""
-    if source_ref and b"tee-unofficial" not in show_file(repo, source_ref, "src/Makefile", check=False):
-        # Historical trees without the selector also lack qualified payload or
-        # signing prerequisites. Do not silently upgrade those targets.
+    from stmm_integration import selected, FEATURE_REF
+    feature = bool(source_ref and selected(repo, source_ref))
+    if source_ref and not feature and b"tee-unofficial" not in show_file(repo, source_ref, "src/Makefile", check=False):
         return []
     return [
         {"component": {"path": record["render_path"], "ref": record["ref"]}}
         for record in ref_manifest_records(repo, "refs-cix.json")
         if record.get("type") == "unofficial-component"
-        and (record.get("component") != "standalone-mm" or not source_ref or
+        and record["ref"] != FEATURE_REF
+        and (record.get("component") != "standalone-mm" or feature or not source_ref or
              b"stmm-unofficial" in show_file(repo, source_ref, "src/Makefile", check=False))
-    ]
+    ] + ([{"stmm_integration": {"ref": FEATURE_REF}}] if feature else [])
 
 
 def unofficial_rendered_tree(repo: Path, source_ref: str, metadata_ref: str | None, release: str) -> str:
@@ -1249,12 +1253,15 @@ def unofficial_rendered_tree(repo: Path, source_ref: str, metadata_ref: str | No
     """
 
     source_tree = tree_id(repo, source_ref)
-    components = [step["component"] for step in unofficial_component_steps(repo, source_ref)]
+    components = [step["component"] for step in unofficial_component_steps(repo, source_ref) if "component" in step]
+    from stmm_integration import selected, feature_files, FEATURE_REF
+    feature = selected(repo, source_ref)
+    feature_tree = tree_id(repo, FEATURE_REF) if feature else None
     component_trees = tuple((item["path"], tree_id(repo, item["ref"])) for item in components)
-    if metadata_ref is None and not components:
+    if metadata_ref is None and not components and not feature:
         return source_tree
     metadata_tree = tree_id(repo, metadata_ref) if metadata_ref else None
-    key = (str(repo.resolve()), source_tree, metadata_tree, release, component_trees)
+    key = (str(repo.resolve()), source_tree, metadata_tree, release, component_trees, feature_tree)
     if key in _UNOFFICIAL_RENDERED_TREE_CACHE:
         return _UNOFFICIAL_RENDERED_TREE_CACHE[key]
 
@@ -1293,7 +1300,7 @@ def unofficial_rendered_tree(repo: Path, source_ref: str, metadata_ref: str | No
         mode = root.get("VERSION", ("100644", "blob", ""))[0]
         root["VERSION"] = (mode, "blob", version)
 
-    def replace_tree(items: dict, path: list[str], replacement: str) -> str:
+    def replace_tree(items: dict, path: list[str], replacement: str, mode: str = "040000", kind: str = "tree") -> str:
         name = path[0]
         if len(path) > 1:
             if name in items:
@@ -1301,12 +1308,18 @@ def unofficial_rendered_tree(repo: Path, source_ref: str, metadata_ref: str | No
                 children = dict(generated_trees[oid]) if oid in generated_trees else git_tree_entries(repo, oid)
             else:
                 children = {}
-            replacement = replace_tree(children, path[1:], replacement)
-        items[name] = ("040000", "tree", replacement)
+            replacement = replace_tree(children, path[1:], replacement, mode, kind)
+            mode, kind = "040000", "tree"
+        items[name] = (mode, kind, replacement)
         return hash_tree(items)
 
     for path, component_tree in component_trees:
         replace_tree(root, path.split("/"), component_tree)
+    if feature:
+        for path, (mode, data) in feature_files(repo, source_ref).items():
+            oid = subprocess.run(["git", "-C", str(repo), "hash-object", "--stdin"],
+                                 input=data, stdout=subprocess.PIPE, check=True).stdout.decode().strip()
+            replace_tree(root, path.split("/"), oid, mode, "blob")
     result = hash_tree(root)
     _UNOFFICIAL_RENDERED_TREE_CACHE[key] = result
     return result

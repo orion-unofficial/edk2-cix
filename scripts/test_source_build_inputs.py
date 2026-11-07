@@ -112,6 +112,21 @@ class SourceBuildInputsTests(unittest.TestCase):
                 self.assertEqual(len(stmm_helper_problems(helper, {**contents, path: b''})), 1)
                 self.assertEqual(len(stmm_helper_problems(helper, {**contents, path: contents[path] + b'# drift'})), 1)
 
+    def test_shared_profile_binds_all_five_source_helpers(self):
+        from stmm_integration import feature_files
+        repo = Path(__file__).resolve().parents[1]
+        files = feature_files(repo, 'source/unofficial/1.3.2/edk2-stable202208')
+        helper = files['src/scripts/build_cix_release_bootloader2.sh'][1]
+        profile = CIX_STMM_HELPER_PROFILES[hashlib.sha256(helper).hexdigest()]
+        self.assertEqual(len(profile), 4)
+        contents = {path: files[path][1] for path in profile}
+        self.assertEqual(stmm_helper_problems(helper, contents), [])
+        for path in profile:
+            with self.subTest(path=path):
+                self.assertTrue(stmm_helper_problems(helper, {**contents, path: b''}))
+                self.assertTrue(stmm_helper_problems(helper, {**contents, path: contents[path] + b'drift'}))
+        self.assertNotIn(hashlib.sha256(helper + b'drift').hexdigest(), CIX_STMM_HELPER_PROFILES)
+
     def test_regular_overlay_cannot_contain_a_symlink_blob_as_source(self):
         path = 'custom/overlay/Spcr.aslc'
         self.assertIn(path, flattened_overlay_mirrors({path: b'../../src/Spcr.aslc'})[0])

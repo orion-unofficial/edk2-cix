@@ -56,6 +56,20 @@ describes the refs that happen to be local; using it against stale remote refs
 would make the candidate metadata describe the wrong source instead of testing
 the intended update.
 
+## Where does container orchestration run?
+
+The `build` checkout's `scripts/run_in_buildbox.sh` owns runtime selection,
+container lifecycle, mounts, dependency preparation and shared cache locks.
+`EDK2_CIX_FIRMWARE_ROOT` identifies the rendered firmware workspace separately
+from the orchestration checkout. The delegated command runs in that workspace;
+its Makefiles own compilation, trusted payload checks, signing and packaging.
+
+Shared StandaloneMM renders carry a small container compatibility entry point
+that finds the owning `build` checkout through Git. An independently exported
+firmware tree can set `EDK2_CIX_BUILD_INFRA_ROOT` explicitly. Native direct
+`firmware-build` remains a firmware-worktree entry point. The stock replay
+path retains its existing orchestration and deterministic inputs.
+
 ## How do I publish a source-model update?
 
 A source integration or Unofficial import can deliberately move more than one
