@@ -27,7 +27,7 @@ class TrustedSelectionTests(unittest.TestCase):
             validate_cix_source(ROOT, entry, problems)
             self.assertEqual(problems, [])
             entry['render']['steps'] = [step for step in entry['render']['steps']
-                                        if step['component']['path'].endswith('/tee-unofficial')]
+                                        if step.get('component', {}).get('path') != 'src/cix-v1.2/stmm-unofficial']
             validate_cix_source(ROOT, entry, problems)
             self.assertEqual(len(problems), 1)
             self.assertIn('hybrid StandaloneMM component is not selected', problems[0])
