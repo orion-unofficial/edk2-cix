@@ -181,6 +181,10 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
         for ref in ("source/base/edk2/edk2-stable202208", "source/unofficial/edk2-stable202208", "source/unofficial/1.3/current"):
             git(self.repo, "branch", ref, self.source)
         policy = json.loads((ROOT / "config/policies.json").read_text())
+        # This small fixture provides the 1.3.1 vendor tree. The real
+        # default profile and the 1.3.2 replay render are tested separately.
+        upstream = policy["firmware_profile_policy"]["profiles"]["upstream"]
+        upstream.update(release="edk2-202208/radxa-1.3.1", replay_version="1.3.1")
         policy["unofficial_source_policy"] = {
             "default_line": "1.3",
             "lines": {"1.3": {
@@ -300,6 +304,8 @@ class SupportedReleaseTreeTests(unittest.TestCase):
             objects = git(ROOT, "rev-parse", "--path-format=absolute", "--git-path", "objects").stdout.strip()
             write_file(repo, ".git/objects/info/alternates", objects + "\n")
             shutil.copytree(ROOT / "config", repo / "config")
+            # The newest replay imports its validation inputs from build HEAD.
+            git(repo, "update-ref", "refs/heads/test", rev_parse(ROOT, "HEAD"))
             rendered = {}
             for ref, entry in upstream.items():
                 with self.subTest(target=ref):
@@ -310,6 +316,7 @@ class SupportedReleaseTreeTests(unittest.TestCase):
                         inputs.extend(step["overlay_paths"]["ref"] for step in plan["steps"] if "overlay_paths" in step)
                         for source in inputs:
                             git(repo, "update-ref", f"refs/heads/{source}", rev_parse(ROOT, source))
+                        clear_metadata_caches()
                         rendered[key] = tree_id(repo, render_from_plan(repo, ref, entry, verbose=False))
                     self.assertEqual(rendered[key], entry["tree_id"])
 

@@ -6,6 +6,7 @@ import subprocess
 import unittest
 
 from debug_build_policy import preflight, fd_size
+from radxa13_fdf import canonical_fdf
 from reconstruction_common import unofficial_firmware_refs, show_file
 from validate_release_inputs import source_fdf
 
@@ -35,16 +36,25 @@ class DebugPreflightTests(unittest.TestCase):
                 self.check(mask=mask, force="1")
 
     def test_custom_release_uses_existing_slot_headroom_without_moving_flash(self):
-        ref = "source/unofficial/1.3/current"
-        for board in ("O6", "O6N"):
-            imported = show_file(ROOT, ref, f"src/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.fdf").decode().replace("\r\n", "\n")
-            self.assertEqual(source_fdf(ROOT, ref, board),
-                             imported.replace("0x001f2000", "0x001f4000").replace("0x1f2\n", "0x1f4\n"))
-            report = self.check(ref, board=board)
-            self.assertEqual(report["fd_size"], 0x1F4000)
-            self.assertEqual(report["bootloader3_slot"], 0x1F9000)
-            self.assertEqual(source_fdf(ROOT, ref, board, True), source_fdf(ROOT, ref, board))
-            self.assertEqual(self.check(ref, board=board, experimental=True)["fd_size"], 0x1F4000)
+        cases = (
+            ("source/unofficial/history/1.3.1/edk2-stable202608", "1.3.1", 0x1F4000, 0x1F9000),
+            ("source/unofficial/1.3.2/edk2-stable202208", "1.3.2", 0x220000, 0x229000),
+            ("source/unofficial/1.3/current", "1.3.2", 0x220000, 0x229000),
+        )
+        for ref, release, fd, slot in cases:
+            for board in ("O6", "O6N"):
+                with self.subTest(ref=ref, board=board):
+                    imported = show_file(ROOT, ref, f"src/edk2-platforms/Platform/Radxa/Orion/{board}/{board}.fdf")
+                    if release == "1.3.1":
+                        expected = imported.decode().replace("\r\n", "\n").replace(
+                            "0x001f2000", "0x001f4000").replace("0x1f2\n", "0x1f4\n")
+                    else:
+                        expected = canonical_fdf(imported, radxa=release).decode()
+                    for experimental in (False, True):
+                        self.assertEqual(source_fdf(ROOT, ref, board, experimental), expected)
+                        report = self.check(ref, board=board, experimental=experimental)
+                        self.assertEqual(report["fd_size"], fd)
+                        self.assertEqual(report["bootloader3_slot"], slot)
 
     def test_masks_compile_without_size_predictions_or_force(self):
         self.assertEqual(self.check(target="DEBUG")["experimental_reasons"], [])

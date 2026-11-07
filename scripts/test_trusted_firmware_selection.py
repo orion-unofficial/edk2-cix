@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 from build_profiles import resolve_profile
-from reconstruction_common import release_entry, resolve_ref, show_file, unofficial_component_steps, unofficial_firmware_refs, unofficial_checkpoints_by_edk2
+from reconstruction_common import NATIVE_STMM_CHECKPOINT_TARGET, release_entry, resolve_ref, show_file, unofficial_component_steps, unofficial_firmware_refs, unofficial_checkpoints_by_edk2
 from validate_build_variables import validate_cix_source
 
 
@@ -20,9 +20,9 @@ REF = os.environ.get('SOURCE_TEST_REF', 'source/unofficial/1.3/current')
 
 class TrustedSelectionTests(unittest.TestCase):
     def test_hybrid_preflight_requires_the_rendered_component(self):
-        entry = {'source_ref': REF, 'radxa_release': '1.3.1',
-                 'render': {'steps': unofficial_component_steps(ROOT, REF)}}
-        with patch.dict(os.environ, CIX_RELEASE='unofficial', STMM='unofficial'):
+        _, entry = release_entry(ROOT, NATIVE_STMM_CHECKPOINT_TARGET, require=True)
+        with patch.dict(os.environ, CIX_RELEASE='unofficial', STMM='unofficial',
+                        FIRMWARE_BOARD='O6', FIRMWARE_TARGET='RELEASE'):
             problems = []
             validate_cix_source(ROOT, entry, problems)
             self.assertEqual(problems, [])
@@ -31,6 +31,12 @@ class TrustedSelectionTests(unittest.TestCase):
             validate_cix_source(ROOT, entry, problems)
             self.assertEqual(len(problems), 1)
             self.assertIn('hybrid StandaloneMM component is not selected', problems[0])
+
+            _, current = release_entry(ROOT, 'edk2-202608/radxa-1.3.2/unofficial', require=True)
+            problems = []
+            validate_cix_source(ROOT, current, problems)
+            self.assertEqual(len(problems), 1)
+            self.assertIn('native StandaloneMM requires EDK2 202608, Radxa 1.3.1', problems[0])
 
     def test_both_integrated_releases_accept_hybrid_and_old_bases_reject_it(self):
         with patch.dict(os.environ, CIX_RELEASE='unofficial', STMM='unofficial'):
