@@ -110,6 +110,14 @@ print('fixture helper: ' + script, file=sys.stderr)
                     self.assertFalse((repo / ".cache/delegated").exists())
                     self.assertEqual(fixture_source_state(repo), before)
 
+    def test_stock_replay_keeps_its_host_cache_namespace(self):
+        text = (REPO_ROOT / 'Makefile').read_text()
+        replay = text.split('\ndeterministic-replay:\n', 1)[1].split('\ninstall:\n', 1)[0]
+        self.assertIn('FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro"', replay)
+        self.assertIn('FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"', replay)
+        self.assertNotIn('/hostcache/', replay)
+        self.assertNotIn('$$container_cache_root', replay)
+
     def test_targetless_make_dispatches_the_upstream_profile(self) -> None:
         result = subprocess.run(
             ["make", "--no-print-directory", "FIRST_OUTPUT_PROBE=1"],

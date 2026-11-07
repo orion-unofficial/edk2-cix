@@ -658,8 +658,8 @@ deterministic-replay:
 		CCACHE_DIR="/hosttmp/ccache" \
 		CCACHE_WRAPPER_ROOT="/hosttmp/ccache-toolchain" \
 		CIX_RELEASE_CACHE_ROOT="/hosttmp/cix-release" \
-		FIPTOOL_DISTRO_STAMP="$$container_cache_root/fiptool/.buildbox-distro" \
-		FIRMWARE_VALIDATION_REPORT_ROOT="/hostcache/build-validation" \
+		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation" \
 		DETERMINISTIC_REPLAY_ROOT="$$cache_root/buildbox/replay/$$replay_key" \
 		DETERMINISTIC_REPLAY_MOUNT_ROOT="$$cache_root/buildbox" \
 		REPLAY_VERSION="$$replay_version" \
