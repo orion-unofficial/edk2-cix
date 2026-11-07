@@ -17,6 +17,7 @@ host_tmpdir="${host_tmpdir%/}"
 if [[ -z "$host_tmpdir" ]]; then
     host_tmpdir="${repo_root}/.buildbox/tmp"
 fi
+host_output_root="${EDK2_CIX_HOST_OUTPUT_ROOT:-}"
 verbose="${EDK2_CIX_VERBOSE:-0}"
 buildbox_name_prefix="edk2-cix-buildbox"
 buildbox_name_file="${EDK2_CIX_BUILDBOX_NAME_FILE:-${repo_root}/.buildbox/buildbox-name}"
@@ -228,6 +229,7 @@ prepare_container_mounts() {
     host_git_repo_usable=0
     record_bind_mount "$host_workspace_root" "$workspace_path"
     record_bind_mount "$infra_root" /build-infra ro
+    record_bind_mount "$host_output_root" /hostcache
     record_bind_mount "$host_tmpdir" "$container_tmpdir"
 
     if ! git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -613,6 +615,9 @@ if ! runtime image inspect "$container_image" >/dev/null 2>&1; then
 fi
 mkdir -p "$host_tmpdir"
 host_tmpdir="$(cd "$host_tmpdir" && pwd -P)"
+host_output_root="${host_output_root:-$host_tmpdir}"
+mkdir -p "$host_output_root"
+host_output_root="$(cd "$host_output_root" && pwd -P)"
 prepare_container_mounts
 ensure_container
 verify_workspace

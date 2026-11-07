@@ -571,6 +571,7 @@ define run_release_make
 	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(1) $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox CCACHE_DIR=$$container_cache_root/ccache"; fi; \
 	EDK2_CIX_FIRMWARE_ROOT="$$wt" \
 	EDK2_CIX_HOST_TMPDIR="$$cache_root/buildbox" \
+	EDK2_CIX_HOST_OUTPUT_ROOT="$$cache_root" \
 	EDK2_CIX_BUILD_LOCK_ROOT="$$cache_root/buildbox/locks" \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
 	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
@@ -582,9 +583,9 @@ define run_release_make
 		CCACHE_DIR="$$container_cache_root/ccache" \
 		CCACHE_WRAPPER_ROOT="$$container_cache_root/ccache-toolchain" \
 		CIX_RELEASE_CACHE_ROOT="$$container_cache_root/cix-release" \
-		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
-		BUILD_LOG_ROOT="$$cache_root/build-logs" \
-		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"; \
+		FIPTOOL_DISTRO_STAMP="$$container_cache_root/fiptool/.buildbox-distro" \
+		BUILD_LOG_ROOT="/hostcache/build-logs" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="/hostcache/build-validation"; \
 	$(call check_bootloader1,outputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	$(call check_firmware_chain,outputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
@@ -657,8 +658,8 @@ deterministic-replay:
 		CCACHE_DIR="/hosttmp/ccache" \
 		CCACHE_WRAPPER_ROOT="/hosttmp/ccache-toolchain" \
 		CIX_RELEASE_CACHE_ROOT="/hosttmp/cix-release" \
-		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
-		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation" \
+		FIPTOOL_DISTRO_STAMP="$$container_cache_root/fiptool/.buildbox-distro" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="/hostcache/build-validation" \
 		DETERMINISTIC_REPLAY_ROOT="$$cache_root/buildbox/replay/$$replay_key" \
 		DETERMINISTIC_REPLAY_MOUNT_ROOT="$$cache_root/buildbox" \
 		REPLAY_VERSION="$$replay_version" \
@@ -695,6 +696,7 @@ install:
 	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt buildbox-firmware-stage $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox CCACHE_DIR=$$container_cache_root/ccache"; fi; \
 	EDK2_CIX_FIRMWARE_ROOT="$$wt" \
 	EDK2_CIX_HOST_TMPDIR="$$cache_root/buildbox" \
+	EDK2_CIX_HOST_OUTPUT_ROOT="$$cache_root" \
 	EDK2_CIX_BUILD_LOCK_ROOT="$$cache_root/buildbox/locks" \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
 	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
@@ -706,9 +708,9 @@ install:
 		CCACHE_DIR="$$container_cache_root/ccache" \
 		CCACHE_WRAPPER_ROOT="$$container_cache_root/ccache-toolchain" \
 		CIX_RELEASE_CACHE_ROOT="$$container_cache_root/cix-release" \
-		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
-		BUILD_LOG_ROOT="$$cache_root/build-logs" \
-		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"; \
+		FIPTOOL_DISTRO_STAMP="$$container_cache_root/fiptool/.buildbox-distro" \
+		BUILD_LOG_ROOT="/hostcache/build-logs" \
+		FIRMWARE_VALIDATION_REPORT_ROOT="/hostcache/build-validation"; \
 	$(call check_bootloader1,outputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	$(call check_firmware_chain,outputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \

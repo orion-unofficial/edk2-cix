@@ -39,7 +39,10 @@ class BuildboxRuntimeTests(unittest.TestCase):
             ("linux podman only", None, 0, "", "podman", "", "Linux"),
             ("linux docker info fails", 1, 0, "", "podman", "falling back to podman", "Linux"),
         )
-        implementations = {}
+        central_runner = (ROOT / "scripts/run_in_buildbox.sh").read_bytes()
+        central_helper = (ROOT / "scripts/default_container_runtimes.sh").read_bytes()
+        central_digest = hashlib.sha256(central_runner + b"\0" + central_helper).hexdigest()
+        implementations = {central_digest: ('build', central_runner.decode(), central_helper)}
         for ref in refs:
             runner = show_file(ROOT, ref, "scripts/run_in_buildbox.sh")
             helper = show_file(ROOT, ref, "scripts/default_container_runtimes.sh")
