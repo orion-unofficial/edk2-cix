@@ -35,7 +35,9 @@ does not replace or reinterpret them.
 A targetless `make` uses the `upstream` profile. It rebuilds the latest
 published Radxa release from its exact EDK2 202208 source target and recorded
 replay data, then compares the rebuilt payload byte-for-byte with the published
-package. The current default is Radxa `1.3.2` for O6:
+package. The default release follows
+`firmware_profile_policy.profiles.upstream.replay_version` in
+`config/policies.json`. Run `make help` to display its value for O6:
 
 ```bash
 make
@@ -61,8 +63,8 @@ make PROFILE=latest
 make PROFILE=latest FIRMWARE_BOARD=O6N
 ```
 
-This currently selects EDK2 `202608` and Radxa `1.3.2`, retaining the
-matching vendor-signed BL1, BL31 and OP-TEE payloads. It uses the project's custom-capable build path, but
+This follows `unofficial_source_policy.lines[default_line]` in
+`config/policies.json`, retaining the matching vendor-signed BL1, BL31 and OP-TEE payloads. It uses the project's custom-capable build path, but
 keeps `ENABLE_FIRMWARE_FIXES=false`; the result is an uplifted current-source
 build and is not expected to match the published 202208-based Radxa image
 byte-for-byte. Enable the opinionated fixes separately:
@@ -148,12 +150,12 @@ make deterministic-replay FIRMWARE_BOARD=O6
 make deterministic-replay FIRMWARE_BOARD=O6N
 ```
 
-By default, this renders the exact `edk2-202208/radxa-1.3.2` upstream source
-target, downloads the matching `1.3.2` release package from
+By default, this reads the upstream replay version from `config/policies.json`,
+renders `edk2-202208/radxa-<version>`, and downloads its release package from
 `radxa-pkg/edk2-cix`, and delegates to the rendered firmware tree's strict
 byte-identical replay target. To replay a package you already have, pass
-`REPLAY_INPUT=/path/to/edk2-cix_1.3.2_all.deb`; for a raw
-`cix_flash_all.bin`, also pass `REPLAY_BUILD_OPTIONS=/path/to/BuildOptions`
+`REPLAY_INPUT=/path/to/edk2-cix_<version>_all.deb` and set `REPLAY_VERSION=<version>`
+when selecting an older release. For a raw `cix_flash_all.bin`, also pass `REPLAY_BUILD_OPTIONS=/path/to/BuildOptions`
 when available.
 
 The replay-capable EDK2 202208 source records timestamp, certificate, package,
@@ -177,7 +179,7 @@ The minimum maintained scope is:
 | Build mode | EDK2 | Radxa |
 | --- | --- | --- |
 | Stock upstream / exact replay | 202208 | 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.3.0, 1.3.1, 1.3.2 |
-| Custom `/unofficial` | 202208 and latest maintained (currently 202608) | 1.2.4 and current maintained (currently 1.3.2) |
+| Custom `/unofficial` | Baseline and maintained EDK2 selections from policy | Retained baseline and maintained Radxa selections from policy |
 
 Each stock target uses the matching `source/vendor/radxa/<version>/edk2-stable202208`
 ref. Its 202208 `/unofficial` counterpart adds our source changes to that exact

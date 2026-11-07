@@ -177,7 +177,8 @@ Select the version component used for the rendered firmware validation profile.
 When `REPLAY_INPUT` is unset and the wrapper downloads a release package, the
 resolved release tag overrides this value for that run.
 
-Default: `1.3.1`
+Default: `firmware_profile_policy.profiles.upstream.replay_version` in
+`config/policies.json`. Run `make help-vars` to display the selected version.
 
 ### `REPLAY_BUILD_OPTIONS=<path>`
 

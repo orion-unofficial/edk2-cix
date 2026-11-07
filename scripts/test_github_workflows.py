@@ -192,10 +192,10 @@ class GitHubWorkflowTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertEqual(text.count("default: edk2-202208/radxa-1.3.2"), 2)
-        self.assertEqual(text.count("default: 1.3.2"), 2)
-        self.assertIn("inputs.replay_source_target || 'edk2-202208/radxa-1.3.2'", text)
-        self.assertIn("inputs.replay_version || '1.3.2'", text)
+        self.assertIn("scripts/build_profiles.py --profile upstream --field replay_version", text)
+        self.assertIn('source_target="${REPLAY_SOURCE_TARGET:-edk2-202208/radxa-$replay_version}"', text)
+        self.assertIn('RELEASE="${{ needs.resolve-release.outputs.source_target }}"', text)
+        self.assertNotIn("1.3.2", text)
         self.assertNotIn("unofficial-1.2.1", text)
 
     def test_deterministic_replay_validates_once_and_collects_its_reports(self) -> None:

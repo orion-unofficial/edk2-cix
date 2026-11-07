@@ -97,7 +97,9 @@ REPLAY_DOWNLOAD ?= 1
 REPLAY_INPUT ?=
 REPLAY_BUILD_OPTIONS ?=
 REPLAY_BUILD_DATE ?=
-REPLAY_VERSION ?= 1.3.2
+# Load these small policy fields once, only when a consuming target needs them.
+POLICY_RELEASE_DEFAULTS = $(eval POLICY_RELEASE_DEFAULTS := $(shell $(PYTHON) scripts/build_profiles.py --print-policy-defaults))$(POLICY_RELEASE_DEFAULTS)
+REPLAY_VERSION ?= $(word 1,$(POLICY_RELEASE_DEFAULTS))
 DOCS_BUILD_MODE ?= auto
 CONFLICT_PATHS ?=
 CONFLICT_EDITOR ?=
@@ -179,8 +181,8 @@ help:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	printf '%s\n' 'edk2-cix firmware build targets'; \
 	print_section 'Build Targets'; \
-	print_help_line 'make' 'Rebuild and byte-compare the latest published Radxa firmware. Currently: Radxa 1.3.1 for O6.'; \
-	print_help_line 'make PROFILE=latest' 'Build from the latest maintained EDK2/Radxa source stack. Opinionated fixes remain disabled unless ENABLE_FIRMWARE_FIXES=true is also set.'; \
+	print_help_line 'make' 'Rebuild and byte-compare the latest published Radxa firmware. Policy default: Radxa $(word 1,$(POLICY_RELEASE_DEFAULTS)) for O6.'; \
+	print_help_line 'make PROFILE=latest' 'Build from the maintained EDK2 $(word 2,$(POLICY_RELEASE_DEFAULTS))/Radxa $(word 3,$(POLICY_RELEASE_DEFAULTS)) source stack. Opinionated fixes remain disabled unless ENABLE_FIRMWARE_FIXES=true is also set.'; \
 	print_help_line 'make build' 'Build one firmware image in buildbox for the selected board and source target.'; \
 	print_help_line 'make deterministic-replay' 'Render the replay-capable vendor source target and run byte-identical replay for the selected board.'; \
 	print_help_line 'make install' 'Build one firmware payload in buildbox, safety-check it on the local host, then install it for the selected board and source target.'; \
@@ -206,7 +208,7 @@ help:
 help-vars:
 	@$(PRINT_HELP_SHELL_PROLOGUE); \
 	print_section 'Common Build Variables'; \
-	print_help_line 'PROFILE=upstream|latest' 'Select the high-level behavior of a targetless make invocation. upstream performs an exact replay of the latest published Radxa release; latest builds the latest maintained source stack with firmware fixes disabled by default.\nDefault: upstream.'; \
+	print_help_line 'PROFILE=upstream|latest' 'Select the high-level behavior of a targetless make invocation. upstream replays Radxa $(word 1,$(POLICY_RELEASE_DEFAULTS)); latest builds maintained EDK2 $(word 2,$(POLICY_RELEASE_DEFAULTS))/Radxa $(word 3,$(POLICY_RELEASE_DEFAULTS)) with firmware fixes disabled by default.\nDefault: upstream.'; \
 	print_help_line 'RELEASE=<source-target>' "Select a configured firmware source target.\nUse names from 'make help-source-targets' or a full source/cache/release/... branch name.\nSource: selected EDK2 and Radxa release, plus custom changes. Matching vendor-signed early-boot payloads are retained."; \
 	print_help_note 'See make help-source-targets for the available and default source targets.'; \
 	print_help_line 'FIRMWARE_BOARD=O6|O6N' 'Select the firmware board.\nDefault: O6.'; \
@@ -238,7 +240,7 @@ help-vars:
 	print_help_line 'REPLAY_DOWNLOAD=0|1' 'When REPLAY_INPUT is unset, download the REPLAY_VERSION package before replay. Set to 0 to reuse an existing rendered replay cache instead.\nDefault: 1.'; \
 	print_help_line 'REPLAY_BUILD_OPTIONS=<path>' 'BuildOptions file used when REPLAY_INPUT points directly at cix_flash_all.bin.\nDefault: unset.'; \
 	print_help_line 'REPLAY_BUILD_DATE=<iso8601>' 'Fallback build timestamp when replay inputs do not include BuildOptions.\nDefault: unset.'; \
-	print_help_line 'REPLAY_VERSION=<version>' 'Release tag, exact upstream Radxa source version, and replay validation profile passed to the rendered firmware tree.\nDefault: 1.3.2.'; \
+	print_help_line 'REPLAY_VERSION=<version>' 'Release tag, exact upstream Radxa source version, and replay validation profile passed to the rendered firmware tree.\nPolicy default: $(word 1,$(POLICY_RELEASE_DEFAULTS)).'; \
 	print_section 'Install Variables'; \
 	print_help_line 'INSTALL_ROOT=<path>' 'Firmware install root.\nDefault: /boot/efi.'; \
 	print_help_line 'FORCE=0|1' 'Allow make install to replace existing firmware payload files beneath INSTALL_ROOT after the pre-install safety checks pass.\nDefault: 0.'; \

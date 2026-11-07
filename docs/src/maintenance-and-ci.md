@@ -15,9 +15,9 @@ classifier; unknown or firmware-affecting paths run all of these gates:
 - source-model tests, lint, and minimised-clone reconstruction;
 - overlay, symlink, and required build-fix checks across every retained
   Unofficial checkpoint;
-- the primary `edk2-{202208,202608}/radxa-{1.2.4,1.3.1}/unofficial`
-  targets through public `make build`, with fixes off/on and experimental
-  menus off/on (RELEASE, Trixie, vendor early-boot payloads retained): 16 O6
+- the primary custom targets selected by `firmware_qualification_policy`
+  and the maintained `unofficial_source_policy` line through public `make build`,
+  with fixes off/on and experimental menus off/on (RELEASE, Trixie, vendor early-boot payloads retained): 16 O6
   builds and 16 O6N builds;
 - additional O6 builds of the baseline and latest EDK2/Radxa 1.2.4 targets
   with `CIX_RELEASE=1.2`, checking each packaged 8 MiB image and
@@ -31,7 +31,7 @@ classifier; unknown or firmware-affecting paths run all of these gates:
 
 `firmware_qualification_policy` keeps EDK2 202208 and Radxa 1.2.4 as fixed custom
 baselines. The other custom axis values come from the deliberately selected
-`unofficial_source_policy` line, currently EDK2 202608 and Radxa 1.3.2. Promotion
+`unofficial_source_policy` line. Promotion
 therefore changes the required four pairs together; missing source integrations
 fail matrix enumeration. It does not automatically promote discovered tags.
 The stock replay list is cumulative: add the promoted Radxa release and its

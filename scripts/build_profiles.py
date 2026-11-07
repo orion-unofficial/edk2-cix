@@ -34,6 +34,7 @@ SHELL_FIELDS = {
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--repo-root", type=Path)
+    p.add_argument("--print-policy-defaults", action="store_true", help="Print stock replay, maintained EDK2 and maintained Radxa versions")
     p.add_argument("--profile", default=os.environ.get("PROFILE", ""))
     p.add_argument("--release", default=os.environ.get("RELEASE", ""))
     p.add_argument("--artefact-mode", default=os.environ.get("ARTEFACT_MODE_OVERRIDE", ""))
@@ -73,6 +74,8 @@ def resolve_profile(
         "cix_early_boot_release": str(configured.get("cix_early_boot_release") or ""),
         "replay_version": str(configured.get("replay_version", "")),
     }
+    if result["build_kind"] == "deterministic-replay" and result["replay_version"]:
+        result["release"] = f"edk2-202208/radxa-{result['replay_version']}"
     if cix_release_override.strip():
         choice = cix_release_override.strip().lower().removeprefix("v")
         if choice not in {"1.2", "unofficial"}:
@@ -139,6 +142,13 @@ def resolve_profile(
 def main() -> None:
     args = parser().parse_args()
     repo = args.repo_root.resolve() if args.repo_root else repo_root(Path(__file__).resolve())
+    if args.print_policy_defaults:
+        policy = load_json(repo, "config/policies.json")
+        source = policy["unofficial_source_policy"]
+        current = source["lines"][source["default_line"]]
+        print(policy["firmware_profile_policy"]["profiles"]["upstream"]["replay_version"],
+              current["current_edk2_release"], current["current_radxa_release"])
+        return
     result = resolve_profile(
         repo,
         requested_profile=args.profile,

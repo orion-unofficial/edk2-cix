@@ -28,7 +28,6 @@
         "cix_early_boot_release": null,
         "description": "Rebuild and byte-compare the latest published Radxa firmware from its exact EDK2 202208 source and recorded replay inputs.",
         "enable_firmware_fixes": false,
-        "release": "edk2-202208/radxa-1.3.2",
         "replay_version": "1.3.2"
       }
     }

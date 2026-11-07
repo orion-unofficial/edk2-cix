@@ -16,8 +16,10 @@ make help-source-targets
 ## Build One Firmware Image
 
 The default behavior is a byte-identical rebuild of the latest published Radxa
-firmware. A targetless invocation currently replays Radxa `1.3.2` from its
-EDK2 202208 source and compares the rebuilt payload with the release package:
+firmware. The release comes from
+`firmware_profile_policy.profiles.upstream.replay_version` in
+`config/policies.json`. A targetless invocation uses its EDK2 202208 source and compares the rebuilt
+payload with the release package:
 
 ```bash
 make
@@ -32,8 +34,10 @@ make PROFILE=latest
 make PROFILE=latest ENABLE_FIRMWARE_FIXES=true
 ```
 
-The current `latest` stack uses EDK2 `202608` and Radxa `1.3.2`, retaining
-the matching vendor-signed BL1, BL31 and OP-TEE. Curated CIX V1.2 component
+The `latest` stack follows `unofficial_source_policy.lines[default_line]` in
+`config/policies.json`, retaining the matching vendor-signed BL1, BL31 and OP-TEE.
+Run `make help` to display the selected EDK2 and Radxa releases. Curated CIX V1.2
+component
 sources remain available for development, but their OEM-signed trusted FIP is
 not authorised by the vendor trust root and cannot be packaged as qualified
 flash firmware. See [certificate-chain validation](firmware-chain-validation.md).
@@ -70,27 +74,28 @@ make build \
 
 ### Maintained release families
 
-Stock upstream support covers the six published Radxa releases 1.2.1, 1.2.2,
-1.2.3, 1.2.4, 1.3.0 and 1.3.1 on their original EDK2 202208 base. Each uses its
-own `source/vendor/radxa/<version>/edk2-stable202208` input. The replay workflow
-rebuilds and byte-compares all six for both O6 and O6N. Select an older stock
-release explicitly, for example:
+Stock upstream support covers the releases listed in
+`firmware_qualification_policy.stock_radxa_releases` on their original EDK2
+202208 base. Each uses its own `source/vendor/radxa/<version>/edk2-stable202208` input. The replay workflow
+rebuilds and byte-compares each listed release for both O6 and O6N. Select an
+older stock release explicitly, for example:
 
 ```bash
 make deterministic-replay REPLAY_VERSION=1.2.4 FIRMWARE_BOARD=O6
 ```
 
-The four primary custom targets are
-`edk2-{202208,202608}/radxa-{1.2.4,1.3.1}/unofficial`. On 202208 these apply our
-changes directly to the named Radxa release. The newer EDK2 targets additionally
+The primary custom targets combine the baseline and maintained EDK2 releases
+with the retained Radxa baseline and maintained Unofficial release. These are
+selected by `firmware_qualification_policy` and `unofficial_source_policy`.
+On 202208 these apply our changes directly to the named Radxa release. The newer EDK2 targets additionally
 uplift that release. The `/unofficial` source suffix does not itself enable
 optional fixes: select `ENABLE_FIRMWARE_FIXES=true` for those.
 
 Qualification retains the 202208 and Radxa 1.2.4 baselines and follows the
 intentionally selected current EDK2/Radxa stack in `unofficial_source_policy`.
 It includes both fixes and experimental-menu states: 16 O6 builds and 16 O6N
-builds, separate from the 14 stock replays. Only O6 is currently available for
-testing on hardware. Retained historical targets outside these families do not
+builds, alongside stock replays for every listed release and board. Only O6 is
+currently available for testing on hardware. Retained historical targets outside these families do not
 inherit the ongoing CI qualification claim. The separate
 [O6 release qualification](release-qualification.md) records the completed
 historical build matrix, exact tested sources, and subsequent source corrections.
@@ -243,20 +248,21 @@ make deterministic-replay FIRMWARE_BOARD=O6
 make deterministic-replay FIRMWARE_BOARD=O6N
 ```
 
-By default, the target renders the exact upstream
-`edk2-202208/radxa-1.3.1` source target, resolves the matching
-release package from `radxa-pkg/edk2-cix`, downloads it under
+By default, the target reads the upstream replay version from
+`config/policies.json`, renders `edk2-202208/radxa-<version>`, and resolves the
+matching release package from `radxa-pkg/edk2-cix`, downloads it under
 `.cache/edk2-cix/firmware/replay/downloads/`, and delegates to the rendered
 firmware tree's `deterministic-replay` target. The rendered target extracts
 the vendor timestamps and signing certificate inputs, rebuilds
 `ARTEFACT_MODE=upstream`, compares the rebuilt payload against the release
 payload when available, and runs the strict checked-in hash validation profile.
 
-To replay a package you already downloaded, pass it explicitly:
+To replay a historical package you already downloaded, select its version explicitly:
 
 ```bash
 make deterministic-replay \
   FIRMWARE_BOARD=O6 \
+  REPLAY_VERSION=1.3.1 \
   REPLAY_INPUT=/path/to/edk2-cix_1.3.1_all.deb
 ```
 
