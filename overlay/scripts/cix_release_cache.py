@@ -262,7 +262,7 @@ def emit_shell_assignments(cache_root: Path, plan: CachePlan) -> str:
     return "\n".join(f"{name}={shlex.quote(str(value))}" for name, value in values.items())
 
 
-def update_fingerprint_stamp(path: Path, plan: CachePlan) -> None:
+def update_fingerprint_stamp(path: Path, plan: CachePlan, recipe: Path | None = None) -> None:
     """Replace the Make prerequisite only when cache inputs change."""
     content = json.dumps(
         {
@@ -270,6 +270,7 @@ def update_fingerprint_stamp(path: Path, plan: CachePlan) -> None:
             "bl31_key": plan.bl31_key,
             "tee_key": plan.tee_key,
             "cache_helper": file_fingerprint(Path(__file__)),
+            "recipe": file_fingerprint(recipe) if recipe is not None else None,
         },
         sort_keys=True,
     ) + "\n"
@@ -298,6 +299,7 @@ def main() -> int:
     parser.add_argument("--mode", choices=("release", "debug"), required=True)
     parser.add_argument("--cross-compiler", required=True)
     parser.add_argument("--host-compiler", default="cc")
+    parser.add_argument("--recipe", type=Path, help="Bind the packaging recipe in the Make prerequisite.")
     parser.add_argument("--stmm-path")
     parser.add_argument("--stmm-ffa-version", type=int, choices=(10, 12), default=10)
     parser.add_argument("--enable-tf-a-fixes", action="store_true")
@@ -319,7 +321,7 @@ def main() -> int:
     )
 
     if args.stamp is not None:
-        update_fingerprint_stamp(args.stamp, plan)
+        update_fingerprint_stamp(args.stamp, plan, args.recipe)
         return 0
 
     cache_root = Path(args.cache_root)
