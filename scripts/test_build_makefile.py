@@ -40,6 +40,9 @@ print('fixture helper: ' + script, file=sys.stderr)
         env.update(EDK2_CIX_TMP_ROOT=str(repo / ".worktrees" / "scratch"),
                    EDK2_CIX_WORKTREE_NAMESPACE="", FIXTURE_RESULT=str(repo / ".cache/delegated"),
                    FIXTURE_INSTALL_RECEIPT=str(repo / ".cache/install-intercepted"))
+        runner = repo / ".cache/buildbox-runner.sh"
+        runner.write_text('#!/bin/bash\nexec "$1" -C "$EDK2_CIX_FIRMWARE_ROOT" "${@:2}"\n')
+        runner.chmod(0o755)
         certs = repo / ".cache/certs"
         certs.mkdir()
         for name in ("trusted_key_no.crt", "nt_fw_cert.crt", "nt_fw_key.crt"):
@@ -49,16 +52,16 @@ print('fixture helper: ' + script, file=sys.stderr)
              f"PYTHON={shlex.join([sys.executable, str(dispatcher)])}",
              f"RELEASE={CUSTOM_TARGET}", f"REPLAY_SOURCE_TARGET={UPSTREAM_TARGET}",
              "REPLAY_DOWNLOAD=0", "REPLAY_INPUT=", f"FIXTURE_EXIT={exit_code}",
-             f"SIGNING_CERT_SOURCE_DIR={certs}", f"INSTALL_ROOT={repo / '.cache/never-install'}"],
+             f"BUILDBOX_RUNNER={runner}", f"SIGNING_CERT_SOURCE_DIR={certs}", f"INSTALL_ROOT={repo / '.cache/never-install'}"],
             cwd=repo, env=env, capture_output=True, text=True,
         )
 
     def test_public_make_render_capture_paths_at_both_verbosity_levels(self):
-        goals = {"build": "buildbox-firmware-build", "build-all": "build-all",
-                 "zip": "buildbox-zip", "targz": "buildbox-targz",
-                 "buildbox-firmware-build": "buildbox-firmware-build",
-                 "buildbox-firmware-stage": "buildbox-firmware-stage",
-                 "install": "buildbox-firmware-stage", "deterministic-replay": "deterministic-replay"}
+        goals = {"build": "firmware-build", "build-all": "build-all",
+                 "zip": "zip", "targz": "targz",
+                 "buildbox-firmware-build": "firmware-build",
+                 "buildbox-firmware-stage": "firmware-stage",
+                 "install": "firmware-stage", "deterministic-replay": "deterministic-replay"}
         for verbose in ("0", "1"):
             for target, delegated_goal in goals.items():
                 with self.subTest(target=target, verbose=verbose), rendering_fixture() as repo:

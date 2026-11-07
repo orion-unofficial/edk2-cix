@@ -54,8 +54,8 @@ def rendering_fixture():
         write_file(repo, "debian/changelog", "edk2-cix (1.3.1) main; urgency=medium\n")
         write_file(repo, "src/Makefile", "\t\t\tupstream) \\\n\t\t\t\t;; \\\n")
         write_file(repo, "scripts/ensure_build_deps.sh", "    python3\n")
-        write_file(repo, "Makefile", """.PHONY: buildbox-firmware-build build-all buildbox-zip buildbox-targz buildbox-firmware-stage deterministic-replay
-buildbox-firmware-build build-all buildbox-zip buildbox-targz buildbox-firmware-stage deterministic-replay:
+        write_file(repo, "Makefile", """.PHONY: firmware-build firmware-stage zip targz buildbox-firmware-build build-all buildbox-zip buildbox-targz buildbox-firmware-stage deterministic-replay
+firmware-build firmware-stage zip targz buildbox-firmware-build build-all buildbox-zip buildbox-targz buildbox-firmware-stage deterministic-replay:
 \t@printf '%s\\n' '$(CURDIR)' '$(MAKECMDGOALS)' '$(V)' '$(SIGNING_CERT_SOURCE_DIR)' > "$(FIXTURE_RESULT)"
 \t@printf 'fixture delegate stderr\\n' >&2
 \t@exit $(FIXTURE_EXIT)

@@ -551,6 +551,8 @@ define check_firmware_chain
 $(if $(filter custom,$(3)),$(PYTHON) scripts/validate_firmware_chain.py --worktree "$$wt" --phase "$(1)" --build-target "$(2)" --artefact-mode "$(3)" --cix-release "$(4)" --board "$(FIRMWARE_BOARD)" --firmware-target "$(FIRMWARE_TARGET)" --allow-large-bl33 "$(or $(DEBUG_ALLOW_LARGE_IMAGE),0)",:)
 endef
 
+BUILDBOX_RUNNER ?= scripts/run_in_buildbox.sh
+
 define run_release_make
 	@set -e; \
 	printf '[build] Resolving source target for %s\n' "$(1)" >&2; \
@@ -571,8 +573,9 @@ define run_release_make
 	EDK2_CIX_HOST_TMPDIR="$$cache_root/buildbox" \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
 	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
+	EDK2_CIX_FIRMWARE_DISTRO="$(or $(FIRMWARE_DISTRO),trixie)" \
 	EDK2_CIX_BUILDBOX_IMAGE="$(if $(BUILDBOX_IMAGE),$(BUILDBOX_IMAGE),mcr.microsoft.com/devcontainers/base:$(or $(FIRMWARE_DISTRO),trixie))" \
-	scripts/run_in_buildbox.sh $(MAKE) --no-print-directory $(patsubst buildbox-%,%,$(1)) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
+	$(BUILDBOX_RUNNER) $(MAKE) --no-print-directory $(patsubst buildbox-%,%,$(1)) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
 		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox" \
 		BUILDBOX_CONTAINER_TMPDIR="$$container_cache_root" \
 		CCACHE_DIR="$$container_cache_root/ccache" \
@@ -689,8 +692,13 @@ install:
 	container_cache_root="/hosttmp"; \
 	printf '[build] Starting buildbox-firmware-stage: board=%s target=%s release=%s\n' "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
 	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt buildbox-firmware-stage $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox CCACHE_DIR=$$container_cache_root/ccache"; fi; \
+	EDK2_CIX_FIRMWARE_ROOT="$$wt" \
+	EDK2_CIX_HOST_TMPDIR="$$cache_root/buildbox" \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
-	$(MAKE) --no-print-directory -C "$$wt" buildbox-firmware-stage $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
+	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
+	EDK2_CIX_FIRMWARE_DISTRO="$(or $(FIRMWARE_DISTRO),trixie)" \
+	EDK2_CIX_BUILDBOX_IMAGE="$(if $(BUILDBOX_IMAGE),$(BUILDBOX_IMAGE),mcr.microsoft.com/devcontainers/base:$(or $(FIRMWARE_DISTRO),trixie))" \
+	$(BUILDBOX_RUNNER) $(MAKE) --no-print-directory firmware-stage $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
 		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox" \
 		BUILDBOX_CONTAINER_TMPDIR="$$container_cache_root" \
 		CCACHE_DIR="$$container_cache_root/ccache" \

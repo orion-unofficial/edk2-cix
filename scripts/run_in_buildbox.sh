@@ -79,6 +79,7 @@ mirror_status_to_container_logs() {
         return 0
     fi
 
+    # shellcheck disable=SC2016
     runtime exec "$container_name" \
         bash -lc 'printf "%s\n" "$1" >>/proc/1/fd/1' \
         bash "[buildbox] ${message}" >/dev/null 2>&1 || true
@@ -495,6 +496,7 @@ EOF
         return 0
     fi
 
+    # shellcheck disable=SC2016
     runtime exec "${exec_args[@]}" "$container_name" \
         bash -lc '
 set -euo pipefail
@@ -543,6 +545,7 @@ ensure_container() {
     fi
 
     status "Creating container ${container_name}"
+    # shellcheck disable=SC2016
     runtime run -d \
         --name "$container_name" \
         --label "${buildbox_image_label}=${container_image}" \
@@ -618,10 +621,18 @@ status "Ensuring ${dep_profile} build dependencies are present"
 mirror_status_to_container_logs "Ensuring ${dep_profile} build dependencies are present"
 runtime_exec_command 1 \
     -e "EDK2_CIX_VERBOSE=${verbose}" \
+    -e "EDK2_CIX_ACPICA_CACHE_ROOT=${container_tmpdir}/acpica" \
     -w "$workspace_path" \
     -- \
     bash /build-infra/scripts/ensure_build_deps.sh --profile "$dep_profile"
 ensure_git_safe_directory
+
+if [[ -n "${EDK2_CIX_FIRMWARE_DISTRO:-}" ]]; then
+    python3 "${script_dir}/buildbox_fiptool_state.py" --prepare \
+        --build-dir "${repo_root}/src/tools/arm-trusted-firmware-fiptool/build" \
+        --stamp-path "${host_tmpdir}/fiptool/.buildbox-distro" \
+        --requested-distro "$EDK2_CIX_FIRMWARE_DISTRO"
+fi
 
 if [[ "$verbose" == "1" ]]; then
     status "Running in ${container_name}: $*"
@@ -633,7 +644,13 @@ fi
 runtime_exec_command 1 \
     -e "EDK2_CIX_REPO_LOCK_HELD=${EDK2_CIX_REPO_LOCK_HELD:-}" \
     -e "EDK2_CIX_HOST_OS=${host_os}" \
+    -e EDK2_CIX_IN_BUILDBOX=1 \
     -e "EDK2_CIX_VERBOSE=${verbose}" \
     -w "$workspace_path" \
     -- \
     "$@"
+
+if [[ -n "${EDK2_CIX_FIRMWARE_DISTRO:-}" ]]; then
+    mkdir -p "${host_tmpdir}/fiptool"
+    printf '%s\n' "$EDK2_CIX_FIRMWARE_DISTRO" >"${host_tmpdir}/fiptool/.buildbox-distro"
+fi
