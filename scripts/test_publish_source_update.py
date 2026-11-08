@@ -29,6 +29,41 @@ from test_support import commit_all, git, run, write_file
 
 
 class PublishSourceUpdateTests(unittest.TestCase):
+    def test_new_ref_creation_race_fails_the_entire_atomic_publication(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, remote = root / "repo", root / "remote.git"
+            git(root, "init", "-q", "--bare", str(remote))
+            git(root, "init", "-q", "-b", "build", str(repo))
+            git(repo, "config", "user.name", "Publication Test")
+            git(repo, "config", "user.email", "publication-test")
+            write_file(repo, "config/refs-cix.json", json.dumps({"refs": []}))
+            old_build = commit_all(repo, "published build")
+            git(repo, "remote", "add", "origin", str(remote))
+            git(repo, "push", "-q", "origin", "build")
+            write_file(repo, "component.txt", "reviewed source\n")
+            source = commit_all(repo, "new source")
+            ref = "source/unofficial/stmm/integration-v1"
+            git(repo, "branch", ref, source)
+            write_file(repo, "config/refs-cix.json", json.dumps({"refs": [{
+                "ref": ref, "immutable": False, "object_id": source,
+                "tree_id": git(repo, "rev-parse", f"{source}^{{tree}}").stdout.strip(),
+            }]}))
+            commit_all(repo, "new metadata")
+
+            def concurrent_creation(*args):
+                # Even an ancestor must not silently become an accepted lease.
+                git(root, "--git-dir", str(remote), "update-ref", "refs/heads/" + ref, old_build)
+
+            with patch("publish_source_update.repo_root", return_value=repo), patch(
+                "publish_source_update.check_publication_identity", side_effect=concurrent_creation
+            ), patch("sys.argv", ["publish_source_update.py", "--write", "1"]), self.assertRaisesRegex(
+                ReconstructionError, "atomic source publication failed"
+            ):
+                main()
+            self.assertEqual(git(root, "--git-dir", str(remote), "rev-parse", "build").stdout.strip(), old_build)
+            self.assertEqual(git(root, "--git-dir", str(remote), "rev-parse", ref).stdout.strip(), old_build)
+
     def test_obsolete_remote_correction_blocks_publication_without_deleting_it(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

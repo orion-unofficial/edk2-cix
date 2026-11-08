@@ -361,8 +361,8 @@ def main() -> None:
                 not checkpoint_correction(repo, ref, remote_object, local_object, records) and
                 not component_correction(repo, ref, remote_object, local_object, records)):
             raise ReconstructionError(f"refusing to replace immutable source ref on {args.remote}: {ref}")
-        if remote_object:
-            leases.append(f"--force-with-lease={ref}:{remote_object}")
+        # An empty expectation also protects a new ref against creation races.
+        leases.append(f"--force-with-lease={ref}:{remote_object or ''}")
         refspecs.append(f"{local_object}:{ref}")
 
     if not refspecs:
