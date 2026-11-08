@@ -58,6 +58,26 @@ def script_help_case(repo: Path, script: str) -> Case:
     return Case(f"{script} --help", ("python3", script, "--help"), repo)
 
 
+def shell_cases(repo: Path) -> list[Case]:
+    runtime_fixture = Path(tempfile.mkdtemp(prefix="edk2-cix-runtime-latency-"))
+    docker = runtime_fixture / "docker"
+    docker.write_text("#!/bin/sh\nprintf '%s\\n' '{\"Server\":\"Docker\"}'\n")
+    docker.chmod(0o755)
+    return [
+        Case("scripts/default_container_runtimes.sh query", (
+            "env", f"PATH={runtime_fixture}:{os.environ.get('PATH', '')}",
+            "bash", "scripts/default_container_runtimes.sh"), repo,
+            cleanup=lambda: shutil.rmtree(runtime_fixture)),
+        Case("scripts/resolve_temp_root.sh query", ("bash", "scripts/resolve_temp_root.sh"), repo),
+        Case("scripts/ensure_build_deps.sh --help", ("bash", "scripts/ensure_build_deps.sh", "--help"), repo),
+        Case("scripts/ensure_iasl.sh --help", ("bash", "scripts/ensure_iasl.sh", "--help"), repo),
+        Case("scripts/require_host_tools.sh usage", ("bash", "scripts/require_host_tools.sh"), repo),
+        Case("scripts/with_repo_lock.sh usage", ("bash", "scripts/with_repo_lock.sh"), repo),
+        Case("scripts/run_in_buildbox.sh missing workspace", (
+            "env", "-u", "EDK2_CIX_FIRMWARE_ROOT", "bash", "scripts/run_in_buildbox.sh"), repo),
+    ]
+
+
 def copy_makefile(repo: Path, fixture: Path) -> None:
     shutil.copy2(repo / "Makefile", fixture / "Makefile")
     git(fixture, "add", "Makefile")
@@ -244,7 +264,7 @@ def cases(repo: Path) -> list[Case]:
         "docs/scripts/mdbook-admonish.py",
         "docs/scripts/validate_docs_artifacts.py",
     ]
-    return [*make_targets, *(script_help_case(repo, script) for script in script_help)]
+    return [*make_targets, *(script_help_case(repo, script) for script in script_help), *shell_cases(repo)]
 
 
 SKIPPED_PHONY_TARGETS = {
@@ -278,9 +298,9 @@ def assert_coverage(repo: Path, case_names: set[str]) -> None:
         raise ReconstructionError("first-output latency check has no case for Make target(s): " + ", ".join(missing_targets))
 
     covered_scripts = {
-        name.removesuffix(" --help")
+        name.split(" ", 1)[0]
         for name in case_names
-        if name.endswith(" --help") and name.startswith(("scripts/", "docs/scripts/"))
+        if name.startswith(("scripts/", "docs/scripts/"))
     }
     missing_scripts = sorted(executable_scripts(repo) - covered_scripts - SKIPPED_EXECUTABLE_SCRIPTS)
     if missing_scripts:
