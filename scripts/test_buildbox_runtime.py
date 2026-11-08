@@ -114,13 +114,13 @@ class NativeMakeBridgeTests(unittest.TestCase):
                'MAKEFLAGS': '-j2 -- STMM=vendor SIGNING_CERT_SOURCE_DIR=/host/firmware/certs MAKE=/host/bridge'}
         argv, selected = host_command([
             'buildbox-firmware-stage', 'FIRMWARE_DISTRO=bookworm',
-            'FIRMWARE_STAGE_ROOT=/host/firmware/.buildbox/tmp/stage with spaces'], Path('/host/firmware'), env)
+            'FIRMWARE_STAGE_ROOT=/host/firmware/.buildbox/staging/stage with spaces'], Path('/host/firmware'), env)
         self.assertEqual(selected['EDK2_CIX_BUILDBOX_IMAGE'], 'mcr.microsoft.com/devcontainers/base:bookworm')
         self.assertEqual(selected['EDK2_CIX_FIRMWARE_DISTRO'], 'bookworm')
         self.assertEqual(argv[0], '/host/build/scripts/run_in_buildbox.sh')
         self.assertEqual(argv[1], '/build-infra/scripts/make_in_buildbox.py')
         self.assertIn('SIGNING_CERT_SOURCE_DIR=/workspaces/firmware/certs', argv)
-        self.assertIn('FIRMWARE_STAGE_ROOT=/workspaces/firmware/.buildbox/tmp/stage with spaces', argv)
+        self.assertIn('FIRMWARE_STAGE_ROOT=/workspaces/firmware/.buildbox/staging/stage with spaces', argv)
         self.assertNotIn('-j2', argv)
         self.assertNotIn('MAKE=/host/bridge', argv)
 
