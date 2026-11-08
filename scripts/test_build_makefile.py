@@ -10,6 +10,7 @@ import tempfile
 from reconstruction_common import unofficial_firmware_refs, show_file
 import subprocess
 import unittest
+from unittest.mock import patch
 
 from test_render_release_branch import CUSTOM_TARGET, UPSTREAM_TARGET, fixture_source_state, rendering_fixture
 
@@ -109,6 +110,14 @@ print('fixture helper: ' + script, file=sys.stderr)
                     self.assertIn("fixture-render-failure", result.stderr)
                     self.assertFalse((repo / ".cache/delegated").exists())
                     self.assertEqual(fixture_source_state(repo), before)
+
+    def test_custom_build_preserves_spaces_in_the_host_cache_path(self):
+        with rendering_fixture() as repo:
+            cache = repo / '.cache' / 'cache with spaces'
+            with patch.dict(os.environ, FIRMWARE_CACHE_ROOT=str(cache)):
+                result = self.run_rendered_fixture(repo, 'build', '0')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((cache / 'buildbox').is_dir())
 
     def test_stock_replay_keeps_its_host_cache_namespace(self):
         text = (REPO_ROOT / 'Makefile').read_text()
