@@ -577,6 +577,7 @@ define run_release_make
 	EDK2_CIX_BUILD_LOCK_ROOT="$$cache_root/buildbox/locks" \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
 	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
+	EDK2_CIX_BUILDBOX_IMAGE_OVERRIDE="$(BUILDBOX_IMAGE)" \
 	EDK2_CIX_FIRMWARE_DISTRO="$(or $(FIRMWARE_DISTRO),trixie)" \
 	EDK2_CIX_BUILDBOX_IMAGE="$(if $(BUILDBOX_IMAGE),$(BUILDBOX_IMAGE),mcr.microsoft.com/devcontainers/base:$(or $(FIRMWARE_DISTRO),trixie))" \
 	$(BUILDBOX_RUNNER) $(MAKE) --no-print-directory $(patsubst buildbox-%,%,$(1)) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
@@ -704,6 +705,7 @@ install:
 	EDK2_CIX_BUILD_LOCK_ROOT="$$cache_root/buildbox/locks" \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
 	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
+	EDK2_CIX_BUILDBOX_IMAGE_OVERRIDE="$(BUILDBOX_IMAGE)" \
 	EDK2_CIX_FIRMWARE_DISTRO="$(or $(FIRMWARE_DISTRO),trixie)" \
 	EDK2_CIX_BUILDBOX_IMAGE="$(if $(BUILDBOX_IMAGE),$(BUILDBOX_IMAGE),mcr.microsoft.com/devcontainers/base:$(or $(FIRMWARE_DISTRO),trixie))" \
 	$(BUILDBOX_RUNNER) $(MAKE) --no-print-directory firmware-stage $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \

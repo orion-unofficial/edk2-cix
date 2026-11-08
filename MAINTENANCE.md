@@ -64,6 +64,11 @@ container lifecycle, mounts, dependency preparation and shared cache locks.
 from the orchestration checkout. The delegated command runs in that workspace;
 its Makefiles own compilation, trusted payload checks, signing and packaging.
 
+The build-owned Make bridge keeps historical variant recipes on the host and
+selects each variant's Bookworm or Trixie container separately. Recursive stage
+and cache-statistics calls execute natively inside that container. The retained
+recipes and their archive layouts remain source-owned.
+
 Shared StandaloneMM renders carry a small container compatibility entry point
 that finds the owning `build` checkout through Git. An independently exported
 firmware tree can set `EDK2_CIX_BUILD_INFRA_ROOT` explicitly. Native direct

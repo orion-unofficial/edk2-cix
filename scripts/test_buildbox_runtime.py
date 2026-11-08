@@ -9,11 +9,13 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
 
 from reconstruction_common import show_file
+from make_in_buildbox import command as native_make_command, host_command
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -102,6 +104,88 @@ class BuildboxRuntimeTests(unittest.TestCase):
                         self.assertTrue(result.stderr.startswith("[buildbox] "))
                     else:
                         self.assertEqual(result.stderr, "")
+
+
+class NativeMakeBridgeTests(unittest.TestCase):
+    def test_host_variants_select_their_own_distro_and_map_workspace_paths(self):
+        env = {'EDK2_CIX_FIRMWARE_ROOT': '/host/firmware',
+               'EDK2_CIX_VARIANT_WORKSPACE': '/workspaces/firmware',
+               'EDK2_CIX_BUILD_INFRA_ROOT': '/host/build',
+               'MAKEFLAGS': '-j2 -- STMM=vendor SIGNING_CERT_SOURCE_DIR=/host/firmware/certs MAKE=/host/bridge'}
+        argv, selected = host_command([
+            'buildbox-firmware-stage', 'FIRMWARE_DISTRO=bookworm',
+            'FIRMWARE_STAGE_ROOT=/host/firmware/.buildbox/tmp/stage with spaces'], Path('/host/firmware'), env)
+        self.assertEqual(selected['EDK2_CIX_BUILDBOX_IMAGE'], 'mcr.microsoft.com/devcontainers/base:bookworm')
+        self.assertEqual(selected['EDK2_CIX_FIRMWARE_DISTRO'], 'bookworm')
+        self.assertEqual(argv[0], '/host/build/scripts/run_in_buildbox.sh')
+        self.assertEqual(argv[1], '/build-infra/scripts/make_in_buildbox.py')
+        self.assertIn('SIGNING_CERT_SOURCE_DIR=/workspaces/firmware/certs', argv)
+        self.assertIn('FIRMWARE_STAGE_ROOT=/workspaces/firmware/.buildbox/tmp/stage with spaces', argv)
+        self.assertNotIn('-j2', argv)
+        self.assertNotIn('MAKE=/host/bridge', argv)
+
+    def test_host_variants_preserve_explicit_image_and_host_make_choices(self):
+        env = {'EDK2_CIX_FIRMWARE_ROOT': '/host/firmware',
+               'EDK2_CIX_VARIANT_WORKSPACE': '/workspaces/firmware',
+               'EDK2_CIX_BUILD_INFRA_ROOT': '/host/build',
+               'EDK2_CIX_HOST_MAKE': '/tools/gmake',
+               'EDK2_CIX_BUILDBOX_IMAGE_OVERRIDE': 'registry.example/pinned@sha256:123'}
+        self.assertEqual(host_command(['__build-all-targz'], Path('/host/firmware'), env)[0],
+                         ['/tools/gmake', '__build-all-targz'])
+        _, selected = host_command(['buildbox-firmware-stage', 'FIRMWARE_DISTRO=trixie'],
+                                   Path('/host/firmware'), env)
+        self.assertEqual(selected['EDK2_CIX_BUILDBOX_IMAGE'], env['EDK2_CIX_BUILDBOX_IMAGE_OVERRIDE'])
+
+    def test_host_cache_stats_filter_lifecycle_logs_using_the_retained_formatter(self):
+        with tempfile.TemporaryDirectory(prefix='host-variant-stats-') as directory:
+            root = Path(directory)
+            (root / 'scripts').mkdir()
+            runner = root / 'scripts/run_in_buildbox.sh'
+            runner.write_text('#!/bin/bash\nprintf "[buildbox] ready\\n{\\"cache_miss\\":3}\\n"\n')
+            runner.chmod(0o755)
+            (root / 'scripts/format_ccache_stats.py').write_bytes(show_file(
+                ROOT, 'source/unofficial/1.3.1/edk2-stable202608', 'scripts/format_ccache_stats.py'))
+            env = {key: value for key, value in os.environ.items() if key != 'EDK2_CIX_IN_BUILDBOX'}
+            env.update(EDK2_CIX_HOST_VARIANTS='1', EDK2_CIX_FIRMWARE_ROOT=str(root),
+                       EDK2_CIX_BUILD_INFRA_ROOT=str(root), EDK2_CIX_VARIANT_WORKSPACE='/workspaces/firmware')
+            argv = [sys.executable, str(ROOT / 'scripts/make_in_buildbox.py'),
+                    'buildbox-ccache-stats', 'CCACHE_STATS_FORMAT=json']
+            result = subprocess.run(argv, env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout), {'cache_miss': 3})
+
+    def test_legacy_goals_keep_flags_and_variable_arguments_exact(self):
+        args = ['-j2', 'buildbox-firmware-stage', 'CCACHE_DIR=/cache with spaces', 'STMM=vendor']
+        self.assertEqual(native_make_command(args, Path('/firmware')),
+                         ['/usr/bin/make', '-j2', 'firmware-stage', *args[2:]])
+
+    def test_legacy_json_stats_use_the_selected_firmware_helper(self):
+        args = ['-C', 'firmware', 'buildbox-ccache-stats', 'CCACHE_STATS_FORMAT=json',
+                'CCACHE_DIR=/cache with spaces', 'CCACHE_BIN=/tools/ccache']
+        self.assertEqual(native_make_command(args, Path('/workspace')), [
+            sys.executable, '/workspace/firmware/scripts/ccache_stats.py',
+            '--cache-dir', '/cache with spaces', '--ccache-bin', '/tools/ccache'])
+
+    def test_recursive_make_never_runs_the_legacy_container_target(self):
+        with tempfile.TemporaryDirectory(prefix='native-make-bridge-') as directory:
+            root = Path(directory)
+            (root / 'Makefile').write_text(
+                'all:\n\t$(MAKE) --no-print-directory buildbox-firmware-stage\n'
+                'firmware-stage:\n\t@printf native > result\n'
+                'buildbox-firmware-stage:\n\t@exit 19\n')
+            result = subprocess.run([
+                'make', '--no-print-directory', 'all', f'MAKE={ROOT}/scripts/make_in_buildbox.py'],
+                cwd=root, env={**os.environ, 'EDK2_CIX_IN_BUILDBOX': '1'}, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((root / 'result').read_text(), 'native')
+
+    def test_bridge_rejects_execution_outside_the_buildbox(self):
+        env = {key: value for key, value in os.environ.items()
+               if key not in {'EDK2_CIX_IN_BUILDBOX', 'EDK2_CIX_HOST_VARIANTS'}}
+        result = subprocess.run([sys.executable, str(ROOT / 'scripts/make_in_buildbox.py'), 'all'],
+                                env=env, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('requires the build-owned container runner', result.stderr)
 
 
 class BuildboxLockTests(unittest.TestCase):

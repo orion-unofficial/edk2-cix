@@ -519,6 +519,11 @@ runtime_exec_command() {
 EOF
         exit 2
     fi
+    case "${command_args[0]##*/}" in
+        make|gmake)
+            command_args=(/usr/bin/make "${command_args[@]:1}" "MAKE=/build-infra/scripts/make_in_buildbox.py")
+            ;;
+    esac
 
     if [[ "$mirror_logs" != "1" ]]; then
         runtime exec "${exec_args[@]}" "$container_name" "${command_args[@]}"
@@ -628,6 +633,27 @@ usage: scripts/run_in_buildbox.sh [--dep-profile firmware|packaging|replay] <com
 EOF
     exit 2
 fi
+
+# Retain release-specific variant choices, including mixed Bookworm/Trixie
+# matrices, while this checkout owns each container invocation.
+case "${1##*/}" in
+    make|gmake)
+        for buildbox_arg in "${@:2}"; do
+            case "$buildbox_arg" in
+                build-all|build-all-zip|build-all-targz)
+                    export EDK2_CIX_HOST_VARIANTS=1 EDK2_CIX_BUILD_INFRA_ROOT="$infra_root"
+                    export EDK2_CIX_VARIANT_WORKSPACE="$workspace_path"
+                    EDK2_CIX_HOST_MAKE="$(command -v "$1")"
+                    export EDK2_CIX_HOST_MAKE
+                    unset EDK2_CIX_IN_BUILDBOX
+                    mkdir -p "${repo_root}/.buildbox/tmp"
+                    cd -- "$repo_root"
+                    exec "$@" "MAKE=${script_dir}/make_in_buildbox.py"
+                    ;;
+            esac
+        done
+        ;;
+esac
 
 container_runtime="$(resolve_container_runtime)"
 container_name="$(resolve_container_name)"

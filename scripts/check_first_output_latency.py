@@ -236,6 +236,7 @@ def cases(repo: Path) -> list[Case]:
         "scripts/build_profiles.py",
         "scripts/build_stmm_qualification.py",
         "scripts/clean_cache.py",
+        "scripts/make_in_buildbox.py",
         "scripts/create_minimised_clone.py",
         "scripts/extract_vendor_delta.py",
         "scripts/help_cache.py",
