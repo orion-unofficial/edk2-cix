@@ -51,7 +51,7 @@ print('fixture helper: ' + script, file=sys.stderr)
             ["make", "--no-print-directory", target, f"V={verbose}", "FIRST_OUTPUT_PROBE=0",
              f"PYTHON={shlex.join([sys.executable, str(dispatcher)])}",
              f"RELEASE={CUSTOM_TARGET}", f"REPLAY_SOURCE_TARGET={UPSTREAM_TARGET}",
-             "REPLAY_DOWNLOAD=0", "REPLAY_INPUT=", f"FIXTURE_EXIT={exit_code}",
+             "REPLAY_DOWNLOAD=0", "REPLAY_INPUT=", "REPLAY_VERSION=1.3.1", f"FIXTURE_EXIT={exit_code}",
              f"BUILDBOX_RUNNER={runner}", f"SIGNING_CERT_SOURCE_DIR={certs}", f"INSTALL_ROOT={repo / '.cache/never-install'}"],
             cwd=repo, env=env, capture_output=True, text=True,
         )

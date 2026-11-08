@@ -133,6 +133,7 @@ class ValidateBuildVariableTests(unittest.TestCase):
             return problems
 
         with patch.dict(os.environ, {"STMM": "unofficial", "CIX_RELEASE": "unofficial"}, clear=True), \
+                patch("stmm_integration.selected", return_value=False), \
                 patch("validate_build_variables.CIX_NATIVE_SIGNING_HELPER_SHA256", signer_hash), \
                 patch.dict(CIX_STMM_HELPER_PROFILES, {signer_hash: profile}), \
                 patch("validate_build_variables.show_file", side_effect=read_file):

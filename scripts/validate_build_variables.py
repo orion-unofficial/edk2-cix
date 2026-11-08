@@ -123,7 +123,11 @@ def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
     """Advertise CIX_RELEASE only for checkpoints with the reviewed helper and keys."""
     ref = entry["source_ref"]
     from stmm_integration import selected, feature_files
-    shared = selected(repo, ref)
+    from stmm_integration import FEATURE_REF
+    available = selected(repo, ref)
+    feature_selected = any(step.get("stmm_integration", {}).get("ref") == FEATURE_REF
+                           for step in entry.get("render", {}).get("steps", []))
+    shared = available and feature_selected
     files = feature_files(repo, ref) if shared else {}
 
     def content(path):
@@ -133,11 +137,8 @@ def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
             raise ReconstructionError("STMM=unofficial requires CIX_RELEASE=unofficial")
         helper = content("src/scripts/build_cix_release_bootloader2.sh")
         makefile = content("src/Makefile")
-        if shared:
-            from stmm_integration import FEATURE_REF
-            if not any(step.get("stmm_integration", {}).get("ref") == FEATURE_REF
-                       for step in entry.get("render", {}).get("steps", [])):
-                raise ReconstructionError("shared StandaloneMM integration is not selected by this source target")
+        if available and not feature_selected and env("CIX_RELEASE").lower() == "unofficial":
+            raise ReconstructionError("shared StandaloneMM component is not selected by this source target")
         if env("CIX_RELEASE").lower() == "unofficial":
             components = [step.get("component", {}) for step in entry.get("render", {}).get("steps", [])]
             if b"tee-unofficial" not in makefile or not any(
