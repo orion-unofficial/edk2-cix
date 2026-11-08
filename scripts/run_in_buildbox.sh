@@ -31,8 +31,35 @@ container_mount_args=()
 expected_mounts=()
 host_git_repo_usable=0
 
-if [[ "${EDK2_CIX_REPO_LOCK_HELD:-0}" != "1" ]]; then
-    export EDK2_CIX_BUILD_LOCK_ROOT="${EDK2_CIX_BUILD_LOCK_ROOT:-${repo_root}/.buildbox/locks}"
+workspace_lock_root="${repo_root}/.buildbox/locks"
+requested_lock_root="${EDK2_CIX_BUILD_LOCK_ROOT:-$workspace_lock_root}"
+export EDK2_CIX_BUILDBOX_LOCK_ROOT="${EDK2_CIX_BUILDBOX_LOCK_ROOT:-$requested_lock_root}"
+mkdir -p "$workspace_lock_root" "$requested_lock_root" "$EDK2_CIX_BUILDBOX_LOCK_ROOT"
+workspace_lock_root="$(cd -- "$workspace_lock_root" && pwd -P)"
+requested_lock_root="$(cd -- "$requested_lock_root" && pwd -P)"
+EDK2_CIX_BUILDBOX_LOCK_ROOT="$(cd -- "$EDK2_CIX_BUILDBOX_LOCK_ROOT" && pwd -P)"
+if [[ "${EDK2_CIX_REPO_LOCK_HELD:-0}" == "1" && "${EDK2_CIX_WORKSPACE_LOCK_HELD:-0}" != "1" ]]; then
+    # Direct worktree callers may already hold their legacy repository lock.
+    held_lock_root="${EDK2_CIX_REPO_LOCK_ROOT:-$requested_lock_root}"
+    held_lock_root="$(cd -- "$held_lock_root" && pwd -P)"
+    if [[ "$held_lock_root" == "$workspace_lock_root" ]]; then
+        export EDK2_CIX_WORKSPACE_LOCK_HELD=1
+    elif [[ "$held_lock_root" == "$EDK2_CIX_BUILDBOX_LOCK_ROOT" ]]; then
+        export EDK2_CIX_BUILDBOX_LOCK_HELD=1
+    fi
+fi
+if [[ "${EDK2_CIX_WORKSPACE_LOCK_HELD:-0}" != "1" ]]; then
+    export EDK2_CIX_WORKSPACE_LOCK_HELD=1 EDK2_CIX_REPO_LOCK_HELD=0
+    export EDK2_CIX_BUILD_LOCK_ROOT="$workspace_lock_root"
+    # A legacy caller holding a custom cache lock must never wait in reverse order.
+    if [[ "${EDK2_CIX_BUILDBOX_LOCK_HELD:-0}" == "1" ]]; then
+        export EDK2_CIX_BUILD_LOCK_WAIT=0
+    fi
+    exec "${script_dir}/with_repo_lock.sh" "${script_dir}/run_in_buildbox.sh" "$@"
+fi
+if [[ "$EDK2_CIX_BUILDBOX_LOCK_ROOT" != "$workspace_lock_root" && "${EDK2_CIX_BUILDBOX_LOCK_HELD:-0}" != "1" ]]; then
+    export EDK2_CIX_BUILDBOX_LOCK_HELD=1 EDK2_CIX_REPO_LOCK_HELD=0
+    export EDK2_CIX_BUILD_LOCK_ROOT="$EDK2_CIX_BUILDBOX_LOCK_ROOT"
     exec "${script_dir}/with_repo_lock.sh" "${script_dir}/run_in_buildbox.sh" "$@"
 fi
 

@@ -170,4 +170,5 @@ trap 'exit 134' ABRT
 write_owner_file
 
 export EDK2_CIX_REPO_LOCK_HELD=1
+export EDK2_CIX_REPO_LOCK_ROOT="$lock_root"
 "$@"

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise source-carried buildbox runtime selection without a container daemon."""
 
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -9,6 +10,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 
 from reconstruction_common import show_file
@@ -100,6 +102,104 @@ class BuildboxRuntimeTests(unittest.TestCase):
                         self.assertTrue(result.stderr.startswith("[buildbox] "))
                     else:
                         self.assertEqual(result.stderr, "")
+
+
+class BuildboxLockTests(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory(prefix="buildbox-locks-")
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+        self.workspace = self.root / "firmware"
+        self.workspace.mkdir()
+        self.workspace_lock = self.workspace / ".buildbox/locks"
+        self.cache_lock = self.root / "cache/locks"
+        self.engine_marker = self.root / "engine-called"
+        engine = self.root / "engine"
+        engine.write_text('#!/bin/bash\nprintf called >> "$ENGINE_MARKER"\nexit 1\n')
+        engine.chmod(0o755)
+        self.env = {key: value for key, value in os.environ.items()
+                    if not key.startswith("EDK2_CIX_")}
+        self.env.update(EDK2_CIX_FIRMWARE_ROOT=str(self.workspace),
+                        EDK2_CIX_BUILD_LOCK_ROOT=str(self.cache_lock),
+                        EDK2_CIX_CONTAINER_RUNTIME=str(engine), ENGINE_MARKER=str(self.engine_marker))
+
+    @contextmanager
+    def hold(self, lock_root):
+        ready = self.root / "ready"
+        ready.unlink(missing_ok=True)
+        process = subprocess.Popen([
+            str(ROOT / 'scripts/with_repo_lock.sh'), 'bash', '-c',
+            'printf ready > "$1"; read -r line', 'hold', str(ready)],
+            env={**self.env, 'EDK2_CIX_BUILD_LOCK_ROOT': str(lock_root)},
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            deadline = time.monotonic() + 3
+            while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(ready.exists(), 'lock holder did not become ready')
+            yield
+        finally:
+            process.communicate('\n' if process.poll() is None else None, timeout=3)
+            self.assertEqual(process.returncode, 0)
+
+    def run_runner(self, **values):
+        self.engine_marker.unlink(missing_ok=True)
+        return subprocess.run([str(ROOT / 'scripts/run_in_buildbox.sh'), 'true'],
+                              env={**self.env, **values}, capture_output=True, text=True, timeout=5)
+
+    def test_build_caller_honours_an_existing_direct_worktree_lock(self):
+        with self.hold(self.workspace_lock):
+            result = self.run_runner()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Another build-related command', result.stderr)
+        self.assertFalse(self.engine_marker.exists())
+
+    def test_different_workspaces_still_honour_the_shared_cache_lock(self):
+        with self.hold(self.cache_lock):
+            result = self.run_runner()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Another build-related command', result.stderr)
+        self.assertFalse(self.engine_marker.exists())
+        self.assertFalse((self.workspace_lock / 'repo-build.lock.d').exists())
+
+    def test_a_foreign_repository_lock_does_not_bypass_the_workspace_lock(self):
+        foreign = self.root / 'other-checkout/locks'
+        foreign.mkdir(parents=True)
+        with self.hold(self.workspace_lock):
+            result = self.run_runner(EDK2_CIX_REPO_LOCK_HELD='1', EDK2_CIX_REPO_LOCK_ROOT=str(foreign))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Another build-related command', result.stderr)
+        self.assertFalse(self.engine_marker.exists())
+
+    def test_direct_worktree_caller_does_not_acquire_its_held_lock_twice(self):
+        with self.hold(self.workspace_lock):
+            result = self.run_runner(EDK2_CIX_REPO_LOCK_HELD='1',
+                                     EDK2_CIX_BUILD_LOCK_ROOT=str(self.workspace_lock) + '/.')
+        # The deliberately failing engine proves that both lock gates were passed.
+        self.assertNotEqual(result.returncode, 0)
+        self.assertTrue(self.engine_marker.exists(), result.stderr)
+        self.assertNotIn('Another build-related command', result.stderr)
+
+    def test_legacy_custom_cache_lock_cannot_wait_in_reverse_order(self):
+        with self.hold(self.workspace_lock):
+            # A second holder needs a distinct readiness marker.
+            other = self.root / 'cache-ready'
+            process = subprocess.Popen([
+                str(ROOT / 'scripts/with_repo_lock.sh'), 'bash', '-c',
+                'printf ready > "$1"; read -r line', 'hold', str(other)], env=self.env,
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            try:
+                deadline = time.monotonic() + 3
+                while not other.exists() and process.poll() is None and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertTrue(other.exists())
+                result = self.run_runner(EDK2_CIX_REPO_LOCK_HELD='1', EDK2_CIX_BUILD_LOCK_WAIT='1')
+            finally:
+                process.communicate('\n' if process.poll() is None else None, timeout=3)
+                self.assertEqual(process.returncode, 0)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Another build-related command', result.stderr)
+        self.assertFalse(self.engine_marker.exists())
 
 
 if __name__ == "__main__":
