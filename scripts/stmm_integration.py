@@ -119,9 +119,9 @@ CIX_RELEASE_STMM_ARGS = $(if $(filter unofficial,$(STMM)),--source "$(CIX_RELEAS
 
 
 def feature_files(repo: Path, source_ref: str) -> dict[str, tuple[str, bytes]]:
-    from reconstruction_common import git, show_file
+    from reconstruction_common import git, show_file, resolve_ref
     result = {}
-    listing = git(repo, 'ls-tree', '-r', FEATURE_REF).stdout.splitlines()
+    listing = git(repo, 'ls-tree', '-r', resolve_ref(repo, FEATURE_REF)).stdout.splitlines()
     for line in listing:
         meta, path = line.split('\t')
         if path.startswith('overlay/'):

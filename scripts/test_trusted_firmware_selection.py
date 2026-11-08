@@ -19,6 +19,27 @@ REF = os.environ.get('SOURCE_TEST_REF', 'source/unofficial/1.3/current')
 
 
 class TrustedSelectionTests(unittest.TestCase):
+    def test_shared_adapter_resolves_remote_tracking_source_refs(self):
+        from stmm_integration import feature_files, FEATURE_REF
+        source_ref = 'source/unofficial/1.3.2/edk2-stable202208'
+        objects = subprocess.check_output([
+            'git', '-C', str(ROOT), 'rev-parse', '--path-format=absolute', '--git-path', 'objects'], text=True).strip()
+        with tempfile.TemporaryDirectory(prefix='stmm-remote-refs-') as directory:
+            repo = Path(directory)
+            subprocess.run(['git', '-C', directory, 'init', '-q'], check=True)
+            (repo / '.git/objects/info/alternates').write_text(objects + '\n')
+            for ref in (FEATURE_REF, source_ref):
+                oid = subprocess.check_output([
+                    'git', '-C', str(ROOT), 'rev-parse', resolve_ref(ROOT, ref)], text=True).strip()
+                subprocess.run(['git', '-C', directory, 'update-ref',
+                                'refs/remotes/origin/' + ref, oid], check=True)
+            self.assertNotEqual(subprocess.run([
+                'git', '-C', directory, 'show-ref', '--verify', '--quiet',
+                'refs/heads/' + FEATURE_REF]).returncode, 0)
+            files = feature_files(repo, source_ref)
+            self.assertIn('src/stmm-integration-v1/PlatformStandaloneMmRpmb.dsc', files)
+            self.assertIn(b'--stmm "$(STMM)"', files['src/Makefile'][1])
+
     def test_hybrid_preflight_requires_the_rendered_component(self):
         _, entry = release_entry(ROOT, NATIVE_STMM_CHECKPOINT_TARGET, require=True)
         with patch.dict(os.environ, CIX_RELEASE='unofficial', STMM='unofficial',
