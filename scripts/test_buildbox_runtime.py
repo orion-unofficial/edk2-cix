@@ -50,6 +50,10 @@ class BuildboxRuntimeTests(unittest.TestCase):
         for ref in refs:
             runner = show_file(ROOT, ref, "scripts/run_in_buildbox.sh")
             helper = show_file(ROOT, ref, "scripts/default_container_runtimes.sh")
+            # Native sources carry a small delegator, tested separately below;
+            # runtime selection stays in the central build-owned runner.
+            if b'export EDK2_CIX_FIRMWARE_ROOT=' in runner and b'exec "$infra_root/scripts/run_in_buildbox.sh"' in runner:
+                continue
             # Read every source; exercise each distinct complete helper pair.
             digest = hashlib.sha256(runner + b"\0" + helper).hexdigest()
             implementations.setdefault(digest, (ref, runner.decode(), helper))
@@ -104,6 +108,28 @@ class BuildboxRuntimeTests(unittest.TestCase):
                         self.assertTrue(result.stderr.startswith("[buildbox] "))
                     else:
                         self.assertEqual(result.stderr, "")
+
+
+class FirmwareBuildboxDelegatorTests(unittest.TestCase):
+    def test_native_source_delegates_with_workspace_and_arguments(self):
+        ref = 'source/unofficial/1.3.2/edk2-stable202608'
+        with tempfile.TemporaryDirectory(prefix='firmware-delegator-') as directory:
+            root = Path(directory)
+            firmware = root / 'firmware'
+            infra = root / 'infra'
+            for path in (firmware, infra):
+                (path / 'scripts').mkdir(parents=True)
+            runner = firmware / 'scripts/run_in_buildbox.sh'
+            runner.write_bytes(show_file(ROOT, ref, 'scripts/run_in_buildbox.sh'))
+            runner.chmod(0o755)
+            target = infra / 'scripts/run_in_buildbox.sh'
+            target.write_text('#!/bin/bash\nprintf "%s\\n" "$EDK2_CIX_FIRMWARE_ROOT" "$@"\n')
+            target.chmod(0o755)
+            result = subprocess.run([str(runner), 'probe', 'argument with spaces'],
+                                    env={**os.environ, 'EDK2_CIX_BUILD_INFRA_ROOT': str(infra)},
+                                    capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.splitlines(), [str(firmware.resolve()), 'probe', 'argument with spaces'])
 
 
 class NativeMakeBridgeTests(unittest.TestCase):

@@ -19,6 +19,7 @@ class HybridTests(unittest.TestCase):
         self.source = self.root / 'component'
         self.vendor = self.source / 'CixStandaloneMmPkg/Vendor'
         self.vendor.mkdir(parents=True)
+        (self.source / 'CixStandaloneMmPkg/BuildRule202608.template').write_text('reviewed build configuration\n')
         self.binary = b'vendor-executable'
         (self.vendor / 'driver.efi').write_bytes(self.binary)
         (self.vendor / 'manifest.json').write_text(json.dumps({

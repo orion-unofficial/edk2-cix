@@ -17,7 +17,7 @@ from the UEFI shell; the generated OTA image is not currently usable.
 | `CIX_RELEASE=` | Stock vendor `bootloader2.img` |
 | `CIX_RELEASE=1.2 STMM=vendor` | Existing curated CIX source and pinned vendor StandaloneMM; `v1.2` is an alias |
 | `CIX_RELEASE=unofficial STMM=vendor` | Maintained OP-TEE component and pinned vendor StandaloneMM |
-| `CIX_RELEASE=unofficial STMM=unofficial` | Modern 202608 secure-world payload through the versioned shared adapter on compatible O6 RELEASE source targets. |
+| `CIX_RELEASE=unofficial STMM=unofficial` | Modern 202608 secure-world payload through maintained Make rules on the primary 1.3.2 targets; retained checkpoints use their historical adapter. |
 
 `STMM=vendor` is the default. Source-built trusted firmware remains restricted
 to custom O6 builds with the reviewed signing and pinned-payload integration.
@@ -294,8 +294,21 @@ make buildbox-firmware-build \
 The retained 202208 / 1.3.2 target uses the same secure-world component.
 The historical `edk2-202608/radxa-1.3.1/unofficial-checkpoint` selector and its
 original release-native helper profile and offline evidence remain retained.
-The shared adapter has its own source identity and representative compilation
-and signature checks. These checks do not establish physical O6/O6N boot or
+On the Radxa 1.3.2 / EDK2 202208 and 202608 targets, source commits own
+`src/stmm-integration-v1/selection.mk` and `payload.mk`, the delegated Make
+entry points and their ordinary helpers. Rendering selects the maintained
+OP-TEE and StandaloneMM trees without rewriting recipes or Python helpers.
+The prepared StandaloneMM DSC and `BuildRule202608.template` are component
+files; the builder copies the latter to EDK2's ordinary `Conf/build_rule.txt`.
+It does not port secure-world source during these builds. Both Make fragments
+participate in the trusted-firmware input stamp. PCI C/INF overlays remain
+normal BL33 prerequisites, including edits in a dirty native worktree.
+
+Other supported 1.2.4 and 1.3.1 checkpoints still use the frozen adapter and
+its recipe preimage checks. Migrate them one release at a time after comparing
+the effective recipe and secure-world inputs. Earlier 1.2.4 checkpoints keep
+their existing restrictions. The retained adapter has its own source identity
+and representative compilation and signature checks. These checks do not establish physical O6/O6N boot or
 NOR behavior for other combinations. Physical testing is an optional activity
 for external testers with suitable facilities.
 
@@ -313,8 +326,9 @@ compatibility; hybrid reports identify `selection: unofficial`, the built image,
 retained executables and the exact OP-TEE hash. Hybrid artifact paths and archive
 names include `stmm_unofficial` to distinguish them from vendor-payload builds.
 
-The build validates the signer, hybrid builder, platform adapter, native
-source porter and vendor stager as one reviewed helper profile. The native
+The primary build validates the signer, prepared-component builder and vendor
+stager as a reviewed helper profile. Historical native-port builds retain
+their additional platform-adapter and source-porter identity checks. The native
 202608 porter keeps absolute build paths out of generated PE CodeView records.
 Pre-2025 bases remain rejected by the firmware build.
 

@@ -55,20 +55,20 @@
     {
       "component": "standalone-mm",
       "immutable": false,
-      "object_id": "a16ca850d5e45ccb80cb7bf31a3bdc609e3df0c6",
+      "object_id": "6f3507c606e248a3c89ed9c34717078241f3627e",
       "ref": "source/unofficial/stmm/edk2-stable202608",
       "render_path": "src/cix-v1.2/stmm-unofficial",
-      "tree_id": "077e2e15d537e3945e57640b766eba2e92ff0f70",
+      "tree_id": "cea73bb94b636f10a410f639f8d0792ffa2b8cb1",
       "type": "unofficial-component"
     },
     {
       "component": "standalone-mm-integration",
       "immutable": false,
-      "type": "unofficial-component",
+      "object_id": "88b3b49ebc24ea7907d0d17e651666f2be9a9504",
       "ref": "source/unofficial/stmm/integration-v1",
       "render_path": "src/stmm-integration-v1",
-      "object_id": "88b3b49ebc24ea7907d0d17e651666f2be9a9504",
-      "tree_id": "ff3aca43a4640da8f37dd31c79622b08545eae7a"
+      "tree_id": "ff3aca43a4640da8f37dd31c79622b08545eae7a",
+      "type": "unofficial-component"
     }
   ]
 }

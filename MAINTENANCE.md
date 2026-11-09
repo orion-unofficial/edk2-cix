@@ -75,6 +75,32 @@ firmware tree can set `EDK2_CIX_BUILD_INFRA_ROOT` explicitly. Native direct
 `firmware-build` remains a firmware-worktree entry point. The stock replay
 path retains its existing orchestration and deterministic inputs.
 
+## Source assembly and compatibility transformations
+
+The primary Radxa 1.3.2 / EDK2 202208 and 202608 Unofficial checkpoints own
+their StandaloneMM Make rules and helper files. The renderer only assembles
+pinned components and release metadata for these targets. Unrelated Makefile
+edits do not require changing a whole-recipe identity allowlist; trusted
+payload, signing-helper and communication-interface checks remain enforced.
+
+| Mechanism | Scope and maintenance decision |
+| --- | --- |
+| Pinned component replacement, overlays and release metadata | Necessary deterministic assembly; preserve source identities and vendor bytes. |
+| Historical optional prerequisites, dependency packages and ASL flags | Explicit stock replay compatibility steps; retain their release plans and deterministic outputs. Reject ambiguous insertion anchors. |
+| `radxa_source_compatibility.py` | One-time EDK2 interface ports, gated by actual consumers/providers; keep reviewed ACPI/AML and library bindings. |
+| `radxa13_source_conflicts.py` | One-time resolution of exact reviewed conflicts and postimages; retain its input and output guards. |
+| `stmm_release_port.py` / `stmm_release_platform.py` | Historical qualification ports with exact preimages and output tests. Primary firmware builds use prepared component files instead. |
+| Historical StandaloneMM adapter | Repeated recipe/helper rewriting retained temporarily for supported unmigrated checkpoints. Next migration unit is one exact checkpoint and its effective recipe. |
+| Measured BL33/FDF sizing and release logging configuration | Required build configuration with measured output checks; retain these features. |
+
+Build-command locks use macOS/Linux `flock` through Python's `fcntl` module.
+The `.lock` inode persists after commands finish and must not be unlinked as
+routine cleanup. Ownership metadata is diagnostic; the kernel lock and the
+inherited command descriptor control exclusion. Incomplete or foreign-host
+legacy `.lock.d` ownership fails closed. Abandoned same-host legacy directories
+are respected according to `EDK2_CIX_BUILD_LOCK_BREAK_STALE` and left intact;
+inspect them before any manual cleanup. Cache/worktree lock ordering is unchanged.
+
 ## How do I publish a source-model update?
 
 A source integration or Unofficial import can deliberately move more than one

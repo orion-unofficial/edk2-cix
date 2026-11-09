@@ -115,7 +115,7 @@ class SourceBuildInputsTests(unittest.TestCase):
     def test_shared_profile_binds_all_five_source_helpers(self):
         from stmm_integration import feature_files
         repo = Path(__file__).resolve().parents[1]
-        files = feature_files(repo, 'source/unofficial/1.3.2/edk2-stable202208')
+        files = feature_files(repo, 'source/unofficial/1.3.1/edk2-stable202208')
         helper = files['src/scripts/build_cix_release_bootloader2.sh'][1]
         profile = CIX_STMM_HELPER_PROFILES[hashlib.sha256(helper).hexdigest()]
         self.assertEqual(len(profile), 4)

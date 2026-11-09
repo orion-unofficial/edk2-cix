@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 from build_profiles import resolve_profile
-from reconstruction_common import NATIVE_STMM_CHECKPOINT_TARGET, release_entry, resolve_ref, show_file, unofficial_component_steps, unofficial_firmware_refs, unofficial_checkpoints_by_edk2
+from reconstruction_common import NATIVE_STMM_CHECKPOINT_TARGET, NATIVE_STMM_CHECKPOINT_REF, release_entry, resolve_ref, show_file, unofficial_component_steps, unofficial_firmware_refs, unofficial_checkpoints_by_edk2
 from validate_build_variables import validate_cix_source
 
 
@@ -21,7 +21,7 @@ REF = os.environ.get('SOURCE_TEST_REF', 'source/unofficial/1.3/current')
 class TrustedSelectionTests(unittest.TestCase):
     def test_shared_adapter_resolves_remote_tracking_source_refs(self):
         from stmm_integration import feature_files, FEATURE_REF
-        source_ref = 'source/unofficial/1.3.2/edk2-stable202208'
+        source_ref = 'source/unofficial/1.3.1/edk2-stable202208'
         objects = subprocess.check_output([
             'git', '-C', str(ROOT), 'rev-parse', '--path-format=absolute', '--git-path', 'objects'], text=True).strip()
         with tempfile.TemporaryDirectory(prefix='stmm-remote-refs-') as directory:
@@ -73,7 +73,7 @@ class TrustedSelectionTests(unittest.TestCase):
         from stmm_integration import adapt_makefile
         for release, radxa in (('202208', '1.3.2'), ('202502', '1.3.1'), ('202608', '1.3.2')):
             ref = f'source/unofficial/{radxa}/edk2-stable{release}'
-            original = show_file(ROOT, ref, 'src/Makefile')
+            original = show_file(ROOT, {'202208': '4548d2024e38359c7b8fee15df4300f04b0319fc', '202608': 'cb1bbf58dcb0b9e1efaf1da8ac2863e0af78feb2'}.get(release, ref), 'src/Makefile')
             adapted = adapt_makefile(original, 'src/Makefile')
             preamble = original[original.index(b'FIRMWARE_TARGET ?='):original.index(b'UNAME :=')]
             self.assertIn(preamble, adapted)
@@ -103,7 +103,7 @@ class TrustedSelectionTests(unittest.TestCase):
             for relative in ('Makefile', '.github/local/Makefile.local', 'src/Makefile'):
                 path = Path(directory) / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes(show_file(ROOT, REF, relative))
+                path.write_bytes(show_file(ROOT, NATIVE_STMM_CHECKPOINT_REF, relative))
                 result = subprocess.run([make, '-f', str(path), '-n', 'CIX_RELEASE=unofficial',
                                          'STMM=unofficial'], text=True, capture_output=True, cwd=directory)
                 self.assertNotEqual(result.returncode, 0)
@@ -132,7 +132,8 @@ class TrustedSelectionTests(unittest.TestCase):
             module = types.ModuleType('shared_firmware_layout_' + release)
             sys.modules[module.__name__] = module
             self.addCleanup(sys.modules.pop, module.__name__, None)
-            content = feature_files(ROOT, ref)['scripts/firmware_layout.py'][1]
+            files = feature_files(ROOT, ref)
+            content = files['scripts/firmware_layout.py'][1] if files else show_file(ROOT, ref, 'scripts/firmware_layout.py')
             exec(compile(content, module.__name__, 'exec'), module.__dict__)
             vendor = module.FirmwareLayout(cix_release='unofficial')
             modern = module.FirmwareLayout(cix_release='unofficial', stmm='unofficial')

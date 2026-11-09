@@ -1,4 +1,4 @@
-"""Render the versioned StandaloneMM adapter without replacing firmware recipes."""
+"""Select native STMM rules; retain the frozen adapter for historical checkpoints."""
 from __future__ import annotations
 
 import hashlib
@@ -14,7 +14,16 @@ def compatibility(repo: Path) -> dict:
     return json.loads(show_file(repo, FEATURE_REF, 'profile.json'))
 
 
+def native_rules(repo: Path, source_ref: str) -> bool:
+    """Native checkpoints own their Make rules and helpers before rendering."""
+    from reconstruction_common import show_file
+    return b"include $(STMM_FEATURE_ROOT)/src/stmm-integration-v1/selection.mk" in show_file(
+        repo, source_ref, 'src/Makefile', check=False)
+
+
 def selected(repo: Path, source_ref: str) -> bool:
+    if native_rules(repo, source_ref):
+        return False
     if not (repo / "config/refs-cix.json").is_file():
         return False
     from reconstruction_common import ref_manifest_records, NATIVE_STMM_CHECKPOINT_REF
@@ -120,6 +129,8 @@ CIX_RELEASE_STMM_ARGS = $(if $(filter unofficial,$(STMM)),--source "$(CIX_RELEAS
 
 def feature_files(repo: Path, source_ref: str) -> dict[str, tuple[str, bytes]]:
     from reconstruction_common import git, show_file, resolve_ref
+    if native_rules(repo, source_ref):
+        return {}
     result = {}
     listing = git(repo, 'ls-tree', '-r', resolve_ref(repo, FEATURE_REF)).stdout.splitlines()
     for line in listing:

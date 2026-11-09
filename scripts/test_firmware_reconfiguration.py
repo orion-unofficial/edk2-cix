@@ -34,6 +34,15 @@ class FirmwareReconfigurationTests(unittest.TestCase):
             dest = self.root / relative
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(data)
+        for relative in ("src/stmm-integration-v1/selection.mk", "src/stmm-integration-v1/payload.mk"):
+            local = os.environ.get("SOURCE_TEST_ROOT")
+            path = Path(local) / relative if local else None
+            data = path.read_bytes() if path and path.is_file() else show_file(
+                ROOT, os.environ.get("SOURCE_TEST_REF", "source/unofficial/1.3/current"), relative, check=False)
+            if data:
+                dest = self.root / relative
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(data)
         (self.root / "src/edk2-platforms/Platform/Radxa").mkdir(parents=True, exist_ok=True)
         self.make = shutil.which("gmake") or shutil.which("make")
         self.toolchain = re.search(

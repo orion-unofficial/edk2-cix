@@ -31,7 +31,9 @@ CIX_NATIVE_SIGNING_HELPER_SHA256 = "7347d87ceb46905bd4e6aa0f0580793bb1c378581859
 CIX_STMM_VENDOR_PATH = "src/scripts/stage_vendor_stmm.py"
 CIX_STMM_HYBRID_PATH = "src/scripts/build_hybrid_stmm.py"
 CIX_SHARED_SIGNING_HELPER_SHA256 = 'c55363750102735968dd993fb7ba9c3e1ed8356a1aae63094c6b06eb59f7c288'
+CIX_PREPARED_SIGNING_HELPER_SHA256 = 'e7e9b1da2ebbbf32208035e6c6934e71e36322f330689761e02b3801189c309a'
 CIX_STMM_HELPER_PROFILES = {
+    CIX_PREPARED_SIGNING_HELPER_SHA256: {'src/scripts/build_hybrid_stmm.py': '837518348f1beaf2f6115dea6ef89f61cbaeab40e35e28e332c60290a3815294', 'src/scripts/stage_vendor_stmm.py': '487175ff2b9b995240e0f8819540bc1d3e3a3e7d69c7b61b1ae8961149afa22f'},
     CIX_SHARED_SIGNING_HELPER_SHA256: {
         'src/scripts/stmm_release_port.py': '0a0a4ae7a2a25716313dfd0472262e47a8159556be78a0602462f77176ca7e54',
         'src/scripts/stmm_release_platform.py': 'f718bf83f545c9dfbd8804d67495736425f4468e59feb3722758460ab36c2f6a',
@@ -122,13 +124,14 @@ def stmm_helper_problems(helper: bytes, contents: dict[str, bytes]) -> list[str]
 def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
     """Advertise CIX_RELEASE only for checkpoints with the reviewed helper and keys."""
     ref = entry["source_ref"]
-    from stmm_integration import selected, feature_files
+    from stmm_integration import selected, feature_files, native_rules
     from stmm_integration import FEATURE_REF
+    native = native_rules(repo, ref)
     available = selected(repo, ref)
     feature_selected = any(step.get("stmm_integration", {}).get("ref") == FEATURE_REF
                            for step in entry.get("render", {}).get("steps", []))
-    shared = available and feature_selected
-    files = feature_files(repo, ref) if shared else {}
+    shared = native or (available and feature_selected)
+    files = feature_files(repo, ref) if shared and not native else {}
 
     def content(path):
         return files[path][1] if path in files else show_file(repo, ref, path)
@@ -137,6 +140,13 @@ def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
             raise ReconstructionError("STMM=unofficial requires CIX_RELEASE=unofficial")
         helper = content("src/scripts/build_cix_release_bootloader2.sh")
         makefile = content("src/Makefile")
+        if native:
+            # Inspect the executable contract, without pinning unrelated recipes.
+            for path in ("src/stmm-integration-v1/selection.mk", "src/stmm-integration-v1/payload.mk"):
+                fragment = content(path)
+                if not fragment:
+                    raise ReconstructionError("native StandaloneMM rule fragment is absent: " + path)
+                makefile += b"\n" + fragment
         if available and not feature_selected and env("CIX_RELEASE").lower() == "unofficial":
             raise ReconstructionError("shared StandaloneMM component is not selected by this source target")
         if env("CIX_RELEASE").lower() == "unofficial":

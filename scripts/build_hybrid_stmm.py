@@ -48,6 +48,10 @@ def build(source: Path, cache: Path, compiler: str, jobs: int,
         if workspace.exists():
             shutil.rmtree(workspace)
         shutil.copytree(source, workspace, symlinks=True)
+        (workspace / 'Conf').mkdir(exist_ok=True)
+        # Ordinary, source-owned EDK2 build configuration; no source port at build time.
+        shutil.copyfile(workspace / 'CixStandaloneMmPkg/BuildRule202608.template',
+                        workspace / 'Conf/build_rule.txt')
         (output / 'tmp').mkdir(exist_ok=True)
         environment = dict(os.environ)
         for name in ('WORKSPACE', 'EDK_TOOLS_PATH', 'CONF_PATH', 'PACKAGES_PATH', 'BUILD_OUTPUT_BASE',

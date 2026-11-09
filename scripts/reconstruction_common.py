@@ -1228,7 +1228,7 @@ def release_metadata_ref(repo: Path, radxa: str, edk2_ref: str) -> str | None:
 
 def unofficial_component_steps(repo: Path, source_ref: str | None = None) -> list[dict[str, Any]]:
     """Select independently maintained component trees for custom targets."""
-    from stmm_integration import selected, FEATURE_REF
+    from stmm_integration import selected, FEATURE_REF, native_rules
     feature = bool(source_ref and selected(repo, source_ref))
     if source_ref and not feature and b"tee-unofficial" not in show_file(repo, source_ref, "src/Makefile", check=False):
         return []
@@ -1237,7 +1237,7 @@ def unofficial_component_steps(repo: Path, source_ref: str | None = None) -> lis
         for record in ref_manifest_records(repo, "refs-cix.json")
         if record.get("type") == "unofficial-component"
         and record["ref"] != FEATURE_REF
-        and (record.get("component") != "standalone-mm" or feature or not source_ref or
+        and (record.get("component") != "standalone-mm" or feature or not source_ref or native_rules(repo, source_ref) or
              b"stmm-unofficial" in show_file(repo, source_ref, "src/Makefile", check=False))
     ] + ([{"stmm_integration": {"ref": FEATURE_REF}}] if feature else [])
 
