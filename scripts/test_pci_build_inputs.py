@@ -83,6 +83,11 @@ class PciBuildInputsTests(unittest.TestCase):
             run(['git', 'add', str(c)])
             run(['git', 'commit', '-qm', 'committed overlay edit'])
             results.append(('committed_c', build()))
+            inf = root / (pci + 'PciBusDxe.inf')
+            inf.write_bytes(inf.read_bytes() + b'\n# committed dependency probe\n')
+            run(['git', 'add', str(inf)])
+            run(['git', 'commit', '-qm', 'committed INF edit'])
+            results.append(('committed_inf', build()))
             # Age every other dependency before editing only the PCI overlay.
             old = time.time() - 20
             for p in root.rglob('*'):
@@ -94,7 +99,7 @@ class PciBuildInputsTests(unittest.TestCase):
             inf = root / (pci + 'PciBusDxe.inf')
             inf.write_bytes(inf.read_bytes() + b'\n# uncommitted dependency probe\n')
             results.append(('uncommitted_inf', build()))
-            self.assertEqual([row[1]['calls'] for row in results], [1, 1, 2, 3, 4], results)
+            self.assertEqual([row[1]['calls'] for row in results], [1, 1, 2, 3, 4, 5], results)
         finally:
             case.doCleanups()
 
