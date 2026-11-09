@@ -350,6 +350,10 @@ def add_vendor_asl_compat(worktree: Path, path: str, messages: list[str], verbos
         raise ReconstructionError(f"ASL compatibility file does not exist: {clean_path}")
     flags = " ".join(f"-vw {message}" for message in messages)
     text = makefile.read_text(encoding="utf-8")
+    # Preserve the historical no-op contract for already-flagged recipes.
+    # Changing that recognition requires separate stock replay qualification.
+    if flags in text:
+        return
     old = "\t\t\tupstream) \\\n\t\t\t\t;; \\\n"
     new = (
         "\t\t\tupstream) \\\n"
@@ -359,9 +363,7 @@ def add_vendor_asl_compat(worktree: Path, path: str, messages: list[str], verbos
         "\t\t\t\t); \\\n"
         "\t\t\t\t;; \\\n"
     )
-    if text.count(new) == 1:
-        return
-    if text.count(old) != 1 or text.count(new):
+    if text.count(old) != 1:
         raise ReconstructionError(f"missing or ambiguous upstream ASL flag block in {clean_path}")
     if verbose:
         print(f"Adding historical vendor ASL compatibility flags to {clean_path}", file=sys.stderr)

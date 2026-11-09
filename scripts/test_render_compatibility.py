@@ -32,17 +32,23 @@ class HistoricalInsertionTests(unittest.TestCase):
                 add_dependency_package(self.root, path.name, 'anchor-package', 'compat-package', False)
             self.assertEqual(path.read_text(), text)
 
-    def test_asl_flags_are_inserted_in_the_active_block(self):
+    def test_asl_insertion_is_exact_and_idempotent(self):
         path = self.root / 'Makefile'
         old = '\t\t\tupstream) \\\n\t\t\t\t;; \\\n'
-        # An unrelated comment cannot stand in for active compiler flags.
-        path.write_text('# elsewhere: -vw 3073\n' + old)
+        path.write_text(old)
         add_vendor_asl_compat(self.root, path.name, ['3073'], False)
         result = path.read_bytes()
         self.assertIn(b'DEBUG_GCC5_AARCH64_ASL_FLAGS   = -vw 3073', result)
         self.assertIn(b'RELEASE_GCC5_AARCH64_ASL_FLAGS   = -vw 3073', result)
         add_vendor_asl_compat(self.root, path.name, ['3073'], False)
         self.assertEqual(path.read_bytes(), result)
+
+    def test_historically_flagged_recipes_are_unchanged(self):
+        path = self.root / 'Makefile'
+        content = '# retained flag sequence: -vw 3073\n'
+        path.write_text(content)
+        add_vendor_asl_compat(self.root, path.name, ['3073'], False)
+        self.assertEqual(path.read_text(), content)
 
     def test_missing_or_duplicate_asl_blocks_are_rejected(self):
         old = '\t\t\tupstream) \\\n\t\t\t\t;; \\\n'
