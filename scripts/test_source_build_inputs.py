@@ -422,6 +422,26 @@ class SourceBuildInputsTests(unittest.TestCase):
         contents.pop("scripts/ensure_iasl.sh")
         self.assertEqual(missing_build_fixes(contents), [])
 
+    def test_reviewed_delegator_keeps_owning_runtime_fixes_mandatory(self):
+        from check_source_build_inputs import BUILDBOX_DELEGATOR_SHA256
+        repo = Path(__file__).resolve().parents[1]
+        bridge = show_file(repo, 'source/unofficial/1.3/current', 'scripts/run_in_buildbox.sh')
+        self.assertEqual(hashlib.sha256(bridge).hexdigest(), BUILDBOX_DELEGATOR_SHA256)
+        contents = {}
+        for _, path, marker, _ in BUILD_FIXES:
+            contents[path] = contents.get(path, b'') + marker + b'\n'
+        contents['scripts/run_in_buildbox.sh'] = bridge
+        owner = (repo / 'scripts/run_in_buildbox.sh').read_bytes()
+        self.assertEqual(missing_build_fixes(contents, owning_runner=owner), [])
+        self.assertTrue(missing_build_fixes(contents))
+        for commit, path, marker, _ in BUILD_FIXES:
+            if path == 'scripts/run_in_buildbox.sh':
+                with self.subTest(commit=commit):
+                    broken = owner.replace(marker, b'missing')
+                    self.assertTrue(any(commit in error for error in missing_build_fixes(contents, owning_runner=broken)))
+        contents['scripts/run_in_buildbox.sh'] += b'# unreviewed change\n'
+        self.assertTrue(missing_build_fixes(contents, owning_runner=owner))
+
     def test_one_inf_does_not_cover_another_module_in_the_same_directory(self) -> None:
         directory = "edk2-platforms/Platform/CIX/Sky1/Drivers/FwVersionDxe/"
         paths = {

@@ -87,7 +87,17 @@ def chain_validator_problems(validator: bytes, signing_keys: dict[str, bytes],
     return problems
 
 
-def missing_build_fixes(contents: dict[str, bytes]) -> list[str]:
+BUILDBOX_DELEGATOR_SHA256 = "f101574caf5f2cac7006d6afe7cd13d77598d74da4b372bbaae8477383fcff41"
+
+
+def missing_build_fixes(contents: dict[str, bytes], *, owning_runner: bytes | None = None) -> list[str]:
+    path = "scripts/run_in_buildbox.sh"
+    if hashlib.sha256(contents.get(path, b"")).hexdigest() == BUILDBOX_DELEGATOR_SHA256:
+        if owning_runner is None:
+            return ["reviewed buildbox delegator requires its owning build runner"]
+        # The reviewed small source delegator executes these rules on build.
+        # Keep every pull, object-mount and path-ownership check mandatory there.
+        contents = {**contents, path: owning_runner}
     return [f"missing build fix {commit} in {path}" for commit, path, marker, optional in BUILD_FIXES
             if not (optional and path not in contents) and marker not in contents.get(path, b"")]
 
@@ -359,7 +369,10 @@ def source_input_problems(repo: Path, ref: str) -> list[str]:
         problems.extend(f"{path}: {error}" for error in unbalanced_asl_conditionals(asl_blobs[entry.object_id].decode("utf-8-sig")))
     fix_entries = {path: entries[path] for _, path, _, _ in BUILD_FIXES if path in entries}
     fix_blobs = git_blob_bytes_batch(repo, (entry.object_id for entry in fix_entries.values()))
-    problems.extend(missing_build_fixes({path: fix_blobs[entry.object_id] for path, entry in fix_entries.items()}))
+    owning_runner = ROOT / "scripts/run_in_buildbox.sh"
+    problems.extend(missing_build_fixes(
+        {path: fix_blobs[entry.object_id] for path, entry in fix_entries.items()},
+        owning_runner=owning_runner.read_bytes() if owning_runner.is_file() else None))
     lzma = "edk2/MdeModulePkg/Library/LzmaCustomDecompressLib/LzmaCustomDecompressLib.inf"
     contracts = ("src/" + lzma, "custom/overlay/" + lzma,
                  "custom/overlay/edk2-platforms/Platform/CIX/Sky1/Sky1Common.dsc.inc")
