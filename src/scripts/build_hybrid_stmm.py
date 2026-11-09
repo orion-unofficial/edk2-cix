@@ -69,7 +69,7 @@ def build(source: Path, cache: Path, compiler: str, jobs: int,
             def ignore_generated(directory, names):
                 excluded = {name for name in names if name.endswith('.pyc')}
                 if Path(directory) == edk2_source:
-                    excluded.update(set(names) & {'.git', 'Build', 'Conf'})
+                    excluded.update(set(names) & {'.git', 'Build', 'Conf', 'CixStandaloneMmPkg'})
                 return excluded
 
             shutil.copytree(edk2_source, workspace, symlinks=True,

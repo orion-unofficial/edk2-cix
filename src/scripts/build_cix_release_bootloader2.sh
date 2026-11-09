@@ -205,8 +205,8 @@ case "$STMM" in
       202502|202608) STMM_FFA_VERSION=12 ;;
       *) printf 'Unsupported native StandaloneMM release: %s\n' "$STMM_EDK2_RELEASE" >&2; exit 1 ;;
     esac
-    STMM_ARGS+=(--edk2-release "$STMM_EDK2_RELEASE" --edk2-source "${SCRIPT_DIR}/../edk2"
-      --native-dsc "${SCRIPT_DIR}/../edk2-platforms/Platform/StandaloneMm/PlatformStandaloneMmPkg/PlatformStandaloneMmRpmb.dsc")
+    STMM_ARGS+=(--edk2-release "$STMM_EDK2_RELEASE" --edk2-source "$STMM_SOURCE"
+      --native-dsc "${SCRIPT_DIR}/../stmm-integration-v1/PlatformStandaloneMmRpmb.dsc")
   fi
   ;;
  *) printf 'Unknown StandaloneMM selection: %s\n' "$STMM" >&2; exit 1 ;;

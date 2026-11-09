@@ -1,36 +1,5 @@
-STMM ?= vendor
-ifeq ($(filter $(strip $(STMM)),vendor unofficial),)
-$(error STMM supports vendor or unofficial)
-endif
-ifeq ($(strip $(STMM)),unofficial)
-ifneq ($(strip $(CIX_RELEASE)),unofficial)
-$(error STMM=unofficial requires CIX_RELEASE=unofficial)
-endif
-endif
-
-ifeq ($(strip $(STMM)),unofficial)
-STMM_FIRMWARE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
-ifeq ($(wildcard $(STMM_FIRMWARE_ROOT)/src/edk2/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h),)
-$(error STMM=unofficial requires an EDK2 202502-or-newer base; pre-2025 bases are not qualified)
-endif
-ifneq ($(shell cat "$(STMM_FIRMWARE_ROOT)/VERSION"),1.3.1)
-$(error STMM=unofficial currently supports Radxa 1.3.1 only)
-endif
-ifeq ($(wildcard $(STMM_FIRMWARE_ROOT)/src/cix-v1.2/stmm-unofficial/CixStandaloneMmPkg/CixStandaloneMm.dsc),)
-$(error STMM=unofficial requires the rendered stmm-unofficial component)
-endif
-endif
-
-ifneq ($(strip $(CIX_RELEASE)),)
-ifeq ($(filter 1.2 v1.2 V1.2 unofficial,$(strip $(CIX_RELEASE))),)
-$(error CIX_RELEASE supports only 1.2 (or v1.2) or unofficial)
-endif
-ifneq ($(strip $(ARTEFACT_MODE)),)
-ifneq ($(ARTEFACT_MODE),custom)
-$(error CIX_RELEASE requires ARTEFACT_MODE=custom)
-endif
-endif
-endif
+STMM_FEATURE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
+include $(STMM_FEATURE_ROOT)/src/stmm-integration-v1/selection.mk
 
 FIRMWARE_TARGET ?= RELEASE
 # Specify DEBUG build for development
@@ -275,15 +244,7 @@ CIX_RELEASE_V12_TEE_SOURCE_DIR := $(CIX_RELEASE_SOURCE_DIR)/$(if $(filter unoffi
 CIX_RELEASE_V12_PAYLOAD_DIR := $(CIX_RELEASE_SOURCE_DIR)/release-payloads
 CIX_RELEASE_V12_BOOTLOADER1_PAYLOAD := $(CIX_RELEASE_V12_PAYLOAD_DIR)/bootloader1-2026q1.img
 CIX_RELEASE_BOOTLOADER2_HELPER := scripts/build_cix_release_bootloader2.sh
-CIX_RELEASE_STMM_HELPER := scripts/stage_vendor_stmm.py
-CIX_RELEASE_STMM_EDK2_RELEASE := 202608
-CIX_RELEASE_STMM_FFA_VERSION := $(if $(filter unofficial,$(STMM)),12,10)
-CIX_RELEASE_STMM_SOURCE := $(abspath $(CIX_RELEASE_SOURCE_DIR)/stmm-unofficial)
-CIX_RELEASE_STMM_ARGS = $(if $(filter unofficial,$(STMM)),--source "$(CIX_RELEASE_STMM_SOURCE)" --edk2-source "$(abspath edk2)" --native-dsc "$(abspath edk2-platforms/Platform/StandaloneMm/PlatformStandaloneMmPkg/PlatformStandaloneMmRpmb.dsc)" --edk2-release "$(CIX_RELEASE_STMM_EDK2_RELEASE)" --cache-root "$(CIX_RELEASE_CACHE_ROOT)/stmm" --cross-compile "$(GCC_AARCH64_PREFIX)" --jobs "$(HELPER_BUILD_JOBS)")
-ifeq ($(STMM),unofficial)
-CIX_RELEASE_STMM_HELPER := scripts/build_hybrid_stmm.py
-endif
-CIX_RELEASE_STMM_MANIFEST := $(CIX_RELEASE_V12_PAYLOAD_DIR)/standalone-mm/manifest.json
+include stmm-integration-v1/payload.mk
 CIX_RELEASE_CACHE_HELPER := $(abspath ../scripts/cix_release_cache.py)
 CIX_RELEASE_SIGNING_KEYS_DIR := ../custom/signing-keys/cix-1.2
 CIX_RELEASE_V12_REQUIRED_FILES := \
@@ -1208,6 +1169,9 @@ $(call CIX_RELEASE_BOOTLOADER2_STAMP,%): \
 		--vendor-fip "$(PACKAGE_TOOL)/Firmwares/bootloader2.img" \
 		--output "$(call BUILD_STAGE_DIR,$*)/Firmwares/BL32_AP_EFI_STMM.fd"
 	@python3 "$(CIX_RELEASE_CACHE_HELPER)" \
+		--recipe "$(abspath Makefile)" \
+		--recipe "$(abspath stmm-integration-v1/selection.mk)" \
+		--recipe "$(abspath stmm-integration-v1/payload.mk)" \
 		--cache-root "$(CIX_RELEASE_CACHE_ROOT)" \
 		--tfa-dir "$(abspath $(CIX_RELEASE_V12_TFA_SOURCE_DIR))" \
 		--tee-dir "$(abspath $(CIX_RELEASE_V12_TEE_SOURCE_DIR))" \
@@ -1242,12 +1206,12 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 	tmp_output="$@.tmp" && \
 	rm -f "$$tmp_output" && \
 	bash "$(abspath $(CIX_RELEASE_BOOTLOADER2_HELPER))" \
+		--stmm "$(STMM)" --stmm-source "$(CIX_RELEASE_STMM_SOURCE)" --stmm-edk2-release 202608 \
 		--tfa-dir "$(abspath $(CIX_RELEASE_V12_TFA_SOURCE_DIR))" \
 		--tee-dir "$(abspath $(CIX_RELEASE_V12_TEE_SOURCE_DIR))" \
 		--build-root "$(abspath $(call BUILD_STAGE_DIR,$*))" \
 		--signing-keys-dir "$(abspath $(CIX_RELEASE_SIGNING_KEYS_DIR))" \
 		--vendor-fip "$(abspath $(PACKAGE_TOOL)/Firmwares/bootloader2.img)" \
-		--stmm "$(STMM)" --stmm-source "$(CIX_RELEASE_STMM_SOURCE)" --stmm-edk2-release "$(CIX_RELEASE_STMM_EDK2_RELEASE)" \
 		--fiptool "$(abspath $(FIPTOOL_BIN))" \
 		--output "$$tmp_output" \
 		--cross-compile "$(GCC_AARCH64_PREFIX)" \
