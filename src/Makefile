@@ -473,6 +473,11 @@ DSC := $(shell find edk2-platforms/Platform/Radxa -mindepth 3 -maxdepth 3 -name 
 	#    $(shell find edk2-platforms/Platform/CIX -mindepth 3 -maxdepth 3 -name "*.dsc" -type "f")
 
 FIRMWARE_BOARDS := $(foreach i,$(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)),$(lastword $(subst /, ,$(i))))
+ifeq ($(strip $(STMM)),unofficial)
+ifneq ($(filter-out O6,$(FIRMWARE_BOARDS)),)
+$(error STMM=unofficial supports O6 RELEASE only; select the O6 DSC)
+endif
+endif
 CIX_FLASH := $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_all.bin) \
 				 $(foreach i, $(patsubst edk2-platforms/Platform/%.dsc,%,$(DSC)), Build/$(lastword $(subst /, ,$(i)))/$(UEFI_TARGET)_GCC5/cix_flash_ota.bin)
 BUILD_OUTPUT_DIR = Build/$1/$(UEFI_TARGET)_GCC5
