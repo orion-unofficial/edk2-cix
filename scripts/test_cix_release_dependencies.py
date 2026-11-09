@@ -27,6 +27,13 @@ class CixReleaseDependencyTests(unittest.TestCase):
         self.toolchain = "GCC5" if "BUILD_OUTPUT_DIR = Build/$1/$(UEFI_TARGET)_GCC5" in makefile else "GCC"
         self.has_tf_a_fixes = '"--enable-tf-a-fixes"' in source("scripts/cix_release_cache.py")
         self.has_vendor_stmm = "CIX_RELEASE_STMM_HELPER" in makefile
+        # The production fingerprint rule binds these source-owned fragments.
+        # This fixture replaces compilation, while retaining their actual bytes.
+        self.fragment_paths = []
+        if 'include stmm-integration-v1/payload.mk' in makefile:
+            for name in ('selection.mk', 'payload.mk'):
+                relative = 'src/stmm-integration-v1/' + name
+                self.fragment_paths.append(self.write(relative, source(relative)))
         start = makefile.index("# Hash the selected sources on every build")
         end = makefile.index(".SILENT: $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader3.img", start)
         names = (
@@ -140,6 +147,17 @@ $(call BUILD_STAGE_DIR,%)/certs/trusted_key_no.crt: $(call BUILD_CONFIG_STAMP,%)
         self.build()
         self.assertEqual(self.count(), 1)
         self.assertEqual(before, (self.stamp().stat().st_mtime_ns, self.output().stat().st_mtime_ns))
+
+    def test_native_rule_fragment_edits_invalidate_the_packaging_stamp(self):
+        if not self.fragment_paths:
+            self.skipTest('historical recipe has no native fragments')
+        self.build()
+        for path in self.fragment_paths:
+            before = self.stamp().read_bytes()
+            path.write_text(path.read_text() + '# changed native configuration\n')
+            self.build()
+            self.assertNotEqual(self.stamp().read_bytes(), before)
+        self.assertEqual(self.count(), 1 + len(self.fragment_paths))
 
     def test_tfa_edits_additions_deletions_and_renames_rebuild(self) -> None:
         self.build()
