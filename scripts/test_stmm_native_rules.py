@@ -62,7 +62,8 @@ class NativeStmmRulesTests(unittest.TestCase):
                             ({'CIX_RELEASE': 'unofficial', 'STMM': 'other'}, 'supports vendor or unofficial'),
                             ({'CIX_RELEASE': 'unofficial', 'STMM': 'vendor unofficial'}, 'supports vendor or unofficial'),
                             ({'CIX_RELEASE': 'unofficial', 'STMM': 'unofficial', 'FIRMWARE_BOARD': 'O6N'}, 'O6 RELEASE only'),
-                            ({'CIX_RELEASE': 'unofficial', 'STMM': 'unofficial', 'FIRMWARE_TARGET': 'DEBUG'}, 'O6 RELEASE only')):
+                            ({'CIX_RELEASE': 'unofficial', 'STMM': 'unofficial', 'FIRMWARE_TARGET': 'DEBUG'}, 'O6 RELEASE only'),
+                            ({'CIX_RELEASE': 'unofficial', 'STMM': 'unofficial', 'DSC': 'edk2-platforms/Platform/Radxa/Orion/O6N/O6N.dsc'}, 'select the O6 DSC')):
                         result = run(**values)
                         self.assertNotEqual(result.returncode, 0)
                         self.assertIn(error, result.stderr)

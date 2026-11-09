@@ -300,7 +300,9 @@ entry points and their ordinary helpers. Rendering selects the maintained
 OP-TEE and StandaloneMM trees without rewriting recipes or Python helpers.
 The prepared StandaloneMM DSC and `BuildRule202608.template` are component
 files; the builder copies the latter to EDK2's ordinary `Conf/build_rule.txt`.
-It does not port secure-world source during these builds. Both Make fragments
+It does not port secure-world source during these builds. Direct `src/Makefile` builds must select the O6 DSC explicitly; an effective
+DSC list containing another board is rejected for unofficial StandaloneMM.
+Both Make fragments
 participate in the trusted-firmware input stamp. PCI C/INF overlays remain
 normal BL33 prerequisites, including edits in a dirty native worktree.
 
