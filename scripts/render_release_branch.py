@@ -333,8 +333,8 @@ def add_dependency_package(worktree: Path, path: str, after: str, package: str, 
     if re.search(rf"^\s*{re.escape(package)}\s*$", text, flags=re.MULTILINE):
         return
     marker = f"    {after}\n"
-    if marker not in text:
-        raise ReconstructionError(f"could not locate dependency insertion point {after!r} in {clean_path}")
+    if text.count(marker) != 1:
+        raise ReconstructionError(f"missing or ambiguous dependency insertion point {after!r} in {clean_path}")
     if verbose:
         print(f"Adding dependency compatibility package {package} to {clean_path}", file=sys.stderr)
     script.write_text(text.replace(marker, f"{marker}    {package}\n", 1), encoding="utf-8")
@@ -350,8 +350,6 @@ def add_vendor_asl_compat(worktree: Path, path: str, messages: list[str], verbos
         raise ReconstructionError(f"ASL compatibility file does not exist: {clean_path}")
     flags = " ".join(f"-vw {message}" for message in messages)
     text = makefile.read_text(encoding="utf-8")
-    if flags in text:
-        return
     old = "\t\t\tupstream) \\\n\t\t\t\t;; \\\n"
     new = (
         "\t\t\tupstream) \\\n"
@@ -361,8 +359,10 @@ def add_vendor_asl_compat(worktree: Path, path: str, messages: list[str], verbos
         "\t\t\t\t); \\\n"
         "\t\t\t\t;; \\\n"
     )
-    if old not in text:
-        raise ReconstructionError(f"could not locate upstream ASL flag block in {clean_path}")
+    if text.count(new) == 1:
+        return
+    if text.count(old) != 1 or text.count(new):
+        raise ReconstructionError(f"missing or ambiguous upstream ASL flag block in {clean_path}")
     if verbose:
         print(f"Adding historical vendor ASL compatibility flags to {clean_path}", file=sys.stderr)
     makefile.write_text(text.replace(old, new, 1), encoding="utf-8")
