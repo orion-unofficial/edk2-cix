@@ -24,7 +24,7 @@ endif
 endif
 
 ifeq ($(strip $(STMM)),unofficial)
-ifeq ($(wildcard $(STMM_FEATURE_ROOT)/src/cix-v1.2/stmm-unofficial/CixStandaloneMmPkg/CixStandaloneMm.dsc),)
+ifeq ($(and $(wildcard $(STMM_FEATURE_ROOT)/src/cix-v1.2/stmm-unofficial/CixStandaloneMmPkg/CixStandaloneMm.dsc),$(wildcard $(STMM_FEATURE_ROOT)/src/cix-v1.2/stmm-unofficial/CixStandaloneMmPkg/BuildRule202608.template)),)
 $(error STMM=unofficial requires the rendered stmm-unofficial component)
 endif
 ifeq ($(wildcard $(STMM_FEATURE_ROOT)/src/cix-v1.2/stmm-unofficial/ArmPkg/Include/IndustryStandard/ArmFfaBootInfo.h)$(wildcard $(STMM_FEATURE_ROOT)/src/cix-v1.2/stmm-unofficial/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h),)

@@ -1206,7 +1206,7 @@ $(call BUILD_STAGE_DIR,%)/Firmwares/bootloader2.img: \
 	tmp_output="$@.tmp" && \
 	rm -f "$$tmp_output" && \
 	bash "$(abspath $(CIX_RELEASE_BOOTLOADER2_HELPER))" \
-		--stmm "$(STMM)" --stmm-source "$(CIX_RELEASE_STMM_SOURCE)" --stmm-edk2-release 202608 \
+		--stmm "$(STMM)" --stmm-source "$(CIX_RELEASE_STMM_SOURCE)" \
 		--tfa-dir "$(abspath $(CIX_RELEASE_V12_TFA_SOURCE_DIR))" \
 		--tee-dir "$(abspath $(CIX_RELEASE_V12_TEE_SOURCE_DIR))" \
 		--build-root "$(abspath $(call BUILD_STAGE_DIR,$*))" \
