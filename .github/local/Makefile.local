@@ -1,24 +1,7 @@
-STMM ?= vendor
-ifneq ($(strip $(STMM)),vendor)
-ifeq ($(strip $(STMM)),unofficial)
-$(error STMM=unofficial is not available: the reconstructed payload is not yet qualified for any EDK2 base, including pre-2025 releases)
-else
-$(error STMM supports vendor or unofficial; unofficial is not yet available)
-endif
-endif
-
-ifneq ($(strip $(CIX_RELEASE)),)
-ifeq ($(filter 1.2 v1.2 V1.2 unofficial,$(strip $(CIX_RELEASE))),)
-$(error CIX_RELEASE supports only 1.2 (or v1.2) or unofficial)
-endif
-ifneq ($(strip $(ARTEFACT_MODE)),)
-ifneq ($(ARTEFACT_MODE),custom)
-$(error CIX_RELEASE requires ARTEFACT_MODE=custom)
-endif
-endif
-endif
-
 LOCAL_MAKEFILE := $(abspath $(lastword $(MAKEFILE_LIST)))
+STMM_FEATURE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../..)
+include $(STMM_FEATURE_ROOT)/src/stmm-integration-v1/selection.mk
+
 REPO_ROOT ?= $(patsubst %/,%,$(abspath $(dir $(LOCAL_MAKEFILE))/../..))
 REPO_NAME ?= $(notdir $(REPO_ROOT))
 SHELL := /bin/bash
@@ -125,6 +108,7 @@ FIRMWARE_TARGET ?= $(DEFAULT_FIRMWARE_TARGET)
 RAW_FIRMWARE_TARGET := $(FIRMWARE_TARGET)_GCC5
 FIRMWARE_VERSION ?= $(strip $(shell python3 "$(FIRMWARE_LAYOUT_SCRIPT)" version --repo-root "$(REPO_ROOT)" 2>/dev/null || true))
 FIRMWARE_LAYOUT_QUERY_ARGS = \
+	--stmm "$(STMM)" \
 	--artefact-mode "$(ARTEFACT_MODE)" \
 	--firmware-target "$(FIRMWARE_TARGET)" \
 	$(if $(filter TRUE,$(ENABLE_FIRMWARE_FIXES_NORMALIZED)),--enable-firmware-fixes TRUE) \
