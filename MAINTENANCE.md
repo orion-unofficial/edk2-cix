@@ -100,6 +100,9 @@ inherited command descriptor control exclusion. Incomplete or foreign-host
 legacy `.lock.d` ownership fails closed. Abandoned same-host legacy directories
 are respected according to `EDK2_CIX_BUILD_LOCK_BREAK_STALE` and left intact;
 inspect them before any manual cleanup. Cache/worktree lock ordering is unchanged.
+The primary source checkpoints carry the current lock helper. Retained historical
+source wrappers use the directory protocol; use the build-owned runner for those
+builds when sharing caches or checkouts with current builds.
 
 ## How do I publish a source-model update?
 
