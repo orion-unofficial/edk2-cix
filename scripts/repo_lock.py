@@ -67,8 +67,8 @@ def run(command: list[str]) -> int:
         return 2
     if os.environ.get('EDK2_CIX_REPO_LOCK_HELD') == '1':
         os.execvp(command[0], command)
-    root = Path(os.environ.get('EDK2_CIX_BUILD_LOCK_ROOT',
-                              str(Path(__file__).resolve().parents[1] / '.buildbox/locks')))
+    default_root = Path(__file__).resolve().parents[1] / '.buildbox/locks'
+    root = Path(os.environ.get('EDK2_CIX_BUILD_LOCK_ROOT', str(default_root)))
     name = os.environ.get('EDK2_CIX_BUILD_LOCK_NAME', 'repo-build')
     if not name or Path(name).name != name or name in {'.', '..'}:
         raise ValueError('lock name must be a single path component')
