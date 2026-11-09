@@ -65,6 +65,12 @@ class QualityCoverageTests(unittest.TestCase):
             "scripts/run_in_buildbox.sh",
         ).decode()
 
+        if 'exec "$infra_root/scripts/run_in_buildbox.sh" "$@"' in runner:
+            self.assertIn('export EDK2_CIX_FIRMWARE_ROOT="$firmware_root"', runner)
+            self.assertIn('EDK2_CIX_BUILD_INFRA_ROOT', runner)
+            # The delegator is executed by test_buildbox_runtime; its owning
+            # central runner must retain every read-only object mount guard.
+            runner = (SCRIPT_DIR / 'run_in_buildbox.sh').read_text()
         self.assertIn('git_objects="$(git -C "$repo_root" rev-parse', runner)
         self.assertIn('${git_objects}/info/alternates', runner)
         self.assertIn('record_bind_mount "$git_path" "$git_path" ro', runner)
