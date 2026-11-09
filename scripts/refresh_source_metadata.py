@@ -215,7 +215,7 @@ def computed_source_target_tree(
     if stage == "custom" and isinstance(source_ref, str) and ref_exists(repo, source_ref):
         steps = entry.get("render", {}).get("steps", [])
         if steps and any("component" in step for step in steps) and all(
-            "component" in step or "release_metadata" in step for step in steps
+            "component" in step or "stmm_integration" in step or "release_metadata" in step for step in steps
         ):
             metadata = next((step["release_metadata"] for step in steps if "release_metadata" in step), {})
             return unofficial_rendered_tree(repo, source_ref, metadata.get("ref"),

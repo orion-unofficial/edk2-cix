@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from test_support import commit_all, git, load_function_tests, load_json, require, rev_parse, run, switch_orphan, write_file
 
@@ -217,6 +218,24 @@ def test_full_render_does_not_trust_existing_generated_cache_ref() -> None:
         shutil.rmtree(repo)
 
 
+def test_retained_component_and_stmm_assemblies_are_recomputed() -> None:
+    from refresh_source_metadata import computed_source_target_tree
+    source = 'source/unofficial/1.3.1/edk2-stable202208'
+    metadata = 'source/vendor/radxa/1.3.1/edk2-stable202208'
+    target = 'source/cache/release/custom/edk2-202208/radxa-1.3.1/unofficial'
+    entry = {'source_ref': source, 'render': {'steps': [
+        {'component': {'path': 'src/cix-v1.2/stmm-unofficial', 'ref': 'source/unofficial/stmm/edk2-stable202608'}},
+        {'stmm_integration': {'ref': 'source/unofficial/stmm/integration-v1'}},
+        {'release_metadata': {'ref': metadata, 'release': '1.3.1'}},
+    ]}}
+    with patch('refresh_source_metadata.ref_exists', return_value=True), \
+            patch('refresh_source_metadata.unofficial_rendered_tree', return_value='assembled-tree') as derive:
+        value, method = computed_source_target_tree(ROOT, target, entry, render_generated=False, verbose=False)
+        require(value == 'assembled-tree' and method == 'source-with-components',
+                'retained cache hid a changed independently selected component')
+        derive.assert_called_once_with(ROOT, source, metadata, '1.3.1')
+
+
 def test_refresh_preserves_inactive_retained_custom_target() -> None:
     repo = make_repo()
     try:
@@ -387,6 +406,7 @@ def main() -> None:
     test_dry_run_does_not_modify_metadata_or_tags()
     test_full_render_does_not_trust_existing_generated_cache_ref()
     test_refresh_preserves_inactive_retained_custom_target()
+    test_retained_component_and_stmm_assemblies_are_recomputed()
     test_refresh_repairs_hashes_cache_trees_and_tags()
     test_custom_refresh_applies_release_metadata_without_cached_ref()
     test_selected_correction_refresh_ignores_stale_custom_cache()
