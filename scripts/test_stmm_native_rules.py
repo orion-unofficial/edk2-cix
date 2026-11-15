@@ -60,6 +60,8 @@ class NativeStmmRulesTests(unittest.TestCase):
                             ({'CIX_RELEASE': '', 'STMM': 'unofficial'}, 'requires CIX_RELEASE=unofficial'),
                             ({'CIX_RELEASE': '1.2', 'STMM': 'unofficial'}, 'requires CIX_RELEASE=unofficial'),
                             ({'CIX_RELEASE': 'unofficial', 'STMM': 'other'}, 'supports vendor or unofficial'),
+                            ({'CIX_RELEASE': '', 'STMM': '%'}, 'supports vendor or unofficial'),
+                            ({'CIX_RELEASE': 'unofficial', 'STMM': 'unoff%'}, 'supports vendor or unofficial'),
                             ({'CIX_RELEASE': 'unofficial', 'STMM': 'vendor unofficial'}, 'supports vendor or unofficial'),
                             ({'CIX_RELEASE': 'unofficial', 'STMM': 'unofficial', 'FIRMWARE_BOARD': 'O6N'}, 'O6 RELEASE only'),
                             ({'CIX_RELEASE': 'unofficial', 'STMM': 'unofficial', 'FIRMWARE_TARGET': 'DEBUG'}, 'O6 RELEASE only'),
