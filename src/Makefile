@@ -50,15 +50,8 @@ else
 Q := @
 PRINT_HOST_TOOL = @printf '  HOST    %s\n' '$(@F)'
 endif
-WITH_REPO_LOCK := "$(abspath ../scripts/with_repo_lock.sh)"
-LOCKED_MAKE = $(if $(filter 1,$(EDK2_CIX_REPO_LOCK_HELD)),$(MAKE) --no-print-directory,$(WITH_REPO_LOCK) $(MAKE) --no-print-directory)
-define ENSURE_REPO_LOCK
-if [[ "$(EDK2_CIX_REPO_LOCK_HELD)" != "1" ]]; then \
-	$(WITH_REPO_LOCK) $(MAKE) --no-print-directory "$@"; \
-	exit $$?; \
-fi
-endef
 REPO_ROOT := $(abspath ..)
+include $(REPO_ROOT)/scripts/repo-lock.mk
 PREFERRED_TMP_ROOT ?= $(strip $(shell "$(REPO_ROOT)/scripts/resolve_temp_root.sh"))
 CCACHE_BIN ?= ccache
 CCACHE_DIR ?= $(abspath ../build-cache/ccache)
