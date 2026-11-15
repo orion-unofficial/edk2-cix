@@ -6,29 +6,23 @@ ifeq ($(strip $(STMM)),unofficial)
 ifneq ($(strip $(CIX_RELEASE)),unofficial)
 $(error STMM=unofficial requires CIX_RELEASE=unofficial)
 endif
-endif
-
-ifeq ($(strip $(STMM)),unofficial)
-STMM_FIRMWARE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-ifeq ($(wildcard $(STMM_FIRMWARE_ROOT)/src/edk2/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h),)
-$(error STMM=unofficial requires an EDK2 202502-or-newer base; pre-2025 bases are not qualified)
-endif
-ifeq ($(filter $(shell cat "$(STMM_FIRMWARE_ROOT)/VERSION"),1.2.4 1.3.1),)
-$(error STMM=unofficial supports Radxa 1.2.4 or 1.3.1 only)
-endif
-ifeq ($(wildcard $(STMM_FIRMWARE_ROOT)/src/cix-v1.2/stmm-unofficial/CixStandaloneMmPkg/CixStandaloneMm.dsc),)
-$(error STMM=unofficial requires the rendered stmm-unofficial component)
+ifneq ($(or $(FIRMWARE_BOARD),O6):$(or $(FIRMWARE_TARGET),RELEASE),O6:RELEASE)
+$(error STMM=unofficial supports O6 RELEASE only)
 endif
 endif
-
 ifneq ($(strip $(CIX_RELEASE)),)
 ifeq ($(filter 1.2 v1.2 V1.2 unofficial,$(strip $(CIX_RELEASE))),)
-$(error CIX_RELEASE supports only 1.2 (or v1.2) or unofficial)
+$(error CIX_RELEASE supports 1.2 or unofficial)
 endif
-ifneq ($(strip $(ARTEFACT_MODE)),)
-ifneq ($(ARTEFACT_MODE),custom)
+ifneq ($(or $(ARTEFACT_MODE),custom),custom)
 $(error CIX_RELEASE requires ARTEFACT_MODE=custom)
 endif
+endif
+
+STMM_FEATURE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/.)
+ifeq ($(strip $(STMM)),unofficial)
+ifeq ($(wildcard $(STMM_FEATURE_ROOT)/src/cix-v1.2/stmm-unofficial/ArmPkg/Include/IndustryStandard/ArmFfaBootInfo.h)$(wildcard $(STMM_FEATURE_ROOT)/src/cix-v1.2/stmm-unofficial/MdePkg/Include/IndustryStandard/ArmFfaBootInfo.h),)
+$(error STMM=unofficial requires the rendered modern secure-world component with FF-A boot information)
 endif
 endif
 

@@ -190,6 +190,10 @@ def fetch_ccache_stats(
         command.append(f"CCACHE_BIN={ccache_bin}")
     if ccache_disable is not None:
         command.append(f"CCACHE_DISABLE={ccache_disable}")
+    if os.environ.get("EDK2_CIX_IN_BUILDBOX") == "1":
+        command = ["python3", str(repo_root / "scripts/ccache_stats.py"), "--cache-dir", ccache_dir]
+        if ccache_bin:
+            command.extend(["--ccache-bin", ccache_bin])
     result = subprocess.run(
         command,
         cwd=repo_root,
@@ -256,7 +260,7 @@ def build_variant(
     command = [
         make_executable,
         "--no-print-directory",
-        "buildbox-firmware-stage",
+        "firmware-stage" if os.environ.get("EDK2_CIX_IN_BUILDBOX") == "1" else "buildbox-firmware-stage",
         f"V={verbosity}",
         *variant_make_args(
             layout,
