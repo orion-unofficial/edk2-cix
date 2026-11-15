@@ -110,7 +110,7 @@ class ReleaseTreeExpectationTests(unittest.TestCase):
         clear_metadata_caches()
         self.addCleanup(clear_metadata_caches)
         runner = Path(self.temp.name) / 'buildbox-runner.sh'
-        runner.write_text('#!/bin/sh\nmake_command=$1\nshift\nexec "$make_command" -C "$EDK2_CIX_FIRMWARE_ROOT" "$@"\n')
+        runner.write_text('#!/bin/sh\n[ "$1" != --check-workspace ] || exit 0\nmake_command=$1\nshift\nexec "$make_command" -C "$EDK2_CIX_FIRMWARE_ROOT" "$@"\n')
         runner.chmod(0o755)
         self.environment = patch.dict(os.environ, {
             "BUILDBOX_RUNNER": str(runner),

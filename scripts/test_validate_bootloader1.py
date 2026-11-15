@@ -204,7 +204,7 @@ class BuildBoundaryTests(unittest.TestCase):
         )
         dist = self.root / "dist"
         runner = self.root / 'buildbox-runner.sh'
-        runner.write_text('#!/bin/sh\nmake_command=$1\nshift\nexec "$make_command" -C "$EDK2_CIX_FIRMWARE_ROOT" "$@"\n')
+        runner.write_text('#!/bin/sh\n[ "$1" != --check-workspace ] || exit 0\nmake_command=$1\nshift\nexec "$make_command" -C "$EDK2_CIX_FIRMWARE_ROOT" "$@"\n')
         runner.chmod(0o755)
         command = ["make", "--no-print-directory", "build", f"BUILDBOX_RUNNER={runner}", "RELEASE=edk2-202605/radxa-1.3.1/unofficial",
                    "ARTEFACT_MODE=custom", "FIRMWARE_BOARD=O6", "FIRMWARE_TARGET=RELEASE",

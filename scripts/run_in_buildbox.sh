@@ -34,31 +34,39 @@ host_git_repo_usable=0
 workspace_lock_root="${repo_root}/.buildbox/locks"
 requested_lock_root="${EDK2_CIX_BUILD_LOCK_ROOT:-$workspace_lock_root}"
 export EDK2_CIX_BUILDBOX_LOCK_ROOT="${EDK2_CIX_BUILDBOX_LOCK_ROOT:-$requested_lock_root}"
+# A legacy direct Make can start after this runner acquires a flock. An
+# owner-file probe cannot make those two protocols mutually exclusive.
+if ! cmp -s "${repo_root}/scripts/with_repo_lock.sh" "${script_dir}/with_repo_lock.sh" ||
+   ! cmp -s "${repo_root}/scripts/repo_lock.py" "${script_dir}/repo_lock.py" ||
+   ! cmp -s "${repo_root}/scripts/repo-lock.mk" "${script_dir}/repo-lock.mk" ||
+   ! grep -Fq '/scripts/repo-lock.mk' "${repo_root}/src/Makefile" ||
+   ! grep -Fq '/scripts/repo-lock.mk' "${repo_root}/.github/local/Makefile.local"; then
+    printf '%s\n' '[buildbox] This workspace has no compatible lock protocol. Use a migrated checkpoint, or an isolated historical build with its own worktree and caches.' >&2
+    exit 1
+fi
+if [[ "${1:-}" == "--check-workspace" && $# == 1 ]]; then
+    exit 0
+fi
 mkdir -p "$workspace_lock_root" "$requested_lock_root" "$EDK2_CIX_BUILDBOX_LOCK_ROOT"
 workspace_lock_root="$(cd -- "$workspace_lock_root" && pwd -P)"
 requested_lock_root="$(cd -- "$requested_lock_root" && pwd -P)"
 EDK2_CIX_BUILDBOX_LOCK_ROOT="$(cd -- "$EDK2_CIX_BUILDBOX_LOCK_ROOT" && pwd -P)"
-if [[ "${EDK2_CIX_REPO_LOCK_HELD:-0}" == "1" && "${EDK2_CIX_WORKSPACE_LOCK_HELD:-0}" != "1" ]]; then
-    # Direct worktree callers may already hold their legacy repository lock.
-    held_lock_root="${EDK2_CIX_REPO_LOCK_ROOT:-$requested_lock_root}"
-    held_lock_root="$(cd -- "$held_lock_root" && pwd -P)"
-    if [[ "$held_lock_root" == "$workspace_lock_root" ]]; then
-        export EDK2_CIX_WORKSPACE_LOCK_HELD=1
-    elif [[ "$held_lock_root" == "$EDK2_CIX_BUILDBOX_LOCK_ROOT" ]]; then
-        export EDK2_CIX_BUILDBOX_LOCK_HELD=1
-    fi
-fi
-if [[ "${EDK2_CIX_WORKSPACE_LOCK_HELD:-0}" != "1" ]]; then
-    export EDK2_CIX_WORKSPACE_LOCK_HELD=1 EDK2_CIX_REPO_LOCK_HELD=0
-    export EDK2_CIX_BUILD_LOCK_ROOT="$workspace_lock_root"
-    # A legacy caller holding a custom cache lock must never wait in reverse order.
-    if [[ "${EDK2_CIX_BUILDBOX_LOCK_HELD:-0}" == "1" ]]; then
+lock_held() {
+    EDK2_CIX_BUILD_LOCK_ROOT="$1" EDK2_CIX_BUILD_LOCK_NAME=repo-build \
+        "${script_dir}/with_repo_lock.sh" --held
+}
+export EDK2_CIX_BUILD_LOCK_NAME=repo-build
+if ! lock_held "$workspace_lock_root"; then
+    # A caller already holding a cache lock must never wait in reverse order.
+    if [[ "$EDK2_CIX_BUILDBOX_LOCK_ROOT" != "$workspace_lock_root" ]] &&
+       lock_held "$EDK2_CIX_BUILDBOX_LOCK_ROOT"; then
         export EDK2_CIX_BUILD_LOCK_WAIT=0
     fi
+    export EDK2_CIX_BUILD_LOCK_ROOT="$workspace_lock_root"
     exec "${script_dir}/with_repo_lock.sh" "${script_dir}/run_in_buildbox.sh" "$@"
 fi
-if [[ "$EDK2_CIX_BUILDBOX_LOCK_ROOT" != "$workspace_lock_root" && "${EDK2_CIX_BUILDBOX_LOCK_HELD:-0}" != "1" ]]; then
-    export EDK2_CIX_BUILDBOX_LOCK_HELD=1 EDK2_CIX_REPO_LOCK_HELD=0
+if [[ "$EDK2_CIX_BUILDBOX_LOCK_ROOT" != "$workspace_lock_root" ]] &&
+   ! lock_held "$EDK2_CIX_BUILDBOX_LOCK_ROOT"; then
     export EDK2_CIX_BUILD_LOCK_ROOT="$EDK2_CIX_BUILDBOX_LOCK_ROOT"
     exec "${script_dir}/with_repo_lock.sh" "${script_dir}/run_in_buildbox.sh" "$@"
 fi
@@ -524,6 +532,14 @@ EOF
             command_args=(/usr/bin/make "${command_args[@]:1}" "MAKE=/build-infra/scripts/make_in_buildbox.py")
             ;;
     esac
+    if [[ "$mirror_logs" == "build" ]]; then
+        # The host keeps both outer locks. Docker exec cannot inherit host
+        # descriptors, so take a separate lock for container Make recursion.
+        command_args=(env EDK2_CIX_BUILD_LOCK_ROOT="$workspace_path/.buildbox/locks"
+                      EDK2_CIX_BUILD_LOCK_NAME=repo-build-delegated
+                      /build-infra/scripts/with_repo_lock.sh "${command_args[@]}")
+        mirror_logs=1
+    fi
 
     if [[ "$mirror_logs" != "1" ]]; then
         runtime exec "${exec_args[@]}" "$container_name" "${command_args[@]}"
@@ -699,8 +715,7 @@ else
     status "Running $(describe_command "$@") in ${container_name}"
     mirror_status_to_container_logs "Running $(describe_command "$@") in ${container_name}"
 fi
-runtime_exec_command 1 \
-    -e "EDK2_CIX_REPO_LOCK_HELD=${EDK2_CIX_REPO_LOCK_HELD:-}" \
+runtime_exec_command build \
     -e "EDK2_CIX_HOST_OS=${host_os}" \
     -e EDK2_CIX_IN_BUILDBOX=1 \
     -e "EDK2_CIX_VERBOSE=${verbose}" \

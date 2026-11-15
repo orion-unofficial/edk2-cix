@@ -553,35 +553,56 @@ endef
 
 BUILDBOX_RUNNER ?= scripts/run_in_buildbox.sh
 
+define install_locked_payload
+	force_arg=""; \
+	if [ "$(FORCE)" = "1" ]; then force_arg="--force"; fi; \
+	DEBUG="$(DEBUG)" INSTALL_SOURCE="$(INSTALL_SOURCE)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/install_release_payload.py \
+		--worktree "$$wt" \
+		--install-root "$(INSTALL_ROOT)" \
+		$$force_arg \
+		--v "$(V)"
+endef
+
 define run_release_make
 	@set -e; \
-	printf '[build] Resolving source target for %s\n' "$(1)" >&2; \
+	printf '[build] Resolving source target for %s\n' "$(or $(2),$(1))" >&2; \
 	if [ "$(FIRST_OUTPUT_PROBE)" = "1" ]; then exit 0; fi; \
 	release_label="$(RELEASE)"; \
 	if [ -z "$$release_label" ]; then release_label="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-default-release 2>/dev/null || printf '%s' '<default source target>')"; fi; \
 	printf '[build] Preparing release worktree: %s\n' "$$release_label" >&2; \
-	$(BUILD_VARIABLE_ENV) $(PYTHON) scripts/validate_build_variables.py --target "$(1)"; \
+	$(BUILD_VARIABLE_ENV) $(PYTHON) scripts/validate_build_variables.py --target "$(or $(2),$(1))"; \
 	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
-	$(call check_bootloader1,inputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
-	$(call check_firmware_chain,inputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
+	EDK2_CIX_FIRMWARE_ROOT="$$wt" $(BUILDBOX_RUNNER) --check-workspace; \
+	scripts/with_repo_lock.sh --workspace="$$wt" $(MAKE) --no-print-directory __locked-release-make \
+	        LOCKED_WORKTREE="$$wt" LOCKED_RELEASE_LABEL="$$release_label" LOCKED_BUILD_TARGET="$(1)" LOCKED_INSTALL="$(2)"
+endef
+
+.PHONY: __locked-release-make
+__locked-release-make:
+	@set -e; \
+	wt="$(LOCKED_WORKTREE)"; \
+	release_label="$(LOCKED_RELEASE_LABEL)"; \
+	scripts/with_repo_lock.sh --workspace="$$wt" --held; \
+	$(call check_bootloader1,inputs,$(LOCKED_BUILD_TARGET),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
+	$(call check_firmware_chain,inputs,$(LOCKED_BUILD_TARGET),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
 	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
-	mkdir -p "$$cache_root/buildbox"; \
+	mkdir -p "$$cache_root/buildbox-native"; \
 	cache_root="$$(cd "$$cache_root" && pwd -P)"; \
 	container_cache_root="/hosttmp"; \
-	printf '[build] Starting %s: board=%s target=%s release=%s\n' "$(1)" "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
-	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(1) $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox CCACHE_DIR=$$container_cache_root/ccache"; fi; \
+	printf '[build] Starting %s: board=%s target=%s release=%s\n' "$(LOCKED_BUILD_TARGET)" "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
+	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(LOCKED_BUILD_TARGET) $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox-native CCACHE_DIR=$$container_cache_root/ccache"; fi; \
 	EDK2_CIX_FIRMWARE_ROOT="$$wt" \
-	EDK2_CIX_HOST_TMPDIR="$$cache_root/buildbox" \
+	EDK2_CIX_HOST_TMPDIR="$$cache_root/buildbox-native" \
 	EDK2_CIX_HOST_OUTPUT_ROOT="$$cache_root" \
-	EDK2_CIX_BUILD_LOCK_ROOT="$$cache_root/buildbox/locks" \
-	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
+	EDK2_CIX_BUILD_LOCK_ROOT="$$cache_root/buildbox-native/locks" \
+	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox-native/buildbox-name" \
 	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
 	EDK2_CIX_BUILDBOX_IMAGE_OVERRIDE="$(BUILDBOX_IMAGE)" \
 	EDK2_CIX_FIRMWARE_DISTRO="$(or $(FIRMWARE_DISTRO),trixie)" \
 	EDK2_CIX_BUILDBOX_IMAGE="$(if $(BUILDBOX_IMAGE),$(BUILDBOX_IMAGE),mcr.microsoft.com/devcontainers/base:$(or $(FIRMWARE_DISTRO),trixie))" \
-	$(BUILDBOX_RUNNER) $(MAKE) --no-print-directory $(patsubst buildbox-%,%,$(1)) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
-		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox" \
+	$(BUILDBOX_RUNNER) $(MAKE) --no-print-directory $(patsubst buildbox-%,%,$(LOCKED_BUILD_TARGET)) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
+		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox-native" \
 		BUILDBOX_CONTAINER_TMPDIR="$$container_cache_root" \
 		CCACHE_DIR="$$container_cache_root/ccache" \
 		CCACHE_WRAPPER_ROOT="$$container_cache_root/ccache-toolchain" \
@@ -589,19 +610,19 @@ define run_release_make
 		FIPTOOL_DISTRO_STAMP="$$container_cache_root/fiptool/.buildbox-distro" \
 		BUILD_LOG_ROOT="/hostcache/build-logs" \
 		FIRMWARE_VALIDATION_REPORT_ROOT="/hostcache/build-validation"; \
-	$(call check_bootloader1,outputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
-	$(call check_firmware_chain,outputs,$(1),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
+	$(call check_bootloader1,outputs,$(LOCKED_BUILD_TARGET),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
+	$(call check_firmware_chain,outputs,$(LOCKED_BUILD_TARGET),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
 		--repo-root "$(CURDIR)" \
 		--worktree "$$wt" \
 		--dist-root "$(BUILD_DIST_ROOT)" \
 		--release "$$release_label" \
-		--build-target "$(1)" \
+		--build-target "$(LOCKED_BUILD_TARGET)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--firmware-target "$(FIRMWARE_TARGET)" \
 		--artefact-mode "$(or $(ARTEFACT_MODE),custom)$(if $(filter 1 true yes on,$(ENABLE_FIRMWARE_FIXES)),+fixes,)$(if $(filter unofficial,$(STMM)),+stmm_unofficial,)" \
-		--v "$(V)"
-endef
+		--v "$(V)"; \
+	$(if $(filter install,$(LOCKED_INSTALL)),$(install_locked_payload),:)
 
 build:
 	$(call run_release_make,buildbox-firmware-build)
@@ -651,6 +672,7 @@ deterministic-replay:
 	fi; \
 	replay_key="$(FIRMWARE_BOARD)-$${replay_version:-manual}"; \
 	printf '[replay] Running deterministic replay in %s\n' "$$wt" >&2; \
+	EDK2_CIX_REPO_LOCK_HELD=0 \
 	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
 	$(MAKE) --no-print-directory -C "$$wt" deterministic-replay V="$(V)" \
 		FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
@@ -682,60 +704,7 @@ deterministic-replay:
 		--v "$(V)"
 
 install:
-	@set -e; \
-	printf '[build] Resolving source target for install\n' >&2; \
-	if [ "$(FIRST_OUTPUT_PROBE)" = "1" ]; then exit 0; fi; \
-	release_label="$(RELEASE)"; \
-	if [ -z "$$release_label" ]; then release_label="$$(DEBUG="$(DEBUG)" $(PYTHON) scripts/help_cache.py --print-default-release 2>/dev/null || printf '%s' '<default source target>')"; fi; \
-	printf '[build] Preparing release worktree: %s\n' "$$release_label" >&2; \
-	$(BUILD_VARIABLE_ENV) $(PYTHON) scripts/validate_build_variables.py --target "install"; \
-	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(RELEASE)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
-	$(call check_bootloader1,inputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
-	$(call check_firmware_chain,inputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
-	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
-	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
-	mkdir -p "$$cache_root/buildbox"; \
-	cache_root="$$(cd "$$cache_root" && pwd -P)"; \
-	container_cache_root="/hosttmp"; \
-	printf '[build] Starting buildbox-firmware-stage: board=%s target=%s release=%s\n' "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
-	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt buildbox-firmware-stage $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox CCACHE_DIR=$$container_cache_root/ccache"; fi; \
-	EDK2_CIX_FIRMWARE_ROOT="$$wt" \
-	EDK2_CIX_HOST_TMPDIR="$$cache_root/buildbox" \
-	EDK2_CIX_HOST_OUTPUT_ROOT="$$cache_root" \
-	EDK2_CIX_BUILD_LOCK_ROOT="$$cache_root/buildbox/locks" \
-	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
-	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
-	EDK2_CIX_BUILDBOX_IMAGE_OVERRIDE="$(BUILDBOX_IMAGE)" \
-	EDK2_CIX_FIRMWARE_DISTRO="$(or $(FIRMWARE_DISTRO),trixie)" \
-	EDK2_CIX_BUILDBOX_IMAGE="$(if $(BUILDBOX_IMAGE),$(BUILDBOX_IMAGE),mcr.microsoft.com/devcontainers/base:$(or $(FIRMWARE_DISTRO),trixie))" \
-	$(BUILDBOX_RUNNER) $(MAKE) --no-print-directory firmware-stage $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
-		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox" \
-		BUILDBOX_CONTAINER_TMPDIR="$$container_cache_root" \
-		CCACHE_DIR="$$container_cache_root/ccache" \
-		CCACHE_WRAPPER_ROOT="$$container_cache_root/ccache-toolchain" \
-		CIX_RELEASE_CACHE_ROOT="$$container_cache_root/cix-release" \
-		FIPTOOL_DISTRO_STAMP="$$container_cache_root/fiptool/.buildbox-distro" \
-		BUILD_LOG_ROOT="/hostcache/build-logs" \
-		FIRMWARE_VALIDATION_REPORT_ROOT="/hostcache/build-validation"; \
-	$(call check_bootloader1,outputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
-	$(call check_firmware_chain,outputs,buildbox-firmware-stage,$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
-	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
-		--repo-root "$(CURDIR)" \
-		--worktree "$$wt" \
-		--dist-root "$(BUILD_DIST_ROOT)" \
-		--release "$$release_label" \
-		--build-target "buildbox-firmware-stage" \
-		--board "$(FIRMWARE_BOARD)" \
-		--firmware-target "$(FIRMWARE_TARGET)" \
-		--artefact-mode "$(or $(ARTEFACT_MODE),custom)$(if $(filter 1 true yes on,$(ENABLE_FIRMWARE_FIXES)),+fixes,)$(if $(filter unofficial,$(STMM)),+stmm_unofficial,)" \
-		--v "$(V)"; \
-	force_arg=""; \
-	if [ "$(FORCE)" = "1" ]; then force_arg="--force"; fi; \
-	DEBUG="$(DEBUG)" INSTALL_SOURCE="$(INSTALL_SOURCE)" FORCE="$(FORCE)" V="$(V)" $(PYTHON) scripts/install_release_payload.py \
-		--worktree "$$wt" \
-		--install-root "$(INSTALL_ROOT)" \
-		$$force_arg \
-		--v "$(V)"
+	$(call run_release_make,buildbox-firmware-stage,install)
 
 zip:
 	$(call run_release_make,buildbox-zip)

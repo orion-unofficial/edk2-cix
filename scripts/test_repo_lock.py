@@ -46,7 +46,7 @@ def paused(fd, command):
     while not Path('release').exists(): time.sleep(.01)
     original(fd, command)
 repo_lock.write_owner = paused
-raise SystemExit(repo_lock.run(['true']))
+raise SystemExit(repo_lock.run(['true'], Path.cwd(), 'repo-build'))
 '''
             command = [sys.executable, '-c', code]
         else:
@@ -78,6 +78,7 @@ raise SystemExit(repo_lock.run(['true']))
     def test_parallel_waiters_serialize_and_cleanup_keeps_inode(self):
         marker = self.root / 'critical'
         log = self.root / 'log'
+        start = self.root / 'start'
         code = f'''import os, time
 fd = os.open({str(marker)!r}, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
 time.sleep(.02)
@@ -85,9 +86,13 @@ os.close(fd)
 os.unlink({str(marker)!r})
 with open({str(log)!r}, 'a') as f: f.write('done\\n')
 '''
-        processes = [subprocess.Popen([str(ROOT / 'scripts/with_repo_lock.sh'), sys.executable, '-c', code],
+        entrypoint = str(ROOT / 'scripts/with_repo_lock.sh')
+        barrier = 'while [ ! -e "$1" ]; do sleep .01; done; shift; exec "$@"'
+        processes = [subprocess.Popen(['sh', '-c', barrier, 'start', str(start),
+                                       entrypoint, sys.executable, '-c', code],
                                       env={**self.env, 'EDK2_CIX_BUILD_LOCK_WAIT': '1'},
                                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) for _ in range(8)]
+        start.touch()
         for process in processes:
             _, error = process.communicate(timeout=10)
             self.assertEqual(process.returncode, 0, error)

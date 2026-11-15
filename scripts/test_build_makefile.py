@@ -42,7 +42,7 @@ print('fixture helper: ' + script, file=sys.stderr)
                    EDK2_CIX_WORKTREE_NAMESPACE="", FIXTURE_RESULT=str(repo / ".cache/delegated"),
                    FIXTURE_INSTALL_RECEIPT=str(repo / ".cache/install-intercepted"))
         runner = repo / ".cache/buildbox-runner.sh"
-        runner.write_text('#!/bin/bash\nexec "$1" -C "$EDK2_CIX_FIRMWARE_ROOT" "${@:2}"\n')
+        runner.write_text('#!/bin/bash\n[ "$1" != --check-workspace ] || exit 0\nexec "$1" -C "$EDK2_CIX_FIRMWARE_ROOT" "${@:2}"\n')
         runner.chmod(0o755)
         certs = repo / ".cache/certs"
         certs.mkdir()
@@ -117,7 +117,7 @@ print('fixture helper: ' + script, file=sys.stderr)
             with patch.dict(os.environ, FIRMWARE_CACHE_ROOT=str(cache)):
                 result = self.run_rendered_fixture(repo, 'build', '0')
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue((cache / 'buildbox').is_dir())
+            self.assertTrue((cache / 'buildbox-native').is_dir())
 
     def test_stock_replay_keeps_its_host_cache_namespace(self):
         text = (REPO_ROOT / 'Makefile').read_text()

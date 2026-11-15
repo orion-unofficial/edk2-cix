@@ -34,7 +34,8 @@ class FirmwareReconfigurationTests(unittest.TestCase):
             dest = self.root / relative
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(data)
-        for relative in ("src/stmm-integration-v1/selection.mk", "src/stmm-integration-v1/payload.mk"):
+        for relative in ("src/stmm-integration-v1/selection.mk", "src/stmm-integration-v1/payload.mk",
+                         "scripts/repo-lock.mk", "scripts/repo_lock.py", "scripts/with_repo_lock.sh"):
             local = os.environ.get("SOURCE_TEST_ROOT")
             path = Path(local) / relative if local else None
             data = path.read_bytes() if path and path.is_file() else show_file(
@@ -43,6 +44,8 @@ class FirmwareReconfigurationTests(unittest.TestCase):
                 dest = self.root / relative
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_bytes(data)
+                if relative.endswith(".sh"):
+                    dest.chmod(0o755)
         (self.root / "src/edk2-platforms/Platform/Radxa").mkdir(parents=True, exist_ok=True)
         self.make = shutil.which("gmake") or shutil.which("make")
         self.toolchain = re.search(

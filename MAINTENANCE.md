@@ -93,16 +93,24 @@ payload, signing-helper and communication-interface checks remain enforced.
 | Historical StandaloneMM adapter | Repeated recipe/helper rewriting retained temporarily for supported unmigrated checkpoints. Next migration unit is one exact checkpoint and its effective recipe. |
 | Measured BL33/FDF sizing and release logging configuration | Required build configuration with measured output checks; retain these features. |
 
-Build-command locks use macOS/Linux `flock` through Python's `fcntl` module.
-The `.lock` inode persists after commands finish and must not be unlinked as
-routine cleanup. Ownership metadata is diagnostic; the kernel lock and the
-inherited command descriptor control exclusion. Incomplete or foreign-host
-legacy `.lock.d` ownership fails closed. Abandoned same-host legacy directories
-are respected according to `EDK2_CIX_BUILD_LOCK_BREAK_STALE` and left intact;
-inspect them before any manual cleanup. Cache/worktree lock ordering is unchanged.
-The primary source checkpoints carry the current lock helper. Retained historical
-source wrappers use the directory protocol; use the build-owned runner for those
-builds when sharing caches or checkouts with current builds.
+Build-command locks use Python's `fcntl.flock` on macOS and Linux. Leave the
+persistent `.lock` inode in place. Make recursion and the build-owned runner
+check the inherited descriptor and its kernel lock. Setting an old
+`EDK2_CIX_*_LOCK_HELD` flag has no effect on these entrypoints.
+The runner holds the workspace before the shared buildbox cache. Container Make
+commands acquire their own delegated lock while the host holds the outer locks.
+
+Radxa 1.3.2 with EDK2 202208 or 202608 and the promoted Radxa 1.3.1 / EDK2
+202608 checkpoint carry the verified workspace protocol. Render them afresh
+before building. For a direct buildbox invocation in a rendered worktree, set
+`EDK2_CIX_BUILD_INFRA_ROOT` to the matching build checkout.
+
+The current runner rejects worktrees with historical directory-lock wrappers
+before starting the container or staging signing files. Use an isolated,
+single-writer worktree and separate cache for an unmigrated historical build.
+The current runner uses the `buildbox-native` cache namespace. Exact vendor replay
+keeps its original source and cache paths. Existing materialised historical
+worktrees are outside the verified lock protocol.
 
 ## How do I publish a source-model update?
 
