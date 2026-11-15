@@ -356,7 +356,7 @@ define PRINT_TOP_LEVEL_INTERNAL_VARIABLES_WRAPPER_FLAGS
 	print_help_line '  EDK2_CIX_SUPPRESS_FINAL_OUTPUT=0|1' 'Suppress the final top-level wrapper status lines.'; \
 	print_help_line '  EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=0|1' 'Suppress export_firmware_payload.py status lines during wrapper chaining.'; \
 	print_help_line '  EDK2_CIX_SUPPRESS_BUILD_BANNER=0|1' 'Suppress the normalized firmware-variant banner printed before single-build firmware wrappers invoke the source build.'; \
-	print_help_line '  EDK2_CIX_ACT_CLEAN_KEEP=0|1' 'Internal handoff used by gha-act-run-clean to preserve the scratch checkout.'; \
+	print_help_line '  EDK2_CIX_ACT_CLEAN_KEEP=0|1' 'Internal handoff used by gha-act-run-clean to preserve the scratch checkout.'
 endef
 
 define BUILD_ALL_WARN_IF_IGNORED
