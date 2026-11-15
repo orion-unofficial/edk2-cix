@@ -3,7 +3,7 @@ STMM ?= vendor
 ifneq ($(words $(strip $(STMM))),1)
 $(error STMM supports vendor or unofficial)
 endif
-ifeq ($(filter $(strip $(STMM)),vendor unofficial),)
+ifeq ($(filter vendor unofficial,$(strip $(STMM))),)
 $(error STMM supports vendor or unofficial)
 endif
 ifeq ($(strip $(STMM)),unofficial)
