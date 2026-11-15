@@ -23,11 +23,12 @@ from the UEFI shell; the generated OTA image is not currently usable.
 to custom O6 builds with the reviewed signing and pinned-payload integration.
 Radxa 1.3.2 with EDK2 202208 or 202608 uses Make rules maintained in the
 firmware source. The renderer assembles the pinned components for these builds.
-The retained Radxa 1.3.1 EDK2 checkpoints and Radxa 1.2.4 with EDK2 202208,
-202605 or 202608 use the historical adapter. Earlier 1.2.4 recipes lack the
-reviewed CIX signing and staging contract and reject the opt-in. The separately
-promoted 202608 / 1.3.1 checkpoint keeps its original native recipe and
-five-helper profile.
+Radxa 1.2.4 with EDK2 202208 or 202608 carries the reviewed shared
+StandaloneMM recipes and helpers in source alongside the workspace lock
+rules. Radxa 1.2.4 with EDK2 202605 and unmigrated Radxa 1.3.1 checkpoints
+use the historical adapter. Earlier 1.2.4 recipes lack the reviewed CIX
+signing and staging contract and reject the opt-in. The separately promoted
+202608 / 1.3.1 checkpoint keeps its native recipe and five-helper profile.
 
 The historical adapter uses `source/unofficial/stmm/integration-v1`, pinned
 in `config/refs-cix.json`. Its `profile.json` binds the five helpers, accepted
@@ -305,13 +306,11 @@ board. Both Make fragments participate in the trusted-firmware input stamp.
 PCI C/INF overlays remain
 normal BL33 prerequisites, including edits in a dirty native worktree.
 
-Other supported 1.2.4 and 1.3.1 checkpoints still use the frozen adapter and
-its recipe preimage checks. Migrate them one release at a time after comparing
-the effective recipe and secure-world inputs. Earlier 1.2.4 checkpoints keep
-their existing restrictions. The retained adapter has its own source identity
-and representative compilation and signature checks. These checks do not establish physical O6/O6N boot or
-NOR behavior for other combinations. Physical testing is an optional activity
-for external testers with suitable facilities.
+Unmigrated checkpoints use the frozen adapter and its recipe preimage checks.
+Use their matching historical build tooling with an isolated worktree and
+separate caches. The adapter has its own source identity and representative
+compilation and signature checks.
+Physical O6/O6N boot and NOR behaviour require separate testing.
 
 This builds TF-A and maintained OP-TEE, builds the hybrid StandaloneMM component,
 selects `CFG_STMM_FFA_VERSION=12`, verifies the embedded payload before signing,
