@@ -67,7 +67,7 @@ targets listed by `make help-source-targets`:
 
 ```bash
 make build \
-  RELEASE=edk2-202608/radxa-1.3.1/unofficial \
+  RELEASE=edk2-202608/radxa-1.3.2/unofficial \
   FIRMWARE_BOARD=O6N \
   FIRMWARE_TARGET=RELEASE
 ```

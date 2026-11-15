@@ -11,7 +11,7 @@ from unittest.mock import patch
 from build_profiles import resolve_profile
 from reconstruction_common import ReconstructionError, unofficial_firmware_refs, show_file
 from validate_build_variables import validate
-from stmm_integration import native_rules
+from stmm_integration import materialized_shared_rules, native_rules
 
 ROOT = Path(__file__).resolve().parents[1]
 ERROR = "CIX_RELEASE supports only 1.2"
@@ -59,7 +59,10 @@ class CixReleasePolicyTests(unittest.TestCase):
                 except ReconstructionError:
                     expected = "CIX_RELEASE must be empty"
                 else:
-                    expected = 'CIX_RELEASE supports' if native_rules(ROOT, ref) else ERROR
+                    if materialized_shared_rules(ROOT, ref):
+                        expected = 'CIX_RELEASE supports 1.2 or unofficial'
+                    else:
+                        expected = 'CIX_RELEASE supports' if native_rules(ROOT, ref) else ERROR
                 for relative in ('src/stmm-integration-v1/selection.mk', 'src/stmm-integration-v1/payload.mk'):
                     fragment = show_file(ROOT, ref, relative, check=False)
                     if fragment:

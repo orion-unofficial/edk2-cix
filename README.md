@@ -204,7 +204,7 @@ form is the prefixless source-target name shown by `make help-source-targets`:
 
 ```bash
 make build \
-  RELEASE=edk2-202608/radxa-1.3.1/unofficial \
+  RELEASE=edk2-202608/radxa-1.3.2/unofficial \
   FIRMWARE_BOARD=O6N \
   FIRMWARE_TARGET=RELEASE
 ```
@@ -224,16 +224,12 @@ edits to a cached tree:
 
 ```bash
 firmware_tree="$(python3 scripts/render_release_branch.py \
-  --release edk2-202605/radxa-1.3.1/unofficial --print-worktree)"
-firmware_cache="$PWD/.cache/edk2-cix/firmware/buildbox"
-make -C "$firmware_tree" buildbox-firmware-build \
+  --release edk2-202608/radxa-1.3.2/unofficial --print-worktree)"
+EDK2_CIX_BUILD_INFRA_ROOT="$PWD" make -C "$firmware_tree" buildbox-firmware-build \
   ARTEFACT_MODE=custom FIRMWARE_BOARD=O6 FIRMWARE_TARGET=RELEASE \
   FIRMWARE_DISTRO=trixie ENABLE_FIRMWARE_FIXES=false ENABLE_CORE_ORDER=cix \
   ENABLE_EXPERIMENTAL_UEFI_SETTINGS=false DEBUG_VERBOSE=false CIX_RELEASE= \
-  EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE=1 \
-  BUILDBOX_HOST_TMPDIR="$firmware_cache" BUILDBOX_CONTAINER_TMPDIR=/hosttmp \
-  CCACHE_DIR=/hosttmp/ccache CCACHE_WRAPPER_ROOT=/hosttmp/ccache-toolchain \
-  CIX_RELEASE_CACHE_ROOT=/hosttmp/cix-release
+  EDK2_CIX_INCREMENTAL_CUSTOM_WORKSPACE=1
 ```
 
 That direct debugging build leaves firmware under

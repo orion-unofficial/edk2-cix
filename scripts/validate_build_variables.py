@@ -124,14 +124,14 @@ def stmm_helper_problems(helper: bytes, contents: dict[str, bytes]) -> list[str]
 def validate_cix_source(repo: Path, entry: dict, problems: list[str]) -> None:
     """Advertise CIX_RELEASE only for checkpoints with the reviewed helper and keys."""
     ref = entry["source_ref"]
-    from stmm_integration import selected, feature_files, native_rules
+    from stmm_integration import selected, feature_files, native_rules, materialized_shared_rules
     from stmm_integration import FEATURE_REF
     native = native_rules(repo, ref)
     available = selected(repo, ref)
     feature_selected = any(step.get("stmm_integration", {}).get("ref") == FEATURE_REF
                            for step in entry.get("render", {}).get("steps", []))
-    shared = native or (available and feature_selected)
-    files = feature_files(repo, ref) if shared and not native else {}
+    shared = native or materialized_shared_rules(repo, ref) or (available and feature_selected)
+    files = feature_files(repo, ref) if available and feature_selected else {}
 
     def content(path):
         return files[path][1] if path in files else show_file(repo, ref, path)

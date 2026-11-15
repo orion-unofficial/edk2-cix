@@ -100,9 +100,12 @@ check the inherited descriptor and its kernel lock. Setting an old
 The runner holds the workspace before the shared buildbox cache. Container Make
 commands acquire their own delegated lock while the host holds the outer locks.
 
-Radxa 1.3.2 with EDK2 202208 or 202608 and the promoted Radxa 1.3.1 / EDK2
-202608 checkpoint carry the verified workspace protocol. Render them afresh
-before building. For a direct buildbox invocation in a rendered worktree, set
+The supported custom matrix for Radxa 1.2.4 and 1.3.2 with EDK2 202208 and
+202608, and the promoted Radxa 1.3.1 / EDK2 202608 checkpoint, carry the
+verified workspace protocol. The two 1.2.4 checkpoints carry the reviewed
+shared StandaloneMM recipe and helper files in source. Rendering only
+assembles their pinned components. Render these checkpoints afresh before
+building. For a direct buildbox invocation in a rendered worktree, set
 `EDK2_CIX_BUILD_INFRA_ROOT` to the matching build checkout.
 
 The current runner rejects worktrees with historical directory-lock wrappers

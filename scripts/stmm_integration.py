@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 
 FEATURE_REF = 'source/unofficial/stmm/integration-v1'
+MATERIALIZED_SHARED_RULES = b'# Shared StandaloneMM integration is maintained in this checkpoint.'
 
 
 def compatibility(repo: Path) -> dict:
@@ -21,8 +22,14 @@ def native_rules(repo: Path, source_ref: str) -> bool:
         repo, source_ref, 'src/Makefile', check=False)
 
 
+def materialized_shared_rules(repo: Path, source_ref: str) -> bool:
+    """A retained checkpoint carries the reviewed adapter output as source."""
+    from reconstruction_common import show_file
+    return MATERIALIZED_SHARED_RULES in show_file(repo, source_ref, 'src/Makefile', check=False)
+
+
 def selected(repo: Path, source_ref: str) -> bool:
-    if native_rules(repo, source_ref):
+    if native_rules(repo, source_ref) or materialized_shared_rules(repo, source_ref):
         return False
     if not (repo / "config/refs-cix.json").is_file():
         return False
@@ -129,7 +136,7 @@ CIX_RELEASE_STMM_ARGS = $(if $(filter unofficial,$(STMM)),--source "$(CIX_RELEAS
 
 def feature_files(repo: Path, source_ref: str) -> dict[str, tuple[str, bytes]]:
     from reconstruction_common import git, show_file, resolve_ref
-    if native_rules(repo, source_ref):
+    if native_rules(repo, source_ref) or materialized_shared_rules(repo, source_ref):
         return {}
     result = {}
     listing = git(repo, 'ls-tree', '-r', resolve_ref(repo, FEATURE_REF)).stdout.splitlines()

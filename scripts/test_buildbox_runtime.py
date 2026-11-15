@@ -323,6 +323,25 @@ class BuildboxLockTests(unittest.TestCase):
         self.assertIn('no compatible lock protocol', result.stderr)
         self.assertFalse(self.engine_marker.exists())
 
+    def test_policy_firmware_matrix_has_the_verified_workspace_protocol(self):
+        from firmware_ci_matrix import qualification_releases
+        from reconstruction_common import release_entry
+
+        bases, radxa = qualification_releases(json.loads((ROOT / 'config/policies.json').read_text()))
+        for base in bases:
+            for release in radxa:
+                target = f'edk2-{base}/radxa-{release}/unofficial'
+                with self.subTest(target=target):
+                    _, entry = release_entry(ROOT, target, require=True)
+                    ref = entry['source_ref']
+                    for path in ('scripts/with_repo_lock.sh', 'scripts/repo_lock.py', 'scripts/repo-lock.mk',
+                                 'src/Makefile', '.github/local/Makefile.local'):
+                        (self.workspace / path).write_bytes(show_file(ROOT, ref, path))
+                    result = subprocess.run([str(ROOT / 'scripts/run_in_buildbox.sh'), '--check-workspace'],
+                                            env=self.env, capture_output=True, text=True, timeout=5)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertFalse(self.engine_marker.exists())
+
     def native_make(self, ref):
         recipe = self.workspace / "src/Makefile"
         recipe.write_bytes(show_file(ROOT, ref, "src/Makefile") + (
@@ -343,7 +362,14 @@ class BuildboxLockTests(unittest.TestCase):
 
     def test_migrated_retained_make_and_runner_exclude_each_other(self):
         from reconstruction_common import NATIVE_STMM_CHECKPOINT_REF
-        make = self.native_make(os.environ.get('SOURCE_LOCK_TEST_REF', NATIVE_STMM_CHECKPOINT_REF))
+        for ref in (NATIVE_STMM_CHECKPOINT_REF,
+                    'source/unofficial/1.2.4/edk2-stable202208',
+                    'source/unofficial/1.2.4/edk2-stable202608'):
+            with self.subTest(ref=ref):
+                self.check_retained_contention(ref)
+
+    def check_retained_contention(self, ref):
+        make = self.native_make(ref)
         # The probe is routed through the real retained Makefile's recursive
         # $(LOCKED_MAKE) and recipe-level $(ENSURE_REPO_LOCK).
         native = self.root / "native-entered"
