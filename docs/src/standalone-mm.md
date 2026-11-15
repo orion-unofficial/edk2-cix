@@ -21,20 +21,19 @@ from the UEFI shell; the generated OTA image is not currently usable.
 
 `STMM=vendor` is the default. Source-built trusted firmware remains restricted
 to custom O6 builds with the reviewed signing and pinned-payload integration.
-The renderer adds the shared integration to retained recipes with the reviewed
-CIX signing and staging contract. This includes Radxa 1.3.2's retained 202208
-and 202608 checkpoints, the retained 1.3.1 EDK2 checkpoints, and the 1.2.4
-202208, 202605 and 202608 checkpoints. Earlier 1.2.4 recipes retain their
-existing guard because they lack that contract. A 202502 / 1.3.2 checkpoint
-has not been retained in the source model. The promoted 202608 / 1.3.1
-candidate keeps its original native recipe and five-helper profile.
+Radxa 1.3.2 with EDK2 202208 or 202608 uses Make rules maintained in the
+firmware source. The renderer assembles the pinned components for these builds.
+The retained Radxa 1.3.1 EDK2 checkpoints and Radxa 1.2.4 with EDK2 202208,
+202605 or 202608 use the historical adapter. Earlier 1.2.4 recipes lack the
+reviewed CIX signing and staging contract and reject the opt-in. The separately
+promoted 202608 / 1.3.1 checkpoint keeps its original native recipe and
+five-helper profile.
 
-The opt-in uses `source/unofficial/stmm/integration-v1`, pinned in
-`config/refs-cix.json`. Its machine-readable `profile.json` binds the five
-helpers, accepted recipe preimages, secure-world baseline, board/target and
-Radxa vendor-service identities. The adapter changes selection and staging
-within each recipe while preserving its compiler, DSC/FDF, packaging and
-signing rules. Stock deterministic replay uses its existing render plan.
+The historical adapter uses `source/unofficial/stmm/integration-v1`, pinned
+in `config/refs-cix.json`. Its `profile.json` binds the five helpers, accepted
+recipe preimages, secure-world baseline, board/target and Radxa vendor-service
+identities. It adapts selection and staging within the reviewed recipe. Stock
+deterministic replay uses its existing render plan.
 
 The maintained component is
 `source/unofficial/cix/1.2/op-tee/3.17.0`, descended directly from the unchanged
@@ -300,10 +299,10 @@ entry points and their ordinary helpers. Rendering selects the maintained
 OP-TEE and StandaloneMM trees without rewriting recipes or Python helpers.
 The prepared StandaloneMM DSC and `BuildRule202608.template` are component
 files; the builder copies the latter to EDK2's ordinary `Conf/build_rule.txt`.
-It does not port secure-world source during these builds. Direct `src/Makefile` builds must select the O6 DSC explicitly; an effective
-DSC list containing another board is rejected for unofficial StandaloneMM.
-Both Make fragments
-participate in the trusted-firmware input stamp. PCI C/INF overlays remain
+Direct `src/Makefile` builds with unofficial StandaloneMM must select the O6
+DSC explicitly. The build rejects an effective DSC list containing another
+board. Both Make fragments participate in the trusted-firmware input stamp.
+PCI C/INF overlays remain
 normal BL33 prerequisites, including edits in a dirty native worktree.
 
 Other supported 1.2.4 and 1.3.1 checkpoints still use the frozen adapter and
