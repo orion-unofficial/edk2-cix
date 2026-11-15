@@ -176,14 +176,24 @@ def main() -> None:
         default_root = Path(__file__).resolve().parents[1] / '.buildbox/locks'
         root = Path(os.environ.get('EDK2_CIX_BUILD_LOCK_ROOT', str(default_root)))
         name = os.environ.get('EDK2_CIX_BUILD_LOCK_NAME', 'repo-build')
-        workspace = args[:1] == ['--workspace']
+        workspace = args and (args[0] == '--workspace' or args[0].startswith('--workspace='))
         if workspace:
             # Direct Make entrypoints always use this checkout's workspace.
-            root, name = default_root, 'repo-build'
+            requested = lock_path(root, name)
+            cache = os.environ.get('EDK2_CIX_BUILDBOX_LOCK_ROOT')
+            preceding = [requested]
+            if cache:
+                preceding.append(lock_path(Path(cache), 'repo-build'))
+            root = (Path(args[0].split('=', 1)[1]) / '.buildbox/locks'
+                    if '=' in args[0] else default_root)
+            name = 'repo-build'
             args = args[1:]
             delegated = lock_path(root, 'repo-build-delegated')
             if Path('/build-infra/scripts/with_repo_lock.sh').is_file() and inherited_lock(delegated):
                 name = 'repo-build-delegated'
+            target = lock_path(root, name).resolve()
+            if any(path.resolve() != target and inherited_lock(path) for path in preceding):
+                os.environ['EDK2_CIX_BUILD_LOCK_WAIT'] = '0'
         if args == ['--held']:
             status = 0 if inherited_lock(lock_path(root, name)) else 1
         else:
