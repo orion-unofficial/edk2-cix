@@ -13,8 +13,7 @@ Q :=
 else
 Q := @
 endif
-WITH_REPO_LOCK := "$(REPO_ROOT)/scripts/with_repo_lock.sh"
-LOCKED_MAKE = $(if $(filter 1,$(EDK2_CIX_REPO_LOCK_HELD)),$(MAKE) --no-print-directory,$(WITH_REPO_LOCK) $(MAKE) --no-print-directory)
+include $(REPO_ROOT)/scripts/repo-lock.mk
 MAKE_INPUT_VALIDATOR := $(REPO_ROOT)/scripts/validate_make_inputs.py
 FIRMWARE_LAYOUT_SCRIPT := $(REPO_ROOT)/scripts/firmware_layout.py
 EDK2_REBASED_DETERMINISTIC_GUARD := $(REPO_ROOT)/scripts/fail_rebased_edk2_deterministic.sh
@@ -358,7 +357,6 @@ define PRINT_TOP_LEVEL_INTERNAL_VARIABLES_WRAPPER_FLAGS
 	print_help_line '  EDK2_CIX_SUPPRESS_EXPORT_OUTPUT=0|1' 'Suppress export_firmware_payload.py status lines during wrapper chaining.'; \
 	print_help_line '  EDK2_CIX_SUPPRESS_BUILD_BANNER=0|1' 'Suppress the normalized firmware-variant banner printed before single-build firmware wrappers invoke the source build.'; \
 	print_help_line '  EDK2_CIX_ACT_CLEAN_KEEP=0|1' 'Internal handoff used by gha-act-run-clean to preserve the scratch checkout.'; \
-	print_help_line '  EDK2_CIX_REPO_LOCK_HELD=0|1' 'Internal recursion guard for the repo-lock wrapper.'
 endef
 
 define BUILD_ALL_WARN_IF_IGNORED
