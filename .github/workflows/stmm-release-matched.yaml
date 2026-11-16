@@ -13,7 +13,7 @@ on:
         options: [maintained, candidate]
         default: maintained
       stage:
-        description: Preflight first; native compile requires a reviewed registry digest in the manifest
+        description: Preflight first; native compile uses the pinned recipe or optional registry digest
         type: choice
         options: [preflight, native-compile]
         default: preflight
@@ -112,8 +112,12 @@ jobs:
           STAGE: ${{ inputs.stage }}
         run: |
           set -euo pipefail
+          compiler=()
+          if [[ "${STAGE}" == native-compile ]] && jq -e '.compiler_image == null' config/stmm-ci.json >/dev/null; then
+            compiler+=(--build-compiler)
+          fi
           python3 scripts/stmm_ci.py case --case "${CASE_KEY}" --selection "${SELECTION}" \
-            --stage "${STAGE}" --output "${STMM_ROOT}/evidence"
+            --stage "${STAGE}" --output "${STMM_ROOT}/evidence" "${compiler[@]}"
       - name: Upload exact per-case inputs, results and diagnostics on failure too
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
@@ -124,6 +128,7 @@ jobs:
           include-hidden-files: true
           path: |
             ${{ env.STMM_ROOT }}/evidence/*.json
+            ${{ env.STMM_ROOT }}/evidence/compiler-*
             ${{ env.STMM_ROOT }}/evidence/debug/**
             ${{ env.STMM_ROOT }}/evidence/native/build.log
             ${{ env.STMM_ROOT }}/evidence/native/compiler.txt

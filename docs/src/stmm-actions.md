@@ -40,11 +40,7 @@ and firmware hashes to reproducible evidence for every required criterion.
 
 ## First approved dispatch
 
-Publish the infrastructure as an ordinary descendant of `build`, independently
-of the unintegrated firmware topics. The minimum change is these five files:
-`.github/workflows/stmm-release-matched.yaml`, `config/stmm-ci.json`,
-`scripts/stmm_ci.py`, `scripts/test_stmm_ci.py` and this document. An optional
-procedure link in `standalone-mm.md` can accompany them; exclude its other WIP.
+Publish the qualification tooling on the build branch after local review.
 Input-only preflight uses the standard library and Git, and consumes no native
 helper modules, local images, session evidence or unpublished candidate objects.
 The build branch's native host tooling consists of `qualify_stmm_releases.py`,
@@ -79,11 +75,9 @@ preimages and preserve original source and patch line endings.
 
 Host preparation tests perform no native firmware compilation, emulator or NOR
 execution. A passing host test does not change a case's `not-integrated` state
-or establish firmware qualification. Keep the compiler image unset until the
-separate image task establishes a verified pullable Linux amd64 registry
-digest. Reviewed source/component descendant integration and repinning remain
-required before maintained compilation; full acceptance and the EDK2 202502
-qualification gap remain outstanding.
+or establish firmware qualification. Maintained compilation requires a reviewed
+integrated source and current source/component pins. Full acceptance and the
+EDK2 202502 qualification gap remain outstanding.
 
 The original failures in run `39028460047`, job `117384260914`, were repaired
 in build ancestry. Baseline run `39953414390` passed source-model tests, lint,
@@ -139,17 +133,52 @@ There is no 502 full-source candidate; candidate mode deliberately enumerates
 only the three existing candidates. The maintained preflight includes 502 and
 its full qualification remains outstanding.
 
-For native compilation, first prepare a pullable Linux amd64 compiler image with
-an immutable registry digest and record it as `compiler_image`. Local Docker image
-IDs and local synthetic RepoDigests are insufficient. The existing Debian/apt
-recipe is mutable; a newly built image is a new pinned attempt, not byte-identical
-historical environment evidence. Verify toolchain/distro and record the digest,
-compiler output and recipe provenance before approving a compile run. Maintained
-native compilation also requires reviewed integration and refreshed source/helper
-pins. The adapter applies only the existing native preparation and ports; it does
-not render, import or integrate source, and does not build a complete firmware
-image. A new output directory is required after any failed attempt or input change.
+## Compiler input for native compilation
 
+With `compiler_image` unset, Actions explicitly requests `--build-compiler`.
+Each eligible case builds its compiler after source and resource checks, using
+the pinned Linux amd64 Debian base and signed Trixie snapshot in
+`scripts/stmm-compiler.Dockerfile`. This keeps the image on the case runner.
+A separate image build and transfer would add an archive and another job
+dependency. Preflight and ineligible cases exit before compiler preparation.
+
+Before use, the adapter checks the recipe and probe hashes and records the
+Buildx version, build log, Docker image ID, descriptor digest when exposed
+by Docker, runtime-config fingerprint and ordered layer IDs. The config
+fingerprint identifies the inspected Docker runtime configuration. It is
+separate from the OCI config blob digest. The offline
+probe checks the installed package inventory, signed snapshot and downloaded
+package hashes, compiler versions and both ELF machine types. A fresh build
+may yield different OCI bytes. Its receipt identifies that build and its output.
+
+For local qualification, use a reviewed immutable Docker image ID from
+`local_compiler.retained_image_ids`. A mutable tag or an unreviewed image ID
+is rejected. If transferring the image, use `docker image save`, record the
+archive SHA-256 at export and transfer that receipt independently. On the
+consumer, verify it with `sha256sum --check` before loading into a scoped Docker
+daemon. Retain the archive checksum and load log with the attempt. The adapter
+independently checks the loaded ID, runtime-config fingerprint, layer IDs and offline probe.
+
+```sh
+python3 scripts/stmm_ci.py case --selection maintained --stage native-compile \
+  --case 202608-radxa-1.3.1 --local-compiler-image "$verified_image_id" \
+  --output "$new_attempt"
+```
+
+A reviewed registry digest in `compiler_image` remains available for Actions or
+a local caller. That path pulls the exact Linux amd64 digest and checks the
+daemon's resulting digest, architecture and layers. The adapter compiles an FD
+through the established native helper. Each attempt uses a new output directory.
+
+The full-image build resolves its checkpoint via the source model and uses
+its own toolchain. The outer `buildbox-firmware-build` uses the buildbox image and
+dependencies. A rendered source tree also provides `firmware-build` on an
+appropriately provisioned native host. Neither entry point consumes
+`compiler_image`. For the maintained 202608 O6 image, use
+`edk2-202608/radxa-1.3.1/unofficial-checkpoint` and the reviewed
+`CIX_RELEASE=unofficial STMM=unofficial` settings. A container-free backend for
+the compile-only adapter would need separately pinned host packages, compiler
+binaries and an equivalent sandbox and receipt.
 ## Portability and evidence boundaries
 
 Cases use separate Actions VMs, output directories and artifacts, with
@@ -160,7 +189,7 @@ The native adapter passes explicit object IDs to the existing compiler, avoiding
 its mutable manifest/default selector. Generated `/work` paths belong to each
 new attempt; frozen historical `/Users` and `/work` plans are never rewritten.
 
-The native lane requires at least 8 GiB free before and after image pull and
+The native lane requires at least 8 GiB free before and after compiler preparation and
 4 GiB available RAM. These are conservative entry guards, not measured full-build
 capacity or proof a workload fits. Record actual runner disk, RAM, architecture
 and duration before expanding. Standard hosted runners have limited local disk;
@@ -181,8 +210,7 @@ remain separately unverified and require explicit flash/reboot authorization.
 
 Actions use published floating major-version tags, consistently across workflows,
 so compatible upstream updates are adopted automatically. The exact harness and
-firmware input identity checks remain required. Preflight does not install Python
-packages or pull a compiler/emulator image. The hosted runner label remains a
+firmware input identity checks remain required. Preflight uses the existing Python installation and Git. The hosted runner label remains a
 managed environment; it does not establish historical compiler replay.
 
 Artifacts contain exact input manifests, structured results, checksums, compiler

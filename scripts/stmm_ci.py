@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Bounded StandaloneMM Actions preflight/native compile; never certifies firmware.
 
-Supported caller: .github/workflows/stmm-release-matched.yaml. No mutable source
-selection, render, ref integration, implicit image build, or historical pass reuse.
+Supported caller: .github/workflows/stmm-release-matched.yaml. Local compiler preparation must be explicit.
+Source selection is pinned and results never reuse a historical pass.
 """
 from __future__ import annotations
 
@@ -21,7 +21,8 @@ POLICY = ROOT / 'config/stmm-ci.json'
 HELPERS = ('stmm_ci.py',)
 TESTS = ('test_stmm_ci.py',)
 NATIVE_HELPERS = ('qualify_stmm_releases.py', 'stmm_release_platform.py',
-                  'stmm_release_port.py', 'stmm_vendor_control.py', 'reconstruction_common.py')
+                  'stmm_release_port.py', 'stmm_vendor_control.py', 'reconstruction_common.py',
+                  'stmm_compiler.py', 'stmm-compiler.Dockerfile', 'stmm_compiler_probe.sh')
 NATIVE_TESTS = ('test_stmm_release_platform.py', 'test_stmm_release_port.py',
                 'test_stmm_vendor_control.py')
 NATIVE_DSC = 'src/edk2-platforms/Platform/StandaloneMm/PlatformStandaloneMmPkg/PlatformStandaloneMmRpmb.dsc'
@@ -37,7 +38,6 @@ REQUIRED_CRITERIA = (
 BLOCKED_CRITERIA = REQUIRED_CRITERIA[2:10]
 STATES = {'qualified-candidate', 'not-integrated', 'integrated-unqualified', 'qualified-descendant'}
 RESULTS = {'passed', 'failed', 'blocked', 'unverified', 'incomplete'}
-OCI = re.compile(r'[a-z0-9][a-z0-9._:/-]*@sha256:[0-9a-f]{64}')
 
 
 def sha(data: bytes) -> str:
@@ -113,6 +113,13 @@ def subject(policy: dict, case: dict, selection: str, stage: str = 'preflight') 
         object_pin(pin)
         if pin.get('ref') and git('rev-parse', pin['ref']) != pin['commit']:
             raise ValueError('component ref moved; review and repin')
+    if selection == 'maintained':
+        records = json.loads((ROOT / 'config/refs-cix.json').read_text())['refs']
+        for pin in components.values():
+            matches = [r for r in records if r['ref'] == pin['ref']]
+            if (len(matches) != 1
+                    or (matches[0]['object_id'], matches[0]['tree_id']) != (pin['commit'], pin['tree'])):
+                raise ValueError('maintained component manifest mismatch')
     source = selected['commit']
     # Full source tree identity pins all materialised native dependencies, too.
     dependencies = {name: git('rev-parse', source + ':src/' + name)
@@ -143,10 +150,13 @@ def new_result(policy: dict, key: str, selection: str, stage: str) -> dict:
             'blocked_workloads': policy['blocked_workloads'], 'errors': []}
 
 
-def compile_native(policy: dict, identity: dict, output: Path) -> dict:
+def compile_native(policy: dict, identity: dict, output: Path, *, build_compiler=False,
+                   local_compiler_image=None) -> dict:
+    from stmm_compiler import OCI, PLATFORM, prepare
+
     image = policy['compiler_image']
-    if not isinstance(image, str) or not OCI.fullmatch(image):
-        raise ValueError('compiler image needs a pullable immutable OCI digest; local image IDs are insufficient')
+    if not (build_compiler or local_compiler_image or isinstance(image, str) and OCI.fullmatch(image)):
+        raise ValueError('select an immutable OCI registry digest, --build-compiler, or --local-compiler-image')
     # A compile-only recipe is still a new attempt, never a historical replay.
     if shutil.disk_usage(output).free < policy['minimum_disk_gib'] * 1024 ** 3:
         raise ValueError('insufficient disk; use a measured/sized runner, do not delete evidence')
@@ -154,16 +164,9 @@ def compile_native(policy: dict, identity: dict, output: Path) -> dict:
                           if line.startswith('MemAvailable:')))
     if memory_kib < policy['minimum_memory_gib'] * 1024 ** 2:
         raise ValueError('insufficient available memory')
-    subprocess.run(['docker', 'pull', image], check=True, timeout=600)
-    inspection = json.loads(subprocess.check_output(['docker', 'image', 'inspect', image], text=True))[0]
-    save(output / 'image.json', {
-        'requested': image, 'id': inspection['Id'], 'repo_digests': inspection['RepoDigests'],
-        'architecture': inspection['Architecture'], 'os': inspection['Os'],
-    })
-    if inspection['Architecture'] != 'amd64' or inspection['Os'] != 'linux':
-        raise ValueError('native compile lane requires a Linux amd64 compiler image')
+    inspection = prepare(ROOT, policy, output.resolve(), build=build_compiler, retained=local_compiler_image)
     if shutil.disk_usage(output).free < policy['minimum_disk_gib'] * 1024 ** 3:
-        raise ValueError('insufficient disk after image pull')
+        raise ValueError('insufficient disk after preparing compiler image')
     from qualify_stmm_releases import compile_case
     from stmm_release_platform import NATIVE_DSC as compiler_dsc
     from stmm_release_port import CRYPTO_PATH as compiler_crypto
@@ -176,7 +179,7 @@ def compile_native(policy: dict, identity: dict, output: Path) -> dict:
     directory = output / 'native'
     directory.mkdir()
     try:
-        result = compile_case(ROOT, case, directory, inspection['Id'], jobs=2)
+        result = compile_case(ROOT, case, directory, inspection['id'], jobs=2, platform=PLATFORM)
     finally:
         # Compiler failures need the same available debug evidence as successes.
         debug = output / 'debug'
@@ -192,7 +195,18 @@ def compile_native(policy: dict, identity: dict, output: Path) -> dict:
     return result
 
 
-def run_case(policy: dict, key: str, selection: str, stage: str, output: Path) -> int:
+def validate_native_output(output: Path, build: dict) -> None:
+    native = output / 'native'
+    fd = native / 'BL32_AP_MM.fd'
+    if (build['status'] != 'built-not-qualified' or fd.stat().st_size != 2 * 1024 * 1024
+            or sha(fd.read_bytes()) != build['fd_sha256']
+            or json.loads((native / 'profile.json').read_text()) != build['profile']
+            or (native / 'compiler.txt').read_text() != build['compiler']):
+        raise ValueError('native compiler returned incomplete or mismatched output')
+
+
+def run_case(policy: dict, key: str, selection: str, stage: str, output: Path, *,
+             build_compiler=False, local_compiler_image=None) -> int:
     output.mkdir(parents=True, exist_ok=False)  # Never overwrite a failed attempt.
     result = new_result(policy, key, selection, stage)
     try:
@@ -206,10 +220,9 @@ def run_case(policy: dict, key: str, selection: str, stage: str, output: Path) -
         if stage == 'native-compile':
             if identity['input_state'] == 'not-integrated':
                 raise ValueError('maintained native integration missing; compile cannot qualify this source')
-            result['build'] = compile_native(policy, identity, output)
-            if (result['build']['status'] != 'built-not-qualified'
-                    or sha((output / 'native/BL32_AP_MM.fd').read_bytes()) != result['build']['fd_sha256']):
-                raise ValueError('native compiler returned incomplete or mismatched output')
+            result['build'] = compile_native(policy, identity, output, build_compiler=build_compiler,
+                                             local_compiler_image=local_compiler_image)
+            validate_native_output(output, result['build'])
             result['criteria']['native-compile'] = 'passed'
     except (ValueError, KeyError, StopIteration, OSError, subprocess.SubprocessError) as exc:
         result['status'] = 'blocked' if isinstance(exc, (ValueError, KeyError, StopIteration)) else 'failed'
@@ -222,6 +235,9 @@ def run_case(policy: dict, key: str, selection: str, stage: str, output: Path) -
         path = output / name
         if path.is_file():
             evidence[name] = sha(path.read_bytes())
+    for path in output.glob('compiler-*'):
+        if path.is_file():
+            evidence[path.name] = sha(path.read_bytes())
     result['evidence_sha256'] = evidence
     save(output / 'result.json', result)
     print(json.dumps(result, sort_keys=True))
@@ -266,6 +282,20 @@ def aggregate(policy: dict, selection: str, stage: str, directory: Path, job_res
                 if sha(artifact.read_bytes()) != digest:
                     raise ValueError('artifact checksum differs')
             if stage == 'native-compile':
+                from stmm_compiler import BUILD_EVIDENCE, LOCAL_EVIDENCE, validate_receipt
+
+                image = json.loads((path.parent / 'image.json').read_text())
+                validate_receipt(policy, image, hosted=os.environ.get('GITHUB_ACTIONS') == 'true')
+                mode = image['mode']
+                if mode != 'registry':
+                    if (not LOCAL_EVIDENCE <= row['evidence_sha256'].keys()
+                            or row['evidence_sha256']['compiler-probe.txt'] != image['probe_sha256']):
+                        raise ValueError('compiler probe evidence differs')
+                if mode == 'build':
+                    if (not BUILD_EVIDENCE <= row['evidence_sha256'].keys()
+                            or (path.parent / 'compiler-iid.txt').read_text().strip() != image['requested']):
+                        raise ValueError('compiler build evidence differs')
+                validate_native_output(path.parent, row['build'])
                 debug = json.loads((path.parent / 'debug-sha256.json').read_text())
                 for name, digest in debug.items():
                     artifact = (path.parent / name).resolve()
@@ -314,7 +344,13 @@ def main() -> None:
     parser.add_argument('--case')
     parser.add_argument('--output', type=Path)
     parser.add_argument('--results', type=Path)
+    compiler = parser.add_mutually_exclusive_group()
+    compiler.add_argument('--build-compiler', action='store_true')
+    compiler.add_argument('--local-compiler-image', metavar='IMAGE_ID')
     args = parser.parse_args()
+    if ((args.build_compiler or args.local_compiler_image)
+            and (args.command, args.stage) != ('case', 'native-compile')):
+        parser.error('compiler options require case --stage native-compile')
     policy = json.loads(POLICY.read_text())
     validate_policy(policy)
     if args.command == 'matrix':
@@ -323,7 +359,8 @@ def main() -> None:
     elif args.command == 'case':
         if not args.case or not args.output:
             parser.error('case requires --case and --output')
-        sys.exit(run_case(policy, args.case, args.selection, args.stage, args.output))
+        sys.exit(run_case(policy, args.case, args.selection, args.stage, args.output,
+                          build_compiler=args.build_compiler, local_compiler_image=args.local_compiler_image))
     else:
         if not args.results or not args.output:
             parser.error('aggregate requires --results and --output')

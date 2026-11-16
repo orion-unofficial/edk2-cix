@@ -31,6 +31,22 @@
     "boundary_control": "208 core with pinned 131 services; native 411/502 heap failures retained; storage parity only"
   },
   "compiler_image": null,
+  "local_compiler": {
+    "source_date_epoch": 1793827419,
+    "recipe_sha256": "31747c3e42b26afb1c878277b4a232d3058e7c24f05a9e8d3a8b2cc0aecdb62f",
+    "probe_sha256": "1d0eb5aec979f0442dd5ad2edcf0824fc3e4bd592f6629e8aa7b685928d413b6",
+    "probe_output_sha256": "5efcb764bf129f5852d9ce6078e690df805364e358b40acfe781d98f63b30330",
+    "retained_image_ids": [
+      "sha256:8e2353b800ad830c7342bfe40855f91bd45fa90f9be2d95f68b33a25924a2cbc",
+      "sha256:9e2b33494650dd156d7ddfdbfd4ff6523df42691a4d94509128b13378ac94e34",
+      "sha256:fcf6d882c650d1da58127ecadf117557d39c99b4e71e48819d1a7aa88311069c"
+    ],
+    "retained_docker_config_sha256": "3e19a7a80306f595575ae39f7e6477d671a65b61f8d10cc2420c666a993f5b75",
+    "retained_diff_ids": [
+      "sha256:dd57f90311a2567b55ff22eeacff1602fd04ad7566e315957731359eab173b90",
+      "sha256:a13b38de53199c1202fd86485306c98972400286fc38703fbcb52e84f6d3c09d"
+    ]
+  },
   "minimum_disk_gib": 8,
   "minimum_memory_gib": 4,
   "components": {
@@ -47,8 +63,8 @@
     "maintained": {
       "stmm": {
         "ref": "source/unofficial/stmm/edk2-stable202608",
-        "commit": "a16ca850d5e45ccb80cb7bf31a3bdc609e3df0c6",
-        "tree": "077e2e15d537e3945e57640b766eba2e92ff0f70"
+        "commit": "6f3507c606e248a3c89ed9c34717078241f3627e",
+        "tree": "cea73bb94b636f10a410f639f8d0792ffa2b8cb1"
       },
       "optee": {
         "ref": "source/unofficial/cix/1.2/op-tee/3.17.0",
@@ -58,13 +74,13 @@
     }
   },
   "blocked_workloads": {
-    "native-compile": "Pullable Linux amd64 compiler OCI digest has not been published or verified; compiler_image remains null.",
-    "full-source-image": "The 202608 O6 checkpoint has exact local full-image evidence; the hosted adapter and its resource/buildbox gates remain outstanding.",
+    "native-compile": "Native compile requires an eligible source and a verified Linux amd64 compiler environment.",
+    "full-source-image": "The prior 202608 O6 checkpoint has exact local full-image evidence. The current checkpoint needs a bound image receipt; hosted adapter and resource gates remain outstanding.",
     "emulator-auth-cold-nor": "Local image IDs are not registry digests; 608 historical image absent. Need approved immutable OCI transfer, portable fixture/auth/control plans and resource measurements. Keep existing path and failed-cut evidence.",
     "502-full-qualification": "No isolated full-source candidate; preliminary FD/storage does not qualify complete image.",
     "hardware": "O6 UART/boot/real flash timing/persistence/Secure Boot state unverified; separate flash/reboot authorization.",
-    "new-sha-quality": "Historical run repair exists and current committed HEAD passed remote CI; dirty STMM WIP and resulting descendants still need clean exact-SHA source-model/minimised-clone gates.",
-    "candidate-input-availability": "GitHub cannot resolve the three isolated firmware candidates or their component and OP-TEE commits. Approved immutable input transfer/publication is required; never substitute maintained refs."
+    "new-sha-quality": "Source-model, minimised-clone reconstruction and applicable replay receipts must identify the exact build and source inputs under review.",
+    "candidate-input-availability": "The three isolated firmware candidates and isolated StandaloneMM component are available locally but unavailable through GitHub. Hosted candidate selection needs approved immutable input transfer. The shared OP-TEE pin is published."
   },
   "cases": [
     {
@@ -72,8 +88,8 @@
       "edk2": "202208",
       "radxa": "1.3.1",
       "maintained": {
-        "commit": "7d40d67e2595068a24eb48877d03d357ef68b1ac",
-        "tree": "a00c14bd761995807a5faabcd2a198db362d35f5",
+        "commit": "19174946bfc4d755f0f445e7dbb3ab55ac75be7e",
+        "tree": "a0679271a0c6053569584cde16426ee55a905e23",
         "ref": "source/unofficial/1.3.1/edk2-stable202208",
         "state": "not-integrated"
       },
@@ -102,8 +118,8 @@
       "edk2": "202411",
       "radxa": "1.3.1",
       "maintained": {
-        "commit": "94aa590ea6558d9b0c917d36ea6677e406ecbbbc",
-        "tree": "cce5523b3ce23d3504ca07284ba099ae673ebfd4",
+        "commit": "5a6cc117fa6ed27e4518b99c92f2253b52e8a84e",
+        "tree": "e805b7dc7b70fb9123200d2ef735b718a9cb9841",
         "ref": "source/unofficial/1.3.1/edk2-stable202411",
         "state": "not-integrated"
       },
@@ -132,8 +148,8 @@
       "edk2": "202502",
       "radxa": "1.3.1",
       "maintained": {
-        "commit": "6a6d5f924731dc91ccdbf0aa34197f892960fcd7",
-        "tree": "868a9a51977284fb3d60eb821f8e4f65eb33a587",
+        "commit": "3d549127eef5bbd03afef8640448e26f57d3564d",
+        "tree": "8d28eb4af246110eab26e56a356d2606fdbb800f",
         "ref": "source/unofficial/1.3.1/edk2-stable202502",
         "state": "not-integrated"
       },
@@ -144,20 +160,10 @@
       "edk2": "202608",
       "radxa": "1.3.1",
       "maintained": {
-        "commit": "1d246d970477544c5089df30dc125eb734b4b3d9",
-        "tree": "414af3945cf00c88207d7fecce738bafa3d99d88",
+        "commit": "8c3ea084af5c479270baec3c0bc135d23bb882c7",
+        "tree": "bf181f0d248726d289e594a34ea051ec31d3f3e2",
         "ref": "source/unofficial/1.3.1/edk2-stable202608",
-        "state": "integrated-unqualified",
-        "qualification_scope": "O6 RELEASE checkpoint with exact offline binding, signature, ABI and storage evidence; descendant qualification incomplete",
-        "qualification_evidence": {
-          "rendered_tree": "bbf6b973e5905df891929167a03fd11e4c6894ef",
-          "fd_sha256": "aefad444673071df5203d382d07dd039d3bb1d38984cd51c89fb43fb7626432a",
-          "source_optee_sha256": "4573f593ee78d6741d9680682382c6e48d6c0dbf16f6108f9d54b8642a199c24",
-          "full_flash_sha256": "2091ca61ac40dcbe0f6dd1070ca0c043fc64d19880243cc7d00a933ad28ffdb7",
-          "binding_report_sha256": "596bb7a3a18ede0559634e3457e6d4e4e348127dbe7ef348fd7477ba8531c757",
-          "chain_report_sha256": "4bf0a75fb88ed2459b5dedc3b08b64f4fda92aeb19b980289f326d0b1d5ce0f6",
-          "storage_parity_report_sha256": "52cf3943533fe0ea7ea2de100a75b6dc230b4d7697f3428105452bdef0b53fef"
-        }
+        "state": "integrated-unqualified"
       },
       "candidate": {
         "commit": "a18044ed54e59cf7eb404d27b6dc80ecbd9e1c5e",
@@ -176,6 +182,32 @@
             "stmm_release_port.py": "2864f4fc02f36c5783542d6b891f18e1913e280d3681087885dc69de021d9738"
           },
           "storage_plan_sha256": "87708be436ac3aa7c7309f589504c7beef39edb99086318dd70370e54250787d"
+        }
+      },
+      "prior_checkpoint": {
+        "commit": "1d246d970477544c5089df30dc125eb734b4b3d9",
+        "tree": "414af3945cf00c88207d7fecce738bafa3d99d88",
+        "qualification_scope": "O6 RELEASE checkpoint with exact offline binding, signature, ABI and storage evidence; descendant qualification incomplete",
+        "qualification_evidence": {
+          "rendered_tree": "bbf6b973e5905df891929167a03fd11e4c6894ef",
+          "fd_sha256": "aefad444673071df5203d382d07dd039d3bb1d38984cd51c89fb43fb7626432a",
+          "source_optee_sha256": "4573f593ee78d6741d9680682382c6e48d6c0dbf16f6108f9d54b8642a199c24",
+          "full_flash_sha256": "2091ca61ac40dcbe0f6dd1070ca0c043fc64d19880243cc7d00a933ad28ffdb7",
+          "binding_report_sha256": "596bb7a3a18ede0559634e3457e6d4e4e348127dbe7ef348fd7477ba8531c757",
+          "chain_report_sha256": "4bf0a75fb88ed2459b5dedc3b08b64f4fda92aeb19b980289f326d0b1d5ce0f6",
+          "storage_parity_report_sha256": "52cf3943533fe0ea7ea2de100a75b6dc230b4d7697f3428105452bdef0b53fef"
+        },
+        "components": {
+          "stmm": {
+            "ref": "source/unofficial/stmm/edk2-stable202608",
+            "commit": "a16ca850d5e45ccb80cb7bf31a3bdc609e3df0c6",
+            "tree": "077e2e15d537e3945e57640b766eba2e92ff0f70"
+          },
+          "optee": {
+            "ref": "source/unofficial/cix/1.2/op-tee/3.17.0",
+            "commit": "a4a447c01cc18f090bf96afac8cf7b7112a0e9b9",
+            "tree": "32f5caa4a073840c515ea6184c95783ab0886586"
+          }
         }
       }
     }

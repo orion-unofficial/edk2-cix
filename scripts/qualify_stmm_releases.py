@@ -54,7 +54,7 @@ def archive(repo: Path, tree: str, destination: Path) -> None:
 
 
 def compile_case(repo: Path, case: dict, directory: Path, image: str, jobs: int,
-                 control_fd: bytes | None = None) -> dict:
+                 control_fd: bytes | None = None, *, platform: str | None = None) -> dict:
     source = directory / 'source'
     if not source.exists():
         archive(repo, case['edk2_tree'], source)
@@ -88,7 +88,8 @@ aarch64-linux-gnu-gcc --version > /work/compiler.txt
     (directory / 'tmp').mkdir(exist_ok=True)
     name = 'stmm-release-' + digest(str(directory).encode())[:16]
     with (directory / 'build.log').open('w') as log:
-        subprocess.run(['docker', 'run', '--rm', '--name', name, '--network', 'none',
+        subprocess.run(['docker', 'run', '--rm', '--pull', 'never',
+                        *(['--platform', platform] if platform else []), '--name', name, '--network', 'none',
                         '--entrypoint', 'bash', '-v', str(directory) + ':/work',
                         '-e', f'JOBS={jobs}', '-e', 'TOOLCHAIN=' + profile['toolchain'],
                         image, '-c', command], stdout=log, stderr=log, check=True)

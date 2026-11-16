@@ -100,7 +100,7 @@ class StmmCiTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'ref moved'):
                 ci.subject(self.policy, self.case, 'maintained')
 
-    def test_local_image_id_cannot_trigger_a_compile(self):
+    def test_local_id_in_registry_field_cannot_trigger_a_compile(self):
         policy = copy.deepcopy(self.policy)
         policy['compiler_image'] = 'sha256:' + 'a' * 64
         with patch.object(ci.subprocess, 'run') as run:
@@ -176,6 +176,9 @@ class StmmCiTests(unittest.TestCase):
                      tree_id=self.case['maintained']['tree'], edk2_base='edk2-stable' + self.case['edk2'],
                      radxa_release=self.case['radxa'])
         ci.save(config / 'refs-unofficial.json', {'refs': [entry]})
+        components = [dict(pin, object_id=pin['commit'], tree_id=pin['tree'])
+                      for pin in self.policy['components']['maintained'].values()]
+        ci.save(config / 'refs-cix.json', {'refs': components})
         policy_path = config / 'stmm-ci.json'
         ci.save(policy_path, self.policy)
         refs = {pin['ref']: pin['commit'] for pin in self.policy['components']['maintained'].values()}
@@ -192,6 +195,10 @@ class StmmCiTests(unittest.TestCase):
                                          self.output / 'preflight')
                 compiler.assert_not_called()
                 self.assertEqual(status, 0)
+                components[0]['tree_id'] = '0' * 40
+                ci.save(config / 'refs-cix.json', {'refs': components})
+                with self.assertRaisesRegex(ValueError, 'component manifest mismatch'):
+                    ci.subject(self.policy, self.case, 'maintained')
         self.assertEqual(set(result['helpers']), {'stmm_ci.py'})
         self.assertEqual(set(result['test_suite']), {'test_stmm_ci.py'})
 
@@ -245,6 +252,186 @@ class StmmCiTests(unittest.TestCase):
             ci.run_case(self.policy, self.case['key'], 'candidate', 'preflight', output)
 
 
+class CompilerImageTests(unittest.TestCase):
+    def setUp(self):
+        import stmm_compiler
+
+        self.compiler = stmm_compiler
+        scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(scratch.cleanup)
+        self.output = Path(scratch.name)
+        self.policy = json.loads(ci.POLICY.read_text())
+        self.local = self.policy['local_compiler']
+        self.id = self.local['retained_image_ids'][0]
+        self.probe = b'checked toolchain output\n'
+        self.local['probe_output_sha256'] = ci.sha(self.probe)
+        config = {'Cmd': ['bash']}
+        self.local['retained_docker_config_sha256'] = self.compiler.docker_config_sha256(config)
+        self.inspection = {'Id': self.id, 'Architecture': 'amd64', 'Os': 'linux', 'RepoDigests': [], 'Config': config,
+                           'RootFS': {'Layers': self.local['retained_diff_ids']}}
+
+    def docker(self, argv, **kwargs):
+        if argv[1] == 'run':
+            kwargs['stdout'].write(self.probe)
+        if argv[1:3] == ['buildx', 'build']:
+            (kwargs['cwd'] / 'compiler-iid.txt').write_text(self.id + '\n')
+
+    def prepare(self, **options):
+        with patch.object(self.compiler.subprocess, 'run', side_effect=self.docker) as run:
+            with patch.object(self.compiler.subprocess, 'check_output',
+                              return_value=json.dumps([self.inspection]).encode()):
+                image = self.compiler.prepare(ci.ROOT, self.policy, self.output, **options)
+        return image, [item.args[0] for item in run.call_args_list]
+
+    def test_retained_image_is_probed_without_pull_or_build(self):
+        image, commands = self.prepare(retained=self.id)
+        self.assertEqual(image['mode'], 'retained')
+        self.assertEqual(image['id'], self.id)
+        self.assertEqual(image['probe_sha256'], ci.sha(self.probe))
+        self.assertEqual([cmd[1] for cmd in commands], ['version', 'run'])
+        self.assertIn('--pull', commands[-1])
+        self.assertIn('never', commands[-1])
+        self.assertIn('none', commands[-1])
+        self.assertIn(self.id, commands[-1])
+
+    def test_changed_layer_and_unreviewed_id_are_blocked_before_probe(self):
+        self.inspection['RootFS'] = {'Layers': ['sha256:' + '0' * 64]}
+        with patch.object(self.compiler.subprocess, 'run') as run:
+            with patch.object(self.compiler.subprocess, 'check_output',
+                              return_value=json.dumps([self.inspection]).encode()):
+                with self.assertRaisesRegex(ValueError, 'reviewed image'):
+                    self.compiler.prepare(ci.ROOT, self.policy, self.output, retained=self.id)
+                with self.assertRaisesRegex(ValueError, 'reviewed immutable image ID'):
+                    self.compiler.prepare(ci.ROOT, self.policy, self.output, retained='sha256:' + '0' * 64)
+        self.assertEqual([item.args[0][1] for item in run.call_args_list], ['version'])
+
+    def test_ambiguous_local_inputs_are_rejected_before_docker(self):
+        with patch.object(self.compiler.subprocess, 'run') as run:
+            with self.assertRaisesRegex(ValueError, 'choose one'):
+                self.compiler.prepare(ci.ROOT, self.policy, self.output, build=True, retained=self.id)
+        run.assert_not_called()
+
+    def test_retained_image_requires_reviewed_docker_config(self):
+        self.inspection['Config'] = {'Entrypoint': ['/other']}
+        with patch.object(self.compiler.subprocess, 'run') as run:
+            with patch.object(self.compiler.subprocess, 'check_output',
+                              return_value=json.dumps([self.inspection]).encode()):
+                with self.assertRaisesRegex(ValueError, 'reviewed image'):
+                    self.compiler.prepare(ci.ROOT, self.policy, self.output, retained=self.id)
+        self.assertEqual([item.args[0][1] for item in run.call_args_list], ['version'])
+
+    def test_wrong_probe_or_recipe_cannot_pass(self):
+        expected = self.local['recipe_sha256']
+        self.local['recipe_sha256'] = '0' * 64
+        with self.assertRaisesRegex(ValueError, 'recipe or probe differs'):
+            self.prepare(retained=self.id)
+        self.local['recipe_sha256'] = expected
+        self.local['probe_output_sha256'] = '0' * 64
+        with self.assertRaisesRegex(ValueError, 'toolchain probe differs'):
+            self.prepare(retained=self.id)
+
+    def test_built_image_is_bound_to_build_id_and_toolchain_probe(self):
+        self.id = 'sha256:' + 'e' * 64
+        self.inspection['Id'] = self.id
+        image, commands = self.prepare(build=True)
+        self.assertEqual(image['mode'], 'build')
+        self.assertEqual(image['id'], self.id)
+        build = next(cmd for cmd in commands if cmd[1:3] == ['buildx', 'build'])
+        self.assertIn('--no-cache', build)
+        self.assertIn('linux/amd64', build)
+        self.assertIn('compiler-iid.txt', build)
+        self.assertEqual(self.id, (self.output / 'compiler-iid.txt').read_text().strip())
+
+    def test_registry_path_still_pulls_exact_digest_and_requires_amd64(self):
+        registry = 'example.com/repo@sha256:' + 'e' * 64
+        self.policy['compiler_image'] = registry
+        self.inspection['RepoDigests'] = [registry]
+        image, commands = self.prepare()
+        self.assertEqual(image['mode'], 'registry')
+        self.assertEqual(commands, [['docker', 'pull', '--platform', 'linux/amd64', registry]])
+        self.inspection['Architecture'] = 'arm64'
+        with self.assertRaisesRegex(ValueError, 'Linux amd64'):
+            self.prepare()
+
+    def test_native_case_compiles_with_the_verified_local_id(self):
+        case = next(row for row in self.policy['cases'] if row['edk2'] == '202608')
+        identity = {'input_state': 'integrated-unqualified', 'edk2': '202608', 'radxa': '1.3.1',
+                    'source': case['maintained'], 'dependencies': {'edk2': 'a' * 40,
+                    'platform': 'b' * 40, 'crypto_header': 'c' * 40}}
+        output = self.output / 'native-attempt'
+
+        def compile_case(repo, selected, directory, image, jobs, platform):
+            self.assertEqual(image, self.id)
+            self.assertEqual(platform, 'linux/amd64')
+            self.assertEqual(selected['firmware_commit'], case['maintained']['commit'])
+            self.assertEqual(jobs, 2)
+            fd = bytes(2 * 1024 * 1024)
+            (directory / 'BL32_AP_MM.fd').write_bytes(fd)
+            (directory / 'compiler.txt').write_text('gcc fixture\n')
+            ci.save(directory / 'profile.json', {'toolchain': 'GCC'})
+            return {'status': 'built-not-qualified', 'fd_sha256': ci.sha(fd),
+                    'compiler': 'gcc fixture\n', 'profile': {'toolchain': 'GCC'}}
+
+        read_text = Path.read_text
+
+        def meminfo(path, *args, **kwargs):
+            if path == Path('/proc/meminfo'):
+                return 'MemAvailable: 8388608 kB\n'
+            return read_text(path, *args, **kwargs)
+
+        with patch.object(ci, 'subject', return_value=identity), patch('builtins.print'), patch.object(
+                Path, 'read_text', meminfo), patch.object(ci.shutil, 'disk_usage') as disk, patch.object(
+                self.compiler.subprocess, 'run', side_effect=self.docker), patch.object(
+                self.compiler.subprocess, 'check_output', return_value=json.dumps([self.inspection]).encode()), patch(
+                'qualify_stmm_releases.compile_case', side_effect=compile_case):
+            disk.return_value.free = 32 * 1024 ** 3
+            self.assertEqual(ci.run_case(self.policy, case['key'], 'maintained', 'native-compile', output,
+                                         local_compiler_image=self.id), 0)
+        result = json.loads((output / 'result.json').read_text())
+        self.assertEqual(result['criteria']['native-compile'], 'passed')
+        self.assertEqual(result['qualification'], 'incomplete')
+
+    def test_summary_rejects_rehashed_but_wrong_local_compiler_probe(self):
+        image, _ = self.prepare(retained=self.id)
+        case = self.policy['cases'][0]
+        self.policy['cases'] = [case]
+        identity = {'source': case['candidate']}
+        row = ci.new_result(self.policy, case['key'], 'candidate', 'native-compile')
+        row.update(subject=identity, status='passed')
+        row['criteria'].update({'input-validation': 'passed', 'native-compile': 'passed'})
+        ci.save(self.output / 'inputs.json', identity)
+        ci.save(self.output / 'image.json', image)
+        ci.save(self.output / 'debug-sha256.json', {})
+        native = self.output / 'native'
+        native.mkdir()
+        fd = bytes(2 * 1024 * 1024)
+        (native / 'BL32_AP_MM.fd').write_bytes(fd)
+        (native / 'compiler.txt').write_text('gcc fixture\n')
+        (native / 'build.log').write_text('build fixture\n')
+        ci.save(native / 'profile.json', {'toolchain': 'GCC'})
+        row['build'] = {'status': 'built-not-qualified', 'fd_sha256': ci.sha(fd),
+                        'compiler': 'gcc fixture\n', 'profile': {'toolchain': 'GCC'}}
+
+        def summary():
+            row['evidence_sha256'] = {path.relative_to(self.output).as_posix(): ci.sha(path.read_bytes())
+                                      for path in self.output.rglob('*') if path.is_file()
+                                      and path.name != 'result.json'}
+            ci.save(self.output / 'result.json', row)
+            with patch.object(ci, 'subject', return_value=identity), patch.dict(os.environ, {'GITHUB_ACTIONS': 'false'}):
+                return ci.aggregate(self.policy, 'candidate', 'native-compile', self.output,
+                                    {'plan': 'success', 'cases': 'success', 'download': 'success'})
+
+        self.assertEqual('passed', summary()['status'])
+        (native / 'BL32_AP_MM.fd').write_bytes(b'wrong fd')
+        self.assertEqual('failed', summary()['status'])
+        (native / 'BL32_AP_MM.fd').write_bytes(fd)
+        (native / 'compiler.txt').write_text('different gcc\n')
+        self.assertEqual('failed', summary()['status'])
+        (native / 'compiler.txt').write_text('gcc fixture\n')
+        (self.output / 'compiler-probe.txt').write_bytes(b'different tools')
+        self.assertEqual('failed', summary()['status'])
+
+
 class NativeWorkflowTests(unittest.TestCase):
     def setUp(self):
         workflow = (ci.ROOT / '.github/workflows/stmm-release-matched.yaml').read_text()
@@ -291,8 +478,13 @@ class NativeWorkflowTests(unittest.TestCase):
                                 'name = sys.argv[-1] if "unittest" in sys.argv else "compile"\n'
                                 'with Path(os.environ["STMM_TEST_LOG"]).open("a") as log:\n'
                                 '    log.write(name + "\\n")\n'
+                                'if name == "compile" and "--build-compiler" not in sys.argv:\n'
+                                '    sys.exit(10)\n'
                                 'sys.exit(9 if name == os.environ["STMM_FAIL_TEST"] else 0)\n')
                 stub.chmod(0o755)
+                jq = root / 'jq'
+                jq.write_text('#!/bin/sh\ntest "$*" = "-e .compiler_image == null config/stmm-ci.json"\n')
+                jq.chmod(0o755)
                 log = root / 'calls'
                 env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ['PATH'],
                            STMM_TEST_LOG=str(log), STMM_FAIL_TEST=failure, STMM_ROOT=str(root),
