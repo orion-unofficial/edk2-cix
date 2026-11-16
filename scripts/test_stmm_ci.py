@@ -54,6 +54,46 @@ class StmmCiTests(unittest.TestCase):
     def test_missing_case_fails_instead_of_becoming_a_pass(self):
         self.assertEqual(self.summary([])['status'], 'failed')
 
+    def test_case_selection_requires_an_available_exact_key(self):
+        selected = '202608-radxa-1.3.1'
+        self.assertEqual(ci.selected_case_keys(self.policy, 'maintained', selected), [selected])
+        self.assertEqual(len(ci.selected_case_keys(self.policy, 'maintained')), 4)
+        self.assertEqual(len(ci.selected_case_keys(self.policy, 'candidate')), 3)
+        for selection, invalid in [('maintained', '202608'), ('maintained', ' '),
+                                   ('candidate', '202502-radxa-1.3.1')]:
+            with self.subTest(selection=selection, invalid=invalid):
+                with self.assertRaisesRegex(ValueError, 'unavailable'):
+                    ci.selected_case_keys(self.policy, selection, invalid)
+
+    def test_single_case_summary_requires_that_case_and_preserves_full_matrix(self):
+        last = self.policy['cases'][-1]['key']
+        result = self.result()
+        deps = {'plan': 'success', 'cases': 'success', 'download': 'success'}
+        with patch.object(ci, 'subject', return_value=self.identity):
+            ci.save(self.output / 'inputs.json', self.identity)
+            ci.save(self.output / 'result.json', result)
+            summary = ci.aggregate(self.policy, 'candidate', 'preflight', self.output, deps,
+                                   case_key=self.case['key'])
+            self.assertEqual(summary['status'], 'passed')
+            self.assertEqual(summary['case'], self.case['key'])
+            self.assertEqual(summary['qualification'], 'incomplete')
+
+            wrong_case = ci.aggregate(self.policy, 'candidate', 'preflight', self.output, deps, case_key=last)
+            self.assertEqual(wrong_case['status'], 'failed')
+            self.assertIn('unexpected or duplicate result: ' + self.case['key'], wrong_case['errors'])
+
+            full = ci.aggregate(self.policy, 'candidate', 'preflight', self.output, deps)
+            self.assertEqual(full['status'], 'failed')
+            self.assertIn('missing result (failed/cancelled/skipped job): ' + last, full['errors'])
+
+            other = self.output / 'another-job'
+            other.mkdir()
+            ci.save(other / 'result.json', dict(result, key=last))
+            extra = ci.aggregate(self.policy, 'candidate', 'preflight', self.output, deps,
+                                 case_key=self.case['key'])
+            self.assertEqual(extra['status'], 'failed')
+            self.assertIn('unexpected or duplicate result: ' + last, extra['errors'])
+
     def test_duplicate_case_is_not_hidden_by_last_result(self):
         self.assertEqual(self.summary([self.result(), self.result()])['status'], 'failed')
 
@@ -355,9 +395,11 @@ class CompilerImageTests(unittest.TestCase):
 
     def test_native_case_compiles_with_the_verified_local_id(self):
         case = next(row for row in self.policy['cases'] if row['edk2'] == '202608')
-        identity = {'input_state': 'integrated-unqualified', 'edk2': '202608', 'radxa': '1.3.1',
-                    'source': case['maintained'], 'dependencies': {'edk2': 'a' * 40,
-                    'platform': 'b' * 40, 'crypto_header': 'c' * 40}}
+        identity = {
+            'input_state': 'integrated-unqualified', 'edk2': '202608', 'radxa': '1.3.1',
+            'source': case['maintained'],
+            'dependencies': {'edk2': 'a' * 40, 'platform': 'b' * 40, 'crypto_header': 'c' * 40},
+        }
         output = self.output / 'native-attempt'
 
         def compile_case(repo, selected, directory, image, jobs, platform):

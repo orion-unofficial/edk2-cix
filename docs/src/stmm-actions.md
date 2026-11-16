@@ -133,6 +133,13 @@ There is no 502 full-source candidate; candidate mode deliberately enumerates
 only the three existing candidates. The maintained preflight includes 502 and
 its full qualification remains outstanding.
 
+For a bounded maintained run, set the workflow input `case_key` to
+`202608-radxa-1.3.1`. Leave it blank to require every case in the selected
+population. Both the planner and summary use the exact key. An unknown key,
+a candidate without an isolated input, or any missing, extra or stale result
+fails the corresponding gate. Local `matrix` and `aggregate` calls accept
+the same selector through `--case`.
+
 ## Compiler input for native compilation
 
 With `compiler_image` unset, Actions explicitly requests `--build-compiler`.
@@ -179,6 +186,7 @@ appropriately provisioned native host. Neither entry point consumes
 `CIX_RELEASE=unofficial STMM=unofficial` settings. A container-free backend for
 the compile-only adapter would need separately pinned host packages, compiler
 binaries and an equivalent sandbox and receipt.
+
 ## Portability and evidence boundaries
 
 Cases use separate Actions VMs, output directories and artifacts, with

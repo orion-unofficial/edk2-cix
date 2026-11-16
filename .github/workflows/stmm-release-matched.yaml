@@ -12,6 +12,11 @@ on:
         type: choice
         options: [maintained, candidate]
         default: maintained
+      case_key:
+        description: Exact case key (leave blank for the full selected population)
+        type: string
+        required: false
+        default: ''
       stage:
         description: Preflight first; native compile uses the pinned recipe or optional registry digest
         type: choice
@@ -56,9 +61,12 @@ jobs:
         id: plan
         env:
           SELECTION: ${{ inputs.selection }}
+          CASE_KEY: ${{ inputs.case_key }}
         run: |
           set -euo pipefail
-          matrix="$(python3 scripts/stmm_ci.py matrix --selection "${SELECTION}")"
+          selected=()
+          if [[ -n "${CASE_KEY}" ]]; then selected=(--case "${CASE_KEY}"); fi
+          matrix="$(python3 scripts/stmm_ci.py matrix --selection "${SELECTION}" "${selected[@]}")"
           echo "matrix=${matrix}" >>"${GITHUB_OUTPUT}"
 
   cases:
@@ -166,6 +174,7 @@ jobs:
             "download":"${{ steps.download.outcome }}"}
           SELECTION: ${{ inputs.selection }}
           STAGE: ${{ inputs.stage }}
+          CASE_KEY: ${{ inputs.case_key }}
           REQUESTED_SHA: ${{ inputs.harness_sha }}
         run: |
           set -euo pipefail
@@ -174,8 +183,10 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "${REQUESTED_SHA}" ]]
           root=".worktrees/session-gha-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -p "${root}"
+          selected=()
+          if [[ -n "${CASE_KEY}" ]]; then selected=(--case "${CASE_KEY}"); fi
           python3 scripts/stmm_ci.py aggregate --selection "${SELECTION}" --stage "${STAGE}" \
-            --results "${root}/results" --output "${root}/aggregate.json"
+            --results "${root}/results" --output "${root}/aggregate.json" "${selected[@]}"
       - name: Preserve aggregate even when a gate fails
         if: ${{ always() }}
         uses: actions/upload-artifact@v7

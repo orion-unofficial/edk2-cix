@@ -244,10 +244,20 @@ def run_case(policy: dict, key: str, selection: str, stage: str, output: Path, *
     return 0 if result['status'] == 'passed' else 1
 
 
-def aggregate(policy: dict, selection: str, stage: str, directory: Path, job_results: dict) -> dict:
+def selected_case_keys(policy: dict, selection: str, case_key: str | None = None) -> list[str]:
+    keys = [c['key'] for c in policy['cases'] if selection == 'maintained' or c.get('candidate')]
+    if case_key is None:
+        return keys
+    if case_key not in keys:
+        raise ValueError(f'case {case_key!r} is unavailable for {selection} selection')
+    return [case_key]
+
+
+def aggregate(policy: dict, selection: str, stage: str, directory: Path, job_results: dict, *,
+              case_key: str | None = None) -> dict:
     """Fail closed on missing, duplicate, stale, or foreign job results."""
     validate_policy(policy)
-    expected = {c['key'] for c in policy['cases'] if selection == 'maintained' or c.get('candidate')}
+    expected = set(selected_case_keys(policy, selection, case_key))
     rows = {}
     errors = []
     for path in sorted(directory.rglob('result.json')):
@@ -328,7 +338,7 @@ def aggregate(policy: dict, selection: str, stage: str, directory: Path, job_res
             or any(value != 'success' for value in job_results.values())):
         errors.append('one or more workflow dependencies did not succeed')
     return {'schema_version': 1, 'stage': stage, 'selection': selection,
-            'status': 'failed' if errors else 'passed', 'qualification': 'incomplete',
+            'status': 'failed' if errors else 'passed', 'qualification': 'incomplete', 'case': case_key,
             'qualification_states': policy['qualification_states'],
             'required_criteria': policy['required_criteria'], 'results': rows,
             'outstanding': [c for c in policy['required_criteria']
@@ -353,9 +363,13 @@ def main() -> None:
         parser.error('compiler options require case --stage native-compile')
     policy = json.loads(POLICY.read_text())
     validate_policy(policy)
+    if args.command != 'case':
+        try:
+            keys = selected_case_keys(policy, args.selection, args.case)
+        except ValueError as exc:
+            parser.error(str(exc))
     if args.command == 'matrix':
-        print(json.dumps({'include': [{'key': c['key']} for c in policy['cases']
-                                      if args.selection == 'maintained' or c.get('candidate')]}))
+        print(json.dumps({'include': [{'key': key} for key in keys]}))
     elif args.command == 'case':
         if not args.case or not args.output:
             parser.error('case requires --case and --output')
@@ -365,7 +379,7 @@ def main() -> None:
         if not args.results or not args.output:
             parser.error('aggregate requires --results and --output')
         result = aggregate(policy, args.selection, args.stage, args.results,
-                           json.loads(os.environ.get('STMM_JOB_RESULTS', '{}')))
+                           json.loads(os.environ.get('STMM_JOB_RESULTS', '{}')), case_key=args.case)
         save(args.output, result)
         summary = os.environ.get('GITHUB_STEP_SUMMARY')
         if summary:
