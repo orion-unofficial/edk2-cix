@@ -111,9 +111,13 @@ building. For a direct buildbox invocation in a rendered worktree, set
 The current runner rejects worktrees with historical directory-lock wrappers
 before starting the container or staging signing files. Use an isolated,
 single-writer worktree and separate cache for an unmigrated historical build.
-The current runner uses the `buildbox-native` cache namespace. Exact vendor replay
-keeps its original source and cache paths. Existing materialised historical
-worktrees are outside the verified lock protocol.
+Under `FIRMWARE_CACHE_ROOT`, maintained source builds use `buildbox-source`
+for both `ARTEFACT_MODE=upstream` and `ARTEFACT_MODE=custom`. Deterministic replay
+uses `buildbox-replay` with the retained source recipes and its own cache lock.
+Each namespace has its own container identity file and cache mount. Existing
+`buildbox-native` and `buildbox` caches are left in place and the new namespaces
+populate on demand. Existing materialised historical worktrees are outside the
+verified workspace lock protocol.
 
 ## How do I publish a source-model update?
 

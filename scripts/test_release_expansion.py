@@ -348,12 +348,12 @@ class ExpansionTests(unittest.TestCase):
     def test_cleanup_retires_only_its_own_worktree_buildbox_mount(self):
         state, plan, _ = self.init()
         name = "edk2-cix-buildbox-1234abcd"
-        name_file = state / "cache/buildbox/buildbox-name"
+        name_file = state / "cache/buildbox-source/buildbox-name"
         name_file.parent.mkdir(parents=True)
         name_file.write_text(name + "\n")
         worktree = state / "repo/rendered"
         mounts = [{"Type": "bind", "Source": str(worktree)},
-                  {"Type": "bind", "Source": str(state / "cache/buildbox")}]
+                  {"Type": "bind", "Source": str(state / "cache/buildbox-source")}]
         inspect = subprocess.CompletedProcess([], 0, json.dumps([{"Mounts": mounts}]), "")
         removed = subprocess.CompletedProcess([], 0, name, "")
         with patch.object(batch.subprocess, "run", side_effect=[inspect, removed]) as run:

@@ -587,22 +587,23 @@ __locked-release-make:
 	$(call check_firmware_chain,inputs,$(LOCKED_BUILD_TARGET),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	signing_cert_arg="$$(DEBUG="$(DEBUG)" SIGNING_CERT_SOURCE_DIR="$(SIGNING_CERT_SOURCE_DIR)" V="$(V)" $(PYTHON) scripts/prepare_release_worktree.py --worktree "$$wt" --print-make-arg --v "$(V)")"; \
 	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
-	mkdir -p "$$cache_root/buildbox-native"; \
+	mkdir -p "$$cache_root"; \
 	cache_root="$$(cd "$$cache_root" && pwd -P)"; \
+	buildbox_root="$$cache_root/buildbox-source"; \
 	container_cache_root="/hosttmp"; \
 	printf '[build] Starting %s: board=%s target=%s release=%s\n' "$(LOCKED_BUILD_TARGET)" "$(FIRMWARE_BOARD)" "$(FIRMWARE_TARGET)" "$$release_label" >&2; \
-	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(LOCKED_BUILD_TARGET) $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$cache_root/buildbox-native CCACHE_DIR=$$container_cache_root/ccache"; fi; \
+	if [ "$(V)" = "1" ]; then printf '%s\n' "$(MAKE) --no-print-directory -C $$wt $(LOCKED_BUILD_TARGET) $(DELEGATED_BUILD_ARGS) BUILDBOX_HOST_TMPDIR=$$buildbox_root CCACHE_DIR=$$container_cache_root/ccache"; fi; \
 	EDK2_CIX_FIRMWARE_ROOT="$$wt" \
-	EDK2_CIX_HOST_TMPDIR="$$cache_root/buildbox-native" \
+	EDK2_CIX_HOST_TMPDIR="$$buildbox_root" \
 	EDK2_CIX_HOST_OUTPUT_ROOT="$$cache_root" \
-	EDK2_CIX_BUILD_LOCK_ROOT="$$cache_root/buildbox-native/locks" \
-	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox-native/buildbox-name" \
+	EDK2_CIX_BUILD_LOCK_ROOT="$$buildbox_root/locks" \
+	EDK2_CIX_BUILDBOX_NAME_FILE="$$buildbox_root/buildbox-name" \
 	EDK2_CIX_BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
 	EDK2_CIX_BUILDBOX_IMAGE_OVERRIDE="$(BUILDBOX_IMAGE)" \
 	EDK2_CIX_FIRMWARE_DISTRO="$(or $(FIRMWARE_DISTRO),trixie)" \
 	EDK2_CIX_BUILDBOX_IMAGE="$(if $(BUILDBOX_IMAGE),$(BUILDBOX_IMAGE),mcr.microsoft.com/devcontainers/base:$(or $(FIRMWARE_DISTRO),trixie))" \
 	$(BUILDBOX_RUNNER) $(MAKE) --no-print-directory $(patsubst buildbox-%,%,$(LOCKED_BUILD_TARGET)) $(DELEGATED_BUILD_ARGS) $$signing_cert_arg \
-		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox-native" \
+		BUILDBOX_HOST_TMPDIR="$$buildbox_root" \
 		BUILDBOX_CONTAINER_TMPDIR="$$container_cache_root" \
 		CCACHE_DIR="$$container_cache_root/ccache" \
 		CCACHE_WRAPPER_ROOT="$$container_cache_root/ccache-toolchain" \
@@ -612,6 +613,8 @@ __locked-release-make:
 		FIRMWARE_VALIDATION_REPORT_ROOT="/hostcache/build-validation"; \
 	$(call check_bootloader1,outputs,$(LOCKED_BUILD_TARGET),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
 	$(call check_firmware_chain,outputs,$(LOCKED_BUILD_TARGET),$(or $(ARTEFACT_MODE),custom),$(CIX_RELEASE)); \
+	fixes_suffix=; \
+	case "$$(printf '%s' "$(strip $(ENABLE_FIRMWARE_FIXES))" | tr '[:upper:]' '[:lower:]')" in 1|true|yes|on) fixes_suffix=+fixes;; esac; \
 	DEBUG="$(DEBUG)" V="$(V)" $(PYTHON) scripts/mirror_build_outputs.py \
 		--repo-root "$(CURDIR)" \
 		--worktree "$$wt" \
@@ -620,7 +623,7 @@ __locked-release-make:
 		--build-target "$(LOCKED_BUILD_TARGET)" \
 		--board "$(FIRMWARE_BOARD)" \
 		--firmware-target "$(FIRMWARE_TARGET)" \
-		--artefact-mode "$(or $(ARTEFACT_MODE),custom)$(if $(filter 1 true yes on,$(ENABLE_FIRMWARE_FIXES)),+fixes,)$(if $(filter unofficial,$(STMM)),+stmm_unofficial,)" \
+		--artefact-mode "$(or $(ARTEFACT_MODE),custom)$$fixes_suffix$(if $(filter unofficial,$(STMM)),+stmm_unofficial,)" \
 		--v "$(V)"; \
 	$(if $(filter install,$(LOCKED_INSTALL)),$(install_locked_payload),:)
 
@@ -630,16 +633,21 @@ build:
 build-all:
 	$(call run_release_make,build-all)
 
+# Serialize callers sharing the replay cache while the retained Makefile
+# continues to acquire its own workspace lock.
 deterministic-replay:
 	@set -eu; \
 	printf '[replay] Preparing replay-capable source target: %s\n' "$(REPLAY_SOURCE_TARGET)" >&2; \
 	if [ "$(FIRST_OUTPUT_PROBE)" = "1" ]; then exit 0; fi; \
-	cache_root="$(abspath $(FIRMWARE_CACHE_ROOT))"; \
+	cache_root="$(FIRMWARE_CACHE_ROOT)"; \
+	mkdir -p "$$cache_root"; \
+	cache_root="$$(cd "$$cache_root" && pwd -P)"; \
+	buildbox_root="$$cache_root/buildbox-replay"; \
 	replay_input="$(REPLAY_INPUT)"; \
 	replay_build_options="$(REPLAY_BUILD_OPTIONS)"; \
 	replay_build_date="$(REPLAY_BUILD_DATE)"; \
 	replay_version="$(REPLAY_VERSION)"; \
-	mkdir -p "$$cache_root/buildbox" "$$cache_root/replay/downloads"; \
+	mkdir -p "$$buildbox_root" "$$cache_root/replay/downloads"; \
 	wt="$$(DEBUG="$(DEBUG)" RELEASE="$(REPLAY_SOURCE_TARGET)" V="$(V)" $(PYTHON) scripts/render_release_branch.py --ensure-worktree --print-worktree --v "$(V)")"; \
 	$(call check_bootloader1,inputs,deterministic-replay,upstream,); \
 	if [ -n "$$replay_input" ]; then \
@@ -671,22 +679,22 @@ deterministic-replay:
 		replay_build_options="$$( $(PYTHON) -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).expanduser().resolve())' "$$replay_build_options" )"; \
 	fi; \
 	replay_key="$(FIRMWARE_BOARD)-$${replay_version:-manual}"; \
-	printf '[replay] Running deterministic replay in %s\n' "$$wt" >&2; \
-	EDK2_CIX_REPO_LOCK_HELD=0 \
-	EDK2_CIX_BUILDBOX_NAME_FILE="$$cache_root/buildbox/buildbox-name" \
-	$(MAKE) --no-print-directory -C "$$wt" deterministic-replay V="$(V)" \
+	printf '[replay] Running deterministic replay in %s with cache %s\n' "$$wt" "$$buildbox_root" >&2; \
+	EDK2_CIX_BUILD_LOCK_ROOT="$$buildbox_root/locks" \
+	EDK2_CIX_BUILDBOX_NAME_FILE="$$buildbox_root/buildbox-name" \
+	scripts/with_repo_lock.sh env -u EDK2_CIX_BUILD_LOCK_ROOT EDK2_CIX_REPO_LOCK_HELD=0 $(MAKE) --no-print-directory -C "$$wt" deterministic-replay V="$(V)" \
 		FIRMWARE_BOARD="$(FIRMWARE_BOARD)" \
 		FIRMWARE_TARGET="$(FIRMWARE_TARGET)" \
 		FIRMWARE_DISTRO="$(if $(strip $(FIRMWARE_DISTRO)),$(FIRMWARE_DISTRO),bookworm)" \
 		BUILDBOX_PLATFORM="$(BUILDBOX_PLATFORM)" \
-		BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox/tmp" \
+		BUILDBOX_HOST_TMPDIR="$$buildbox_root/tmp" \
 		CCACHE_DIR="/hosttmp/ccache" \
 		CCACHE_WRAPPER_ROOT="/hosttmp/ccache-toolchain" \
 		CIX_RELEASE_CACHE_ROOT="/hosttmp/cix-release" \
-		FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro" \
+		FIPTOOL_DISTRO_STAMP="$$buildbox_root/fiptool/.buildbox-distro" \
 		FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation" \
-		DETERMINISTIC_REPLAY_ROOT="$$cache_root/buildbox/replay/$$replay_key" \
-		DETERMINISTIC_REPLAY_MOUNT_ROOT="$$cache_root/buildbox" \
+		DETERMINISTIC_REPLAY_ROOT="$$buildbox_root/replay/$$replay_key" \
+		DETERMINISTIC_REPLAY_MOUNT_ROOT="$$buildbox_root" \
 		REPLAY_VERSION="$$replay_version" \
 		REPLAY_INPUT="$$replay_input" \
 		REPLAY_BUILD_OPTIONS="$$replay_build_options" \

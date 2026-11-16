@@ -128,8 +128,8 @@ jobs:
                 --print-worktree
           )"
           echo "FIRMWARE_WORKTREE=${worktree}" >>"${GITHUB_ENV}"
-          echo "FIRMWARE_CACHE=${worktree}/.cache/edk2-cix/firmware" >>"${GITHUB_ENV}"
-          buildbox_name_file="${worktree}/.cache/edk2-cix/firmware/buildbox/buildbox-name"
+          echo "FIRMWARE_CACHE=${PWD}/.cache/edk2-cix/firmware" >>"${GITHUB_ENV}"
+          buildbox_name_file="${PWD}/.cache/edk2-cix/firmware/buildbox-replay/buildbox-name"
           echo "EDK2_CIX_BUILDBOX_NAME_FILE=${buildbox_name_file}" >>"${GITHUB_ENV}"
 
       - name: Check offline audit baseline schema
@@ -158,17 +158,19 @@ jobs:
           python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
             --phase inputs --board "${{ matrix.board }}" --artefact-mode upstream \
             --report .cache/edk2-cix/qualification/bootloader1-validation.json
-          make -C "${FIRMWARE_WORKTREE}" deterministic-replay V=1 \
+          EDK2_CIX_BUILD_LOCK_ROOT="${FIRMWARE_CACHE}/buildbox-replay/locks" \
+            scripts/with_repo_lock.sh env -u EDK2_CIX_BUILD_LOCK_ROOT EDK2_CIX_REPO_LOCK_HELD=0 \
+            make -C "${FIRMWARE_WORKTREE}" deterministic-replay V=1 \
             FIRMWARE_BOARD="${{ matrix.board }}" \
             FIRMWARE_DISTRO=bookworm \
             BUILDBOX_PLATFORM=linux/amd64 \
-            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox/tmp" \
-            CCACHE_DIR="${FIRMWARE_CACHE}/ccache" \
-            CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
-            CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
-            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro" \
-            DETERMINISTIC_REPLAY_ROOT="${FIRMWARE_CACHE}/buildbox/replay/${replay_key}" \
-            DETERMINISTIC_REPLAY_MOUNT_ROOT="${FIRMWARE_CACHE}/buildbox" \
+            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox-replay/tmp" \
+            CCACHE_DIR="/hosttmp/ccache" \
+            CCACHE_WRAPPER_ROOT="/hosttmp/ccache-toolchain" \
+            CIX_RELEASE_CACHE_ROOT="/hosttmp/cix-release" \
+            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox-replay/fiptool/.buildbox-distro" \
+            DETERMINISTIC_REPLAY_ROOT="${FIRMWARE_CACHE}/buildbox-replay/replay/${replay_key}" \
+            DETERMINISTIC_REPLAY_MOUNT_ROOT="${FIRMWARE_CACHE}/buildbox-replay" \
             REPLAY_VERSION="${{ needs.resolve-release.outputs.tag }}" \
             REPLAY_INPUT="${{ steps.download.outputs.deb_path }}"
           python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
@@ -198,9 +200,9 @@ jobs:
               --heading "Validation reports for ${{ matrix.board }} / ${{ needs.resolve-release.outputs.tag }}" \
               >>"${GITHUB_STEP_SUMMARY}"
           fi
-          if [[ -d "${FIRMWARE_CACHE}/buildbox/replay" ]]; then
+          if [[ -d "${FIRMWARE_CACHE}/buildbox-replay/replay" ]]; then
             mkdir -p "${artifact_root}/replay"
-            cp -a "${FIRMWARE_CACHE}/buildbox/replay/." "${artifact_root}/replay/"
+            cp -a "${FIRMWARE_CACHE}/buildbox-replay/replay/." "${artifact_root}/replay/"
           fi
 
       - name: Upload replay reports

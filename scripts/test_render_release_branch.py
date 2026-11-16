@@ -49,17 +49,25 @@ def rendering_fixture():
     """Real renderer/Git inputs, with harmless source Make targets only."""
     repo = make_repo()
     try:
-        write_file(repo, ".gitignore", ".cache/\n.worktrees/\n")
+        write_file(repo, ".gitignore", ".cache/\n.worktrees/\n.buildbox/\nsrc/Build/\n")
         write_file(repo, "VERSION", "1.3.1\n")
         write_file(repo, "debian/changelog", "edk2-cix (1.3.1) main; urgency=medium\n")
         write_file(repo, "src/Makefile", "\t\t\tupstream) \\\n\t\t\t\t;; \\\n")
         write_file(repo, "scripts/ensure_build_deps.sh", "    python3\n")
+        (repo / "scripts").mkdir(exist_ok=True)
         write_file(repo, "Makefile", """.PHONY: firmware-build firmware-stage zip targz buildbox-firmware-build build-all buildbox-zip buildbox-targz buildbox-firmware-stage deterministic-replay
 firmware-build firmware-stage zip targz buildbox-firmware-build build-all buildbox-zip buildbox-targz buildbox-firmware-stage deterministic-replay:
 \t@printf '%s\\n' '$(CURDIR)' '$(MAKECMDGOALS)' '$(V)' '$(SIGNING_CERT_SOURCE_DIR)' > "$(FIXTURE_RESULT)"
+\t@printf '%s\\n' '$(FIPTOOL_DISTRO_STAMP)' '$(FIRMWARE_VALIDATION_REPORT_ROOT)' '$(BUILDBOX_HOST_TMPDIR)' '$(DETERMINISTIC_REPLAY_ROOT)' '$(DETERMINISTIC_REPLAY_MOUNT_ROOT)' '$(CCACHE_DIR)' '$(CCACHE_WRAPPER_ROOT)' '$(EDK2_CIX_BUILDBOX_NAME_FILE)' '$(EDK2_CIX_BUILD_LOCK_ROOT)' > "$(FIXTURE_CACHE_ARGS)"
 \t@printf 'fixture delegate stderr\\n' >&2
 \t@exit $(FIXTURE_EXIT)
 """)
+        # Let the real build-owned runner verify the retained lock protocol.
+        for name in ("with_repo_lock.sh", "repo_lock.py", "repo-lock.mk"):
+            shutil.copy2(ROOT / "scripts" / name, repo / "scripts" / name)
+        with (repo / "src/Makefile").open("a") as recipe:
+            recipe.write("include ../scripts/repo-lock.mk\n")
+        write_file(repo, ".github/local/Makefile.local", "include $(REPO_ROOT)/scripts/repo-lock.mk\n")
         source = commit_all(repo, "record harmless firmware delegation fixture")
         refs = ["source/base/edk2/edk2-stable202208",
                 "source/vendor/radxa/1.3.1/edk2-stable202208",

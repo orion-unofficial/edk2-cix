@@ -158,7 +158,7 @@ def initialise(state: Path, args: argparse.Namespace) -> dict:
         "repo/: independent refs and resumable source candidates; never delete before review/import\n"
         "jobs/: logs, receipts, conflict notes and successful images\n"
         "tmp/: helper scratch; conflicts are retained as batch/conflicts refs and notes\n"
-        "cache/: build downloads and the named Docker buildbox (see buildbox/buildbox-name)\n"
+        "cache/: build downloads and the named Docker buildbox (see buildbox-source/buildbox-name)\n"
         "repo/.cache/: generated worktrees removed after each pair\n"
         "plan.json, progress.log, summary.json, resolutions.json, lock: resumable control state\n")
     return plan
@@ -420,7 +420,13 @@ def cleanup_rendered(state: Path, plan: dict) -> None:
 
 def retire_buildbox_mount(state: Path, worktree: Path | None) -> None:
     """Retire a batch-owned container before checkout removal or a resumed run."""
-    name_file = state / "cache/buildbox/buildbox-name"
+    # Resumed batches run frozen build code, which may still use an older name.
+    for namespace in ("buildbox-source", "buildbox-native", "buildbox"):
+        retire_cached_container(state, state / "cache" / namespace, worktree)
+
+
+def retire_cached_container(state: Path, cache: Path, worktree: Path | None) -> None:
+    name_file = cache / "buildbox-name"
     if not name_file.exists():
         return
     name = name_file.read_text().strip()
@@ -441,7 +447,7 @@ def retire_buildbox_mount(state: Path, worktree: Path | None) -> None:
                         any(Path(source).is_relative_to(namespace) for source in sources))
     if not mounted_worktree:
         return
-    if str(state / "cache/buildbox") not in sources:
+    if str(cache) not in sources:
         raise ValueError(f"buildbox {name} mounts the worktree without this batch's cache")
     removed = subprocess.run(["docker", "rm", "-f", name], capture_output=True, text=True)
     if removed.returncode:

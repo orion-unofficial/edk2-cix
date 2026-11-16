@@ -12,15 +12,16 @@ workspace_parent="${EDK2_CIX_WORKSPACE_PARENT:-/workspaces}"
 workspace_path="${EDK2_CIX_WORKSPACE_ROOT:-${workspace_parent}/$(basename -- "$repo_root")}"
 host_workspace_root="$repo_root"
 container_tmpdir="${EDK2_CIX_CONTAINER_TMPDIR:-/hosttmp}"
-host_tmpdir="${EDK2_CIX_HOST_TMPDIR:-${repo_root}/.buildbox/tmp}"
+source_cache_root="${FIRMWARE_CACHE_ROOT:-${infra_root}/.cache/edk2-cix/firmware}/buildbox-source"
+host_tmpdir="${EDK2_CIX_HOST_TMPDIR:-$source_cache_root}"
 host_tmpdir="${host_tmpdir%/}"
 if [[ -z "$host_tmpdir" ]]; then
-    host_tmpdir="${repo_root}/.buildbox/tmp"
+    host_tmpdir="$source_cache_root"
 fi
 host_output_root="${EDK2_CIX_HOST_OUTPUT_ROOT:-}"
 verbose="${EDK2_CIX_VERBOSE:-0}"
 buildbox_name_prefix="edk2-cix-buildbox"
-buildbox_name_file="${EDK2_CIX_BUILDBOX_NAME_FILE:-${repo_root}/.buildbox/buildbox-name}"
+buildbox_name_file="${EDK2_CIX_BUILDBOX_NAME_FILE:-${host_tmpdir}/buildbox-name}"
 container_image="${EDK2_CIX_BUILDBOX_IMAGE:-}"
 container_runtime="${EDK2_CIX_CONTAINER_RUNTIME:-}"
 container_platform="${EDK2_CIX_BUILDBOX_PLATFORM:-}"
@@ -32,7 +33,7 @@ expected_mounts=()
 host_git_repo_usable=0
 
 workspace_lock_root="${repo_root}/.buildbox/locks"
-requested_lock_root="${EDK2_CIX_BUILD_LOCK_ROOT:-$workspace_lock_root}"
+requested_lock_root="${EDK2_CIX_BUILD_LOCK_ROOT:-${host_tmpdir}/locks}"
 export EDK2_CIX_BUILDBOX_LOCK_ROOT="${EDK2_CIX_BUILDBOX_LOCK_ROOT:-$requested_lock_root}"
 # A legacy direct Make can start after this runner acquires a flock. An
 # owner-file probe cannot make those two protocols mutually exclusive.
@@ -210,16 +211,27 @@ record_bind_mount() {
     local source="$1"
     local target="$2"
     local options="${3:-}"
-    local mount_spec existing
+    local mount_spec existing writable=true
 
     if [[ ! -e "$source" ]]; then
         return 0
     fi
 
-    mount_spec="${target}=${source}"
+    if [[ "$source" != /* || "$target" != /* || "$source$target" == *:* || "$source$target" == *$'\n'* || "$target" == *=* ]]; then
+        printf '[buildbox] Unsafe bind mount path: %q -> %q\n' "$source" "$target" >&2
+        exit 2
+    fi
+    if [[ "$options" == ro ]]; then
+        writable=false
+    fi
+    mount_spec="${target}=${source}=${writable}"
     for existing in "${expected_mounts[@]:-}"; do
         if [[ "$existing" == "$mount_spec" ]]; then
             return 0
+        fi
+        if [[ "$existing" == "${target}="* ]]; then
+            printf '[buildbox] Conflicting bind mounts for %q\n' "$target" >&2
+            exit 2
         fi
     done
 
@@ -566,7 +578,7 @@ fi
 ensure_container() {
     if runtime container inspect "$container_name" >/dev/null 2>&1; then
         local mounts existing_image existing_platform expected_mount
-        mounts="$(runtime inspect -f '{{range .Mounts}}{{printf "%s=%s\n" .Destination .Source}}{{end}}' "$container_name")"
+        mounts="$(runtime inspect -f '{{range .Mounts}}{{printf "%s=%s=%t\n" .Destination .Source .RW}}{{end}}' "$container_name")"
         existing_image="$(container_label "$buildbox_image_label")"
         existing_platform="$(container_label "$buildbox_platform_label")"
         for expected_mount in "${expected_mounts[@]}"; do
@@ -671,23 +683,25 @@ case "${1##*/}" in
         ;;
 esac
 
-container_runtime="$(resolve_container_runtime)"
-container_name="$(resolve_container_name)"
-container_platform="${container_platform:-$(default_container_platform)}"
-container_image="${container_image:-$(default_container_image "$container_platform")}"
-status "Using container runtime: ${container_runtime}"
-status "Using container platform: ${container_platform}"
-status "Using container image: ${container_image}"
-if ! runtime image inspect "$container_image" >/dev/null 2>&1; then
-    status "Pulling missing container image ${container_image} for ${container_platform}"
-    runtime pull --platform "$container_platform" "$container_image"
-fi
 mkdir -p "$host_tmpdir"
 host_tmpdir="$(cd "$host_tmpdir" && pwd -P)"
 host_output_root="${host_output_root:-$host_tmpdir}"
 mkdir -p "$host_output_root"
 host_output_root="$(cd "$host_output_root" && pwd -P)"
 prepare_container_mounts
+container_runtime="$(resolve_container_runtime)"
+container_name="$(resolve_container_name)"
+container_platform="${container_platform:-$(default_container_platform)}"
+container_image="${container_image:-$(default_container_image "$container_platform")}"
+status "Using container runtime: ${container_runtime}"
+status "Using container platform: ${container_platform}"
+status "Using buildbox cache: ${host_tmpdir}"
+status "Using container image: ${container_image}"
+if ! runtime image inspect "$container_image" >/dev/null 2>&1; then
+    status "Pulling missing container image ${container_image} for ${container_platform}"
+    runtime pull --platform "$container_platform" "$container_image"
+fi
+
 ensure_container
 verify_workspace
 

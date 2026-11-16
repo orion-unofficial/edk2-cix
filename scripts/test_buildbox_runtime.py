@@ -20,6 +20,98 @@ from make_in_buildbox import command as native_make_command, host_command
 ROOT = Path(__file__).resolve().parents[1]
 
 
+# The runtime double handles the container API and maps mounted paths. Make,
+# runner argument construction, lock acquisition and mirroring run unmodified.
+def fake_buildbox_engine(root):
+    root.mkdir(parents=True, exist_ok=True)
+    engine = root / "fake-engine"
+    engine.write_text(r'''#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import re
+import sys
+
+args = sys.argv[1:]
+state_file = Path(__file__).with_name("containers.json")
+log = Path(__file__).with_name("engine.jsonl")
+with log.open("a") as f:
+    print(json.dumps(args), file=f)
+state = json.loads(state_file.read_text()) if state_file.exists() else {}
+if args[:2] == ["image", "inspect"]:
+    print("fixture-image")
+elif args[:2] == ["container", "inspect"]:
+    sys.exit(0 if args[-1] in state else 1)
+elif args[0] == "inspect":
+    if args[-1] not in state:
+        sys.exit(1)
+    container = state[args[-1]]
+    query = args[2]
+    if ".Mounts" in query:
+        for dest, (source, rw) in container["mounts"].items():
+            print(f"{dest}={source}" + (f"={str(rw).lower()}" if ".RW" in query else ""))
+    elif ".State.Running" in query:
+        print("true")
+    else:
+        label = re.search(r'"([^"]+)"', query)
+        print(container["labels"].get(label[1], "") if label else "fixture-image")
+elif args[0] == "run":
+    mounts, labels = {}, {}
+    for i, arg in enumerate(args[:-1]):
+        if arg == "-v":
+            source, dest, *options = args[i + 1].split(":")
+            mounts[dest] = [source, "ro" not in options]
+        if arg == "--label":
+            key, val = args[i + 1].split("=", 1)
+            labels[key] = val
+    state[args[args.index("--name") + 1]] = {"mounts": mounts, "labels": labels}
+    state_file.write_text(json.dumps(state))
+elif args[0] == "rm":
+    state.pop(args[-1])
+    state_file.write_text(json.dumps(state))
+elif args[0] == "exec":
+    i = 1
+    workspace = None
+    while args[i] in ("-e", "-w"):
+        if args[i] == "-w":
+            workspace = args[i + 1]
+        i += 2
+    mounts = state[args[i]]["mounts"]
+    command = args[i + 1:]
+    if command[:2] == ["bash", "-lc"]:
+        command = command[4:]
+    if command[:1] == ["env"] and "/build-infra/scripts/with_repo_lock.sh" in command:
+        command = command[command.index("/build-infra/scripts/with_repo_lock.sh") + 1:]
+
+    def mapped(path, writable=False):
+        for dest, (source, rw) in sorted(mounts.items(), key=lambda item: -len(item[0])):
+            if path == dest or path.startswith(dest + "/"):
+                if writable and not rw:
+                    sys.exit(f"read-only fixture mount for {path}")
+                return Path(source) / path[len(dest):].lstrip("/")
+        sys.exit(f"unmounted fixture path: {path}")
+
+    if command[:2] == ["test", "-f"]:
+        sys.exit(0 if mapped(workspace + "/" + command[2]).is_file() else 1)
+    if command and Path(command[0]).name == "make" and "firmware-build" in command:
+        values = dict(arg.split("=", 1) for arg in command if "=" in arg)
+        cache = mapped(values["CCACHE_DIR"], writable=True)
+        cache.mkdir(parents=True, exist_ok=True)
+        count = cache / "fixture-compiles"
+        count.write_text(str(1 + (int(count.read_text()) if count.exists() else 0)))
+        raw = mapped(workspace) / "src/Build" / values["FIRMWARE_BOARD"] / (values["FIRMWARE_TARGET"] + "_GCC")
+        raw.mkdir(parents=True, exist_ok=True)
+        certs = values.get("SIGNING_CERT_SOURCE_DIR", "")
+        if certs.startswith("/"):
+            assert mapped(certs).is_dir(), certs
+        (raw / "cix_flash_all.bin").write_text(values["ARTEFACT_MODE"] + "/" + values.get("ENABLE_FIRMWARE_FIXES", ""))
+elif args[0] not in ("info", "version"):
+    sys.exit(f"unexpected fixture runtime command: {args}")
+''')
+    engine.chmod(0o755)
+    return engine
+
+
 def configured_targets():
     """Cover checkpoints, compatibility branches and both active lines."""
     manifest = json.loads((ROOT / "config/refs-unofficial.json").read_text())
@@ -108,6 +200,56 @@ class BuildboxRuntimeTests(unittest.TestCase):
                         self.assertTrue(result.stderr.startswith("[buildbox] "))
                     else:
                         self.assertEqual(result.stderr, "")
+
+
+class HistoricalReplayRuntimeTests(unittest.TestCase):
+    def test_retained_replay_maps_certificates_and_ccache_into_its_namespace(self):
+        with tempfile.TemporaryDirectory(prefix='buildbox-replay-') as directory:
+            root = Path(directory).resolve()
+            source = root / 'firmware'
+            ref = 'source/unofficial/edk2-stable202208'
+            retained = ('.github/local/Makefile.local', 'scripts/run_in_buildbox.sh',
+                        'scripts/with_repo_lock.sh', 'scripts/default_container_runtimes.sh')
+            for relative in retained:
+                path = source / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(show_file(ROOT, ref, relative))
+                if path.suffix == '.sh':
+                    path.chmod(0o755)
+            (source / 'Makefile').touch()
+            (source / 'src').mkdir()
+            (source / 'src/Makefile').touch()
+            (source / 'validation').mkdir()
+            (source / 'validation/expected-hashes.json').write_text('{}')
+            # Stub the post-build semantic audit, which requires real AML.
+            (source / 'scripts/audit_acpi_regression.py').touch()
+            cache = root / 'cache with spaces' / 'buildbox-replay'
+            replay = cache / 'replay/O6-1.3.1'
+            (replay / 'certs').mkdir(parents=True)
+            (replay / 'replay.env').write_text(
+                'BUILD_DATE=2026-01-01\nSOURCE_DATE_EPOCH=1\nPM_CONFIG_SOURCE_DATE_EPOCH=1\n')
+            engine = fake_buildbox_engine(root)
+            env = {key: val for key, val in os.environ.items() if not key.startswith('EDK2_CIX_')}
+            env.update(EDK2_CIX_CONTAINER_RUNTIME=str(engine),
+                       EDK2_CIX_BUILDBOX_NAME_FILE=str(cache / 'buildbox-name'))
+            result = subprocess.run([
+                'make', '--no-print-directory', '-C', str(source), '-f', '.github/local/Makefile.local',
+                '__deterministic-replay', 'FIRMWARE_BOARD=O6', 'FIRMWARE_TARGET=RELEASE',
+                'FIRMWARE_DISTRO=bookworm', 'REPLAY_VERSION=1.3.1',
+                f'DETERMINISTIC_REPLAY_ROOT={replay}', f'DETERMINISTIC_REPLAY_MOUNT_ROOT={cache}',
+                'CCACHE_DIR=/hosttmp/ccache', 'CCACHE_WRAPPER_ROOT=/hosttmp/ccache-toolchain',
+            ], env=env, capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            name = (cache / 'buildbox-name').read_text().strip()
+            state = json.loads(engine.with_name('containers.json').read_text())
+            self.assertEqual(state[name]['mounts']['/hosttmp'], [str(cache), True])
+            self.assertEqual((cache / 'ccache/fixture-compiles').read_text(), '1')
+            commands = engine.with_name('engine.jsonl').read_text().splitlines()
+            delegated, = [json.loads(line) for line in commands if '"firmware-build"' in line]
+            self.assertIn('ARTEFACT_MODE=upstream', delegated)
+            self.assertIn('SIGNING_CERT_SOURCE_DIR=/hosttmp/replay/O6-1.3.1/certs', delegated)
+            for relative in retained:
+                self.assertEqual((source / relative).read_bytes(), show_file(ROOT, ref, relative))
 
 
 class FirmwareBuildboxDelegatorTests(unittest.TestCase):
@@ -263,6 +405,56 @@ class BuildboxLockTests(unittest.TestCase):
         self.engine_marker.unlink(missing_ok=True)
         return subprocess.run([str(ROOT / 'scripts/run_in_buildbox.sh'), 'true'],
                               env={**self.env, **values}, capture_output=True, text=True, timeout=5)
+
+    def test_runner_mounts_git_objects_read_only_and_replaces_mismatched_containers(self):
+        (self.workspace / 'Makefile').touch()
+        common = self.root / 'external git'
+        alternate = self.root / 'external objects'
+        subprocess.run(['git', 'init', '-q', '--separate-git-dir', str(common), str(self.workspace)], check=True)
+        alternate.mkdir()
+        (alternate / 'info').mkdir()
+        (alternate / 'pack').mkdir()
+        (common / 'objects/info/alternates').write_text(str(alternate.resolve()) + '\n')
+        engine = fake_buildbox_engine(self.root)
+        cache = self.root / 'persistent cache'
+        values = dict(EDK2_CIX_CONTAINER_RUNTIME=str(engine), FIRMWARE_CACHE_ROOT=str(cache),
+                      EDK2_CIX_BUILD_LOCK_ROOT=str(cache / 'buildbox-source/locks'))
+        result = self.run_runner(**values)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        source_cache = cache / 'buildbox-source'
+        name = (source_cache / 'buildbox-name').read_text().strip()
+        state_file = engine.with_name('containers.json')
+
+        def check_mounts():
+            state = json.loads(state_file.read_text())
+            mounts = state[name]['mounts']
+            self.assertEqual(mounts['/hosttmp'], [str(source_cache.resolve()), True])
+            for path in (common, alternate):
+                self.assertEqual(mounts[str(path.resolve())], [str(path.resolve()), False])
+            return state
+
+        for dest, changed in ((str(alternate.resolve()), [str(alternate.resolve()), True]),
+                              ('/hosttmp', [str(self.workspace.resolve()), True])):
+            with self.subTest(dest=dest):
+                state = check_mounts()
+                state[name]['mounts'][dest] = changed
+                state_file.write_text(json.dumps(state))
+                result = self.run_runner(**values)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn('Recreating', result.stdout)
+                check_mounts()
+
+    def test_runner_rejects_unsafe_or_colliding_mounts_before_starting_runtime(self):
+        for dest, diagnostic in (('/hostcache', 'Conflicting bind mounts'),
+                                 ('relative', 'Unsafe bind mount path'),
+                                 ('/ambiguous:mount', 'Unsafe bind mount path')):
+            with self.subTest(dest=dest):
+                result = self.run_runner(EDK2_CIX_CONTAINER_TMPDIR=dest,
+                                         FIRMWARE_CACHE_ROOT=str(self.root / 'cache'),
+                                         EDK2_CIX_HOST_OUTPUT_ROOT=str(self.root / 'reports'))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(diagnostic, result.stderr)
+                self.assertFalse(self.engine_marker.exists())
 
     def test_build_caller_honours_an_existing_direct_worktree_lock(self):
         with self.hold(self.workspace_lock):

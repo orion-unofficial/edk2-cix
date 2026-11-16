@@ -79,7 +79,7 @@ New candidates remain subject to review before promotion to maintained support.
 
 The runner does not invoke `make clean` between cases. It uses one rendered
 worktree for the configurations of each source pair and retains the compiler
-cache under `cache/buildbox/ccache` across pairs. Identical compilation inputs
+cache under `cache/buildbox-source/ccache` across pairs. Identical compilation inputs
 can therefore reuse cached compiler results. Changed build options invalidate
 generated firmware output through the normal configuration stamp; this prevents
 an earlier configuration's image from being mistaken for the new result.

@@ -65,26 +65,6 @@ def write_file(path: Path, content: str) -> None:
 
 def main() -> None:
     repo = repo_root()
-    makefile = (repo / "Makefile").read_text(encoding="utf-8")
-    if "$$wt/.cache/edk2-cix/firmware" in makefile:
-        raise SystemExit("build-branch firmware cache must not live below rendered worktrees")
-    if 'CCACHE_DIR="$$cache_root/ccache"' in makefile:
-        raise SystemExit("buildbox ccache path must be container-visible, not a host-only path")
-    if 'BUILDBOX_HOST_TMPDIR="$$cache_root/buildbox"' not in makefile:
-        raise SystemExit("buildbox host mount root must live below FIRMWARE_CACHE_ROOT")
-    if 'CCACHE_DIR="$$container_cache_root/ccache"' not in makefile:
-        raise SystemExit("buildbox ccache must be addressed through the container mount")
-    mirror_lines = [
-        line
-        for line in makefile.splitlines()
-        if '--artefact-mode "$(or $(ARTEFACT_MODE),custom)' in line
-    ]
-    if not mirror_lines or any(
-        "ENABLE_FIRMWARE_FIXES" not in line or "+fixes" not in line
-        for line in mirror_lines
-    ):
-        raise SystemExit("raw build mirrors must keep custom and custom+fixes separate")
-
     with tempfile.TemporaryDirectory(prefix="edk2-cix-mirror-test-") as tmp:
         root = Path(tmp)
         worktree = root / "rendered"

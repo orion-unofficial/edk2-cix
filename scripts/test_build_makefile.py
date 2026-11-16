@@ -10,8 +10,8 @@ import tempfile
 from reconstruction_common import unofficial_firmware_refs, show_file
 import subprocess
 import unittest
-from unittest.mock import patch
 
+from test_buildbox_runtime import fake_buildbox_engine
 from test_render_release_branch import CUSTOM_TARGET, UPSTREAM_TARGET, fixture_source_state, rendering_fixture
 
 
@@ -19,14 +19,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class BuildMakefileTests(unittest.TestCase):
-    def run_rendered_fixture(self, repo, target, verbose, *, exit_code=0):
-        # Keep the public Make recipe and real renderer/preparer. Intercept only
-        # artifact validators/mirroring/installation: this fixture has no firmware.
+    def run_rendered_fixture(self, repo, target, verbose, *, exit_code=0, engine=None, options=()):
+        # Keep public Make orchestration and the real renderer/preparer. Stub
+        # firmware validation and installation, which require real signed inputs.
         dispatcher = repo / ".cache" / "fixture-python.py"
         dispatcher.parent.mkdir(exist_ok=True)
         dispatcher.write_text("""import os, pathlib, sys
 script = sys.argv[1]
-if pathlib.Path(script).name in {'render_release_branch.py', 'prepare_release_worktree.py'}:
+name = pathlib.Path(script).name
+if name in {'render_release_branch.py', 'prepare_release_worktree.py'} or (
+        name == 'mirror_build_outputs.py' and os.environ.get('FIXTURE_REAL_MIRROR') == '1'):
     os.execv(sys.executable, [sys.executable, *sys.argv[1:]])
 if pathlib.Path(script).name == 'validate_build_variables.py':
     sys.exit(0)
@@ -40,12 +42,17 @@ print('fixture helper: ' + script, file=sys.stderr)
         env = os.environ.copy()
         env.update(EDK2_CIX_TMP_ROOT=str(repo / ".worktrees" / "scratch"),
                    EDK2_CIX_WORKTREE_NAMESPACE="", FIXTURE_RESULT=str(repo / ".cache/delegated"),
+                   FIXTURE_CACHE_ARGS=str(repo / ".cache/cache-args"),
                    FIXTURE_INSTALL_RECEIPT=str(repo / ".cache/install-intercepted"))
-        runner = repo / ".cache/buildbox-runner.sh"
-        runner.write_text('#!/bin/bash\n[ "$1" != --check-workspace ] || exit 0\nexec "$1" -C "$EDK2_CIX_FIRMWARE_ROOT" "${@:2}"\n')
-        runner.chmod(0o755)
+        runner = repo / "scripts/run_in_buildbox.sh"
+        if engine is None:
+            runner = repo / ".cache/buildbox-runner.sh"
+            runner.write_text('#!/bin/bash\n[ "$1" != --check-workspace ] || exit 0\nexec "$1" -C "$EDK2_CIX_FIRMWARE_ROOT" "${@:2}"\n')
+            runner.chmod(0o755)
+        else:
+            env.update(EDK2_CIX_CONTAINER_RUNTIME=str(engine), FIXTURE_REAL_MIRROR="1")
         certs = repo / ".cache/certs"
-        certs.mkdir()
+        certs.mkdir(exist_ok=True)
         for name in ("trusted_key_no.crt", "nt_fw_cert.crt", "nt_fw_key.crt"):
             (certs / name).write_text("fixture certificate\n")
         return subprocess.run(
@@ -53,7 +60,7 @@ print('fixture helper: ' + script, file=sys.stderr)
              f"PYTHON={shlex.join([sys.executable, str(dispatcher)])}",
              f"RELEASE={CUSTOM_TARGET}", f"REPLAY_SOURCE_TARGET={UPSTREAM_TARGET}",
              "REPLAY_DOWNLOAD=0", "REPLAY_INPUT=", "REPLAY_VERSION=1.3.1", f"FIXTURE_EXIT={exit_code}",
-             f"BUILDBOX_RUNNER={runner}", f"SIGNING_CERT_SOURCE_DIR={certs}", f"INSTALL_ROOT={repo / '.cache/never-install'}"],
+             f"BUILDBOX_RUNNER={runner}", f"SIGNING_CERT_SOURCE_DIR={certs}", f"INSTALL_ROOT={repo / '.cache/never-install'}", *options],
             cwd=repo, env=env, capture_output=True, text=True,
         )
 
@@ -111,21 +118,65 @@ print('fixture helper: ' + script, file=sys.stderr)
                     self.assertFalse((repo / ".cache/delegated").exists())
                     self.assertEqual(fixture_source_state(repo), before)
 
-    def test_custom_build_preserves_spaces_in_the_host_cache_path(self):
+    def test_public_build_modes_share_the_source_buildbox_and_mirror_separately(self):
         with rendering_fixture() as repo:
-            cache = repo / '.cache' / 'cache with spaces'
-            with patch.dict(os.environ, FIRMWARE_CACHE_ROOT=str(cache)):
-                result = self.run_rendered_fixture(repo, 'build', '0')
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue((cache / 'buildbox-native').is_dir())
+            before = fixture_source_state(repo)
+            cache = (repo / '.cache/cache with spaces').resolve()
+            engine = fake_buildbox_engine(repo / '.cache')
+            cases = (('custom', 'false', 'custom'), ('custom', 'TRUE', 'custom+fixes'),
+                     ('upstream', 'false', 'upstream'))
+            for mode, fixes, directory in cases:
+                with self.subTest(mode=mode, fixes=fixes):
+                    result = self.run_rendered_fixture(
+                        repo, 'build', '0', engine=engine,
+                        options=(f'FIRMWARE_CACHE_ROOT={cache}', f'ARTEFACT_MODE={mode}',
+                                 f'ENABLE_FIRMWARE_FIXES={fixes}', 'FIRMWARE_BOARD=O6N',
+                                 'FIRMWARE_DISTRO=trixie', 'BUILDBOX_PLATFORM=linux/arm64'))
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    image, = (repo / 'dist/build').rglob(f'{directory}/O6N/RELEASE_GCC/cix_flash_all.bin')
+                    self.assertEqual(image.read_text(), f'{mode}/{fixes}')
+            source_cache = cache / 'buildbox-source'
+            identity = (source_cache / 'buildbox-name').read_text().strip()
+            state = json.loads(engine.with_name('containers.json').read_text())
+            mounts = state[identity]['mounts']
+            self.assertEqual(mounts['/hosttmp'], [str(source_cache), True])
+            self.assertEqual(mounts['/hostcache'], [str(cache), True])
+            self.assertEqual(mounts['/build-infra'], [str(repo.resolve()), False])
+            self.assertEqual((source_cache / 'ccache/fixture-compiles').read_text(), '3')
+            self.assertTrue((source_cache / 'locks/repo-build.lock').is_file())
+            self.assertFalse((cache / 'buildbox-replay').exists())
+            commands = [json.loads(line) for line in engine.with_name('engine.jsonl').read_text().splitlines()]
+            self.assertEqual(sum(cmd[0] == 'run' for cmd in commands), 1, commands)
+            workspace = next(Path(src) for dest, (src, _) in mounts.items() if dest.startswith('/workspaces/'))
+            self.assertFalse(cache.is_relative_to(workspace))
+            for mode, fixes, directory in cases:
+                image, = (repo / 'dist/build').rglob(f'{directory}/O6N/RELEASE_GCC/cix_flash_all.bin')
+                self.assertEqual(image.read_text(), f'{mode}/{fixes}')
+            subprocess.run(['git', '-C', str(workspace), 'diff', '--exit-code', 'HEAD', '--',
+                            'Makefile', 'src/Makefile', '.github/local/Makefile.local', 'scripts'],
+                           check=True)
+            self.assertEqual(fixture_source_state(repo), before)
 
-    def test_stock_replay_keeps_its_host_cache_namespace(self):
-        text = (REPO_ROOT / 'Makefile').read_text()
-        replay = text.split('\ndeterministic-replay:\n', 1)[1].split('\ninstall:\n', 1)[0]
-        self.assertIn('FIPTOOL_DISTRO_STAMP="$$cache_root/buildbox/fiptool/.buildbox-distro"', replay)
-        self.assertIn('FIRMWARE_VALIDATION_REPORT_ROOT="$$cache_root/build-validation"', replay)
-        self.assertNotIn('/hostcache/', replay)
-        self.assertNotIn('$$container_cache_root', replay)
+    def test_public_replay_delegates_external_host_and_container_cache_paths(self):
+        with rendering_fixture() as repo:
+            cache = (repo / '.cache/cache with spaces').resolve()
+            names = ('buildbox-source', 'buildbox-native', 'buildbox')
+            for name in names:
+                (cache / name).mkdir(parents=True)
+                (cache / name / 'buildbox-name').write_text(f'{name}-fixture\n')
+            result = self.run_rendered_fixture(repo, 'deterministic-replay', '0',
+                                               options=(f'FIRMWARE_CACHE_ROOT={cache}',))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            replay = cache / 'buildbox-replay'
+            fields = (repo / '.cache/cache-args').read_text().splitlines()
+            self.assertEqual(fields, [
+                str(replay / 'fiptool/.buildbox-distro'), str(cache / 'build-validation'),
+                str(replay / 'tmp'), str(replay / 'replay/O6-1.3.1'), str(replay),
+                '/hosttmp/ccache', '/hosttmp/ccache-toolchain', str(replay / 'buildbox-name'), '',
+            ])
+            self.assertTrue((replay / 'locks/repo-build.lock').is_file())
+            for name in names:
+                self.assertEqual((cache / name / 'buildbox-name').read_text(), f'{name}-fixture\n')
 
     def test_targetless_make_dispatches_the_upstream_profile(self) -> None:
         result = subprocess.run(

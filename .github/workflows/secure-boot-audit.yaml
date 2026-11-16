@@ -71,9 +71,6 @@ jobs:
           )"
           echo "FIRMWARE_REBUILD_RELEASE=${release}" >>"${GITHUB_ENV}"
           echo "FIRMWARE_WORKTREE=${worktree}" >>"${GITHUB_ENV}"
-          echo "FIRMWARE_CACHE=${worktree}/.cache/edk2-cix/firmware" >>"${GITHUB_ENV}"
-          buildbox_name_file="${worktree}/.cache/edk2-cix/firmware/buildbox/buildbox-name"
-          echo "EDK2_CIX_BUILDBOX_NAME_FILE=${buildbox_name_file}" >>"${GITHUB_ENV}"
 
       - name: Test firmware payload metadata audit
         run: python3 "${FIRMWARE_WORKTREE}/scripts/test_firmware_metadata_audit.py"
@@ -155,9 +152,13 @@ jobs:
           )"
           echo "FIRMWARE_REBUILD_RELEASE=${release}" >>"${GITHUB_ENV}"
           echo "FIRMWARE_WORKTREE=${worktree}" >>"${GITHUB_ENV}"
-          echo "FIRMWARE_CACHE=${worktree}/.cache/edk2-cix/firmware" >>"${GITHUB_ENV}"
-          buildbox_name_file="${worktree}/.cache/edk2-cix/firmware/buildbox/buildbox-name"
-          echo "EDK2_CIX_BUILDBOX_NAME_FILE=${buildbox_name_file}" >>"${GITHUB_ENV}"
+          cache_root="${PWD}/.cache/edk2-cix/firmware"
+          buildbox_root="${cache_root}/buildbox-source"
+          echo "FIRMWARE_CACHE=${cache_root}" >>"${GITHUB_ENV}"
+          echo "EDK2_CIX_HOST_OUTPUT_ROOT=${cache_root}" >>"${GITHUB_ENV}"
+          echo "EDK2_CIX_HOST_TMPDIR=${buildbox_root}" >>"${GITHUB_ENV}"
+          echo "EDK2_CIX_BUILDBOX_NAME_FILE=${buildbox_root}/buildbox-name" >>"${GITHUB_ENV}"
+          echo "EDK2_CIX_BUILDBOX_LOCK_ROOT=${buildbox_root}/locks" >>"${GITHUB_ENV}"
 
       - name: Check pinned Microsoft Secure Boot payloads
         shell: bash
@@ -189,11 +190,11 @@ jobs:
             FIRMWARE_TARGET=RELEASE \
             FIRMWARE_DISTRO="${FIRMWARE_DISTRO}" \
             BUILDBOX_PLATFORM=linux/amd64 \
-            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox/tmp" \
-            CCACHE_DIR="${FIRMWARE_CACHE}/ccache" \
-            CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
-            CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
-            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro" \
+            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox-source" \
+            CCACHE_DIR="/hosttmp/ccache" \
+            CCACHE_WRAPPER_ROOT="/hosttmp/ccache-toolchain" \
+            CIX_RELEASE_CACHE_ROOT="/hosttmp/cix-release" \
+            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox-source/fiptool/.buildbox-distro" \
             FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation" \
             FIRMWARE_VALIDATION_PROFILE="${validation_profile}-${FIRMWARE_DISTRO}"
           python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
@@ -223,11 +224,11 @@ jobs:
             FIRMWARE_TARGET=RELEASE \
             FIRMWARE_DISTRO="${FIRMWARE_DISTRO}" \
             BUILDBOX_PLATFORM=linux/amd64 \
-            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox/tmp" \
-            CCACHE_DIR="${FIRMWARE_CACHE}/ccache" \
-            CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
-            CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
-            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro" \
+            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox-source" \
+            CCACHE_DIR="/hosttmp/ccache" \
+            CCACHE_WRAPPER_ROOT="/hosttmp/ccache-toolchain" \
+            CIX_RELEASE_CACHE_ROOT="/hosttmp/cix-release" \
+            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox-source/fiptool/.buildbox-distro" \
             FIRMWARE_VALIDATION_REPORT_ROOT="${FIRMWARE_CACHE}/build-validation" \
             FIRMWARE_VALIDATION_PROFILE="${validation_profile}-${FIRMWARE_DISTRO}"
 
@@ -263,11 +264,11 @@ jobs:
             DEBUG_VERBOSE=false DEBUG_PRINT_ERROR_LEVEL="${{ matrix.debug_mask }}" \
             FIRMWARE_REBUILD_RELEASE="${FIRMWARE_REBUILD_RELEASE}" \
             FIRMWARE_REBUILD_BUILD_COMMIT="$(git rev-parse HEAD)" \
-            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox/tmp" \
-            CCACHE_DIR="${FIRMWARE_CACHE}/ccache" \
-            CCACHE_WRAPPER_ROOT="${FIRMWARE_CACHE}/ccache-toolchain" \
-            CIX_RELEASE_CACHE_ROOT="${FIRMWARE_CACHE}/cix-release" \
-            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox/fiptool/.buildbox-distro"
+            BUILDBOX_HOST_TMPDIR="${FIRMWARE_CACHE}/buildbox-source" \
+            CCACHE_DIR="/hosttmp/ccache" \
+            CCACHE_WRAPPER_ROOT="/hosttmp/ccache-toolchain" \
+            CIX_RELEASE_CACHE_ROOT="/hosttmp/cix-release" \
+            FIPTOOL_DISTRO_STAMP="${FIRMWARE_CACHE}/buildbox-source/fiptool/.buildbox-distro"
           python3 scripts/validate_bootloader1.py --worktree "${FIRMWARE_WORKTREE}" \
             --phase outputs --build-target buildbox-firmware-build \
             --board O6 --cix-release 1.2 \

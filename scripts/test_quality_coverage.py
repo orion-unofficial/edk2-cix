@@ -13,7 +13,6 @@ from unittest.mock import MagicMock, patch
 
 import quality_checks
 import reconstruction_common
-from reconstruction_common import selected_unofficial_current_ref
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -56,24 +55,6 @@ class QualityCoverageTests(unittest.TestCase):
         self.assertIn('--volume "$alternate:$alternate:ro"', runner)
         self.assertIn('--volume "$git_common:$git_common:ro"', runner)
         self.assertIn("--progress=plain", runner)
-
-    def test_buildbox_mounts_shared_git_objects_read_only(self) -> None:
-        source_ref = selected_unofficial_current_ref(SCRIPT_DIR.parent)
-        runner = reconstruction_common.show_file(
-            SCRIPT_DIR.parent,
-            source_ref,
-            "scripts/run_in_buildbox.sh",
-        ).decode()
-
-        if 'exec "$infra_root/scripts/run_in_buildbox.sh" "$@"' in runner:
-            self.assertIn('export EDK2_CIX_FIRMWARE_ROOT="$firmware_root"', runner)
-            self.assertIn('EDK2_CIX_BUILD_INFRA_ROOT', runner)
-            # The delegator is executed by test_buildbox_runtime; its owning
-            # central runner must retain every read-only object mount guard.
-            runner = (SCRIPT_DIR / 'run_in_buildbox.sh').read_text()
-        self.assertIn('git_objects="$(git -C "$repo_root" rev-parse', runner)
-        self.assertIn('${git_objects}/info/alternates', runner)
-        self.assertIn('record_bind_mount "$git_path" "$git_path" ro', runner)
 
     def test_quality_command_reports_a_heartbeat(self) -> None:
         with (

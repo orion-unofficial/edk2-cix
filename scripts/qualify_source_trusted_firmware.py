@@ -75,8 +75,7 @@ def main():
                        cwd=worktree, env=dict(os.environ,
                                               CIX_RELEASE='',
                                               EDK2_CIX_BUILDBOX_IMAGE=os.environ.get('EDK2_CIX_BUILDBOX_IMAGE') or f'mcr.microsoft.com/devcontainers/base:{args.distro}',
-                                              EDK2_CIX_BUILDBOX_PLATFORM=os.environ.get('BUILDBOX_PLATFORM', 'linux/amd64'),
-                                              EDK2_CIX_HOST_TMPDIR=os.environ.get('EDK2_CIX_HOST_TMPDIR', str(worktree / '.cache/edk2-cix/firmware/buildbox/tmp'))), check=True)
+                                              EDK2_CIX_BUILDBOX_PLATFORM=os.environ.get('BUILDBOX_PLATFORM', 'linux/amd64')), check=True)
         image = worktree / QUALIFICATION_ROOT / fixes / 'bootloader2.img'
         result = validate_fip(image.read_bytes(), 'trusted',
                               selected['trusted_root_spki_sha256'], selected['trusted_counter'])
